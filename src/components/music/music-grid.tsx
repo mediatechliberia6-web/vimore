@@ -1,9 +1,11 @@
+
 "use client";
 
-import { Play, Pause, MoreVertical } from "lucide-react";
+import { Play, Pause, MoreVertical, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMusic, Track } from "@/context/MusicContext";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 const MOCK_SONGS: Track[] = [
   { id: 1, title: "Essence", artist: "Wizkid ft. Tems", cover: "https://picsum.photos/seed/song1/400/400", streams: "124M", duration: 240 },
@@ -18,48 +20,52 @@ export function MusicGrid({ type }: { type: "trending" | "charts" }) {
   const { currentTrack, isPlaying, setTrack, togglePlay } = useMusic();
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-8">
       {MOCK_SONGS.map((song) => {
         const isCurrent = currentTrack?.id === song.id;
         
         return (
-          <div key={song.id} className="group relative flex flex-col gap-3">
+          <div key={song.id} className="group relative flex flex-col gap-4">
             {/* Cover Art */}
-            <div className="relative aspect-square rounded-2xl overflow-hidden border border-white/5 shadow-2xl bg-zinc-900 group-hover:scale-[1.03] transition-all duration-500">
+            <div className="relative aspect-square rounded-[2rem] overflow-hidden border border-border shadow-md bg-card group-hover:scale-[1.03] transition-all duration-500 group-hover:shadow-xl group-hover:shadow-primary/10">
               <Image 
                 src={song.cover} 
                 alt={song.title} 
                 fill
-                className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
               
               {/* Overlay Actions */}
               <div className={cn(
-                "absolute inset-0 bg-black/40 transition-opacity flex items-center justify-center gap-3",
+                "absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity flex items-center justify-center",
                 isCurrent ? "opacity-100" : "opacity-0 group-hover:opacity-100"
               )}>
                 <Button 
                   size="icon" 
-                  className="h-12 w-12 rounded-full bg-orange-500 hover:bg-orange-400 text-black shadow-xl shadow-orange-500/20 scale-90 group-hover:scale-100 transition-all duration-300"
+                  className="h-14 w-14 rounded-full bg-white text-primary hover:bg-primary hover:text-white shadow-2xl scale-90 group-hover:scale-100 transition-all duration-500"
                   onClick={() => isCurrent ? togglePlay() : setTrack(song)}
                 >
-                  {isCurrent && isPlaying ? <Pause className="h-6 w-6 fill-current" /> : <Play className="h-6 w-6 fill-current" />}
+                  {isCurrent && isPlaying ? <Pause className="h-7 w-7 fill-current" /> : <Play className="h-7 w-7 fill-current ml-1" />}
                 </Button>
               </div>
 
-              {/* Stream Count Badge */}
-              <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
-                 <span className="text-[9px] font-black italic text-zinc-300">{song.streams}</span>
-              </div>
+              {/* Like Button */}
+              <button className="absolute top-4 right-4 bg-white/20 backdrop-blur-md p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/40">
+                 <Heart className="h-4 w-4 text-white" />
+              </button>
 
-              {/* Active Indicator */}
+              {/* Active Animation */}
               {isCurrent && isPlaying && (
-                <div className="absolute bottom-2 right-2 flex gap-0.5 items-end h-4">
-                  {[1, 2, 3].map(i => (
+                <div className="absolute bottom-4 right-4 flex gap-0.5 items-end h-5">
+                  {[1, 2, 3, 4].map(i => (
                     <div 
                       key={i} 
-                      className="w-0.5 bg-orange-500 rounded-full animate-bounce h-full" 
-                      style={{ animationDelay: `${i * 0.1}s` }}
+                      className="w-1 bg-white rounded-full animate-bounce h-full" 
+                      style={{ 
+                        height: `${Math.random() * 60 + 40}%`,
+                        animationDelay: `${i * 0.1}s`,
+                        animationDuration: '0.6s'
+                      }} 
                     />
                   ))}
                 </div>
@@ -67,19 +73,22 @@ export function MusicGrid({ type }: { type: "trending" | "charts" }) {
             </div>
 
             {/* Song Info */}
-            <div className="space-y-1">
+            <div className="space-y-1.5 px-2">
               <div className="flex items-start justify-between gap-2">
                 <h3 className={cn(
                   "font-bold text-sm truncate transition-colors leading-tight",
-                  isCurrent ? "text-orange-500" : "group-hover:text-orange-400"
+                  isCurrent ? "text-primary" : "group-hover:text-primary"
                 )}>
                   {song.title}
                 </h3>
-                <button className="text-zinc-600 hover:text-white transition-colors">
+                <button className="text-muted-foreground hover:text-primary transition-colors">
                   <MoreVertical className="h-4 w-4" />
                 </button>
               </div>
-              <p className="text-[11px] text-zinc-500 font-medium truncate">{song.artist}</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground font-medium truncate">{song.artist}</p>
+                <span className="text-[10px] font-bold text-muted-foreground/60">{song.streams}</span>
+              </div>
             </div>
           </div>
         );
@@ -87,5 +96,3 @@ export function MusicGrid({ type }: { type: "trending" | "charts" }) {
     </div>
   );
 }
-
-import { cn } from "@/lib/utils";

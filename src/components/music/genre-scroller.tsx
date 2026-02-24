@@ -25,16 +25,16 @@ export function GenreScroller() {
 
   return (
     <ScrollArea className="w-full whitespace-nowrap">
-      <div className="flex gap-3 pb-2">
+      <div className="flex gap-3 pb-4 px-2">
         {GENRES.map((genre) => (
           <button
             key={genre}
             onClick={() => setActiveGenre(genre)}
             className={cn(
-              "px-6 py-2.5 rounded-2xl text-xs font-black italic uppercase tracking-widest transition-all",
+              "px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300",
               activeGenre === genre 
-                ? "bg-orange-500 text-black shadow-lg shadow-orange-500/20 scale-105" 
-                : "bg-white/5 text-zinc-500 hover:bg-white/10 hover:text-zinc-300"
+                ? "bg-primary text-white shadow-lg shadow-primary/25 scale-105" 
+                : "bg-secondary/40 text-muted-foreground hover:bg-secondary/60 hover:text-foreground border border-transparent hover:border-border"
             )}
           >
             {genre}
