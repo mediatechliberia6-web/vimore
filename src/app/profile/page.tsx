@@ -35,7 +35,11 @@ import {
   Globe,
   ExternalLink,
   Volume2,
-  Play
+  Play,
+  Users,
+  Trophy,
+  Star,
+  Users2
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
@@ -50,9 +54,16 @@ export default function ProfilePage() {
 
   // Simulate loading state for skeleton demonstration
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1200);
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+      // Phase 3: Profile Visit Notification simulation
+      toast({
+        title: "Profile Visit",
+        description: "Sarah Chen just visited your profile.",
+      });
+    }, 1200);
     return () => clearTimeout(timer);
-  }, []);
+  }, [toast]);
   
   const user = {
     name: "John Doe",
@@ -76,7 +87,22 @@ export default function ProfilePage() {
     links: [
       { label: "Portfolio", url: "https://johndoe.design", icon: Globe },
       { label: "Latest Project", url: "https://vimore.io", icon: ExternalLink }
-    ]
+    ],
+    // Phase 3: Mock Mutual Friends
+    mutualFriends: [
+      { name: "Sarah Chen", avatar: "https://picsum.photos/seed/2/100/100" },
+      { name: "Alex Rivera", avatar: "https://picsum.photos/seed/1/100/100" },
+      { name: "Marcus Stone", avatar: "https://picsum.photos/seed/3/100/100" }
+    ],
+    mutualCount: 15,
+    // Phase 3: Top Contributors
+    topContributors: [
+      { name: "Elena Gilbert", avatar: "https://picsum.photos/seed/4/100/100", role: "Top Fan", color: "bg-yellow-500" },
+      { name: "Marcus Stone", avatar: "https://picsum.photos/seed/3/100/100", role: "Rising Star", color: "bg-blue-500" },
+      { name: "Sarah Chen", avatar: "https://picsum.photos/seed/2/100/100", role: "Supporter", color: "bg-green-500" }
+    ],
+    // Phase 3: Follow back indicator simulation
+    followsYou: true
   };
 
   const handleCopyBio = () => {
@@ -206,6 +232,12 @@ export default function ProfilePage() {
                       <Badge variant="secondary" className="bg-secondary/50 text-[10px] font-bold py-0.5 px-2">
                         {user.pronouns}
                       </Badge>
+                      {/* Phase 3: Follow Back Indicator */}
+                      {user.followsYou && (
+                        <Badge variant="outline" className="text-[9px] font-bold text-muted-foreground uppercase py-0.5 px-2 border-muted-foreground/20">
+                          Follows You
+                        </Badge>
+                      )}
                       <Button 
                         variant="ghost" 
                         size="sm" 
@@ -241,6 +273,27 @@ export default function ProfilePage() {
                         <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span>
                       </div>
                     </>
+                  )}
+                </div>
+
+                {/* Phase 3: Mutual Friends Insight */}
+                <div className="py-2">
+                  {isLoading ? (
+                    <Skeleton className="h-6 w-64" />
+                  ) : (
+                    <div className="flex items-center gap-2 group cursor-pointer">
+                      <div className="flex -space-x-2">
+                        {user.mutualFriends.map((friend, idx) => (
+                          <Avatar key={idx} className="h-6 w-6 border-2 border-white dark:border-card">
+                            <AvatarImage src={friend.avatar} />
+                            <AvatarFallback>{friend.name[0]}</AvatarFallback>
+                          </Avatar>
+                        ))}
+                      </div>
+                      <p className="text-[12px] text-muted-foreground">
+                        Followed by <span className="font-bold text-foreground hover:underline">{user.mutualFriends[0].name}</span>, <span className="font-bold text-foreground hover:underline">{user.mutualFriends[1].name}</span> and <span className="font-bold text-foreground">{user.mutualCount} others</span> you know
+                      </p>
+                    </div>
                   )}
                 </div>
 
@@ -391,10 +444,50 @@ export default function ProfilePage() {
               </TabsList>
               
               <TabsContent value="all" className="p-4 space-y-6">
+                {/* Phase 3: Top Contributors Card */}
+                <Card className="rounded-2xl border border-border shadow-sm overflow-hidden bg-white dark:bg-card/50">
+                  <CardHeader className="pb-3 pt-4 px-4 flex flex-row items-center justify-between border-b border-border/50">
+                    <div className="flex items-center gap-2">
+                      <Trophy className="h-5 w-5 text-yellow-500" />
+                      <CardTitle className="text-lg font-bold">Top Contributors</CardTitle>
+                    </div>
+                    <Button variant="ghost" size="sm" className="text-primary text-xs font-bold">See all</Button>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="flex flex-col gap-4">
+                      {user.topContributors.map((contributor, idx) => (
+                        <div key={idx} className="flex items-center justify-between group">
+                          <div className="flex items-center gap-3">
+                            <div className="relative">
+                              <Avatar className="h-10 w-10 border border-primary/10">
+                                <AvatarImage src={contributor.avatar} />
+                                <AvatarFallback>{contributor.name[0]}</AvatarFallback>
+                              </Avatar>
+                              <div className={cn("absolute -bottom-1 -right-1 rounded-full p-0.5 border-2 border-white dark:border-card", contributor.color)}>
+                                <Star className="h-2 w-2 text-white fill-current" />
+                              </div>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold">{contributor.name}</span>
+                              <span className="text-[10px] text-muted-foreground font-black uppercase tracking-wider">{contributor.role}</span>
+                            </div>
+                          </div>
+                          <Button variant="secondary" size="sm" className="h-8 rounded-full text-[11px] font-bold bg-secondary hover:bg-primary hover:text-white transition-all">
+                            Send thanks
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* Personal Details Card */}
                 <Card className="rounded-2xl border border-border shadow-sm overflow-hidden bg-white dark:bg-card/50">
                   <CardHeader className="pb-3 pt-4 px-4 flex flex-row items-center justify-between border-b border-border/50">
-                    <CardTitle className="text-lg font-bold">Personal details</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Users2 className="h-5 w-5 text-primary" />
+                      <CardTitle className="text-lg font-bold">Personal details</CardTitle>
+                    </div>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-primary">
                       <Edit2 className="h-4 w-4" />
                     </Button>
