@@ -16,7 +16,8 @@ import {
   Video,
   ChevronLeft,
   Lock,
-  Users
+  Users,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,6 +34,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import Image from "next/image";
+import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 interface CreatePostModalProps {
   children: React.ReactNode;
@@ -56,6 +59,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [privacy, setPrivacy] = useState<PrivacySetting>(privacySettings[0]);
+  const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
   const { toast } = useToast();
   
   const CHARACTER_LIMIT = 2000;
@@ -102,10 +106,20 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     toast({ title: "Post created!", description: "Your post has been shared with the community." });
     setContent("");
     setSuggestedTags([]);
+    setSelectedMedia([]);
+  };
+
+  const simulateMediaUpload = () => {
+    const randomImg = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)].imageUrl;
+    setSelectedMedia(prev => [...prev, randomImg]);
+  };
+
+  const removeMedia = (index: number) => {
+    setSelectedMedia(prev => prev.filter((_, i) => i !== index));
   };
 
   const actionItems = [
-    { icon: ImageIcon, label: "Photos/Videos", color: "text-green-500" },
+    { icon: ImageIcon, label: "Photos/Videos", color: "text-green-500", onClick: simulateMediaUpload },
     { icon: UserPlus, label: "Tag people", color: "text-blue-500" },
     { icon: MapPin, label: "Add location", color: "text-red-500" },
     { icon: Smile, label: "Feeling/activity", color: "text-yellow-500" },
@@ -114,13 +128,14 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     { icon: Video, label: "Go live", color: "text-red-600" },
   ];
 
-  const backgroundColors = [
-    "bg-white border",
-    "bg-gradient-to-br from-yellow-200 to-yellow-400",
-    "bg-gradient-to-br from-purple-500 to-purple-800",
-    "bg-gradient-to-br from-pink-500 to-red-500",
-    "bg-black",
-    "bg-gradient-to-br from-purple-600 to-blue-500",
+  const backgrounds = [
+    { id: 'white', class: "bg-white border" },
+    { id: 'yellow', class: "bg-gradient-to-br from-yellow-200 to-yellow-400" },
+    { id: 'purple', class: "bg-gradient-to-br from-purple-500 to-purple-800" },
+    { id: 'pink', class: "bg-gradient-to-br from-pink-500 to-red-500" },
+    { id: 'black', class: "bg-black" },
+    { id: 'mesh', class: "bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-primary" },
+    { id: 'dots', class: "bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] bg-accent" },
   ];
 
   const progress = (content.length / CHARACTER_LIMIT) * 100;
@@ -132,9 +147,11 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         {children}
       </DialogTrigger>
       
-      <DialogContent className="max-w-none w-screen h-[100dvh] m-0 rounded-none border-none flex flex-col p-0 gap-0 overflow-hidden bg-white translate-x-0 translate-y-0 left-0 top-0">
+      <DialogContent className="max-w-none w-screen h-[100dvh] m-0 rounded-none border-none flex flex-col p-0 gap-0 overflow-hidden bg-white dark:bg-background translate-x-0 translate-y-0 left-0 top-0" aria-describedby="create-post-description">
+        <div id="create-post-description" className="sr-only">Interface to create a new post with text, media, and AI tools.</div>
+        
         {/* Header */}
-        <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0">
+        <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0 bg-white dark:bg-card">
           <div className="flex items-center gap-4">
             <DialogClose asChild>
               <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" aria-label="Go back">
@@ -146,8 +163,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           <DialogClose asChild>
             <Button 
               variant="ghost" 
-              className={cn("font-bold text-primary text-base", (!content.trim() || isOverLimit) && "opacity-50")}
-              disabled={!content.trim() || isOverLimit}
+              className={cn("font-bold text-primary text-base", (!content.trim() && selectedMedia.length === 0 || isOverLimit) && "opacity-50")}
+              disabled={(!content.trim() && selectedMedia.length === 0) || isOverLimit}
               onClick={handlePost}
               aria-label="Submit post"
             >
@@ -198,7 +215,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           <div className="px-4 relative">
             <Textarea 
               placeholder="What's on your mind?" 
-              className="border-none focus-visible:ring-0 text-2xl resize-none p-0 placeholder:text-muted-foreground/50 min-h-[200px]"
+              className="border-none focus-visible:ring-0 text-2xl resize-none p-0 placeholder:text-muted-foreground/50 min-h-[150px] bg-transparent"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               autoFocus
@@ -234,6 +251,36 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           </div>
 
+          {/* Media Strip */}
+          {selectedMedia.length > 0 && (
+            <div className="px-4 pb-4">
+              <ScrollArea className="w-full whitespace-nowrap rounded-xl">
+                <div className="flex gap-2 p-1">
+                  {selectedMedia.map((url, i) => (
+                    <div key={i} className="relative w-32 h-32 rounded-lg overflow-hidden shrink-0 border border-primary/10">
+                      <Image src={url} alt={`Preview ${i}`} fill className="object-cover" />
+                      <button 
+                        onClick={() => removeMedia(i)}
+                        className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors"
+                        aria-label="Remove media"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  <button 
+                    onClick={simulateMediaUpload}
+                    className="w-32 h-32 rounded-lg border-2 border-dashed border-primary/20 flex flex-col items-center justify-center gap-2 hover:bg-primary/5 transition-colors text-muted-foreground"
+                  >
+                    <PlusSquare className="h-6 w-6" />
+                    <span className="text-[10px] font-bold">Add More</span>
+                  </button>
+                </div>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            </div>
+          )}
+
           {/* AI Suggested Tags */}
           {suggestedTags.length > 0 && (
             <div className="px-4 pb-4">
@@ -267,12 +314,9 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
              <ScrollArea className="w-full whitespace-nowrap">
                 <div className="flex gap-2">
                   <div className="w-10 h-10 rounded-lg border-2 border-primary/20 bg-white" />
-                  {backgroundColors.map((color, i) => (
-                    <div key={i} className={cn("w-10 h-10 rounded-lg shrink-0 cursor-pointer", color)} />
+                  {backgrounds.map((bg) => (
+                    <div key={bg.id} className={cn("w-10 h-10 rounded-lg shrink-0 cursor-pointer", bg.class)} />
                   ))}
-                  <div className="w-10 h-10 rounded-lg bg-secondary/50 flex items-center justify-center cursor-pointer">
-                    <span className="text-xl font-bold">@</span>
-                  </div>
                 </div>
                 <ScrollBar orientation="horizontal" className="hidden" />
              </ScrollArea>
@@ -283,6 +327,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             {actionItems.map((item, i) => (
               <button 
                 key={i} 
+                onClick={item.onClick}
                 className="w-full flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors"
                 aria-label={item.label}
               >
@@ -313,11 +358,11 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         </div>
 
         {/* Footer Post Button */}
-        <div className="p-4 pb-10 bg-white border-t shrink-0 sm:pb-4">
+        <div className="p-4 pb-10 bg-white dark:bg-card border-t shrink-0 sm:pb-4">
           <DialogClose asChild>
             <Button 
               className="w-full h-12 font-bold text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-none"
-              disabled={!content.trim() || isOverLimit}
+              disabled={(!content.trim() && selectedMedia.length === 0) || isOverLimit}
               onClick={handlePost}
               aria-label="Post now"
             >
@@ -328,4 +373,25 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       </DialogContent>
     </Dialog>
   );
+}
+
+function PlusSquare(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M8 12h8" />
+      <path d="M12 8v8" />
+    </svg>
+  )
 }

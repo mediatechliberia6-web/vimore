@@ -17,11 +17,16 @@ const mockPosts = [
       isVerified: true,
       isOnline: true
     },
-    content: "Just started using ViMore and I'm loving the clean aesthetic! The lavender background is so calming. ✨ Check out my new studio progress!",
+    content: "Just started using ViMore and I'm loving the clean aesthetic! Check out the multi-image carousel test. ✨ https://vimore.io",
     time: "5m",
     likes: 24,
     comments: 4,
-    hashtags: ["NewBeginnings", "SocialMedia"]
+    hashtags: ["NewBeginnings", "SocialMedia"],
+    images: [
+      "https://picsum.photos/seed/multi1/800/600",
+      "https://picsum.photos/seed/multi2/800/600",
+      "https://picsum.photos/seed/multi3/800/600"
+    ]
   },
   {
     id: "2",
@@ -57,7 +62,7 @@ const mockPosts = [
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#F0F2F5] flex flex-col items-center">
+    <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#080808] flex flex-col items-center transition-colors duration-300">
       <Header />
       
       <div className="w-full max-w-[1440px] grid grid-cols-1 lg:grid-cols-[280px_1fr_360px] gap-8 px-4 py-6">
