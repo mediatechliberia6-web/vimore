@@ -21,7 +21,7 @@ import {
   ChevronUp,
   Gift,
   Users2,
-  MessageSquareOff
+  MessageCircleOff
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -520,7 +520,6 @@ export function PostCard({
       {!isShared && (
         <CardFooter className="p-1 px-3 flex flex-col gap-1 relative">
           <div className="flex items-center justify-between gap-1 w-full relative">
-            {/* 1. Like */}
             <Button 
               variant="ghost" 
               size="sm" 
@@ -534,7 +533,6 @@ export function PostCard({
               <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />
             </Button>
             
-            {/* 2. Unlike */}
             <Button 
               variant="ghost" 
               size="sm" 
@@ -548,7 +546,6 @@ export function PostCard({
               <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} />
             </Button>
             
-            {/* 3. Gift (Conditional - 1000+ followers) */}
             {showGiftIcon && (
               <Button 
                 variant="ghost" 
@@ -560,7 +557,6 @@ export function PostCard({
               </Button>
             )}
 
-            {/* 4. Comments */}
             <Button 
               variant="ghost" 
               size="sm" 
@@ -575,7 +571,6 @@ export function PostCard({
               <MessageCircle className="h-4 w-4" />
             </Button>
 
-            {/* 5. Share */}
             <Button 
               variant="ghost" 
               size="sm" 
@@ -609,7 +604,7 @@ export function PostCard({
 
           {commentsDisabled && (
             <div className="w-full py-3 flex items-center justify-center gap-2 text-muted-foreground bg-secondary/10 rounded-lg mt-1 border border-dashed border-secondary">
-              <MessageSquareOff className="h-3.5 w-3.5" />
+              <MessageCircleOff className="h-3.5 w-3.5" />
               <span className="text-[10px] font-bold uppercase tracking-widest">Comments are turned off</span>
             </div>
           )}

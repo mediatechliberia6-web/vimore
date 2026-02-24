@@ -26,7 +26,7 @@ import {
   Palette,
   Clock,
   Settings2,
-  MessageSquareOff,
+  MessageCircleOff,
   Filter,
   Wand2,
   Trash2
@@ -773,7 +773,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/20">
                   <div className="flex items-center gap-3">
-                    <MessageSquareOff className="h-5 w-5 text-muted-foreground" />
+                    <MessageCircleOff className="h-5 w-5 text-muted-foreground" />
                     <div className="flex flex-col">
                       <Label htmlFor="disable-comments" className="text-sm font-bold cursor-pointer">Disable Comments</Label>
                       <span className="text-[10px] text-muted-foreground">Prevent others from commenting on this post</span>
