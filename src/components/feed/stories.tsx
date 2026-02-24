@@ -4,6 +4,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import Image from "next/image";
+import { Plus } from "lucide-react";
 
 const mockStories = [
   { id: 2, name: "Alex Rivera", avatar: "https://picsum.photos/seed/1/100/100", image: "https://picsum.photos/seed/s2/200/300" },
@@ -13,11 +14,35 @@ const mockStories = [
   { id: 6, name: "Tech Insider", avatar: "https://picsum.photos/seed/10/100/100", image: "https://picsum.photos/seed/s6/200/300" },
 ];
 
+const USER_PROFILE = {
+  name: "John Doe",
+  avatar: "https://picsum.photos/seed/me/200/200",
+};
+
 export function Stories() {
   return (
     <div className="w-full">
       <ScrollArea className="w-full whitespace-nowrap">
         <div className="flex w-max space-x-2.5 p-1 pb-4">
+          {/* Create Story */}
+          <div className="relative w-28 h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-sm hover:shadow-md transition-shadow bg-white dark:bg-card border border-primary/10">
+            <div className="relative h-[70%] w-full">
+              <Image 
+                src={USER_PROFILE.avatar} 
+                alt="My Story" 
+                fill 
+                className="object-cover transition-transform group-hover:scale-105 duration-500"
+              />
+              <div className="absolute inset-0 bg-black/10" />
+            </div>
+            <div className="relative h-[30%] bg-white dark:bg-card flex flex-col items-center justify-center">
+              <div className="absolute -top-4 w-8 h-8 bg-primary rounded-full border-4 border-white dark:border-card flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110">
+                <Plus className="h-5 w-5" />
+              </div>
+              <span className="mt-3 text-[10px] font-bold text-foreground">Create Story</span>
+            </div>
+          </div>
+
           {mockStories.map((story) => (
             <div key={story.id} className="relative w-28 h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-sm hover:shadow-md transition-shadow">
               <Image 
