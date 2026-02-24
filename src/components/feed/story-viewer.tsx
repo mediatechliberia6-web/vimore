@@ -374,8 +374,8 @@ export function StoryViewer() {
           {reactions.map((r) => (
             <div
               key={r.id}
-              className="absolute bottom-20 text-4xl animate-out fade-out slide-out-to-top-[300px] duration-[2000ms] pointer-events-none"
-              style={{ left: `${r.x}%` }}
+              className="absolute bottom-20 text-4xl animate-out fade-out slide-out-to-top-[300px] pointer-events-none"
+              style={{ left: `${r.x}%`, animationDuration: '2000ms' }}
             >
               {r.emoji}
             </div>
