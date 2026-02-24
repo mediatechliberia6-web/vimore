@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -26,7 +27,9 @@ import {
   Clock,
   Settings2,
   MessageSquareOff,
-  Filter
+  Filter,
+  Wand2,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -53,6 +56,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { aiSuggestHashtags, aiSummarizePost } from "@/app/actions/ai";
 
 interface CreatePostModalProps {
   children: React.ReactNode;
@@ -143,6 +147,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [showFilterSelector, setShowFilterSelector] = useState(false);
   const [recentLocations, setRecentLocations] = useState<string[]>([]);
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -154,15 +159,24 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const MAX_POLL_OPTIONS = 8;
 
   useEffect(() => {
-    const saved = localStorage.getItem('vimore_recent_locations');
-    if (saved) {
+    const savedContent = localStorage.getItem('vimore_post_draft');
+    if (savedContent) setContent(savedContent);
+    
+    const savedLocs = localStorage.getItem('vimore_recent_locations');
+    if (savedLocs) {
       try {
-        setRecentLocations(JSON.parse(saved));
+        setRecentLocations(JSON.parse(savedLocs));
       } catch (e) {
         console.error("Failed to load recents", e);
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (content) {
+      localStorage.setItem('vimore_post_draft', content);
+    }
+  }, [content]);
 
   useEffect(() => {
     const words = content.split(/\s+/);
@@ -198,6 +212,31 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     }, 0);
   };
 
+  const handleAiEnhance = async () => {
+    if (!content.trim()) return;
+    setIsAiLoading(true);
+    try {
+      const [hashtagsRes, summaryRes] = await Promise.all([
+        aiSuggestHashtags({ postContent: content }),
+        aiSummarizePost({ postContent: content })
+      ]);
+      
+      const tags = hashtagsRes.hashtags.join(" ");
+      setContent(prev => `${prev}\n\n${tags}`);
+      toast({ title: "AI Enhanced!", description: "Suggested hashtags added to your post." });
+    } catch (error) {
+      toast({ variant: "destructive", title: "AI Error", description: "Failed to enhance post. Try again." });
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const clearDraft = () => {
+    setContent("");
+    localStorage.removeItem('vimore_post_draft');
+    toast({ description: "Draft cleared." });
+  };
+
   const handlePost = () => {
     if (location) {
       const updatedRecents = [location, ...recentLocations.filter(l => l !== location)].slice(0, 5);
@@ -230,6 +269,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     });
 
     toast({ title: "Post created!", description: "Your post has been shared with the community." });
+    localStorage.removeItem('vimore_post_draft');
     
     setContent("");
     setSelectedMedia([]);
@@ -445,16 +485,33 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </DialogClose>
             <DialogTitle className="font-bold text-lg">Create post</DialogTitle>
           </div>
-          <DialogClose asChild>
-            <Button 
+          <div className="flex items-center gap-2">
+             <Button 
               variant="ghost" 
-              className={cn("font-bold text-primary text-base", (!content.trim() && selectedMedia.length === 0 && !pollQuestion || isOverLimit) && "opacity-50")}
-              disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit}
-              onClick={handlePost}
+              size="icon" 
+              className="text-primary h-9 w-9" 
+              onClick={handleAiEnhance}
+              disabled={isAiLoading || !content.trim()}
+              title="AI Enhance"
             >
-              POST
+              {isAiLoading ? <Clock className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}
             </Button>
-          </DialogClose>
+            {content && (
+              <Button variant="ghost" size="icon" className="text-destructive h-9 w-9" onClick={clearDraft} title="Clear Draft">
+                <Trash2 className="h-5 w-5" />
+              </Button>
+            )}
+            <DialogClose asChild>
+              <Button 
+                variant="ghost" 
+                className={cn("font-bold text-primary text-base", (!content.trim() && selectedMedia.length === 0 && !pollQuestion || isOverLimit) && "opacity-50")}
+                disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit}
+                onClick={handlePost}
+              >
+                POST
+              </Button>
+            </DialogClose>
+          </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto pb-safe">

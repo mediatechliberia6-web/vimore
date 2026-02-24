@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -204,7 +205,6 @@ export function PostCard({
   };
 
   const renderContent = (text: string) => {
-    // Basic Markdown Parsing: **Bold**, _Italic_, `Code`
     const parts = text.split(/(\*\*.*?\*\*|_.*?_|`.*?`)/g);
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
@@ -520,6 +520,7 @@ export function PostCard({
       {!isShared && (
         <CardFooter className="p-1 px-3 flex flex-col gap-1 relative">
           <div className="flex items-center justify-between gap-1 w-full relative">
+            {/* 1. Like */}
             <Button 
               variant="ghost" 
               size="sm" 
@@ -532,6 +533,8 @@ export function PostCard({
             >
               <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />
             </Button>
+            
+            {/* 2. Unlike */}
             <Button 
               variant="ghost" 
               size="sm" 
@@ -544,6 +547,8 @@ export function PostCard({
             >
               <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} />
             </Button>
+            
+            {/* 3. Gift (Conditional - 1000+ followers) */}
             {showGiftIcon && (
               <Button 
                 variant="ghost" 
@@ -554,6 +559,8 @@ export function PostCard({
                 <Gift className="h-4 w-4" />
               </Button>
             )}
+
+            {/* 4. Comments */}
             <Button 
               variant="ghost" 
               size="sm" 
@@ -567,6 +574,8 @@ export function PostCard({
             >
               <MessageCircle className="h-4 w-4" />
             </Button>
+
+            {/* 5. Share */}
             <Button 
               variant="ghost" 
               size="sm" 
