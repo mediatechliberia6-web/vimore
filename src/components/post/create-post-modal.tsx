@@ -106,7 +106,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         {children}
       </DialogTrigger>
       
-      <DialogContent className="max-w-none w-screen h-screen sm:h-screen m-0 rounded-none border-none flex flex-col p-0 gap-0 overflow-hidden bg-white translate-x-0 translate-y-0 left-0 top-0">
+      <DialogContent className="max-w-none w-screen h-[100dvh] m-0 rounded-none border-none flex flex-col p-0 gap-0 overflow-hidden bg-white translate-x-0 translate-y-0 left-0 top-0">
         {/* Header */}
         <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0">
           <div className="flex items-center gap-4">
@@ -235,7 +235,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         </div>
 
         {/* Footer Post Button */}
-        <div className="p-4 bg-white border-t shrink-0">
+        <div className="p-4 pb-10 bg-white border-t shrink-0 sm:pb-4">
           <DialogClose asChild>
             <Button 
               className="w-full h-12 font-bold text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-none"
