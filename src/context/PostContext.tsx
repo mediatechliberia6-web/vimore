@@ -2,16 +2,19 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
+export interface User {
+  name: string;
+  username: string;
+  avatar: string;
+  isVerified?: boolean;
+  isOnline?: boolean;
+  followers?: number;
+}
+
 export interface Post {
   id: string;
-  user: {
-    name: string;
-    username: string;
-    avatar: string;
-    isVerified?: boolean;
-    isOnline?: boolean;
-    followers?: number;
-  };
+  user: User;
+  collaborator?: User;
   content: string;
   time: string;
   likes: number;
@@ -85,6 +88,11 @@ const initialMockPosts: Post[] = [
       avatar: "https://picsum.photos/seed/1/100/100",
       isOnline: true,
       followers: 850
+    },
+    collaborator: {
+      name: "Julianne Moore",
+      username: "jmoore",
+      avatar: "https://picsum.photos/seed/50/200/200"
     },
     content: "I totally agree with Julianne! This is a game changer for real-time social connection. 🚀",
     time: "10m",

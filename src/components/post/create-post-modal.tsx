@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -18,7 +17,8 @@ import {
   Clapperboard,
   Play,
   Check,
-  History
+  History,
+  Users2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -55,9 +55,10 @@ const privacySettings: PrivacySetting[] = [
 ];
 
 const mockFriends = [
-  { name: "Alex Rivera", avatar: "https://picsum.photos/seed/1/100/100" },
-  { name: "Sarah Chen", avatar: "https://picsum.photos/seed/2/100/100" },
-  { name: "Marcus Stone", avatar: "https://picsum.photos/seed/3/100/100" },
+  { name: "Alex Rivera", username: "arivera", avatar: "https://picsum.photos/seed/1/100/100" },
+  { name: "Sarah Chen", username: "schen_dev", avatar: "https://picsum.photos/seed/2/100/100" },
+  { name: "Marcus Stone", username: "mstone", avatar: "https://picsum.photos/seed/3/100/100" },
+  { name: "Julianne Moore", username: "jmoore", avatar: "https://picsum.photos/seed/50/200/200" },
 ];
 
 const feelings = [
@@ -92,6 +93,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [location, setLocation] = useState<string | null>(null);
   const [locationSearch, setLocationSearch] = useState("");
   const [isTagging, setIsTagging] = useState(false);
+  const [collaborator, setCollaborator] = useState<typeof mockFriends[0] | null>(null);
   
   const [showFeelingSelector, setShowFeelingSelector] = useState(false);
   const [showLocationSelector, setShowLocationSelector] = useState(false);
@@ -128,8 +130,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
   const handleMention = (friend: typeof mockFriends[0]) => {
     const words = content.split(/\s+/);
-    words.pop();
-    setContent([...words, `@${friend.name.replace(/\s+/g, '')}`, ""].join(" "));
+    words.pop(); // Remove the incomplete @mention
+    setContent([...words, `@${friend.username}`, ""].join(" "));
     setIsTagging(false);
   };
 
@@ -140,7 +142,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       localStorage.setItem('vimore_recent_locations', JSON.stringify(updatedRecents));
     }
 
-    // Add post to global state
     addPost({
       user: {
         name: USER_PROFILE.name,
@@ -148,6 +149,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         avatar: USER_PROFILE.avatar,
         isOnline: true
       },
+      collaborator: collaborator || undefined,
       content,
       images: mediaType === 'image' ? selectedMedia : undefined,
       image: mediaType === 'video' ? undefined : (selectedMedia[0] || undefined),
@@ -172,6 +174,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setLocationSearch("");
     setPollQuestion("");
     setPollOptions(["", ""]);
+    setCollaborator(null);
   };
 
   const handlePhotoUploadClick = () => {
@@ -353,28 +356,62 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                 {location && <span className="text-[13px] text-muted-foreground">— in <span className="font-bold text-foreground">{location}</span></span>}
               </div>
               
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="secondary" size="sm" className="h-7 px-2 bg-secondary/60 rounded-md flex items-center gap-1.5">
-                    <privacy.icon className="h-3.5 w-3.5" />
-                    <span className="text-[13px] font-bold">{privacy.label}</span>
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-64 rounded-xl p-2">
-                  <div className="px-2 py-1.5 text-xs font-bold text-muted-foreground uppercase">Select Audience</div>
-                  {privacySettings.map((item) => (
-                    <DropdownMenuItem key={item.id} className="flex flex-col items-start gap-0.5 py-3 cursor-pointer" onClick={() => setPrivacy(item)}>
-                      <div className="flex items-center gap-2 font-bold text-sm"><item.icon className="h-4 w-4" />{item.label}</div>
-                      <span className="text-[10px] text-muted-foreground ml-6">{item.description}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="secondary" size="sm" className="h-7 px-2 bg-secondary/60 rounded-md flex items-center gap-1.5">
+                      <privacy.icon className="h-3.5 w-3.5" />
+                      <span className="text-[13px] font-bold">{privacy.label}</span>
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-64 rounded-xl p-2">
+                    <div className="px-2 py-1.5 text-xs font-bold text-muted-foreground uppercase">Select Audience</div>
+                    {privacySettings.map((item) => (
+                      <DropdownMenuItem key={item.id} className="flex flex-col items-start gap-0.5 py-3 cursor-pointer" onClick={() => setPrivacy(item)}>
+                        <div className="flex items-center gap-2 font-bold text-sm"><item.icon className="h-4 w-4" />{item.label}</div>
+                        <span className="text-[10px] text-muted-foreground ml-6">{item.description}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="secondary" size="sm" className={cn(
+                      "h-7 px-2 rounded-md flex items-center gap-1.5",
+                      collaborator ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/60"
+                    )}>
+                      <Users2 className="h-3.5 w-3.5" />
+                      <span className="text-[13px] font-bold">
+                        {collaborator ? `With ${collaborator.name}` : "Collaborator"}
+                      </span>
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-64 rounded-xl p-2">
+                    <div className="px-2 py-1.5 text-xs font-bold text-muted-foreground uppercase">Tag Collaborator</div>
+                    {collaborator && (
+                      <DropdownMenuItem className="py-2.5 text-destructive font-bold cursor-pointer" onClick={() => setCollaborator(null)}>
+                        Remove Collaborator
+                      </DropdownMenuItem>
+                    )}
+                    {mockFriends.map((friend) => (
+                      <DropdownMenuItem key={friend.username} className="flex items-center gap-3 py-2.5 cursor-pointer" onClick={() => setCollaborator(friend)}>
+                        <Avatar className="h-8 w-8"><AvatarImage src={friend.avatar} /><AvatarFallback>{friend.name[0]}</AvatarFallback></Avatar>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-sm">{friend.name}</span>
+                          <span className="text-[10px] text-muted-foreground">@{friend.username}</span>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </div>
 
-          <div className="px-4 relative">
+          <div className="px-4 relative min-h-[160px]">
             <Textarea 
               placeholder="What's on your mind?" 
               className="border-none focus-visible:ring-0 text-2xl resize-none p-0 placeholder:text-muted-foreground/50 min-h-[120px] bg-transparent"
@@ -384,12 +421,15 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             />
             
             {isTagging && (
-              <div className="absolute top-full left-4 right-4 z-50 mt-1 bg-white dark:bg-card border rounded-xl shadow-xl p-2 animate-in fade-in slide-in-from-top-2">
+              <div className="absolute top-0 left-4 right-4 z-50 mt-1 bg-white dark:bg-card border rounded-xl shadow-xl p-2 animate-in fade-in slide-in-from-top-2">
                 <p className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mention Friends</p>
                 {mockFriends.map((friend) => (
-                  <button key={friend.name} className="w-full flex items-center gap-3 p-2 hover:bg-secondary rounded-lg transition-colors" onClick={() => handleMention(friend)}>
+                  <button key={friend.username} className="w-full flex items-center gap-3 p-2 hover:bg-secondary rounded-lg transition-colors" onClick={() => handleMention(friend)}>
                     <Avatar className="h-8 w-8"><AvatarImage src={friend.avatar} /><AvatarFallback>{friend.name[0]}</AvatarFallback></Avatar>
-                    <span className="font-bold text-sm">{friend.name}</span>
+                    <div className="text-left">
+                      <span className="font-bold text-sm block">{friend.name}</span>
+                      <span className="text-[10px] text-muted-foreground">@{friend.username}</span>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -572,7 +612,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
         <div className="p-4 bg-white dark:bg-card border-t shrink-0">
           <DialogClose asChild>
-            <Button className="w-full h-11 font-bold text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit} onClick={handlePost}>
+            <Button className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit} onClick={handlePost}>
               POST
             </Button>
           </DialogClose>

@@ -18,7 +18,8 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
-  Gift
+  Gift,
+  Users2
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,11 @@ interface PostCardProps {
     isOnline?: boolean;
     followers?: number;
   };
+  collaborator?: {
+    name: string;
+    username: string;
+    avatar: string;
+  };
   content: string;
   image?: string;
   images?: string[];
@@ -80,6 +86,7 @@ interface PostCardProps {
 
 export function PostCard({ 
   user, 
+  collaborator,
   content, 
   image, 
   images = [], 
@@ -230,13 +237,21 @@ export function PostCard({
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1">
-              <span className="font-bold text-sm hover:underline cursor-pointer">{user.name}</span>
-              {feeling && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  is {feeling.emoji} {feeling.text}
-                </span>
-              )}
-              {user.isVerified && <CheckCircle2 className="h-3 w-3 text-primary fill-primary text-white" />}
+              <div className="flex items-center flex-wrap gap-x-1">
+                <span className="font-bold text-sm hover:underline cursor-pointer">{user.name}</span>
+                {collaborator && (
+                  <>
+                    <span className="text-xs text-muted-foreground font-medium">with</span>
+                    <span className="font-bold text-sm hover:underline cursor-pointer">{collaborator.name}</span>
+                  </>
+                )}
+                {feeling && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    is {feeling.emoji} {feeling.text}
+                  </span>
+                )}
+                {user.isVerified && <CheckCircle2 className="h-3 w-3 text-primary fill-primary text-white" />}
+              </div>
             </div>
             <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
               <span>{time}</span>
