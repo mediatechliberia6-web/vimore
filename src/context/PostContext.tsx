@@ -23,9 +23,11 @@ export interface Post {
   hashtags?: string[];
   images?: string[];
   image?: string;
+  imageFilter?: string;
   feeling?: { emoji: string; text: string };
   location?: string;
   theme?: string;
+  commentsDisabled?: boolean;
   poll?: {
     question: string;
     options: { text: string; votes: number }[];

@@ -19,7 +19,8 @@ import {
   ChevronDown,
   ChevronUp,
   Gift,
-  Users2
+  Users2,
+  MessageSquareOff
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,7 @@ interface PostCardProps {
   content: string;
   image?: string;
   images?: string[];
+  imageFilter?: string;
   theme?: string;
   likes: number;
   unlikes: number;
@@ -75,6 +77,7 @@ interface PostCardProps {
   time: string;
   hashtags?: string[];
   feeling?: { emoji: string; text: string };
+  commentsDisabled?: boolean;
   poll?: {
     question: string;
     options: { text: string; votes: number }[];
@@ -92,6 +95,7 @@ export function PostCard({
   content, 
   image, 
   images = [], 
+  imageFilter,
   theme,
   likes, 
   unlikes,
@@ -99,6 +103,7 @@ export function PostCard({
   time, 
   hashtags,
   feeling,
+  commentsDisabled,
   poll,
   initialComments = [],
   isShared = false,
@@ -446,7 +451,7 @@ export function PostCard({
                       src={allImages[0]} 
                       alt="Post content" 
                       fill 
-                      className="object-cover hover:scale-105 transition-transform duration-500" 
+                      className={cn("object-cover hover:scale-105 transition-transform duration-500", imageFilter)} 
                     />
                   </div>
                 </DialogTrigger>
@@ -454,7 +459,7 @@ export function PostCard({
                   <DialogTitle className="sr-only">Media Preview</DialogTitle>
                   <DialogDescription className="sr-only">Full screen view of post media</DialogDescription>
                   <div className="relative w-full h-full">
-                    <Image src={allImages[0]} alt="Lightbox" fill className="object-contain" />
+                    <Image src={allImages[0]} alt="Lightbox" fill className={cn("object-contain", imageFilter)} />
                   </div>
                 </DialogContent>
               </Dialog>
@@ -466,14 +471,14 @@ export function PostCard({
                       <Dialog>
                         <DialogTrigger asChild>
                           <div className="relative aspect-video rounded-lg overflow-hidden border border-border/50 cursor-pointer">
-                            <Image src={img} alt={`Slide ${i}`} fill className="object-cover" />
+                            <Image src={img} alt={`Slide ${i}`} fill className={cn("object-cover", imageFilter)} />
                           </div>
                         </DialogTrigger>
                         <DialogContent className="max-w-none w-screen h-screen p-0 bg-black/95 border-none flex flex-col items-center justify-center">
                           <DialogTitle className="sr-only">Media Preview - Slide {i + 1}</DialogTitle>
                           <DialogDescription className="sr-only">Full screen view of carousel image {i + 1}</DialogDescription>
                           <div className="relative w-full h-full">
-                            <Image src={img} alt="Lightbox" fill className="object-contain" />
+                            <Image src={img} alt="Lightbox" fill className={cn("object-contain", imageFilter)} />
                           </div>
                         </DialogContent>
                       </Dialog>
@@ -504,7 +509,7 @@ export function PostCard({
               </div>
             </div>
             <div className={cn("flex items-center gap-2 text-[11px] font-bold", theme ? "text-white/80" : "text-muted-foreground")}>
-              <span>{comments} comments</span>
+              <span>{commentsDisabled ? 0 : comments} comments</span>
               <span>•</span>
               <span>28 shares</span>
             </div>
@@ -552,7 +557,12 @@ export function PostCard({
             <Button 
               variant="ghost" 
               size="sm" 
-              className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-colors", theme ? "text-white/70 hover:text-white" : "text-muted-foreground")}
+              disabled={commentsDisabled}
+              className={cn(
+                "flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-colors", 
+                theme ? "text-white/70 hover:text-white" : "text-muted-foreground",
+                commentsDisabled && "opacity-30 cursor-not-allowed"
+              )}
               onClick={() => setShowComments(!showComments)}
             >
               <MessageCircle className="h-4 w-4" />
@@ -566,7 +576,7 @@ export function PostCard({
             </Button>
           </div>
 
-          {showComments && (
+          {showComments && !commentsDisabled && (
             <div className="w-full pt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="flex items-center gap-2">
                 <Avatar className="h-8 w-8">
@@ -585,6 +595,13 @@ export function PostCard({
                   </Button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {commentsDisabled && (
+            <div className="w-full py-3 flex items-center justify-center gap-2 text-muted-foreground bg-secondary/10 rounded-lg mt-1 border border-dashed border-secondary">
+              <MessageSquareOff className="h-3.5 w-3.5" />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Comments are turned off</span>
             </div>
           )}
         </CardFooter>

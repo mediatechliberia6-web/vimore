@@ -23,7 +23,10 @@ import {
   Italic,
   Code,
   Palette,
-  Clock
+  Clock,
+  Settings2,
+  MessageSquareOff,
+  Filter
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -48,6 +51,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface CreatePostModalProps {
   children: React.ReactNode;
@@ -93,6 +98,15 @@ const backgroundThemes = [
   { id: "midnight", label: "Midnight", class: "bg-gradient-to-br from-slate-900 to-slate-700 text-white" },
 ];
 
+const imageFilters = [
+  { id: "none", label: "None", class: "" },
+  { id: "grayscale", label: "Mono", class: "grayscale" },
+  { id: "sepia", label: "Sepia", class: "sepia" },
+  { id: "brightness", label: "Lume", class: "brightness-125 contrast-110" },
+  { id: "invert", label: "Noir", class: "invert" },
+  { id: "saturate", label: "Vivid", class: "saturate-150" },
+];
+
 const pollDurations = ["1 Hour", "6 Hours", "12 Hours", "24 Hours", "3 Days", "7 Days"];
 
 const USER_PROFILE = {
@@ -120,10 +134,14 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [isTagging, setIsTagging] = useState(false);
   const [collaborator, setCollaborator] = useState<typeof mockFriends[0] | null>(null);
   const [selectedTheme, setSelectedTheme] = useState(backgroundThemes[0]);
+  const [selectedFilter, setSelectedFilter] = useState(imageFilters[0]);
+  const [commentsDisabled, setCommentsDisabled] = useState(false);
   
   const [showFeelingSelector, setShowFeelingSelector] = useState(false);
   const [showLocationSelector, setShowLocationSelector] = useState(false);
   const [showThemeSelector, setShowThemeSelector] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showFilterSelector, setShowFilterSelector] = useState(false);
   const [recentLocations, setRecentLocations] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -199,8 +217,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       theme: selectedTheme.id !== "none" ? selectedTheme.class : undefined,
       images: mediaType === 'image' ? selectedMedia : undefined,
       image: mediaType === 'video' ? undefined : (selectedMedia[0] || undefined),
+      imageFilter: selectedFilter.id !== "none" ? selectedFilter.class : undefined,
       feeling: feeling || undefined,
       location: location || undefined,
+      commentsDisabled,
       poll: isPollOpen && pollQuestion ? {
         question: pollQuestion,
         options: pollOptions.filter(o => o.trim()).map(text => ({ text, votes: 0 })),
@@ -222,6 +242,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setPollOptions(["", ""]);
     setCollaborator(null);
     setSelectedTheme(backgroundThemes[0]);
+    setSelectedFilter(imageFilters[0]);
+    setCommentsDisabled(false);
   };
 
   const handlePhotoUploadClick = () => {
@@ -294,7 +316,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const removeMedia = (index: number) => {
     const updated = selectedMedia.filter((_, i) => i !== index);
     setSelectedMedia(updated);
-    if (updated.length === 0) setMediaType(null);
+    if (updated.length === 0) {
+      setMediaType(null);
+      setSelectedFilter(imageFilters[0]);
+    }
   };
 
   const togglePoll = () => {
@@ -354,6 +379,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         setShowThemeSelector(!showThemeSelector);
         setShowFeelingSelector(false);
         setShowLocationSelector(false);
+        setShowSettings(false);
       }
     },
     { 
@@ -364,6 +390,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         setShowFeelingSelector(!showFeelingSelector);
         setShowLocationSelector(false);
         setShowThemeSelector(false);
+        setShowSettings(false);
       } 
     },
     { 
@@ -380,8 +407,20 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         setShowLocationSelector(!showLocationSelector);
         setShowFeelingSelector(false);
         setShowThemeSelector(false);
+        setShowSettings(false);
       } 
     },
+    {
+      icon: Settings2,
+      label: "Post Settings",
+      color: "text-slate-500",
+      onClick: () => {
+        setShowSettings(!showSettings);
+        setShowFeelingSelector(false);
+        setShowLocationSelector(false);
+        setShowThemeSelector(false);
+      }
+    }
   ];
 
   return (
@@ -666,6 +705,33 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           )}
 
+          {showSettings && (
+            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-white dark:bg-card shadow-sm animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider">Post Settings</span>
+                <button onClick={() => setShowSettings(false)} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/20">
+                  <div className="flex items-center gap-3">
+                    <MessageSquareOff className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex flex-col">
+                      <Label htmlFor="disable-comments" className="text-sm font-bold cursor-pointer">Disable Comments</Label>
+                      <span className="text-[10px] text-muted-foreground">Prevent others from commenting on this post</span>
+                    </div>
+                  </div>
+                  <Switch 
+                    id="disable-comments" 
+                    checked={commentsDisabled} 
+                    onCheckedChange={setCommentsDisabled} 
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {isPollOpen && (
             <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-primary/5 space-y-4">
               <div className="flex items-center justify-between">
@@ -712,6 +778,46 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
           {selectedMedia.length > 0 && (
             <div className="px-4 pb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Media Preview</span>
+                {mediaType === 'image' && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 px-2 text-[10px] font-bold text-primary gap-1"
+                    onClick={() => setShowFilterSelector(!showFilterSelector)}
+                  >
+                    <Filter className="h-3 w-3" />
+                    Filters
+                  </Button>
+                )}
+              </div>
+
+              {showFilterSelector && mediaType === 'image' && (
+                <div className="mb-4 animate-in fade-in slide-in-from-top-2">
+                  <ScrollArea className="w-full whitespace-nowrap pb-2">
+                    <div className="flex gap-2">
+                      {imageFilters.map((f) => (
+                        <button
+                          key={f.id}
+                          onClick={() => { setSelectedFilter(f); setShowFilterSelector(false); }}
+                          className={cn(
+                            "flex flex-col items-center gap-1.5 p-1 rounded-lg border transition-all shrink-0",
+                            selectedFilter.id === f.id ? "border-primary bg-primary/5" : "border-transparent"
+                          )}
+                        >
+                          <div className={cn("h-12 w-16 rounded bg-muted overflow-hidden relative", f.class)}>
+                            <Image src={selectedMedia[0]} alt={f.label} fill className="object-cover" />
+                          </div>
+                          <span className="text-[9px] font-bold">{f.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
+                </div>
+              )}
+
               <ScrollArea className="w-full whitespace-nowrap rounded-xl">
                 <div className="flex gap-2 p-1">
                   {selectedMedia.map((url, i) => (
@@ -719,7 +825,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                       {mediaType === 'video' ? (
                         <><video src={url} className="object-cover w-full h-full opacity-60" /><Play className="absolute h-8 w-8 text-white fill-white/20" /></>
                       ) : (
-                        <Image src={url} alt={`Preview ${i}`} fill className="object-cover" />
+                        <Image src={url} alt={`Preview ${i}`} fill className={cn("object-cover", selectedFilter.class)} />
                       )}
                       <button onClick={() => removeMedia(i)} className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 z-10"><X className="h-3 w-3" /></button>
                     </div>
