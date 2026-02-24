@@ -1,7 +1,6 @@
 "use client";
 
 import { Header } from "@/components/layout/header";
-import { CreatePost } from "@/components/post/create-post";
 import { PostCard } from "@/components/post/post-card";
 import { Stories } from "@/components/feed/stories";
 import { RightSidebar } from "@/components/layout/right-sidebar";
@@ -70,7 +69,6 @@ export default function Home() {
         {/* Main Feed */}
         <main className="flex flex-col gap-4 w-full max-w-[680px] mx-auto">
           <Stories />
-          <CreatePost />
           
           <div className="flex flex-col gap-1">
             {mockPosts.map((post) => (
