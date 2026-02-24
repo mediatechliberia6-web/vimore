@@ -70,9 +70,11 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const { toast } = useToast();
   
   const CHARACTER_LIMIT = 2000;
+  const MAX_PHOTOS = 6;
 
   useEffect(() => {
-    const lastWord = content.split(/\s+/).pop() || "";
+    const words = content.split(/\s+/);
+    const lastWord = words[words.length - 1] || "";
     if (lastWord.startsWith("@")) {
       setIsTagging(true);
     } else {
@@ -83,7 +85,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const handleMention = (friend: typeof mockFriends[0]) => {
     const words = content.split(/\s+/);
     words.pop();
-    setContent([...words, friend.name, ""].join(" "));
+    setContent([...words, `@${friend.name.replace(/\s+/g, '')}`, ""].join(" "));
     setIsTagging(false);
   };
 
@@ -95,7 +97,42 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setFeeling(null);
   };
 
-  const simulateMediaUpload = () => {
+  const simulatePhotoUpload = () => {
+    if (selectedMedia.length >= MAX_PHOTOS) {
+      toast({ 
+        title: "Limit reached", 
+        description: `You can only upload up to ${MAX_PHOTOS} photos.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Simulate selecting multiple photos (up to 6 total)
+    const remainingSlots = MAX_PHOTOS - selectedMedia.length;
+    const batchSize = Math.min(6, remainingSlots);
+    const newPhotos: string[] = [];
+
+    for (let i = 0; i < batchSize; i++) {
+      const randomImg = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)].imageUrl;
+      newPhotos.push(`${randomImg}?sig=${Math.random()}`);
+    }
+
+    setSelectedMedia(prev => [...prev, ...newPhotos]);
+    toast({ 
+      title: "Photos added", 
+      description: `Added ${newPhotos.length} photos to your post.` 
+    });
+  };
+
+  const simulateVideoUpload = () => {
+    if (selectedMedia.length >= MAX_PHOTOS) {
+      toast({ 
+        title: "Limit reached", 
+        description: `You can only upload up to ${MAX_PHOTOS} media items.`,
+        variant: "destructive"
+      });
+      return;
+    }
     const randomImg = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)].imageUrl;
     setSelectedMedia(prev => [...prev, randomImg]);
   };
@@ -117,8 +154,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   };
 
   const actionItems = [
-    { icon: ImageIcon, label: "Photo", color: "text-green-500", onClick: simulateMediaUpload },
-    { icon: Clapperboard, label: "Video", color: "text-red-500", onClick: simulateMediaUpload },
+    { icon: ImageIcon, label: "Photo", color: "text-green-500", onClick: simulatePhotoUpload },
+    { icon: Clapperboard, label: "Video", color: "text-red-500", onClick: simulateVideoUpload },
     { icon: ListTodo, label: "Create Poll", color: "text-purple-500", onClick: () => setIsPollOpen(!isPollOpen) },
     { icon: Smile, label: "Feeling/activity", color: "text-yellow-500", onClick: () => setFeeling({ emoji: "😊", text: "Happy" }) },
     { icon: UserPlus, label: "Tag people", color: "text-blue-500", onClick: () => setContent(prev => prev + " @") },
@@ -136,7 +173,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       
       <DialogContent className="max-w-none w-screen h-[100dvh] m-0 rounded-none border-none flex flex-col p-0 gap-0 overflow-hidden bg-white dark:bg-background translate-x-0 translate-y-0 left-0 top-0" aria-describedby="create-post-description">
         <DialogTitle className="sr-only">Create a New Post</DialogTitle>
-        <DialogDescription className="sr-only">Interface to compose text, add media, create polls, and tagging for a new social media post.</DialogDescription>
+        <DialogDescription className="sr-only" id="create-post-description">Interface to compose text, add media, create polls, and tagging for a new social media post.</DialogDescription>
         
         <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0 bg-white dark:bg-card">
           <div className="flex items-center gap-4">
@@ -160,7 +197,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           </DialogClose>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto pb-safe">
           <div className="p-4 flex items-center gap-3">
             <Avatar className="h-12 w-12 border border-primary/10">
               <AvatarImage src="https://picsum.photos/seed/me/200/200" />
@@ -181,7 +218,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-64 rounded-xl p-2">
-                  <DialogTitle className="px-2 py-1.5 text-xs font-bold text-muted-foreground uppercase">Select Audience</DialogTitle>
+                  <div className="px-2 py-1.5 text-xs font-bold text-muted-foreground uppercase">Select Audience</div>
                   {privacySettings.map((item) => (
                     <DropdownMenuItem 
                       key={item.id} 
@@ -306,13 +343,15 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                       </button>
                     </div>
                   ))}
-                  <button 
-                    onClick={simulateMediaUpload}
-                    className="w-32 h-32 rounded-lg border-2 border-dashed border-primary/20 flex flex-col items-center justify-center gap-2 hover:bg-primary/5 transition-colors text-muted-foreground"
-                  >
-                    <PlusSquare className="h-6 w-6" />
-                    <span className="text-[10px] font-bold">Add More</span>
-                  </button>
+                  {selectedMedia.length < MAX_PHOTOS && (
+                    <button 
+                      onClick={simulatePhotoUpload}
+                      className="w-32 h-32 rounded-lg border-2 border-dashed border-primary/20 flex flex-col items-center justify-center gap-2 hover:bg-primary/5 transition-colors text-muted-foreground"
+                    >
+                      <PlusSquare className="h-6 w-6" />
+                      <span className="text-[10px] font-bold">Add More ({MAX_PHOTOS - selectedMedia.length})</span>
+                    </button>
+                  )}
                 </div>
                 <ScrollBar orientation="horizontal" />
               </ScrollArea>
