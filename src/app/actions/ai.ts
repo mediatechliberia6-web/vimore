@@ -1,4 +1,3 @@
-
 'use server';
 
 import Groq from "groq-sdk";
@@ -58,5 +57,30 @@ export async function aiSummarizePost({ postContent }: { postContent: string }) 
   } catch (error) {
     console.error("Groq Summarization Error:", error);
     return { summary: "Could not generate summary." };
+  }
+}
+
+/**
+ * Translates a post to the user's preferred language (defaults to English) using Groq AI.
+ */
+export async function aiTranslatePost({ postContent, targetLanguage = "English" }: { postContent: string, targetLanguage?: string }) {
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error("GROQ_API_KEY is not configured");
+  }
+
+  const prompt = `Translate the following social media post into ${targetLanguage}. Maintain the original tone and emojis. Return ONLY the translated text.
+  
+  Post Content: "${postContent}"`;
+
+  try {
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+    });
+
+    return { translation: completion.choices[0]?.message?.content?.trim() || "Translation failed." };
+  } catch (error) {
+    console.error("Groq Translation Error:", error);
+    return { translation: "Could not translate post." };
   }
 }

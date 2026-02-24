@@ -10,7 +10,12 @@ import {
   CheckCircle2, 
   Heart,
   Send,
-  CornerDownRight
+  Bookmark,
+  EyeOff,
+  Flag,
+  Languages,
+  Loader2,
+  X
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -20,6 +25,15 @@ import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
+import { aiTranslatePost } from "@/app/actions/ai";
+import { useToast } from "@/hooks/use-toast";
 
 interface Comment {
   id: string;
@@ -55,6 +69,8 @@ interface PostCardProps {
     totalVotes: number;
   };
   initialComments?: Comment[];
+  isShared?: boolean;
+  sharedPost?: PostCardProps;
 }
 
 export function PostCard({ 
@@ -68,15 +84,24 @@ export function PostCard({
   hashtags,
   feeling,
   poll,
-  initialComments = []
+  initialComments = [],
+  isShared = false,
+  sharedPost
 }: PostCardProps) {
   const [isLiked, setIsLiked] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [likeCount, setLikeCount] = useState(likes);
   const [showReactions, setShowReactions] = useState(false);
   const [activeReaction, setActiveReaction] = useState<string | null>(null);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [isHidden, setIsHidden] = useState(false);
+  
+  const [translatedText, setTranslatedText] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+
+  const { toast } = useToast();
 
   const allImages = useMemo(() => {
     const list = [...images];
@@ -101,6 +126,31 @@ export function PostCard({
     setShowReactions(false);
   };
 
+  const handleTranslate = async () => {
+    if (translatedText) {
+      setTranslatedText(null);
+      return;
+    }
+    setIsTranslating(true);
+    try {
+      const result = await aiTranslatePost({ postContent: content });
+      setTranslatedText(result.translation);
+    } catch (error) {
+      toast({ description: "Translation failed. Try again later.", variant: "destructive" });
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  if (isHidden) {
+    return (
+      <Card className="p-4 flex items-center justify-between bg-secondary/20 border-dashed border-2">
+        <span className="text-sm font-medium text-muted-foreground">Post hidden</span>
+        <Button variant="ghost" size="sm" onClick={() => setIsHidden(false)} className="text-primary font-bold">Undo</Button>
+      </Card>
+    );
+  }
+
   const TRUNCATE_LIMIT = 280;
   const isLongContent = content.length > TRUNCATE_LIMIT;
   const displayedContent = isLongContent && !isExpanded 
@@ -111,7 +161,10 @@ export function PostCard({
   const foundUrl = content.match(urlRegex)?.[0];
 
   return (
-    <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-card mb-4 ring-1 ring-black/5 dark:ring-white/5 transition-colors">
+    <Card className={cn(
+      "border-none shadow-sm overflow-hidden bg-white dark:bg-card mb-4 transition-colors",
+      isShared ? "ring-1 ring-primary/10 shadow-none scale-[0.98] mx-2" : "ring-1 ring-black/5 dark:ring-white/5"
+    )}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -135,30 +188,79 @@ export function PostCard({
             </div>
             <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
               <span>{time}</span>
-              <span>•</span>
-              <Badge variant="ghost" className="p-0 h-auto font-normal text-[10px]">Public</Badge>
+              {!isShared && (
+                <>
+                  <span>•</span>
+                  <Badge variant="ghost" className="p-0 h-auto font-normal text-[10px]">Public</Badge>
+                </>
+              )}
             </div>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full hover:bg-secondary" aria-label="More options">
-          <MoreHorizontal className="h-5 w-5" />
-        </Button>
+        {!isShared && (
+          <div className="flex items-center gap-0.5">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={cn("h-8 w-8 rounded-full", isBookmarked && "text-primary")}
+              onClick={() => {
+                setIsBookmarked(!isBookmarked);
+                toast({ description: isBookmarked ? "Removed from bookmarks" : "Saved to bookmarks" });
+              }}
+            >
+              <Bookmark className={cn("h-4 w-4", isBookmarked && "fill-current")} />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full hover:bg-secondary">
+                  <MoreHorizontal className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5">
+                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setIsHidden(true)}>
+                  <EyeOff className="h-4 w-4" />
+                  Hide post
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 cursor-pointer text-destructive focus:text-destructive">
+                  <Flag className="h-4 w-4" />
+                  Report post
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="gap-2 cursor-pointer">
+                  <EyeOff className="h-4 w-4" />
+                  Turn off notifications
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </CardHeader>
       
       <CardContent className="px-3 pb-2 space-y-2">
         <div className="space-y-1">
           <p className="text-[13px] leading-relaxed whitespace-pre-wrap">
-            {displayedContent}
+            {translatedText || displayedContent}
           </p>
           {isLongContent && (
             <button 
               onClick={() => setIsExpanded(!isExpanded)}
               className="text-[13px] font-bold text-primary hover:underline"
-              aria-label={isExpanded ? "Show less" : "See more"}
             >
               {isExpanded ? "Show less" : "See more"}
             </button>
           )}
+          <div className="flex items-center gap-2 pt-1">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 px-1.5 text-[10px] font-bold text-muted-foreground hover:text-primary gap-1"
+              onClick={handleTranslate}
+              disabled={isTranslating}
+            >
+              {isTranslating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" />}
+              {translatedText ? "Show Original" : "See Translation"}
+            </Button>
+          </div>
         </div>
         
         {hashtags && hashtags.length > 0 && (
@@ -196,8 +298,15 @@ export function PostCard({
           </div>
         )}
 
+        {/* Shared Post Preview */}
+        {sharedPost && (
+          <div className="mt-2">
+            <PostCard {...sharedPost} isShared={true} />
+          </div>
+        )}
+
         {/* Link Preview Simulation */}
-        {foundUrl && !allImages.length && (
+        {foundUrl && !allImages.length && !sharedPost && (
           <div className="rounded-xl border border-border overflow-hidden bg-secondary/20 cursor-pointer hover:bg-secondary/30 transition-colors">
             <div className="relative aspect-[1.91/1] w-full">
                <Image src={`https://picsum.photos/seed/${foundUrl}/800/420`} alt="Link preview" fill className="object-cover" />
@@ -211,7 +320,7 @@ export function PostCard({
         )}
 
         {/* Media Content */}
-        {allImages.length > 0 && (
+        {allImages.length > 0 && !isShared && (
           <div className="relative mt-2 -mx-3 sm:mx-0 group">
             {allImages.length === 1 ? (
               <Dialog>
@@ -262,160 +371,162 @@ export function PostCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between py-1 border-b border-secondary">
-          <div className="flex items-center gap-1">
-            <div className="flex -space-x-1">
-              <div className="bg-primary p-1 rounded-full text-white ring-2 ring-white dark:ring-card">
-                <ThumbsUp className="h-2.5 w-2.5 fill-current" />
-              </div>
-              <div className="bg-red-500 p-1 rounded-full text-white ring-2 ring-white dark:ring-card">
-                <Heart className="h-2.5 w-2.5 fill-current" />
-              </div>
-            </div>
-            <span className="text-[11px] text-muted-foreground ml-1" aria-label={`${likeCount} likes`}>{likeCount}</span>
-          </div>
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <span>{comments} comments</span>
-            <span>•</span>
-            <span>28 shares</span>
-          </div>
-        </div>
-      </CardContent>
-
-      <CardFooter className="p-1 px-3 flex flex-col gap-1 relative">
-        <div className="flex items-center justify-between gap-1 w-full">
-          {/* Reactions Tray */}
-          {showReactions && (
-            <div 
-              className="absolute bottom-full left-4 mb-2 bg-white dark:bg-card rounded-full shadow-xl border border-border p-1.5 flex gap-2 animate-in slide-in-from-bottom-2 duration-200 z-50"
-              onMouseLeave={() => setShowReactions(false)}
-            >
-              {[
-                { type: 'like', icon: ThumbsUp, color: 'text-primary' },
-                { type: 'love', icon: Heart, color: 'text-red-500' },
-                { type: 'laugh', icon: Laugh, color: 'text-yellow-500' },
-                { type: 'wow', icon: Wow, color: 'text-blue-500' },
-                { type: 'sad', icon: Sad, color: 'text-orange-500' },
-              ].map((reaction) => {
-                const Icon = reaction.icon;
-                return (
-                  <button
-                    key={reaction.type}
-                    onClick={() => handleReaction(reaction.type)}
-                    className={cn("p-2 rounded-full hover:bg-secondary hover:scale-125 transition-all", reaction.color)}
-                  >
-                    <Icon className="h-5 w-5 fill-current" />
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={cn(
-              "flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors", 
-              isLiked && "text-primary"
-            )}
-            onClick={handleLike}
-            onMouseEnter={() => setShowReactions(true)}
-            aria-label={isLiked ? "Unlike post" : "Like post"}
-          >
-            {activeReaction === 'love' ? <Heart className="h-4 w-4 fill-red-500 text-red-500" /> :
-             activeReaction === 'laugh' ? <Laugh className="h-4 w-4 text-yellow-500" /> :
-             activeReaction === 'wow' ? <Wow className="h-4 w-4 text-blue-500" /> :
-             activeReaction === 'sad' ? <Sad className="h-4 w-4 text-orange-500" /> :
-             <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />}
-            {activeReaction ? activeReaction.charAt(0).toUpperCase() + activeReaction.slice(1) : 'Like'}
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors"
-            aria-label="Comment on post"
-            onClick={() => setShowComments(!showComments)}
-          >
-            <MessageCircle className="h-4 w-4" />
-            Comment
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors"
-            aria-label="Share post"
-          >
-            <Share2 className="h-4 w-4" />
-            Share
-          </Button>
-        </div>
-
-        {/* Comment Section (Phase 3) */}
-        {showComments && (
-          <div className="w-full pt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-            <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src="https://picsum.photos/seed/me/100/100" />
-                <AvatarFallback>JD</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 bg-secondary/30 rounded-full px-4 py-2 flex items-center gap-2">
-                <Input 
-                  placeholder="Write a comment..." 
-                  className="bg-transparent border-none focus-visible:ring-0 h-7 text-xs p-0"
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                />
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-primary">
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-4 pl-2">
-              {initialComments.map((comment) => (
-                <div key={comment.id} className="space-y-2">
-                  <div className="flex gap-2">
-                    <Avatar className="h-8 w-8 mt-0.5">
-                      <AvatarImage src={comment.user.avatar} />
-                      <AvatarFallback>{comment.user.name[0]}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col gap-1">
-                      <div className="bg-secondary/20 rounded-2xl p-3">
-                        <p className="text-[11px] font-bold">{comment.user.name}</p>
-                        <p className="text-[11px] leading-relaxed">{comment.text}</p>
-                      </div>
-                      <div className="flex gap-4 pl-2 text-[10px] font-bold text-muted-foreground">
-                        <button className="hover:text-primary">Like</button>
-                        <button className="hover:text-primary">Reply</button>
-                        <span>{comment.time}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {comment.replies?.map((reply) => (
-                    <div key={reply.id} className="flex gap-2 pl-10">
-                      <Avatar className="h-6 w-6 mt-0.5">
-                        <AvatarImage src={reply.user.avatar} />
-                        <AvatarFallback>{reply.user.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col gap-1">
-                        <div className="bg-secondary/10 rounded-2xl p-2.5">
-                          <p className="text-[10px] font-bold">{reply.user.name}</p>
-                          <p className="text-[10px] leading-relaxed">{reply.text}</p>
-                        </div>
-                        <div className="flex gap-4 pl-2 text-[10px] font-bold text-muted-foreground">
-                          <button className="hover:text-primary">Like</button>
-                          <span>{reply.time}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+        {!isShared && (
+          <div className="flex items-center justify-between py-1 border-b border-secondary">
+            <div className="flex items-center gap-1">
+              <div className="flex -space-x-1">
+                <div className="bg-primary p-1 rounded-full text-white ring-2 ring-white dark:ring-card">
+                  <ThumbsUp className="h-2.5 w-2.5 fill-current" />
                 </div>
-              ))}
+                <div className="bg-red-500 p-1 rounded-full text-white ring-2 ring-white dark:ring-card">
+                  <Heart className="h-2.5 w-2.5 fill-current" />
+                </div>
+              </div>
+              <span className="text-[11px] text-muted-foreground ml-1">{likeCount}</span>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <span>{comments} comments</span>
+              <span>•</span>
+              <span>28 shares</span>
             </div>
           </div>
         )}
-      </CardFooter>
+      </CardContent>
+
+      {!isShared && (
+        <CardFooter className="p-1 px-3 flex flex-col gap-1 relative">
+          <div className="flex items-center justify-between gap-1 w-full">
+            {/* Reactions Tray */}
+            {showReactions && (
+              <div 
+                className="absolute bottom-full left-4 mb-2 bg-white dark:bg-card rounded-full shadow-xl border border-border p-1.5 flex gap-2 animate-in slide-in-from-bottom-2 duration-200 z-50"
+                onMouseLeave={() => setShowReactions(false)}
+              >
+                {[
+                  { type: 'like', icon: ThumbsUp, color: 'text-primary' },
+                  { type: 'love', icon: Heart, color: 'text-red-500' },
+                  { type: 'laugh', icon: Laugh, color: 'text-yellow-500' },
+                  { type: 'wow', icon: Wow, color: 'text-blue-500' },
+                  { type: 'sad', icon: Sad, color: 'text-orange-500' },
+                ].map((reaction) => {
+                  const Icon = reaction.icon;
+                  return (
+                    <button
+                      key={reaction.type}
+                      onClick={() => handleReaction(reaction.type)}
+                      className={cn("p-2 rounded-full hover:bg-secondary hover:scale-125 transition-all", reaction.color)}
+                    >
+                      <Icon className="h-5 w-5 fill-current" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={cn(
+                "flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors", 
+                isLiked && "text-primary"
+              )}
+              onClick={handleLike}
+              onMouseEnter={() => setShowReactions(true)}
+              aria-label={isLiked ? "Unlike post" : "Like post"}
+            >
+              {activeReaction === 'love' ? <Heart className="h-4 w-4 fill-red-500 text-red-500" /> :
+               activeReaction === 'laugh' ? <Laugh className="h-4 w-4 text-yellow-500" /> :
+               activeReaction === 'wow' ? <Wow className="h-4 w-4 text-blue-500" /> :
+               activeReaction === 'sad' ? <Sad className="h-4 w-4 text-orange-500" /> :
+               <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />}
+              {activeReaction ? activeReaction.charAt(0).toUpperCase() + activeReaction.slice(1) : 'Like'}
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors"
+              onClick={() => setShowComments(!showComments)}
+            >
+              <MessageCircle className="h-4 w-4" />
+              Comment
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors"
+            >
+              <Share2 className="h-4 w-4" />
+              Share
+            </Button>
+          </div>
+
+          {/* Comment Section */}
+          {showComments && (
+            <div className="w-full pt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center gap-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src="https://picsum.photos/seed/me/100/100" />
+                  <AvatarFallback>JD</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 bg-secondary/30 rounded-full px-4 py-2 flex items-center gap-2">
+                  <Input 
+                    placeholder="Write a comment..." 
+                    className="bg-transparent border-none focus-visible:ring-0 h-7 text-xs p-0"
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                  />
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-primary">
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-4 pl-2 pb-2">
+                {initialComments.map((comment) => (
+                  <div key={comment.id} className="space-y-2">
+                    <div className="flex gap-2">
+                      <Avatar className="h-8 w-8 mt-0.5">
+                        <AvatarImage src={comment.user.avatar} />
+                        <AvatarFallback>{comment.user.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col gap-1">
+                        <div className="bg-secondary/20 rounded-2xl p-3">
+                          <p className="text-[11px] font-bold">{comment.user.name}</p>
+                          <p className="text-[11px] leading-relaxed">{comment.text}</p>
+                        </div>
+                        <div className="flex gap-4 pl-2 text-[10px] font-bold text-muted-foreground">
+                          <button className="hover:text-primary">Like</button>
+                          <button className="hover:text-primary">Reply</button>
+                          <span>{comment.time}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {comment.replies?.map((reply) => (
+                      <div key={reply.id} className="flex gap-2 pl-10">
+                        <Avatar className="h-6 w-6 mt-0.5">
+                          <AvatarImage src={reply.user.avatar} />
+                          <AvatarFallback>{reply.user.name[0]}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col gap-1">
+                          <div className="bg-secondary/10 rounded-2xl p-2.5">
+                            <p className="text-[10px] font-bold">{reply.user.name}</p>
+                            <p className="text-[10px] leading-relaxed">{reply.text}</p>
+                          </div>
+                          <div className="flex gap-4 pl-2 text-[10px] font-bold text-muted-foreground">
+                            <button className="hover:text-primary">Like</button>
+                            <span>{reply.time}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardFooter>
+      )}
     </Card>
   );
 }

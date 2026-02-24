@@ -45,6 +45,27 @@ const mockPosts = [
     ]
   },
   {
+    id: "share1",
+    user: { 
+      name: "Alex Rivera", 
+      username: "arivera", 
+      avatar: "https://picsum.photos/seed/1/100/100",
+      isOnline: true 
+    },
+    content: "I totally agree with Julianne! This is a game changer for real-time social connection. 🚀",
+    time: "10m",
+    likes: 12,
+    comments: 2,
+    sharedPost: {
+      id: "1",
+      user: { name: "Julianne Moore", username: "jmoore", avatar: "https://picsum.photos/seed/50/200/200", isVerified: true },
+      content: "Just started using ViMore and I'm loving the clean aesthetic!",
+      time: "5m",
+      likes: 24,
+      comments: 4
+    }
+  },
+  {
     id: "2",
     user: { 
       name: "Tech Explorer", 

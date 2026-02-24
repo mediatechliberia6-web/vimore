@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   ArrowLeft, 
   Image as ImageIcon, 
@@ -14,12 +14,12 @@ import {
   MessageCircle,
   Calendar,
   Video,
-  ChevronLeft,
   Lock,
   Users,
   X,
   ListTodo,
-  PlusSquare
+  PlusSquare,
+  AtSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -39,6 +39,7 @@ import {
 import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface CreatePostModalProps {
   children: React.ReactNode;
@@ -57,6 +58,12 @@ const privacySettings: PrivacySetting[] = [
   { id: "private", label: "Only Me", icon: Lock, description: "Only you can see this post" },
 ];
 
+const mockFriends = [
+  { name: "Alex Rivera", avatar: "https://picsum.photos/seed/1/100/100" },
+  { name: "Sarah Chen", avatar: "https://picsum.photos/seed/2/100/100" },
+  { name: "Marcus Stone", avatar: "https://picsum.photos/seed/3/100/100" },
+];
+
 export function CreatePostModal({ children }: CreatePostModalProps) {
   const [content, setContent] = useState("");
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -69,10 +76,20 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [feeling, setFeeling] = useState<{ emoji: string; text: string } | null>(null);
+  const [isTagging, setIsTagging] = useState(false);
 
   const { toast } = useToast();
   
   const CHARACTER_LIMIT = 2000;
+
+  useEffect(() => {
+    const lastWord = content.split(/\s+/).pop() || "";
+    if (lastWord.startsWith("@")) {
+      setIsTagging(true);
+    } else {
+      setIsTagging(false);
+    }
+  }, [content]);
 
   const handleEnhance = async () => {
     if (!content.trim()) {
@@ -112,6 +129,13 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setSuggestedTags(prev => prev.filter(t => t !== tag));
   };
 
+  const handleMention = (friend: typeof mockFriends[0]) => {
+    const words = content.split(/\s+/);
+    words.pop(); // Remove the @ word
+    setContent([...words, friend.name, ""].join(" "));
+    setIsTagging(false);
+  };
+
   const handlePost = () => {
     toast({ title: "Post created!", description: "Your post has been shared with the community." });
     setContent("");
@@ -146,19 +170,11 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     { icon: ImageIcon, label: "Photos/Videos", color: "text-green-500", onClick: simulateMediaUpload },
     { icon: ListTodo, label: "Create Poll", color: "text-purple-500", onClick: () => setIsPollOpen(!isPollOpen) },
     { icon: Smile, label: "Feeling/activity", color: "text-yellow-500", onClick: () => setFeeling({ emoji: "😊", text: "Happy" }) },
-    { icon: UserPlus, label: "Tag people", color: "text-blue-500" },
+    { icon: UserPlus, label: "Tag people", color: "text-blue-500", onClick: () => setContent(prev => prev + " @") },
     { icon: MapPin, label: "Add location", color: "text-red-500" },
     { icon: MessageCircle, label: "Get messages", color: "text-blue-400" },
     { icon: Calendar, label: "Create Event", color: "text-red-400" },
     { icon: Video, label: "Go live", color: "text-red-600" },
-  ];
-
-  const backgrounds = [
-    { id: 'white', class: "bg-white border" },
-    { id: 'yellow', class: "bg-gradient-to-br from-yellow-200 to-yellow-400" },
-    { id: 'purple', class: "bg-gradient-to-br from-purple-500 to-purple-800" },
-    { id: 'pink', class: "bg-gradient-to-br from-pink-500 to-red-500" },
-    { id: 'black', class: "bg-black" },
   ];
 
   const progress = (content.length / CHARACTER_LIMIT) * 100;
@@ -250,6 +266,26 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               aria-label="Post content"
             />
             
+            {/* Mention Suggestions Popover */}
+            {isTagging && (
+              <div className="absolute top-full left-4 right-4 z-50 mt-1 bg-white dark:bg-card border rounded-xl shadow-xl p-2 animate-in fade-in slide-in-from-top-2">
+                <p className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mention Friends</p>
+                {mockFriends.map((friend) => (
+                  <button
+                    key={friend.name}
+                    className="w-full flex items-center gap-3 p-2 hover:bg-secondary rounded-lg transition-colors"
+                    onClick={() => handleMention(friend)}
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={friend.avatar} />
+                      <AvatarFallback>{friend.name[0]}</AvatarFallback>
+                    </Avatar>
+                    <span className="font-bold text-sm">{friend.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Character Counter */}
             <div className="absolute bottom-2 right-4 flex items-center gap-2">
               <div className="relative w-6 h-6">
@@ -279,7 +315,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           </div>
 
-          {/* Poll Section (Phase 3) */}
+          {/* Poll Section */}
           {isPollOpen && (
             <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-primary/5 space-y-3">
               <div className="flex items-center justify-between">
