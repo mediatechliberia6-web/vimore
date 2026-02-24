@@ -17,7 +17,8 @@ import {
   PlusSquare,
   Clapperboard,
   Play,
-  Check
+  Check,
+  History
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -69,14 +70,11 @@ const feelings = [
   { emoji: "🥳", text: "Celebrating" },
 ];
 
-const locations = [
-  "San Francisco, CA",
-  "New York, NY",
-  "London, UK",
-  "Tokyo, Japan",
-  "Paris, France",
-  "Remote World",
-];
+// Mock user "Home" data
+const USER_PROFILE = {
+  homeLocation: "Lagos, Nigeria",
+  username: "johndoe_creative"
+};
 
 export function CreatePostModal({ children }: CreatePostModalProps) {
   const [content, setContent] = useState("");
@@ -89,10 +87,12 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [feeling, setFeeling] = useState<{ emoji: string; text: string } | null>(null);
   const [location, setLocation] = useState<string | null>(null);
+  const [locationSearch, setLocationSearch] = useState("");
   const [isTagging, setIsTagging] = useState(false);
   
   const [showFeelingSelector, setShowFeelingSelector] = useState(false);
   const [showLocationSelector, setShowLocationSelector] = useState(false);
+  const [recentLocations, setRecentLocations] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -101,6 +101,18 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const CHARACTER_LIMIT = 2000;
   const MAX_PHOTOS = 6;
   const MAX_POLL_OPTIONS = 8;
+
+  // Load recents from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('vimore_recent_locations');
+    if (saved) {
+      try {
+        setRecentLocations(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to load recents", e);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const words = content.split(/\s+/);
@@ -120,6 +132,13 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   };
 
   const handlePost = () => {
+    // If a location was used, save it to recents
+    if (location) {
+      const updatedRecents = [location, ...recentLocations.filter(l => l !== location)].slice(0, 5);
+      setRecentLocations(updatedRecents);
+      localStorage.setItem('vimore_recent_locations', JSON.stringify(updatedRecents));
+    }
+
     toast({ title: "Post created!", description: "Your post has been shared with the community." });
     setContent("");
     setSelectedMedia([]);
@@ -127,6 +146,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setIsPollOpen(false);
     setFeeling(null);
     setLocation(null);
+    setLocationSearch("");
   };
 
   const handlePhotoUploadClick = () => {
@@ -202,6 +222,14 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setIsPollOpen(!isPollOpen);
   };
 
+  const handleLocationSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (locationSearch.trim()) {
+      setLocation(locationSearch.trim());
+      setShowLocationSelector(false);
+    }
+  };
+
   const progress = (content.length / CHARACTER_LIMIT) * 100;
   const isOverLimit = content.length > CHARACTER_LIMIT;
 
@@ -232,7 +260,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       label: "Feeling/activity", 
       color: "text-yellow-500", 
       onClick: () => {
-        setShowFeelingSelector(true);
+        setShowFeelingSelector(!showFeelingSelector);
         setShowLocationSelector(false);
       } 
     },
@@ -247,7 +275,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       label: "Add location", 
       color: "text-red-500",
       onClick: () => {
-        setShowLocationSelector(true);
+        setShowLocationSelector(!showLocationSelector);
         setShowFeelingSelector(false);
       } 
     },
@@ -353,12 +381,13 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           </div>
 
-          {/* New Selector UI for Feeling/Activity */}
           {showFeelingSelector && (
-            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-white dark:bg-card space-y-3 animate-in fade-in slide-in-from-bottom-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-primary uppercase">How are you feeling?</span>
-                <button onClick={() => setShowFeelingSelector(false)}><X className="h-4 w-4" /></button>
+            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-white dark:bg-card shadow-sm animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider">How are you feeling?</span>
+                <button onClick={() => setShowFeelingSelector(false)} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-4 w-4" />
+                </button>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {feelings.map((f) => (
@@ -366,57 +395,109 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                     key={f.text}
                     onClick={() => { setFeeling(f); setShowFeelingSelector(false); }}
                     className={cn(
-                      "flex items-center gap-2 p-2 rounded-xl text-sm transition-all border",
-                      feeling?.text === f.text ? "bg-primary/10 border-primary" : "hover:bg-secondary border-transparent"
+                      "flex items-center gap-2 p-2.5 rounded-xl text-sm transition-all border",
+                      feeling?.text === f.text 
+                        ? "bg-primary/10 border-primary text-primary font-bold" 
+                        : "hover:bg-secondary/50 border-transparent text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    <span>{f.emoji}</span>
-                    <span className="font-medium">{f.text}</span>
+                    <span className="text-lg">{f.emoji}</span>
+                    <span className="truncate">{f.text}</span>
                   </button>
                 ))}
               </div>
               {feeling && (
-                <Button variant="ghost" size="sm" className="w-full text-xs text-destructive font-bold" onClick={() => { setFeeling(null); setShowFeelingSelector(false); }}>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full mt-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/5 font-bold" 
+                  onClick={() => { setFeeling(null); setShowFeelingSelector(false); }}
+                >
                   Clear feeling
                 </Button>
               )}
             </div>
           )}
 
-          {/* New Selector UI for Location */}
           {showLocationSelector && (
-            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-white dark:bg-card space-y-3 animate-in fade-in slide-in-from-bottom-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-primary uppercase">Add Location</span>
-                <button onClick={() => setShowLocationSelector(false)}><X className="h-4 w-4" /></button>
+            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-white dark:bg-card shadow-sm animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider">Add Location</span>
+                <button onClick={() => setShowLocationSelector(false)} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <Input 
-                placeholder="Search or enter location..." 
-                className="rounded-xl"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setLocation((e.target as HTMLInputElement).value);
-                    setShowLocationSelector(false);
-                  }
-                }}
-              />
-              <div className="space-y-1">
-                {locations.map((loc) => (
-                  <button
-                    key={loc}
-                    onClick={() => { setLocation(loc); setShowLocationSelector(false); }}
-                    className={cn(
-                      "w-full text-left p-2 rounded-lg text-sm transition-all flex items-center justify-between",
-                      location === loc ? "bg-primary/10 font-bold" : "hover:bg-secondary"
-                    )}
-                  >
-                    <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" />{loc}</div>
-                    {location === loc && <Check className="h-4 w-4 text-primary" />}
-                  </button>
-                ))}
-              </div>
+              
+              <form onSubmit={handleLocationSubmit} className="relative mb-4">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Where are you?" 
+                  className="pl-9 rounded-xl border-primary/10 focus-visible:ring-primary h-11"
+                  value={locationSearch}
+                  onChange={(e) => setLocationSearch(e.target.value)}
+                  autoFocus
+                />
+              </form>
+
+              <ScrollArea className="h-[200px] -mx-4 px-4">
+                <div className="space-y-4">
+                  {/* Suggestion based on Profile */}
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">From your profile</p>
+                    <button
+                      onClick={() => { setLocation(USER_PROFILE.homeLocation); setShowLocationSelector(false); }}
+                      className={cn(
+                        "w-full flex items-center justify-between p-3 rounded-xl transition-all border",
+                        location === USER_PROFILE.homeLocation ? "bg-primary/10 border-primary" : "hover:bg-secondary/50 border-transparent"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                          <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-bold">{USER_PROFILE.homeLocation}</p>
+                          <p className="text-[10px] text-muted-foreground">Home Town</p>
+                        </div>
+                      </div>
+                      {location === USER_PROFILE.homeLocation && <Check className="h-4 w-4 text-primary" />}
+                    </button>
+                  </div>
+
+                  {/* Recent Locations */}
+                  {recentLocations.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Recent places</p>
+                      <div className="space-y-1">
+                        {recentLocations.map((loc) => (
+                          <button
+                            key={loc}
+                            onClick={() => { setLocation(loc); setShowLocationSelector(false); }}
+                            className={cn(
+                              "w-full flex items-center justify-between p-3 rounded-xl transition-all border",
+                              location === loc ? "bg-primary/10 border-primary" : "hover:bg-secondary/50 border-transparent"
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              <History className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium">{loc}</span>
+                            </div>
+                            {location === loc && <Check className="h-4 w-4 text-primary" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+
               {location && (
-                <Button variant="ghost" size="sm" className="w-full text-xs text-destructive font-bold" onClick={() => { setLocation(null); setShowLocationSelector(false); }}>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full mt-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/5 font-bold" 
+                  onClick={() => { setLocation(null); setLocationSearch(""); setShowLocationSelector(false); }}
+                >
                   Clear location
                 </Button>
               )}
