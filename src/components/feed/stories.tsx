@@ -1,12 +1,14 @@
 
 "use client";
 
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import Image from "next/image";
 import { Plus } from "lucide-react";
 import { usePosts } from "@/context/PostContext";
 import { StoryViewer } from "./story-viewer";
+import { CreateStoryModal } from "./create-story-modal";
 import { cn } from "@/lib/utils";
 
 const USER_PROFILE = {
@@ -16,13 +18,17 @@ const USER_PROFILE = {
 
 export function Stories() {
   const { stories, setActiveStoryIndex } = usePosts();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   return (
     <div className="w-full">
       <ScrollArea className="w-full whitespace-nowrap">
         <div className="flex w-max space-x-2.5 p-1 pb-4">
           {/* Create Story */}
-          <div className="relative w-28 h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-sm hover:shadow-md transition-shadow bg-white dark:bg-card border border-primary/10">
+          <div 
+            className="relative w-28 h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-sm hover:shadow-md transition-shadow bg-white dark:bg-card border border-primary/10"
+            onClick={() => setIsCreateOpen(true)}
+          >
             <div className="relative h-[70%] w-full">
               <Image 
                 src={USER_PROFILE.avatar} 
@@ -50,7 +56,7 @@ export function Stories() {
                 src={story.segments[0].image} 
                 alt={story.user.name} 
                 fill 
-                className="object-cover transition-transform group-hover:scale-110 duration-500"
+                className={cn("object-cover transition-transform group-hover:scale-110 duration-500", story.segments[0].filter)}
               />
               <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
               
@@ -73,6 +79,7 @@ export function Stories() {
       </ScrollArea>
 
       <StoryViewer />
+      <CreateStoryModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
     </div>
   );
 }

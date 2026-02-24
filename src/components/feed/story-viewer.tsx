@@ -235,7 +235,7 @@ export function StoryViewer() {
           
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-2">
-              {isOwner && activeStory.viewCount && (
+              {isOwner && activeStory.viewCount !== undefined && (
                 <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full text-white/90">
                   <Eye className="h-3 w-3" />
                   <span className="text-[10px] font-bold">{activeStory.viewCount}</span>
@@ -268,15 +268,34 @@ export function StoryViewer() {
             src={currentSegment.image} 
             alt="Story Content" 
             fill 
-            className="object-cover"
+            className={cn("object-cover", currentSegment.filter)}
             priority
           />
+
+          {/* Draggable Text Overlays */}
+          {currentSegment.textOverlays?.map((overlay, i) => (
+            <div 
+              key={i}
+              className="absolute z-40 p-2 pointer-events-none"
+              style={{ 
+                top: `${overlay.y}%`, 
+                left: `${overlay.x}%`, 
+                transform: 'translate(-50%, -50%)',
+                color: overlay.color,
+                textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+              }}
+            >
+              <span className="text-2xl font-black italic uppercase tracking-tighter bg-black/20 px-3 py-1 rounded-lg backdrop-blur-sm">
+                {overlay.text}
+              </span>
+            </div>
+          ))}
 
           {/* Mentions */}
           {currentSegment.mentions?.map((mention, i) => (
             <div 
               key={i}
-              className="absolute bg-white/20 backdrop-blur-md border border-white/30 px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg animate-in zoom-in duration-300"
+              className="absolute z-40 bg-white/20 backdrop-blur-md border border-white/30 px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg animate-in zoom-in duration-300"
               style={{ top: mention.y, left: mention.x }}
             >
               @{mention.username}

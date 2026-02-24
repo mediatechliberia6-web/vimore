@@ -14,8 +14,8 @@ export interface User {
 
 export interface Mention {
   username: string;
-  x: string; // percentage
-  y: string; // percentage
+  x: string | number; // percentage or pixels
+  y: string | number; // percentage or pixels
 }
 
 export interface StoryPoll {
@@ -29,6 +29,13 @@ export interface StorySegment {
   type: 'image' | 'video';
   mentions?: Mention[];
   poll?: StoryPoll;
+  filter?: string;
+  textOverlays?: Array<{
+    text: string;
+    x: number;
+    y: number;
+    color: string;
+  }>;
 }
 
 export interface Story {
@@ -72,10 +79,17 @@ interface PostContextType {
   activeStoryIndex: number | null;
   setActiveStoryIndex: (index: number | null) => void;
   addPost: (post: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => void;
+  addStory: (segment: Omit<StorySegment, 'id'>) => void;
   voteOnStoryPoll: (storyId: string, segmentId: string, optionIndex: number) => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
+
+const USER_PROFILE = {
+  name: "John Doe",
+  username: "johndoe_creative",
+  avatar: "https://picsum.photos/seed/me/200/200",
+};
 
 const initialMockStories: Story[] = [
   {
@@ -235,6 +249,34 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setPosts([newPost, ...posts]);
   };
 
+  const addStory = (segmentData: Omit<StorySegment, 'id'>) => {
+    const userStoryIndex = stories.findIndex(s => s.user.username === USER_PROFILE.username || s.user.name === USER_PROFILE.name);
+    
+    const newSegment: StorySegment = {
+      ...segmentData,
+      id: Date.now().toString(),
+    };
+
+    if (userStoryIndex !== -1) {
+      setStories(prev => {
+        const updated = [...prev];
+        updated[userStoryIndex] = {
+          ...updated[userStoryIndex],
+          segments: [newSegment, ...updated[userStoryIndex].segments]
+        };
+        return updated;
+      });
+    } else {
+      const newStory: Story = {
+        id: Date.now().toString(),
+        user: USER_PROFILE,
+        segments: [newSegment],
+        viewCount: 0
+      };
+      setStories([newStory, ...stories]);
+    }
+  };
+
   const voteOnStoryPoll = (storyId: string, segmentId: string, optionIndex: number) => {
     setStories(prev => prev.map(story => {
       if (story.id !== storyId) return story;
@@ -257,7 +299,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <PostContext.Provider value={{ posts, stories, activeStoryIndex, setActiveStoryIndex, addPost, voteOnStoryPoll }}>
+    <PostContext.Provider value={{ posts, stories, activeStoryIndex, setActiveStoryIndex, addPost, addStory, voteOnStoryPoll }}>
       {children}
     </PostContext.Provider>
   );
