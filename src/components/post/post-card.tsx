@@ -28,6 +28,7 @@ interface PostCardProps {
 
 export function PostCard({ user, content, image, likes, comments, time, hashtags }: PostCardProps) {
   const [isLiked, setIsLiked] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [likeCount, setLikeCount] = useState(likes);
 
   const handleLike = () => {
@@ -35,8 +36,14 @@ export function PostCard({ user, content, image, likes, comments, time, hashtags
     setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
   };
 
+  const TRUNCATE_LIMIT = 280;
+  const isLongContent = content.length > TRUNCATE_LIMIT;
+  const displayedContent = isLongContent && !isExpanded 
+    ? content.slice(0, TRUNCATE_LIMIT) + "..." 
+    : content;
+
   return (
-    <Card className="border-none shadow-sm overflow-hidden bg-white mb-4">
+    <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-card mb-4">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -45,7 +52,7 @@ export function PostCard({ user, content, image, likes, comments, time, hashtags
               <AvatarFallback>{user.name[0]}</AvatarFallback>
             </Avatar>
             {user.isOnline && (
-              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
+              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-card rounded-full" />
             )}
           </div>
           <div className="flex flex-col">
@@ -60,13 +67,26 @@ export function PostCard({ user, content, image, likes, comments, time, hashtags
             </div>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full hover:bg-secondary">
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full hover:bg-secondary" aria-label="More options">
           <MoreHorizontal className="h-5 w-5" />
         </Button>
       </CardHeader>
       
       <CardContent className="px-3 pb-2 space-y-2">
-        <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{content}</p>
+        <div className="space-y-1">
+          <p className="text-[13px] leading-relaxed whitespace-pre-wrap">
+            {displayedContent}
+          </p>
+          {isLongContent && (
+            <button 
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="text-[13px] font-bold text-primary hover:underline"
+              aria-label={isExpanded ? "Show less" : "See more"}
+            >
+              {isExpanded ? "Show less" : "See more"}
+            </button>
+          )}
+        </div>
         
         {hashtags && hashtags.length > 0 && (
           <div className="flex flex-wrap gap-1">
@@ -79,7 +99,7 @@ export function PostCard({ user, content, image, likes, comments, time, hashtags
         )}
 
         {image && (
-          <div className="relative aspect-video rounded-lg overflow-hidden mt-2 -mx-3 sm:mx-0">
+          <div className="relative aspect-video rounded-lg overflow-hidden mt-2 -mx-3 sm:mx-0 border border-border/50">
             <Image 
               src={image} 
               alt="Post content" 
@@ -94,7 +114,7 @@ export function PostCard({ user, content, image, likes, comments, time, hashtags
             <div className="bg-primary p-1 rounded-full text-white">
               <ThumbsUp className="h-2.5 w-2.5 fill-current" />
             </div>
-            <span className="text-[11px] text-muted-foreground">{likeCount}</span>
+            <span className="text-[11px] text-muted-foreground" aria-label={`${likeCount} likes`}>{likeCount}</span>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <span>{comments} comments</span>
@@ -104,21 +124,32 @@ export function PostCard({ user, content, image, likes, comments, time, hashtags
         </div>
       </CardContent>
 
-      <CardFooter className="p-1 px-3 flex items-center justify-between">
+      <CardFooter className="p-1 px-3 flex items-center justify-between gap-1">
         <Button 
           variant="ghost" 
           size="sm" 
-          className={cn("flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary font-bold text-xs", isLiked && "text-primary")}
+          className={cn("flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors", isLiked && "text-primary")}
           onClick={handleLike}
+          aria-label={isLiked ? "Unlike post" : "Like post"}
         >
           <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />
           Like
         </Button>
-        <Button variant="ghost" size="sm" className="flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary font-bold text-xs">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors"
+          aria-label="Comment on post"
+        >
           <MessageCircle className="h-4 w-4" />
           Comment
         </Button>
-        <Button variant="ghost" size="sm" className="flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary font-bold text-xs">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors"
+          aria-label="Share post"
+        >
           <Share2 className="h-4 w-4" />
           Share
         </Button>

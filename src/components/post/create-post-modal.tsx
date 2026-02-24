@@ -10,12 +10,13 @@ import {
   Smile, 
   MapPin, 
   UserPlus, 
-  MoreHorizontal,
   Globe,
   MessageCircle,
   Calendar,
   Video,
-  ChevronLeft
+  ChevronLeft,
+  Lock,
+  Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,16 +27,38 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface CreatePostModalProps {
   children: React.ReactNode;
 }
 
+type PrivacySetting = {
+  id: string;
+  label: string;
+  icon: typeof Globe;
+  description: string;
+};
+
+const privacySettings: PrivacySetting[] = [
+  { id: "public", label: "Public", icon: Globe, description: "Anyone on or off ViMore" },
+  { id: "friends", label: "Friends", icon: Users, description: "Your friends on ViMore" },
+  { id: "private", label: "Only Me", icon: Lock, description: "Only you can see this post" },
+];
+
 export function CreatePostModal({ children }: CreatePostModalProps) {
   const [content, setContent] = useState("");
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
+  const [privacy, setPrivacy] = useState<PrivacySetting>(privacySettings[0]);
   const { toast } = useToast();
+  
+  const CHARACTER_LIMIT = 2000;
 
   const handleEnhance = async () => {
     if (!content.trim()) {
@@ -100,6 +123,9 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     "bg-gradient-to-br from-purple-600 to-blue-500",
   ];
 
+  const progress = (content.length / CHARACTER_LIMIT) * 100;
+  const isOverLimit = content.length > CHARACTER_LIMIT;
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -111,7 +137,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0">
           <div className="flex items-center gap-4">
             <DialogClose asChild>
-              <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
+              <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" aria-label="Go back">
                 <ArrowLeft className="h-6 w-6" />
               </Button>
             </DialogClose>
@@ -120,9 +146,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           <DialogClose asChild>
             <Button 
               variant="ghost" 
-              className={cn("font-bold text-primary text-base", !content.trim() && "opacity-50")}
-              disabled={!content.trim()}
+              className={cn("font-bold text-primary text-base", (!content.trim() || isOverLimit) && "opacity-50")}
+              disabled={!content.trim() || isOverLimit}
               onClick={handlePost}
+              aria-label="Submit post"
             >
               POST
             </Button>
@@ -131,7 +158,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto">
-          {/* User Info */}
+          {/* User Info & Privacy Selector */}
           <div className="p-4 flex items-center gap-3">
             <Avatar className="h-12 w-12 border border-primary/10">
               <AvatarImage src="https://picsum.photos/seed/me/200/200" />
@@ -139,26 +166,75 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </Avatar>
             <div className="flex flex-col gap-0.5">
               <p className="font-bold text-base">John Doe</p>
-              <Button variant="secondary" size="sm" className="h-7 px-2 bg-secondary/60 rounded-md flex items-center gap-1.5">
-                <Globe className="h-3.5 w-3.5" />
-                <span className="text-[13px] font-bold">Public</span>
-                <ChevronDown className="h-3.5 w-3.5" />
-              </Button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="secondary" size="sm" className="h-7 px-2 bg-secondary/60 rounded-md flex items-center gap-1.5" aria-label={`Privacy: ${privacy.label}`}>
+                    <privacy.icon className="h-3.5 w-3.5" />
+                    <span className="text-[13px] font-bold">{privacy.label}</span>
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-64 rounded-xl p-2">
+                  {privacySettings.map((item) => (
+                    <DropdownMenuItem 
+                      key={item.id} 
+                      className="flex flex-col items-start gap-0.5 py-3 cursor-pointer"
+                      onClick={() => setPrivacy(item)}
+                    >
+                      <div className="flex items-center gap-2 font-bold text-sm">
+                        <item.icon className="h-4 w-4" />
+                        {item.label}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground ml-6">{item.description}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
           {/* Text Area */}
-          <div className="px-4">
+          <div className="px-4 relative">
             <Textarea 
               placeholder="What's on your mind?" 
               className="border-none focus-visible:ring-0 text-2xl resize-none p-0 placeholder:text-muted-foreground/50 min-h-[200px]"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               autoFocus
+              aria-label="Post content"
             />
+            
+            {/* Character Counter */}
+            <div className="absolute bottom-2 right-4 flex items-center gap-2">
+              <div className="relative w-6 h-6">
+                <svg className="w-full h-full" viewBox="0 0 36 36">
+                  <path
+                    className="text-muted/30"
+                    strokeDasharray="100, 100"
+                    strokeWidth="3"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  <path
+                    className={cn(isOverLimit ? "text-destructive" : progress > 90 ? "text-yellow-500" : "text-primary")}
+                    strokeDasharray={`${Math.min(progress, 100)}, 100`}
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                </svg>
+              </div>
+              <span className={cn("text-[10px] font-bold", isOverLimit && "text-destructive")}>
+                {CHARACTER_LIMIT - content.length}
+              </span>
+            </div>
           </div>
 
-          {/* AI Suggested Tags (Optional overlay) */}
+          {/* AI Suggested Tags */}
           {suggestedTags.length > 0 && (
             <div className="px-4 pb-4">
               <div className="bg-primary/5 rounded-xl p-3 border border-primary/10">
@@ -172,7 +248,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                     <Badge 
                       key={tag} 
                       variant="secondary" 
-                      className="cursor-pointer hover:bg-primary hover:text-white py-1 px-3 rounded-full text-xs font-medium"
+                      className="cursor-pointer hover:bg-primary hover:text-white py-1 px-3 rounded-full text-xs font-medium transition-colors"
                       onClick={() => addTag(tag)}
                     >
                       #{tag.replace('#', '')}
@@ -185,16 +261,16 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
           {/* Background Picker */}
           <div className="px-4 py-4 flex items-center gap-3">
-             <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-lg">
+             <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-lg" aria-label="Previous backgrounds">
                 <ChevronLeft className="h-5 w-5 text-muted-foreground" />
              </Button>
              <ScrollArea className="w-full whitespace-nowrap">
                 <div className="flex gap-2">
                   <div className="w-10 h-10 rounded-lg border-2 border-primary/20 bg-white" />
                   {backgroundColors.map((color, i) => (
-                    <div key={i} className={cn("w-10 h-10 rounded-lg shrink-0", color)} />
+                    <div key={i} className={cn("w-10 h-10 rounded-lg shrink-0 cursor-pointer", color)} />
                   ))}
-                  <div className="w-10 h-10 rounded-lg bg-secondary/50 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-lg bg-secondary/50 flex items-center justify-center cursor-pointer">
                     <span className="text-xl font-bold">@</span>
                   </div>
                 </div>
@@ -208,6 +284,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               <button 
                 key={i} 
                 className="w-full flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors"
+                aria-label={item.label}
               >
                 <div className="flex items-center gap-4">
                   <item.icon className={cn("h-6 w-6", item.color)} />
@@ -221,6 +298,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               onClick={handleEnhance}
               disabled={isEnhancing || !content.trim()}
               className="w-full flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors border-t"
+              aria-label="Enhance post with AI"
             >
               <div className="flex items-center gap-4">
                 {isEnhancing ? (
@@ -239,8 +317,9 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           <DialogClose asChild>
             <Button 
               className="w-full h-12 font-bold text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-none"
-              disabled={!content.trim()}
+              disabled={!content.trim() || isOverLimit}
               onClick={handlePost}
+              aria-label="Post now"
             >
               POST
             </Button>

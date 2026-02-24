@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -27,24 +26,24 @@
     --radius: 1rem;
   }
   .dark {
-    --background: 272 50% 5%;
+    --background: 272 50% 3%;
     --foreground: 270 45% 95%;
-    --card: 272 40% 10%;
+    --card: 272 40% 7%;
     --card-foreground: 270 45% 95%;
-    --popover: 272 40% 10%;
+    --popover: 272 40% 7%;
     --popover-foreground: 270 45% 95%;
     --primary: 272 77% 57%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 272 30% 20%;
-    --secondary-foreground: 272 77% 80%;
-    --muted: 272 30% 20%;
-    --muted-foreground: 272 10% 70%;
+    --secondary: 272 30% 15%;
+    --secondary-foreground: 272 77% 85%;
+    --muted: 272 30% 15%;
+    --muted-foreground: 272 10% 65%;
     --accent: 224 100% 71%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 272 30% 25%;
-    --input: 272 30% 25%;
+    --border: 272 30% 20%;
+    --input: 272 30% 20%;
     --ring: 272 77% 57%;
   }
 }
