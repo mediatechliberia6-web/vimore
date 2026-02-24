@@ -17,9 +17,9 @@ export function Header() {
               <path d="M13 15L17 7L21 15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <span className="hidden sm:block font-headline font-bold text-xl tracking-tight text-primary">ViMore</span>
+          <span className="font-headline font-bold text-xl tracking-tight text-primary">ViMore</span>
         </Link>
-        <div className="relative group max-w-[160px] sm:max-w-xs">
+        <div className="hidden sm:block relative group max-w-[160px] sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
           <Input 
             placeholder="Search ViMore" 
@@ -29,16 +29,16 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2">
-        <Link href="/messages">
-          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
-            <MessageCircle className="h-5 w-5" />
-          </Button>
-        </Link>
         <CreatePostModal>
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
             <Plus className="h-5 w-5" />
           </Button>
         </CreatePostModal>
+        <Link href="/messages">
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
+            <MessageCircle className="h-5 w-5" />
+          </Button>
+        </Link>
         <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 relative">
           <Bell className="h-5 w-5" />
           <span className="absolute top-1 right-1 w-4 h-4 bg-destructive text-white text-[10px] flex items-center justify-center rounded-full font-bold">2</span>
