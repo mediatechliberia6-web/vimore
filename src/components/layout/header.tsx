@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -62,23 +61,12 @@ export function Header() {
           </Avatar>
         </Link>
 
-        {/* Mobile Navigation Drawer */}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 lg:hidden" aria-label="Open menu">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-[280px] border-r-0">
-            <div className="sr-only">
-              <SheetHeader>
-                <SheetTitle>Navigation Menu</SheetTitle>
-                <SheetDescription>Access all ViMore features and settings.</SheetDescription>
-              </SheetHeader>
-            </div>
-            <MainNav />
-          </SheetContent>
-        </Sheet>
+        {/* Mobile Navigation Trigger - Links to Menu Page */}
+        <Link href="/menu" className="lg:hidden">
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50" aria-label="Open menu">
+            <Menu className="h-5 w-5" />
+          </Button>
+        </Link>
       </div>
     </header>
   );
