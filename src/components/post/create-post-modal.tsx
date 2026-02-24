@@ -172,9 +172,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     { icon: Smile, label: "Feeling/activity", color: "text-yellow-500", onClick: () => setFeeling({ emoji: "😊", text: "Happy" }) },
     { icon: UserPlus, label: "Tag people", color: "text-blue-500", onClick: () => setContent(prev => prev + " @") },
     { icon: MapPin, label: "Add location", color: "text-red-500" },
-    { icon: MessageCircle, label: "Get messages", color: "text-blue-400" },
-    { icon: Calendar, label: "Create Event", color: "text-red-400" },
-    { icon: Video, label: "Go live", color: "text-red-600" },
   ];
 
   const progress = (content.length / CHARACTER_LIMIT) * 100;
