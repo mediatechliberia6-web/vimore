@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import Image from "next/image";
 import { 
   ThumbsUp, 
@@ -110,6 +110,7 @@ export function PostCard({
   const [localTotalVotes, setLocalTotalVotes] = useState(poll?.totalVotes || 0);
   const [isPollExpanded, setIsPollExpanded] = useState(false);
 
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
   const allImages = useMemo(() => {
@@ -122,14 +123,36 @@ export function PostCard({
     if (activeReaction) {
       setActiveReaction(null);
       setLikeCount(prev => prev - 1);
+      setIsLiked(false);
     } else {
-      setIsLiked(!isLiked);
-      setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+      const newLikedState = !isLiked;
+      setIsLiked(newLikedState);
+      setLikeCount(prev => newLikedState ? prev + 1 : prev - 1);
+    }
+  };
+
+  const handlePressStart = () => {
+    longPressTimer.current = setTimeout(() => {
+      setShowReactions(true);
+      longPressTimer.current = null;
+    }, 1000);
+  };
+
+  const handlePressEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+      // It was a quick press, so handle regular like toggle
+      if (!showReactions) {
+        handleLike();
+      }
     }
   };
 
   const handleReaction = (type: string) => {
-    if (!activeReaction) setLikeCount(prev => prev + 1);
+    if (!activeReaction && !isLiked) {
+      setLikeCount(prev => prev + 1);
+    }
     setActiveReaction(type);
     setIsLiked(true);
     setShowReactions(false);
@@ -157,13 +180,10 @@ export function PostCard({
     let newTotal = localTotalVotes;
 
     if (userVote === index) {
-      // Remove vote
       newOptions[index] = { ...newOptions[index], votes: newOptions[index].votes - 1 };
       newTotal -= 1;
       setUserVote(null);
-      toast({ description: "Vote removed" });
     } else {
-      // Change or Add vote
       if (userVote !== null) {
         newOptions[userVote] = { ...newOptions[userVote], votes: newOptions[userVote].votes - 1 };
         newTotal -= 1;
@@ -171,7 +191,6 @@ export function PostCard({
       newOptions[index] = { ...newOptions[index], votes: newOptions[index].votes + 1 };
       newTotal += 1;
       setUserVote(index);
-      toast({ description: userVote !== null ? "Vote changed" : "Vote counted!" });
     }
     setLocalPollOptions(newOptions);
     setLocalTotalVotes(newTotal);
@@ -311,7 +330,6 @@ export function PostCard({
           </div>
         )}
 
-        {/* Poll Section */}
         {poll && (
           <div className="mt-3 p-4 rounded-xl border border-primary/10 bg-primary/5 space-y-3">
             <h4 className="font-bold text-sm">{poll.question}</h4>
@@ -367,14 +385,12 @@ export function PostCard({
           </div>
         )}
 
-        {/* Shared Post Preview */}
         {sharedPost && (
           <div className="mt-2">
             <PostCard {...sharedPost} isShared={true} />
           </div>
         )}
 
-        {/* Link Preview Simulation */}
         {foundUrl && !allImages.length && !sharedPost && (
           <div className="rounded-xl border border-border overflow-hidden bg-secondary/20 cursor-pointer hover:bg-secondary/30 transition-colors">
             <div className="relative aspect-[1.91/1] w-full">
@@ -388,7 +404,6 @@ export function PostCard({
           </div>
         )}
 
-        {/* Media Content */}
         {allImages.length > 0 && !isShared && (
           <div className="relative mt-2 -mx-3 sm:mx-0 group">
             {allImages.length === 1 ? (
@@ -464,10 +479,10 @@ export function PostCard({
 
       {!isShared && (
         <CardFooter className="p-1 px-3 flex flex-col gap-1 relative">
-          <div className="flex items-center justify-between gap-1 w-full">
+          <div className="flex items-center justify-between gap-1 w-full relative">
             {showReactions && (
               <div 
-                className="absolute bottom-full left-4 mb-2 bg-white dark:bg-card rounded-full shadow-xl border border-border p-1.5 flex gap-2 animate-in slide-in-from-bottom-2 duration-200 z-50"
+                className="absolute bottom-full left-0 mb-2 bg-white dark:bg-card rounded-full shadow-2xl border border-border p-1.5 flex gap-2 animate-in slide-in-from-bottom-2 duration-200 z-[100]"
                 onMouseLeave={() => setShowReactions(false)}
               >
                 {[
@@ -481,10 +496,13 @@ export function PostCard({
                   return (
                     <button
                       key={reaction.type}
-                      onClick={() => handleReaction(reaction.type)}
-                      className={cn("p-2 rounded-full hover:bg-secondary hover:scale-125 transition-all", reaction.color)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleReaction(reaction.type);
+                      }}
+                      className={cn("p-2 rounded-full hover:bg-secondary hover:scale-125 transition-all outline-none", reaction.color)}
                     >
-                      <Icon className="h-5 w-5 fill-current" />
+                      <Icon className="h-6 w-6 fill-current" />
                     </button>
                   );
                 })}
@@ -496,16 +514,19 @@ export function PostCard({
               size="sm" 
               className={cn(
                 "flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors", 
-                isLiked && "text-primary"
+                isLiked && (activeReaction === 'love' ? 'text-red-500' : 'text-primary')
               )}
-              onClick={handleLike}
-              onMouseEnter={() => setShowReactions(true)}
+              onMouseDown={handlePressStart}
+              onMouseUp={handlePressEnd}
+              onMouseLeave={handlePressEnd}
+              onTouchStart={handlePressStart}
+              onTouchEnd={handlePressEnd}
               aria-label={isLiked ? "Unlike post" : "Like post"}
             >
               {activeReaction === 'love' ? <Heart className="h-4 w-4 fill-red-500 text-red-500" /> :
-               activeReaction === 'laugh' ? <Laugh className="h-4 w-4 text-yellow-500" /> :
-               activeReaction === 'wow' ? <Wow className="h-4 w-4 text-blue-500" /> :
-               activeReaction === 'sad' ? <Sad className="h-4 w-4 text-orange-500" /> :
+               activeReaction === 'laugh' ? <Laugh className="h-4 w-4 text-yellow-500 fill-yellow-500/20" /> :
+               activeReaction === 'wow' ? <Wow className="h-4 w-4 text-blue-500 fill-blue-500/20" /> :
+               activeReaction === 'sad' ? <Sad className="h-4 w-4 text-orange-500 fill-orange-500/20" /> :
                <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />}
               {activeReaction ? activeReaction.charAt(0).toUpperCase() + activeReaction.slice(1) : 'Like'}
             </Button>
