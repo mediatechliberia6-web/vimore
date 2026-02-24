@@ -2,12 +2,18 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye, BellOff, VolumeX } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { usePosts } from "@/context/PostContext";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const STORY_DURATION = 5000; // 5 seconds per segment
 const QUICK_REACTIONS = ["❤️", "🔥", "😂", "😮", "😢", "👏"];
@@ -20,7 +26,7 @@ interface FloatingReaction {
 }
 
 export function StoryViewer() {
-  const { stories, activeStoryIndex, setActiveStoryIndex, voteOnStoryPoll } = usePosts();
+  const { stories, activeStoryIndex, mutedUserNames, setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser } = usePosts();
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -241,9 +247,25 @@ export function StoryViewer() {
                   <span className="text-[10px] font-bold">{activeStory.viewCount}</span>
                 </div>
               )}
-              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-8 w-8">
-                <MoreHorizontal className="h-5 w-5" />
-              </Button>
+              
+              <DropdownMenu onOpenChange={(open) => setIsPaused(open)}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-8 w-8">
+                    <MoreHorizontal className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 rounded-xl p-2">
+                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={() => toggleMuteUser(activeStory.user.name)}>
+                    <VolumeX className="h-4 w-4" />
+                    {mutedUserNames.includes(activeStory.user.name) ? "Unmute" : "Mute"} {activeStory.user.name}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold text-destructive focus:text-destructive">
+                    <BellOff className="h-4 w-4" />
+                    Turn off story notifications
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Button 
                 variant="ghost" 
                 size="icon" 

@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { 
   ArrowLeft, 
   Camera, 
@@ -27,8 +28,12 @@ import {
   Rss
 } from "lucide-react";
 import Link from "next/link";
+import { usePosts } from "@/context/PostContext";
+import Image from "next/image";
 
 export default function ProfilePage() {
+  const { highlights } = usePosts();
+  
   const user = {
     name: "John Doe",
     username: "johndoe_creative",
@@ -172,7 +177,7 @@ export default function ProfilePage() {
 
                 {/* Main Action Bar */}
                 <div className="mt-6 flex gap-2">
-                  <Button className="flex-1 rounded-lg gap-2 bg-primary hover:bg-primary/90 h-11 font-bold">
+                  <Button className="flex-1 rounded-lg gap-2 bg-primary hover:bg-primary/90 h-11 font-bold text-white shadow-lg shadow-primary/20">
                     <LayoutDashboard className="h-5 w-5" />
                     Dashboard
                   </Button>
@@ -180,6 +185,36 @@ export default function ProfilePage() {
                     <Plus className="h-5 w-5" />
                     Add to story
                   </Button>
+                </div>
+
+                {/* Highlights Section */}
+                <div className="mt-8">
+                  <ScrollArea className="w-full whitespace-nowrap">
+                    <div className="flex w-max space-x-4 p-1 pb-4">
+                      {highlights.map((highlight) => (
+                        <div key={highlight.id} className="flex flex-col items-center gap-2 group cursor-pointer">
+                          <div className="relative h-20 w-20 rounded-full p-1 border-2 border-primary/20 group-hover:border-primary transition-colors">
+                            <div className="relative h-full w-full rounded-full overflow-hidden">
+                              <Image 
+                                src={highlight.coverImage} 
+                                alt={highlight.title} 
+                                fill 
+                                className="object-cover transition-transform group-hover:scale-110 duration-500" 
+                              />
+                            </div>
+                          </div>
+                          <span className="text-xs font-bold text-foreground">{highlight.title}</span>
+                        </div>
+                      ))}
+                      <div className="flex flex-col items-center gap-2 group cursor-pointer">
+                        <div className="h-20 w-20 rounded-full border-2 border-dashed border-border flex items-center justify-center group-hover:bg-secondary transition-colors">
+                          <Plus className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <span className="text-xs font-bold text-muted-foreground">New</span>
+                      </div>
+                    </div>
+                    <ScrollBar orientation="horizontal" className="opacity-0" />
+                  </ScrollArea>
                 </div>
               </div>
             </div>

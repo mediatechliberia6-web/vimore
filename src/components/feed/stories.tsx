@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import Image from "next/image";
@@ -17,8 +17,14 @@ const USER_PROFILE = {
 };
 
 export function Stories() {
-  const { stories, setActiveStoryIndex } = usePosts();
+  const { stories, mutedUserNames, setActiveStoryIndex } = usePosts();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const sortedStories = useMemo(() => {
+    const unmuted = stories.filter(s => !mutedUserNames.includes(s.user.name));
+    const muted = stories.filter(s => mutedUserNames.includes(s.user.name));
+    return [...unmuted, ...muted];
+  }, [stories, mutedUserNames]);
 
   return (
     <div className="w-full">
@@ -46,34 +52,42 @@ export function Stories() {
             </div>
           </div>
 
-          {stories.map((story, index) => (
-            <div 
-              key={story.id} 
-              className="relative w-28 h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-sm hover:shadow-md transition-shadow"
-              onClick={() => setActiveStoryIndex(index)}
-            >
-              <Image 
-                src={story.segments[0].image} 
-                alt={story.user.name} 
-                fill 
-                className={cn("object-cover transition-transform group-hover:scale-110 duration-500", story.segments[0].filter)}
-              />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
-              
-              <div className={cn(
-                "absolute top-2 left-2 border-2 rounded-full p-0.5 shadow-lg",
-                story.isCloseFriends ? "border-[#42b72a]" : "border-primary"
-              )}>
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={story.user.avatar} />
-                  <AvatarFallback>{story.user.name[0]}</AvatarFallback>
-                </Avatar>
+          {sortedStories.map((story) => {
+            const index = stories.findIndex(s => s.id === story.id);
+            const isMuted = mutedUserNames.includes(story.user.name);
+            
+            return (
+              <div 
+                key={story.id} 
+                className={cn(
+                  "relative w-28 h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-sm hover:shadow-md transition-all",
+                  isMuted && "opacity-50 grayscale contrast-75"
+                )}
+                onClick={() => setActiveStoryIndex(index)}
+              >
+                <Image 
+                  src={story.segments[0].image} 
+                  alt={story.user.name} 
+                  fill 
+                  className={cn("object-cover transition-transform group-hover:scale-110 duration-500", story.segments[0].filter)}
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
+                
+                <div className={cn(
+                  "absolute top-2 left-2 border-2 rounded-full p-0.5 shadow-lg",
+                  isMuted ? "border-muted" : story.isCloseFriends ? "border-[#42b72a]" : "border-primary"
+                )}>
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={story.user.avatar} />
+                    <AvatarFallback>{story.user.name[0]}</AvatarFallback>
+                  </Avatar>
+                </div>
+                <span className="absolute bottom-2 left-2 right-2 text-[10px] font-bold text-white truncate drop-shadow-md">
+                  {story.user.name}
+                </span>
               </div>
-              <span className="absolute bottom-2 left-2 right-2 text-[10px] font-bold text-white truncate drop-shadow-md">
-                {story.user.name}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <ScrollBar orientation="horizontal" className="opacity-0 group-hover:opacity-100 transition-opacity" />
       </ScrollArea>

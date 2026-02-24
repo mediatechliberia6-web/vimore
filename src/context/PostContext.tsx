@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
 
 export interface User {
   name: string;
@@ -46,6 +46,13 @@ export interface Story {
   viewCount?: number;
 }
 
+export interface Highlight {
+  id: string;
+  title: string;
+  coverImage: string;
+  segments: StorySegment[];
+}
+
 export interface Post {
   id: string;
   user: User;
@@ -76,11 +83,14 @@ export interface Post {
 interface PostContextType {
   posts: Post[];
   stories: Story[];
+  highlights: Highlight[];
+  mutedUserNames: string[];
   activeStoryIndex: number | null;
   setActiveStoryIndex: (index: number | null) => void;
   addPost: (post: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => void;
   addStory: (segment: Omit<StorySegment, 'id'>) => void;
   voteOnStoryPoll: (storyId: string, segmentId: string, optionIndex: number) => void;
+  toggleMuteUser: (username: string) => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -145,6 +155,13 @@ const initialMockStories: Story[] = [
       { id: "seg6", image: "https://picsum.photos/seed/s6/800/1200", type: 'image' }
     ]
   }
+];
+
+const initialHighlights: Highlight[] = [
+  { id: "h1", title: "SF Trip", coverImage: "https://picsum.photos/seed/h1/200/200", segments: [] },
+  { id: "h2", title: "Design", coverImage: "https://picsum.photos/seed/h2/200/200", segments: [] },
+  { id: "h3", title: "Vibes", coverImage: "https://picsum.photos/seed/h3/200/200", segments: [] },
+  { id: "h4", title: "Work", coverImage: "https://picsum.photos/seed/h4/200/200", segments: [] },
 ];
 
 const initialMockPosts: Post[] = [
@@ -235,6 +252,8 @@ const initialMockPosts: Post[] = [
 export function PostProvider({ children }: { children: ReactNode }) {
   const [posts, setPosts] = useState<Post[]>(initialMockPosts);
   const [stories, setStories] = useState<Story[]>(initialMockStories);
+  const [highlights] = useState<Highlight[]>(initialHighlights);
+  const [mutedUserNames, setMutedUserNames] = useState<string[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
 
   const addPost = (newPostData: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => {
@@ -298,8 +317,27 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const toggleMuteUser = (username: string) => {
+    setMutedUserNames(prev => 
+      prev.includes(username) 
+        ? prev.filter(u => u !== username) 
+        : [...prev, username]
+    );
+  };
+
   return (
-    <PostContext.Provider value={{ posts, stories, activeStoryIndex, setActiveStoryIndex, addPost, addStory, voteOnStoryPoll }}>
+    <PostContext.Provider value={{ 
+      posts, 
+      stories, 
+      highlights, 
+      mutedUserNames,
+      activeStoryIndex, 
+      setActiveStoryIndex, 
+      addPost, 
+      addStory, 
+      voteOnStoryPoll,
+      toggleMuteUser
+    }}>
       {children}
     </PostContext.Provider>
   );
