@@ -5,6 +5,15 @@ import { Search, Plus, Menu, Bell, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CreatePostModal } from "@/components/post/create-post-modal";
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetTrigger, 
+  SheetHeader, 
+  SheetTitle,
+  SheetDescription 
+} from "@/components/ui/sheet";
+import { MainNav } from "@/components/layout/main-nav";
 
 export function Header() {
   return (
@@ -43,9 +52,24 @@ export function Header() {
           <Bell className="h-5 w-5" />
           <span className="absolute top-1 right-1 w-4 h-4 bg-destructive text-white text-[10px] flex items-center justify-center rounded-full font-bold">2</span>
         </Button>
-        <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
-          <Menu className="h-5 w-5" />
-        </Button>
+        
+        {/* Mobile Navigation Drawer */}
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 lg:hidden" aria-label="Open menu">
+              <Menu className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 w-[280px] border-r-0">
+            <div className="sr-only">
+              <SheetHeader>
+                <SheetTitle>Navigation Menu</SheetTitle>
+                <SheetDescription>Access all ViMore features and settings.</SheetDescription>
+              </SheetHeader>
+            </div>
+            <MainNav />
+          </SheetContent>
+        </Sheet>
       </div>
     </header>
   );
