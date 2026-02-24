@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Plus } from "lucide-react";
 import { usePosts } from "@/context/PostContext";
 import { StoryViewer } from "./story-viewer";
+import { cn } from "@/lib/utils";
 
 const USER_PROFILE = {
   name: "John Doe",
@@ -53,7 +54,10 @@ export function Stories() {
               />
               <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
               
-              <div className="absolute top-2 left-2 border-2 border-primary rounded-full p-0.5 shadow-lg">
+              <div className={cn(
+                "absolute top-2 left-2 border-2 rounded-full p-0.5 shadow-lg",
+                story.isCloseFriends ? "border-[#42b72a]" : "border-primary"
+              )}>
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={story.user.avatar} />
                   <AvatarFallback>{story.user.name[0]}</AvatarFallback>

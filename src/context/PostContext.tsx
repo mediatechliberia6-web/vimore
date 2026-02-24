@@ -18,17 +18,25 @@ export interface Mention {
   y: string; // percentage
 }
 
+export interface StoryPoll {
+  question: string;
+  options: { text: string; votes: number }[];
+}
+
 export interface StorySegment {
   id: string;
   image: string;
   type: 'image' | 'video';
   mentions?: Mention[];
+  poll?: StoryPoll;
 }
 
 export interface Story {
   id: string;
   user: User;
   segments: StorySegment[];
+  isCloseFriends?: boolean;
+  viewCount?: number;
 }
 
 export interface Post {
@@ -64,6 +72,7 @@ interface PostContextType {
   activeStoryIndex: number | null;
   setActiveStoryIndex: (index: number | null) => void;
   addPost: (post: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => void;
+  voteOnStoryPoll: (storyId: string, segmentId: string, optionIndex: number) => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -72,12 +81,17 @@ const initialMockStories: Story[] = [
   {
     id: "s1",
     user: { name: "Alex Rivera", avatar: "https://picsum.photos/seed/1/100/100" },
+    isCloseFriends: true,
     segments: [
       { 
         id: "seg1", 
         image: "https://picsum.photos/seed/s2/800/1200", 
         type: 'image',
-        mentions: [{ username: "arivera", x: "20%", y: "40%" }]
+        mentions: [{ username: "arivera", x: "20%", y: "40%" }],
+        poll: {
+          question: "Best coffee spot in SF?",
+          options: [{ text: "Blue Bottle", votes: 12 }, { text: "Philz", votes: 8 }]
+        }
       },
       { id: "seg2", image: "https://picsum.photos/seed/s22/800/1200", type: 'image' }
     ]
@@ -96,7 +110,8 @@ const initialMockStories: Story[] = [
   },
   {
     id: "s3",
-    user: { name: "Marcus Stone", avatar: "https://picsum.photos/seed/3/100/100" },
+    user: { name: "John Doe", avatar: "https://picsum.photos/seed/me/200/200" },
+    viewCount: 245,
     segments: [
       { id: "seg4", image: "https://picsum.photos/seed/s4/800/1200", type: 'image' }
     ]
@@ -104,6 +119,7 @@ const initialMockStories: Story[] = [
   {
     id: "s4",
     user: { name: "Elena Gilbert", avatar: "https://picsum.photos/seed/4/100/100" },
+    isCloseFriends: true,
     segments: [
       { id: "seg5", image: "https://picsum.photos/seed/s5/800/1200", type: 'image' }
     ]
@@ -204,7 +220,7 @@ const initialMockPosts: Post[] = [
 
 export function PostProvider({ children }: { children: ReactNode }) {
   const [posts, setPosts] = useState<Post[]>(initialMockPosts);
-  const [stories] = useState<Story[]>(initialMockStories);
+  const [stories, setStories] = useState<Story[]>(initialMockStories);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
 
   const addPost = (newPostData: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => {
@@ -219,8 +235,29 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setPosts([newPost, ...posts]);
   };
 
+  const voteOnStoryPoll = (storyId: string, segmentId: string, optionIndex: number) => {
+    setStories(prev => prev.map(story => {
+      if (story.id !== storyId) return story;
+      return {
+        ...story,
+        segments: story.segments.map(segment => {
+          if (segment.id !== segmentId || !segment.poll) return segment;
+          const newOptions = [...segment.poll.options];
+          newOptions[optionIndex] = {
+            ...newOptions[optionIndex],
+            votes: newOptions[optionIndex].votes + 1
+          };
+          return {
+            ...segment,
+            poll: { ...segment.poll, options: newOptions }
+          };
+        })
+      };
+    }));
+  };
+
   return (
-    <PostContext.Provider value={{ posts, stories, activeStoryIndex, setActiveStoryIndex, addPost }}>
+    <PostContext.Provider value={{ posts, stories, activeStoryIndex, setActiveStoryIndex, addPost, voteOnStoryPoll }}>
       {children}
     </PostContext.Provider>
   );

@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { usePosts } from "@/context/PostContext";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 const STORY_DURATION = 5000; // 5 seconds per segment
 const QUICK_REACTIONS = ["❤️", "🔥", "😂", "😮", "😢", "👏"];
+const CURRENT_USER_NAME = "John Doe";
 
 interface FloatingReaction {
   id: number;
@@ -19,11 +20,12 @@ interface FloatingReaction {
 }
 
 export function StoryViewer() {
-  const { stories, activeStoryIndex, setActiveStoryIndex } = usePosts();
+  const { stories, activeStoryIndex, setActiveStoryIndex, voteOnStoryPoll } = usePosts();
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
   const [reactions, setReactions] = useState<FloatingReaction[]>([]);
+  const [votedSegmentId, setVotedSegmentId] = useState<string | null>(null);
   
   const startTime = useRef<number | null>(null);
   const requestRef = useRef<number | null>(null);
@@ -38,6 +40,7 @@ export function StoryViewer() {
     startTime.current = null;
     pausedTime.current = 0;
     setReactions([]);
+    setVotedSegmentId(null);
   }, [setActiveStoryIndex]);
 
   const nextSegment = useCallback(() => {
@@ -48,12 +51,14 @@ export function StoryViewer() {
       setProgress(0);
       startTime.current = null;
       pausedTime.current = 0;
+      setVotedSegmentId(null);
     } else if (activeStoryIndex !== null && activeStoryIndex < stories.length - 1) {
       setActiveStoryIndex(activeStoryIndex + 1);
       setSegmentIndex(0);
       setProgress(0);
       startTime.current = null;
       pausedTime.current = 0;
+      setVotedSegmentId(null);
     } else {
       handleClose();
     }
@@ -67,6 +72,7 @@ export function StoryViewer() {
       setProgress(0);
       startTime.current = null;
       pausedTime.current = 0;
+      setVotedSegmentId(null);
     } else if (activeStoryIndex !== null && activeStoryIndex > 0) {
       const prevStory = stories[activeStoryIndex - 1];
       setActiveStoryIndex(activeStoryIndex - 1);
@@ -74,6 +80,7 @@ export function StoryViewer() {
       setProgress(0);
       startTime.current = null;
       pausedTime.current = 0;
+      setVotedSegmentId(null);
     } else {
       // Re-start current segment
       setProgress(0);
@@ -149,9 +156,23 @@ export function StoryViewer() {
     }, 2000);
   };
 
-  if (!activeStory) return null;
+  const currentSegment = activeStory?.segments[segmentIndex];
+  const isOwner = activeStory?.user.name === CURRENT_USER_NAME;
 
-  const currentSegment = activeStory.segments[segmentIndex];
+  const handlePollVote = (e: React.MouseEvent, optionIndex: number) => {
+    e.stopPropagation();
+    if (!activeStory || !currentSegment || votedSegmentId === currentSegment.id) return;
+    
+    voteOnStoryPoll(activeStory.id, currentSegment.id, optionIndex);
+    setVotedSegmentId(currentSegment.id);
+  };
+
+  const totalPollVotes = useMemo(() => {
+    if (!currentSegment?.poll) return 0;
+    return currentSegment.poll.options.reduce((acc, opt) => acc + opt.votes, 0);
+  }, [currentSegment]);
+
+  if (!activeStory || !currentSegment) return null;
 
   return (
     <div 
@@ -190,40 +211,57 @@ export function StoryViewer() {
 
         {/* Header */}
         <div className={cn(
-          "absolute top-8 left-0 right-0 z-50 px-6 flex items-center justify-between transition-opacity duration-300",
+          "absolute top-8 left-0 right-0 z-50 px-6 flex items-start justify-between transition-opacity duration-300",
           isPaused ? "opacity-0" : "opacity-100"
         )}>
           <div className="flex items-center gap-3">
-            <Avatar className="h-9 w-9 border-2 border-white/20">
+            <Avatar className={cn(
+              "h-9 w-9 border-2",
+              activeStory.isCloseFriends ? "border-[#42b72a]" : "border-white/20"
+            )}>
               <AvatarImage src={activeStory.user.avatar} />
               <AvatarFallback>{activeStory.user.name[0]}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col">
-              <span className="text-sm font-bold text-white drop-shadow-md">{activeStory.user.name}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-bold text-white drop-shadow-md">{activeStory.user.name}</span>
+                {activeStory.isCloseFriends && (
+                  <span className="text-[9px] bg-[#42b72a] text-white px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider">Close Friends</span>
+                )}
+              </div>
               <span className="text-[10px] text-white/60 font-medium">10h ago</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-8 w-8">
-              <MoreHorizontal className="h-5 w-5" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="text-white hover:bg-white/10 rounded-full h-8 w-8"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClose();
-              }}
-            >
-              <X className="h-6 w-6" />
-            </Button>
+          
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
+              {isOwner && activeStory.viewCount && (
+                <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full text-white/90">
+                  <Eye className="h-3 w-3" />
+                  <span className="text-[10px] font-bold">{activeStory.viewCount}</span>
+                </div>
+              )}
+              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-8 w-8">
+                <MoreHorizontal className="h-5 w-5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="text-white hover:bg-white/10 rounded-full h-8 w-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClose();
+                }}
+              >
+                <X className="h-6 w-6" />
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Media Container */}
         <div 
-          className="relative flex-1 cursor-pointer select-none"
+          className="relative flex-1 cursor-pointer select-none flex items-center justify-center"
           onClick={handleTap}
         >
           <Image 
@@ -244,6 +282,45 @@ export function StoryViewer() {
               @{mention.username}
             </div>
           ))}
+
+          {/* Poll Sticker */}
+          {currentSegment.poll && (
+            <div 
+              className="absolute z-40 w-[240px] bg-white rounded-2xl p-4 shadow-2xl animate-in zoom-in duration-300"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h4 className="text-center font-bold text-sm text-zinc-900 mb-3">{currentSegment.poll.question}</h4>
+              <div className="space-y-2">
+                {currentSegment.poll.options.map((opt, i) => {
+                  const percent = totalPollVotes > 0 ? (opt.votes / totalPollVotes) * 100 : 0;
+                  const isVoted = votedSegmentId === currentSegment.id;
+                  
+                  return (
+                    <button
+                      key={i}
+                      onClick={(e) => handlePollVote(e, i)}
+                      disabled={isVoted}
+                      className={cn(
+                        "w-full h-10 rounded-xl border-2 relative overflow-hidden transition-all group",
+                        isVoted ? "border-primary/20" : "border-primary/10 hover:border-primary/30"
+                      )}
+                    >
+                      {isVoted && (
+                        <div 
+                          className="absolute inset-y-0 left-0 bg-primary/10 transition-all duration-1000"
+                          style={{ width: `${percent}%` }}
+                        />
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-between px-3 text-sm font-bold">
+                        <span className={cn(isVoted ? "text-primary" : "text-zinc-800")}>{opt.text}</span>
+                        {isVoted && <span className="text-primary/60">{Math.round(percent)}%</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Floating Reactions */}
           {reactions.map((r) => (
