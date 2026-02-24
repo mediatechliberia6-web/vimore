@@ -3,6 +3,7 @@
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { 
   ThumbsUp, 
   ThumbsDown,
@@ -286,10 +287,12 @@ export function PostCard({
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Avatar className="h-10 w-10 border border-primary/10">
-              <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback>{user.name[0]}</AvatarFallback>
-            </Avatar>
+            <Link href="/profile">
+              <Avatar className="h-10 w-10 border border-primary/10 hover:opacity-80 transition-opacity">
+                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarFallback>{user.name[0]}</AvatarFallback>
+              </Avatar>
+            </Link>
             {user.isOnline && (
               <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-card rounded-full" />
             )}
@@ -297,11 +300,15 @@ export function PostCard({
           <div className="flex flex-col">
             <div className="flex items-center gap-1">
               <div className="flex items-center flex-wrap gap-x-1">
-                <span className="font-bold text-sm hover:underline cursor-pointer">{user.name}</span>
+                <Link href="/profile" className="font-bold text-sm hover:underline cursor-pointer">
+                  {user.name}
+                </Link>
                 {collaborator && (
                   <>
                     <span className="text-xs text-muted-foreground font-medium">with</span>
-                    <span className="font-bold text-sm hover:underline cursor-pointer">{collaborator.name}</span>
+                    <Link href="/profile" className="font-bold text-sm hover:underline cursor-pointer">
+                      {collaborator.name}
+                    </Link>
                   </>
                 )}
                 {feeling && (
@@ -632,10 +639,12 @@ export function PostCard({
           {showComments && !commentsDisabled && (
             <div className="w-full pt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="flex items-center gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="https://picsum.photos/seed/me/100/100" />
-                  <AvatarFallback>JD</AvatarFallback>
-                </Avatar>
+                <Link href="/profile">
+                  <Avatar className="h-8 w-8 hover:opacity-80 transition-opacity">
+                    <AvatarImage src="https://picsum.photos/seed/me/100/100" />
+                    <AvatarFallback>JD</AvatarFallback>
+                  </Avatar>
+                </Link>
                 <div className="flex-1 bg-secondary/30 rounded-full px-4 py-2 flex items-center gap-2">
                   <Input 
                     placeholder="Write a comment..." 

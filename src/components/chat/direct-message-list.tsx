@@ -1,6 +1,7 @@
 
 "use client";
 
+import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
@@ -22,17 +23,21 @@ export function DirectMessageList() {
           <div 
             key={chat.id} 
             className={cn(
-              "flex items-center gap-4 p-4 hover:bg-primary/5 cursor-pointer transition-colors relative",
+              "flex items-center gap-4 p-4 hover:bg-primary/5 cursor-pointer transition-colors relative group",
               chat.unread > 0 && "bg-accent/5"
             )}
           >
-            <Avatar className="h-12 w-12 border-2 border-primary/10">
-              <AvatarImage src={chat.avatar} alt={chat.name} />
-              <AvatarFallback>{chat.name[0]}</AvatarFallback>
-            </Avatar>
+            <Link href="/profile" className="shrink-0 transition-transform group-hover:scale-105">
+              <Avatar className="h-12 w-12 border-2 border-primary/10">
+                <AvatarImage src={chat.avatar} alt={chat.name} />
+                <AvatarFallback>{chat.name[0]}</AvatarFallback>
+              </Avatar>
+            </Link>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-0.5">
-                <span className="font-bold text-sm truncate">{chat.name}</span>
+                <Link href="/profile" className="font-bold text-sm truncate hover:underline">
+                  {chat.name}
+                </Link>
                 <span className="text-[10px] text-muted-foreground">{chat.time}</span>
               </div>
               <p className={cn(

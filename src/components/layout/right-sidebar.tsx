@@ -1,6 +1,7 @@
 
 "use client";
 
+import Link from "next/link";
 import { Search, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -35,16 +36,16 @@ export function RightSidebar() {
         <div className="space-y-4">
           {suggestions.map((user) => (
             <div key={user.username} className="flex items-center justify-between group">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10 border border-primary/5">
+              <Link href="/profile" className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-1 min-w-0">
+                <Avatar className="h-10 w-10 border border-primary/5 transition-transform group-hover:scale-105">
                   <AvatarImage src={user.avatar} alt={user.name} />
                   <AvatarFallback>{user.name[0]}</AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col">
-                  <span className="font-bold text-sm leading-none">{user.name}</span>
-                  <span className="text-xs text-muted-foreground">@{user.username}</span>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-bold text-sm leading-none truncate group-hover:underline">{user.name}</span>
+                  <span className="text-xs text-muted-foreground truncate">@{user.username}</span>
                 </div>
-              </div>
+              </Link>
               <Button size="sm" variant="outline" className="rounded-full h-8 px-4 border-accent text-accent hover:bg-accent hover:text-white transition-all">
                 Follow
               </Button>

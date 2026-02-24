@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye, BellOff, VolumeX } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -220,9 +221,13 @@ export function StoryViewer() {
           "absolute top-8 left-0 right-0 z-50 px-6 flex items-start justify-between transition-opacity duration-300",
           isPaused ? "opacity-0" : "opacity-100"
         )}>
-          <div className="flex items-center gap-3">
+          <Link 
+            href="/profile" 
+            onClick={handleClose} 
+            className="flex items-center gap-3 group"
+          >
             <Avatar className={cn(
-              "h-9 w-9 border-2",
+              "h-9 w-9 border-2 transition-transform group-hover:scale-105",
               activeStory.isCloseFriends ? "border-[#42b72a]" : "border-white/20"
             )}>
               <AvatarImage src={activeStory.user.avatar} />
@@ -230,14 +235,14 @@ export function StoryViewer() {
             </Avatar>
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold text-white drop-shadow-md">{activeStory.user.name}</span>
+                <span className="text-sm font-bold text-white drop-shadow-md group-hover:underline">{activeStory.user.name}</span>
                 {activeStory.isCloseFriends && (
                   <span className="text-[9px] bg-[#42b72a] text-white px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider">Close Friends</span>
                 )}
               </div>
               <span className="text-[10px] text-white/60 font-medium">10h ago</span>
             </div>
-          </div>
+          </Link>
           
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-2">
@@ -315,13 +320,15 @@ export function StoryViewer() {
 
           {/* Mentions */}
           {currentSegment.mentions?.map((mention, i) => (
-            <div 
+            <Link 
               key={i}
-              className="absolute z-40 bg-white/20 backdrop-blur-md border border-white/30 px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg animate-in zoom-in duration-300"
+              href="/profile"
+              onClick={handleClose}
+              className="absolute z-40 bg-white/20 backdrop-blur-md border border-white/30 px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg animate-in zoom-in duration-300 hover:bg-white/40 transition-colors"
               style={{ top: mention.y, left: mention.x }}
             >
               @{mention.username}
-            </div>
+            </Link>
           ))}
 
           {/* Poll Sticker */}

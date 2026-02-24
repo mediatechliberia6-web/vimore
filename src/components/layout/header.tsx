@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -14,6 +15,7 @@ import {
   SheetDescription 
 } from "@/components/ui/sheet";
 import { MainNav } from "@/components/layout/main-nav";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function Header() {
   return (
@@ -53,6 +55,13 @@ export function Header() {
           <span className="absolute top-1 right-1 w-4 h-4 bg-destructive text-white text-[10px] flex items-center justify-center rounded-full font-bold">2</span>
         </Button>
         
+        <Link href="/profile" className="hidden sm:block ml-2 group">
+          <Avatar className="h-9 w-9 border-2 border-primary/10 transition-transform group-hover:scale-105">
+            <AvatarImage src="https://picsum.photos/seed/me/200/200" alt="My Profile" />
+            <AvatarFallback>JD</AvatarFallback>
+          </Avatar>
+        </Link>
+
         {/* Mobile Navigation Drawer */}
         <Sheet>
           <SheetTrigger asChild>

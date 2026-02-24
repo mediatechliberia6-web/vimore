@@ -1,6 +1,7 @@
 
 "use client";
 
+import Link from "next/link";
 import { Home, Users, Clapperboard, Music, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -57,16 +58,16 @@ export function SubHeader() {
             />
           </div>
           
-          <div className="shrink-0 flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
+          <Link href="/profile" className="shrink-0 flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity group">
             <div className="hidden lg:block text-right">
-              <p className="text-xs font-bold leading-none">{USER_PROFILE.name}</p>
+              <p className="text-xs font-bold leading-none group-hover:underline">{USER_PROFILE.name}</p>
               <p className="text-[10px] text-muted-foreground">My Profile</p>
             </div>
-            <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border-2 border-primary/10">
+            <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border-2 border-primary/10 transition-transform group-hover:scale-105">
               <AvatarImage src={USER_PROFILE.avatar} />
               <AvatarFallback>JD</AvatarFallback>
             </Avatar>
-          </div>
+          </Link>
         </div>
       </div>
     </div>
