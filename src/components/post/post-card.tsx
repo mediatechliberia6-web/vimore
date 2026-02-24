@@ -68,6 +68,7 @@ interface PostCardProps {
   content: string;
   image?: string;
   images?: string[];
+  theme?: string;
   likes: number;
   unlikes: number;
   comments: number;
@@ -90,6 +91,7 @@ export function PostCard({
   content, 
   image, 
   images = [], 
+  theme,
   likes, 
   unlikes,
   comments, 
@@ -114,7 +116,6 @@ export function PostCard({
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
 
-  // Poll state
   const [userVote, setUserVote] = useState<number | null>(null);
   const [localPollOptions, setLocalPollOptions] = useState(poll?.options || []);
   const [localTotalVotes, setLocalTotalVotes] = useState(poll?.totalVotes || 0);
@@ -196,6 +197,23 @@ export function PostCard({
     setLocalTotalVotes(newTotal);
   };
 
+  const renderContent = (text: string) => {
+    // Basic Markdown Parsing: **Bold**, _Italic_, `Code`
+    const parts = text.split(/(\*\*.*?\*\*|_.*?_|`.*?`)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i}>{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith('_') && part.endsWith('_')) {
+        return <em key={i}>{part.slice(1, -1)}</em>;
+      }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return <code key={i} className="bg-secondary/30 px-1 rounded text-sm font-mono">{part.slice(1, -1)}</code>;
+      }
+      return part;
+    });
+  };
+
   if (isHidden) {
     return (
       <Card className="p-4 flex items-center justify-between bg-secondary/20 border-dashed border-2">
@@ -222,7 +240,8 @@ export function PostCard({
   return (
     <Card className={cn(
       "border-none shadow-sm overflow-hidden bg-white dark:bg-card mb-4 transition-colors",
-      isShared ? "ring-1 ring-primary/10 shadow-none scale-[0.98] mx-2" : "ring-1 ring-black/5 dark:ring-white/5"
+      isShared ? "ring-1 ring-primary/10 shadow-none scale-[0.98] mx-2" : "ring-1 ring-black/5 dark:ring-white/5",
+      theme && !isShared && "text-white"
     )}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
         <div className="flex items-center gap-2">
@@ -303,11 +322,11 @@ export function PostCard({
         )}
       </CardHeader>
       
-      <CardContent className="px-3 pb-2 space-y-2">
+      <CardContent className={cn("px-3 pb-2 space-y-2", theme && !isShared ? theme + " py-8 px-6 text-center text-xl font-bold" : "")}>
         <div className="space-y-1">
-          <p className="text-[13px] leading-relaxed whitespace-pre-wrap">
-            {translatedText || displayedContent}
-          </p>
+          <div className={cn("text-[13px] leading-relaxed whitespace-pre-wrap", theme && !isShared ? "text-xl leading-snug" : "")}>
+            {renderContent(translatedText || displayedContent)}
+          </div>
           {isLongContent && (
             <button 
               onClick={() => setIsExpanded(!isExpanded)}
@@ -316,21 +335,23 @@ export function PostCard({
               {isExpanded ? "Show less" : "See more"}
             </button>
           )}
-          <div className="flex items-center gap-2 pt-1">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-6 px-1.5 text-[10px] font-bold text-muted-foreground hover:text-primary gap-1"
-              onClick={handleTranslate}
-              disabled={isTranslating}
-            >
-              {isTranslating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" />}
-              {translatedText ? "Show Original" : "See Translation"}
-            </Button>
-          </div>
+          {!theme && (
+            <div className="flex items-center gap-2 pt-1">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-6 px-1.5 text-[10px] font-bold text-muted-foreground hover:text-primary gap-1"
+                onClick={handleTranslate}
+                disabled={isTranslating}
+              >
+                {isTranslating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" />}
+                {translatedText ? "Show Original" : "See Translation"}
+              </Button>
+            </div>
+          )}
         </div>
         
-        {hashtags && hashtags.length > 0 && (
+        {hashtags && hashtags.length > 0 && !theme && (
           <div className="flex flex-wrap gap-1">
             {hashtags.map((tag) => (
               <span key={tag} className="text-xs font-bold text-primary hover:underline cursor-pointer">
@@ -340,9 +361,9 @@ export function PostCard({
           </div>
         )}
 
-        {poll && (
+        {poll && !theme && (
           <div className="mt-3 p-4 rounded-xl border border-primary/10 bg-primary/5 space-y-3">
-            <h4 className="font-bold text-sm">{poll.question}</h4>
+            <h4 className="font-bold text-sm text-foreground">{poll.question}</h4>
             <div className="space-y-2">
               {visiblePollOptions.map((option, i) => {
                 const percentage = localTotalVotes > 0 ? (option.votes / localTotalVotes) * 100 : 0;
@@ -395,26 +416,26 @@ export function PostCard({
           </div>
         )}
 
-        {sharedPost && (
+        {sharedPost && !theme && (
           <div className="mt-2">
             <PostCard {...sharedPost} isShared={true} />
           </div>
         )}
 
-        {foundUrl && !allImages.length && !sharedPost && (
+        {foundUrl && !allImages.length && !sharedPost && !theme && (
           <div className="rounded-xl border border-border overflow-hidden bg-secondary/20 cursor-pointer hover:bg-secondary/30 transition-colors">
             <div className="relative aspect-[1.91/1] w-full">
                <Image src={`https://picsum.photos/seed/${foundUrl}/800/420`} alt="Link preview" fill className="object-cover" />
             </div>
             <div className="p-3 space-y-1">
               <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{new URL(foundUrl).hostname}</p>
-              <h4 className="text-sm font-bold line-clamp-1">Discover more with ViMore Connect</h4>
+              <h4 className="text-sm font-bold line-clamp-1 text-foreground">Discover more with ViMore Connect</h4>
               <p className="text-xs text-muted-foreground line-clamp-1">Explore the latest trends and connect with creators around the world.</p>
             </div>
           </div>
         )}
 
-        {allImages.length > 0 && !isShared && (
+        {allImages.length > 0 && !isShared && !theme && (
           <div className="relative mt-2 -mx-3 sm:mx-0 group">
             {allImages.length === 1 ? (
               <Dialog>
@@ -466,22 +487,22 @@ export function PostCard({
         )}
 
         {!isShared && (
-          <div className="flex items-center justify-between py-1 border-b border-secondary">
+          <div className={cn("flex items-center justify-between py-1 border-b", theme ? "border-white/20 mb-2" : "border-secondary")}>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
                 <div className="bg-primary p-1 rounded-full text-white ring-2 ring-white dark:ring-card">
                   <ThumbsUp className="h-2.5 w-2.5 fill-current" />
                 </div>
-                <span className="text-[11px] text-muted-foreground ml-1 font-bold">{likeCount}</span>
+                <span className={cn("text-[11px] ml-1 font-bold", theme ? "text-white" : "text-muted-foreground")}>{likeCount}</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="bg-destructive p-1 rounded-full text-white ring-2 ring-white dark:ring-card">
                   <ThumbsDown className="h-2.5 w-2.5 fill-current" />
                 </div>
-                <span className="text-[11px] text-muted-foreground ml-1 font-bold">{unlikeCount}</span>
+                <span className={cn("text-[11px] ml-1 font-bold", theme ? "text-white" : "text-muted-foreground")}>{unlikeCount}</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-bold">
+            <div className={cn("flex items-center gap-2 text-[11px] font-bold", theme ? "text-white/80" : "text-muted-foreground")}>
               <span>{comments} comments</span>
               <span>•</span>
               <span>28 shares</span>
@@ -497,8 +518,8 @@ export function PostCard({
               variant="ghost" 
               size="sm" 
               className={cn(
-                "flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors select-none", 
-                isLiked && "text-primary"
+                "flex-1 gap-2 rounded-md h-9 hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors select-none", 
+                isLiked ? "text-primary" : (theme ? "text-white/70 hover:text-white" : "text-muted-foreground")
               )}
               onClick={handleLike}
               aria-label={isLiked ? "Unlike post" : "Like post"}
@@ -509,8 +530,8 @@ export function PostCard({
               variant="ghost" 
               size="sm" 
               className={cn(
-                "flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors select-none", 
-                isUnliked && "text-destructive"
+                "flex-1 gap-2 rounded-md h-9 hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors select-none", 
+                isUnliked ? "text-destructive" : (theme ? "text-white/70 hover:text-white" : "text-muted-foreground")
               )}
               onClick={handleUnlike}
               aria-label={isUnliked ? "Remove unlike" : "Unlike post"}
@@ -521,7 +542,7 @@ export function PostCard({
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="flex-1 gap-2 rounded-md h-9 text-yellow-500 hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors"
+                className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-colors", theme ? "text-yellow-300 hover:text-yellow-100" : "text-yellow-500")}
                 onClick={() => toast({ description: "Gifting feature coming soon!" })}
               >
                 <Gift className="h-4 w-4" />
@@ -530,7 +551,7 @@ export function PostCard({
             <Button 
               variant="ghost" 
               size="sm" 
-              className="flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors"
+              className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-colors", theme ? "text-white/70 hover:text-white" : "text-muted-foreground")}
               onClick={() => setShowComments(!showComments)}
             >
               <MessageCircle className="h-4 w-4" />
@@ -538,7 +559,7 @@ export function PostCard({
             <Button 
               variant="ghost" 
               size="sm" 
-              className="flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors"
+              className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-colors", theme ? "text-white/70 hover:text-white" : "text-muted-foreground")}
             >
               <Share2 className="h-4 w-4" />
             </Button>
@@ -562,49 +583,6 @@ export function PostCard({
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
-
-              <div className="space-y-4 pl-2 pb-2">
-                {initialComments.map((comment) => (
-                  <div key={comment.id} className="space-y-2">
-                    <div className="flex gap-2">
-                      <Avatar className="h-8 w-8 mt-0.5">
-                        <AvatarImage src={comment.user.avatar} />
-                        <AvatarFallback>{comment.user.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col gap-1">
-                        <div className="bg-secondary/20 rounded-2xl p-3">
-                          <p className="text-[11px] font-bold">{comment.user.name}</p>
-                          <p className="text-[11px] leading-relaxed">{comment.text}</p>
-                        </div>
-                        <div className="flex gap-4 pl-2 text-[10px] font-bold text-muted-foreground">
-                          <button className="hover:text-primary">Like</button>
-                          <button className="hover:text-primary">Reply</button>
-                          <span>{comment.time}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {comment.replies?.map((reply) => (
-                      <div key={reply.id} className="flex gap-2 pl-10">
-                        <Avatar className="h-6 w-6 mt-0.5">
-                          <AvatarImage src={reply.user.avatar} />
-                          <AvatarFallback>{reply.user.name[0]}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col gap-1">
-                          <div className="bg-secondary/10 rounded-2xl p-2.5">
-                            <p className="text-[10px] font-bold">{reply.user.name}</p>
-                            <p className="text-[10px] leading-relaxed">{reply.text}</p>
-                          </div>
-                          <div className="flex gap-4 pl-2 text-[10px] font-bold text-muted-foreground">
-                            <button className="hover:text-primary">Like</button>
-                            <span>{reply.time}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ))}
               </div>
             </div>
           )}

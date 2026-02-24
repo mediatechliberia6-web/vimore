@@ -18,7 +18,11 @@ import {
   Play,
   Check,
   History,
-  Users2
+  Users2,
+  Bold,
+  Italic,
+  Code,
+  Palette
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -72,6 +76,15 @@ const feelings = [
   { emoji: "🥳", text: "Celebrating" },
 ];
 
+const backgroundThemes = [
+  { id: "none", label: "Default", class: "bg-transparent" },
+  { id: "purple-grad", label: "ViMore Purple", class: "bg-gradient-to-br from-primary to-accent text-white" },
+  { id: "ocean", label: "Ocean Breeze", class: "bg-gradient-to-br from-blue-400 to-emerald-400 text-white" },
+  { id: "sunset", label: "Sunset Glow", class: "bg-gradient-to-br from-orange-500 to-rose-500 text-white" },
+  { id: "royal", label: "Royal", class: "bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 text-white" },
+  { id: "midnight", label: "Midnight", class: "bg-gradient-to-br from-slate-900 to-slate-700 text-white" },
+];
+
 const USER_PROFILE = {
   name: "John Doe",
   username: "johndoe_creative",
@@ -94,13 +107,16 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [locationSearch, setLocationSearch] = useState("");
   const [isTagging, setIsTagging] = useState(false);
   const [collaborator, setCollaborator] = useState<typeof mockFriends[0] | null>(null);
+  const [selectedTheme, setSelectedTheme] = useState(backgroundThemes[0]);
   
   const [showFeelingSelector, setShowFeelingSelector] = useState(false);
   const [showLocationSelector, setShowLocationSelector] = useState(false);
+  const [showThemeSelector, setShowThemeSelector] = useState(false);
   const [recentLocations, setRecentLocations] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
   
   const CHARACTER_LIMIT = 2000;
@@ -130,9 +146,26 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
   const handleMention = (friend: typeof mockFriends[0]) => {
     const words = content.split(/\s+/);
-    words.pop(); // Remove the incomplete @mention
+    words.pop();
     setContent([...words, `@${friend.username}`, ""].join(" "));
     setIsTagging(false);
+  };
+
+  const applyFormatting = (prefix: string, suffix: string) => {
+    if (!textareaRef.current) return;
+    const start = textareaRef.current.selectionStart;
+    const end = textareaRef.current.selectionEnd;
+    const text = content;
+    const selected = text.substring(start, end);
+    const before = text.substring(0, start);
+    const after = text.substring(end);
+    
+    setContent(`${before}${prefix}${selected}${suffix}${after}`);
+    
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(start + prefix.length, end + prefix.length);
+    }, 0);
   };
 
   const handlePost = () => {
@@ -151,6 +184,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       },
       collaborator: collaborator || undefined,
       content,
+      theme: selectedTheme.id !== "none" ? selectedTheme.class : undefined,
       images: mediaType === 'image' ? selectedMedia : undefined,
       image: mediaType === 'video' ? undefined : (selectedMedia[0] || undefined),
       feeling: feeling || undefined,
@@ -164,7 +198,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
     toast({ title: "Post created!", description: "Your post has been shared with the community." });
     
-    // Reset state
     setContent("");
     setSelectedMedia([]);
     setMediaType(null);
@@ -175,11 +208,16 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setPollQuestion("");
     setPollOptions(["", ""]);
     setCollaborator(null);
+    setSelectedTheme(backgroundThemes[0]);
   };
 
   const handlePhotoUploadClick = () => {
     if (isPollOpen) {
       toast({ title: "Incompatible content", description: "You cannot add photos to a poll.", variant: "destructive" });
+      return;
+    }
+    if (selectedTheme.id !== "none") {
+      toast({ title: "Incompatible content", description: "You cannot add photos to a themed post.", variant: "destructive" });
       return;
     }
     if (mediaType === 'video') {
@@ -196,6 +234,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const handleVideoUploadClick = () => {
     if (isPollOpen) {
       toast({ title: "Incompatible content", description: "You cannot add a video to a poll.", variant: "destructive" });
+      return;
+    }
+    if (selectedTheme.id !== "none") {
+      toast({ title: "Incompatible content", description: "You cannot add a video to a themed post.", variant: "destructive" });
       return;
     }
     if (mediaType === 'image' && selectedMedia.length > 0) {
@@ -247,6 +289,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       toast({ title: "Incompatible content", description: "You cannot add a poll to a post that already has media.", variant: "destructive" });
       return;
     }
+    if (selectedTheme.id !== "none") {
+      toast({ title: "Incompatible content", description: "You cannot add a poll to a themed post.", variant: "destructive" });
+      return;
+    }
     setIsPollOpen(!isPollOpen);
   };
 
@@ -267,21 +313,35 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       label: "Photo", 
       color: "text-green-500", 
       onClick: handlePhotoUploadClick,
-      disabled: isPollOpen 
+      disabled: isPollOpen || selectedTheme.id !== "none"
     },
     { 
       icon: Clapperboard, 
       label: "Video", 
       color: "text-red-500", 
       onClick: handleVideoUploadClick,
-      disabled: isPollOpen 
+      disabled: isPollOpen || selectedTheme.id !== "none"
     },
     { 
       icon: ListTodo, 
       label: "Create Poll", 
       color: "text-purple-500", 
       onClick: togglePoll,
-      disabled: selectedMedia.length > 0 
+      disabled: selectedMedia.length > 0 || selectedTheme.id !== "none"
+    },
+    {
+      icon: Palette,
+      label: "Theme",
+      color: "text-pink-500",
+      onClick: () => {
+        if (selectedMedia.length > 0 || isPollOpen) {
+          toast({ title: "Incompatible content", description: "Themes only work for text posts.", variant: "destructive" });
+          return;
+        }
+        setShowThemeSelector(!showThemeSelector);
+        setShowFeelingSelector(false);
+        setShowLocationSelector(false);
+      }
     },
     { 
       icon: Smile, 
@@ -290,6 +350,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       onClick: () => {
         setShowFeelingSelector(!showFeelingSelector);
         setShowLocationSelector(false);
+        setShowThemeSelector(false);
       } 
     },
     { 
@@ -305,6 +366,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       onClick: () => {
         setShowLocationSelector(!showLocationSelector);
         setShowFeelingSelector(false);
+        setShowThemeSelector(false);
       } 
     },
   ];
@@ -411,10 +473,26 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           </div>
 
-          <div className="px-4 relative min-h-[160px]">
+          <div className="p-4 border-b flex gap-4 bg-secondary/10">
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => applyFormatting("**", "**")} title="Bold">
+              <Bold className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => applyFormatting("_", "_")} title="Italic">
+              <Italic className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => applyFormatting("`", "`")} title="Code">
+              <Code className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className={cn("px-4 relative min-h-[220px] transition-all duration-300 flex items-center justify-center p-8", selectedTheme.class)}>
             <Textarea 
+              ref={textareaRef}
               placeholder="What's on your mind?" 
-              className="border-none focus-visible:ring-0 text-2xl resize-none p-0 placeholder:text-muted-foreground/50 min-h-[120px] bg-transparent"
+              className={cn(
+                "border-none focus-visible:ring-0 text-2xl resize-none p-0 placeholder:text-muted-foreground/50 min-h-[160px] bg-transparent text-center",
+                selectedTheme.id !== "none" ? "text-white placeholder:text-white/60" : "text-foreground"
+              )}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               autoFocus
@@ -435,7 +513,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               </div>
             )}
 
-            <div className="absolute bottom-2 right-4 flex items-center gap-2">
+            <div className="absolute bottom-4 right-4 flex items-center gap-2">
               <div className="relative w-6 h-6">
                 <svg className="w-full h-full" viewBox="0 0 36 36">
                   <path className="text-muted/30" strokeDasharray="100, 100" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
@@ -445,6 +523,35 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               <span className={cn("text-[10px] font-bold", isOverLimit && "text-destructive")}>{CHARACTER_LIMIT - content.length}</span>
             </div>
           </div>
+
+          {showThemeSelector && (
+            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-white dark:bg-card shadow-sm animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider">Select Background Theme</span>
+                <button onClick={() => setShowThemeSelector(false)} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <ScrollArea className="w-full whitespace-nowrap pb-2">
+                <div className="flex gap-3">
+                  {backgroundThemes.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => { setSelectedTheme(t); setShowThemeSelector(false); }}
+                      className={cn(
+                        "h-12 w-12 rounded-lg shrink-0 border-2 transition-all flex items-center justify-center text-[10px] font-bold",
+                        t.class,
+                        selectedTheme.id === t.id ? "border-primary scale-110 shadow-lg" : "border-transparent"
+                      )}
+                    >
+                      {t.id === "none" && <X className="h-4 w-4 text-muted-foreground" />}
+                    </button>
+                  ))}
+                </div>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            </div>
+          )}
 
           {showFeelingSelector && (
             <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-white dark:bg-card shadow-sm animate-in fade-in slide-in-from-top-2">

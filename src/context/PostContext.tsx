@@ -25,6 +25,7 @@ export interface Post {
   image?: string;
   feeling?: { emoji: string; text: string };
   location?: string;
+  theme?: string;
   poll?: {
     question: string;
     options: { text: string; votes: number }[];
@@ -52,7 +53,7 @@ const initialMockPosts: Post[] = [
       isOnline: true,
       followers: 1500
     },
-    content: "Just started using ViMore and I'm loving the clean aesthetic! Check out the multi-image carousel test. ✨ https://vimore.io",
+    content: "Just started using **ViMore** and I'm loving the clean aesthetic! Check out the multi-image carousel test. ✨ https://vimore.io",
     time: "5m",
     likes: 24,
     unlikes: 2,
@@ -79,35 +80,6 @@ const initialMockPosts: Post[] = [
         ]
       }
     ]
-  },
-  {
-    id: "share1",
-    user: { 
-      name: "Alex Rivera", 
-      username: "arivera", 
-      avatar: "https://picsum.photos/seed/1/100/100",
-      isOnline: true,
-      followers: 850
-    },
-    collaborator: {
-      name: "Julianne Moore",
-      username: "jmoore",
-      avatar: "https://picsum.photos/seed/50/200/200"
-    },
-    content: "I totally agree with Julianne! This is a game changer for real-time social connection. 🚀",
-    time: "10m",
-    likes: 12,
-    unlikes: 0,
-    comments: 2,
-    sharedPost: {
-      id: "1",
-      user: { name: "Julianne Moore", username: "jmoore", avatar: "https://picsum.photos/seed/50/200/200", isVerified: true, followers: 1500 },
-      content: "Just started using ViMore and I'm loving the clean aesthetic!",
-      time: "5m",
-      likes: 24,
-      unlikes: 2,
-      comments: 4
-    }
   },
   {
     id: "2",
@@ -144,7 +116,7 @@ const initialMockPosts: Post[] = [
       isOnline: true,
       followers: 4200
     },
-    content: "Working on a new project today. Feeling inspired by the community here! SF vibes are great today. 🌅",
+    content: "Working on a new project today. Feeling _inspired_ by the community here! SF vibes are great today. 🌅",
     time: "1h",
     likes: 89,
     unlikes: 1,
