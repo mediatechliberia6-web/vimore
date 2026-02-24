@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
 import { 
   ThumbsUp, 
@@ -16,7 +16,6 @@ import {
   Flag,
   Languages,
   Loader2,
-  X,
   ChevronDown,
   ChevronUp
 } from "lucide-react";
@@ -95,8 +94,6 @@ export function PostCard({
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [likeCount, setLikeCount] = useState(likes);
-  const [showReactions, setShowReactions] = useState(false);
-  const [activeReaction, setActiveReaction] = useState<string | null>(null);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [isHidden, setIsHidden] = useState(false);
@@ -110,8 +107,6 @@ export function PostCard({
   const [localTotalVotes, setLocalTotalVotes] = useState(poll?.totalVotes || 0);
   const [isPollExpanded, setIsPollExpanded] = useState(false);
 
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
-  const isLongPressActive = useRef(false);
   const { toast } = useToast();
 
   const allImages = useMemo(() => {
@@ -121,57 +116,9 @@ export function PostCard({
   }, [image, images]);
 
   const handleLike = () => {
-    if (activeReaction) {
-      // If we had a specific reaction, remove it and the like
-      setActiveReaction(null);
-      setLikeCount(prev => prev - 1);
-      setIsLiked(false);
-    } else {
-      // Normal quick toggle
-      const newLikedState = !isLiked;
-      setIsLiked(newLikedState);
-      setLikeCount(prev => newLikedState ? prev + 1 : prev - 1);
-    }
-  };
-
-  const handlePressStart = (e: React.MouseEvent | React.TouchEvent) => {
-    isLongPressActive.current = false;
-    longPressTimer.current = setTimeout(() => {
-      setShowReactions(true);
-      isLongPressActive.current = true;
-    }, 800); 
-  };
-
-  const handlePressEnd = (e: React.MouseEvent | React.TouchEvent) => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-
-    // Only trigger quick like if it wasn't a long press
-    if (!isLongPressActive.current && !showReactions) {
-      handleLike();
-    }
-    
-    // Reset long press state for next time
-    isLongPressActive.current = false;
-  };
-
-  const handleCancelPress = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  };
-
-  const handleReaction = (type: string) => {
-    if (!activeReaction && !isLiked) {
-      setLikeCount(prev => prev + 1);
-    }
-    setActiveReaction(type);
-    setIsLiked(true);
-    setShowReactions(false);
-    toast({ description: `Reacted with ${type}` });
+    const newLikedState = !isLiked;
+    setIsLiked(newLikedState);
+    setLikeCount(prev => newLikedState ? prev + 1 : prev - 1);
   };
 
   const handleTranslate = async () => {
@@ -498,55 +445,18 @@ export function PostCard({
       {!isShared && (
         <CardFooter className="p-1 px-3 flex flex-col gap-1 relative">
           <div className="flex items-center justify-between gap-1 w-full relative">
-            {showReactions && (
-              <div 
-                className="absolute bottom-full left-0 mb-2 bg-white dark:bg-card rounded-full shadow-2xl border border-border p-1.5 flex gap-2 animate-in slide-in-from-bottom-2 duration-200 z-[100]"
-                onMouseLeave={() => setShowReactions(false)}
-              >
-                {[
-                  { type: 'like', icon: ThumbsUp, color: 'text-primary' },
-                  { type: 'love', icon: Heart, color: 'text-red-500' },
-                  { type: 'laugh', icon: Laugh, color: 'text-yellow-500' },
-                  { type: 'wow', icon: Wow, color: 'text-blue-500' },
-                  { type: 'sad', icon: Sad, color: 'text-orange-500' },
-                ].map((reaction) => {
-                  const Icon = reaction.icon;
-                  return (
-                    <button
-                      key={reaction.type}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleReaction(reaction.type);
-                      }}
-                      className={cn("p-2 rounded-full hover:bg-secondary hover:scale-125 transition-all outline-none", reaction.color)}
-                    >
-                      <Icon className="h-6 w-6 fill-current" />
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
             <Button 
               variant="ghost" 
               size="sm" 
               className={cn(
                 "flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors select-none", 
-                isLiked && (activeReaction === 'love' ? 'text-red-500' : 'text-primary')
+                isLiked && "text-primary"
               )}
-              onMouseDown={handlePressStart}
-              onMouseUp={handlePressEnd}
-              onMouseLeave={handleCancelPress}
-              onTouchStart={handlePressStart}
-              onTouchEnd={handlePressEnd}
+              onClick={handleLike}
               aria-label={isLiked ? "Unlike post" : "Like post"}
             >
-              {activeReaction === 'love' ? <Heart className="h-4 w-4 fill-red-500 text-red-500" /> :
-               activeReaction === 'laugh' ? <Laugh className="h-4 w-4 text-yellow-500 fill-yellow-500/20" /> :
-               activeReaction === 'wow' ? <Wow className="h-4 w-4 text-blue-500 fill-blue-500/20" /> :
-               activeReaction === 'sad' ? <Sad className="h-4 w-4 text-orange-500 fill-orange-500/20" /> :
-               <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />}
-              {activeReaction ? activeReaction.charAt(0).toUpperCase() + activeReaction.slice(1) : 'Like'}
+              <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />
+              Like
             </Button>
             <Button 
               variant="ghost" 
@@ -634,63 +544,5 @@ export function PostCard({
         </CardFooter>
       )}
     </Card>
-  );
-}
-
-// Custom Reaction Icons as SVGs for better personality
-function Laugh(props: any) {
-  return (
-    <svg
-      {...props}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M18 13a6 6 0 0 1-12 0" />
-      <line x1="9" x2="9.01" y1="9" y2="9" />
-      <line x1="15" x2="15.01" y1="9" y2="9" />
-    </svg>
-  );
-}
-
-function Wow(props: any) {
-  return (
-    <svg
-      {...props}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <circle cx="12" cy="15" r="2" />
-      <line x1="9" x2="9.01" y1="9" y2="9" />
-      <line x1="15" x2="15.01" y1="9" y2="9" />
-    </svg>
-  );
-}
-
-function Sad(props: any) {
-  return (
-    <svg
-      {...props}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M16 16s-1.5-2-4-2-4 2-4 2" />
-      <line x1="9" x2="9.01" y1="9" y2="9" />
-      <line x1="15" x2="15.01" y1="9" y2="9" />
-    </svg>
   );
 }
