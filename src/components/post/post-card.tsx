@@ -131,21 +131,28 @@ export function PostCard({
     }
   };
 
-  const handlePressStart = () => {
+  const handlePressStart = (e: React.MouseEvent | React.TouchEvent) => {
     longPressTimer.current = setTimeout(() => {
       setShowReactions(true);
       longPressTimer.current = null;
-    }, 1000);
+    }, 800); // 800ms feels more responsive than a full second
   };
 
-  const handlePressEnd = () => {
+  const handlePressEnd = (e: React.MouseEvent | React.TouchEvent) => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
-      // It was a quick press, so handle regular like toggle
+      // It was a quick press, handle the like
       if (!showReactions) {
         handleLike();
       }
+    }
+  };
+
+  const handleCancelPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
     }
   };
 
@@ -513,12 +520,12 @@ export function PostCard({
               variant="ghost" 
               size="sm" 
               className={cn(
-                "flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors", 
+                "flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors select-none", 
                 isLiked && (activeReaction === 'love' ? 'text-red-500' : 'text-primary')
               )}
               onMouseDown={handlePressStart}
               onMouseUp={handlePressEnd}
-              onMouseLeave={handlePressEnd}
+              onMouseLeave={handleCancelPress}
               onTouchStart={handlePressStart}
               onTouchEnd={handlePressEnd}
               aria-label={isLiked ? "Unlike post" : "Like post"}
