@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -14,7 +15,8 @@ import {
   X,
   ListTodo,
   PlusSquare,
-  Clapperboard
+  Clapperboard,
+  Play
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -59,6 +61,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [content, setContent] = useState("");
   const [privacy, setPrivacy] = useState<PrivacySetting>(privacySettings[0]);
   const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
+  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
   
   const [isPollOpen, setIsPollOpen] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
@@ -67,6 +70,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [isTagging, setIsTagging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
   const CHARACTER_LIMIT = 2000;
@@ -93,11 +97,22 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     toast({ title: "Post created!", description: "Your post has been shared with the community." });
     setContent("");
     setSelectedMedia([]);
+    setMediaType(null);
     setIsPollOpen(false);
     setFeeling(null);
   };
 
   const handlePhotoUploadClick = () => {
+    if (mediaType === 'video') {
+      toast({ 
+        title: "Selection cleared", 
+        description: "Removing video to add photos.",
+        variant: "default"
+      });
+      setSelectedMedia([]);
+      setMediaType(null);
+    }
+    
     if (selectedMedia.length >= MAX_PHOTOS) {
       toast({ 
         title: "Limit reached", 
@@ -109,10 +124,33 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     fileInputRef.current?.click();
   };
 
+  const handleVideoUploadClick = () => {
+    if (mediaType === 'image' && selectedMedia.length > 0) {
+      toast({ 
+        title: "Selection cleared", 
+        description: "Removing photos to add a video.",
+        variant: "default"
+      });
+      setSelectedMedia([]);
+      setMediaType(null);
+    }
+    
+    if (selectedMedia.length >= 1 && mediaType === 'video') {
+      toast({ 
+        title: "Limit reached", 
+        description: "You can only upload 1 video per post.",
+        variant: "destructive"
+      });
+      return;
+    }
+    videoInputRef.current?.click();
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
+    setMediaType('image');
     const remainingSlots = MAX_PHOTOS - selectedMedia.length;
     const filesArray = Array.from(files).slice(0, remainingSlots);
     
@@ -133,26 +171,32 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       reader.readAsDataURL(file);
     });
 
-    // Reset input so the same file can be selected again if removed
     e.target.value = "";
   };
 
-  const simulateVideoUpload = () => {
-    if (selectedMedia.length >= MAX_PHOTOS) {
-      toast({ 
-        title: "Limit reached", 
-        description: `You can only upload up to ${MAX_PHOTOS} media items.`,
-        variant: "destructive"
-      });
-      return;
-    }
-    // For now keeping video as a simple simulation or placeholder
-    const randomImg = `https://picsum.photos/seed/${Math.random()}/800/600`;
-    setSelectedMedia(prev => [...prev, randomImg]);
+  const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setMediaType('video');
+    setSelectedMedia([]); // Ensure mutual exclusivity
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setSelectedMedia([base64String]);
+    };
+    reader.readAsDataURL(file);
+
+    e.target.value = "";
   };
 
   const removeMedia = (index: number) => {
-    setSelectedMedia(prev => prev.filter((_, i) => i !== index));
+    const updated = selectedMedia.filter((_, i) => i !== index);
+    setSelectedMedia(updated);
+    if (updated.length === 0) {
+      setMediaType(null);
+    }
   };
 
   const addPollOption = () => {
@@ -169,7 +213,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
   const actionItems = [
     { icon: ImageIcon, label: "Photo", color: "text-green-500", onClick: handlePhotoUploadClick },
-    { icon: Clapperboard, label: "Video", color: "text-red-500", onClick: simulateVideoUpload },
+    { icon: Clapperboard, label: "Video", color: "text-red-500", onClick: handleVideoUploadClick },
     { icon: ListTodo, label: "Create Poll", color: "text-purple-500", onClick: () => setIsPollOpen(!isPollOpen) },
     { icon: Smile, label: "Feeling/activity", color: "text-yellow-500", onClick: () => setFeeling({ emoji: "😊", text: "Happy" }) },
     { icon: UserPlus, label: "Tag people", color: "text-blue-500", onClick: () => setContent(prev => prev + " @") },
@@ -187,9 +231,9 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       
       <DialogContent className="max-w-none w-screen h-[100dvh] m-0 rounded-none border-none flex flex-col p-0 gap-0 overflow-hidden bg-white dark:bg-background translate-x-0 translate-y-0 left-0 top-0" aria-describedby="create-post-description">
         <DialogTitle className="sr-only">Create a New Post</DialogTitle>
-        <DialogDescription className="sr-only" id="create-post-description">Interface to compose text, upload up to 6 photos from device, add videos, create polls, and tagging for a new social media post.</DialogDescription>
+        <DialogDescription className="sr-only" id="create-post-description">Interface to compose text, upload photos (up to 6) or a single video from device, add polls, and tagging for a new social media post.</DialogDescription>
         
-        {/* Hidden File Input */}
+        {/* Hidden File Inputs */}
         <input 
           type="file" 
           ref={fileInputRef} 
@@ -197,6 +241,13 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           multiple 
           accept="image/*" 
           onChange={handleFileChange}
+        />
+        <input 
+          type="file" 
+          ref={videoInputRef} 
+          className="hidden" 
+          accept="video/*" 
+          onChange={handleVideoFileChange}
         />
 
         <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0 bg-white dark:bg-card">
@@ -356,18 +407,25 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               <ScrollArea className="w-full whitespace-nowrap rounded-xl">
                 <div className="flex gap-2 p-1">
                   {selectedMedia.map((url, i) => (
-                    <div key={i} className="relative w-32 h-32 rounded-lg overflow-hidden shrink-0 border border-primary/10">
-                      <Image src={url} alt={`Preview ${i}`} fill className="object-cover" />
+                    <div key={i} className="relative w-32 h-32 rounded-lg overflow-hidden shrink-0 border border-primary/10 bg-black flex items-center justify-center">
+                      {mediaType === 'video' ? (
+                        <>
+                          <video src={url} className="object-cover w-full h-full opacity-60" />
+                          <Play className="absolute h-8 w-8 text-white fill-white/20" />
+                        </>
+                      ) : (
+                        <Image src={url} alt={`Preview ${i}`} fill className="object-cover" />
+                      )}
                       <button 
                         onClick={() => removeMedia(i)}
-                        className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors"
+                        className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors z-10"
                         aria-label="Remove media"
                       >
                         <X className="h-3 w-3" />
                       </button>
                     </div>
                   ))}
-                  {selectedMedia.length < MAX_PHOTOS && (
+                  {mediaType === 'image' && selectedMedia.length < MAX_PHOTOS && (
                     <button 
                       onClick={handlePhotoUploadClick}
                       className="w-32 h-32 rounded-lg border-2 border-dashed border-primary/20 flex flex-col items-center justify-center gap-2 hover:bg-primary/5 transition-colors text-muted-foreground"
