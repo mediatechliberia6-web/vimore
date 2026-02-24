@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Search, Plus, Menu, Bell } from "lucide-react";
+import { Search, Plus, Menu, Bell, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CreatePostModal } from "@/components/post/create-post-modal";
@@ -16,7 +16,7 @@ export function Header() {
           </div>
           <span className="hidden sm:block font-headline font-bold text-xl tracking-tight text-primary">ViMore</span>
         </Link>
-        <div className="relative group max-w-[200px] sm:max-w-xs">
+        <div className="relative group max-w-[160px] sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
           <Input 
             placeholder="Search ViMore" 
@@ -26,9 +26,11 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2">
-        <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 sm:hidden">
-          <Search className="h-5 w-5" />
-        </Button>
+        <Link href="/messages">
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
+            <MessageCircle className="h-5 w-5" />
+          </Button>
+        </Link>
         <CreatePostModal>
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
             <Plus className="h-5 w-5" />
