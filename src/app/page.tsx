@@ -8,7 +8,6 @@ import { Stories } from "@/components/feed/stories";
 import { RightSidebar } from "@/components/layout/right-sidebar";
 import { MainNav } from "@/components/layout/main-nav";
 import { usePosts } from "@/context/PostContext";
-import { CreatePost } from "@/components/post/create-post";
 
 export default function Home() {
   const { posts } = usePosts();
@@ -27,7 +26,6 @@ export default function Home() {
         {/* Main Feed */}
         <main className="flex flex-col gap-4 w-full max-w-[680px] mx-auto">
           <Stories />
-          <CreatePost />
           
           <div className="flex flex-col gap-1">
             {posts.map((post) => (
