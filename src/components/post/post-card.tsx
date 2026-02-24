@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -15,7 +16,9 @@ import {
   Flag,
   Languages,
   Loader2,
-  X
+  X,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -101,6 +104,12 @@ export function PostCard({
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
 
+  // Poll state
+  const [userVote, setUserVote] = useState<number | null>(null);
+  const [localPollOptions, setLocalPollOptions] = useState(poll?.options || []);
+  const [localTotalVotes, setLocalTotalVotes] = useState(poll?.totalVotes || 0);
+  const [isPollExpanded, setIsPollExpanded] = useState(false);
+
   const { toast } = useToast();
 
   const allImages = useMemo(() => {
@@ -142,6 +151,32 @@ export function PostCard({
     }
   };
 
+  const handleVote = (index: number) => {
+    if (!poll) return;
+    const newOptions = [...localPollOptions];
+    let newTotal = localTotalVotes;
+
+    if (userVote === index) {
+      // Remove vote
+      newOptions[index] = { ...newOptions[index], votes: newOptions[index].votes - 1 };
+      newTotal -= 1;
+      setUserVote(null);
+      toast({ description: "Vote removed" });
+    } else {
+      // Change or Add vote
+      if (userVote !== null) {
+        newOptions[userVote] = { ...newOptions[userVote], votes: newOptions[userVote].votes - 1 };
+        newTotal -= 1;
+      }
+      newOptions[index] = { ...newOptions[index], votes: newOptions[index].votes + 1 };
+      newTotal += 1;
+      setUserVote(index);
+      toast({ description: userVote !== null ? "Vote changed" : "Vote counted!" });
+    }
+    setLocalPollOptions(newOptions);
+    setLocalTotalVotes(newTotal);
+  };
+
   if (isHidden) {
     return (
       <Card className="p-4 flex items-center justify-between bg-secondary/20 border-dashed border-2">
@@ -159,6 +194,9 @@ export function PostCard({
 
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const foundUrl = content.match(urlRegex)?.[0];
+
+  const visiblePollOptions = isPollExpanded ? localPollOptions : localPollOptions.slice(0, 4);
+  const hasMorePollOptions = localPollOptions.length > 4;
 
   return (
     <Card className={cn(
@@ -278,23 +316,54 @@ export function PostCard({
           <div className="mt-3 p-4 rounded-xl border border-primary/10 bg-primary/5 space-y-3">
             <h4 className="font-bold text-sm">{poll.question}</h4>
             <div className="space-y-2">
-              {poll.options.map((option, i) => {
-                const percentage = poll.totalVotes > 0 ? (option.votes / poll.totalVotes) * 100 : 0;
+              {visiblePollOptions.map((option, i) => {
+                const percentage = localTotalVotes > 0 ? (option.votes / localTotalVotes) * 100 : 0;
+                const isSelected = userVote === i;
                 return (
-                  <button key={i} className="w-full relative h-10 rounded-lg border border-primary/20 overflow-hidden group hover:border-primary/40 transition-colors">
+                  <button 
+                    key={i} 
+                    onClick={() => handleVote(i)}
+                    className={cn(
+                      "w-full relative h-10 rounded-lg border overflow-hidden group transition-all",
+                      isSelected ? "border-primary bg-primary/10" : "border-primary/20 hover:border-primary/40"
+                    )}
+                  >
                     <div 
-                      className="absolute inset-y-0 left-0 bg-primary/10 transition-all duration-1000" 
+                      className={cn(
+                        "absolute inset-y-0 left-0 transition-all duration-500",
+                        isSelected ? "bg-primary/20" : "bg-primary/5"
+                      )} 
                       style={{ width: `${percentage}%` }}
                     />
                     <div className="absolute inset-0 flex items-center justify-between px-3 text-sm">
-                      <span className="font-medium">{option.text}</span>
+                      <span className={cn("font-medium", isSelected && "text-primary font-bold")}>
+                        {option.text}
+                        {isSelected && <CheckCircle2 className="inline ml-2 h-3.5 w-3.5" />}
+                      </span>
                       <span className="text-xs font-bold text-primary">{Math.round(percentage)}%</span>
                     </div>
                   </button>
                 );
               })}
             </div>
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{poll.totalVotes} votes • Final results</p>
+            
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+                {localTotalVotes} votes {userVote !== null && "• You voted"}
+              </p>
+              {hasMorePollOptions && (
+                <button 
+                  onClick={() => setIsPollExpanded(!isPollExpanded)}
+                  className="flex items-center gap-1 text-[10px] font-bold text-primary hover:underline"
+                >
+                  {isPollExpanded ? (
+                    <>Show less <ChevronUp className="h-3 w-3" /></>
+                  ) : (
+                    <>See more ({localPollOptions.length - 4}) <ChevronDown className="h-3 w-3" /></>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -396,7 +465,6 @@ export function PostCard({
       {!isShared && (
         <CardFooter className="p-1 px-3 flex flex-col gap-1 relative">
           <div className="flex items-center justify-between gap-1 w-full">
-            {/* Reactions Tray */}
             {showReactions && (
               <div 
                 className="absolute bottom-full left-4 mb-2 bg-white dark:bg-card rounded-full shadow-xl border border-border p-1.5 flex gap-2 animate-in slide-in-from-bottom-2 duration-200 z-50"
@@ -460,7 +528,6 @@ export function PostCard({
             </Button>
           </div>
 
-          {/* Comment Section */}
           {showComments && (
             <div className="w-full pt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="flex items-center gap-2">

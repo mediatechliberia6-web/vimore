@@ -75,6 +75,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   
   const CHARACTER_LIMIT = 2000;
   const MAX_PHOTOS = 6;
+  const MAX_POLL_OPTIONS = 8;
 
   useEffect(() => {
     const words = content.split(/\s+/);
@@ -197,7 +198,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     if (!file) return;
 
     setMediaType('video');
-    setSelectedMedia([]); // Ensure mutual exclusivity
+    setSelectedMedia([]); 
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -230,7 +231,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   };
 
   const addPollOption = () => {
-    if (pollOptions.length < 4) {
+    if (pollOptions.length < MAX_POLL_OPTIONS) {
       setPollOptions(prev => [...prev, ""]);
     }
   };
@@ -239,6 +240,12 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     const newOptions = [...pollOptions];
     newOptions[index] = val;
     setPollOptions(newOptions);
+  };
+
+  const removePollOption = (index: number) => {
+    if (pollOptions.length > 2) {
+      setPollOptions(prev => prev.filter((_, i) => i !== index));
+    }
   };
 
   const actionItems = [
@@ -295,7 +302,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         <DialogTitle className="sr-only">Create a New Post</DialogTitle>
         <DialogDescription className="sr-only" id="create-post-description">Interface to compose text, upload photos (up to 6) or a single video from device, add polls, and tagging for a new social media post.</DialogDescription>
         
-        {/* Hidden File Inputs */}
         <input 
           type="file" 
           ref={fileInputRef} 
@@ -447,17 +453,28 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               />
               <div className="space-y-2">
                 {pollOptions.map((opt, i) => (
-                  <Input 
-                    key={i}
-                    placeholder={`Option ${i + 1}`}
-                    className="bg-white border-primary/10 rounded-xl"
-                    value={opt}
-                    onChange={(e) => updatePollOption(i, e.target.value)}
-                  />
+                  <div key={i} className="flex gap-2 items-center">
+                    <Input 
+                      placeholder={`Option ${i + 1}`}
+                      className="bg-white border-primary/10 rounded-xl flex-1"
+                      value={opt}
+                      onChange={(e) => updatePollOption(i, e.target.value)}
+                    />
+                    {pollOptions.length > 2 && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-muted-foreground"
+                        onClick={() => removePollOption(i)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 ))}
-                {pollOptions.length < 4 && (
+                {pollOptions.length < MAX_POLL_OPTIONS && (
                   <Button variant="ghost" className="w-full text-xs font-bold text-primary hover:bg-primary/10" onClick={addPollOption}>
-                    <PlusSquare className="h-4 w-4 mr-2" /> Add Option
+                    <PlusSquare className="h-4 w-4 mr-2" /> Add Option ({pollOptions.length}/{MAX_POLL_OPTIONS})
                   </Button>
                 )}
               </div>
