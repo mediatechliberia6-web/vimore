@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -7,12 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 const navItems = [
-  { icon: Home, label: "Home", id: "home" },
-  { icon: Users, label: "Friends", id: "friends" },
-  { icon: Clapperboard, label: "Reels", id: "reels" },
-  { icon: Music, label: "Music", id: "music" },
+  { icon: Home, label: "Home", id: "home", href: "/" },
+  { icon: Users, label: "Friends", id: "friends", href: "/" },
+  { icon: Clapperboard, label: "Reels", id: "reels", href: "/" },
+  { icon: Music, label: "Music", id: "music", href: "/music" },
 ];
 
 const USER_PROFILE = {
@@ -21,6 +21,7 @@ const USER_PROFILE = {
 };
 
 export function SubHeader() {
+  const pathname = usePathname();
   const [activeTab, setActiveTab] = useState("home");
 
   return (
@@ -28,24 +29,33 @@ export function SubHeader() {
       <div className="max-w-[1440px] mx-auto px-4 h-14 flex items-center justify-between gap-2 sm:gap-4">
         {/* Navigation Tabs */}
         <nav className="flex items-center h-full shrink-0">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={cn(
-                "flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 h-full relative transition-colors group",
-                activeTab === item.id 
-                  ? "text-primary font-bold" 
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <item.icon className={cn("w-5 h-5", activeTab === item.id ? "scale-110" : "group-hover:scale-110 transition-transform")} />
-              <span className="hidden sm:inline text-sm">{item.label}</span>
-              {activeTab === item.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
-              )}
-            </button>
-          ))}
+          {navItems.map((item) => {
+            const isLinkActive = pathname === item.href && item.href !== "/";
+            const isTabActive = item.id === activeTab && pathname === "/";
+            const isActive = isLinkActive || isTabActive;
+
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                onClick={() => {
+                  if (item.href === "/") setActiveTab(item.id);
+                }}
+                className={cn(
+                  "flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 h-full relative transition-colors group",
+                  isActive 
+                    ? "text-primary font-bold" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <item.icon className={cn("w-5 h-5", isActive ? "scale-110" : "group-hover:scale-110 transition-transform")} />
+                <span className="hidden sm:inline text-sm">{item.label}</span>
+                {isActive && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
+                )}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Search and Profile Section */}

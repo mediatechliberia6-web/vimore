@@ -37,7 +37,7 @@ const menuGrid = [
   { label: "Friends", icon: Users, color: "text-pink-500", bg: "bg-pink-50", href: "/" },
   { label: "Messages", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages" },
   { label: "Reels", icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-50", href: "/" },
-  { label: "Music", icon: Music, color: "text-indigo-500", bg: "bg-indigo-50", href: "/" },
+  { label: "Music", icon: Music, color: "text-indigo-500", bg: "bg-indigo-50", href: "/music" },
   { label: "Notifications", icon: Bell, color: "text-yellow-500", bg: "bg-yellow-50", href: "/notifications" },
 ];
 

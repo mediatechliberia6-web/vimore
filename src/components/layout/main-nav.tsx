@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, MessageCircle, Search, Bell, Settings, LogOut, PlusSquare, Compass, Menu } from "lucide-react";
+import { Home, User, MessageCircle, Search, Bell, Settings, LogOut, PlusSquare, Compass, Menu, Music } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Compass, label: "Explore", href: "/explore" },
+  { icon: Music, label: "Music", href: "/music" },
   { icon: Bell, label: "Notifications", href: "/notifications" },
   { icon: MessageCircle, label: "Messages", href: "/messages" },
   { icon: User, label: "Profile", href: "/profile" },
