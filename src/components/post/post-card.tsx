@@ -21,7 +21,10 @@ import {
   ChevronUp,
   Gift,
   Users2,
-  MessageCircleOff
+  MessageCircleOff,
+  Pin,
+  Archive,
+  GalleryVerticalEnd
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -79,6 +82,9 @@ interface PostCardProps {
   hashtags?: string[];
   feeling?: { emoji: string; text: string };
   commentsDisabled?: boolean;
+  isPinned?: boolean;
+  isSeries?: boolean;
+  seriesTitle?: string;
   poll?: {
     question: string;
     options: { text: string; votes: number }[];
@@ -105,6 +111,9 @@ export function PostCard({
   hashtags,
   feeling,
   commentsDisabled,
+  isPinned,
+  isSeries,
+  seriesTitle,
   poll,
   initialComments = [],
   isShared = false,
@@ -204,6 +213,11 @@ export function PostCard({
     setLocalTotalVotes(newTotal);
   };
 
+  const handleArchive = () => {
+    setIsHidden(true);
+    toast({ title: "Post Archived", description: "You can find this in your private archive." });
+  };
+
   const renderContent = (text: string) => {
     const parts = text.split(/(\*\*.*?\*\*|_.*?_|`.*?`)/g);
     return parts.map((part, i) => {
@@ -223,7 +237,7 @@ export function PostCard({
   if (isHidden) {
     return (
       <Card className="p-4 flex items-center justify-between bg-secondary/20 border-dashed border-2">
-        <span className="text-sm font-medium text-muted-foreground">Post hidden</span>
+        <span className="text-sm font-medium text-muted-foreground">Post hidden or archived</span>
         <Button variant="ghost" size="sm" onClick={() => setIsHidden(false)} className="text-primary font-bold">Undo</Button>
       </Card>
     );
@@ -245,10 +259,16 @@ export function PostCard({
 
   return (
     <Card className={cn(
-      "border-none shadow-sm overflow-hidden bg-white dark:bg-card mb-4 transition-colors",
+      "border-none shadow-sm overflow-hidden bg-white dark:bg-card mb-4 transition-colors relative",
       isShared ? "ring-1 ring-primary/10 shadow-none scale-[0.98] mx-2" : "ring-1 ring-black/5 dark:ring-white/5",
       theme && !isShared && "text-white"
     )}>
+      {isPinned && !isShared && (
+        <div className="absolute top-0 right-0 z-10 p-1 px-2 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-bl-lg flex items-center gap-1 shadow-md">
+          <Pin className="h-2 w-2 fill-current" /> Pinned
+        </div>
+      )}
+
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -284,6 +304,15 @@ export function PostCard({
                 <>
                   <span>•</span>
                   <Badge variant="ghost" className="p-0 h-auto font-normal text-[10px]">Public</Badge>
+                  {isSeries && (
+                    <>
+                      <span>•</span>
+                      <div className="flex items-center gap-0.5 text-primary font-bold">
+                        <GalleryVerticalEnd className="h-2.5 w-2.5" />
+                        <span>Series: {seriesTitle || "Curated"}</span>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -313,14 +342,18 @@ export function PostCard({
                   <EyeOff className="h-4 w-4" />
                   Hide post
                 </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={handleArchive}>
+                  <Archive className="h-4 w-4" />
+                  Archive post
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => toast({ description: isPinned ? "Unpinned from top" : "Pinned to top" })}>
+                  <Pin className="h-4 w-4" />
+                  {isPinned ? "Unpin post" : "Pin to profile"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem className="gap-2 cursor-pointer text-destructive focus:text-destructive">
                   <Flag className="h-4 w-4" />
                   Report post
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="gap-2 cursor-pointer">
-                  <EyeOff className="h-4 w-4" />
-                  Turn off notifications
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

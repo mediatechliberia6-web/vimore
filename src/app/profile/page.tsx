@@ -39,7 +39,10 @@ import {
   Users,
   Trophy,
   Star,
-  Users2
+  Users2,
+  Bookmark,
+  AtSign,
+  Pin
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
@@ -52,11 +55,9 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPlayingIntro, setIsPlayingIntro] = useState(false);
 
-  // Simulate loading state for skeleton demonstration
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
-      // Phase 3: Profile Visit Notification simulation
       toast({
         title: "Profile Visit",
         description: "Sarah Chen just visited your profile.",
@@ -88,20 +89,17 @@ export default function ProfilePage() {
       { label: "Portfolio", url: "https://johndoe.design", icon: Globe },
       { label: "Latest Project", url: "https://vimore.io", icon: ExternalLink }
     ],
-    // Phase 3: Mock Mutual Friends
     mutualFriends: [
       { name: "Sarah Chen", avatar: "https://picsum.photos/seed/2/100/100" },
       { name: "Alex Rivera", avatar: "https://picsum.photos/seed/1/100/100" },
       { name: "Marcus Stone", avatar: "https://picsum.photos/seed/3/100/100" }
     ],
     mutualCount: 15,
-    // Phase 3: Top Contributors
     topContributors: [
       { name: "Elena Gilbert", avatar: "https://picsum.photos/seed/4/100/100", role: "Top Fan", color: "bg-yellow-500" },
       { name: "Marcus Stone", avatar: "https://picsum.photos/seed/3/100/100", role: "Rising Star", color: "bg-blue-500" },
       { name: "Sarah Chen", avatar: "https://picsum.photos/seed/2/100/100", role: "Supporter", color: "bg-green-500" }
     ],
-    // Phase 3: Follow back indicator simulation
     followsYou: true
   };
 
@@ -123,14 +121,11 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-background flex justify-center">
       <div className="max-w-[1440px] w-full grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[280px_1fr_360px] gap-8 px-0 md:px-4">
         
-        {/* Left Sidebar */}
         <aside className="hidden md:block sticky top-0 h-screen border-r border-border/50">
           <MainNav />
         </aside>
 
-        {/* Profile Content */}
         <main className="w-full bg-white dark:bg-card min-h-screen shadow-sm">
-          {/* Navigation Header */}
           <header className="sticky top-0 z-50 bg-white/95 dark:bg-card/95 backdrop-blur-sm border-b border-border h-14 px-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Link href="/">
@@ -168,7 +163,6 @@ export default function ProfilePage() {
           </header>
 
           <div className="relative">
-            {/* Hero Section - Cover Photo/Video */}
             <div className="relative h-48 sm:h-64 md:h-72 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/20 overflow-hidden group/cover">
               {isLoading ? (
                 <Skeleton className="w-full h-full rounded-none" />
@@ -199,7 +193,6 @@ export default function ProfilePage() {
               </Button>
             </div>
 
-            {/* Profile Identity - Avatar Overlap */}
             <div className="px-4 pb-4">
               <div className="relative inline-block -mt-16 sm:-mt-24 ml-0 sm:ml-2">
                 <div className="relative w-32 h-32 sm:w-44 sm:h-44">
@@ -221,7 +214,6 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Identity Info */}
               <div className="mt-2 space-y-1 px-1">
                 <div className="flex items-center flex-wrap gap-2">
                   {isLoading ? (
@@ -232,7 +224,6 @@ export default function ProfilePage() {
                       <Badge variant="secondary" className="bg-secondary/50 text-[10px] font-bold py-0.5 px-2">
                         {user.pronouns}
                       </Badge>
-                      {/* Phase 3: Follow Back Indicator */}
                       {user.followsYou && (
                         <Badge variant="outline" className="text-[9px] font-bold text-muted-foreground uppercase py-0.5 px-2 border-muted-foreground/20">
                           Follows You
@@ -254,7 +245,6 @@ export default function ProfilePage() {
                   )}
                 </div>
                 
-                {/* Stats Row */}
                 <div className="flex items-center gap-6 py-2">
                   {isLoading ? (
                     [1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-16" />)
@@ -276,7 +266,6 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* Phase 3: Mutual Friends Insight */}
                 <div className="py-2">
                   {isLoading ? (
                     <Skeleton className="h-6 w-64" />
@@ -297,7 +286,6 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* Bio & Links */}
                 <div className="mt-3 relative group">
                   {isLoading ? (
                     <div className="space-y-2">
@@ -322,7 +310,6 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* Link Tree */}
                 <div className="mt-4 flex flex-wrap gap-2">
                   {isLoading ? (
                     <Skeleton className="h-8 w-32" />
@@ -340,7 +327,6 @@ export default function ProfilePage() {
                   ))}
                 </div>
 
-                {/* Metadata Badges */}
                 <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
                   {isLoading ? (
                     [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-6 w-full" />)
@@ -376,7 +362,6 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* Main Action Bar */}
                 <div className="mt-8 flex gap-2">
                   <Button className="flex-1 rounded-lg gap-2 bg-primary hover:bg-primary/90 h-11 font-bold text-white shadow-lg shadow-primary/20">
                     <LayoutDashboard className="h-5 w-5" />
@@ -388,7 +373,6 @@ export default function ProfilePage() {
                   </Button>
                 </div>
 
-                {/* Highlights Section */}
                 <div className="mt-8">
                   <ScrollArea className="w-full whitespace-nowrap">
                     <div className="flex w-max space-x-4 p-1 pb-4">
@@ -420,31 +404,35 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Tabs & Content */}
             <Tabs defaultValue="all" className="w-full mt-2">
-              <TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0">
+              <TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0 overflow-x-auto">
                 <TabsTrigger 
                   value="all" 
-                  className="flex-1 h-full rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-[3px] data-[state=active]:border-primary data-[state=active]:text-primary font-bold text-sm"
+                  className="flex-1 min-w-[80px] h-full rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-[3px] data-[state=active]:border-primary data-[state=active]:text-primary font-bold text-sm"
                 >
                   All
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="reels" 
-                  className="flex-1 h-full rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-[3px] data-[state=active]:border-primary data-[state=active]:text-primary font-bold text-sm"
+                  value="tagged" 
+                  className="flex-1 min-w-[80px] h-full rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-[3px] data-[state=active]:border-primary data-[state=active]:text-primary font-bold text-sm"
                 >
-                  Reels
+                  Tagged
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="photos" 
-                  className="flex-1 h-full rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-[3px] data-[state=active]:border-primary data-[state=active]:text-primary font-bold text-sm"
+                  value="saved" 
+                  className="flex-1 min-w-[80px] h-full rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-[3px] data-[state=active]:border-primary data-[state=active]:text-primary font-bold text-sm"
                 >
-                  Photos
+                  Saved
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="reels" 
+                  className="flex-1 min-w-[80px] h-full rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-[3px] data-[state=active]:border-primary data-[state=active]:text-primary font-bold text-sm"
+                >
+                  Reels
                 </TabsTrigger>
               </TabsList>
               
               <TabsContent value="all" className="p-4 space-y-6">
-                {/* Phase 3: Top Contributors Card */}
                 <Card className="rounded-2xl border border-border shadow-sm overflow-hidden bg-white dark:bg-card/50">
                   <CardHeader className="pb-3 pt-4 px-4 flex flex-row items-center justify-between border-b border-border/50">
                     <div className="flex items-center gap-2">
@@ -481,60 +469,26 @@ export default function ProfilePage() {
                   </CardContent>
                 </Card>
 
-                {/* Personal Details Card */}
-                <Card className="rounded-2xl border border-border shadow-sm overflow-hidden bg-white dark:bg-card/50">
-                  <CardHeader className="pb-3 pt-4 px-4 flex flex-row items-center justify-between border-b border-border/50">
-                    <div className="flex items-center gap-2">
-                      <Users2 className="h-5 w-5 text-primary" />
-                      <CardTitle className="text-lg font-bold">Personal details</CardTitle>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-primary">
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                  </CardHeader>
-                  <CardContent className="space-y-5 py-5 px-4">
-                    <div className="flex items-center gap-4">
-                      <div className="h-11 w-11 bg-secondary rounded-full flex items-center justify-center shrink-0">
-                        <HomeIcon className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest leading-none mb-1">Home Town</span>
-                        <span className="font-bold text-[15px]">{user.hometown}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="h-11 w-11 bg-secondary rounded-full flex items-center justify-center shrink-0">
-                        <MapPin className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest leading-none mb-1">Current City</span>
-                        <span className="font-bold text-[15px]">{user.location}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="h-11 w-11 bg-secondary rounded-full flex items-center justify-center shrink-0">
-                        <Cake className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest leading-none mb-1">Birthday</span>
-                        <span className="font-bold text-[15px]">{user.birthday}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="h-11 w-11 bg-secondary rounded-full flex items-center justify-center shrink-0">
-                        <Rss className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest leading-none mb-1">Followed by</span>
-                        <span className="font-bold text-[15px]">{user.followers} people</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Profile Post Feed Example */}
                 <div className="space-y-4">
-                  <h3 className="font-bold text-lg px-1">Recent Activity</h3>
+                  <div className="flex items-center justify-between px-1">
+                    <h3 className="font-bold text-lg">Recent Activity</h3>
+                    <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+                      <Pin className="h-3 w-3 text-primary" /> Pinned posts first
+                    </div>
+                  </div>
+                  
+                  <PostCard 
+                    id="p_pinned"
+                    user={{ name: "John Doe", username: "johndoe_creative", avatar: "https://picsum.photos/seed/me/200/200", isVerified: true }}
+                    content="Always excited to share new UI explorations. This is my latest project for a social hub. ✨ #UIUX #Design"
+                    image="https://picsum.photos/seed/pinned/800/600"
+                    time="Pinned"
+                    likes={1540}
+                    unlikes={12}
+                    comments={88}
+                    isPinned={true}
+                  />
+
                   <PostCard 
                     id="p1"
                     user={{ name: "John Doe", username: "johndoe_creative", avatar: "https://picsum.photos/seed/me/200/200", isVerified: true }}
@@ -547,11 +501,48 @@ export default function ProfilePage() {
                   />
                 </div>
               </TabsContent>
+
+              <TabsContent value="tagged" className="p-4 space-y-4">
+                 <div className="flex flex-col items-center justify-center py-12 text-center bg-secondary/10 rounded-2xl border-2 border-dashed border-border/50">
+                    <AtSign className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="font-bold text-lg">Posts you're tagged in</h3>
+                    <p className="text-sm text-muted-foreground max-w-[240px] mt-1">When people tag you in photos or videos, they'll appear here.</p>
+                 </div>
+                 <PostCard 
+                    id="t1"
+                    user={{ name: "Sarah Chen", username: "schen_dev", avatar: "https://picsum.photos/seed/2/200/200", isVerified: true }}
+                    content="Collaborating with @johndoe_creative on this new feature has been incredible! 🚀"
+                    image="https://picsum.photos/seed/tag1/800/600"
+                    time="2d"
+                    likes={342}
+                    unlikes={2}
+                    comments={24}
+                  />
+              </TabsContent>
+
+              <TabsContent value="saved" className="p-4 space-y-4">
+                 <div className="flex items-center justify-between px-1 mb-2">
+                    <div className="flex items-center gap-2">
+                       <Bookmark className="h-5 w-5 text-primary" />
+                       <h3 className="font-bold text-lg">Your Saved Items</h3>
+                    </div>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-secondary px-2 py-1 rounded-md">Private to you</span>
+                 </div>
+                 <PostCard 
+                    id="s1"
+                    user={{ name: "Tech Insider", username: "tech_hub", avatar: "https://picsum.photos/seed/10/200/200", isVerified: true }}
+                    content="Top 10 Design Trends for 2024. Save this for your next project! 🎨"
+                    image="https://picsum.photos/seed/saved1/800/600"
+                    time="Saved 3h ago"
+                    likes={4500}
+                    unlikes={45}
+                    comments={320}
+                  />
+              </TabsContent>
             </Tabs>
           </div>
         </main>
 
-        {/* Right Sidebar */}
         <aside className="hidden lg:block">
           <RightSidebar />
         </aside>

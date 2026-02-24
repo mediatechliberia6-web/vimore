@@ -18,8 +18,8 @@ export interface User {
 
 export interface Mention {
   username: string;
-  x: string | number; // percentage or pixels
-  y: string | number; // percentage or pixels
+  x: string | number;
+  y: string | number;
 }
 
 export interface StoryPoll {
@@ -74,6 +74,9 @@ export interface Post {
   location?: string;
   theme?: string;
   commentsDisabled?: boolean;
+  isPinned?: boolean;
+  isSeries?: boolean;
+  seriesTitle?: string;
   poll?: {
     question: string;
     options: { text: string; votes: number }[];
@@ -95,6 +98,7 @@ interface PostContextType {
   addStory: (segment: Omit<StorySegment, 'id'>) => void;
   voteOnStoryPoll: (storyId: string, segmentId: string, optionIndex: number) => void;
   toggleMuteUser: (username: string) => void;
+  togglePinPost: (postId: string) => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -332,6 +336,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const togglePinPost = (postId: string) => {
+    setPosts(prev => prev.map(p => {
+      if (p.id === postId) return { ...p, isPinned: !p.isPinned };
+      return p;
+    }));
+  };
+
   return (
     <PostContext.Provider value={{ 
       posts, 
@@ -343,7 +354,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       addPost, 
       addStory, 
       voteOnStoryPoll,
-      toggleMuteUser
+      toggleMuteUser,
+      togglePinPost
     }}>
       {children}
     </PostContext.Provider>
