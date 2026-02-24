@@ -42,18 +42,34 @@ import {
   Users2,
   Bookmark,
   AtSign,
-  Pin
+  Pin,
+  Gift,
+  Languages,
+  Zap,
+  Check,
+  BriefcaseBusiness
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { aiTranslatePost } from "@/app/actions/ai";
 
 export default function ProfilePage() {
   const { highlights } = usePosts();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isPlayingIntro, setIsPlayingIntro] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translatedBio, setTranslatedBio] = useState<string | null>(null);
+  
+  // Skills state
+  const [skills, setSkills] = useState([
+    { name: "UI/UX Design", count: 42, endorsed: false },
+    { name: "Mobile Photography", count: 28, endorsed: false },
+    { name: "Brand Strategy", count: 15, endorsed: false },
+    { name: "React Development", count: 33, endorsed: false }
+  ]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -89,6 +105,11 @@ export default function ProfilePage() {
       { label: "Portfolio", url: "https://johndoe.design", icon: Globe },
       { label: "Latest Project", url: "https://vimore.io", icon: ExternalLink }
     ],
+    portfolio: [
+      { id: 1, title: "ViMore App UI", image: "https://picsum.photos/seed/p1/400/300", tag: "Design" },
+      { id: 2, title: "Sunset Series", image: "https://picsum.photos/seed/p2/400/300", tag: "Photography" },
+      { id: 3, title: "Brand Identity", image: "https://picsum.photos/seed/p3/400/300", tag: "Branding" }
+    ],
     mutualFriends: [
       { name: "Sarah Chen", avatar: "https://picsum.photos/seed/2/100/100" },
       { name: "Alex Rivera", avatar: "https://picsum.photos/seed/1/100/100" },
@@ -103,7 +124,14 @@ export default function ProfilePage() {
     followsYou: true
   };
 
+  const triggerHaptic = () => {
+    if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(50);
+    }
+  };
+
   const handleCopyBio = () => {
+    triggerHaptic();
     navigator.clipboard.writeText(user.bio);
     toast({
       description: "Bio copied to clipboard!",
@@ -111,9 +139,50 @@ export default function ProfilePage() {
   };
 
   const toggleVoiceIntro = () => {
+    triggerHaptic();
     setIsPlayingIntro(!isPlayingIntro);
     toast({
       description: isPlayingIntro ? "Voice intro stopped." : "Playing voice intro...",
+    });
+  };
+
+  const handleTranslateBio = async () => {
+    if (translatedBio) {
+      setTranslatedBio(null);
+      return;
+    }
+    triggerHaptic();
+    setIsTranslating(true);
+    try {
+      const res = await aiTranslatePost({ postContent: user.bio, targetLanguage: "Spanish" });
+      setTranslatedBio(res.translation);
+      toast({ description: "Bio translated to Spanish ✨" });
+    } catch (e) {
+      toast({ variant: "destructive", description: "Translation failed" });
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const handleEndorseSkill = (idx: number) => {
+    triggerHaptic();
+    const newSkills = [...skills];
+    if (newSkills[idx].endorsed) {
+      newSkills[idx].count--;
+      newSkills[idx].endorsed = false;
+    } else {
+      newSkills[idx].count++;
+      newSkills[idx].endorsed = true;
+      toast({ description: `Endorsed ${newSkills[idx].name}!` });
+    }
+    setSkills(newSkills);
+  };
+
+  const handleSendGift = () => {
+    triggerHaptic();
+    toast({
+      title: "Gifting Initialized",
+      description: "Redirecting to secure virtual gift store...",
     });
   };
 
@@ -150,11 +219,11 @@ export default function ProfilePage() {
               </div>
             </div>
             <div className="flex items-center gap-0.5 sm:gap-1">
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Edit2 className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="rounded-full" onClick={handleSendGift}>
+                <Gift className="h-5 w-5 text-primary" />
               </Button>
               <Button variant="ghost" size="icon" className="rounded-full">
-                <Search className="h-5 w-5" />
+                <Edit2 className="h-5 w-5" />
               </Button>
               <Button variant="ghost" size="icon" className="rounded-full">
                 <MoreHorizontal className="h-5 w-5" />
@@ -280,7 +349,7 @@ export default function ProfilePage() {
                         ))}
                       </div>
                       <p className="text-[12px] text-muted-foreground">
-                        Followed by <span className="font-bold text-foreground hover:underline">{user.mutualFriends[0].name}</span>, <span className="font-bold text-foreground hover:underline">{user.mutualFriends[1].name}</span> and <span className="font-bold text-foreground">{user.mutualCount} others</span> you know
+                        Followed by <span className="font-bold text-foreground hover:underline">{user.mutualFriends[0].name}</span> and <span className="font-bold text-foreground">{user.mutualCount} others</span>
                       </p>
                     </div>
                   )}
@@ -294,18 +363,32 @@ export default function ProfilePage() {
                     </div>
                   ) : (
                     <>
-                      <p className="text-[15px] leading-relaxed text-foreground pr-8">
-                        {user.bio}
-                      </p>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="absolute right-0 top-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={handleCopyBio}
-                        title="Copy bio"
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
+                      <div className="flex items-start gap-4">
+                        <p className="text-[15px] leading-relaxed text-foreground flex-1">
+                          {translatedBio || user.bio}
+                        </p>
+                        <div className="flex flex-col gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={handleCopyBio}
+                            title="Copy bio"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className={cn("h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity", translatedBio && "text-primary opacity-100")}
+                            onClick={handleTranslateBio}
+                            disabled={isTranslating}
+                            title="Translate bio"
+                          >
+                            {isTranslating ? <Zap className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}
+                          </Button>
+                        </div>
+                      </div>
                     </>
                   )}
                 </div>
@@ -327,47 +410,48 @@ export default function ProfilePage() {
                   ))}
                 </div>
 
-                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                  {isLoading ? (
-                    [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-6 w-full" />)
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-3 text-[14px]">
-                        <Briefcase className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium text-muted-foreground">Category: <span className="font-bold text-foreground">{user.category}</span></span>
-                      </div>
-                      <div className="flex items-center gap-3 text-[14px]">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium text-muted-foreground">From <span className="font-bold text-foreground">{user.location}</span></span>
-                      </div>
-                      <div className="flex items-center gap-3 text-[14px]">
-                        <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium text-muted-foreground">Education: <span className="font-bold text-foreground">{user.education}</span></span>
-                      </div>
-                      <div className="flex items-center gap-3 text-[14px]">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium text-muted-foreground">Joined <span className="font-bold text-foreground">{user.joinDate}</span></span>
-                      </div>
-                      <div className="flex items-center gap-3 text-[14px]">
-                        <Heart className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium text-muted-foreground">Status: <span className="font-bold text-foreground">{user.relationshipStatus}</span></span>
-                      </div>
-                      <div className="flex items-center gap-3 text-[14px]">
-                        <Instagram className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-bold text-primary flex items-center gap-1">
-                          {user.social} <span className="text-muted-foreground font-normal text-xs">({user.socialHandle})</span>
+                <div className="mt-6">
+                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <Star className="h-3.5 w-3.5 text-yellow-500" /> Professional Skills
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {skills.map((skill, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleEndorseSkill(idx)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all",
+                          skill.endorsed 
+                            ? "bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105" 
+                            : "bg-white dark:bg-card border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {skill.name}
+                        <span className={cn(
+                          "px-1.5 py-0.5 rounded-md text-[10px]",
+                          skill.endorsed ? "bg-white/20" : "bg-secondary"
+                        )}>
+                          {skill.count}
                         </span>
-                      </div>
-                    </>
-                  )}
+                        {skill.endorsed && <Check className="h-3 w-3" />}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="mt-8 flex gap-2">
-                  <Button className="flex-1 rounded-lg gap-2 bg-primary hover:bg-primary/90 h-11 font-bold text-white shadow-lg shadow-primary/20">
+                  <Button 
+                    className="flex-1 rounded-lg gap-2 bg-primary hover:bg-primary/90 h-11 font-bold text-white shadow-lg shadow-primary/20"
+                    onClick={() => { triggerHaptic(); }}
+                  >
                     <LayoutDashboard className="h-5 w-5" />
                     Dashboard
                   </Button>
-                  <Button variant="secondary" className="flex-1 rounded-lg gap-2 h-11 bg-secondary hover:bg-secondary/80 font-bold">
+                  <Button 
+                    variant="secondary" 
+                    className="flex-1 rounded-lg gap-2 h-11 bg-secondary hover:bg-secondary/80 font-bold"
+                    onClick={() => { triggerHaptic(); }}
+                  >
                     <Plus className="h-5 w-5" />
                     Add to story
                   </Button>
@@ -402,6 +486,36 @@ export default function ProfilePage() {
                   </ScrollArea>
                 </div>
               </div>
+            </div>
+
+            <div className="px-4 py-6 border-t border-border/50">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold flex items-center gap-2">
+                  <BriefcaseBusiness className="h-4 w-4 text-primary" /> Portfolio Showcase
+                </h3>
+                <Button variant="ghost" size="sm" className="text-xs text-primary font-bold">View full portfolio</Button>
+              </div>
+              <ScrollArea className="w-full whitespace-nowrap">
+                <div className="flex w-max space-x-4 pb-4">
+                  {user.portfolio.map((item) => (
+                    <div key={item.id} className="relative w-72 group cursor-pointer">
+                      <div className="relative aspect-[4/3] rounded-2xl overflow-hidden border border-border shadow-sm">
+                        <Image src={item.image} alt={item.title} fill className="object-cover transition-transform group-hover:scale-105 duration-500" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                          <Button variant="secondary" size="sm" className="rounded-full gap-2 h-8 text-[11px] font-bold">
+                            View Case Study <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <Badge className="absolute top-3 left-3 bg-white/90 text-black border-none text-[10px] font-bold">
+                          {item.tag}
+                        </Badge>
+                      </div>
+                      <h4 className="mt-2 text-sm font-bold px-1 group-hover:text-primary transition-colors">{item.title}</h4>
+                    </div>
+                  ))}
+                </div>
+                <ScrollBar orientation="horizontal" className="opacity-0" />
+              </ScrollArea>
             </div>
 
             <Tabs defaultValue="all" className="w-full mt-2">
@@ -479,7 +593,7 @@ export default function ProfilePage() {
                   
                   <PostCard 
                     id="p_pinned"
-                    user={{ name: "John Doe", username: "johndoe_creative", avatar: "https://picsum.photos/seed/me/200/200", isVerified: true }}
+                    user={{ name: "John Doe", username: "johndoe_creative", avatar: "https://picsum.photos/seed/me/200/200", isVerified: true, followers: 8400 }}
                     content="Always excited to share new UI explorations. This is my latest project for a social hub. ✨ #UIUX #Design"
                     image="https://picsum.photos/seed/pinned/800/600"
                     time="Pinned"
@@ -491,7 +605,7 @@ export default function ProfilePage() {
 
                   <PostCard 
                     id="p1"
-                    user={{ name: "John Doe", username: "johndoe_creative", avatar: "https://picsum.photos/seed/me/200/200", isVerified: true }}
+                    user={{ name: "John Doe", username: "johndoe_creative", avatar: "https://picsum.photos/seed/me/200/200", isVerified: true, followers: 8400 }}
                     content="The sunsets in SF are unmatched. 🌅 This is why I love building here. #Design #SF"
                     image="https://picsum.photos/seed/99/800/600"
                     time="1d"

@@ -145,7 +145,14 @@ export function PostCard({
     return list;
   }, [image, images]);
 
+  const triggerHaptic = () => {
+    if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(50);
+    }
+  };
+
   const handleLike = () => {
+    triggerHaptic();
     if (isLiked) {
       setIsLiked(false);
       setLikeCount(prev => prev - 1);
@@ -160,6 +167,7 @@ export function PostCard({
   };
 
   const handleUnlike = () => {
+    triggerHaptic();
     if (isUnliked) {
       setIsUnliked(false);
       setUnlikeCount(prev => prev - 1);
@@ -174,6 +182,7 @@ export function PostCard({
   };
 
   const handleTranslate = async () => {
+    triggerHaptic();
     if (translatedText) {
       setTranslatedText(null);
       return;
@@ -190,6 +199,7 @@ export function PostCard({
   };
 
   const handleVote = (index: number) => {
+    triggerHaptic();
     if (!poll) return;
     const newOptions = [...localPollOptions];
     let newTotal = localTotalVotes;
@@ -198,7 +208,6 @@ export function PostCard({
       newOptions[index] = { ...newOptions[index], votes: newOptions[index].votes - 1 };
       newTotal -= 1;
       setUserVote(null);
-      toast({ description: "Vote removed" });
     } else {
       if (userVote !== null) {
         newOptions[userVote] = { ...newOptions[userVote], votes: newOptions[userVote].votes - 1 };
@@ -207,15 +216,20 @@ export function PostCard({
       newOptions[index] = { ...newOptions[index], votes: newOptions[index].votes + 1 };
       newTotal += 1;
       setUserVote(index);
-      toast({ description: "Vote recorded" });
     }
     setLocalPollOptions(newOptions);
     setLocalTotalVotes(newTotal);
   };
 
   const handleArchive = () => {
+    triggerHaptic();
     setIsHidden(true);
     toast({ title: "Post Archived", description: "You can find this in your private archive." });
+  };
+
+  const handleGift = () => {
+    triggerHaptic();
+    toast({ title: "Send Support", description: "Choosing a virtual gift for " + user.name });
   };
 
   const renderContent = (text: string) => {
@@ -325,6 +339,7 @@ export function PostCard({
               size="icon" 
               className={cn("h-8 w-8 rounded-full", isBookmarked && "text-primary")}
               onClick={() => {
+                triggerHaptic();
                 setIsBookmarked(!isBookmarked);
                 toast({ description: isBookmarked ? "Removed from bookmarks" : "Saved to bookmarks" });
               }}
@@ -584,7 +599,7 @@ export function PostCard({
                 variant="ghost" 
                 size="sm" 
                 className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-colors", theme ? "text-yellow-300 hover:text-yellow-100" : "text-yellow-500")}
-                onClick={() => toast({ description: "Gifting feature coming soon!" })}
+                onClick={handleGift}
               >
                 <Gift className="h-4 w-4" />
               </Button>
@@ -599,7 +614,7 @@ export function PostCard({
                 theme ? "text-white/70 hover:text-white" : "text-muted-foreground",
                 commentsDisabled && "opacity-30 cursor-not-allowed"
               )}
-              onClick={() => setShowComments(!showComments)}
+              onClick={() => { triggerHaptic(); setShowComments(!showComments); }}
             >
               <MessageCircle className="h-4 w-4" />
             </Button>
@@ -608,6 +623,7 @@ export function PostCard({
               variant="ghost" 
               size="sm" 
               className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-colors", theme ? "text-white/70 hover:text-white" : "text-muted-foreground")}
+              onClick={() => triggerHaptic()}
             >
               <Share2 className="h-4 w-4" />
             </Button>
@@ -627,7 +643,7 @@ export function PostCard({
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                   />
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-primary">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => triggerHaptic()}>
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>
