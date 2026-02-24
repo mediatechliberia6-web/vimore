@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import { MainNav } from "@/components/layout/main-nav";
 import { RightSidebar } from "@/components/layout/right-sidebar";
 import { PostCard } from "@/components/post/post-card";
@@ -10,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { 
   ArrowLeft, 
@@ -32,15 +34,25 @@ import {
   Heart,
   Globe,
   ExternalLink,
-  Link as LinkIcon
+  Volume2,
+  Play
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 export default function ProfilePage() {
   const { highlights } = usePosts();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPlayingIntro, setIsPlayingIntro] = useState(false);
+
+  // Simulate loading state for skeleton demonstration
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
   
   const user = {
     name: "John Doe",
@@ -59,6 +71,8 @@ export default function ProfilePage() {
     socialHandle: "@johndoe_inst",
     hometown: "Lagos, Nigeria",
     birthday: "March 15",
+    hasCoverVideo: true,
+    coverVideoUrl: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
     links: [
       { label: "Portfolio", url: "https://johndoe.design", icon: Globe },
       { label: "Latest Project", url: "https://vimore.io", icon: ExternalLink }
@@ -69,6 +83,13 @@ export default function ProfilePage() {
     navigator.clipboard.writeText(user.bio);
     toast({
       description: "Bio copied to clipboard!",
+    });
+  };
+
+  const toggleVoiceIntro = () => {
+    setIsPlayingIntro(!isPlayingIntro);
+    toast({
+      description: isPlayingIntro ? "Voice intro stopped." : "Playing voice intro...",
     });
   };
 
@@ -92,13 +113,19 @@ export default function ProfilePage() {
                 </Button>
               </Link>
               <div className="flex items-center gap-1 cursor-pointer group">
-                <span className="font-bold text-lg truncate max-w-[120px] sm:max-w-none">{user.name}</span>
-                <div className="relative">
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  <Badge className="absolute -top-3 -right-4 h-5 min-w-[20px] px-1 flex items-center justify-center bg-destructive text-white border-2 border-white dark:border-card text-[9px] font-bold">
-                    9+
-                  </Badge>
-                </div>
+                {isLoading ? (
+                  <Skeleton className="h-6 w-32" />
+                ) : (
+                  <>
+                    <span className="font-bold text-lg truncate max-w-[120px] sm:max-w-none">{user.name}</span>
+                    <div className="relative">
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      <Badge className="absolute -top-3 -right-4 h-5 min-w-[20px] px-1 flex items-center justify-center bg-destructive text-white border-2 border-white dark:border-card text-[9px] font-bold">
+                        9+
+                      </Badge>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-0.5 sm:gap-1">
@@ -115,16 +142,32 @@ export default function ProfilePage() {
           </header>
 
           <div className="relative">
-            {/* Hero Section - Cover Photo */}
-            <div className="relative h-48 sm:h-64 md:h-72 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/20 overflow-hidden">
-              <Avatar className="w-full h-full rounded-none">
-                <AvatarImage src="https://picsum.photos/seed/cover/1200/400" className="object-cover" />
-                <AvatarFallback className="rounded-none">Cover</AvatarFallback>
-              </Avatar>
+            {/* Hero Section - Cover Photo/Video */}
+            <div className="relative h-48 sm:h-64 md:h-72 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/20 overflow-hidden group/cover">
+              {isLoading ? (
+                <Skeleton className="w-full h-full rounded-none" />
+              ) : user.hasCoverVideo ? (
+                <video 
+                  src={user.coverVideoUrl} 
+                  autoPlay 
+                  muted 
+                  loop 
+                  playsInline 
+                  className="w-full h-full object-cover dark:brightness-75 transition-all duration-700"
+                />
+              ) : (
+                <Image 
+                  src="https://picsum.photos/seed/cover/1200/400" 
+                  alt="Cover" 
+                  fill 
+                  className="object-cover dark:brightness-75" 
+                />
+              )}
+              <div className="absolute inset-0 bg-black/0 group-hover/cover:bg-black/10 transition-colors" />
               <Button 
                 size="icon" 
                 variant="secondary" 
-                className="absolute bottom-4 right-4 rounded-full shadow-lg h-9 w-9 bg-white/90 hover:bg-white"
+                className="absolute bottom-4 right-4 rounded-full shadow-lg h-9 w-9 bg-white/90 hover:bg-white z-10"
               >
                 <Camera className="h-5 w-5 text-foreground" />
               </Button>
@@ -134,10 +177,14 @@ export default function ProfilePage() {
             <div className="px-4 pb-4">
               <div className="relative inline-block -mt-16 sm:-mt-24 ml-0 sm:ml-2">
                 <div className="relative w-32 h-32 sm:w-44 sm:h-44">
-                  <Avatar className="w-full h-full border-4 border-white dark:border-card shadow-xl">
-                    <AvatarImage src="https://picsum.photos/seed/me/400/400" />
-                    <AvatarFallback>JD</AvatarFallback>
-                  </Avatar>
+                  {isLoading ? (
+                    <Skeleton className="w-full h-full rounded-full border-4 border-white dark:border-card shadow-xl" />
+                  ) : (
+                    <Avatar className="w-full h-full border-4 border-white dark:border-card shadow-xl">
+                      <AvatarImage src="https://picsum.photos/seed/me/400/400" />
+                      <AvatarFallback>JD</AvatarFallback>
+                    </Avatar>
+                  )}
                   <Button 
                     size="icon" 
                     variant="secondary" 
@@ -150,48 +197,83 @@ export default function ProfilePage() {
 
               {/* Identity Info */}
               <div className="mt-2 space-y-1 px-1">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{user.name}</h1>
-                  <Badge variant="secondary" className="bg-secondary/50 text-[10px] font-bold py-0.5 px-2">
-                    {user.pronouns}
-                  </Badge>
+                <div className="flex items-center flex-wrap gap-2">
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-48" />
+                  ) : (
+                    <>
+                      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{user.name}</h1>
+                      <Badge variant="secondary" className="bg-secondary/50 text-[10px] font-bold py-0.5 px-2">
+                        {user.pronouns}
+                      </Badge>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className={cn(
+                          "h-7 px-2 rounded-full gap-1.5 font-bold text-[11px] transition-all",
+                          isPlayingIntro ? "bg-primary text-white" : "bg-secondary/40 text-muted-foreground hover:bg-secondary"
+                        )}
+                        onClick={toggleVoiceIntro}
+                      >
+                        {isPlayingIntro ? <Volume2 className="h-3.5 w-3.5 animate-pulse" /> : <Play className="h-3.5 w-3.5" />}
+                        {isPlayingIntro ? "Playing Intro" : "Play Intro"}
+                      </Button>
+                    </>
+                  )}
                 </div>
                 
                 {/* Stats Row */}
                 <div className="flex items-center gap-6 py-2">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-lg leading-none">{user.followers}</span>
-                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-bold text-lg leading-none">{user.following}</span>
-                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-bold text-lg leading-none">{user.posts}</span>
-                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span>
-                  </div>
+                  {isLoading ? (
+                    [1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-16" />)
+                  ) : (
+                    <>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-lg leading-none">{user.followers}</span>
+                        <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-lg leading-none">{user.following}</span>
+                        <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-lg leading-none">{user.posts}</span>
+                        <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Bio & Links */}
                 <div className="mt-3 relative group">
-                  <p className="text-[15px] leading-relaxed text-foreground pr-8">
-                    {user.bio}
-                  </p>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="absolute right-0 top-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={handleCopyBio}
-                    title="Copy bio"
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
+                  {isLoading ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-2/3" />
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-[15px] leading-relaxed text-foreground pr-8">
+                        {user.bio}
+                      </p>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute right-0 top-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={handleCopyBio}
+                        title="Copy bio"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </>
+                  )}
                 </div>
 
-                {/* Link-in-Bio Tree */}
+                {/* Link Tree */}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {user.links.map((link, idx) => (
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-32" />
+                  ) : user.links.map((link, idx) => (
                     <a 
                       key={idx} 
                       href={link.url} 
@@ -207,32 +289,38 @@ export default function ProfilePage() {
 
                 {/* Metadata Badges */}
                 <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                  <div className="flex items-center gap-3 text-[14px]">
-                    <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium text-muted-foreground">Category: <span className="font-bold text-foreground">{user.category}</span></span>
-                  </div>
-                  <div className="flex items-center gap-3 text-[14px]">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium text-muted-foreground">From <span className="font-bold text-foreground">{user.location}</span></span>
-                  </div>
-                  <div className="flex items-center gap-3 text-[14px]">
-                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium text-muted-foreground">Education: <span className="font-bold text-foreground">{user.education}</span></span>
-                  </div>
-                  <div className="flex items-center gap-3 text-[14px]">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium text-muted-foreground">Joined <span className="font-bold text-foreground">{user.joinDate}</span></span>
-                  </div>
-                  <div className="flex items-center gap-3 text-[14px]">
-                    <Heart className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium text-muted-foreground">Status: <span className="font-bold text-foreground">{user.relationshipStatus}</span></span>
-                  </div>
-                  <div className="flex items-center gap-3 text-[14px]">
-                    <Instagram className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-bold text-primary flex items-center gap-1">
-                      {user.social} <span className="text-muted-foreground font-normal text-xs">({user.socialHandle})</span>
-                    </span>
-                  </div>
+                  {isLoading ? (
+                    [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-6 w-full" />)
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3 text-[14px]">
+                        <Briefcase className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium text-muted-foreground">Category: <span className="font-bold text-foreground">{user.category}</span></span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[14px]">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium text-muted-foreground">From <span className="font-bold text-foreground">{user.location}</span></span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[14px]">
+                        <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium text-muted-foreground">Education: <span className="font-bold text-foreground">{user.education}</span></span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[14px]">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium text-muted-foreground">Joined <span className="font-bold text-foreground">{user.joinDate}</span></span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[14px]">
+                        <Heart className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium text-muted-foreground">Status: <span className="font-bold text-foreground">{user.relationshipStatus}</span></span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[14px]">
+                        <Instagram className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-bold text-primary flex items-center gap-1">
+                          {user.social} <span className="text-muted-foreground font-normal text-xs">({user.socialHandle})</span>
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Main Action Bar */}
