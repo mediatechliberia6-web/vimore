@@ -30,6 +30,7 @@ export interface Post {
     question: string;
     options: { text: string; votes: number }[];
     totalVotes: number;
+    duration?: string;
   };
   initialComments?: any[];
   sharedPost?: any;
@@ -90,7 +91,7 @@ const initialMockPosts: Post[] = [
       isOnline: false,
       followers: 12000
     },
-    content: "What should my next deep-dive tech video be about? Vote below! 🚀",
+    content: "What should my next deep-dive tech video be about? Vote below! 🚀 https://youtube.com/tech",
     time: "22m",
     likes: 156,
     unlikes: 12,
@@ -103,7 +104,8 @@ const initialMockPosts: Post[] = [
         { text: "Next.js 15 Server Actions", votes: 89 },
         { text: "WebGPU in the Browser", votes: 32 }
       ],
-      totalVotes: 166
+      totalVotes: 166,
+      duration: "24 Hours"
     }
   },
   {

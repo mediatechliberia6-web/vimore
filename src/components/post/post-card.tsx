@@ -79,6 +79,7 @@ interface PostCardProps {
     question: string;
     options: { text: string; votes: number }[];
     totalVotes: number;
+    duration?: string;
   };
   initialComments?: Comment[];
   isShared?: boolean;
@@ -398,7 +399,7 @@ export function PostCard({
             
             <div className="flex items-center justify-between">
               <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
-                {localTotalVotes} votes {userVote !== null && "• You voted"}
+                {localTotalVotes} votes {poll.duration && `• ${poll.duration}`} {userVote !== null && "• You voted"}
               </p>
               {hasMorePollOptions && (
                 <button 

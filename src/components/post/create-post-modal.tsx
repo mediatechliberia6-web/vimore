@@ -22,7 +22,8 @@ import {
   Bold,
   Italic,
   Code,
-  Palette
+  Palette,
+  Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -40,6 +41,13 @@ import {
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { usePosts } from "@/context/PostContext";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface CreatePostModalProps {
   children: React.ReactNode;
@@ -85,6 +93,8 @@ const backgroundThemes = [
   { id: "midnight", label: "Midnight", class: "bg-gradient-to-br from-slate-900 to-slate-700 text-white" },
 ];
 
+const pollDurations = ["1 Hour", "6 Hours", "12 Hours", "24 Hours", "3 Days", "7 Days"];
+
 const USER_PROFILE = {
   name: "John Doe",
   username: "johndoe_creative",
@@ -102,6 +112,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [isPollOpen, setIsPollOpen] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
+  const [pollDuration, setPollDuration] = useState("24 Hours");
+  
   const [feeling, setFeeling] = useState<{ emoji: string; text: string } | null>(null);
   const [location, setLocation] = useState<string | null>(null);
   const [locationSearch, setLocationSearch] = useState("");
@@ -192,7 +204,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       poll: isPollOpen && pollQuestion ? {
         question: pollQuestion,
         options: pollOptions.filter(o => o.trim()).map(text => ({ text, votes: 0 })),
-        totalVotes: 0
+        totalVotes: 0,
+        duration: pollDuration
       } : undefined
     });
 
@@ -654,7 +667,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           )}
 
           {isPollOpen && (
-            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-primary/5 space-y-3">
+            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-primary/5 space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-primary uppercase">Poll Settings</span>
                 <button onClick={() => setIsPollOpen(false)}><X className="h-4 w-4" /></button>
@@ -676,6 +689,23 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                     <PlusSquare className="h-4 w-4 mr-2" /> Add Option ({pollOptions.length}/{MAX_POLL_OPTIONS})
                   </Button>
                 )}
+              </div>
+              
+              <div className="flex items-center justify-between pt-2 border-t border-primary/10">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary" />
+                  <span className="text-[11px] font-bold text-muted-foreground uppercase">Poll Duration</span>
+                </div>
+                <Select value={pollDuration} onValueChange={setPollDuration}>
+                  <SelectTrigger className="w-[140px] h-8 text-xs bg-white rounded-lg">
+                    <SelectValue placeholder="Duration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pollDurations.map((d) => (
+                      <SelectItem key={d} value={d} className="text-xs">{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
