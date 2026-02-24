@@ -13,13 +13,18 @@ import {
   AudioLines,
   Zap,
   Share2,
-  Heart
+  Heart,
+  Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+const QUICK_REACTIONS = ["🔥", "❤️", "🙌", "💯", "🤯", "🚀"];
 
 export function MusicPlayer() {
   const { 
@@ -29,11 +34,14 @@ export function MusicPlayer() {
     isSpatial,
     progress,
     volume,
+    listeners,
+    reactions,
     togglePlay, 
     setIsExpanded,
     setIsSpatial,
     setProgress,
-    setVolume
+    setVolume,
+    addReaction
   } = useMusic();
 
   if (!currentTrack) return null;
@@ -46,7 +54,6 @@ export function MusicPlayer() {
 
   const currentTime = (progress / 100) * currentTrack.duration;
 
-  // Mini Player View
   if (!isExpanded) {
     return (
       <div 
@@ -91,7 +98,6 @@ export function MusicPlayer() {
           </Button>
         </div>
         
-        {/* Simple Progress Bar for Mini Player */}
         <div className="absolute bottom-0 left-6 right-6 h-0.5 bg-white/5 rounded-full overflow-hidden">
           <div 
             className="h-full bg-orange-500 transition-all duration-300" 
@@ -102,10 +108,8 @@ export function MusicPlayer() {
     );
   }
 
-  // Expanded Full-Screen Player View
   return (
-    <div className="fixed inset-0 z-[100] bg-black text-white flex flex-col animate-in fade-in zoom-in-95 duration-300">
-      {/* Immersive Background Blur */}
+    <div className="fixed inset-0 z-[100] bg-black text-white flex flex-col animate-in fade-in zoom-in-95 duration-300 overflow-hidden">
       <div className="absolute inset-0 -z-10 opacity-30">
         <Image 
           src={currentTrack.cover} 
@@ -116,7 +120,6 @@ export function MusicPlayer() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-black" />
       </div>
 
-      {/* Header */}
       <header className="p-6 flex items-center justify-between">
         <Button 
           variant="ghost" 
@@ -127,23 +130,24 @@ export function MusicPlayer() {
           <ChevronDown className="h-6 w-6" />
         </Button>
         <div className="text-center">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-1">Playing from Discover</p>
-          <p className="text-sm font-bold italic uppercase tracking-tighter">Audiomark Elite</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-1">Collaborative Hub</p>
+          <div className="flex items-center gap-2 justify-center">
+            <Users className="h-3 w-3 text-orange-500" />
+            <p className="text-sm font-bold italic uppercase tracking-tighter">{listeners.length} Listening Now</p>
+          </div>
         </div>
         <Button variant="ghost" size="icon" className="rounded-full bg-white/5 hover:bg-white/10">
           <Share2 className="h-5 w-5" />
         </Button>
       </header>
 
-      {/* Main Content Area */}
       <main className="flex-1 flex flex-col lg:flex-row items-center justify-center p-8 gap-12 max-w-7xl mx-auto w-full">
-        
-        {/* Cover Art Section */}
         <div className="w-full max-w-[400px] lg:max-w-[500px] aspect-square relative group">
           <div className={cn(
             "absolute inset-0 bg-orange-500/20 blur-[60px] rounded-full transition-opacity duration-1000",
             isPlaying ? "opacity-100 animate-pulse" : "opacity-0"
           )} />
+          
           <div className="relative w-full h-full rounded-[2rem] overflow-hidden shadow-2xl border border-white/10 transition-transform duration-700 group-hover:scale-[1.02]">
             <Image 
               src={currentTrack.cover} 
@@ -151,10 +155,37 @@ export function MusicPlayer() {
               fill 
               className="object-cover" 
             />
+
+            {reactions.map((r) => (
+              <div
+                key={r.id}
+                className="absolute bottom-4 text-4xl animate-out fade-out slide-out-to-top-[400px] pointer-events-none z-50 select-none"
+                style={{ left: `${r.x}%`, animationDuration: '2000ms' }}
+              >
+                {r.emoji}
+              </div>
+            ))}
+          </div>
+
+          <div className="absolute -right-6 top-1/2 -translate-y-1/2 flex flex-col gap-3">
+             <TooltipProvider>
+                {listeners.map((listener, i) => (
+                  <Tooltip key={i}>
+                    <TooltipTrigger asChild>
+                      <Avatar className="h-10 w-10 border-2 border-orange-500 shadow-xl cursor-help transition-transform hover:scale-110">
+                        <AvatarImage src={listener.avatar} />
+                        <AvatarFallback>{listener.name[0]}</AvatarFallback>
+                      </Avatar>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="font-bold text-xs">{listener.name} is listening</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+             </TooltipProvider>
           </div>
         </div>
 
-        {/* Controls & Metadata Section */}
         <div className="flex-1 w-full max-w-[500px] flex flex-col gap-8">
           <div className="flex items-end justify-between">
             <div className="space-y-1">
@@ -170,7 +201,6 @@ export function MusicPlayer() {
             </Button>
           </div>
 
-          {/* Progress Slider */}
           <div className="space-y-4">
             <Slider 
               value={[progress]} 
@@ -185,7 +215,6 @@ export function MusicPlayer() {
             </div>
           </div>
 
-          {/* Playback Controls */}
           <div className="flex flex-col gap-8">
             <div className="flex items-center justify-between px-4">
               <Button variant="ghost" size="icon" className="text-zinc-500 hover:text-white">
@@ -210,9 +239,28 @@ export function MusicPlayer() {
               </Button>
             </div>
 
-            {/* Feature Controls (Spatial & Visualizer) */}
             <div className="flex items-center justify-between border-t border-white/5 pt-8">
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col gap-4 w-full">
+                <div className="flex items-center gap-3">
+                  <AudioLines className="h-4 w-4 text-orange-500" />
+                  <span className="text-[10px] font-black italic uppercase text-zinc-500">Live Reactions</span>
+                </div>
+                <div className="flex items-center justify-between px-2">
+                  {QUICK_REACTIONS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => addReaction(emoji)}
+                      className="text-2xl hover:scale-125 transition-all active:scale-90 hover:drop-shadow-[0_0_8px_rgba(251,146,60,0.5)]"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-white/5 pt-8">
+               <div className="flex items-center gap-4">
                 <Button 
                   variant="outline" 
                   className={cn(
@@ -221,7 +269,7 @@ export function MusicPlayer() {
                   )}
                   onClick={() => setIsSpatial(!isSpatial)}
                 >
-                  <AudioLines className="h-4 w-4" />
+                  <Zap className="h-4 w-4" />
                   Spatial Hub
                 </Button>
                 {isSpatial && (
@@ -255,7 +303,6 @@ export function MusicPlayer() {
         </div>
       </main>
 
-      {/* Footer / Up Next Hint */}
       <footer className="p-8 text-center">
         <button className="group flex flex-col items-center gap-2">
           <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600 group-hover:text-white transition-colors">Up Next</span>
