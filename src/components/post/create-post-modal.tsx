@@ -4,28 +4,20 @@ import { useState, useEffect } from "react";
 import { 
   ArrowLeft, 
   Image as ImageIcon, 
-  Sparkles, 
-  Loader2, 
   ChevronDown, 
   Smile, 
   MapPin, 
   UserPlus, 
   Globe,
-  MessageCircle,
-  Calendar,
-  Video,
   Lock,
   Users,
   X,
   ListTodo,
   PlusSquare,
-  AtSign,
   Clapperboard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { aiSuggestHashtags, aiSummarizePost } from "@/app/actions/ai";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,8 +58,6 @@ const mockFriends = [
 
 export function CreatePostModal({ children }: CreatePostModalProps) {
   const [content, setContent] = useState("");
-  const [isEnhancing, setIsEnhancing] = useState(false);
-  const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [privacy, setPrivacy] = useState<PrivacySetting>(privacySettings[0]);
   const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
   
@@ -90,44 +80,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     }
   }, [content]);
 
-  const handleEnhance = async () => {
-    if (!content.trim()) {
-      toast({ description: "Please enter some content first!", variant: "destructive" });
-      return;
-    }
-
-    setIsEnhancing(true);
-    try {
-      const [hashtagResult, summaryResult] = await Promise.all([
-        aiSuggestHashtags({ postContent: content }),
-        aiSummarizePost({ postContent: content })
-      ]);
-      
-      setSuggestedTags(hashtagResult.hashtags);
-      
-      toast({ 
-        title: "AI Summary Suggestion", 
-        description: summaryResult.summary,
-      });
-
-    } catch (error) {
-      toast({ 
-        description: "Failed to enhance post. Check your Groq API key!", 
-        variant: "destructive" 
-      });
-    } finally {
-      setIsEnhancing(false);
-    }
-  };
-
-  const addTag = (tag: string) => {
-    const cleanTag = tag.startsWith('#') ? tag : `#${tag}`;
-    if (!content.includes(cleanTag)) {
-      setContent(prev => `${prev.trim()} ${cleanTag} `);
-    }
-    setSuggestedTags(prev => prev.filter(t => t !== tag));
-  };
-
   const handleMention = (friend: typeof mockFriends[0]) => {
     const words = content.split(/\s+/);
     words.pop();
@@ -138,7 +90,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const handlePost = () => {
     toast({ title: "Post created!", description: "Your post has been shared with the community." });
     setContent("");
-    setSuggestedTags([]);
     setSelectedMedia([]);
     setIsPollOpen(false);
     setFeeling(null);
@@ -185,7 +136,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       
       <DialogContent className="max-w-none w-screen h-[100dvh] m-0 rounded-none border-none flex flex-col p-0 gap-0 overflow-hidden bg-white dark:bg-background translate-x-0 translate-y-0 left-0 top-0" aria-describedby="create-post-description">
         <DialogTitle className="sr-only">Create a New Post</DialogTitle>
-        <DialogDescription className="sr-only">Interface to compose text, add media, create polls, and use AI tools for a new social media post.</DialogDescription>
+        <DialogDescription className="sr-only">Interface to compose text, add media, create polls, and tagging for a new social media post.</DialogDescription>
         
         <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0 bg-white dark:bg-card">
           <div className="flex items-center gap-4">
@@ -368,30 +319,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           )}
 
-          {suggestedTags.length > 0 && (
-            <div className="px-4 pb-4">
-              <div className="bg-primary/5 rounded-xl p-3 border border-primary/10">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold flex items-center gap-1.5 text-primary">
-                    <Sparkles className="w-3.5 h-3.5" /> AI SUGGESTIONS
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {suggestedTags.map((tag) => (
-                    <Badge 
-                      key={tag} 
-                      variant="secondary" 
-                      className="cursor-pointer hover:bg-primary hover:text-white py-1 px-3 rounded-full text-xs font-medium transition-colors"
-                      onClick={() => addTag(tag)}
-                    >
-                      #{tag.replace('#', '')}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="border-t">
             {actionItems.map((item, i) => (
               <button 
@@ -406,22 +333,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                 </div>
               </button>
             ))}
-            
-            <button 
-              onClick={handleEnhance}
-              disabled={isEnhancing || !content.trim()}
-              className="w-full flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors border-t"
-              aria-label="Enhance post with AI"
-            >
-              <div className="flex items-center gap-4">
-                {isEnhancing ? (
-                  <Loader2 className="h-6 w-6 text-primary animate-spin" />
-                ) : (
-                  <Sparkles className="h-6 w-6 text-primary" />
-                )}
-                <span className="text-base font-medium text-primary">Enhance with AI</span>
-              </div>
-            </button>
           </div>
         </div>
 
