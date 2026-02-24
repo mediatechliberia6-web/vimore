@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 
 const USER_PROFILE = {
   name: "John Doe",
+  username: "johndoe_creative",
   avatar: "https://picsum.photos/seed/me/200/200",
 };
 

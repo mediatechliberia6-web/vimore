@@ -222,7 +222,7 @@ export function StoryViewer() {
           isPaused ? "opacity-0" : "opacity-100"
         )}>
           <Link 
-            href="/profile" 
+            href={`/profile/${activeStory.user.username || 'johndoe_creative'}`} 
             onClick={handleClose} 
             className="flex items-center gap-3 group"
           >
@@ -322,7 +322,7 @@ export function StoryViewer() {
           {currentSegment.mentions?.map((mention, i) => (
             <Link 
               key={i}
-              href="/profile"
+              href={`/profile/${mention.username}`}
               onClick={handleClose}
               className="absolute z-40 bg-white/20 backdrop-blur-md border border-white/30 px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg animate-in zoom-in duration-300 hover:bg-white/40 transition-colors"
               style={{ top: mention.y, left: mention.x }}

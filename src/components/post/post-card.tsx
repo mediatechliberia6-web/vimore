@@ -287,7 +287,7 @@ export function PostCard({
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Link href="/profile">
+            <Link href={`/profile/${user.username}`}>
               <Avatar className="h-10 w-10 border border-primary/10 hover:opacity-80 transition-opacity">
                 <AvatarImage src={user.avatar} alt={user.name} />
                 <AvatarFallback>{user.name[0]}</AvatarFallback>
@@ -300,13 +300,13 @@ export function PostCard({
           <div className="flex flex-col">
             <div className="flex items-center gap-1">
               <div className="flex items-center flex-wrap gap-x-1">
-                <Link href="/profile" className="font-bold text-sm hover:underline cursor-pointer">
+                <Link href={`/profile/${user.username}`} className="font-bold text-sm hover:underline cursor-pointer">
                   {user.name}
                 </Link>
                 {collaborator && (
                   <>
                     <span className="text-xs text-muted-foreground font-medium">with</span>
-                    <Link href="/profile" className="font-bold text-sm hover:underline cursor-pointer">
+                    <Link href={`/profile/${collaborator.username}`} className="font-bold text-sm hover:underline cursor-pointer">
                       {collaborator.name}
                     </Link>
                   </>
@@ -639,9 +639,9 @@ export function PostCard({
           {showComments && !commentsDisabled && (
             <div className="w-full pt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="flex items-center gap-2">
-                <Link href="/profile">
+                <Link href={`/profile/${CURRENT_USER.username}`}>
                   <Avatar className="h-8 w-8 hover:opacity-80 transition-opacity">
-                    <AvatarImage src="https://picsum.photos/seed/me/100/100" />
+                    <AvatarImage src={CURRENT_USER.avatar} />
                     <AvatarFallback>JD</AvatarFallback>
                   </Avatar>
                 </Link>
@@ -671,3 +671,9 @@ export function PostCard({
     </Card>
   );
 }
+
+const CURRENT_USER = {
+  name: "John Doe",
+  username: "johndoe_creative",
+  avatar: "https://picsum.photos/seed/me/400/400"
+};

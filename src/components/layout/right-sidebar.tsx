@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { Search, Plus } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -36,7 +36,7 @@ export function RightSidebar() {
         <div className="space-y-4">
           {suggestions.map((user) => (
             <div key={user.username} className="flex items-center justify-between group">
-              <Link href="/profile" className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-1 min-w-0">
+              <Link href={`/profile/${user.username}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-1 min-w-0">
                 <Avatar className="h-10 w-10 border border-primary/5 transition-transform group-hover:scale-105">
                   <AvatarImage src={user.avatar} alt={user.name} />
                   <AvatarFallback>{user.name[0]}</AvatarFallback>
