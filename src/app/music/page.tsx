@@ -1,40 +1,18 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
 import { MusicHeader } from "@/components/music/music-header";
 import { GenreScroller } from "@/components/music/genre-scroller";
 import { MusicGrid } from "@/components/music/music-grid";
 import { MainNav } from "@/components/layout/main-nav";
 import { MusicPlayer } from "@/components/music/music-player";
 import { Button } from "@/components/ui/button";
-import { Sparkles, TrendingUp, Mic2, RefreshCw, Star } from "lucide-react";
+import { TrendingUp, Mic2, Star } from "lucide-react";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
-import { aiGenerateDailyMixes } from "@/app/actions/ai";
-import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MusicPage() {
   const { isExpanded } = useMusic();
-  const [dailyMixes, setDailyMixes] = useState<string[]>([]);
-  const [isLoadingMixes, setIsLoadingMixes] = useState(true);
-
-  const fetchAiMixes = async () => {
-    setIsLoadingMixes(true);
-    try {
-      const { mixes } = await aiGenerateDailyMixes();
-      setDailyMixes(mixes);
-    } catch (error) {
-      console.error("Failed to fetch mixes:", error);
-      setDailyMixes(["Morning Chill", "Coding Beats", "Late Night", "Focus Flow", "Vibe Check", "Groove Hub"]);
-    } finally {
-      setIsLoadingMixes(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAiMixes();
-  }, []);
 
   return (
     <div className={cn(
@@ -60,60 +38,6 @@ export default function MusicPage() {
             {/* Genre Scroller */}
             <section>
               <GenreScroller />
-            </section>
-
-            {/* AI Daily Mixes */}
-            <section className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-2xl">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold tracking-tight">AI Daily Mixes</h2>
-                    <p className="text-xs text-muted-foreground font-medium">Personalized vibes generated for you</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-10 w-10 rounded-full hover:bg-primary/10 hover:text-primary transition-all active:rotate-180 duration-500" 
-                    onClick={fetchAiMixes}
-                    disabled={isLoadingMixes}
-                  >
-                    <RefreshCw className={cn("h-5 w-5", isLoadingMixes && "animate-spin")} />
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
-                {isLoadingMixes ? (
-                  Array(6).fill(0).map((_, i) => (
-                    <div key={i} className="space-y-3">
-                      <Skeleton className="aspect-square w-full rounded-[2rem] bg-card/50" />
-                      <Skeleton className="h-4 w-3/4 bg-card/50" />
-                    </div>
-                  ))
-                ) : (
-                  dailyMixes.map((title, i) => (
-                    <div key={i} className="group cursor-pointer">
-                      <div className="aspect-square relative rounded-[2rem] overflow-hidden mb-4 shadow-xl border border-border group-hover:border-primary/50 transition-all duration-500 group-hover:scale-[1.05] group-hover:shadow-primary/20">
-                        <img 
-                          src={`https://picsum.photos/seed/mix${i + 20}/400/400`} 
-                          alt={title} 
-                          className="object-cover transition-transform duration-700 group-hover:scale-110"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="absolute bottom-4 left-4 right-4">
-                          <p className="text-xs font-bold text-white leading-tight drop-shadow-md">{title}</p>
-                        </div>
-                      </div>
-                      <p className="text-sm font-bold truncate group-hover:text-primary transition-colors text-center">{title}</p>
-                    </div>
-                  ))
-                )}
-              </div>
             </section>
 
             {/* Trending Now */}
