@@ -1,16 +1,38 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { MusicHeader } from "@/components/music/music-header";
 import { GenreScroller } from "@/components/music/genre-scroller";
 import { MusicGrid } from "@/components/music/music-grid";
 import { MainNav } from "@/components/layout/main-nav";
 import { MusicPlayer } from "@/components/music/music-player";
 import { Button } from "@/components/ui/button";
-import { Sparkles, TrendingUp, Mic2 } from "lucide-react";
+import { Sparkles, TrendingUp, Mic2, RefreshCw } from "lucide-react";
 import { useMusic } from "@/context/MusicContext";
+import { cn } from "@/lib/utils";
+import { aiGenerateDailyMixes } from "@/app/actions/ai";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MusicPage() {
   const { isExpanded } = useMusic();
+  const [dailyMixes, setDailyMixes] = useState<string[]>([]);
+  const [isLoadingMixes, setIsLoadingMixes] = useState(true);
+
+  const fetchAiMixes = async () => {
+    setIsLoadingMixes(true);
+    try {
+      const { mixes } = await aiGenerateDailyMixes();
+      setDailyMixes(mixes);
+    } catch (error) {
+      console.error("Failed to fetch mixes:", error);
+    } finally {
+      setIsLoadingMixes(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAiMixes();
+  }, []);
 
   return (
     <div className={cn(
@@ -38,7 +60,7 @@ export default function MusicPage() {
               <GenreScroller />
             </section>
 
-            {/* AI Daily Mixes */}
+            {/* AI Daily Mixes (Feature 1) */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -47,25 +69,45 @@ export default function MusicPage() {
                   </div>
                   <h2 className="text-xl font-black italic uppercase tracking-tighter font-headline">AI Daily Mixes</h2>
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Powered by Groq</span>
+                <div className="flex items-center gap-4">
+                   <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-zinc-500 hover:text-orange-500" 
+                    onClick={fetchAiMixes}
+                    disabled={isLoadingMixes}
+                  >
+                    <RefreshCw className={cn("h-4 w-4", isLoadingMixes && "animate-spin")} />
+                  </Button>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Powered by Groq</span>
+                </div>
               </div>
+              
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="group cursor-pointer">
-                    <div className="aspect-square relative rounded-2xl overflow-hidden mb-3 border border-white/5 bg-zinc-900 shadow-xl transition-all group-hover:scale-[1.02] group-hover:border-orange-500/30">
-                      <img 
-                        src={`https://picsum.photos/seed/mix${i}/400/400`} 
-                        alt="Daily Mix" 
-                        className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                        data-ai-hint="abstract music"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                      <div className="absolute bottom-3 left-3 right-3">
-                        <p className="text-xs font-black italic uppercase text-orange-400">Mix {i}</p>
+                {isLoadingMixes ? (
+                  Array(6).fill(0).map((_, i) => (
+                    <div key={i} className="space-y-2">
+                      <Skeleton className="aspect-square w-full rounded-2xl bg-zinc-900" />
+                      <Skeleton className="h-3 w-3/4 bg-zinc-900" />
+                    </div>
+                  ))
+                ) : (
+                  dailyMixes.map((title, i) => (
+                    <div key={i} className="group cursor-pointer">
+                      <div className="aspect-square relative rounded-2xl overflow-hidden mb-3 border border-white/5 bg-zinc-900 shadow-xl transition-all group-hover:scale-[1.02] group-hover:border-orange-500/30">
+                        <img 
+                          src={`https://picsum.photos/seed/mix${i + 10}/400/400`} 
+                          alt={title} 
+                          className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                        <div className="absolute bottom-3 left-3 right-3">
+                          <p className="text-xs font-black italic uppercase text-orange-400 leading-tight">{title}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </section>
 
@@ -81,7 +123,7 @@ export default function MusicPage() {
               <MusicGrid type="trending" />
             </section>
 
-            {/* Discovery Radar */}
+            {/* Discovery Radar (Feature 4) */}
             <section className="space-y-6">
               <div className="flex items-center justify-between border-b border-white/5 pb-2">
                 <div className="flex items-center gap-2">
@@ -95,14 +137,13 @@ export default function MusicPage() {
                   <div key={i} className="min-w-[140px] flex flex-col items-center gap-3 group cursor-pointer">
                     <div className="relative h-32 w-32">
                       <img 
-                        src={`https://picsum.photos/seed/artist${i}/200/200`} 
+                        src={`https://picsum.photos/seed/artist${i + 5}/200/200`} 
                         alt="Artist" 
                         className="h-full w-full object-cover rounded-full border-4 border-white/5 group-hover:border-orange-500/50 transition-all shadow-xl"
-                        data-ai-hint="artist portrait"
                       />
                       <div className="absolute inset-0 rounded-full bg-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
-                    <p className="font-bold text-sm text-center group-hover:text-orange-400 transition-colors">Artist Name</p>
+                    <p className="font-bold text-sm text-center group-hover:text-orange-400 transition-colors">Rising Star {i}</p>
                   </div>
                 ))}
               </div>
@@ -117,5 +158,3 @@ export default function MusicPage() {
     </div>
   );
 }
-
-import { cn } from "@/lib/utils";

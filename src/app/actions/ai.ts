@@ -7,6 +7,38 @@ const groq = new Groq({
 });
 
 /**
+ * Generates 6 personalized music mix titles based on a vibe using Groq AI.
+ */
+export async function aiGenerateDailyMixes() {
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error("GROQ_API_KEY is not configured");
+  }
+
+  const vibes = ["Late Night Chill", "High Energy Workout", "Sunday Morning Soul", "Cyberpunk Future", "Tropical Vibes", "Emotional Acoustic"];
+  const selectedVibe = vibes[Math.floor(Math.random() * vibes.length)];
+
+  const prompt = `You are a music curator for a high-end streaming service. 
+  Generate 6 unique, creative, and short playlist titles for "Daily Mixes" based on the vibe: "${selectedVibe}".
+  The titles should be punchy, evocative, and no more than 3 words each.
+  Return ONLY a JSON object with a key "mixes" containing an array of strings.`;
+
+  try {
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      response_format: { type: "json_object" },
+    });
+
+    const content = completion.choices[0]?.message?.content || '{"mixes": []}';
+    const parsed = JSON.parse(content);
+    return { mixes: parsed.mixes || [] };
+  } catch (error) {
+    console.error("Groq Daily Mix Error:", error);
+    return { mixes: ["Morning Chill", "Coding Beats", "Late Night", "Focus Flow", "Vibe Check", "Groove Hub"] };
+  }
+}
+
+/**
  * Suggests hashtags for a post using Groq AI.
  */
 export async function aiSuggestHashtags({ postContent }: { postContent: string }) {
