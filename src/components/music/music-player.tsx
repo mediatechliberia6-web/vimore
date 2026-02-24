@@ -14,7 +14,8 @@ import {
   Zap,
   Share2,
   Heart,
-  Users
+  Users,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -32,13 +33,17 @@ export function MusicPlayer() {
     isPlaying, 
     isExpanded, 
     isSpatial,
+    isSmartShuffle,
     progress,
     volume,
     listeners,
     reactions,
     togglePlay, 
+    nextTrack,
+    prevTrack,
     setIsExpanded,
     setIsSpatial,
+    setIsSmartShuffle,
     setProgress,
     setVolume,
     addReaction
@@ -54,10 +59,15 @@ export function MusicPlayer() {
 
   const currentTime = (progress / 100) * currentTrack.duration;
 
+  const handleSmartShuffleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsSmartShuffle(!isSmartShuffle);
+  };
+
   if (!isExpanded) {
     return (
       <div 
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-[800px] h-20 bg-zinc-900/80 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl flex items-center px-4 gap-4 animate-in slide-in-from-bottom-8 z-[70] cursor-pointer group"
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-[800px] h-20 bg-zinc-900/80 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl flex items-center px-4 gap-4 animate-in slide-in-from-bottom-8 z-[70] cursor-pointer group hover:bg-zinc-800/90 transition-all duration-300"
         onClick={() => setIsExpanded(true)}
       >
         <div className="relative h-12 w-12 rounded-xl overflow-hidden shrink-0 shadow-lg">
@@ -75,16 +85,16 @@ export function MusicPlayer() {
         </div>
 
         <div className="flex items-center gap-2">
-          {isSpatial && (
-            <div className="hidden sm:flex items-center gap-1 bg-orange-500/20 text-orange-500 px-2 py-0.5 rounded-full border border-orange-500/30 animate-pulse">
-              <Zap className="h-3 w-3" />
-              <span className="text-[8px] font-black italic uppercase">Spatial</span>
+          {isSmartShuffle && (
+            <div className="hidden sm:flex items-center gap-1 bg-primary/20 text-primary px-2 py-0.5 rounded-full border border-primary/30">
+              <Sparkles className="h-3 w-3" />
+              <span className="text-[8px] font-black italic uppercase">Smart</span>
             </div>
           )}
           <Button 
             size="icon" 
             variant="ghost" 
-            className="rounded-full text-white hover:bg-white/10"
+            className="rounded-full text-white hover:bg-white/10 active:scale-90 transition-all"
             onClick={(e) => { e.stopPropagation(); togglePlay(); }}
           >
             {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current" />}
@@ -124,19 +134,19 @@ export function MusicPlayer() {
         <Button 
           variant="ghost" 
           size="icon" 
-          className="rounded-full bg-white/5 hover:bg-white/10"
+          className="rounded-full bg-white/5 hover:bg-white/10 active:scale-90"
           onClick={() => setIsExpanded(false)}
         >
           <ChevronDown className="h-6 w-6" />
         </Button>
         <div className="text-center">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-1">Collaborative Hub</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500 mb-1">Collaborative Hub</p>
           <div className="flex items-center gap-2 justify-center">
             <Users className="h-3 w-3 text-orange-500" />
             <p className="text-sm font-bold italic uppercase tracking-tighter">{listeners.length} Listening Now</p>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="rounded-full bg-white/5 hover:bg-white/10">
+        <Button variant="ghost" size="icon" className="rounded-full bg-white/5 hover:bg-white/10 active:scale-90">
           <Share2 className="h-5 w-5" />
         </Button>
       </header>
@@ -196,7 +206,7 @@ export function MusicPlayer() {
                 {currentTrack.artist}
               </p>
             </div>
-            <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full text-zinc-400 hover:text-orange-500">
+            <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full text-zinc-400 hover:text-orange-500 active:scale-90 transition-all">
               <Heart className="h-7 w-7" />
             </Button>
           </div>
@@ -205,7 +215,7 @@ export function MusicPlayer() {
             <Slider 
               value={[progress]} 
               max={100} 
-              step={1} 
+              step={0.1} 
               onValueChange={(val) => setProgress(val[0])}
               className="py-4"
             />
@@ -217,11 +227,21 @@ export function MusicPlayer() {
 
           <div className="flex flex-col gap-8">
             <div className="flex items-center justify-between px-4">
-              <Button variant="ghost" size="icon" className="text-zinc-500 hover:text-white">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className={cn("transition-all active:scale-90", isSmartShuffle ? "text-primary scale-110 drop-shadow-[0_0_8px_rgba(153,64,229,0.5)]" : "text-zinc-500 hover:text-white")}
+                onClick={handleSmartShuffleToggle}
+              >
                 <Shuffle className="h-6 w-6" />
               </Button>
               <div className="flex items-center gap-8">
-                <Button variant="ghost" size="icon" className="h-14 w-14 rounded-full text-white hover:bg-white/10">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-14 w-14 rounded-full text-white hover:bg-white/10 active:scale-90 transition-all"
+                  onClick={prevTrack}
+                >
                   <SkipBack className="h-8 w-8 fill-current" />
                 </Button>
                 <Button 
@@ -230,11 +250,16 @@ export function MusicPlayer() {
                 >
                   {isPlaying ? <Pause className="h-10 w-10 fill-current" /> : <Play className="h-10 w-10 fill-current ml-1" />}
                 </Button>
-                <Button variant="ghost" size="icon" className="h-14 w-14 rounded-full text-white hover:bg-white/10">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-14 w-14 rounded-full text-white hover:bg-white/10 active:scale-90 transition-all"
+                  onClick={nextTrack}
+                >
                   <SkipForward className="h-8 w-8 fill-current" />
                 </Button>
               </div>
-              <Button variant="ghost" size="icon" className="text-zinc-500 hover:text-white">
+              <Button variant="ghost" size="icon" className="text-zinc-500 hover:text-white active:scale-90">
                 <Repeat className="h-6 w-6" />
               </Button>
             </div>
@@ -264,7 +289,7 @@ export function MusicPlayer() {
                 <Button 
                   variant="outline" 
                   className={cn(
-                    "rounded-xl gap-2 font-black italic uppercase tracking-widest text-[10px] h-10 px-4 border-white/10 transition-all",
+                    "rounded-xl gap-2 font-black italic uppercase tracking-widest text-[10px] h-10 px-4 border-white/10 transition-all active:scale-95",
                     isSpatial ? "bg-orange-500 text-black border-orange-500" : "bg-white/5 text-zinc-400"
                   )}
                   onClick={() => setIsSpatial(!isSpatial)}
@@ -279,9 +304,9 @@ export function MusicPlayer() {
                           key={i} 
                           className="w-1 bg-orange-500 rounded-full animate-bounce" 
                           style={{ 
-                            height: isPlaying ? `${Math.random() * 100}%` : '20%',
+                            height: isPlaying ? `${Math.random() * 80 + 20}%` : '20%',
                             animationDelay: `${i * 0.1}s`,
-                            animationDuration: '0.8s'
+                            animationDuration: '0.6s'
                           }} 
                         />
                       ))}
@@ -303,9 +328,9 @@ export function MusicPlayer() {
         </div>
       </main>
 
-      <footer className="p-8 text-center">
+      <footer className="p-8 text-center bg-gradient-to-t from-black to-transparent">
         <button className="group flex flex-col items-center gap-2">
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600 group-hover:text-white transition-colors">Up Next</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600 group-hover:text-white transition-colors">Up Next: {isSmartShuffle ? "Smart Recommendation" : "Next in Queue"}</span>
           <div className="h-1 w-12 bg-zinc-800 rounded-full group-hover:bg-orange-500 transition-colors" />
         </button>
       </footer>
