@@ -1,10 +1,10 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
 import { 
   ThumbsUp, 
+  ThumbsDown,
   MessageCircle, 
   Share2, 
   MoreHorizontal, 
@@ -61,6 +61,7 @@ interface PostCardProps {
   image?: string;
   images?: string[];
   likes: number;
+  unlikes: number;
   comments: number;
   time: string;
   hashtags?: string[];
@@ -81,6 +82,7 @@ export function PostCard({
   image, 
   images = [], 
   likes, 
+  unlikes,
   comments, 
   time, 
   hashtags,
@@ -91,9 +93,11 @@ export function PostCard({
   sharedPost
 }: PostCardProps) {
   const [isLiked, setIsLiked] = useState(false);
+  const [isUnliked, setIsUnliked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [likeCount, setLikeCount] = useState(likes);
+  const [unlikeCount, setUnlikeCount] = useState(unlikes);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [isHidden, setIsHidden] = useState(false);
@@ -116,9 +120,31 @@ export function PostCard({
   }, [image, images]);
 
   const handleLike = () => {
-    const newLikedState = !isLiked;
-    setIsLiked(newLikedState);
-    setLikeCount(prev => newLikedState ? prev + 1 : prev - 1);
+    if (isLiked) {
+      setIsLiked(false);
+      setLikeCount(prev => prev - 1);
+    } else {
+      setIsLiked(true);
+      setLikeCount(prev => prev + 1);
+      if (isUnliked) {
+        setIsUnliked(false);
+        setUnlikeCount(prev => prev - 1);
+      }
+    }
+  };
+
+  const handleUnlike = () => {
+    if (isUnliked) {
+      setIsUnliked(false);
+      setUnlikeCount(prev => prev - 1);
+    } else {
+      setIsUnliked(true);
+      setUnlikeCount(prev => prev + 1);
+      if (isLiked) {
+        setIsLiked(false);
+        setLikeCount(prev => prev - 1);
+      }
+    }
   };
 
   const handleTranslate = async () => {
@@ -422,18 +448,21 @@ export function PostCard({
 
         {!isShared && (
           <div className="flex items-center justify-between py-1 border-b border-secondary">
-            <div className="flex items-center gap-1">
-              <div className="flex -space-x-1">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
                 <div className="bg-primary p-1 rounded-full text-white ring-2 ring-white dark:ring-card">
                   <ThumbsUp className="h-2.5 w-2.5 fill-current" />
                 </div>
-                <div className="bg-red-500 p-1 rounded-full text-white ring-2 ring-white dark:ring-card">
-                  <Heart className="h-2.5 w-2.5 fill-current" />
-                </div>
+                <span className="text-[11px] text-muted-foreground ml-1 font-bold">{likeCount}</span>
               </div>
-              <span className="text-[11px] text-muted-foreground ml-1">{likeCount}</span>
+              <div className="flex items-center gap-1">
+                <div className="bg-destructive p-1 rounded-full text-white ring-2 ring-white dark:ring-card">
+                  <ThumbsDown className="h-2.5 w-2.5 fill-current" />
+                </div>
+                <span className="text-[11px] text-muted-foreground ml-1 font-bold">{unlikeCount}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-bold">
               <span>{comments} comments</span>
               <span>•</span>
               <span>28 shares</span>
@@ -445,6 +474,19 @@ export function PostCard({
       {!isShared && (
         <CardFooter className="p-1 px-3 flex flex-col gap-1 relative">
           <div className="flex items-center justify-between gap-1 w-full relative">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={cn(
+                "flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors select-none", 
+                isUnliked && "text-destructive"
+              )}
+              onClick={handleUnlike}
+              aria-label={isUnliked ? "Remove unlike" : "Unlike post"}
+            >
+              <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} />
+              Unlike
+            </Button>
             <Button 
               variant="ghost" 
               size="sm" 

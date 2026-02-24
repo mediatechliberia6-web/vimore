@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
@@ -15,6 +14,7 @@ export interface Post {
   content: string;
   time: string;
   likes: number;
+  unlikes: number;
   comments: number;
   hashtags?: string[];
   images?: string[];
@@ -32,7 +32,7 @@ export interface Post {
 
 interface PostContextType {
   posts: Post[];
-  addPost: (post: Omit<Post, 'id' | 'time' | 'likes' | 'comments'>) => void;
+  addPost: (post: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -50,6 +50,7 @@ const initialMockPosts: Post[] = [
     content: "Just started using ViMore and I'm loving the clean aesthetic! Check out the multi-image carousel test. ✨ https://vimore.io",
     time: "5m",
     likes: 24,
+    unlikes: 2,
     comments: 4,
     hashtags: ["NewBeginnings", "SocialMedia"],
     images: [
@@ -85,6 +86,7 @@ const initialMockPosts: Post[] = [
     content: "I totally agree with Julianne! This is a game changer for real-time social connection. 🚀",
     time: "10m",
     likes: 12,
+    unlikes: 0,
     comments: 2,
     sharedPost: {
       id: "1",
@@ -92,6 +94,7 @@ const initialMockPosts: Post[] = [
       content: "Just started using ViMore and I'm loving the clean aesthetic!",
       time: "5m",
       likes: 24,
+      unlikes: 2,
       comments: 4
     }
   },
@@ -106,6 +109,7 @@ const initialMockPosts: Post[] = [
     content: "What should my next deep-dive tech video be about? Vote below! 🚀",
     time: "22m",
     likes: 156,
+    unlikes: 12,
     comments: 12,
     hashtags: ["GenAI", "Productivity"],
     poll: {
@@ -130,6 +134,7 @@ const initialMockPosts: Post[] = [
     content: "Working on a new project today. Feeling inspired by the community here! SF vibes are great today. 🌅",
     time: "1h",
     likes: 89,
+    unlikes: 1,
     comments: 8,
     hashtags: ["BuildingInPublic", "Developer"],
     feeling: { emoji: "🚀", text: "Productive" }
@@ -139,12 +144,13 @@ const initialMockPosts: Post[] = [
 export function PostProvider({ children }: { children: ReactNode }) {
   const [posts, setPosts] = useState<Post[]>(initialMockPosts);
 
-  const addPost = (newPostData: Omit<Post, 'id' | 'time' | 'likes' | 'comments'>) => {
+  const addPost = (newPostData: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => {
     const newPost: Post = {
       ...newPostData,
       id: Date.now().toString(),
       time: "Just now",
       likes: 0,
+      unlikes: 0,
       comments: 0,
     };
     setPosts([newPost, ...posts]);
