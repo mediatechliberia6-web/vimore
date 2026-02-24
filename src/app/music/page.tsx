@@ -1,17 +1,22 @@
-
 "use client";
 
 import { MusicHeader } from "@/components/music/music-header";
 import { GenreScroller } from "@/components/music/genre-scroller";
 import { MusicGrid } from "@/components/music/music-grid";
 import { MainNav } from "@/components/layout/main-nav";
+import { MusicPlayer } from "@/components/music/music-player";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Sparkles, TrendingUp, Mic2 } from "lucide-react";
-import Link from "next/link";
+import { Sparkles, TrendingUp, Mic2 } from "lucide-react";
+import { useMusic } from "@/context/MusicContext";
 
 export default function MusicPage() {
+  const { isExpanded } = useMusic();
+
   return (
-    <div className="min-h-screen bg-[#050505] text-zinc-100 font-body selection:bg-orange-500/30">
+    <div className={cn(
+      "min-h-screen bg-[#050505] text-zinc-100 font-body selection:bg-orange-500/30 overflow-x-hidden",
+      isExpanded && "h-screen overflow-hidden"
+    )}>
       {/* Dynamic Background Glow */}
       <div className="fixed top-0 left-1/4 w-[50%] h-[30%] bg-orange-500/5 blur-[120px] rounded-full pointer-events-none -z-10" />
       
@@ -22,7 +27,7 @@ export default function MusicPage() {
         </aside>
 
         {/* Main Music Content */}
-        <main className="flex flex-col pb-32">
+        <main className="flex flex-col pb-40">
           {/* Top Sticky Header */}
           <MusicHeader />
 
@@ -33,7 +38,7 @@ export default function MusicPage() {
               <GenreScroller />
             </section>
 
-            {/* AI Daily Mixes - Feature 1 Preview (Static for Phase 1) */}
+            {/* AI Daily Mixes */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -76,7 +81,7 @@ export default function MusicPage() {
               <MusicGrid type="trending" />
             </section>
 
-            {/* Rising Artists */}
+            {/* Discovery Radar */}
             <section className="space-y-6">
               <div className="flex items-center justify-between border-b border-white/5 pb-2">
                 <div className="flex items-center gap-2">
@@ -107,19 +112,10 @@ export default function MusicPage() {
         </main>
       </div>
 
-      {/* Floating Mini Player Placeholder (For Phase 2) */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-[800px] h-20 bg-zinc-900/80 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl flex items-center px-4 gap-4 animate-in slide-in-from-bottom-8 duration-1000">
-        <div className="h-12 w-12 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500">
-           <MusicHeader.LogoIcon />
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-bold truncate">Discover the latest vibes</p>
-          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Select a track to play</p>
-        </div>
-        <Button size="icon" variant="ghost" className="rounded-full text-zinc-400">
-          <TrendingUp className="h-5 w-5" />
-        </Button>
-      </div>
+      {/* Global Music Player */}
+      <MusicPlayer />
     </div>
   );
 }
+
+import { cn } from "@/lib/utils";

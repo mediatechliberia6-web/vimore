@@ -1,8 +1,8 @@
-
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { PostProvider } from "@/context/PostContext";
+import { MusicProvider } from "@/context/MusicContext";
 
 export const metadata: Metadata = {
   title: 'ViMore - Real-time Social Connection',
@@ -23,8 +23,10 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-background text-foreground">
         <PostProvider>
-          {children}
-          <Toaster />
+          <MusicProvider>
+            {children}
+            <Toaster />
+          </MusicProvider>
         </PostProvider>
       </body>
     </html>
