@@ -17,7 +17,8 @@ import {
   Languages,
   Loader2,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Gift
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ interface PostCardProps {
     avatar: string;
     isVerified?: boolean;
     isOnline?: boolean;
+    followers?: number;
   };
   content: string;
   image?: string;
@@ -207,6 +209,8 @@ export function PostCard({
 
   const visiblePollOptions = isPollExpanded ? localPollOptions : localPollOptions.slice(0, 4);
   const hasMorePollOptions = localPollOptions.length > 4;
+
+  const showGiftIcon = (user.followers || 0) >= 1000;
 
   return (
     <Card className={cn(
@@ -479,27 +483,35 @@ export function PostCard({
               size="sm" 
               className={cn(
                 "flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors select-none", 
-                isUnliked && "text-destructive"
-              )}
-              onClick={handleUnlike}
-              aria-label={isUnliked ? "Remove unlike" : "Unlike post"}
-            >
-              <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} />
-              Unlike
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className={cn(
-                "flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors select-none", 
                 isLiked && "text-primary"
               )}
               onClick={handleLike}
               aria-label={isLiked ? "Unlike post" : "Like post"}
             >
               <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />
-              Like
             </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={cn(
+                "flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors select-none", 
+                isUnliked && "text-destructive"
+              )}
+              onClick={handleUnlike}
+              aria-label={isUnliked ? "Remove unlike" : "Unlike post"}
+            >
+              <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} />
+            </Button>
+            {showGiftIcon && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex-1 gap-2 rounded-md h-9 text-yellow-500 hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors"
+                onClick={() => toast({ description: "Gifting feature coming soon!" })}
+              >
+                <Gift className="h-4 w-4" />
+              </Button>
+            )}
             <Button 
               variant="ghost" 
               size="sm" 
@@ -507,7 +519,6 @@ export function PostCard({
               onClick={() => setShowComments(!showComments)}
             >
               <MessageCircle className="h-4 w-4" />
-              Comment
             </Button>
             <Button 
               variant="ghost" 
@@ -515,7 +526,6 @@ export function PostCard({
               className="flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors"
             >
               <Share2 className="h-4 w-4" />
-              Share
             </Button>
           </div>
 

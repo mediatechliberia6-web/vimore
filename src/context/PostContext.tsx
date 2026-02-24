@@ -10,6 +10,7 @@ export interface Post {
     avatar: string;
     isVerified?: boolean;
     isOnline?: boolean;
+    followers?: number;
   };
   content: string;
   time: string;
@@ -45,7 +46,8 @@ const initialMockPosts: Post[] = [
       username: "jmoore", 
       avatar: "https://picsum.photos/seed/50/200/200",
       isVerified: true,
-      isOnline: true
+      isOnline: true,
+      followers: 1500
     },
     content: "Just started using ViMore and I'm loving the clean aesthetic! Check out the multi-image carousel test. ✨ https://vimore.io",
     time: "5m",
@@ -81,7 +83,8 @@ const initialMockPosts: Post[] = [
       name: "Alex Rivera", 
       username: "arivera", 
       avatar: "https://picsum.photos/seed/1/100/100",
-      isOnline: true 
+      isOnline: true,
+      followers: 850
     },
     content: "I totally agree with Julianne! This is a game changer for real-time social connection. 🚀",
     time: "10m",
@@ -90,7 +93,7 @@ const initialMockPosts: Post[] = [
     comments: 2,
     sharedPost: {
       id: "1",
-      user: { name: "Julianne Moore", username: "jmoore", avatar: "https://picsum.photos/seed/50/200/200", isVerified: true },
+      user: { name: "Julianne Moore", username: "jmoore", avatar: "https://picsum.photos/seed/50/200/200", isVerified: true, followers: 1500 },
       content: "Just started using ViMore and I'm loving the clean aesthetic!",
       time: "5m",
       likes: 24,
@@ -104,7 +107,8 @@ const initialMockPosts: Post[] = [
       name: "Tech Explorer", 
       username: "techex", 
       avatar: "https://picsum.photos/seed/51/200/200",
-      isOnline: false
+      isOnline: false,
+      followers: 12000
     },
     content: "What should my next deep-dive tech video be about? Vote below! 🚀",
     time: "22m",
@@ -129,7 +133,8 @@ const initialMockPosts: Post[] = [
       username: "schen_dev", 
       avatar: "https://picsum.photos/seed/53/200/200",
       isVerified: true,
-      isOnline: true
+      isOnline: true,
+      followers: 4200
     },
     content: "Working on a new project today. Feeling inspired by the community here! SF vibes are great today. 🌅",
     time: "1h",
