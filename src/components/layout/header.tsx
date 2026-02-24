@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Search, Plus, Menu, Bell } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { CreatePostModal } from "@/components/post/create-post-modal";
 
 export function Header() {
   return (
@@ -28,9 +29,11 @@ export function Header() {
         <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 sm:hidden">
           <Search className="h-5 w-5" />
         </Button>
-        <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
-          <Plus className="h-5 w-5" />
-        </Button>
+        <CreatePostModal>
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
+            <Plus className="h-5 w-5" />
+          </Button>
+        </CreatePostModal>
         <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 relative">
           <Bell className="h-5 w-5" />
           <span className="absolute top-1 right-1 w-4 h-4 bg-destructive text-white text-[10px] flex items-center justify-center rounded-full font-bold">2</span>
