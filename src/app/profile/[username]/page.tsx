@@ -8,40 +8,26 @@ import { PostCard } from "@/components/post/post-card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { 
   ArrowLeft, 
-  Edit2, 
   MoreHorizontal, 
-  ChevronDown,
-  LayoutDashboard,
   Plus,
   Volume2,
   Play,
   Star,
-  AtSign,
-  Zap,
   Check,
-  BriefcaseBusiness,
-  Trophy,
   UserPlus,
   MessageCircle,
-  ExternalLink,
-  Globe
+  Zap,
+  Languages
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { aiTranslatePost } from "@/app/actions/ai";
-
-const CURRENT_USER = {
-  name: "John Doe",
-  username: "johndoe_creative",
-  avatar: "https://picsum.photos/seed/me/400/400"
-};
 
 const MOCK_USERS: Record<string, any> = {
   "arivera": {
@@ -101,19 +87,19 @@ const MOCK_USERS: Record<string, any> = {
   }
 };
 
-export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
+export default function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const resolvedParams = use(params);
   const username = resolvedParams.username;
-  const isMe = username === CURRENT_USER.username;
+  const { currentUser, posts } = usePosts();
+  const isMe = username === currentUser.username;
   
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
   const [isPlayingIntro, setIsPlayingIntro] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [translatedBio, setTranslatedBio] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [translatedBio, setTranslatedBio] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
 
-  // Get user data or fallback to a generic profile for the given username
+  // Get user data or fallback
   const displayUser = MOCK_USERS[username] || {
     name: username.charAt(0).toUpperCase() + username.slice(1),
     username: username,
@@ -127,16 +113,9 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   };
 
   const [skills, setSkills] = useState([
-    { name: "UI/UX Design", count: 42, endorsed: false },
-    { name: "Mobile Photography", count: 28, endorsed: false },
-    { name: "Brand Strategy", count: 15, endorsed: false },
-    { name: "React Development", count: 33, endorsed: false }
+    { name: "Content Creation", count: 12, endorsed: false },
+    { name: "Strategic Thinking", count: 8, endorsed: false },
   ]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
 
   const triggerHaptic = () => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
@@ -147,24 +126,31 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const handleFollow = () => {
     triggerHaptic();
     setIsFollowing(!isFollowing);
-    toast({
-      description: isFollowing ? `Unfollowed ${displayUser.name}` : `Following ${displayUser.name}`,
-    });
+    toast({ description: isFollowing ? `Unfollowed ${displayUser.name}` : `Following ${displayUser.name}` });
   };
 
-  const handleEndorseSkill = (idx: number) => {
-    triggerHaptic();
-    const newSkills = [...skills];
-    if (newSkills[idx].endorsed) {
-      newSkills[idx].count--;
-      newSkills[idx].endorsed = false;
-    } else {
-      newSkills[idx].count++;
-      newSkills[idx].endorsed = true;
-      toast({ description: `Endorsed ${newSkills[idx].name}!` });
+  const handleTranslateBio = async () => {
+    if (translatedBio) {
+      setTranslatedBio(null);
+      return;
     }
-    setSkills(newSkills);
+    triggerHaptic();
+    setIsTranslating(true);
+    try {
+      const res = await aiTranslatePost({ postContent: displayUser.bio, targetLanguage: "Spanish" });
+      setTranslatedBio(res.translation);
+    } catch (e) {
+      toast({ variant: "destructive", description: "Translation failed" });
+    } finally {
+      setIsTranslating(false);
+    }
   };
+
+  const userPosts = posts.filter(p => p.user.username === username);
+
+  if (isMe) {
+    return <Link href="/profile" className="flex items-center justify-center min-h-screen text-primary font-bold">Redirecting to your profile...</Link>;
+  }
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-background flex justify-center">
@@ -178,25 +164,14 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           <header className="sticky top-0 z-50 bg-white/95 dark:bg-card/95 backdrop-blur-sm border-b border-border h-14 px-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Link href="/">
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
+                <Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="h-5 w-5" /></Button>
               </Link>
-              <div className="flex items-center gap-1 cursor-pointer">
+              <div className="flex items-center gap-1">
                 <span className="font-bold text-lg truncate">{displayUser.name}</span>
                 {displayUser.isVerified && <Check className="h-4 w-4 text-primary" />}
               </div>
             </div>
-            <div className="flex items-center gap-1">
-              {isMe && (
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <Edit2 className="h-5 w-5" />
-                </Button>
-              )}
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <MoreHorizontal className="h-5 w-5" />
-              </Button>
-            </div>
+            <Button variant="ghost" size="icon" className="rounded-full"><MoreHorizontal className="h-5 w-5" /></Button>
           </header>
 
           <div className="relative">
@@ -211,22 +186,15 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
 
             <div className="px-4 pb-4">
               <div className="relative inline-block -mt-16 sm:-mt-24 ml-0 sm:ml-2">
-                <div className="relative w-32 h-32 sm:w-44 sm:h-44">
-                  <Avatar className="w-full h-full border-4 border-white dark:border-card shadow-xl">
-                    <AvatarImage src={displayUser.avatar} />
-                    <AvatarFallback>{displayUser.name[0]}</AvatarFallback>
-                  </Avatar>
-                </div>
+                <Avatar className="w-32 h-32 sm:w-44 sm:h-44 border-4 border-white dark:border-card shadow-xl">
+                  <AvatarImage src={displayUser.avatar} />
+                  <AvatarFallback>{displayUser.name[0]}</AvatarFallback>
+                </Avatar>
               </div>
 
               <div className="mt-2 space-y-1 px-1">
                 <div className="flex items-center flex-wrap gap-2">
                   <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{displayUser.name}</h1>
-                  {isMe && (
-                    <Badge variant="secondary" className="bg-secondary/50 text-[10px] font-bold">
-                      His
-                    </Badge>
-                  )}
                   <Button 
                     variant="ghost" 
                     size="sm" 
@@ -251,47 +219,36 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                     <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-bold text-lg leading-none">{displayUser.posts}</span>
+                    <span className="font-bold text-lg leading-none">{userPosts.length || displayUser.posts}</span>
                     <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span>
                   </div>
                 </div>
 
-                <p className="text-[15px] leading-relaxed mt-2">
-                  {translatedBio || displayUser.bio}
-                </p>
+                <div className="flex items-start gap-4 py-2 group">
+                  <p className="text-[15px] leading-relaxed flex-1">
+                    {translatedBio || displayUser.bio}
+                  </p>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={handleTranslateBio} disabled={isTranslating}>
+                    {isTranslating ? <Zap className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
 
                 <div className="mt-4 flex gap-2">
-                  {isMe ? (
-                    <>
-                      <Button className="flex-1 rounded-lg gap-2 bg-primary hover:bg-primary/90 h-11 font-bold text-white shadow-lg shadow-primary/20">
-                        <LayoutDashboard className="h-5 w-5" />
-                        Dashboard
-                      </Button>
-                      <Button variant="secondary" className="flex-1 rounded-lg gap-2 h-11 font-bold">
-                        <Plus className="h-5 w-5" />
-                        Add to story
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button 
-                        onClick={handleFollow}
-                        className={cn(
-                          "flex-1 rounded-lg gap-2 h-11 font-bold transition-all",
-                          isFollowing ? "bg-secondary text-foreground hover:bg-secondary/80" : "bg-primary text-white shadow-lg shadow-primary/20"
-                        )}
-                      >
-                        {isFollowing ? <Check className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
-                        {isFollowing ? "Following" : "Follow"}
-                      </Button>
-                      <Link href="/messages" className="flex-1">
-                        <Button variant="secondary" className="w-full rounded-lg gap-2 h-11 font-bold">
-                          <MessageCircle className="h-5 w-5" />
-                          Message
-                        </Button>
-                      </Link>
-                    </>
-                  )}
+                  <Button 
+                    onClick={handleFollow}
+                    className={cn(
+                      "flex-1 rounded-lg gap-2 h-11 font-bold",
+                      isFollowing ? "bg-secondary text-foreground" : "bg-primary text-white"
+                    )}
+                  >
+                    {isFollowing ? <Check className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+                    {isFollowing ? "Following" : "Follow"}
+                  </Button>
+                  <Link href="/messages" className="flex-1">
+                    <Button variant="secondary" className="w-full rounded-lg gap-2 h-11 font-bold">
+                      <MessageCircle className="h-5 w-5" /> Message
+                    </Button>
+                  </Link>
                 </div>
 
                 <div className="mt-6">
@@ -302,14 +259,9 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                     {skills.map((skill, idx) => (
                       <button
                         key={idx}
-                        onClick={() => handleEndorseSkill(idx)}
-                        className={cn(
-                          "px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all",
-                          skill.endorsed ? "bg-primary text-white" : "bg-white dark:bg-card"
-                        )}
+                        className="px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 bg-white dark:bg-card"
                       >
-                        {skill.name}
-                        <span className="bg-black/10 px-1.5 rounded">{skill.count}</span>
+                        {skill.name} <span className="bg-black/10 px-1.5 rounded">{skill.count}</span>
                       </button>
                     ))}
                   </div>
@@ -320,21 +272,11 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
             <Tabs defaultValue="all" className="w-full mt-2">
               <TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0">
                 <TabsTrigger value="all" className="flex-1 font-bold text-sm">Posts</TabsTrigger>
-                <TabsTrigger value="tagged" className="flex-1 font-bold text-sm">Tagged</TabsTrigger>
-                <TabsTrigger value="saved" className="flex-1 font-bold text-sm">Media</TabsTrigger>
+                <TabsTrigger value="media" className="flex-1 font-bold text-sm">Media</TabsTrigger>
               </TabsList>
               
               <TabsContent value="all" className="p-4 space-y-4">
-                <PostCard 
-                  id={`p_${username}`}
-                  user={{ name: displayUser.name, username: displayUser.username, avatar: displayUser.avatar, isVerified: displayUser.isVerified }}
-                  content={`Hello everyone! This is my first post as a ${displayUser.category}. Excited to be here on ViMore! 🚀`}
-                  image={`https://picsum.photos/seed/post_${username}/800/600`}
-                  time="2h ago"
-                  likes={142}
-                  unlikes={1}
-                  comments={12}
-                />
+                {userPosts.map(post => <PostCard key={post.id} {...post} />)}
               </TabsContent>
             </Tabs>
           </div>

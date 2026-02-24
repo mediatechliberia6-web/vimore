@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const suggestions = [
-  { name: "Tech Insider", username: "tech_hub", avatar: "https://picsum.photos/seed/10/100/100" },
-  { name: "Design Daily", username: "daily_design", avatar: "https://picsum.photos/seed/11/100/100" },
-  { name: "Future Lab", username: "future_lab", avatar: "https://picsum.photos/seed/12/100/100" },
+  { name: "Tech Insider", username: "techex", avatar: "https://picsum.photos/seed/51/100/100" },
+  { name: "Sarah Chen", username: "schen_dev", avatar: "https://picsum.photos/seed/2/100/100" },
+  { name: "Alex Rivera", username: "arivera", avatar: "https://picsum.photos/seed/1/100/100" },
 ];
 
 const trends = [
@@ -22,7 +22,7 @@ const trends = [
 
 export function RightSidebar() {
   return (
-    <div className="hidden lg:flex flex-col gap-6 py-6 h-full sticky top-0">
+    <div className="flex flex-col gap-6 py-6 h-full">
       <div className="relative group">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
         <Input 
