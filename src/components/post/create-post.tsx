@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { aiSuggestHashtags } from "@/ai/flows/ai-suggest-hashtags-flow";
-import { aiSummarizePost } from "@/ai/flows/ai-summarize-post-flow";
+import { aiSuggestHashtags, aiSummarizePost } from "@/app/actions/ai";
 import { useToast } from "@/hooks/use-toast";
 
 export function CreatePost() {
@@ -25,29 +24,32 @@ export function CreatePost() {
 
     setIsEnhancing(true);
     try {
-      const [{ hashtags }, { summary }] = await Promise.all([
+      const [hashtagResult, summaryResult] = await Promise.all([
         aiSuggestHashtags({ postContent: content }),
         aiSummarizePost({ postContent: content })
       ]);
       
-      setSuggestedTags(hashtags);
+      setSuggestedTags(hashtagResult.hashtags);
       
-      // Optionally show summary as a toast or update text
       toast({ 
         title: "AI Summary Suggestion", 
-        description: summary,
+        description: summaryResult.summary,
       });
 
     } catch (error) {
-      toast({ description: "Failed to enhance post. Try again!", variant: "destructive" });
+      toast({ 
+        description: "Failed to enhance post. Check your Groq API key!", 
+        variant: "destructive" 
+      });
     } finally {
       setIsEnhancing(false);
     }
   };
 
   const addTag = (tag: string) => {
-    if (!content.includes(`#${tag}`)) {
-      setContent(prev => `${prev.trim()} #${tag} `);
+    const cleanTag = tag.startsWith('#') ? tag : `#${tag}`;
+    if (!content.includes(cleanTag)) {
+      setContent(prev => `${prev.trim()} ${cleanTag} `);
     }
     setSuggestedTags(prev => prev.filter(t => t !== tag));
   };
@@ -79,7 +81,7 @@ export function CreatePost() {
                   className="cursor-pointer hover:bg-primary hover:text-white transition-colors py-1"
                   onClick={() => addTag(tag)}
                 >
-                  #{tag}
+                  #{tag.replace('#', '')}
                 </Badge>
               ))}
               <Button 
@@ -113,7 +115,7 @@ export function CreatePost() {
                 ) : (
                   <Sparkles className="h-4 w-4" />
                 )}
-                <span className="text-xs font-bold uppercase tracking-wider">AI Enhance</span>
+                <span className="text-xs font-bold uppercase tracking-wider">Groq AI Enhance</span>
               </Button>
             </div>
             <Button 

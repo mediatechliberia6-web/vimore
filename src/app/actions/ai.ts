@@ -1,0 +1,62 @@
+
+'use server';
+
+import Groq from "groq-sdk";
+
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
+
+/**
+ * Suggests hashtags for a post using Groq AI.
+ */
+export async function aiSuggestHashtags({ postContent }: { postContent: string }) {
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error("GROQ_API_KEY is not configured");
+  }
+
+  const prompt = `You are a social media expert. Based on the following post content, suggest 5-10 highly relevant and popular hashtags. 
+  Return ONLY a JSON object with a key "hashtags" containing an array of strings.
+  
+  Post content: "${postContent}"`;
+
+  try {
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+      response_format: { type: "json_object" },
+    });
+
+    const content = completion.choices[0]?.message?.content || '{"hashtags": []}';
+    const parsed = JSON.parse(content);
+    return { hashtags: parsed.hashtags || [] };
+  } catch (error) {
+    console.error("Groq Hashtag Suggestion Error:", error);
+    return { hashtags: [] };
+  }
+}
+
+/**
+ * Summarizes a post using Groq AI.
+ */
+export async function aiSummarizePost({ postContent }: { postContent: string }) {
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error("GROQ_API_KEY is not configured");
+  }
+
+  const prompt = `Summarize the following post content concisely for a social media caption or message. Keep it brief, engaging, and under 150 characters.
+  
+  Post Content: "${postContent}"`;
+
+  try {
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama-3.3-70b-versatile",
+    });
+
+    return { summary: completion.choices[0]?.message?.content?.trim() || "" };
+  } catch (error) {
+    console.error("Groq Summarization Error:", error);
+    return { summary: "Could not generate summary." };
+  }
+}
