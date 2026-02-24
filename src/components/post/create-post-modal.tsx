@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
+import { usePosts } from "@/context/PostContext";
 
 interface CreatePostModalProps {
   children: React.ReactNode;
@@ -70,13 +71,15 @@ const feelings = [
   { emoji: "🥳", text: "Celebrating" },
 ];
 
-// Mock user "Home" data
 const USER_PROFILE = {
-  homeLocation: "Lagos, Nigeria",
-  username: "johndoe_creative"
+  name: "John Doe",
+  username: "johndoe_creative",
+  avatar: "https://picsum.photos/seed/me/200/200",
+  homeLocation: "Lagos, Nigeria"
 };
 
 export function CreatePostModal({ children }: CreatePostModalProps) {
+  const { addPost } = usePosts();
   const [content, setContent] = useState("");
   const [privacy, setPrivacy] = useState<PrivacySetting>(privacySettings[0]);
   const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
@@ -102,7 +105,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const MAX_PHOTOS = 6;
   const MAX_POLL_OPTIONS = 8;
 
-  // Load recents from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('vimore_recent_locations');
     if (saved) {
@@ -132,14 +134,35 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   };
 
   const handlePost = () => {
-    // If a location was used, save it to recents
     if (location) {
       const updatedRecents = [location, ...recentLocations.filter(l => l !== location)].slice(0, 5);
       setRecentLocations(updatedRecents);
       localStorage.setItem('vimore_recent_locations', JSON.stringify(updatedRecents));
     }
 
+    // Add post to global state
+    addPost({
+      user: {
+        name: USER_PROFILE.name,
+        username: USER_PROFILE.username,
+        avatar: USER_PROFILE.avatar,
+        isOnline: true
+      },
+      content,
+      images: mediaType === 'image' ? selectedMedia : undefined,
+      image: mediaType === 'video' ? undefined : (selectedMedia[0] || undefined),
+      feeling: feeling || undefined,
+      location: location || undefined,
+      poll: isPollOpen && pollQuestion ? {
+        question: pollQuestion,
+        options: pollOptions.filter(o => o.trim()).map(text => ({ text, votes: 0 })),
+        totalVotes: 0
+      } : undefined
+    });
+
     toast({ title: "Post created!", description: "Your post has been shared with the community." });
+    
+    // Reset state
     setContent("");
     setSelectedMedia([]);
     setMediaType(null);
@@ -147,6 +170,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setFeeling(null);
     setLocation(null);
     setLocationSearch("");
+    setPollQuestion("");
+    setPollOptions(["", ""]);
   };
 
   const handlePhotoUploadClick = () => {
@@ -318,12 +343,12 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         <div className="flex-1 overflow-y-auto pb-safe">
           <div className="p-4 flex items-center gap-3">
             <Avatar className="h-12 w-12 border border-primary/10">
-              <AvatarImage src="https://picsum.photos/seed/me/200/200" />
+              <AvatarImage src={USER_PROFILE.avatar} />
               <AvatarFallback>JD</AvatarFallback>
             </Avatar>
             <div className="flex flex-col gap-0.5">
               <div className="flex flex-wrap items-center gap-1">
-                <p className="font-bold text-base">John Doe</p>
+                <p className="font-bold text-base">{USER_PROFILE.name}</p>
                 {feeling && <span className="text-[13px] text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
                 {location && <span className="text-[13px] text-muted-foreground">— in <span className="font-bold text-foreground">{location}</span></span>}
               </div>
@@ -406,16 +431,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                   </button>
                 ))}
               </div>
-              {feeling && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="w-full mt-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/5 font-bold" 
-                  onClick={() => { setFeeling(null); setShowFeelingSelector(false); }}
-                >
-                  Clear feeling
-                </Button>
-              )}
             </div>
           )}
 
@@ -441,7 +456,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
               <ScrollArea className="h-[200px] -mx-4 px-4">
                 <div className="space-y-4">
-                  {/* Suggestion based on Profile */}
                   <div className="space-y-2">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">From your profile</p>
                     <button
@@ -464,7 +478,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                     </button>
                   </div>
 
-                  {/* Recent Locations */}
                   {recentLocations.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Recent places</p>
@@ -490,17 +503,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                   )}
                 </div>
               </ScrollArea>
-
-              {location && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="w-full mt-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/5 font-bold" 
-                  onClick={() => { setLocation(null); setLocationSearch(""); setShowLocationSelector(false); }}
-                >
-                  Clear location
-                </Button>
-              )}
             </div>
           )}
 
