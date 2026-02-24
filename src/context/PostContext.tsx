@@ -10,6 +10,10 @@ export interface User {
   isVerified?: boolean;
   isOnline?: boolean;
   followers?: number;
+  pronouns?: 'His' | 'Her';
+  joinDate?: string;
+  relationshipStatus?: string;
+  links?: Array<{ label: string; url: string; icon: any }>;
 }
 
 export interface Mention {
@@ -95,10 +99,13 @@ interface PostContextType {
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
 
-const USER_PROFILE = {
+const USER_PROFILE: User = {
   name: "John Doe",
   username: "johndoe_creative",
   avatar: "https://picsum.photos/seed/me/200/200",
+  pronouns: "His",
+  joinDate: "January 2024",
+  relationshipStatus: "Single"
 };
 
 const initialMockStories: Story[] = [

@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
 import { 
   ArrowLeft, 
   Camera, 
@@ -25,7 +26,13 @@ import {
   Briefcase,
   Cake,
   Home as HomeIcon,
-  Rss
+  Rss,
+  Copy,
+  Calendar,
+  Heart,
+  Globe,
+  ExternalLink,
+  Link as LinkIcon
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
@@ -33,10 +40,14 @@ import Image from "next/image";
 
 export default function ProfilePage() {
   const { highlights } = usePosts();
+  const { toast } = useToast();
   
   const user = {
     name: "John Doe",
     username: "johndoe_creative",
+    pronouns: "His" as const,
+    joinDate: "January 2024",
+    relationshipStatus: "Single",
     followers: "8.4k",
     following: "1.2k",
     posts: "142",
@@ -47,7 +58,18 @@ export default function ProfilePage() {
     social: "Instagram",
     socialHandle: "@johndoe_inst",
     hometown: "Lagos, Nigeria",
-    birthday: "March 15"
+    birthday: "March 15",
+    links: [
+      { label: "Portfolio", url: "https://johndoe.design", icon: Globe },
+      { label: "Latest Project", url: "https://vimore.io", icon: ExternalLink }
+    ]
+  };
+
+  const handleCopyBio = () => {
+    navigator.clipboard.writeText(user.bio);
+    toast({
+      description: "Bio copied to clipboard!",
+    });
   };
 
   return (
@@ -128,7 +150,12 @@ export default function ProfilePage() {
 
               {/* Identity Info */}
               <div className="mt-2 space-y-1 px-1">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{user.name}</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{user.name}</h1>
+                  <Badge variant="secondary" className="bg-secondary/50 text-[10px] font-bold py-0.5 px-2">
+                    {user.pronouns}
+                  </Badge>
+                </div>
                 
                 {/* Stats Row */}
                 <div className="flex items-center gap-6 py-2">
@@ -146,37 +173,70 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Bio */}
-                <div className="mt-3">
-                  <p className="text-[15px] leading-relaxed text-foreground">
-                    {user.bio} <span className="font-bold cursor-pointer hover:underline">See more</span>
+                {/* Bio & Links */}
+                <div className="mt-3 relative group">
+                  <p className="text-[15px] leading-relaxed text-foreground pr-8">
+                    {user.bio}
                   </p>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="absolute right-0 top-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={handleCopyBio}
+                    title="Copy bio"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+
+                {/* Link-in-Bio Tree */}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {user.links.map((link, idx) => (
+                    <a 
+                      key={idx} 
+                      href={link.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary/30 hover:bg-secondary/50 rounded-full text-xs font-bold transition-colors border border-primary/5"
+                    >
+                      <link.icon className="h-3 w-3 text-primary" />
+                      {link.label}
+                    </a>
+                  ))}
                 </div>
 
                 {/* Metadata Badges */}
-                <div className="mt-4 space-y-3">
-                  <div className="flex items-center gap-3 text-[15px]">
-                    <Briefcase className="h-5 w-5 text-muted-foreground" />
-                    <span className="font-medium">{user.category}</span>
+                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                  <div className="flex items-center gap-3 text-[14px]">
+                    <Briefcase className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium text-muted-foreground">Category: <span className="font-bold text-foreground">{user.category}</span></span>
                   </div>
-                  <div className="flex items-center gap-3 text-[15px]">
-                    <MapPin className="h-5 w-5 text-muted-foreground" />
-                    <span className="font-medium">From <span className="font-bold">{user.location}</span></span>
+                  <div className="flex items-center gap-3 text-[14px]">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium text-muted-foreground">From <span className="font-bold text-foreground">{user.location}</span></span>
                   </div>
-                  <div className="flex items-center gap-3 text-[15px]">
-                    <GraduationCap className="h-5 w-5 text-muted-foreground" />
-                    <span className="font-medium">Went to <span className="font-bold">{user.education}</span></span>
+                  <div className="flex items-center gap-3 text-[14px]">
+                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium text-muted-foreground">Education: <span className="font-bold text-foreground">{user.education}</span></span>
                   </div>
-                  <div className="flex items-center gap-3 text-[15px]">
-                    <Instagram className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex items-center gap-3 text-[14px]">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium text-muted-foreground">Joined <span className="font-bold text-foreground">{user.joinDate}</span></span>
+                  </div>
+                  <div className="flex items-center gap-3 text-[14px]">
+                    <Heart className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium text-muted-foreground">Status: <span className="font-bold text-foreground">{user.relationshipStatus}</span></span>
+                  </div>
+                  <div className="flex items-center gap-3 text-[14px]">
+                    <Instagram className="h-4 w-4 text-muted-foreground" />
                     <span className="font-bold text-primary flex items-center gap-1">
-                      {user.social} <span className="text-muted-foreground font-normal">({user.socialHandle})</span>
+                      {user.social} <span className="text-muted-foreground font-normal text-xs">({user.socialHandle})</span>
                     </span>
                   </div>
                 </div>
 
                 {/* Main Action Bar */}
-                <div className="mt-6 flex gap-2">
+                <div className="mt-8 flex gap-2">
                   <Button className="flex-1 rounded-lg gap-2 bg-primary hover:bg-primary/90 h-11 font-bold text-white shadow-lg shadow-primary/20">
                     <LayoutDashboard className="h-5 w-5" />
                     Dashboard
