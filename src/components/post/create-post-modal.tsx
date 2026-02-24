@@ -103,6 +103,15 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   };
 
   const handlePhotoUploadClick = () => {
+    if (isPollOpen) {
+      toast({ 
+        title: "Incompatible content", 
+        description: "You cannot add photos to a poll.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (mediaType === 'video') {
       toast({ 
         title: "Selection cleared", 
@@ -125,6 +134,15 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   };
 
   const handleVideoUploadClick = () => {
+    if (isPollOpen) {
+      toast({ 
+        title: "Incompatible content", 
+        description: "You cannot add a video to a poll.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (mediaType === 'image' && selectedMedia.length > 0) {
       toast({ 
         title: "Selection cleared", 
@@ -199,6 +217,18 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     }
   };
 
+  const togglePoll = () => {
+    if (selectedMedia.length > 0) {
+      toast({ 
+        title: "Incompatible content", 
+        description: "You cannot add a poll to a post that already has photos or videos.",
+        variant: "destructive"
+      });
+      return;
+    }
+    setIsPollOpen(!isPollOpen);
+  };
+
   const addPollOption = () => {
     if (pollOptions.length < 4) {
       setPollOptions(prev => [...prev, ""]);
@@ -212,12 +242,44 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   };
 
   const actionItems = [
-    { icon: ImageIcon, label: "Photo", color: "text-green-500", onClick: handlePhotoUploadClick },
-    { icon: Clapperboard, label: "Video", color: "text-red-500", onClick: handleVideoUploadClick },
-    { icon: ListTodo, label: "Create Poll", color: "text-purple-500", onClick: () => setIsPollOpen(!isPollOpen) },
-    { icon: Smile, label: "Feeling/activity", color: "text-yellow-500", onClick: () => setFeeling({ emoji: "😊", text: "Happy" }) },
-    { icon: UserPlus, label: "Tag people", color: "text-blue-500", onClick: () => setContent(prev => prev + " @") },
-    { icon: MapPin, label: "Add location", color: "text-red-500" },
+    { 
+      icon: ImageIcon, 
+      label: "Photo", 
+      color: "text-green-500", 
+      onClick: handlePhotoUploadClick,
+      disabled: isPollOpen 
+    },
+    { 
+      icon: Clapperboard, 
+      label: "Video", 
+      color: "text-red-500", 
+      onClick: handleVideoUploadClick,
+      disabled: isPollOpen 
+    },
+    { 
+      icon: ListTodo, 
+      label: "Create Poll", 
+      color: "text-purple-500", 
+      onClick: togglePoll,
+      disabled: selectedMedia.length > 0 
+    },
+    { 
+      icon: Smile, 
+      label: "Feeling/activity", 
+      color: "text-yellow-500", 
+      onClick: () => setFeeling({ emoji: "😊", text: "Happy" }) 
+    },
+    { 
+      icon: UserPlus, 
+      label: "Tag people", 
+      color: "text-blue-500", 
+      onClick: () => setContent(prev => prev + " @") 
+    },
+    { 
+      icon: MapPin, 
+      label: "Add location", 
+      color: "text-red-500" 
+    },
   ];
 
   const progress = (content.length / CHARACTER_LIMIT) * 100;
@@ -425,7 +487,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                       </button>
                     </div>
                   ))}
-                  {mediaType === 'image' && selectedMedia.length < MAX_PHOTOS && (
+                  {mediaType === 'image' && selectedMedia.length < MAX_PHOTOS && !isPollOpen && (
                     <button 
                       onClick={handlePhotoUploadClick}
                       className="w-32 h-32 rounded-lg border-2 border-dashed border-primary/20 flex flex-col items-center justify-center gap-2 hover:bg-primary/5 transition-colors text-muted-foreground"
@@ -445,7 +507,11 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               <button 
                 key={i} 
                 onClick={item.onClick}
-                className="w-full flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors"
+                disabled={item.disabled}
+                className={cn(
+                  "w-full flex items-center justify-between p-4 transition-colors",
+                  item.disabled ? "opacity-30 cursor-not-allowed" : "hover:bg-secondary/20"
+                )}
                 aria-label={item.label}
               >
                 <div className="flex items-center gap-4">
