@@ -322,9 +322,9 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-primary/5 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-primary uppercase">Poll Settings</span>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsPollOpen(false)}>
+                <button className="h-6 w-6" onClick={() => setIsPollOpen(false)}>
                   <X className="h-4 w-4" />
-                </Button>
+                </button>
               </div>
               <Input 
                 placeholder="Ask a question..." 
@@ -399,10 +399,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           </div>
         </div>
 
-        <div className="p-4 pb-10 bg-white dark:bg-card border-t shrink-0 sm:pb-4">
+        <div className="p-4 bg-white dark:bg-card border-t shrink-0">
           <DialogClose asChild>
             <Button 
-              className="w-full h-12 font-bold text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-none"
+              className="w-full h-11 font-bold text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-none"
               disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit}
               onClick={handlePost}
               aria-label="Post now"

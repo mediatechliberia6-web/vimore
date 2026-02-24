@@ -5,7 +5,6 @@ import { PostCard } from "@/components/post/post-card";
 import { Stories } from "@/components/feed/stories";
 import { RightSidebar } from "@/components/layout/right-sidebar";
 import { MainNav } from "@/components/layout/main-nav";
-import { Toaster } from "@/components/ui/toaster";
 
 const mockPosts = [
   {
@@ -133,8 +132,6 @@ export default function Home() {
           <RightSidebar />
         </aside>
       </div>
-      
-      <Toaster />
     </div>
   );
 }
