@@ -1,14 +1,15 @@
+
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, MessageCircle, Search, Bell, Settings, LogOut, PlusSquare } from "lucide-react";
+import { Home, User, MessageCircle, Search, Bell, Settings, LogOut, PlusSquare, Compass } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
   { icon: Home, label: "Home", href: "/" },
-  { icon: Search, label: "Explore", href: "/explore" },
+  { icon: Compass, label: "Explore", href: "/explore" },
   { icon: Bell, label: "Notifications", href: "/notifications" },
   { icon: MessageCircle, label: "Messages", href: "/messages" },
   { icon: User, label: "Profile", href: "/profile" },
@@ -42,28 +43,32 @@ export function MainNav() {
               className={cn(
                 "flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group",
                 isActive 
-                  ? "bg-primary text-primary-foreground" 
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
                   : "hover:bg-secondary text-muted-foreground hover:text-primary"
               )}
             >
               <item.icon className={cn("w-6 h-6", isActive ? "scale-110" : "group-hover:scale-110 transition-transform")} />
-              <span className="font-medium">{item.label}</span>
+              <span className="font-bold text-sm">{item.label}</span>
             </Link>
           );
         })}
         
-        <Button className="w-full mt-4 rounded-xl py-6 gap-2 font-headline text-lg bg-accent hover:bg-accent/90 shadow-lg shadow-accent/20">
-          <PlusSquare className="w-5 h-5" />
-          <span>Post</span>
-        </Button>
+        <div className="pt-4">
+          <Button className="w-full rounded-2xl py-6 gap-2 font-black italic uppercase tracking-tighter text-lg bg-accent hover:bg-accent/90 shadow-xl shadow-accent/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
+            <PlusSquare className="w-6 h-6" />
+            <span>Post</span>
+          </Button>
+        </div>
       </nav>
 
       <div className="pt-6 border-t border-border">
         <button className="flex items-center gap-4 px-4 py-3 w-full rounded-xl hover:bg-destructive/10 text-destructive transition-colors group">
           <LogOut className="w-6 h-6 group-hover:-translate-x-1 transition-transform" />
-          <span className="font-medium">Logout</span>
+          <span className="font-bold text-sm">Logout</span>
         </button>
       </div>
     </div>
   );
 }
+
+    
