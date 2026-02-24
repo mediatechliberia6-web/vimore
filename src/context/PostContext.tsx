@@ -12,10 +12,17 @@ export interface User {
   followers?: number;
 }
 
+export interface Mention {
+  username: string;
+  x: string; // percentage
+  y: string; // percentage
+}
+
 export interface StorySegment {
   id: string;
   image: string;
   type: 'image' | 'video';
+  mentions?: Mention[];
 }
 
 export interface Story {
@@ -66,7 +73,12 @@ const initialMockStories: Story[] = [
     id: "s1",
     user: { name: "Alex Rivera", avatar: "https://picsum.photos/seed/1/100/100" },
     segments: [
-      { id: "seg1", image: "https://picsum.photos/seed/s2/800/1200", type: 'image' },
+      { 
+        id: "seg1", 
+        image: "https://picsum.photos/seed/s2/800/1200", 
+        type: 'image',
+        mentions: [{ username: "arivera", x: "20%", y: "40%" }]
+      },
       { id: "seg2", image: "https://picsum.photos/seed/s22/800/1200", type: 'image' }
     ]
   },
@@ -74,7 +86,12 @@ const initialMockStories: Story[] = [
     id: "s2",
     user: { name: "Sarah Chen", avatar: "https://picsum.photos/seed/2/100/100" },
     segments: [
-      { id: "seg3", image: "https://picsum.photos/seed/s3/800/1200", type: 'image' }
+      { 
+        id: "seg3", 
+        image: "https://picsum.photos/seed/s3/800/1200", 
+        type: 'image',
+        mentions: [{ username: "schen_dev", x: "50%", y: "60%" }]
+      }
     ]
   },
   {

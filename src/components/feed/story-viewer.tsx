@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { X, ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { usePosts } from "@/context/PostContext";
@@ -10,12 +10,20 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 const STORY_DURATION = 5000; // 5 seconds per segment
+const QUICK_REACTIONS = ["❤️", "🔥", "😂", "😮", "😢", "👏"];
+
+interface FloatingReaction {
+  id: number;
+  emoji: string;
+  x: number;
+}
 
 export function StoryViewer() {
   const { stories, activeStoryIndex, setActiveStoryIndex } = usePosts();
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [reactions, setReactions] = useState<FloatingReaction[]>([]);
   
   const startTime = useRef<number | null>(null);
   const requestRef = useRef<number | null>(null);
@@ -29,6 +37,7 @@ export function StoryViewer() {
     setProgress(0);
     startTime.current = null;
     pausedTime.current = 0;
+    setReactions([]);
   }, [setActiveStoryIndex]);
 
   const nextSegment = useCallback(() => {
@@ -89,15 +98,12 @@ export function StoryViewer() {
       }
       requestRef.current = requestAnimationFrame(animate);
     } else {
-      // When paused, we don't request a new frame, 
-      // but we store where we were so we can resume smoothly
       pausedTime.current = time - (startTime.current || 0);
     }
   }, [isPaused, nextSegment]);
 
   useEffect(() => {
     if (activeStoryIndex !== null && !isPaused) {
-      // Adjust startTime to resume from exactly where we left off
       startTime.current = performance.now() - pausedTime.current;
       requestRef.current = requestAnimationFrame(animate);
     } else {
@@ -110,7 +116,6 @@ export function StoryViewer() {
   }, [activeStoryIndex, isPaused, animate, segmentIndex]);
 
   const handleTap = (e: React.MouseEvent | React.TouchEvent) => {
-    // If long press just finished, ignore the tap trigger from mouseUp/touchend
     if (isPaused) return;
 
     const x = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
@@ -129,6 +134,19 @@ export function StoryViewer() {
 
   const handleEndPress = () => {
     setIsPaused(false);
+  };
+
+  const addReaction = (emoji: string) => {
+    const id = Date.now();
+    const newReaction = {
+      id,
+      emoji,
+      x: Math.random() * 60 + 20, // 20% to 80% to stay centered
+    };
+    setReactions(prev => [...prev, newReaction]);
+    setTimeout(() => {
+      setReactions(prev => prev.filter(r => r.id !== id));
+    }, 2000);
   };
 
   if (!activeStory) return null;
@@ -161,7 +179,7 @@ export function StoryViewer() {
             <div key={i} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
               <div 
                 className={cn(
-                  "h-full bg-white",
+                  "h-full bg-white transition-[width] duration-100 ease-linear",
                   i < segmentIndex ? "w-full" : i === segmentIndex ? "" : "w-0"
                 )}
                 style={i === segmentIndex ? { width: `${progress}%` } : {}}
@@ -215,6 +233,28 @@ export function StoryViewer() {
             className="object-cover"
             priority
           />
+
+          {/* Mentions */}
+          {currentSegment.mentions?.map((mention, i) => (
+            <div 
+              key={i}
+              className="absolute bg-white/20 backdrop-blur-md border border-white/30 px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg animate-in zoom-in duration-300"
+              style={{ top: mention.y, left: mention.x }}
+            >
+              @{mention.username}
+            </div>
+          ))}
+
+          {/* Floating Reactions */}
+          {reactions.map((r) => (
+            <div
+              key={r.id}
+              className="absolute bottom-20 text-4xl animate-out fade-out slide-out-to-top-[300px] duration-[2000ms] pointer-events-none"
+              style={{ left: `${r.x}%` }}
+            >
+              {r.emoji}
+            </div>
+          ))}
         </div>
 
         {/* Interaction Bar */}
@@ -222,10 +262,45 @@ export function StoryViewer() {
           "absolute bottom-0 left-0 right-0 p-6 pt-12 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300",
           isPaused ? "opacity-0" : "opacity-100"
         )}>
-          <div className="flex items-center gap-4">
-            <div className="flex-1 h-11 bg-white/10 backdrop-blur-md rounded-full border border-white/20 px-5 flex items-center text-white/60 text-sm">
-              Reply to {activeStory.user.name}...
+          {/* Quick Reactions */}
+          <div className="flex items-center justify-between mb-4 px-2">
+            {QUICK_REACTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addReaction(emoji);
+                }}
+                className="text-2xl hover:scale-125 transition-transform active:scale-95 px-2"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-12 bg-white/10 backdrop-blur-md rounded-full border border-white/20 px-5 flex items-center text-white/60 text-sm focus-within:text-white transition-colors group">
+              <input 
+                type="text"
+                placeholder={`Reply to ${activeStory.user.name}...`}
+                className="bg-transparent border-none focus:ring-0 w-full placeholder:text-white/40"
+                onClick={(e) => e.stopPropagation()}
+                onFocus={() => setIsPaused(true)}
+                onBlur={() => setIsPaused(false)}
+              />
+              <Send className="h-5 w-5 text-white/40 group-focus-within:text-white cursor-pointer" />
             </div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="rounded-full h-12 w-12 bg-white/10 border border-white/20 text-white hover:bg-white/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                addReaction("❤️");
+              }}
+            >
+              <Heart className="h-6 w-6" />
+            </Button>
           </div>
         </div>
 
