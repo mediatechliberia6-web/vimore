@@ -19,7 +19,8 @@ import {
   X,
   ListTodo,
   PlusSquare,
-  AtSign
+  AtSign,
+  Clapperboard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -39,7 +40,6 @@ import {
 import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface CreatePostModalProps {
   children: React.ReactNode;
@@ -71,7 +71,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [privacy, setPrivacy] = useState<PrivacySetting>(privacySettings[0]);
   const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
   
-  // Phase 3 States
   const [isPollOpen, setIsPollOpen] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
@@ -131,7 +130,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
   const handleMention = (friend: typeof mockFriends[0]) => {
     const words = content.split(/\s+/);
-    words.pop(); // Remove the @ word
+    words.pop();
     setContent([...words, friend.name, ""].join(" "));
     setIsTagging(false);
   };
@@ -167,7 +166,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   };
 
   const actionItems = [
-    { icon: ImageIcon, label: "Photos/Videos", color: "text-green-500", onClick: simulateMediaUpload },
+    { icon: ImageIcon, label: "Photo", color: "text-green-500", onClick: simulateMediaUpload },
+    { icon: Clapperboard, label: "Video", color: "text-red-500", onClick: simulateMediaUpload },
     { icon: ListTodo, label: "Create Poll", color: "text-purple-500", onClick: () => setIsPollOpen(!isPollOpen) },
     { icon: Smile, label: "Feeling/activity", color: "text-yellow-500", onClick: () => setFeeling({ emoji: "😊", text: "Happy" }) },
     { icon: UserPlus, label: "Tag people", color: "text-blue-500", onClick: () => setContent(prev => prev + " @") },
@@ -190,7 +190,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         <DialogTitle className="sr-only">Create a New Post</DialogTitle>
         <DialogDescription className="sr-only">Interface to compose text, add media, create polls, and use AI tools for a new social media post.</DialogDescription>
         
-        {/* Header */}
         <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0 bg-white dark:bg-card">
           <div className="flex items-center gap-4">
             <DialogClose asChild>
@@ -213,9 +212,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           </DialogClose>
         </DialogHeader>
 
-        {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto">
-          {/* User Info & Privacy Selector */}
           <div className="p-4 flex items-center gap-3">
             <Avatar className="h-12 w-12 border border-primary/10">
               <AvatarImage src="https://picsum.photos/seed/me/200/200" />
@@ -255,7 +252,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           </div>
 
-          {/* Text Area */}
           <div className="px-4 relative">
             <Textarea 
               placeholder="What's on your mind?" 
@@ -266,7 +262,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               aria-label="Post content"
             />
             
-            {/* Mention Suggestions Popover */}
             {isTagging && (
               <div className="absolute top-full left-4 right-4 z-50 mt-1 bg-white dark:bg-card border rounded-xl shadow-xl p-2 animate-in fade-in slide-in-from-top-2">
                 <p className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mention Friends</p>
@@ -286,7 +281,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               </div>
             )}
 
-            {/* Character Counter */}
             <div className="absolute bottom-2 right-4 flex items-center gap-2">
               <div className="relative w-6 h-6">
                 <svg className="w-full h-full" viewBox="0 0 36 36">
@@ -315,7 +309,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           </div>
 
-          {/* Poll Section */}
           {isPollOpen && (
             <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-primary/5 space-y-3">
               <div className="flex items-center justify-between">
@@ -349,7 +342,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           )}
 
-          {/* Media Strip */}
           {selectedMedia.length > 0 && (
             <div className="px-4 pb-4">
               <ScrollArea className="w-full whitespace-nowrap rounded-xl">
@@ -379,7 +371,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           )}
 
-          {/* AI Suggested Tags */}
           {suggestedTags.length > 0 && (
             <div className="px-4 pb-4">
               <div className="bg-primary/5 rounded-xl p-3 border border-primary/10">
@@ -404,7 +395,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           )}
 
-          {/* Action List */}
           <div className="border-t">
             {actionItems.map((item, i) => (
               <button 
@@ -420,7 +410,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               </button>
             ))}
             
-            {/* AI Action */}
             <button 
               onClick={handleEnhance}
               disabled={isEnhancing || !content.trim()}
@@ -439,7 +428,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           </div>
         </div>
 
-        {/* Footer Post Button */}
         <div className="p-4 pb-10 bg-white dark:bg-card border-t shrink-0 sm:pb-4">
           <DialogClose asChild>
             <Button 
