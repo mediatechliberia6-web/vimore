@@ -10,33 +10,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { 
   ArrowLeft, 
-  Camera, 
   Edit2, 
   MoreHorizontal, 
   ChevronDown,
   LayoutDashboard,
   Plus,
-  Globe,
-  ExternalLink,
   Volume2,
   Play,
   Star,
-  Bookmark,
   AtSign,
-  Pin,
-  Gift,
-  Languages,
   Zap,
   Check,
   BriefcaseBusiness,
   Trophy,
   UserPlus,
-  MessageCircle
+  MessageCircle,
+  ExternalLink,
+  Globe
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
@@ -83,6 +76,28 @@ const MOCK_USERS: Record<string, any> = {
     posts: "892",
     category: "Photographer",
     isVerified: false
+  },
+  "techex": {
+    name: "Tech Explorer",
+    username: "techex",
+    bio: "Exploring the bleeding edge of AI, WebGPU, and Next.js. Let's build the future. 🚀",
+    avatar: "https://picsum.photos/seed/51/200/200",
+    followers: "12k",
+    following: "200",
+    posts: "85",
+    category: "Tech Content Creator",
+    isVerified: true
+  },
+  "jmoore": {
+    name: "Julianne Moore",
+    username: "jmoore",
+    bio: "Aesthete and lover of clean UI. Sharing my journey in the creative space. ✨",
+    avatar: "https://picsum.photos/seed/50/200/200",
+    followers: "1.5k",
+    following: "300",
+    posts: "42",
+    category: "Creative",
+    isVerified: true
   }
 };
 
@@ -91,7 +106,6 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const username = resolvedParams.username;
   const isMe = username === CURRENT_USER.username;
   
-  const { highlights } = usePosts();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isPlayingIntro, setIsPlayingIntro] = useState(false);
@@ -99,15 +113,17 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const [translatedBio, setTranslatedBio] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
 
-  // Get user data or fallback to John Doe for /profile
+  // Get user data or fallback to a generic profile for the given username
   const displayUser = MOCK_USERS[username] || {
-    ...CURRENT_USER,
-    bio: "Digital creator specializing in UI/UX and mobile photography. Building ViMore community. 🎨 ✨",
-    followers: "8.4k",
-    following: "1.2k",
-    posts: "142",
-    category: "Digital Creator",
-    isVerified: true
+    name: username.charAt(0).toUpperCase() + username.slice(1),
+    username: username,
+    bio: "Digital creator and explorer of the ViMore community. 🎨 ✨",
+    avatar: `https://picsum.photos/seed/${username}/400/400`,
+    followers: "1.2k",
+    following: "400",
+    posts: "12",
+    category: "ViMore Member",
+    isVerified: false
   };
 
   const [skills, setSkills] = useState([
@@ -134,24 +150,6 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     toast({
       description: isFollowing ? `Unfollowed ${displayUser.name}` : `Following ${displayUser.name}`,
     });
-  };
-
-  const handleTranslateBio = async () => {
-    if (translatedBio) {
-      setTranslatedBio(null);
-      return;
-    }
-    triggerHaptic();
-    setIsTranslating(true);
-    try {
-      const res = await aiTranslatePost({ postContent: displayUser.bio, targetLanguage: "Spanish" });
-      setTranslatedBio(res.translation);
-      toast({ description: "Bio translated ✨" });
-    } catch (e) {
-      toast({ variant: "destructive", description: "Translation failed" });
-    } finally {
-      setIsTranslating(false);
-    }
   };
 
   const handleEndorseSkill = (idx: number) => {
