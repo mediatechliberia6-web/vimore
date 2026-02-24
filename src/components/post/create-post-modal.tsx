@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   ArrowLeft, 
   Image as ImageIcon, 
@@ -30,7 +30,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Image from "next/image";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { Input } from "@/components/ui/input";
 
 interface CreatePostModalProps {
@@ -67,6 +66,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [feeling, setFeeling] = useState<{ emoji: string; text: string } | null>(null);
   const [isTagging, setIsTagging] = useState(false);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
   const CHARACTER_LIMIT = 2000;
@@ -97,7 +97,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setFeeling(null);
   };
 
-  const simulatePhotoUpload = () => {
+  const handlePhotoUploadClick = () => {
     if (selectedMedia.length >= MAX_PHOTOS) {
       toast({ 
         title: "Limit reached", 
@@ -106,22 +106,35 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       });
       return;
     }
+    fileInputRef.current?.click();
+  };
 
-    // Simulate selecting multiple photos (up to 6 total)
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
     const remainingSlots = MAX_PHOTOS - selectedMedia.length;
-    const batchSize = Math.min(6, remainingSlots);
-    const newPhotos: string[] = [];
-
-    for (let i = 0; i < batchSize; i++) {
-      const randomImg = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)].imageUrl;
-      newPhotos.push(`${randomImg}?sig=${Math.random()}`);
+    const filesArray = Array.from(files).slice(0, remainingSlots);
+    
+    if (files.length > remainingSlots) {
+      toast({
+        title: "Some photos skipped",
+        description: `You can only have ${MAX_PHOTOS} photos total per post.`,
+        variant: "destructive"
+      });
     }
 
-    setSelectedMedia(prev => [...prev, ...newPhotos]);
-    toast({ 
-      title: "Photos added", 
-      description: `Added ${newPhotos.length} photos to your post.` 
+    filesArray.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setSelectedMedia(prev => [...prev, base64String]);
+      };
+      reader.readAsDataURL(file);
     });
+
+    // Reset input so the same file can be selected again if removed
+    e.target.value = "";
   };
 
   const simulateVideoUpload = () => {
@@ -133,7 +146,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       });
       return;
     }
-    const randomImg = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)].imageUrl;
+    // For now keeping video as a simple simulation or placeholder
+    const randomImg = `https://picsum.photos/seed/${Math.random()}/800/600`;
     setSelectedMedia(prev => [...prev, randomImg]);
   };
 
@@ -154,7 +168,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   };
 
   const actionItems = [
-    { icon: ImageIcon, label: "Photo", color: "text-green-500", onClick: simulatePhotoUpload },
+    { icon: ImageIcon, label: "Photo", color: "text-green-500", onClick: handlePhotoUploadClick },
     { icon: Clapperboard, label: "Video", color: "text-red-500", onClick: simulateVideoUpload },
     { icon: ListTodo, label: "Create Poll", color: "text-purple-500", onClick: () => setIsPollOpen(!isPollOpen) },
     { icon: Smile, label: "Feeling/activity", color: "text-yellow-500", onClick: () => setFeeling({ emoji: "😊", text: "Happy" }) },
@@ -173,8 +187,18 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       
       <DialogContent className="max-w-none w-screen h-[100dvh] m-0 rounded-none border-none flex flex-col p-0 gap-0 overflow-hidden bg-white dark:bg-background translate-x-0 translate-y-0 left-0 top-0" aria-describedby="create-post-description">
         <DialogTitle className="sr-only">Create a New Post</DialogTitle>
-        <DialogDescription className="sr-only" id="create-post-description">Interface to compose text, add media, create polls, and tagging for a new social media post.</DialogDescription>
+        <DialogDescription className="sr-only" id="create-post-description">Interface to compose text, upload up to 6 photos from device, add videos, create polls, and tagging for a new social media post.</DialogDescription>
         
+        {/* Hidden File Input */}
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          className="hidden" 
+          multiple 
+          accept="image/*" 
+          onChange={handleFileChange}
+        />
+
         <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0 bg-white dark:bg-card">
           <div className="flex items-center gap-4">
             <DialogClose asChild>
@@ -345,7 +369,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                   ))}
                   {selectedMedia.length < MAX_PHOTOS && (
                     <button 
-                      onClick={simulatePhotoUpload}
+                      onClick={handlePhotoUploadClick}
                       className="w-32 h-32 rounded-lg border-2 border-dashed border-primary/20 flex flex-col items-center justify-center gap-2 hover:bg-primary/5 transition-colors text-muted-foreground"
                     >
                       <PlusSquare className="h-6 w-6" />
