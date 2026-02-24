@@ -4,23 +4,23 @@ import {
   ArrowLeft, 
   Search, 
   ArrowRightLeft, 
-  History, 
-  Calendar, 
-  GalleryVerticalEnd, 
+  Home, 
   Users, 
-  CheckCircle, 
-  Settings, 
-  LifeBuoy, 
-  UserPlus, 
-  LogOut,
+  MessageCircle, 
+  Clapperboard, 
+  Music, 
+  Bell,
   ChevronRight,
+  Settings,
   ShieldCheck,
-  HelpCircle,
   Smartphone,
-  Info
+  Info,
+  LifeBuoy,
+  HelpCircle,
+  UserPlus,
+  LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Accordion, 
@@ -32,12 +32,12 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 const menuGrid = [
-  { label: "Memories", icon: History, color: "text-blue-500", bg: "bg-blue-50" },
-  { label: "Events", icon: Calendar, color: "text-red-500", bg: "bg-red-50" },
-  { label: "Series", icon: GalleryVerticalEnd, color: "text-purple-500", bg: "bg-purple-50" },
-  { label: "Hubs", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-  { label: "Verified", icon: CheckCircle, color: "text-primary", bg: "bg-primary/5" },
-  { label: "Nearby", icon: Search, color: "text-orange-500", bg: "bg-orange-50" },
+  { label: "Home feed", icon: Home, color: "text-blue-500", bg: "bg-blue-50", href: "/" },
+  { label: "Friends", icon: Users, color: "text-red-500", bg: "bg-red-50", href: "/" },
+  { label: "Messages", icon: MessageCircle, color: "text-purple-500", bg: "bg-purple-50", href: "/messages" },
+  { label: "Reels", icon: Clapperboard, color: "text-blue-600", bg: "bg-blue-50", href: "/" },
+  { label: "Music", icon: Music, color: "text-primary", bg: "bg-primary/5", href: "/" },
+  { label: "Notifications", icon: Bell, color: "text-orange-500", bg: "bg-orange-50", href: "/notifications" },
 ];
 
 export default function MenuPage() {
@@ -86,15 +86,16 @@ export default function MenuPage() {
         {/* Shortcuts Grid */}
         <div className="grid grid-cols-2 gap-3">
           {menuGrid.map((item) => (
-            <button 
+            <Link 
               key={item.label}
+              href={item.href}
               className="bg-white dark:bg-card p-4 rounded-2xl border border-border shadow-sm flex flex-col items-start gap-3 transition-all hover:shadow-md active:scale-95 text-left group"
             >
               <div className={cn("p-2.5 rounded-xl transition-transform group-hover:scale-110", item.bg)}>
                 <item.icon className={cn("h-6 w-6", item.color)} />
               </div>
               <span className="font-bold text-sm">{item.label}</span>
-            </button>
+            </Link>
           ))}
         </div>
 
@@ -116,7 +117,7 @@ export default function MenuPage() {
                   { label: "Account Center", icon: Smartphone },
                   { label: "Language", icon: Info }
                 ].map((sub) => (
-                  <button key={sub.label} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 transition-colors font-medium">
+                  <button key={sub.label} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 transition-colors font-medium text-left">
                     <sub.icon className="h-4 w-4 text-muted-foreground" />
                     {sub.label}
                   </button>
@@ -140,7 +141,7 @@ export default function MenuPage() {
                   { label: "Help Center", icon: HelpCircle },
                   { label: "Report a Problem", icon: Info }
                 ].map((sub) => (
-                  <button key={sub.label} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 transition-colors font-medium">
+                  <button key={sub.label} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/50 transition-colors font-medium text-left">
                     <sub.icon className="h-4 w-4 text-muted-foreground" />
                     {sub.label}
                   </button>
@@ -152,13 +153,13 @@ export default function MenuPage() {
 
         {/* Action List */}
         <div className="space-y-2 pb-10">
-          <button className="w-full bg-white dark:bg-card p-4 rounded-2xl border border-border shadow-sm flex items-center gap-3 transition-all hover:bg-secondary/20 group">
+          <button className="w-full bg-white dark:bg-card p-4 rounded-2xl border border-border shadow-sm flex items-center gap-3 transition-all hover:bg-secondary/20 group text-left">
             <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg group-hover:scale-110 transition-transform">
               <UserPlus className="h-5 w-5 text-slate-600 dark:text-slate-400" />
             </div>
             <span className="font-bold text-base">Add Account</span>
           </button>
-          <button className="w-full bg-white dark:bg-card p-4 rounded-2xl border border-border shadow-sm flex items-center gap-3 transition-all hover:bg-destructive/10 group">
+          <button className="w-full bg-white dark:bg-card p-4 rounded-2xl border border-border shadow-sm flex items-center gap-3 transition-all hover:bg-destructive/10 group text-left">
             <div className="p-2 bg-destructive/10 rounded-lg group-hover:scale-110 transition-transform">
               <LogOut className="h-5 w-5 text-destructive" />
             </div>
