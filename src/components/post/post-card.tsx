@@ -111,6 +111,7 @@ export function PostCard({
   const [isPollExpanded, setIsPollExpanded] = useState(false);
 
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressActive = useRef(false);
   const { toast } = useToast();
 
   const allImages = useMemo(() => {
@@ -121,10 +122,12 @@ export function PostCard({
 
   const handleLike = () => {
     if (activeReaction) {
+      // If we had a specific reaction, remove it and the like
       setActiveReaction(null);
       setLikeCount(prev => prev - 1);
       setIsLiked(false);
     } else {
+      // Normal quick toggle
       const newLikedState = !isLiked;
       setIsLiked(newLikedState);
       setLikeCount(prev => newLikedState ? prev + 1 : prev - 1);
@@ -132,21 +135,26 @@ export function PostCard({
   };
 
   const handlePressStart = (e: React.MouseEvent | React.TouchEvent) => {
+    isLongPressActive.current = false;
     longPressTimer.current = setTimeout(() => {
       setShowReactions(true);
-      longPressTimer.current = null;
-    }, 800); // 800ms feels more responsive than a full second
+      isLongPressActive.current = true;
+    }, 800); 
   };
 
   const handlePressEnd = (e: React.MouseEvent | React.TouchEvent) => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
-      // It was a quick press, handle the like
-      if (!showReactions) {
-        handleLike();
-      }
     }
+
+    // Only trigger quick like if it wasn't a long press
+    if (!isLongPressActive.current && !showReactions) {
+      handleLike();
+    }
+    
+    // Reset long press state for next time
+    isLongPressActive.current = false;
   };
 
   const handleCancelPress = () => {
@@ -163,6 +171,7 @@ export function PostCard({
     setActiveReaction(type);
     setIsLiked(true);
     setShowReactions(false);
+    toast({ description: `Reacted with ${type}` });
   };
 
   const handleTranslate = async () => {
@@ -190,6 +199,7 @@ export function PostCard({
       newOptions[index] = { ...newOptions[index], votes: newOptions[index].votes - 1 };
       newTotal -= 1;
       setUserVote(null);
+      toast({ description: "Vote removed" });
     } else {
       if (userVote !== null) {
         newOptions[userVote] = { ...newOptions[userVote], votes: newOptions[userVote].votes - 1 };
@@ -198,6 +208,7 @@ export function PostCard({
       newOptions[index] = { ...newOptions[index], votes: newOptions[index].votes + 1 };
       newTotal += 1;
       setUserVote(index);
+      toast({ description: "Vote recorded" });
     }
     setLocalPollOptions(newOptions);
     setLocalTotalVotes(newTotal);
@@ -626,13 +637,11 @@ export function PostCard({
   );
 }
 
+// Custom Reaction Icons as SVGs for better personality
 function Laugh(props: any) {
   return (
     <svg
       {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -645,16 +654,13 @@ function Laugh(props: any) {
       <line x1="9" x2="9.01" y1="9" y2="9" />
       <line x1="15" x2="15.01" y1="9" y2="9" />
     </svg>
-  )
+  );
 }
 
 function Wow(props: any) {
   return (
     <svg
       {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -667,16 +673,13 @@ function Wow(props: any) {
       <line x1="9" x2="9.01" y1="9" y2="9" />
       <line x1="15" x2="15.01" y1="9" y2="9" />
     </svg>
-  )
+  );
 }
 
 function Sad(props: any) {
   return (
     <svg
       {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -689,5 +692,5 @@ function Sad(props: any) {
       <line x1="9" x2="9.01" y1="9" y2="9" />
       <line x1="15" x2="15.01" y1="9" y2="9" />
     </svg>
-  )
+  );
 }
