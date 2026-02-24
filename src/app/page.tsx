@@ -26,6 +26,22 @@ const mockPosts = [
       "https://picsum.photos/seed/multi1/800/600",
       "https://picsum.photos/seed/multi2/800/600",
       "https://picsum.photos/seed/multi3/800/600"
+    ],
+    initialComments: [
+      {
+        id: "c1",
+        user: { name: "Alex Rivera", avatar: "https://picsum.photos/seed/1/100/100" },
+        text: "The aesthetic is indeed amazing! Love the carousel.",
+        time: "2m",
+        replies: [
+          {
+            id: "r1",
+            user: { name: "Julianne Moore", avatar: "https://picsum.photos/seed/50/200/200" },
+            text: "Thanks Alex! Glad you like it.",
+            time: "1m"
+          }
+        ]
+      }
     ]
   },
   {
@@ -36,12 +52,20 @@ const mockPosts = [
       avatar: "https://picsum.photos/seed/51/200/200",
       isOnline: false
     },
-    content: "The AI post enhancement tool on ViMore is a game changer for content creators. Suggesting hashtags and summaries in real-time is so efficient! 🚀",
-    image: "https://picsum.photos/seed/52/800/600",
+    content: "What should my next deep-dive tech video be about? Vote below! 🚀",
     time: "22m",
     likes: 156,
     comments: 12,
-    hashtags: ["GenAI", "Productivity"]
+    hashtags: ["GenAI", "Productivity"],
+    poll: {
+      question: "Next Video Topic?",
+      options: [
+        { text: "Llama 3 Local Setup", votes: 45 },
+        { text: "Next.js 15 Server Actions", votes: 89 },
+        { text: "WebGPU in the Browser", votes: 32 }
+      ],
+      totalVotes: 166
+    }
   },
   {
     id: "3",
@@ -56,7 +80,8 @@ const mockPosts = [
     time: "1h",
     likes: 89,
     comments: 8,
-    hashtags: ["BuildingInPublic", "Developer"]
+    hashtags: ["BuildingInPublic", "Developer"],
+    feeling: { emoji: "🚀", text: "Productive" }
   }
 ];
 

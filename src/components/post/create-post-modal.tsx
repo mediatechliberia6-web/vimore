@@ -17,14 +17,16 @@ import {
   ChevronLeft,
   Lock,
   Users,
-  X
+  X,
+  ListTodo,
+  PlusSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { aiSuggestHashtags, aiSummarizePost } from "@/app/actions/ai";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -36,6 +38,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Image from "next/image";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { Input } from "@/components/ui/input";
 
 interface CreatePostModalProps {
   children: React.ReactNode;
@@ -60,6 +63,13 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [privacy, setPrivacy] = useState<PrivacySetting>(privacySettings[0]);
   const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
+  
+  // Phase 3 States
+  const [isPollOpen, setIsPollOpen] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollOptions, setPollOptions] = useState(["", ""]);
+  const [feeling, setFeeling] = useState<{ emoji: string; text: string } | null>(null);
+
   const { toast } = useToast();
   
   const CHARACTER_LIMIT = 2000;
@@ -107,6 +117,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setContent("");
     setSuggestedTags([]);
     setSelectedMedia([]);
+    setIsPollOpen(false);
+    setFeeling(null);
   };
 
   const simulateMediaUpload = () => {
@@ -118,11 +130,24 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setSelectedMedia(prev => prev.filter((_, i) => i !== index));
   };
 
+  const addPollOption = () => {
+    if (pollOptions.length < 4) {
+      setPollOptions(prev => [...prev, ""]);
+    }
+  };
+
+  const updatePollOption = (index: number, val: string) => {
+    const newOptions = [...pollOptions];
+    newOptions[index] = val;
+    setPollOptions(newOptions);
+  };
+
   const actionItems = [
     { icon: ImageIcon, label: "Photos/Videos", color: "text-green-500", onClick: simulateMediaUpload },
+    { icon: ListTodo, label: "Create Poll", color: "text-purple-500", onClick: () => setIsPollOpen(!isPollOpen) },
+    { icon: Smile, label: "Feeling/activity", color: "text-yellow-500", onClick: () => setFeeling({ emoji: "😊", text: "Happy" }) },
     { icon: UserPlus, label: "Tag people", color: "text-blue-500" },
     { icon: MapPin, label: "Add location", color: "text-red-500" },
-    { icon: Smile, label: "Feeling/activity", color: "text-yellow-500" },
     { icon: MessageCircle, label: "Get messages", color: "text-blue-400" },
     { icon: Calendar, label: "Create Event", color: "text-red-400" },
     { icon: Video, label: "Go live", color: "text-red-600" },
@@ -134,8 +159,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     { id: 'purple', class: "bg-gradient-to-br from-purple-500 to-purple-800" },
     { id: 'pink', class: "bg-gradient-to-br from-pink-500 to-red-500" },
     { id: 'black', class: "bg-black" },
-    { id: 'mesh', class: "bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-primary" },
-    { id: 'dots', class: "bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] bg-accent" },
   ];
 
   const progress = (content.length / CHARACTER_LIMIT) * 100;
@@ -148,7 +171,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       </DialogTrigger>
       
       <DialogContent className="max-w-none w-screen h-[100dvh] m-0 rounded-none border-none flex flex-col p-0 gap-0 overflow-hidden bg-white dark:bg-background translate-x-0 translate-y-0 left-0 top-0" aria-describedby="create-post-description">
-        <div id="create-post-description" className="sr-only">Interface to create a new post with text, media, and AI tools.</div>
+        <DialogTitle className="sr-only">Create a New Post</DialogTitle>
+        <DialogDescription className="sr-only">Interface to compose text, add media, create polls, and use AI tools for a new social media post.</DialogDescription>
         
         {/* Header */}
         <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0 bg-white dark:bg-card">
@@ -163,8 +187,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           <DialogClose asChild>
             <Button 
               variant="ghost" 
-              className={cn("font-bold text-primary text-base", (!content.trim() && selectedMedia.length === 0 || isOverLimit) && "opacity-50")}
-              disabled={(!content.trim() && selectedMedia.length === 0) || isOverLimit}
+              className={cn("font-bold text-primary text-base", (!content.trim() && selectedMedia.length === 0 && !pollQuestion || isOverLimit) && "opacity-50")}
+              disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit}
               onClick={handlePost}
               aria-label="Submit post"
             >
@@ -182,7 +206,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               <AvatarFallback>JD</AvatarFallback>
             </Avatar>
             <div className="flex flex-col gap-0.5">
-              <p className="font-bold text-base">John Doe</p>
+              <div className="flex items-center gap-1">
+                <p className="font-bold text-base">John Doe</p>
+                {feeling && <span className="text-xs text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
+              </div>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -193,6 +220,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-64 rounded-xl p-2">
+                  <DialogTitle className="px-2 py-1.5 text-xs font-bold text-muted-foreground uppercase">Select Audience</DialogTitle>
                   {privacySettings.map((item) => (
                     <DropdownMenuItem 
                       key={item.id} 
@@ -215,7 +243,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           <div className="px-4 relative">
             <Textarea 
               placeholder="What's on your mind?" 
-              className="border-none focus-visible:ring-0 text-2xl resize-none p-0 placeholder:text-muted-foreground/50 min-h-[150px] bg-transparent"
+              className="border-none focus-visible:ring-0 text-2xl resize-none p-0 placeholder:text-muted-foreground/50 min-h-[120px] bg-transparent"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               autoFocus
@@ -250,6 +278,40 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               </span>
             </div>
           </div>
+
+          {/* Poll Section (Phase 3) */}
+          {isPollOpen && (
+            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-primary/5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-primary uppercase">Poll Settings</span>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsPollOpen(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <Input 
+                placeholder="Ask a question..." 
+                className="bg-white border-primary/10 rounded-xl"
+                value={pollQuestion}
+                onChange={(e) => setPollQuestion(e.target.value)}
+              />
+              <div className="space-y-2">
+                {pollOptions.map((opt, i) => (
+                  <Input 
+                    key={i}
+                    placeholder={`Option ${i + 1}`}
+                    className="bg-white border-primary/10 rounded-xl"
+                    value={opt}
+                    onChange={(e) => updatePollOption(i, e.target.value)}
+                  />
+                ))}
+                {pollOptions.length < 4 && (
+                  <Button variant="ghost" className="w-full text-xs font-bold text-primary hover:bg-primary/10" onClick={addPollOption}>
+                    <PlusSquare className="h-4 w-4 mr-2" /> Add Option
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Media Strip */}
           {selectedMedia.length > 0 && (
@@ -306,22 +368,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           )}
 
-          {/* Background Picker */}
-          <div className="px-4 py-4 flex items-center gap-3">
-             <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-lg" aria-label="Previous backgrounds">
-                <ChevronLeft className="h-5 w-5 text-muted-foreground" />
-             </Button>
-             <ScrollArea className="w-full whitespace-nowrap">
-                <div className="flex gap-2">
-                  <div className="w-10 h-10 rounded-lg border-2 border-primary/20 bg-white" />
-                  {backgrounds.map((bg) => (
-                    <div key={bg.id} className={cn("w-10 h-10 rounded-lg shrink-0 cursor-pointer", bg.class)} />
-                  ))}
-                </div>
-                <ScrollBar orientation="horizontal" className="hidden" />
-             </ScrollArea>
-          </div>
-
           {/* Action List */}
           <div className="border-t">
             {actionItems.map((item, i) => (
@@ -362,7 +408,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           <DialogClose asChild>
             <Button 
               className="w-full h-12 font-bold text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-none"
-              disabled={(!content.trim() && selectedMedia.length === 0) || isOverLimit}
+              disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit}
               onClick={handlePost}
               aria-label="Post now"
             >
@@ -373,25 +419,4 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       </DialogContent>
     </Dialog>
   );
-}
-
-function PlusSquare(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect width="18" height="18" x="3" y="3" rx="2" />
-      <path d="M8 12h8" />
-      <path d="M12 8v8" />
-    </svg>
-  )
 }

@@ -2,14 +2,35 @@
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
-import { ThumbsUp, MessageCircle, Share2, MoreHorizontal, CheckCircle2, Heart } from "lucide-react";
+import { 
+  ThumbsUp, 
+  MessageCircle, 
+  Share2, 
+  MoreHorizontal, 
+  CheckCircle2, 
+  Heart,
+  Send,
+  CornerDownRight
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+
+interface Comment {
+  id: string;
+  user: {
+    name: string;
+    avatar: string;
+  };
+  text: string;
+  time: string;
+  replies?: Comment[];
+}
 
 interface PostCardProps {
   id: string;
@@ -27,14 +48,35 @@ interface PostCardProps {
   comments: number;
   time: string;
   hashtags?: string[];
+  feeling?: { emoji: string; text: string };
+  poll?: {
+    question: string;
+    options: { text: string; votes: number }[];
+    totalVotes: number;
+  };
+  initialComments?: Comment[];
 }
 
-export function PostCard({ user, content, image, images = [], likes, comments, time, hashtags }: PostCardProps) {
+export function PostCard({ 
+  user, 
+  content, 
+  image, 
+  images = [], 
+  likes, 
+  comments, 
+  time, 
+  hashtags,
+  feeling,
+  poll,
+  initialComments = []
+}: PostCardProps) {
   const [isLiked, setIsLiked] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [likeCount, setLikeCount] = useState(likes);
   const [showReactions, setShowReactions] = useState(false);
   const [activeReaction, setActiveReaction] = useState<string | null>(null);
+  const [showComments, setShowComments] = useState(false);
+  const [commentText, setCommentText] = useState("");
 
   const allImages = useMemo(() => {
     const list = [...images];
@@ -65,12 +107,11 @@ export function PostCard({ user, content, image, images = [], likes, comments, t
     ? content.slice(0, TRUNCATE_LIMIT) + "..." 
     : content;
 
-  // Simple Link Preview Simulation
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const foundUrl = content.match(urlRegex)?.[0];
 
   return (
-    <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-card mb-4 ring-1 ring-black/5 dark:ring-white/5">
+    <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-card mb-4 ring-1 ring-black/5 dark:ring-white/5 transition-colors">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -85,6 +126,11 @@ export function PostCard({ user, content, image, images = [], likes, comments, t
           <div className="flex flex-col">
             <div className="flex items-center gap-1">
               <span className="font-bold text-sm hover:underline cursor-pointer">{user.name}</span>
+              {feeling && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  is {feeling.emoji} {feeling.text}
+                </span>
+              )}
               {user.isVerified && <CheckCircle2 className="h-3 w-3 text-primary fill-primary text-white" />}
             </div>
             <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -125,6 +171,31 @@ export function PostCard({ user, content, image, images = [], likes, comments, t
           </div>
         )}
 
+        {/* Poll Section */}
+        {poll && (
+          <div className="mt-3 p-4 rounded-xl border border-primary/10 bg-primary/5 space-y-3">
+            <h4 className="font-bold text-sm">{poll.question}</h4>
+            <div className="space-y-2">
+              {poll.options.map((option, i) => {
+                const percentage = poll.totalVotes > 0 ? (option.votes / poll.totalVotes) * 100 : 0;
+                return (
+                  <button key={i} className="w-full relative h-10 rounded-lg border border-primary/20 overflow-hidden group hover:border-primary/40 transition-colors">
+                    <div 
+                      className="absolute inset-y-0 left-0 bg-primary/10 transition-all duration-1000" 
+                      style={{ width: `${percentage}%` }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-between px-3 text-sm">
+                      <span className="font-medium">{option.text}</span>
+                      <span className="text-xs font-bold text-primary">{Math.round(percentage)}%</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{poll.totalVotes} votes • Final results</p>
+          </div>
+        )}
+
         {/* Link Preview Simulation */}
         {foundUrl && !allImages.length && (
           <div className="rounded-xl border border-border overflow-hidden bg-secondary/20 cursor-pointer hover:bg-secondary/30 transition-colors">
@@ -154,7 +225,9 @@ export function PostCard({ user, content, image, images = [], likes, comments, t
                     />
                   </div>
                 </DialogTrigger>
-                <DialogContent className="max-w-none w-screen h-screen p-0 bg-black/95 border-none flex items-center justify-center">
+                <DialogContent className="max-w-none w-screen h-screen p-0 bg-black/95 border-none flex flex-col items-center justify-center">
+                  <DialogTitle className="sr-only">Media Preview</DialogTitle>
+                  <DialogDescription className="sr-only">Full screen view of post media</DialogDescription>
                   <div className="relative w-full h-full">
                     <Image src={allImages[0]} alt="Lightbox" fill className="object-contain" />
                   </div>
@@ -171,7 +244,9 @@ export function PostCard({ user, content, image, images = [], likes, comments, t
                             <Image src={img} alt={`Slide ${i}`} fill className="object-cover" />
                           </div>
                         </DialogTrigger>
-                        <DialogContent className="max-w-none w-screen h-screen p-0 bg-black/95 border-none flex items-center justify-center">
+                        <DialogContent className="max-w-none w-screen h-screen p-0 bg-black/95 border-none flex flex-col items-center justify-center">
+                          <DialogTitle className="sr-only">Media Preview - Slide {i + 1}</DialogTitle>
+                          <DialogDescription className="sr-only">Full screen view of carousel image {i + 1}</DialogDescription>
                           <div className="relative w-full h-full">
                             <Image src={img} alt="Lightbox" fill className="object-contain" />
                           </div>
@@ -207,70 +282,139 @@ export function PostCard({ user, content, image, images = [], likes, comments, t
         </div>
       </CardContent>
 
-      <CardFooter className="p-1 px-3 flex items-center justify-between gap-1 relative">
-        {/* Reactions Tray */}
-        {showReactions && (
-          <div 
-            className="absolute bottom-full left-4 mb-2 bg-white dark:bg-card rounded-full shadow-xl border border-border p-1.5 flex gap-2 animate-in slide-in-from-bottom-2 duration-200 z-50"
-            onMouseLeave={() => setShowReactions(false)}
+      <CardFooter className="p-1 px-3 flex flex-col gap-1 relative">
+        <div className="flex items-center justify-between gap-1 w-full">
+          {/* Reactions Tray */}
+          {showReactions && (
+            <div 
+              className="absolute bottom-full left-4 mb-2 bg-white dark:bg-card rounded-full shadow-xl border border-border p-1.5 flex gap-2 animate-in slide-in-from-bottom-2 duration-200 z-50"
+              onMouseLeave={() => setShowReactions(false)}
+            >
+              {[
+                { type: 'like', icon: ThumbsUp, color: 'text-primary' },
+                { type: 'love', icon: Heart, color: 'text-red-500' },
+                { type: 'laugh', icon: Laugh, color: 'text-yellow-500' },
+                { type: 'wow', icon: Wow, color: 'text-blue-500' },
+                { type: 'sad', icon: Sad, color: 'text-orange-500' },
+              ].map((reaction) => {
+                const Icon = reaction.icon;
+                return (
+                  <button
+                    key={reaction.type}
+                    onClick={() => handleReaction(reaction.type)}
+                    className={cn("p-2 rounded-full hover:bg-secondary hover:scale-125 transition-all", reaction.color)}
+                  >
+                    <Icon className="h-5 w-5 fill-current" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className={cn(
+              "flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors", 
+              isLiked && "text-primary"
+            )}
+            onClick={handleLike}
+            onMouseEnter={() => setShowReactions(true)}
+            aria-label={isLiked ? "Unlike post" : "Like post"}
           >
-            {[
-              { type: 'like', icon: ThumbsUp, color: 'text-primary' },
-              { type: 'love', icon: Heart, color: 'text-red-500' },
-              { type: 'laugh', icon: Laugh, color: 'text-yellow-500' },
-              { type: 'wow', icon: Wow, color: 'text-blue-500' },
-              { type: 'sad', icon: Sad, color: 'text-orange-500' },
-            ].map((reaction) => {
-              const Icon = reaction.icon;
-              return (
-                <button
-                  key={reaction.type}
-                  onClick={() => handleReaction(reaction.type)}
-                  className={cn("p-2 rounded-full hover:bg-secondary hover:scale-125 transition-all", reaction.color)}
-                >
-                  <Icon className="h-5 w-5 fill-current" />
-                </button>
-              );
-            })}
+            {activeReaction === 'love' ? <Heart className="h-4 w-4 fill-red-500 text-red-500" /> :
+             activeReaction === 'laugh' ? <Laugh className="h-4 w-4 text-yellow-500" /> :
+             activeReaction === 'wow' ? <Wow className="h-4 w-4 text-blue-500" /> :
+             activeReaction === 'sad' ? <Sad className="h-4 w-4 text-orange-500" /> :
+             <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />}
+            {activeReaction ? activeReaction.charAt(0).toUpperCase() + activeReaction.slice(1) : 'Like'}
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors"
+            aria-label="Comment on post"
+            onClick={() => setShowComments(!showComments)}
+          >
+            <MessageCircle className="h-4 w-4" />
+            Comment
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors"
+            aria-label="Share post"
+          >
+            <Share2 className="h-4 w-4" />
+            Share
+          </Button>
+        </div>
+
+        {/* Comment Section (Phase 3) */}
+        {showComments && (
+          <div className="w-full pt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src="https://picsum.photos/seed/me/100/100" />
+                <AvatarFallback>JD</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 bg-secondary/30 rounded-full px-4 py-2 flex items-center gap-2">
+                <Input 
+                  placeholder="Write a comment..." 
+                  className="bg-transparent border-none focus-visible:ring-0 h-7 text-xs p-0"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                />
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-primary">
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-4 pl-2">
+              {initialComments.map((comment) => (
+                <div key={comment.id} className="space-y-2">
+                  <div className="flex gap-2">
+                    <Avatar className="h-8 w-8 mt-0.5">
+                      <AvatarImage src={comment.user.avatar} />
+                      <AvatarFallback>{comment.user.name[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col gap-1">
+                      <div className="bg-secondary/20 rounded-2xl p-3">
+                        <p className="text-[11px] font-bold">{comment.user.name}</p>
+                        <p className="text-[11px] leading-relaxed">{comment.text}</p>
+                      </div>
+                      <div className="flex gap-4 pl-2 text-[10px] font-bold text-muted-foreground">
+                        <button className="hover:text-primary">Like</button>
+                        <button className="hover:text-primary">Reply</button>
+                        <span>{comment.time}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {comment.replies?.map((reply) => (
+                    <div key={reply.id} className="flex gap-2 pl-10">
+                      <Avatar className="h-6 w-6 mt-0.5">
+                        <AvatarImage src={reply.user.avatar} />
+                        <AvatarFallback>{reply.user.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col gap-1">
+                        <div className="bg-secondary/10 rounded-2xl p-2.5">
+                          <p className="text-[10px] font-bold">{reply.user.name}</p>
+                          <p className="text-[10px] leading-relaxed">{reply.text}</p>
+                        </div>
+                        <div className="flex gap-4 pl-2 text-[10px] font-bold text-muted-foreground">
+                          <button className="hover:text-primary">Like</button>
+                          <span>{reply.time}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         )}
-
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className={cn(
-            "flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors", 
-            isLiked && "text-primary"
-          )}
-          onClick={handleLike}
-          onMouseEnter={() => setShowReactions(true)}
-          aria-label={isLiked ? "Unlike post" : "Like post"}
-        >
-          {activeReaction === 'love' ? <Heart className="h-4 w-4 fill-red-500 text-red-500" /> :
-           activeReaction === 'laugh' ? <Laugh className="h-4 w-4 text-yellow-500" /> :
-           activeReaction === 'wow' ? <Wow className="h-4 w-4 text-blue-500" /> :
-           activeReaction === 'sad' ? <Sad className="h-4 w-4 text-orange-500" /> :
-           <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />}
-          {activeReaction ? activeReaction.charAt(0).toUpperCase() + activeReaction.slice(1) : 'Like'}
-        </Button>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors"
-          aria-label="Comment on post"
-        >
-          <MessageCircle className="h-4 w-4" />
-          Comment
-        </Button>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="flex-1 gap-2 rounded-md h-9 text-muted-foreground hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors"
-          aria-label="Share post"
-        >
-          <Share2 className="h-4 w-4" />
-          Share
-        </Button>
       </CardFooter>
     </Card>
   );
