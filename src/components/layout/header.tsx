@@ -26,16 +26,16 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2">
-        <Link href="/messages">
-          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
-            <MessageCircle className="h-5 w-5" />
-          </Button>
-        </Link>
         <CreatePostModal>
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
             <Plus className="h-5 w-5" />
           </Button>
         </CreatePostModal>
+        <Link href="/messages">
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
+            <MessageCircle className="h-5 w-5" />
+          </Button>
+        </Link>
         <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 relative">
           <Bell className="h-5 w-5" />
           <span className="absolute top-1 right-1 w-4 h-4 bg-destructive text-white text-[10px] flex items-center justify-center rounded-full font-bold">2</span>
