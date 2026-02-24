@@ -16,7 +16,8 @@ import {
   ListTodo,
   PlusSquare,
   Clapperboard,
-  Play
+  Play,
+  Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -57,6 +58,26 @@ const mockFriends = [
   { name: "Marcus Stone", avatar: "https://picsum.photos/seed/3/100/100" },
 ];
 
+const feelings = [
+  { emoji: "😊", text: "Happy" },
+  { emoji: "😇", text: "Blessed" },
+  { emoji: "🤩", text: "Excited" },
+  { emoji: "🥰", text: "Loved" },
+  { emoji: "😎", text: "Cool" },
+  { emoji: "🤔", text: "Thinking" },
+  { emoji: "😴", text: "Tired" },
+  { emoji: "🥳", text: "Celebrating" },
+];
+
+const locations = [
+  "San Francisco, CA",
+  "New York, NY",
+  "London, UK",
+  "Tokyo, Japan",
+  "Paris, France",
+  "Remote World",
+];
+
 export function CreatePostModal({ children }: CreatePostModalProps) {
   const [content, setContent] = useState("");
   const [privacy, setPrivacy] = useState<PrivacySetting>(privacySettings[0]);
@@ -67,7 +88,11 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [feeling, setFeeling] = useState<{ emoji: string; text: string } | null>(null);
+  const [location, setLocation] = useState<string | null>(null);
   const [isTagging, setIsTagging] = useState(false);
+  
+  const [showFeelingSelector, setShowFeelingSelector] = useState(false);
+  const [showLocationSelector, setShowLocationSelector] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -101,34 +126,20 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setMediaType(null);
     setIsPollOpen(false);
     setFeeling(null);
+    setLocation(null);
   };
 
   const handlePhotoUploadClick = () => {
     if (isPollOpen) {
-      toast({ 
-        title: "Incompatible content", 
-        description: "You cannot add photos to a poll.",
-        variant: "destructive"
-      });
+      toast({ title: "Incompatible content", description: "You cannot add photos to a poll.", variant: "destructive" });
       return;
     }
-    
     if (mediaType === 'video') {
-      toast({ 
-        title: "Selection cleared", 
-        description: "Removing video to add photos.",
-        variant: "default"
-      });
       setSelectedMedia([]);
       setMediaType(null);
     }
-    
     if (selectedMedia.length >= MAX_PHOTOS) {
-      toast({ 
-        title: "Limit reached", 
-        description: `You can only upload up to ${MAX_PHOTOS} photos.`,
-        variant: "destructive"
-      });
+      toast({ title: "Limit reached", description: `You can only upload up to ${MAX_PHOTOS} photos.`, variant: "destructive" });
       return;
     }
     fileInputRef.current?.click();
@@ -136,31 +147,12 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
   const handleVideoUploadClick = () => {
     if (isPollOpen) {
-      toast({ 
-        title: "Incompatible content", 
-        description: "You cannot add a video to a poll.",
-        variant: "destructive"
-      });
+      toast({ title: "Incompatible content", description: "You cannot add a video to a poll.", variant: "destructive" });
       return;
     }
-
     if (mediaType === 'image' && selectedMedia.length > 0) {
-      toast({ 
-        title: "Selection cleared", 
-        description: "Removing photos to add a video.",
-        variant: "default"
-      });
       setSelectedMedia([]);
       setMediaType(null);
-    }
-    
-    if (selectedMedia.length >= 1 && mediaType === 'video') {
-      toast({ 
-        title: "Limit reached", 
-        description: "You can only upload 1 video per post.",
-        variant: "destructive"
-      });
-      return;
     }
     videoInputRef.current?.click();
   };
@@ -168,19 +160,9 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-
     setMediaType('image');
     const remainingSlots = MAX_PHOTOS - selectedMedia.length;
     const filesArray = Array.from(files).slice(0, remainingSlots);
-    
-    if (files.length > remainingSlots) {
-      toast({
-        title: "Some photos skipped",
-        description: `You can only have ${MAX_PHOTOS} photos total per post.`,
-        variant: "destructive"
-      });
-    }
-
     filesArray.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -189,64 +171,39 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       };
       reader.readAsDataURL(file);
     });
-
     e.target.value = "";
   };
 
   const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setMediaType('video');
     setSelectedMedia([]); 
-
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result as string;
       setSelectedMedia([base64String]);
     };
     reader.readAsDataURL(file);
-
     e.target.value = "";
   };
 
   const removeMedia = (index: number) => {
     const updated = selectedMedia.filter((_, i) => i !== index);
     setSelectedMedia(updated);
-    if (updated.length === 0) {
-      setMediaType(null);
-    }
+    if (updated.length === 0) setMediaType(null);
   };
 
   const togglePoll = () => {
     if (selectedMedia.length > 0) {
-      toast({ 
-        title: "Incompatible content", 
-        description: "You cannot add a poll to a post that already has photos or videos.",
-        variant: "destructive"
-      });
+      toast({ title: "Incompatible content", description: "You cannot add a poll to a post that already has media.", variant: "destructive" });
       return;
     }
     setIsPollOpen(!isPollOpen);
   };
 
-  const addPollOption = () => {
-    if (pollOptions.length < MAX_POLL_OPTIONS) {
-      setPollOptions(prev => [...prev, ""]);
-    }
-  };
-
-  const updatePollOption = (index: number, val: string) => {
-    const newOptions = [...pollOptions];
-    newOptions[index] = val;
-    setPollOptions(newOptions);
-  };
-
-  const removePollOption = (index: number) => {
-    if (pollOptions.length > 2) {
-      setPollOptions(prev => prev.filter((_, i) => i !== index));
-    }
-  };
+  const progress = (content.length / CHARACTER_LIMIT) * 100;
+  const isOverLimit = content.length > CHARACTER_LIMIT;
 
   const actionItems = [
     { 
@@ -274,7 +231,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       icon: Smile, 
       label: "Feeling/activity", 
       color: "text-yellow-500", 
-      onClick: () => setFeeling({ emoji: "😊", text: "Happy" }) 
+      onClick: () => {
+        setShowFeelingSelector(true);
+        setShowLocationSelector(false);
+      } 
     },
     { 
       icon: UserPlus, 
@@ -285,12 +245,13 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     { 
       icon: MapPin, 
       label: "Add location", 
-      color: "text-red-500" 
+      color: "text-red-500",
+      onClick: () => {
+        setShowLocationSelector(true);
+        setShowFeelingSelector(false);
+      } 
     },
   ];
-
-  const progress = (content.length / CHARACTER_LIMIT) * 100;
-  const isOverLimit = content.length > CHARACTER_LIMIT;
 
   return (
     <Dialog>
@@ -300,23 +261,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       
       <DialogContent className="max-w-none w-screen h-[100dvh] m-0 rounded-none border-none flex flex-col p-0 gap-0 overflow-hidden bg-white dark:bg-background translate-x-0 translate-y-0 left-0 top-0" aria-describedby="create-post-description">
         <DialogTitle className="sr-only">Create a New Post</DialogTitle>
-        <DialogDescription className="sr-only" id="create-post-description">Interface to compose text, upload photos (up to 6) or a single video from device, add polls, and tagging for a new social media post.</DialogDescription>
+        <DialogDescription className="sr-only" id="create-post-description">Interface to compose text, upload media, add polls, feelings, and locations.</DialogDescription>
         
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          className="hidden" 
-          multiple 
-          accept="image/*" 
-          onChange={handleFileChange}
-        />
-        <input 
-          type="file" 
-          ref={videoInputRef} 
-          className="hidden" 
-          accept="video/*" 
-          onChange={handleVideoFileChange}
-        />
+        <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={handleFileChange} />
+        <input type="file" ref={videoInputRef} className="hidden" accept="video/*" onChange={handleVideoFileChange} />
 
         <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0 bg-white dark:bg-card">
           <div className="flex items-center gap-4">
@@ -333,7 +281,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               className={cn("font-bold text-primary text-base", (!content.trim() && selectedMedia.length === 0 && !pollQuestion || isOverLimit) && "opacity-50")}
               disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit}
               onClick={handlePost}
-              aria-label="Submit post"
             >
               POST
             </Button>
@@ -347,14 +294,15 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               <AvatarFallback>JD</AvatarFallback>
             </Avatar>
             <div className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1">
                 <p className="font-bold text-base">John Doe</p>
-                {feeling && <span className="text-xs text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
+                {feeling && <span className="text-[13px] text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
+                {location && <span className="text-[13px] text-muted-foreground">— in <span className="font-bold text-foreground">{location}</span></span>}
               </div>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="secondary" size="sm" className="h-7 px-2 bg-secondary/60 rounded-md flex items-center gap-1.5" aria-label={`Privacy: ${privacy.label}`}>
+                  <Button variant="secondary" size="sm" className="h-7 px-2 bg-secondary/60 rounded-md flex items-center gap-1.5">
                     <privacy.icon className="h-3.5 w-3.5" />
                     <span className="text-[13px] font-bold">{privacy.label}</span>
                     <ChevronDown className="h-3.5 w-3.5" />
@@ -363,15 +311,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                 <DropdownMenuContent align="start" className="w-64 rounded-xl p-2">
                   <div className="px-2 py-1.5 text-xs font-bold text-muted-foreground uppercase">Select Audience</div>
                   {privacySettings.map((item) => (
-                    <DropdownMenuItem 
-                      key={item.id} 
-                      className="flex flex-col items-start gap-0.5 py-3 cursor-pointer"
-                      onClick={() => setPrivacy(item)}
-                    >
-                      <div className="flex items-center gap-2 font-bold text-sm">
-                        <item.icon className="h-4 w-4" />
-                        {item.label}
-                      </div>
+                    <DropdownMenuItem key={item.id} className="flex flex-col items-start gap-0.5 py-3 cursor-pointer" onClick={() => setPrivacy(item)}>
+                      <div className="flex items-center gap-2 font-bold text-sm"><item.icon className="h-4 w-4" />{item.label}</div>
                       <span className="text-[10px] text-muted-foreground ml-6">{item.description}</span>
                     </DropdownMenuItem>
                   ))}
@@ -387,22 +328,14 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               autoFocus
-              aria-label="Post content"
             />
             
             {isTagging && (
               <div className="absolute top-full left-4 right-4 z-50 mt-1 bg-white dark:bg-card border rounded-xl shadow-xl p-2 animate-in fade-in slide-in-from-top-2">
                 <p className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mention Friends</p>
                 {mockFriends.map((friend) => (
-                  <button
-                    key={friend.name}
-                    className="w-full flex items-center gap-3 p-2 hover:bg-secondary rounded-lg transition-colors"
-                    onClick={() => handleMention(friend)}
-                  >
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={friend.avatar} />
-                      <AvatarFallback>{friend.name[0]}</AvatarFallback>
-                    </Avatar>
+                  <button key={friend.name} className="w-full flex items-center gap-3 p-2 hover:bg-secondary rounded-lg transition-colors" onClick={() => handleMention(friend)}>
+                    <Avatar className="h-8 w-8"><AvatarImage src={friend.avatar} /><AvatarFallback>{friend.name[0]}</AvatarFallback></Avatar>
                     <span className="font-bold text-sm">{friend.name}</span>
                   </button>
                 ))}
@@ -412,68 +345,104 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             <div className="absolute bottom-2 right-4 flex items-center gap-2">
               <div className="relative w-6 h-6">
                 <svg className="w-full h-full" viewBox="0 0 36 36">
-                  <path
-                    className="text-muted/30"
-                    strokeDasharray="100, 100"
-                    strokeWidth="3"
-                    stroke="currentColor"
-                    fill="none"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
-                  <path
-                    className={cn(isOverLimit ? "text-destructive" : progress > 90 ? "text-yellow-500" : "text-primary")}
-                    strokeDasharray={`${Math.min(progress, 100)}, 100`}
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    stroke="currentColor"
-                    fill="none"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
+                  <path className="text-muted/30" strokeDasharray="100, 100" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  <path className={cn(isOverLimit ? "text-destructive" : progress > 90 ? "text-yellow-500" : "text-primary")} strokeDasharray={`${Math.min(progress, 100)}, 100`} strokeWidth="3" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                 </svg>
               </div>
-              <span className={cn("text-[10px] font-bold", isOverLimit && "text-destructive")}>
-                {CHARACTER_LIMIT - content.length}
-              </span>
+              <span className={cn("text-[10px] font-bold", isOverLimit && "text-destructive")}>{CHARACTER_LIMIT - content.length}</span>
             </div>
           </div>
+
+          {/* New Selector UI for Feeling/Activity */}
+          {showFeelingSelector && (
+            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-white dark:bg-card space-y-3 animate-in fade-in slide-in-from-bottom-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-primary uppercase">How are you feeling?</span>
+                <button onClick={() => setShowFeelingSelector(false)}><X className="h-4 w-4" /></button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {feelings.map((f) => (
+                  <button
+                    key={f.text}
+                    onClick={() => { setFeeling(f); setShowFeelingSelector(false); }}
+                    className={cn(
+                      "flex items-center gap-2 p-2 rounded-xl text-sm transition-all border",
+                      feeling?.text === f.text ? "bg-primary/10 border-primary" : "hover:bg-secondary border-transparent"
+                    )}
+                  >
+                    <span>{f.emoji}</span>
+                    <span className="font-medium">{f.text}</span>
+                  </button>
+                ))}
+              </div>
+              {feeling && (
+                <Button variant="ghost" size="sm" className="w-full text-xs text-destructive font-bold" onClick={() => { setFeeling(null); setShowFeelingSelector(false); }}>
+                  Clear feeling
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* New Selector UI for Location */}
+          {showLocationSelector && (
+            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-white dark:bg-card space-y-3 animate-in fade-in slide-in-from-bottom-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-primary uppercase">Add Location</span>
+                <button onClick={() => setShowLocationSelector(false)}><X className="h-4 w-4" /></button>
+              </div>
+              <Input 
+                placeholder="Search or enter location..." 
+                className="rounded-xl"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setLocation((e.target as HTMLInputElement).value);
+                    setShowLocationSelector(false);
+                  }
+                }}
+              />
+              <div className="space-y-1">
+                {locations.map((loc) => (
+                  <button
+                    key={loc}
+                    onClick={() => { setLocation(loc); setShowLocationSelector(false); }}
+                    className={cn(
+                      "w-full text-left p-2 rounded-lg text-sm transition-all flex items-center justify-between",
+                      location === loc ? "bg-primary/10 font-bold" : "hover:bg-secondary"
+                    )}
+                  >
+                    <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" />{loc}</div>
+                    {location === loc && <Check className="h-4 w-4 text-primary" />}
+                  </button>
+                ))}
+              </div>
+              {location && (
+                <Button variant="ghost" size="sm" className="w-full text-xs text-destructive font-bold" onClick={() => { setLocation(null); setShowLocationSelector(false); }}>
+                  Clear location
+                </Button>
+              )}
+            </div>
+          )}
 
           {isPollOpen && (
             <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-primary/5 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-primary uppercase">Poll Settings</span>
-                <button className="h-6 w-6" onClick={() => setIsPollOpen(false)}>
-                  <X className="h-4 w-4" />
-                </button>
+                <button onClick={() => setIsPollOpen(false)}><X className="h-4 w-4" /></button>
               </div>
-              <Input 
-                placeholder="Ask a question..." 
-                className="bg-white border-primary/10 rounded-xl"
-                value={pollQuestion}
-                onChange={(e) => setPollQuestion(e.target.value)}
-              />
+              <Input placeholder="Ask a question..." className="bg-white border-primary/10 rounded-xl" value={pollQuestion} onChange={(e) => setPollQuestion(e.target.value)} />
               <div className="space-y-2">
                 {pollOptions.map((opt, i) => (
                   <div key={i} className="flex gap-2 items-center">
-                    <Input 
-                      placeholder={`Option ${i + 1}`}
-                      className="bg-white border-primary/10 rounded-xl flex-1"
-                      value={opt}
-                      onChange={(e) => updatePollOption(i, e.target.value)}
-                    />
-                    {pollOptions.length > 2 && (
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-muted-foreground"
-                        onClick={() => removePollOption(i)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <Input placeholder={`Option ${i + 1}`} className="bg-white border-primary/10 rounded-xl flex-1" value={opt} onChange={(e) => {
+                      const newOptions = [...pollOptions];
+                      newOptions[i] = e.target.value;
+                      setPollOptions(newOptions);
+                    }} />
+                    {pollOptions.length > 2 && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPollOptions(pollOptions.filter((_, idx) => idx !== i))}><X className="h-4 w-4" /></Button>}
                   </div>
                 ))}
                 {pollOptions.length < MAX_POLL_OPTIONS && (
-                  <Button variant="ghost" className="w-full text-xs font-bold text-primary hover:bg-primary/10" onClick={addPollOption}>
+                  <Button variant="ghost" className="w-full text-xs font-bold text-primary" onClick={() => setPollOptions([...pollOptions, ""])}>
                     <PlusSquare className="h-4 w-4 mr-2" /> Add Option ({pollOptions.length}/{MAX_POLL_OPTIONS})
                   </Button>
                 )}
@@ -488,29 +457,16 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                   {selectedMedia.map((url, i) => (
                     <div key={i} className="relative w-32 h-32 rounded-lg overflow-hidden shrink-0 border border-primary/10 bg-black flex items-center justify-center">
                       {mediaType === 'video' ? (
-                        <>
-                          <video src={url} className="object-cover w-full h-full opacity-60" />
-                          <Play className="absolute h-8 w-8 text-white fill-white/20" />
-                        </>
+                        <><video src={url} className="object-cover w-full h-full opacity-60" /><Play className="absolute h-8 w-8 text-white fill-white/20" /></>
                       ) : (
                         <Image src={url} alt={`Preview ${i}`} fill className="object-cover" />
                       )}
-                      <button 
-                        onClick={() => removeMedia(i)}
-                        className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors z-10"
-                        aria-label="Remove media"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
+                      <button onClick={() => removeMedia(i)} className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 z-10"><X className="h-3 w-3" /></button>
                     </div>
                   ))}
                   {mediaType === 'image' && selectedMedia.length < MAX_PHOTOS && !isPollOpen && (
-                    <button 
-                      onClick={handlePhotoUploadClick}
-                      className="w-32 h-32 rounded-lg border-2 border-dashed border-primary/20 flex flex-col items-center justify-center gap-2 hover:bg-primary/5 transition-colors text-muted-foreground"
-                    >
-                      <PlusSquare className="h-6 w-6" />
-                      <span className="text-[10px] font-bold">Add More ({MAX_PHOTOS - selectedMedia.length})</span>
+                    <button onClick={handlePhotoUploadClick} className="w-32 h-32 rounded-lg border-2 border-dashed border-primary/20 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:bg-primary/5">
+                      <PlusSquare className="h-6 w-6" /><span className="text-[10px] font-bold">Add More</span>
                     </button>
                   )}
                 </div>
@@ -521,16 +477,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
           <div className="border-t">
             {actionItems.map((item, i) => (
-              <button 
-                key={i} 
-                onClick={item.onClick}
-                disabled={item.disabled}
-                className={cn(
-                  "w-full flex items-center justify-between p-4 transition-colors",
-                  item.disabled ? "opacity-30 cursor-not-allowed" : "hover:bg-secondary/20"
-                )}
-                aria-label={item.label}
-              >
+              <button key={i} onClick={item.onClick} disabled={item.disabled} className={cn("w-full flex items-center justify-between p-4 transition-colors", item.disabled ? "opacity-30 cursor-not-allowed" : "hover:bg-secondary/20")}>
                 <div className="flex items-center gap-4">
                   <item.icon className={cn("h-6 w-6", item.color)} />
                   <span className="text-base font-medium">{item.label}</span>
@@ -542,12 +489,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
         <div className="p-4 bg-white dark:bg-card border-t shrink-0">
           <DialogClose asChild>
-            <Button 
-              className="w-full h-11 font-bold text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-none"
-              disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit}
-              onClick={handlePost}
-              aria-label="Post now"
-            >
+            <Button className="w-full h-11 font-bold text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit} onClick={handlePost}>
               POST
             </Button>
           </DialogClose>
