@@ -5,14 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import Image from "next/image";
 import { Plus } from "lucide-react";
-
-const mockStories = [
-  { id: 2, name: "Alex Rivera", avatar: "https://picsum.photos/seed/1/100/100", image: "https://picsum.photos/seed/s2/200/300" },
-  { id: 3, name: "Sarah Chen", avatar: "https://picsum.photos/seed/2/100/100", image: "https://picsum.photos/seed/s3/200/300" },
-  { id: 4, name: "Marcus Stone", avatar: "https://picsum.photos/seed/3/100/100", image: "https://picsum.photos/seed/s4/200/300" },
-  { id: 5, name: "Elena Gilbert", avatar: "https://picsum.photos/seed/4/100/100", image: "https://picsum.photos/seed/s5/200/300" },
-  { id: 6, name: "Tech Insider", avatar: "https://picsum.photos/seed/10/100/100", image: "https://picsum.photos/seed/s6/200/300" },
-];
+import { usePosts } from "@/context/PostContext";
+import { StoryViewer } from "./story-viewer";
 
 const USER_PROFILE = {
   name: "John Doe",
@@ -20,6 +14,8 @@ const USER_PROFILE = {
 };
 
 export function Stories() {
+  const { stories, setActiveStoryIndex } = usePosts();
+
   return (
     <div className="w-full">
       <ScrollArea className="w-full whitespace-nowrap">
@@ -43,11 +39,15 @@ export function Stories() {
             </div>
           </div>
 
-          {mockStories.map((story) => (
-            <div key={story.id} className="relative w-28 h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-sm hover:shadow-md transition-shadow">
+          {stories.map((story, index) => (
+            <div 
+              key={story.id} 
+              className="relative w-28 h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-sm hover:shadow-md transition-shadow"
+              onClick={() => setActiveStoryIndex(index)}
+            >
               <Image 
-                src={story.image} 
-                alt={story.name} 
+                src={story.segments[0].image} 
+                alt={story.user.name} 
                 fill 
                 className="object-cover transition-transform group-hover:scale-110 duration-500"
               />
@@ -55,18 +55,20 @@ export function Stories() {
               
               <div className="absolute top-2 left-2 border-2 border-primary rounded-full p-0.5 shadow-lg">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={story.avatar} />
-                  <AvatarFallback>{story.name[0]}</AvatarFallback>
+                  <AvatarImage src={story.user.avatar} />
+                  <AvatarFallback>{story.user.name[0]}</AvatarFallback>
                 </Avatar>
               </div>
               <span className="absolute bottom-2 left-2 right-2 text-[10px] font-bold text-white truncate drop-shadow-md">
-                {story.name}
+                {story.user.name}
               </span>
             </div>
           ))}
         </div>
         <ScrollBar orientation="horizontal" className="opacity-0 group-hover:opacity-100 transition-opacity" />
       </ScrollArea>
+
+      <StoryViewer />
     </div>
   );
 }

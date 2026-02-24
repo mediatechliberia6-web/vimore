@@ -12,6 +12,18 @@ export interface User {
   followers?: number;
 }
 
+export interface StorySegment {
+  id: string;
+  image: string;
+  type: 'image' | 'video';
+}
+
+export interface Story {
+  id: string;
+  user: User;
+  segments: StorySegment[];
+}
+
 export interface Post {
   id: string;
   user: User;
@@ -41,10 +53,52 @@ export interface Post {
 
 interface PostContextType {
   posts: Post[];
+  stories: Story[];
+  activeStoryIndex: number | null;
+  setActiveStoryIndex: (index: number | null) => void;
   addPost: (post: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
+
+const initialMockStories: Story[] = [
+  {
+    id: "s1",
+    user: { name: "Alex Rivera", avatar: "https://picsum.photos/seed/1/100/100" },
+    segments: [
+      { id: "seg1", image: "https://picsum.photos/seed/s2/800/1200", type: 'image' },
+      { id: "seg2", image: "https://picsum.photos/seed/s22/800/1200", type: 'image' }
+    ]
+  },
+  {
+    id: "s2",
+    user: { name: "Sarah Chen", avatar: "https://picsum.photos/seed/2/100/100" },
+    segments: [
+      { id: "seg3", image: "https://picsum.photos/seed/s3/800/1200", type: 'image' }
+    ]
+  },
+  {
+    id: "s3",
+    user: { name: "Marcus Stone", avatar: "https://picsum.photos/seed/3/100/100" },
+    segments: [
+      { id: "seg4", image: "https://picsum.photos/seed/s4/800/1200", type: 'image' }
+    ]
+  },
+  {
+    id: "s4",
+    user: { name: "Elena Gilbert", avatar: "https://picsum.photos/seed/4/100/100" },
+    segments: [
+      { id: "seg5", image: "https://picsum.photos/seed/s5/800/1200", type: 'image' }
+    ]
+  },
+  {
+    id: "s5",
+    user: { name: "Tech Insider", avatar: "https://picsum.photos/seed/10/100/100" },
+    segments: [
+      { id: "seg6", image: "https://picsum.photos/seed/s6/800/1200", type: 'image' }
+    ]
+  }
+];
 
 const initialMockPosts: Post[] = [
   {
@@ -133,6 +187,8 @@ const initialMockPosts: Post[] = [
 
 export function PostProvider({ children }: { children: ReactNode }) {
   const [posts, setPosts] = useState<Post[]>(initialMockPosts);
+  const [stories] = useState<Story[]>(initialMockStories);
+  const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
 
   const addPost = (newPostData: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => {
     const newPost: Post = {
@@ -147,7 +203,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <PostContext.Provider value={{ posts, addPost }}>
+    <PostContext.Provider value={{ posts, stories, activeStoryIndex, setActiveStoryIndex, addPost }}>
       {children}
     </PostContext.Provider>
   );
