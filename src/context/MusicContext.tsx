@@ -336,93 +336,108 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     const trackId = track.id;
     const isCurrentlyLiked = likedSongIds.has(trackId);
     const isCurrentlyUnliked = unlikedSongIds.has(trackId);
+    
     triggerHaptic(isCurrentlyLiked ? 5 : 25);
 
-    setLikedSongIds((prev) => {
-      const next = new Set(prev);
-      if (isCurrentlyLiked) {
+    // Flat sequential state updates to avoid React Strict Mode double-calling issues
+    if (isCurrentlyLiked) {
+      setLikedSongIds(prev => {
+        const next = new Set(prev);
         next.delete(trackId);
-        setLikedTracks(prevTracks => prevTracks.filter(t => t.id !== trackId));
-        setTrackStats(s => ({
-          ...s,
-          [trackId]: { ...s[trackId], likes: Math.max(0, (s[trackId]?.likes || 0) - 1) }
-        }));
-      } else {
-        next.add(trackId);
-        setLikedTracks(prevTracks => [track, ...prevTracks]);
-        
-        // Accurate Sync: Inc Likes, if Unliked Dec Unlikes
-        setTrackStats(s => {
-          const current = s[trackId] || { likes: 0, unlikes: 0 };
-          return {
-            ...s,
-            [trackId]: {
-              ...current,
-              likes: current.likes + 1,
-              unlikes: isCurrentlyUnliked ? Math.max(0, current.unlikes - 1) : current.unlikes
-            }
-          };
-        });
-
-        if (isCurrentlyUnliked) {
-          setUnlikedSongIds(prevU => {
-            const nextU = new Set(prevU);
-            nextU.delete(trackId);
-            return nextU;
-          });
+        return next;
+      });
+      setLikedTracks(prev => prev.filter(t => t.id !== trackId));
+      setTrackStats(prev => ({
+        ...prev,
+        [trackId]: { 
+          ...prev[trackId], 
+          likes: Math.max(0, (prev[trackId]?.likes || 0) - 1) 
         }
+      }));
+    } else {
+      setLikedSongIds(prev => {
+        const next = new Set(prev);
+        next.add(trackId);
+        return next;
+      });
+      setLikedTracks(prev => [track, ...prev]);
+      setTrackStats(prev => {
+        const current = prev[trackId] || { likes: 0, unlikes: 0 };
+        return {
+          ...prev,
+          [trackId]: {
+            ...current,
+            likes: current.likes + 1,
+            unlikes: isCurrentlyUnliked ? Math.max(0, current.unlikes - 1) : current.unlikes
+          }
+        };
+      });
+      if (isCurrentlyUnliked) {
+        setUnlikedSongIds(prev => {
+          const next = new Set(prev);
+          next.delete(trackId);
+          return next;
+        });
       }
-      return next;
-    });
+    }
   };
 
   const toggleUnlike = (track: Track) => {
     const trackId = track.id;
     const isCurrentlyUnliked = unlikedSongIds.has(trackId);
     const isCurrentlyLiked = likedSongIds.has(trackId);
+    
     triggerHaptic(isCurrentlyUnliked ? 5 : 15);
 
-    setUnlikedSongIds((prev) => {
-      const next = new Set(prev);
-      if (isCurrentlyUnliked) {
+    if (isCurrentlyUnliked) {
+      setUnlikedSongIds(prev => {
+        const next = new Set(prev);
         next.delete(trackId);
-        setTrackStats(s => ({
-          ...s,
-          [trackId]: { ...s[trackId], unlikes: Math.max(0, (s[trackId]?.unlikes || 0) - 1) }
-        }));
-      } else {
-        next.add(trackId);
-        
-        // Accurate Sync: Inc Unlikes, if Liked Dec Likes
-        setTrackStats(s => {
-          const current = s[trackId] || { likes: 0, unlikes: 0 };
-          return {
-            ...s,
-            [trackId]: {
-              ...current,
-              unlikes: current.unlikes + 1,
-              likes: isCurrentlyLiked ? Math.max(0, current.likes - 1) : current.likes
-            }
-          };
-        });
-
-        if (isCurrentlyLiked) {
-          setLikedSongIds(prevL => {
-            const nextL = new Set(prevL);
-            nextL.delete(trackId);
-            return nextL;
-          });
-          setLikedTracks(prevTracks => prevTracks.filter(t => t.id !== trackId));
+        return next;
+      });
+      setTrackStats(prev => ({
+        ...prev,
+        [trackId]: { 
+          ...prev[trackId], 
+          unlikes: Math.max(0, (prev[trackId]?.unlikes || 0) - 1) 
         }
+      }));
+    } else {
+      setUnlikedSongIds(prev => {
+        const next = new Set(prev);
+        next.add(trackId);
+        return next;
+      });
+      setTrackStats(prev => {
+        const current = prev[trackId] || { likes: 0, unlikes: 0 };
+        return {
+          ...prev,
+          [trackId]: {
+            ...current,
+            unlikes: current.unlikes + 1,
+            likes: isCurrentlyLiked ? Math.max(0, current.likes - 1) : current.likes
+          }
+        };
+      });
+      if (isCurrentlyLiked) {
+        setLikedSongIds(prev => {
+          const next = new Set(prev);
+          next.delete(trackId);
+          return next;
+        });
+        setLikedTracks(prev => prev.filter(t => t.id !== trackId));
       }
-      return next;
-    });
+    }
   };
 
   const simulateDownload = async (track: Track) => {
     if (downloadedSongIds.has(track.id)) return;
     triggerHaptic(10);
-    setDownloadedSongIds(prev => new Set(prev).add(track.id));
+    setDownloadedSongIds(prev => {
+      const next = new Set(prev);
+      next.add(track.id);
+      return next;
+    });
   };
 
   const isTrackLiked = (trackId: string | number) => likedSongIds.has(trackId);
