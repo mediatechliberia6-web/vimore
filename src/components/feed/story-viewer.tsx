@@ -158,7 +158,7 @@ export function StoryViewer() {
 
   const handlePollVote = (e: React.MouseEvent, optionIndex: number) => {
     e.stopPropagation();
-    if (!activeStory || !currentSegment || votedSegmentId === currentSegment.id) return;
+    if (!activeStory || !currentSegment || votedSegmentId === currentSegment.id || isOwner) return;
     
     voteOnStoryPoll(activeStory.id, currentSegment.id, optionIndex);
     setVotedSegmentId(currentSegment.id);
@@ -313,7 +313,7 @@ export function StoryViewer() {
               <div className="space-y-2">
                 {currentSegment.poll.options.map((opt, i) => {
                   const percent = totalPollVotes > 0 ? (opt.votes / totalPollVotes) * 100 : 0;
-                  const isVoted = votedSegmentId === currentSegment.id;
+                  const isVoted = votedSegmentId === currentSegment.id || isOwner;
                   
                   return (
                     <button
@@ -359,45 +359,56 @@ export function StoryViewer() {
           "absolute bottom-0 left-0 right-0 p-6 pt-12 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300",
           isPaused ? "opacity-0" : "opacity-100"
         )}>
-          <div className="flex items-center justify-between mb-4 px-2">
-            {QUICK_REACTIONS.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  addReaction(emoji);
-                }}
-                className="text-2xl hover:scale-125 transition-transform active:scale-95 px-2"
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
+          {!isOwner ? (
+            <>
+              <div className="flex items-center justify-between mb-4 px-2">
+                {QUICK_REACTIONS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      addReaction(emoji);
+                    }}
+                    className="text-2xl hover:scale-125 transition-transform active:scale-95 px-2"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-12 bg-white/10 backdrop-blur-md rounded-full border border-white/20 px-5 flex items-center text-white/60 text-sm transition-colors group">
-              <input 
-                type="text"
-                placeholder={`Reply to ${activeStory.user.name}...`}
-                className="bg-transparent border-none focus:ring-0 w-full placeholder:text-white/40"
-                onClick={(e) => e.stopPropagation()}
-                onFocus={() => setIsPaused(true)}
-                onBlur={() => setIsPaused(false)}
-              />
-              <Send className="h-5 w-5 text-white/40 group-focus-within:text-white cursor-pointer" />
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-12 bg-white/10 backdrop-blur-md rounded-full border border-white/20 px-5 flex items-center text-white/60 text-sm transition-colors group">
+                  <input 
+                    type="text"
+                    placeholder={`Reply to ${activeStory.user.name}...`}
+                    className="bg-transparent border-none focus:ring-0 w-full placeholder:text-white/40"
+                    onClick={(e) => e.stopPropagation()}
+                    onFocus={() => setIsPaused(true)}
+                    onBlur={() => setIsPaused(false)}
+                  />
+                  <Send className="h-5 w-5 text-white/40 group-focus-within:text-white cursor-pointer" />
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="rounded-full h-12 w-12 bg-white/10 border border-white/20 text-white hover:bg-white/20"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    addReaction("❤️");
+                  }}
+                >
+                  <Heart className="h-6 w-6" />
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-2 mb-2 animate-in slide-in-from-bottom-2">
+              <div className="h-1 w-8 bg-white/20 rounded-full mb-2" />
+              <div className="flex items-center gap-2 text-white/40 font-bold text-[10px] uppercase tracking-[0.2em]">
+                <Eye className="h-3 w-3" /> {activeStory.viewCount || 0} Vibe Checks
+              </div>
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="rounded-full h-12 w-12 bg-white/10 border border-white/20 text-white hover:bg-white/20"
-              onClick={(e) => {
-                e.stopPropagation();
-                addReaction("❤️");
-              }}
-            >
-              <Heart className="h-6 w-6" />
-            </Button>
-          </div>
+          )}
         </div>
 
         {/* Navigation Arrows */}
