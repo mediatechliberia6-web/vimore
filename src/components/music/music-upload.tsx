@@ -32,6 +32,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useMusic } from "@/context/MusicContext";
 
 interface TrackSlot {
   id: number;
@@ -48,6 +49,7 @@ const GENRES = ["Afrobeats", "Amapiano", "Hip-Hop", "R&B", "Trap", "Jazz", "Lo-F
 
 export function MusicUpload({ onCancel }: { onCancel: () => void }) {
   const { toast } = useToast();
+  const { triggerHaptic } = useMusic();
   const [step, setStep] = useState<"choice" | "studio">("choice");
   const [projectType, setProjectType] = useState<"single" | "album">("single");
   const [coverArt, setCoverArt] = useState<string | null>(null);
@@ -55,7 +57,6 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
   const [selectedGenre, setSelectedGenre] = useState("");
   const [releaseDate, setReleaseDate] = useState("");
   
-  // Track Rack State
   const [tracks, setTracks] = useState<TrackSlot[]>(
     Array.from({ length: 12 }, (_, i) => ({
       id: i + 1,
@@ -71,10 +72,39 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
 
   const coverInputRef = useRef<HTMLInputElement>(null);
 
+  // Persistence: LOAD draft
+  useEffect(() => {
+    const savedDraft = localStorage.getItem('vimore_studio_draft');
+    if (savedDraft) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        setProjectTitle(draft.projectTitle || "");
+        setSelectedGenre(draft.selectedGenre || "");
+        setReleaseDate(draft.releaseDate || "");
+        if (draft.projectType) {
+          setProjectType(draft.projectType);
+          setStep("studio");
+        }
+        // Metadata only, file blobs are not persisted for performance
+        if (draft.tracks) {
+          setTracks(draft.tracks.map((t: any) => ({ ...t, file: null, fileName: null })));
+        }
+      } catch (e) { console.error("Draft failed to load", e); }
+    }
+  }, []);
+
+  // Persistence: SAVE draft
+  useEffect(() => {
+    if (step === "studio") {
+      const draft = { projectTitle, selectedGenre, releaseDate, projectType, tracks: tracks.map(t => ({ ...t, file: null, fileName: null })) };
+      localStorage.setItem('vimore_studio_draft', JSON.stringify(draft));
+    }
+  }, [projectTitle, selectedGenre, releaseDate, projectType, tracks, step]);
+
   const handleChoice = (type: "single" | "album") => {
+    triggerHaptic(15);
     setProjectType(type);
     setStep("studio");
-    // Reset tracks based on choice
     if (type === "single") {
       setTracks(prev => prev.slice(0, 1));
     }
@@ -83,6 +113,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
   const handleCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      triggerHaptic(10);
       const reader = new FileReader();
       reader.onloadend = () => setCoverArt(reader.result as string);
       reader.readAsDataURL(file);
@@ -96,6 +127,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
   const handleTrackFileUpload = (id: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      triggerHaptic(10);
       updateTrack(id, { 
         fileName: file.name, 
         file: "simulated_blob_url", 
@@ -114,7 +146,6 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
     const uploadedTracks = tracks.filter(t => t.file).length;
     const requiredTracks = projectType === "single" ? 1 : 2;
     
-    // Add track progress
     totalFields += requiredTracks;
     completedFields += Math.min(uploadedTracks, requiredTracks);
 
@@ -125,6 +156,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
 
   const handlePublish = () => {
     if (!isReadyToPublish) {
+      triggerHaptic(50);
       toast({ 
         variant: "destructive", 
         title: "Incomplete Project", 
@@ -133,10 +165,12 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
       return;
     }
 
+    triggerHaptic(100);
     toast({ 
       title: "Project Published!", 
       description: `${projectTitle} is now live on ViMore.` 
     });
+    localStorage.removeItem('vimore_studio_draft');
     onCancel();
   };
 
@@ -198,10 +232,9 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
   return (
     <div className="flex-1 bg-[#050505] min-h-screen text-white flex flex-col relative animate-in slide-in-from-bottom-4 duration-500">
       
-      {/* Sticky Studio Header */}
       <header className="sticky top-0 z-[100] bg-[#0A0A0A]/90 backdrop-blur-xl border-b border-white/5 px-4 h-16 flex items-center justify-between shadow-2xl">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="rounded-full hover:bg-white/5 text-white" onClick={() => setStep("choice")}>
+          <Button variant="ghost" size="icon" className="rounded-full hover:bg-white/5 text-white" onClick={() => { triggerHaptic(5); setStep("choice"); }}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex flex-col">
@@ -224,7 +257,6 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
           </Button>
         </div>
 
-        {/* Readiness Bar */}
         <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/5">
           <div 
             className="h-full bg-primary transition-all duration-500 shadow-[0_0_8px_rgba(153,64,229,0.5)]" 
@@ -235,7 +267,6 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
 
       <main className="flex-1 max-w-2xl mx-auto w-full pb-40">
         
-        {/* Phase 1: Project Visual */}
         <section className="p-4 sm:p-6 space-y-4">
           <div className="flex items-center justify-between">
             <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Project Visual</Label>
@@ -265,7 +296,6 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
           </div>
         </section>
 
-        {/* Phase 2: Essential Metadata */}
         <section className="p-4 sm:p-6 space-y-6">
           <div className="space-y-4">
             <div className="space-y-2">
@@ -284,7 +314,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
                 <div className="relative">
                   <select 
                     value={selectedGenre}
-                    onChange={(e) => setSelectedGenre(e.target.value)}
+                    onChange={(e) => { triggerHaptic(5); setSelectedGenre(e.target.value); }}
                     className="w-full h-14 bg-[#0A0A0A] border border-white/5 rounded-2xl px-4 text-sm font-bold text-white focus:ring-2 ring-primary/20 outline-none appearance-none shadow-inner"
                   >
                     <option value="" disabled>Choose Vibe...</option>
@@ -309,7 +339,6 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
           </div>
         </section>
 
-        {/* Phase 3: The Track Rack */}
         <section className="p-4 sm:p-6 space-y-4">
           <div className="flex items-center justify-between mb-2">
             <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">
@@ -376,7 +405,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
                         variant="ghost" 
                         size="icon" 
                         className={cn("h-9 w-9 rounded-full", track.isExpanded ? "bg-primary text-white" : "text-muted-foreground")}
-                        onClick={() => updateTrack(track.id, { isExpanded: !track.isExpanded })}
+                        onClick={() => { triggerHaptic(5); updateTrack(track.id, { isExpanded: !track.isExpanded }); }}
                       >
                         {track.isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                       </Button>
@@ -384,7 +413,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
                         variant="ghost" 
                         size="icon" 
                         className="h-9 w-9 rounded-full text-muted-foreground hover:text-destructive"
-                        onClick={() => updateTrack(track.id, { file: null, fileName: null, title: "" })}
+                        onClick={() => { triggerHaptic(5); updateTrack(track.id, { file: null, fileName: null, title: "" }); }}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -426,7 +455,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
                       </div>
                       <Switch 
                         checked={track.isExplicit}
-                        onCheckedChange={(val) => updateTrack(track.id, { isExplicit: val })}
+                        onCheckedChange={(val) => { triggerHaptic(5); updateTrack(track.id, { isExplicit: val }); }}
                       />
                     </div>
                   </div>
@@ -436,7 +465,6 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
           </div>
         </section>
 
-        {/* Phase 4: Pre-Flight Checklist */}
         <section className="p-4 sm:p-6 mb-20">
           <div className="bg-[#0A0A0A] rounded-[2.5rem] p-8 border border-white/5 space-y-6 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 blur-3xl rounded-full" />

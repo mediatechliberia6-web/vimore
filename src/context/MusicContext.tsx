@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
@@ -37,7 +36,7 @@ export interface Album {
 export interface Playlist {
   id: string | number;
   title: string;
-  creator: string; // The username of the creator
+  creator: string; 
   cover: string;
   totalStreams: string;
   songs: Track[];
@@ -81,6 +80,7 @@ interface MusicContextType {
   addToQueue: (track: Track) => void;
   createPlaylist: (title: string, firstTrack?: Track) => void;
   addTrackToPlaylist: (playlistId: string | number, track: Track) => void;
+  triggerHaptic: (intensity?: number) => void;
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
@@ -113,6 +113,47 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
 
+  // Haptic utility
+  const triggerHaptic = (intensity: number = 10) => {
+    if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(intensity);
+    }
+  };
+
+  // LOAD from LocalStorage
+  useEffect(() => {
+    const savedLikes = localStorage.getItem('vimore_liked_tracks');
+    const savedPlaylists = localStorage.getItem('vimore_user_playlists');
+    
+    if (savedLikes) {
+      try {
+        const parsedLikes = JSON.parse(savedLikes) as Track[];
+        setLikedTracks(parsedLikes);
+        setLikedSongIds(new Set(parsedLikes.map(t => t.id)));
+      } catch (e) { console.error("Failed to load likes", e); }
+    }
+    
+    if (savedPlaylists) {
+      try {
+        const parsedPlaylists = JSON.parse(savedPlaylists) as Playlist[];
+        setUserPlaylists(parsedPlaylists);
+      } catch (e) { console.error("Failed to load playlists", e); }
+    }
+  }, []);
+
+  // SAVE to LocalStorage
+  useEffect(() => {
+    if (likedTracks.length > 0) {
+      localStorage.setItem('vimore_liked_tracks', JSON.stringify(likedTracks));
+    }
+  }, [likedTracks]);
+
+  useEffect(() => {
+    if (userPlaylists.length > 0) {
+      localStorage.setItem('vimore_user_playlists', JSON.stringify(userPlaylists));
+    }
+  }, [userPlaylists]);
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isPlaying && currentTrack) {
@@ -127,7 +168,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [isPlaying, currentTrack]);
 
-  // Handle auto-next
   useEffect(() => {
     if (progress >= 100 && isPlaying) {
       nextTrack();
@@ -135,6 +175,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   }, [progress]);
 
   const setTrack = (track: Track) => {
+    triggerHaptic(15);
     if (!queue.some(t => t.id === track.id)) {
       setQueue([track, ...queue.filter(t => t.id !== track.id)]);
     }
@@ -146,12 +187,14 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   };
 
   const addToQueue = (track: Track) => {
+    triggerHaptic(5);
     if (!queue.some(t => t.id === track.id)) {
       setQueue(prev => [...prev, track]);
     }
   };
 
   const playCollection = (tracks: Track[], startIndex: number = 0) => {
+    triggerHaptic(20);
     if (tracks.length === 0) return;
     setQueue(tracks);
     const track = tracks[startIndex];
@@ -162,10 +205,14 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setIsExpanded(true);
   };
 
-  const togglePlay = () => setIsPlaying(!isPlaying);
+  const togglePlay = () => {
+    triggerHaptic(10);
+    setIsPlaying(!isPlaying);
+  };
 
   const nextTrack = () => {
     if (queue.length === 0) return;
+    triggerHaptic(10);
     const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
     const nextIndex = (currentIndex + 1) % queue.length;
     const next = queue[nextIndex];
@@ -176,6 +223,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const prevTrack = () => {
     if (queue.length === 0) return;
+    triggerHaptic(10);
     const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
     const prevIndex = (currentIndex - 1 + queue.length) % queue.length;
     const prev = queue[prevIndex];
@@ -185,6 +233,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleLike = (track: Track) => {
+    triggerHaptic(likedSongIds.has(track.id) ? 5 : 25);
     const trackId = track.id;
     setLikedSongIds((prev) => {
       const next = new Set(prev);
@@ -202,6 +251,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const isTrackLiked = (trackId: string | number) => likedSongIds.has(trackId);
 
   const createPlaylist = (title: string, firstTrack?: Track) => {
+    triggerHaptic(30);
     const newPlaylist: Playlist = {
       id: Date.now(),
       title,
@@ -214,6 +264,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   };
 
   const addTrackToPlaylist = (playlistId: string | number, track: Track) => {
+    triggerHaptic(15);
     setUserPlaylists(prev => prev.map(p => {
       if (p.id === playlistId) {
         if (p.songs.some(s => s.id === track.id)) return p;
@@ -224,6 +275,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   };
 
   const addReaction = (emoji: string) => {
+    triggerHaptic(5);
     const id = Date.now();
     const newReaction = { id, emoji, x: Math.random() * 80 + 10 };
     setReactions((prev) => [...prev, newReaction]);
@@ -232,6 +284,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const addComment = (text: string) => {
     if (!currentTrack || !text.trim()) return;
+    triggerHaptic(10);
     const newComment: Comment = {
       id: Date.now(),
       user: "John Doe",
@@ -246,6 +299,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   };
 
   const clearPlayer = () => {
+    triggerHaptic(5);
     setIsPlaying(false);
     setCurrentTrack(null);
     setIsExpanded(false);
@@ -255,7 +309,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   return (
     <MusicContext.Provider value={{
       currentTrack, queue, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds, likedTracks, userPlaylists,
-      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, isTrackLiked, playCollection, addToQueue, createPlaylist, addTrackToPlaylist
+      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, isTrackLiked, playCollection, addToQueue, createPlaylist, addTrackToPlaylist, triggerHaptic
     }}>
       {children}
     </MusicContext.Provider>
