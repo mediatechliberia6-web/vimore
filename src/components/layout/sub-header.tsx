@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Home, Users, Clapperboard, Music, Search } from "lucide-react";
+import { Home, Users, Clapperboard, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,6 @@ const navItems = [
   { icon: Home, label: "Home", id: "home", href: "/" },
   { icon: Users, label: "Friends", id: "friends", href: "/" },
   { icon: Clapperboard, label: "Reels", id: "reels", href: "/" },
-  { icon: Music, label: "Music", id: "music", href: "/music" },
 ];
 
 const USER_PROFILE = {
