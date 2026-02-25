@@ -166,9 +166,9 @@ export function MusicPlayer() {
     );
   }
 
-  // Expanded Full Screen View
+  // Expanded Full Screen View - z-index increased to cover detail dialogs
   return (
-    <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-in fade-in zoom-in-95 duration-500 overflow-hidden">
+    <div className="fixed inset-0 z-[200] bg-background flex flex-col animate-in fade-in zoom-in-95 duration-500 overflow-hidden">
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
         <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-accent/20 blur-[120px] rounded-full animate-pulse duration-1000" />

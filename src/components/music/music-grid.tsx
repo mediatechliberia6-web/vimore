@@ -150,6 +150,8 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
         setSelectedAlbum(item as Album);
       } else if (type === "playlist") {
         setSelectedPlaylist(item as Playlist);
+      } else if (type === "song") {
+        setTrack(item as Track);
       }
     };
 
