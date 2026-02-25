@@ -17,7 +17,7 @@ const MOCK_SONGS: Track[] = [
   { id: 6, title: "Rush", artist: "Ayra Starr", cover: "https://picsum.photos/seed/song6/400/400", streams: "110M", duration: 188 },
 ];
 
-export function MusicGrid({ type, isRow }: { type: "trending" | "charts", isRow?: boolean }) {
+export function MusicGrid({ type, isRow }: { type: "trending" | "charts" | "new-releases", isRow?: boolean }) {
   const { currentTrack, isPlaying, setTrack, togglePlay } = useMusic();
   const [likedSongs, setLikedSongs] = useState<Set<number | string>>(new Set());
 
@@ -117,9 +117,14 @@ export function MusicGrid({ type, isRow }: { type: "trending" | "charts", isRow?
                     ))}
                   </div>
                 )}
-                {type === "trending" && (
+                {(type === "trending" || type === "charts") && (
                   <div className="bg-primary/80 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-tighter px-2 py-1 rounded-full border border-white/20 shadow-lg">
                     Trending
+                  </div>
+                )}
+                {type === "new-releases" && (
+                  <div className="bg-accent/80 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-tighter px-2 py-1 rounded-full border border-white/20 shadow-lg">
+                    New
                   </div>
                 )}
               </div>

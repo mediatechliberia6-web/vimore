@@ -88,7 +88,7 @@ export default function MusicPage() {
               <GenreScroller />
             </section>
 
-            {/* 1. Trending Now (Featured Large) */}
+            {/* 1. Trending Now */}
             <MusicSection title="Trending Now" icon={TrendingUp}>
               <MusicGrid type="trending" isRow />
             </MusicSection>
@@ -116,7 +116,7 @@ export default function MusicPage() {
 
             {/* 4. New Releases */}
             <MusicSection title="New Releases" icon={Sparkles}>
-              <MusicGrid type="charts" isRow />
+              <MusicGrid type="new-releases" isRow />
             </MusicSection>
 
             {/* 5. Trending Artists (Circular) */}

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Search, Upload, Crown, Bell, MessageSquare, Menu } from "lucide-react";
+import { Search, Upload, Crown, Bell, MessageSquare, Menu, Gift, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,24 +28,30 @@ export function MusicHeader() {
       <div className="flex items-center gap-4">
         <Button 
           variant="outline" 
-          className="hidden md:flex items-center gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white font-bold rounded-2xl h-10 px-6 transition-all shadow-sm"
+          className="hidden md:flex items-center gap-2 border-none bg-gradient-to-r from-primary to-accent text-white hover:opacity-90 font-black italic uppercase tracking-widest text-[10px] rounded-2xl h-10 px-6 transition-all shadow-lg shadow-primary/20"
         >
           <Crown className="h-4 w-4" />
           Go Plus
         </Button>
 
         <div className="flex items-center gap-2">
-           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/30 hover:bg-secondary/50 text-muted-foreground hover:text-primary transition-colors">
+           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/30 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Gift Artist">
+             <Gift className="h-5 w-5" />
+           </Button>
+           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/30 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Upload Music">
              <Upload className="h-5 w-5" />
            </Button>
-           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/30 hover:bg-secondary/50 text-muted-foreground hover:text-primary transition-colors relative">
+           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/30 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors relative" title="Notifications">
              <Bell className="h-5 w-5" />
-             <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full" />
+             <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-primary rounded-full ring-2 ring-background" />
+           </Button>
+           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/30 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Settings">
+             <Settings className="h-5 w-5" />
            </Button>
            
            <div className="w-px h-8 bg-border/50 mx-1 hidden sm:block" />
            
-           <Link href="/profile" className="transition-transform hover:scale-105">
+           <Link href="/profile" className="transition-transform hover:scale-105 active:scale-90">
              <Avatar className="h-10 w-10 border-2 border-primary/10 shadow-sm">
                <AvatarImage src="https://picsum.photos/seed/me/100/100" />
                <AvatarFallback>JD</AvatarFallback>
