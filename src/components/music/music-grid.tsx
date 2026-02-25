@@ -26,7 +26,7 @@ interface MusicGridProps {
 }
 
 export function MusicGrid({ type, items, title }: MusicGridProps) {
-  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, isTrackDownloaded, simulateDownload, addToQueue, userPlaylists, openCreatePlaylist, addTrackToPlaylist, trackStats } = useMusic();
+  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, isTrackDownloaded, simulateDownload, addToQueue, userPlaylists, openCreatePlaylist, addTrackToPlaylist, trackStats, playCollection } = useMusic();
   const { toast } = useToast();
   const [downloadingIds, setDownloadingIds] = useState<Set<string | number>>(new Set());
 
@@ -89,7 +89,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
                 className="rounded-full bg-white text-primary font-black px-6 sm:px-10 h-10 sm:h-14 hover:scale-105 transition-transform text-xs sm:base"
                 onClick={() => { triggerHaptic(); isCurrent ? togglePlay() : setTrack(item); }}
               >
-                {isCurrent && isPlaying ? <Pause className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current" /> : <Play className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current" />}
+                {isCurrent && isPlaying ? <Pause className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current" /> : <Play className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current ml-1" />}
                 {isCurrent && isPlaying ? "PAUSE" : "PLAY NOW"}
               </Button>
               <div className="flex items-center gap-2">
@@ -172,24 +172,26 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
               </div>
             )}
 
-            {type !== "album" && type !== "playlist" && (
-              <div className={cn(
-                "absolute inset-0 bg-primary/20 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center",
-                isCurrent && "opacity-100"
-              )}>
-                <Button 
-                  size="icon" 
-                  className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-primary text-white shadow-2xl transition-transform active:scale-90"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    triggerHaptic();
+            <div className={cn(
+              "absolute inset-0 bg-primary/20 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center",
+              (isCurrent || (type === 'playlist' && item.songs?.some((s: Track) => s.id === currentTrack?.id))) && "opacity-100"
+            )}>
+              <Button 
+                size="icon" 
+                className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-primary text-white shadow-2xl transition-transform active:scale-90"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  triggerHaptic();
+                  if (type === 'playlist') {
+                    playCollection(item.songs);
+                  } else {
                     isCurrent ? togglePlay() : setTrack(item);
-                  }}
-                >
-                  {isCurrent && isPlaying ? <Pause className="h-5 w-5 sm:h-6 sm:w-6 fill-current" /> : <Play className="h-5 w-5 sm:h-6 sm:w-6 fill-current ml-0.5 sm:ml-1" />}
-                </Button>
-              </div>
-            )}
+                  }
+                }}
+              >
+                {isCurrent && isPlaying ? <Pause className="h-5 w-5 sm:h-6 sm:w-6 fill-current" /> : <Play className="h-5 w-5 sm:h-6 sm:w-6 fill-current ml-1" />}
+              </Button>
+            </div>
 
             <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               {type !== "album" && type !== "playlist" && (
@@ -254,9 +256,15 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
                     </>
                   )}
                   
+                  {type === 'playlist' && (
+                    <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); playCollection(item.songs); }}>
+                      <Play className="h-4 w-4" /> Play All
+                    </DropdownMenuItem>
+                  )}
+
                   <DropdownMenuItem 
                     className="gap-2 cursor-pointer font-bold" 
-                    disabled={isDownloading || isDownloaded}
+                    disabled={isDownloading || isDownloaded || type === 'playlist'}
                     onClick={(e) => { e.stopPropagation(); triggerHaptic(); handleDownload(item); }}
                   >
                     {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : isDownloaded ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Download className="h-4 w-4" />}
@@ -265,8 +273,8 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
                   <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); triggerHaptic(); handleShare(item); }}>
                     <Share2 className="h-4 w-4" /> Share
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); toast({ title: "Navigation", description: "Taking you to artist profile." }); }}>
-                    <User className="h-4 w-4" /> Go to Artist
+                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); toast({ title: "Navigation", description: "Taking you to details." }); }}>
+                    <User className="h-4 w-4" /> View Details
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -304,7 +312,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
               <>
                 <span className="truncate max-w-[120px]">By <Link href={`/profile/${item.creator || 'arivera'}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline">@{item.creator || 'vimore'}</Link></span>
                 <span>•</span>
-                <span>{item.totalStreams || '0'} Plays</span>
+                <span>{item.songs?.length || '0'} Tracks</span>
               </>
             )}
           </div>

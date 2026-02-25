@@ -1,4 +1,3 @@
-
 "use client";
 
 import { 
@@ -12,11 +11,13 @@ import {
   Plus,
   Share2,
   Clock,
-  User
+  User,
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useMusic } from "@/context/MusicContext";
+import { useMusic, Track } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
@@ -26,9 +27,16 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 export function PlaylistDetail() {
-  const { selectedPlaylist, setSelectedPlaylist, currentTrack, setTrack, playCollection, toggleLike, isTrackLiked } = useMusic();
+  const { 
+    selectedPlaylist, setSelectedPlaylist, currentTrack, isPlaying, setTrack, togglePlay, playCollection, 
+    toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, isTrackDownloaded, simulateDownload, trackStats 
+  } = useMusic();
+  const { toast } = useToast();
+  const [downloadingIds, setDownloadingIds] = useState<Set<string | number>>(new Set());
 
   if (!selectedPlaylist) return null;
 
@@ -42,6 +50,26 @@ export function PlaylistDetail() {
 
   const handlePlayAll = () => {
     playCollection(selectedPlaylist.songs);
+  };
+
+  const handleShare = () => {
+    const url = typeof window !== 'undefined' ? `${window.location.origin}/music/playlist/${selectedPlaylist.id}` : '';
+    navigator.clipboard.writeText(url);
+    toast({ title: "Playlist Shared", description: "Link copied to your clipboard." });
+  };
+
+  const handleTrackDownload = async (track: Track) => {
+    if (isTrackDownloaded(track.id)) return;
+    setDownloadingIds(prev => new Set(prev).add(track.id));
+    toast({ title: "Sonic Fetch", description: `Downloading ${track.title}...` });
+    await new Promise(r => setTimeout(r, 2000));
+    await simulateDownload(track);
+    setDownloadingIds(prev => {
+      const next = new Set(prev);
+      next.delete(track.id);
+      return next;
+    });
+    toast({ title: "Offline Ready", description: `${track.title} saved.` });
   };
 
   return (
@@ -62,7 +90,7 @@ export function PlaylistDetail() {
           <ArrowLeft className="h-6 w-6" />
         </Button>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20">
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20" onClick={handleShare}>
             <Share2 className="h-5 w-5" />
           </Button>
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20">
@@ -82,18 +110,23 @@ export function PlaylistDetail() {
             <div className="space-y-2">
               <h1 className="text-4xl lg:text-5xl font-black italic uppercase tracking-tighter leading-none">{selectedPlaylist.title}</h1>
               <Link href={`/profile/${selectedPlaylist.creator}`} onClick={handleClose}>
-                <div className="flex items-center justify-center lg:justify-start gap-2 text-primary font-bold hover:underline transition-all">
+                <div className="flex items-center justify-center lg:justify-start gap-2 text-primary font-bold hover:underline transition-all underline-offset-4">
                   <User className="h-4 w-4" />
                   <span>@{selectedPlaylist.creator}</span>
                 </div>
               </Link>
               <div className="flex items-center justify-center lg:justify-start gap-4 text-xs font-black uppercase tracking-widest text-muted-foreground pt-2">
-                <span>Playlist</span>
+                <span>{selectedPlaylist.isPrivate ? "Private Vibe" : "Public Showcase"}</span>
                 <span>•</span>
                 <span>{selectedPlaylist.songs.length} Tracks</span>
                 <span>•</span>
                 <span>{selectedPlaylist.totalStreams} Total Plays</span>
               </div>
+              {selectedPlaylist.description && (
+                <p className="text-sm text-muted-foreground mt-4 line-clamp-3 font-medium italic">
+                  "{selectedPlaylist.description}"
+                </p>
+              )}
             </div>
 
             <div className="flex items-center gap-4 w-full">
@@ -102,19 +135,19 @@ export function PlaylistDetail() {
                 onClick={handlePlayAll}
               >
                 <Play className="h-6 w-6 fill-current" />
-                PLAY ALL
+                PLAY VIBE
               </Button>
-              <Button variant="secondary" className="h-14 w-14 rounded-2xl">
+              <Button variant="secondary" className="h-14 w-14 rounded-2xl" onClick={() => toast({ title: "Synced", description: "Playlist content synced to device." })}>
                 <Download className="h-6 w-6" />
               </Button>
             </div>
 
             <div className="flex items-center justify-center lg:justify-start gap-8 pt-4">
-              <button className="flex flex-col items-center gap-1 group">
+              <button className="flex flex-col items-center gap-1 group" onClick={() => toast({ title: "Saved", description: "Vibe added to your favorites." })}>
                 <div className="p-3 bg-secondary/20 rounded-full group-hover:bg-primary/10 transition-colors">
                   <Heart className="h-6 w-6 group-hover:text-primary transition-colors" />
                 </div>
-                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Like</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Like Vibe</span>
               </button>
               <button className="flex flex-col items-center gap-1 group">
                 <div className="p-3 bg-secondary/20 rounded-full group-hover:bg-destructive/10 transition-colors">
@@ -127,7 +160,7 @@ export function PlaylistDetail() {
 
           <div className="flex-1 space-y-6">
             <div className="flex items-center justify-between border-b border-white/5 pb-4">
-              <h2 className="text-xl font-black italic uppercase tracking-tighter">Tracks</h2>
+              <h2 className="text-xl font-black italic uppercase tracking-tighter">Sonic Journey</h2>
               <div className="flex items-center gap-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                 <span># TITLE</span>
                 <Clock className="h-3 w-3" />
@@ -138,10 +171,14 @@ export function PlaylistDetail() {
               {selectedPlaylist.songs.map((song, idx) => {
                 const isCurrent = currentTrack?.id === song.id;
                 const isLiked = isTrackLiked(song.id);
+                const isUnliked = isTrackUnliked(song.id);
+                const isDownloaded = isTrackDownloaded(song.id);
+                const isDownloading = downloadingIds.has(song.id);
+                const stats = trackStats[song.id] || { likes: 0, unlikes: 0 };
                 
                 return (
                   <div 
-                    key={song.id} 
+                    key={`${selectedPlaylist.id}-${song.id}-${idx}`} 
                     className={cn(
                       "flex items-center justify-between p-4 rounded-2xl transition-all group cursor-pointer",
                       isCurrent ? "bg-primary/10" : "hover:bg-secondary/10"
@@ -156,15 +193,21 @@ export function PlaylistDetail() {
                         {idx + 1}
                       </span>
                       <div className="flex flex-col min-w-0">
-                        <span className={cn(
-                          "font-bold text-sm truncate",
-                          isCurrent ? "text-primary" : "text-foreground"
-                        )}>
-                          {song.title}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground font-medium hover:text-primary transition-colors">
-                          {song.artist}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            "font-bold text-sm truncate",
+                            isCurrent ? "text-primary" : "text-foreground"
+                          )}>
+                            {song.title}
+                          </span>
+                          {isDownloaded && <CheckCircle2 className="h-3 w-3 text-green-500" />}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground font-medium hover:text-primary transition-colors">
+                            {song.artist}
+                          </span>
+                          <span className="text-[8px] font-black text-primary/40 uppercase tracking-widest">{(stats.likes / 1000).toFixed(1)}K Likes</span>
+                        </div>
                       </div>
                     </div>
 
@@ -172,10 +215,16 @@ export function PlaylistDetail() {
                       <span className="text-[10px] font-black text-muted-foreground">{formatDuration(song.duration)}</span>
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button 
-                          variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isLiked && "text-primary")}
-                          onClick={(e) => { e.stopPropagation(); toggleLike(song.id); }}
+                          variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isLiked && "text-red-500")}
+                          onClick={(e) => { e.stopPropagation(); toggleLike(song); }}
                         >
                           <Heart className={cn("h-4 w-4", isLiked && "fill-current")} />
+                        </Button>
+                        <Button 
+                          variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isUnliked && "text-primary")}
+                          onClick={(e) => { e.stopPropagation(); toggleUnlike(song); }}
+                        >
+                          <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} />
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -184,8 +233,16 @@ export function PlaylistDetail() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-56 rounded-xl p-2">
-                            <DropdownMenuItem className="gap-2 cursor-pointer font-bold">
-                              <Download className="h-4 w-4" /> Download Single
+                            <DropdownMenuItem 
+                              className="gap-2 cursor-pointer font-bold" 
+                              disabled={isDownloading || isDownloaded}
+                              onClick={(e) => { e.stopPropagation(); handleTrackDownload(song); }}
+                            >
+                              {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} 
+                              {isDownloaded ? "Offline Ready" : "Download Single"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); toast({ title: "Removed", description: "Track removed from playlist." }); }}>
+                              <Plus className="h-4 w-4 rotate-45" /> Remove from Playlist
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
