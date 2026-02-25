@@ -2,7 +2,7 @@
 
 import { Play, Pause, MoreVertical, Heart, TrendingUp, Music2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useMusic, Track } from "@/context/MusicContext";
+import { useMusic, Track, Album } from "@/context/MusicContext";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -14,7 +14,7 @@ interface MusicGridProps {
 }
 
 export function MusicGrid({ type, items, title }: MusicGridProps) {
-  const { currentTrack, isPlaying, setTrack, togglePlay } = useMusic();
+  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum } = useMusic();
 
   const renderCard = (item: any) => {
     const isCurrent = currentTrack?.id === item.id;
@@ -73,11 +73,20 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
       );
     }
 
-    // Song, Album, and Playlist all now use the "Jewel Case" aesthetic
     const cardWidth = type === "playlist" ? "w-[240px]" : "w-[200px]";
     
+    const handleCardClick = () => {
+      if (type === "album") {
+        setSelectedAlbum(item as Album);
+      }
+    };
+
     return (
-      <div key={item.id} className={cn("inline-block group cursor-pointer", cardWidth)}>
+      <div 
+        key={item.id} 
+        className={cn("inline-block group cursor-pointer", cardWidth)}
+        onClick={handleCardClick}
+      >
         <div className="relative aspect-square mb-4">
           {/* Jewel Case Visual Spine */}
           <div className="absolute -left-2 top-2 bottom-2 w-3 bg-white/20 backdrop-blur-md rounded-l-lg z-10 border-r border-white/30" />
@@ -86,22 +95,24 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
             <Image src={item.cover} alt={item.title} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
             <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent" />
             
-            {/* Play Overlay */}
-            <div className={cn(
-              "absolute inset-0 bg-primary/20 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center",
-              isCurrent && "opacity-100"
-            )}>
-              <Button 
-                size="icon" 
-                className="h-12 w-12 rounded-full bg-primary text-white shadow-2xl transition-transform active:scale-90"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  isCurrent ? togglePlay() : setTrack(item);
-                }}
-              >
-                {isCurrent && isPlaying ? <Pause className="h-6 w-6 fill-current" /> : <Play className="h-6 w-6 fill-current ml-1" />}
-              </Button>
-            </div>
+            {/* Play Overlay (Only for non-album/playlist direct action) */}
+            {type !== "album" && type !== "playlist" && (
+              <div className={cn(
+                "absolute inset-0 bg-primary/20 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center",
+                isCurrent && "opacity-100"
+              )}>
+                <Button 
+                  size="icon" 
+                  className="h-12 w-12 rounded-full bg-primary text-white shadow-2xl transition-transform active:scale-90"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    isCurrent ? togglePlay() : setTrack(item);
+                  }}
+                >
+                  {isCurrent && isPlaying ? <Pause className="h-6 w-6 fill-current" /> : <Play className="h-6 w-6 fill-current ml-1" />}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
         

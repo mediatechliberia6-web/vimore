@@ -1,5 +1,4 @@
-
-"use client";
+'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
@@ -10,6 +9,17 @@ export interface Track {
   cover: string;
   duration: number; // in seconds
   streams?: string;
+}
+
+export interface Album {
+  id: string | number;
+  title: string;
+  artist: string;
+  cover: string;
+  year: string;
+  tracks: number;
+  totalStreams: string;
+  songs: Track[];
 }
 
 export interface MusicReaction {
@@ -23,6 +33,7 @@ interface MusicContextType {
   queue: Track[];
   isPlaying: boolean;
   isExpanded: boolean;
+  selectedAlbum: Album | null;
   progress: number;
   volume: number;
   reactions: MusicReaction[];
@@ -31,6 +42,7 @@ interface MusicContextType {
   nextTrack: () => void;
   prevTrack: () => void;
   setIsExpanded: (expanded: boolean) => void;
+  setSelectedAlbum: (album: Album | null) => void;
   setProgress: (progress: number) => void;
   setVolume: (volume: number) => void;
   addReaction: (emoji: string) => void;
@@ -38,7 +50,7 @@ interface MusicContextType {
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
 
-const MOCK_TRACKS: Track[] = [
+const MOCK_SONGS: Track[] = [
   { id: 1, title: "Essence", artist: "Wizkid ft. Tems", cover: "https://picsum.photos/seed/song1/600/600", duration: 240, streams: "124M" },
   { id: 2, title: "Last Last", artist: "Burna Boy", cover: "https://picsum.photos/seed/song2/600/600", duration: 172, streams: "98M" },
   { id: 3, title: "Unavailable", artist: "Davido", cover: "https://picsum.photos/seed/song3/600/600", duration: 185, streams: "75M" },
@@ -47,10 +59,11 @@ const MOCK_TRACKS: Track[] = [
 ];
 
 export function MusicProvider({ children }: { children: ReactNode }) {
-  const [currentTrack, setCurrentTrack] = useState<Track | null>(MOCK_TRACKS[0]);
-  const [queue] = useState<Track[]>(MOCK_TRACKS);
+  const [currentTrack, setCurrentTrack] = useState<Track | null>(MOCK_SONGS[0]);
+  const [queue] = useState<Track[]>(MOCK_SONGS);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState(80);
   const [reactions, setReactions] = useState<MusicReaction[]>([]);
@@ -101,8 +114,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   return (
     <MusicContext.Provider value={{
-      currentTrack, queue, isPlaying, isExpanded, progress, volume, reactions,
-      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction
+      currentTrack, queue, isPlaying, isExpanded, selectedAlbum, progress, volume, reactions,
+      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setProgress, setVolume, addReaction
     }}>
       {children}
     </MusicContext.Provider>

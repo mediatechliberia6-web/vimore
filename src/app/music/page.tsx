@@ -1,4 +1,3 @@
-
 "use client";
 
 import { MainNav } from "@/components/layout/main-nav";
@@ -6,10 +5,11 @@ import { Header } from "@/components/layout/header";
 import { MusicGrid } from "@/components/music/music-grid";
 import { MusicPlayer } from "@/components/music/music-player";
 import { MusicNav } from "@/components/music/music-nav";
-import { useMusic } from "@/context/MusicContext";
+import { AlbumDetail } from "@/components/music/album-detail";
+import { useMusic, Album, Track } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 
-const MOCK_SONGS = [
+const MOCK_SONGS: Track[] = [
   { id: 1, title: "Essence", artist: "Wizkid ft. Tems", cover: "https://picsum.photos/seed/song1/600/600", duration: 240, streams: "124M" },
   { id: 2, title: "Last Last", artist: "Burna Boy", cover: "https://picsum.photos/seed/song2/600/600", duration: 172, streams: "98M" },
   { id: 3, title: "Unavailable", artist: "Davido", cover: "https://picsum.photos/seed/song3/600/600", duration: 185, streams: "75M" },
@@ -17,11 +17,64 @@ const MOCK_SONGS = [
   { id: 5, title: "Soweto", artist: "Victony", cover: "https://picsum.photos/seed/song5/600/600", duration: 164, streams: "45M" },
 ];
 
-const MOCK_ALBUMS = [
-  { id: 'a1', title: "Timeless", artist: "Davido", cover: "https://picsum.photos/seed/album1/400/400", year: "2023", tracks: 17 },
-  { id: 'a2', title: "More Love, Less Ego", artist: "Wizkid", cover: "https://picsum.photos/seed/album2/400/400", year: "2022", tracks: 13 },
-  { id: 'a3', title: "Love, Damini", artist: "Burna Boy", cover: "https://picsum.photos/seed/album3/400/400", year: "2022", tracks: 19 },
-  { id: 'a4', title: "Rave & Roses", artist: "Rema", cover: "https://picsum.photos/seed/album4/400/400", year: "2023", tracks: 16 },
+const MOCK_ALBUMS: Album[] = [
+  { 
+    id: 'a1', 
+    title: "Timeless", 
+    artist: "Davido", 
+    cover: "https://picsum.photos/seed/album1/400/400", 
+    year: "2023", 
+    tracks: 17,
+    totalStreams: "850M",
+    songs: [
+      { id: 's31', title: "Unavailable", artist: "Davido", cover: "https://picsum.photos/seed/album1/400/400", duration: 185 },
+      { id: 's32', title: "Feel", artist: "Davido", cover: "https://picsum.photos/seed/album1/400/400", duration: 195 },
+      { id: 's33', title: "Away", artist: "Davido", cover: "https://picsum.photos/seed/album1/400/400", duration: 178 },
+      { id: 's34', title: "Precision", artist: "Davido", cover: "https://picsum.photos/seed/album1/400/400", duration: 162 },
+      { id: 's35', title: "Kante", artist: "Davido ft. Fave", cover: "https://picsum.photos/seed/album1/400/400", duration: 205 },
+    ]
+  },
+  { 
+    id: 'a2', 
+    title: "More Love, Less Ego", 
+    artist: "Wizkid", 
+    cover: "https://picsum.photos/seed/album2/400/400", 
+    year: "2022", 
+    tracks: 13,
+    totalStreams: "620M",
+    songs: [
+      { id: 's21', title: "Money & Love", artist: "Wizkid", cover: "https://picsum.photos/seed/album2/400/400", duration: 210 },
+      { id: 's22', title: "Balance", artist: "Wizkid", cover: "https://picsum.photos/seed/album2/400/400", duration: 185 },
+      { id: 's23', title: "Bad To Me", artist: "Wizkid", cover: "https://picsum.photos/seed/album2/400/400", duration: 192 },
+    ]
+  },
+  { 
+    id: 'a3', 
+    title: "Love, Damini", 
+    artist: "Burna Boy", 
+    cover: "https://picsum.photos/seed/album3/400/400", 
+    year: "2022", 
+    tracks: 19,
+    totalStreams: "1.2B",
+    songs: [
+      { id: 's11', title: "Last Last", artist: "Burna Boy", cover: "https://picsum.photos/seed/album3/400/400", duration: 172 },
+      { id: 's12', title: "It's Plenty", artist: "Burna Boy", cover: "https://picsum.photos/seed/album3/400/400", duration: 198 },
+      { id: 's13', title: "Kilometre", artist: "Burna Boy", cover: "https://picsum.photos/seed/album3/400/400", duration: 165 },
+    ]
+  },
+  { 
+    id: 'a4', 
+    title: "Rave & Roses", 
+    artist: "Rema", 
+    cover: "https://picsum.photos/seed/album4/400/400", 
+    year: "2023", 
+    tracks: 16,
+    totalStreams: "940M",
+    songs: [
+      { id: 's41', title: "Calm Down", artist: "Rema", cover: "https://picsum.photos/seed/album4/400/400", duration: 219 },
+      { id: 's42', title: "Soundgasm", artist: "Rema", cover: "https://picsum.photos/seed/album4/400/400", duration: 204 },
+    ]
+  },
 ];
 
 const MOCK_PLAYLISTS = [
@@ -38,12 +91,12 @@ const MOCK_ARTISTS = [
 ];
 
 export default function MusicPage() {
-  const { isExpanded } = useMusic();
+  const { isExpanded, selectedAlbum } = useMusic();
 
   return (
     <div className={cn(
       "min-h-screen bg-[#F0F2F5] dark:bg-background transition-colors duration-300",
-      isExpanded && "h-screen overflow-hidden"
+      (isExpanded || selectedAlbum) && "h-screen overflow-hidden"
     )}>
       <Header />
       
@@ -81,6 +134,7 @@ export default function MusicPage() {
       </div>
 
       <MusicPlayer />
+      <AlbumDetail />
       <MusicNav />
     </div>
   );
