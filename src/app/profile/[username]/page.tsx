@@ -19,6 +19,7 @@ import {
   Star,
   Check,
   UserPlus,
+  UserMinus,
   MessageCircle,
   Zap,
   Languages
@@ -35,10 +36,11 @@ const MOCK_USERS: Record<string, any> = {
     username: "arivera",
     bio: "Product Designer & Coffee Enthusiast. Living life one pixel at a time. ☕️🎨",
     avatar: "https://picsum.photos/seed/1/400/400",
+    cover: "https://picsum.photos/seed/cover_arivera/1200/400",
     followers: "12.2k",
     following: "890",
     posts: "342",
-    category: "Designer",
+    category: "Product Designer",
     isVerified: true
   },
   "schen_dev": {
@@ -46,10 +48,11 @@ const MOCK_USERS: Record<string, any> = {
     username: "schen_dev",
     bio: "Fullstack Dev | Building the future of social. Loves React and SF vibes. 💻🌉",
     avatar: "https://picsum.photos/seed/2/400/400",
+    cover: "https://picsum.photos/seed/cover_schen/1200/400",
     followers: "4.2k",
     following: "450",
     posts: "128",
-    category: "Developer",
+    category: "Fullstack Developer",
     isVerified: true
   },
   "mstone": {
@@ -57,33 +60,12 @@ const MOCK_USERS: Record<string, any> = {
     username: "mstone",
     bio: "Photography & Travel. Capturing the world through a wide lens. 📸✈️",
     avatar: "https://picsum.photos/seed/3/400/400",
+    cover: "https://picsum.photos/seed/cover_mstone/1200/400",
     followers: "25.1k",
     following: "1.1k",
     posts: "892",
     category: "Photographer",
     isVerified: false
-  },
-  "techex": {
-    name: "Tech Explorer",
-    username: "techex",
-    bio: "Exploring the bleeding edge of AI, WebGPU, and Next.js. Let's build the future. 🚀",
-    avatar: "https://picsum.photos/seed/51/200/200",
-    followers: "12k",
-    following: "200",
-    posts: "85",
-    category: "Tech Content Creator",
-    isVerified: true
-  },
-  "jmoore": {
-    name: "Julianne Moore",
-    username: "jmoore",
-    bio: "Aesthete and lover of clean UI. Sharing my journey in the creative space. ✨",
-    avatar: "https://picsum.photos/seed/50/200/200",
-    followers: "1.5k",
-    following: "300",
-    posts: "42",
-    category: "Creative",
-    isVerified: true
   }
 };
 
@@ -107,6 +89,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     username: username,
     bio: "Digital creator and explorer of the ViMore community. 🎨 ✨",
     avatar: `https://picsum.photos/seed/${username}/400/400`,
+    cover: `https://picsum.photos/seed/cover_${username}/1200/400`,
     followers: "1.2k",
     following: "400",
     posts: "12",
@@ -115,8 +98,8 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   };
 
   const [skills, setSkills] = useState([
-    { name: "Content Creation", count: 12, endorsed: false },
-    { name: "Strategic Thinking", count: 8, endorsed: false },
+    { name: "Content Strategy", count: 12, endorsed: false },
+    { name: "Creative Thinking", count: 8, endorsed: false },
   ]);
 
   const triggerHaptic = () => {
@@ -128,7 +111,10 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const handleFollow = () => {
     triggerHaptic();
     setIsFollowing(!isFollowing);
-    toast({ description: isFollowing ? `Unfollowed ${displayUser.name}` : `Following ${displayUser.name}` });
+    toast({ 
+      title: isFollowing ? "Network Removed" : "Connected!",
+      description: isFollowing ? `You are no longer following ${displayUser.name}` : `Following ${displayUser.name}` 
+    });
   };
 
   const handleTranslateBio = async () => {
@@ -148,10 +134,24 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     }
   };
 
+  const handleEndorse = (idx: number) => {
+    triggerHaptic();
+    const newSkills = [...skills];
+    if (newSkills[idx].endorsed) {
+      newSkills[idx].count--;
+      newSkills[idx].endorsed = false;
+    } else {
+      newSkills[idx].count++;
+      newSkills[idx].endorsed = true;
+      toast({ title: "Endorsement Sent", description: `You verified ${displayUser.name}'s expertise in ${newSkills[idx].name}.` });
+    }
+    setSkills(newSkills);
+  };
+
   const userPosts = posts.filter(p => p.user.username === username);
 
   if (isMe) {
-    return <Link href="/profile" className="flex items-center justify-center min-h-screen text-primary font-bold">Redirecting to your profile...</Link>;
+    return <div className="flex items-center justify-center min-h-screen text-primary font-bold animate-pulse">Redirecting to workspace...</div>;
   }
 
   return (
@@ -176,7 +176,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
               </Link>
               <div className="flex items-center gap-1">
                 <span className="font-bold text-lg truncate">{displayUser.name}</span>
-                {displayUser.isVerified && <Check className="h-4 w-4 text-primary" />}
+                {displayUser.isVerified && <Check className="h-4 w-4 text-primary fill-primary text-white" />}
               </div>
             </div>
             <Button variant="ghost" size="icon" className="rounded-full"><MoreHorizontal className="h-5 w-5" /></Button>
@@ -185,7 +185,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
           <div className="relative">
             <div className="relative h-48 sm:h-64 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/20 overflow-hidden">
               <Image 
-                src={`https://picsum.photos/seed/cover_${username}/1200/400`} 
+                src={displayUser.cover || `https://picsum.photos/seed/cover_${username}/1200/400`} 
                 alt="Cover" 
                 fill 
                 className="object-cover dark:brightness-75" 
@@ -194,7 +194,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
             <div className="px-4 pb-4">
               <div className="relative inline-block -mt-16 sm:-mt-24 ml-0 sm:ml-2">
-                <Avatar className="w-32 h-32 sm:w-44 sm:h-44 border-4 border-white dark:border-card shadow-xl">
+                <Avatar className="w-32 h-32 sm:w-44 sm:h-44 border-4 border-white dark:border-card shadow-xl ring-2 ring-primary/5">
                   <AvatarImage src={displayUser.avatar} />
                   <AvatarFallback>{displayUser.name[0]}</AvatarFallback>
                 </Avatar>
@@ -207,10 +207,10 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                     variant="ghost" 
                     size="sm" 
                     className={cn(
-                      "h-7 px-2 rounded-full gap-1.5 font-bold text-[11px]",
-                      isPlayingIntro ? "bg-primary text-white" : "bg-secondary/40"
+                      "h-7 px-2 rounded-full gap-1.5 font-bold text-[11px] transition-all",
+                      isPlayingIntro ? "bg-primary text-white scale-105 shadow-lg shadow-primary/20" : "bg-secondary/40"
                     )}
-                    onClick={() => { triggerHaptic(); setIsPlayingIntro(!isPlayingIntro); }}
+                    onClick={() => { triggerHaptic(); setIsPlayingIntro(!isPlayingIntro); if (!isPlayingIntro) toast({ title: "Sonic Intro", description: `Fetching ${displayUser.name}'s digital signature...` }); }}
                   >
                     {isPlayingIntro ? <Volume2 className="h-3.5 w-3.5 animate-pulse" /> : <Play className="h-3.5 w-3.5" />}
                     Intro
@@ -220,15 +220,15 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                 <div className="flex items-center gap-6 py-2">
                   <div className="flex flex-col">
                     <span className="font-bold text-lg leading-none">{displayUser.followers}</span>
-                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span>
+                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Fans</span>
                   </div>
                   <div className="flex flex-col">
                     <span className="font-bold text-lg leading-none">{displayUser.following}</span>
-                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span>
+                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Network</span>
                   </div>
                   <div className="flex flex-col">
                     <span className="font-bold text-lg leading-none">{userPosts.length || displayUser.posts}</span>
-                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span>
+                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Vibes</span>
                   </div>
                 </div>
 
@@ -245,15 +245,15 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                   <Button 
                     onClick={handleFollow}
                     className={cn(
-                      "flex-1 rounded-lg gap-2 h-11 font-bold",
-                      isFollowing ? "bg-secondary text-foreground" : "bg-primary text-white"
+                      "flex-1 rounded-lg gap-2 h-11 font-bold active:scale-95 transition-all shadow-lg",
+                      isFollowing ? "bg-secondary text-foreground shadow-black/5" : "bg-primary text-white shadow-primary/20"
                     )}
                   >
-                    {isFollowing ? <Check className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
-                    {isFollowing ? "Following" : "Follow"}
+                    {isFollowing ? <UserMinus className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+                    {isFollowing ? "Following" : "Connect"}
                   </Button>
                   <Link href="/messages" className="flex-1">
-                    <Button variant="secondary" className="w-full rounded-lg gap-2 h-11 font-bold">
+                    <Button variant="secondary" className="w-full rounded-lg gap-2 h-11 font-bold active:scale-95 transition-all">
                       <MessageCircle className="h-5 w-5" /> Message
                     </Button>
                   </Link>
@@ -261,15 +261,19 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
                 <div className="mt-6">
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <Star className="h-3.5 w-3.5 text-yellow-500" /> Professional Skills
+                    <Star className="h-3.5 w-3.5 text-yellow-500" /> Endorsed Skills
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {skills.map((skill, idx) => (
                       <button
                         key={idx}
-                        className="px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 bg-white dark:bg-card"
+                        onClick={() => handleEndorse(idx)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all active:scale-95",
+                          skill.endorsed ? "bg-primary text-white border-primary shadow-md shadow-primary/10" : "bg-white dark:bg-card hover:border-primary/30"
+                        )}
                       >
-                        {skill.name} <span className="bg-black/10 px-1.5 rounded">{skill.count}</span>
+                        {skill.name} <span className={cn("px-1.5 rounded", skill.endorsed ? "bg-white/20" : "bg-black/10")}>{skill.count}</span>
                       </button>
                     ))}
                   </div>
@@ -279,7 +283,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
             <Tabs defaultValue="all" className="w-full mt-2">
               <TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0">
-                <TabsTrigger value="all" className="flex-1 font-bold text-sm">Posts</TabsTrigger>
+                <TabsTrigger value="all" className="flex-1 font-bold text-sm">Vibes</TabsTrigger>
                 <TabsTrigger value="media" className="flex-1 font-bold text-sm">Media</TabsTrigger>
               </TabsList>
               

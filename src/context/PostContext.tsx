@@ -1,11 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 
 export interface User {
   name: string;
   username: string;
   avatar: string;
+  cover?: string;
   isVerified?: boolean;
   isOnline?: boolean;
   followers?: string | number;
@@ -13,7 +14,7 @@ export interface User {
   posts?: string | number;
   bio?: string;
   category?: string;
-  pronouns?: 'His' | 'Her';
+  pronouns?: string;
   joinDate?: string;
   relationshipStatus?: string;
   links?: Array<{ label: string; url: string; icon: any }>;
@@ -77,7 +78,7 @@ export interface Post {
   feeling?: { emoji: string; text: string };
   location?: string;
   theme?: string;
-  language?: string; // Captured at creation
+  language?: string;
   commentsDisabled?: boolean;
   isPinned?: boolean;
   isSeries?: boolean;
@@ -106,14 +107,16 @@ interface PostContextType {
   toggleMuteUser: (username: string) => void;
   togglePinPost: (postId: string) => void;
   archivePost: (postId: string) => void;
+  updateCurrentUser: (data: Partial<User>) => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
 
-const CURRENT_USER: User = {
+const INITIAL_USER: User = {
   name: "John Doe",
   username: "johndoe_creative",
   avatar: "https://picsum.photos/seed/me/400/400",
+  cover: "https://picsum.photos/seed/my_cover/1200/400",
   bio: "Digital creator specializing in UI/UX and mobile photography. Building ViMore community. 🎨 ✨",
   category: "Digital Creator",
   pronouns: "His",
@@ -217,7 +220,7 @@ const initialMockPosts: Post[] = [
       avatar: "https://picsum.photos/seed/1/100/100",
       followers: 12200
     },
-    content: "¡Hola a todos! Estoy emocionado de probar la nueva función de traducción automática en ViMore. ¿Qué les parece?",
+    content: "¡Hola a todos! Estoy emocionado de probar la new función de traducción automática en ViMore. ¿Qué les parece?",
     time: "45m",
     likes: 88,
     unlikes: 1,
@@ -228,11 +231,29 @@ const initialMockPosts: Post[] = [
 ];
 
 export function PostProvider({ children }: { children: ReactNode }) {
+  const [currentUser, setCurrentUser] = useState<User>(INITIAL_USER);
   const [posts, setPosts] = useState<Post[]>(initialMockPosts);
   const [stories, setStories] = useState<Story[]>(initialMockStories);
   const [highlights] = useState<Highlight[]>(initialHighlights);
   const [mutedUserNames, setMutedUserNames] = useState<string[]>([]);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('vimore_user');
+    if (savedUser) {
+      try {
+        setCurrentUser(JSON.parse(savedUser));
+      } catch (e) { console.error("User load failed", e); }
+    }
+  }, []);
+
+  const updateCurrentUser = (data: Partial<User>) => {
+    setCurrentUser(prev => {
+      const updated = { ...prev, ...data };
+      localStorage.setItem('vimore_user', JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   const addPost = (newPostData: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => {
     const detectedLanguage = newPostData.language || (typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en');
@@ -250,7 +271,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const addStory = (segmentData: Omit<StorySegment, 'id'>) => {
-    const userStoryIndex = stories.findIndex(s => s.user.username === CURRENT_USER.username);
+    const userStoryIndex = stories.findIndex(s => s.user.username === currentUser.username);
     const newSegment: StorySegment = { ...segmentData, id: Date.now().toString() };
 
     if (userStoryIndex !== -1) {
@@ -264,7 +285,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         return updated;
       });
     } else {
-      setStories([{ id: Date.now().toString(), user: CURRENT_USER, segments: [newSegment], viewCount: 0 }, ...stories]);
+      setStories([{ id: Date.now().toString(), user: currentUser, segments: [newSegment], viewCount: 0 }, ...stories]);
     }
   };
 
@@ -297,7 +318,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   return (
     <PostContext.Provider value={{ 
-      currentUser: CURRENT_USER,
+      currentUser,
       posts, 
       stories, 
       highlights, 
@@ -309,7 +330,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       voteOnStoryPoll,
       toggleMuteUser,
       togglePinPost,
-      archivePost
+      archivePost,
+      updateCurrentUser
     }}>
       {children}
     </PostContext.Provider>

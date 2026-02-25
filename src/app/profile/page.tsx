@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MainNav } from "@/components/layout/main-nav";
 import { RightSidebar } from "@/components/layout/right-sidebar";
 import { PostCard } from "@/components/post/post-card";
@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useMusic } from "@/context/MusicContext";
 import { 
@@ -19,34 +17,42 @@ import {
   MoreHorizontal, 
   LayoutDashboard,
   Plus,
-  Globe,
-  ExternalLink,
   Volume2,
   Play,
   Star,
   Zap,
-  Check,
-  BriefcaseBusiness,
   Languages,
   Copy,
-  Gift,
   AtSign,
-  Bookmark
+  Bookmark,
+  Check,
+  X
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { aiTranslatePost } from "@/app/actions/ai";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function MyProfilePage() {
-  const { currentUser, posts } = usePosts();
+  const { currentUser, posts, updateCurrentUser } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
   const [isPlayingIntro, setIsPlayingIntro] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [translatedBio, setTranslatedBio] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -57,10 +63,15 @@ export default function MyProfilePage() {
     { name: "React Development", count: 33, endorsed: false }
   ]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
+  const [editData, setEditData] = useState({
+    name: currentUser.name,
+    category: currentUser.category,
+    bio: currentUser.bio,
+    pronouns: currentUser.pronouns
+  });
+
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const triggerHaptic = () => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
@@ -71,7 +82,7 @@ export default function MyProfilePage() {
   const handleCopyBio = () => {
     triggerHaptic();
     navigator.clipboard.writeText(currentUser.bio || "");
-    toast({ description: "Bio copied to clipboard!" });
+    toast({ title: "Copied!", description: "Bio copied to clipboard." });
   };
 
   const handleTranslateBio = async () => {
@@ -101,12 +112,29 @@ export default function MyProfilePage() {
     } else {
       newSkills[idx].count++;
       newSkills[idx].endorsed = true;
-      toast({ description: `Endorsed ${newSkills[idx].name}!` });
+      toast({ title: "Skill Endorsed!", description: `You verified your expertise in ${newSkills[idx].name}.` });
     }
     setSkills(newSkills);
   };
 
-  // Filter posts belonging to the current user
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'avatar' | 'cover') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    triggerHaptic();
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      updateCurrentUser({ [field]: reader.result as string });
+      toast({ title: "Visual Updated", description: `Your ${field} was refreshed successfully.` });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveProfile = () => {
+    updateCurrentUser(editData);
+    setIsEditModalOpen(false);
+    toast({ title: "Profile Launched", description: "Identity updates are now live." });
+  };
+
   const myPosts = posts.filter(p => p.user.username === currentUser.username);
 
   return (
@@ -131,46 +159,90 @@ export default function MyProfilePage() {
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
               </Link>
-              <h1 className="font-bold text-lg">My Profile</h1>
+              <h1 className="font-bold text-lg">My Workspace</h1>
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="rounded-full"><Edit2 className="h-5 w-5" /></Button>
+              <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" onClick={() => { triggerHaptic(); setEditData({ name: currentUser.name, category: currentUser.category, bio: currentUser.bio, pronouns: currentUser.pronouns }); }}>
+                    <Edit2 className="h-5 w-5" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px] rounded-[2rem]">
+                  <DialogHeader>
+                    <DialogTitle className="font-black italic uppercase tracking-tighter text-2xl">Edit Presence</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-6 py-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Display Name</Label>
+                      <Input value={editData.name} onChange={(e) => setEditData({ ...editData, name: e.target.value })} className="rounded-xl bg-secondary/20 border-none h-12" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Professional Category</Label>
+                      <Input value={editData.category} onChange={(e) => setEditData({ ...editData, category: e.target.value })} className="rounded-xl bg-secondary/20 border-none h-12" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">The Bio</Label>
+                      <Textarea value={editData.bio} onChange={(e) => setEditData({ ...editData, bio: e.target.value })} className="rounded-xl bg-secondary/20 border-none min-h-[100px]" />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={handleSaveProfile} className="w-full bg-primary hover:bg-primary/90 text-white font-black uppercase italic tracking-widest h-12 rounded-xl shadow-lg shadow-primary/20">Launch Updates</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
               <Button variant="ghost" size="icon" className="rounded-full"><MoreHorizontal className="h-5 w-5" /></Button>
             </div>
           </header>
 
           <div className="relative">
-            <div className="relative h-48 sm:h-64 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/20 overflow-hidden">
+            <div className="relative h-48 sm:h-64 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/20 overflow-hidden group">
               <Image 
-                src="https://picsum.photos/seed/my_cover/1200/400" 
+                src={currentUser.cover || "https://picsum.photos/seed/my_cover/1200/400"} 
                 alt="Cover" 
                 fill 
-                className="object-cover dark:brightness-75" 
+                className="object-cover dark:brightness-75 transition-transform duration-700 group-hover:scale-105" 
               />
+              <button 
+                onClick={() => coverInputRef.current?.click()}
+                className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+              >
+                <div className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30">
+                  <Camera className="h-6 w-6" />
+                </div>
+              </button>
+              <input type="file" ref={coverInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'cover')} />
             </div>
 
             <div className="px-4 pb-4">
               <div className="relative inline-block -mt-16 sm:-mt-24 ml-0 sm:ml-2">
-                <div className="relative w-32 h-32 sm:w-44 sm:h-44">
-                  <Avatar className="w-full h-full border-4 border-white dark:border-card shadow-xl">
+                <div className="relative w-32 h-32 sm:w-44 sm:h-44 group">
+                  <Avatar className="w-full h-full border-4 border-white dark:border-card shadow-xl ring-2 ring-primary/10">
                     <AvatarImage src={currentUser.avatar} />
                     <AvatarFallback>JD</AvatarFallback>
                   </Avatar>
+                  <button 
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+                  >
+                    <Camera className="h-8 w-8" />
+                  </button>
+                  <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'avatar')} />
                 </div>
               </div>
 
               <div className="mt-2 space-y-1 px-1">
                 <div className="flex items-center flex-wrap gap-2">
                   <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{currentUser.name}</h1>
-                  <Badge variant="secondary" className="bg-secondary/50 text-[10px] font-bold">{currentUser.pronouns}</Badge>
+                  {currentUser.pronouns && <Badge variant="secondary" className="bg-secondary/50 text-[10px] font-bold">{currentUser.pronouns}</Badge>}
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     className={cn(
-                      "h-7 px-2 rounded-full gap-1.5 font-bold text-[11px]",
-                      isPlayingIntro ? "bg-primary text-white" : "bg-secondary/40"
+                      "h-7 px-2 rounded-full gap-1.5 font-bold text-[11px] transition-all",
+                      isPlayingIntro ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105" : "bg-secondary/40"
                     )}
-                    onClick={() => { triggerHaptic(); setIsPlayingIntro(!isPlayingIntro); }}
+                    onClick={() => { triggerHaptic(); setIsPlayingIntro(!isPlayingIntro); if (!isPlayingIntro) toast({ title: "Sonic Intro", description: "Playing John's digital signature." }); }}
                   >
                     {isPlayingIntro ? <Volume2 className="h-3.5 w-3.5 animate-pulse" /> : <Play className="h-3.5 w-3.5" />}
                     Intro
@@ -180,15 +252,15 @@ export default function MyProfilePage() {
                 <div className="flex items-center gap-6 py-2">
                   <div className="flex flex-col">
                     <span className="font-bold text-lg leading-none">{currentUser.followers}</span>
-                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span>
+                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Fans</span>
                   </div>
                   <div className="flex flex-col">
                     <span className="font-bold text-lg leading-none">{currentUser.following}</span>
-                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span>
+                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Network</span>
                   </div>
                   <div className="flex flex-col">
                     <span className="font-bold text-lg leading-none">{myPosts.length}</span>
-                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span>
+                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Vibes</span>
                   </div>
                 </div>
 
@@ -209,17 +281,17 @@ export default function MyProfilePage() {
                 </div>
 
                 <div className="mt-4 flex gap-2">
-                  <Button className="flex-1 rounded-lg gap-2 bg-primary hover:bg-primary/90 h-11 font-bold text-white shadow-lg shadow-primary/20">
-                    <LayoutDashboard className="h-5 w-5" /> Dashboard
+                  <Button className="flex-1 rounded-lg gap-2 bg-primary hover:bg-primary/90 h-11 font-bold text-white shadow-lg shadow-primary/20 active:scale-95 transition-transform">
+                    <LayoutDashboard className="h-5 w-5" /> Workspace
                   </Button>
-                  <Button variant="secondary" className="flex-1 rounded-lg gap-2 h-11 font-bold">
-                    <Plus className="h-5 w-5" /> Add to story
+                  <Button variant="secondary" className="flex-1 rounded-lg gap-2 h-11 font-bold active:scale-95 transition-transform">
+                    <Plus className="h-5 w-5" /> Add Story
                   </Button>
                 </div>
 
                 <div className="mt-6">
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <Star className="h-3.5 w-3.5 text-yellow-500" /> Professional Skills
+                    <Star className="h-3.5 w-3.5 text-yellow-500" /> Endorsed Skills
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {skills.map((skill, idx) => (
@@ -227,11 +299,11 @@ export default function MyProfilePage() {
                         key={idx}
                         onClick={() => handleEndorseSkill(idx)}
                         className={cn(
-                          "px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all",
-                          skill.endorsed ? "bg-primary text-white" : "bg-white dark:bg-card"
+                          "px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all active:scale-95",
+                          skill.endorsed ? "bg-primary text-white border-primary shadow-md shadow-primary/10" : "bg-white dark:bg-card hover:border-primary/30"
                         )}
                       >
-                        {skill.name} <span className="bg-black/10 px-1.5 rounded">{skill.count}</span>
+                        {skill.name} <span className={cn("px-1.5 rounded", skill.endorsed ? "bg-white/20" : "bg-black/10")}>{skill.count}</span>
                       </button>
                     ))}
                   </div>
@@ -243,26 +315,26 @@ export default function MyProfilePage() {
               <TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0">
                 <TabsTrigger value="all" className="flex-1 font-bold text-sm">Posts</TabsTrigger>
                 <TabsTrigger value="tagged" className="flex-1 font-bold text-sm">Tagged</TabsTrigger>
-                <TabsTrigger value="saved" className="flex-1 font-bold text-sm">Media</TabsTrigger>
+                <TabsTrigger value="saved" className="flex-1 font-bold text-sm">Vault</TabsTrigger>
               </TabsList>
               
               <TabsContent value="all" className="p-4 space-y-4">
                 {myPosts.length > 0 ? (
                   myPosts.map(post => <PostCard key={post.id} {...post} />)
                 ) : (
-                  <div className="py-20 text-center text-muted-foreground">
+                  <div className="py-20 text-center text-muted-foreground bg-secondary/10 rounded-[2rem] border-2 border-dashed border-border/50">
                     <Plus className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                    <p className="font-bold">No posts yet</p>
-                    <p className="text-sm">Start sharing your thoughts!</p>
+                    <p className="font-bold">No active vibes</p>
+                    <p className="text-sm">Start curating your thoughts.</p>
                   </div>
                 )}
               </TabsContent>
 
               <TabsContent value="tagged" className="p-4 space-y-4">
-                 <div className="flex flex-col items-center justify-center py-12 text-center bg-secondary/10 rounded-2xl border-2 border-dashed border-border/50">
-                    <AtSign className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="font-bold text-lg">Posts you're tagged in</h3>
-                    <p className="text-sm text-muted-foreground max-w-[240px] mt-1">When people tag you in photos or videos, they'll appear here.</p>
+                 <div className="flex flex-col items-center justify-center py-12 text-center bg-secondary/10 rounded-[2rem] border-2 border-dashed border-border/50">
+                    <AtSign className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
+                    <h3 className="font-bold text-lg">Collaboration Network</h3>
+                    <p className="text-sm text-muted-foreground max-w-[240px] mt-1">Posts where you've been tagged as a collaborator will appear here.</p>
                  </div>
               </TabsContent>
 
@@ -270,13 +342,16 @@ export default function MyProfilePage() {
                  <div className="flex items-center justify-between px-1 mb-2">
                     <div className="flex items-center gap-2">
                        <Bookmark className="h-5 w-5 text-primary" />
-                       <h3 className="font-bold text-lg">Your Saved Items</h3>
+                       <h3 className="font-bold text-lg italic uppercase tracking-tighter">Your Digital Vault</h3>
                     </div>
                  </div>
-                 <div className="grid grid-cols-2 gap-2">
+                 <div className="grid grid-cols-2 gap-3">
                     {[1, 2, 3, 4].map(i => (
-                      <div key={i} className="aspect-square relative rounded-xl overflow-hidden bg-secondary">
-                        <Image src={`https://picsum.photos/seed/save_${i}/300/300`} alt="Saved" fill className="object-cover" />
+                      <div key={i} className="aspect-square relative rounded-2xl overflow-hidden bg-secondary shadow-lg group cursor-pointer ring-1 ring-black/5">
+                        <Image src={`https://picsum.photos/seed/save_${i}/400/400`} alt="Saved" fill className="object-cover transition-transform group-hover:scale-110" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                          <span className="text-white text-[10px] font-black uppercase tracking-widest">View Archive</span>
+                        </div>
                       </div>
                     ))}
                  </div>
