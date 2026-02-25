@@ -1,3 +1,4 @@
+
 "use client";
 
 import { 
@@ -27,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function PlaylistDetail() {
-  const { selectedPlaylist, setSelectedPlaylist, currentTrack, setTrack } = useMusic();
+  const { selectedPlaylist, setSelectedPlaylist, currentTrack, setTrack, playCollection, toggleLike, isTrackLiked } = useMusic();
 
   if (!selectedPlaylist) return null;
 
@@ -39,9 +40,12 @@ export function PlaylistDetail() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handlePlayAll = () => {
+    playCollection(selectedPlaylist.songs);
+  };
+
   return (
     <div className="fixed inset-0 z-[120] bg-background flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-500 overflow-hidden">
-      {/* Dynamic Background Blur */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full bg-primary/10 blur-[150px] opacity-40" />
         <Image 
@@ -53,7 +57,6 @@ export function PlaylistDetail() {
         <div className="absolute inset-0 bg-background/60 backdrop-blur-3xl" />
       </div>
 
-      {/* Header */}
       <header className="p-6 flex items-center justify-between sticky top-0 z-10">
         <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20" onClick={handleClose}>
           <ArrowLeft className="h-6 w-6" />
@@ -71,7 +74,6 @@ export function PlaylistDetail() {
       <main className="flex-1 overflow-y-auto px-6 pb-40">
         <div className="max-w-5xl mx-auto flex flex-col lg:flex-row gap-12 pt-8">
           
-          {/* Playlist Info Section */}
           <div className="flex flex-col items-center lg:items-start text-center lg:text-left space-y-8 lg:w-1/3">
             <div className="relative w-full aspect-square max-w-[320px] rounded-[2rem] overflow-hidden shadow-2xl ring-1 ring-white/10">
               <Image src={selectedPlaylist.cover} alt={selectedPlaylist.title} fill className="object-cover" />
@@ -97,7 +99,7 @@ export function PlaylistDetail() {
             <div className="flex items-center gap-4 w-full">
               <Button 
                 className="flex-1 h-14 rounded-2xl bg-primary text-white font-black text-lg gap-3 shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
-                onClick={() => setTrack(selectedPlaylist.songs[0])}
+                onClick={handlePlayAll}
               >
                 <Play className="h-6 w-6 fill-current" />
                 PLAY ALL
@@ -123,7 +125,6 @@ export function PlaylistDetail() {
             </div>
           </div>
 
-          {/* Track List Section */}
           <div className="flex-1 space-y-6">
             <div className="flex items-center justify-between border-b border-white/5 pb-4">
               <h2 className="text-xl font-black italic uppercase tracking-tighter">Tracks</h2>
@@ -136,6 +137,7 @@ export function PlaylistDetail() {
             <div className="space-y-1">
               {selectedPlaylist.songs.map((song, idx) => {
                 const isCurrent = currentTrack?.id === song.id;
+                const isLiked = isTrackLiked(song.id);
                 
                 return (
                   <div 
@@ -144,7 +146,7 @@ export function PlaylistDetail() {
                       "flex items-center justify-between p-4 rounded-2xl transition-all group cursor-pointer",
                       isCurrent ? "bg-primary/10" : "hover:bg-secondary/10"
                     )}
-                    onClick={() => setTrack(song)}
+                    onClick={() => playCollection(selectedPlaylist.songs, idx)}
                   >
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <span className={cn(
@@ -168,7 +170,13 @@ export function PlaylistDetail() {
 
                     <div className="flex items-center gap-6">
                       <span className="text-[10px] font-black text-muted-foreground">{formatDuration(song.duration)}</span>
-                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button 
+                          variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isLiked && "text-primary")}
+                          onClick={(e) => { e.stopPropagation(); toggleLike(song.id); }}
+                        >
+                          <Heart className={cn("h-4 w-4", isLiked && "fill-current")} />
+                        </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={(e) => e.stopPropagation()}>

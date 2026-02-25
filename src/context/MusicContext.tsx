@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
@@ -58,6 +59,8 @@ interface MusicContextType {
   progress: number;
   volume: number;
   reactions: MusicReaction[];
+  likedSongIds: Set<string | number>;
+  
   setTrack: (track: Track) => void;
   togglePlay: () => void;
   nextTrack: () => void;
@@ -70,6 +73,9 @@ interface MusicContextType {
   addReaction: (emoji: string) => void;
   addComment: (text: string) => void;
   clearPlayer: () => void;
+  toggleLike: (trackId: string | number) => void;
+  isTrackLiked: (trackId: string | number) => boolean;
+  playCollection: (tracks: Track[], startIndex?: number) => void;
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
@@ -90,7 +96,7 @@ const MOCK_SONGS: Track[] = [
 
 export function MusicProvider({ children }: { children: ReactNode }) {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
-  const [queue] = useState<Track[]>(MOCK_SONGS);
+  const [queue, setQueue] = useState<Track[]>(MOCK_SONGS);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
@@ -98,50 +104,90 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState(80);
   const [reactions, setReactions] = useState<MusicReaction[]>([]);
+  const [likedSongIds, setLikedSongIds] = useState<Set<string | number>>(new Set());
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isPlaying && currentTrack) {
       interval = setInterval(() => {
         setProgress((prev) => {
-          if (prev >= 100) {
-            nextTrack();
-            return 0;
-          }
-          return prev + 0.1;
+          if (prev >= 100) return 100;
+          const step = (1 / (currentTrack.duration || 1)) * 100;
+          return Math.min(prev + step / 10, 100); 
         });
-      }, 1000);
+      }, 100);
     }
     return () => clearInterval(interval);
   }, [isPlaying, currentTrack]);
 
+  // Handle auto-next
+  useEffect(() => {
+    if (progress >= 100 && isPlaying) {
+      nextTrack();
+    }
+  }, [progress]);
+
   const setTrack = (track: Track) => {
+    // If selecting a single track from discover, reset queue to mock songs or the current queue
+    if (!queue.some(t => t.id === track.id)) {
+      setQueue([track, ...queue.filter(t => t.id !== track.id)]);
+    }
     setCurrentTrack(track);
     setIsPlaying(true);
     setProgress(0);
     setReactions([]);
-    setIsExpanded(true); // Open full-screen player immediately on track selection
+    setIsExpanded(true); 
+  };
+
+  const playCollection = (tracks: Track[], startIndex: number = 0) => {
+    if (tracks.length === 0) return;
+    setQueue(tracks);
+    const track = tracks[startIndex];
+    setCurrentTrack(track);
+    setIsPlaying(true);
+    setProgress(0);
+    setReactions([]);
+    setIsExpanded(true);
   };
 
   const togglePlay = () => setIsPlaying(!isPlaying);
 
   const nextTrack = () => {
+    if (queue.length === 0) return;
     const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
     const nextIndex = (currentIndex + 1) % queue.length;
-    setTrack(queue[nextIndex]);
+    const next = queue[nextIndex];
+    setCurrentTrack(next);
+    setProgress(0);
+    setIsPlaying(true);
   };
 
   const prevTrack = () => {
+    if (queue.length === 0) return;
     const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
     const prevIndex = (currentIndex - 1 + queue.length) % queue.length;
-    setTrack(queue[prevIndex]);
+    const prev = queue[prevIndex];
+    setCurrentTrack(prev);
+    setProgress(0);
+    setIsPlaying(true);
   };
+
+  const toggleLike = (trackId: string | number) => {
+    setLikedSongIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(trackId)) next.delete(trackId);
+      else next.add(trackId);
+      return next;
+    });
+  };
+
+  const isTrackLiked = (trackId: string | number) => likedSongIds.has(trackId);
 
   const addReaction = (emoji: string) => {
     const id = Date.now();
     const newReaction = { id, emoji, x: Math.random() * 80 + 10 };
     setReactions((prev) => [...prev, newReaction]);
-    setTimeout(() => setReactions((prev) => prev.filter((r) => r.id !== id)), 2000);
+    setTimeout(() => setReactions((prev) => prev.filter((r) => r.id !== id)), 2500);
   };
 
   const addComment = (text: string) => {
@@ -168,8 +214,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   return (
     <MusicContext.Provider value={{
-      currentTrack, queue, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions,
-      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer
+      currentTrack, queue, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds,
+      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, isTrackLiked, playCollection
     }}>
       {children}
     </MusicContext.Provider>

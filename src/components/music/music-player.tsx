@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -7,6 +8,7 @@ import {
   SkipBack, 
   SkipForward, 
   Volume2, 
+  VolumeX,
   Maximize2, 
   ChevronDown,
   AudioLines,
@@ -36,10 +38,12 @@ export function MusicPlayer() {
   const pathname = usePathname();
   const { 
     currentTrack, isPlaying, isExpanded, progress, volume, reactions,
-    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, addComment, clearPlayer
+    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, isTrackLiked
   } = useMusic();
 
   const [commentInput, setCommentInput] = useState("");
+  const [isMuted, setIsMuted] = useState(false);
+  const [preMuteVolume, setPreMuteVolume] = useState(80);
 
   if (!currentTrack) return null;
 
@@ -57,15 +61,32 @@ export function MusicPlayer() {
     setCommentInput("");
   };
 
+  const handleMuteToggle = () => {
+    if (isMuted) {
+      setVolume(preMuteVolume);
+      setIsMuted(false);
+    } else {
+      setPreMuteVolume(volume);
+      setVolume(0);
+      setIsMuted(true);
+    }
+  };
+
+  const handleVolumeChange = (val: number) => {
+    setVolume(val);
+    if (val > 0) setIsMuted(false);
+    else setIsMuted(true);
+  };
+
+  const isLiked = isTrackLiked(currentTrack.id);
+
   // Mini Player View
   if (!isExpanded) {
     const isHome = pathname === "/";
     const isMusic = pathname === "/music";
     
-    // Calculate dynamic top offset to avoid overlapping subheaders
     let topOffset = "top-[61px]";
     if (isHome) topOffset = "top-[117px]";
-    // On music page, the search header shifts down when player active, so player stays at 61px
     if (isMusic) topOffset = "top-[61px]";
 
     return (
@@ -80,7 +101,7 @@ export function MusicPlayer() {
           <div className="relative h-10 w-10 rounded-lg overflow-hidden shrink-0 shadow-lg ring-1 ring-primary/10">
             <Image src={currentTrack.cover} alt={currentTrack.title} fill className="object-cover" />
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-0">
             <div className="flex items-center gap-2">
               <p className="text-xs font-bold truncate text-foreground">{currentTrack.title}</p>
               <div className="flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full">
@@ -125,7 +146,6 @@ export function MusicPlayer() {
   // Expanded Full Screen View
   return (
     <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-in fade-in zoom-in-95 duration-500 overflow-hidden">
-      {/* Immersive Orbs */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
         <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-accent/20 blur-[120px] rounded-full animate-pulse duration-1000" />
@@ -158,7 +178,6 @@ export function MusicPlayer() {
 
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="flex flex-col lg:flex-row items-start justify-center p-6 sm:p-12 gap-8 lg:gap-16 max-w-7xl mx-auto w-full min-h-full">
-          {/* Artwork Container */}
           <div className="relative w-full max-w-[320px] sm:max-w-[400px] lg:max-w-[500px] aspect-square group shrink-0 lg:sticky lg:top-12 mx-auto lg:mx-0">
             <div className={cn(
               "absolute inset-0 bg-primary/30 blur-[100px] rounded-full transition-opacity duration-1000",
@@ -178,7 +197,6 @@ export function MusicPlayer() {
             </div>
           </div>
 
-          {/* Controls, Track Info and Comments */}
           <div className="flex-1 w-full max-w-[500px] flex flex-col gap-6 sm:gap-10 mx-auto lg:mx-0">
             <div className="flex items-start justify-between">
               <div className="space-y-1 sm:space-y-2">
@@ -188,8 +206,12 @@ export function MusicPlayer() {
                 </Link>
               </div>
               <div className="flex flex-col gap-2">
-                <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-secondary/20 hover:text-red-500">
-                  <Heart className="h-5 w-5 sm:h-7 sm:w-7" />
+                <Button 
+                  variant="ghost" size="icon" 
+                  className={cn("h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-secondary/20 transition-all", isLiked ? "text-red-500 bg-red-500/10" : "hover:text-red-500")}
+                  onClick={() => toggleLike(currentTrack.id)}
+                >
+                  <Heart className={cn("h-5 w-5 sm:h-7 sm:w-7", isLiked && "fill-current")} />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-secondary/20 hover:text-destructive">
                   <ThumbsDown className="h-5 w-5 sm:h-7 sm:w-7" />
@@ -223,7 +245,6 @@ export function MusicPlayer() {
               </Button>
             </div>
 
-            {/* Reactions and Volume */}
             <div className="space-y-4 sm:space-y-6 pt-6 sm:pt-10 border-t border-white/10">
               <div className="flex items-center justify-between bg-secondary/10 p-3 sm:p-4 rounded-[1.5rem] sm:rounded-[2rem]">
                 {QUICK_REACTIONS.map((emoji) => (
@@ -237,12 +258,13 @@ export function MusicPlayer() {
                 ))}
               </div>
               <div className="flex items-center gap-3 sm:gap-4">
-                <Volume2 className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                <Slider value={[volume]} max={100} onValueChange={(val) => setVolume(val[0])} className="w-full" />
+                <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground" onClick={handleMuteToggle}>
+                  {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                </Button>
+                <Slider value={[volume]} max={100} onValueChange={(val) => handleVolumeChange(val[0])} className="w-full" />
               </div>
             </div>
 
-            {/* Comments Section */}
             <div className="space-y-4 pt-10 border-t border-white/10">
               <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-2">
@@ -284,7 +306,6 @@ export function MusicPlayer() {
                 </div>
               </ScrollArea>
 
-              {/* Comment Input */}
               <div className="relative group pt-4 mb-10 lg:mb-0">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
                   <Avatar className="h-8 w-8 border-2 border-primary/20">
