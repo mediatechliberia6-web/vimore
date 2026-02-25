@@ -1,4 +1,3 @@
-
 "use client";
 
 import { 
@@ -29,6 +28,7 @@ import {
   AccordionItem, 
   AccordionTrigger 
 } from "@/components/ui/accordion";
+import { useMusic } from "@/context/MusicContext";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +41,9 @@ const menuGrid = [
 ];
 
 export default function MenuPage() {
+  const { currentTrack, isExpanded } = useMusic();
+  const isPlayerActive = currentTrack && !isExpanded;
+
   return (
     <div className="min-h-screen bg-[#F7F9FC] dark:bg-[#050505] transition-colors duration-300">
       <header className="sticky top-0 z-50 bg-white/80 dark:bg-card/80 backdrop-blur-md border-b border-border h-16 px-4 flex items-center justify-between">
@@ -62,7 +65,10 @@ export default function MenuPage() {
         </div>
       </header>
 
-      <main className="max-w-xl mx-auto p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <main className={cn(
+        "max-w-xl mx-auto p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 transition-all",
+        isPlayerActive ? "pt-[80px]" : "pt-4"
+      )}>
         <Link href="/profile" className="block group">
           <div className="bg-white dark:bg-card rounded-[2rem] p-5 shadow-xl shadow-black/5 border border-border flex items-center justify-between transition-all hover:shadow-2xl active:scale-[0.98]">
             <div className="flex items-center gap-4">

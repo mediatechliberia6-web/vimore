@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, use } from "react";
@@ -10,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useMusic } from "@/context/MusicContext";
 import { 
   ArrowLeft, 
   MoreHorizontal, 
@@ -91,7 +91,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const resolvedParams = use(params);
   const username = resolvedParams.username;
   const { currentUser, posts } = usePosts();
+  const { currentTrack, isExpanded } = useMusic();
   const isMe = username === currentUser.username;
+  const isPlayerActive = currentTrack && !isExpanded;
   
   const { toast } = useToast();
   const [isPlayingIntro, setIsPlayingIntro] = useState(false);
@@ -156,11 +158,17 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-background flex justify-center">
       <div className="max-w-[1440px] w-full grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[280px_1fr_360px] gap-8 px-0 md:px-4">
         
-        <aside className="hidden md:block sticky top-0 h-screen border-r border-border/50">
+        <aside className={cn(
+          "hidden md:block sticky h-screen border-r border-border/50 transition-all duration-300",
+          isPlayerActive ? "top-16" : "top-0"
+        )}>
           <MainNav />
         </aside>
 
-        <main className="w-full bg-white dark:bg-card min-h-screen shadow-sm">
+        <main className={cn(
+          "w-full bg-white dark:bg-card min-h-screen shadow-sm transition-all duration-300",
+          isPlayerActive ? "pt-[64px]" : "pt-0"
+        )}>
           <header className="sticky top-0 z-50 bg-white/95 dark:bg-card/95 backdrop-blur-sm border-b border-border h-14 px-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Link href="/">
@@ -282,7 +290,10 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
           </div>
         </main>
 
-        <aside className="hidden lg:block">
+        <aside className={cn(
+          "hidden lg:block sticky h-screen transition-all duration-300",
+          isPlayerActive ? "top-16" : "top-0"
+        )}>
           <RightSidebar />
         </aside>
       </div>

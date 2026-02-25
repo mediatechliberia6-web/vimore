@@ -22,7 +22,7 @@ export default function Home() {
       
       <div className={cn(
         "w-full max-w-[1440px] grid grid-cols-1 lg:grid-cols-[280px_1fr_360px] gap-8 px-4 transition-all duration-300",
-        isPlayerActive ? "py-20" : "py-6"
+        isPlayerActive ? "pt-[184px]" : "pt-6"
       )}>
         {/* Left Sidebar - Navigation (Hidden on mobile) */}
         <aside className={cn(

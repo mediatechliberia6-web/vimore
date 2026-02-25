@@ -40,7 +40,7 @@ import { cn } from "@/lib/utils";
 import { aiTranslatePost } from "@/app/actions/ai";
 
 export default function MyProfilePage() {
-  const { currentUser, posts, highlights } = usePosts();
+  const { currentUser, posts } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
@@ -122,7 +122,7 @@ export default function MyProfilePage() {
 
         <main className={cn(
           "w-full bg-white dark:bg-card min-h-screen shadow-sm transition-all duration-300",
-          isPlayerActive ? "mt-16" : "mt-0"
+          isPlayerActive ? "pt-[64px]" : "pt-0"
         )}>
           <header className="sticky top-0 z-50 bg-white/95 dark:bg-card/95 backdrop-blur-sm border-b border-border h-14 px-4 flex items-center justify-between">
             <div className="flex items-center gap-3">

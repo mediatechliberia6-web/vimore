@@ -1,4 +1,3 @@
-
 "use client";
 
 import { MainNav } from "@/components/layout/main-nav";
@@ -7,8 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Phone, Video, Info, Paperclip, Smile } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useMusic } from "@/context/MusicContext";
+import { cn } from "@/lib/utils";
 
 export default function MessagesPage() {
+  const { currentTrack, isExpanded } = useMusic();
+  const isPlayerActive = currentTrack && !isExpanded;
+
   return (
     <div className="min-h-screen bg-background flex justify-center">
       <div className="max-w-[1440px] w-full grid grid-cols-1 md:grid-cols-[280px_1fr] h-screen overflow-hidden">
@@ -18,7 +22,10 @@ export default function MessagesPage() {
         </aside>
 
         {/* Messaging Area */}
-        <main className="grid grid-cols-1 lg:grid-cols-[380px_1fr] bg-white overflow-hidden shadow-2xl">
+        <main className={cn(
+          "grid grid-cols-1 lg:grid-cols-[380px_1fr] bg-white overflow-hidden shadow-2xl transition-all duration-300",
+          isPlayerActive ? "pt-[64px]" : "pt-0"
+        )}>
           <DirectMessageList />
 
           <div className="flex flex-col h-full bg-[#FAFAFF]">
