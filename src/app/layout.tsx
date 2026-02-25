@@ -8,7 +8,7 @@ import { AlbumDetail } from "@/components/music/album-detail";
 import { PlaylistDetail } from "@/components/music/playlist-detail";
 
 export const metadata: Metadata = {
-  title: 'ViMore - Real-time Social Connection',
+  title: 'ViMore',
   description: 'Connect, share, and enhance your voice with ViMore.',
   manifest: '/manifest.json',
   appleWebApp: {

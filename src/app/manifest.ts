@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'ViMore - Real-time Social Connection',
+    name: 'ViMore',
     short_name: 'ViMore',
     description: 'Connect, share, and enhance your voice with ViMore.',
     start_url: '/',
