@@ -1,3 +1,4 @@
+
 "use client";
 
 import { MainNav } from "@/components/layout/main-nav";
@@ -113,7 +114,8 @@ const MOCK_ARTISTS = [
 ];
 
 export default function MusicPage() {
-  const { isExpanded, selectedAlbum, selectedPlaylist } = useMusic();
+  const { currentTrack, isExpanded, selectedAlbum, selectedPlaylist } = useMusic();
+  const isPlayerActive = currentTrack && !isExpanded;
 
   return (
     <div className={cn(
@@ -126,13 +128,22 @@ export default function MusicPage() {
       <div className="fixed top-0 left-1/4 w-[60%] h-[40%] bg-primary/5 blur-[120px] rounded-full pointer-events-none -z-10" />
       
       <div className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[280px_1fr]">
-        <aside className="hidden lg:block sticky top-[61px] h-[calc(100vh-61px)] border-r border-border/50">
+        <aside className={cn(
+          "hidden lg:block sticky border-r border-border/50 transition-all duration-300",
+          isPlayerActive ? "top-[125px] h-[calc(100vh-125px)]" : "top-[61px] h-[calc(100vh-61px)]"
+        )}>
           <MainNav />
         </aside>
 
-        <main className="flex flex-col pb-48 relative">
+        <main className={cn(
+          "flex flex-col pb-48 relative transition-all duration-300",
+          isPlayerActive ? "pt-[64px]" : "pt-0"
+        )}>
           {/* Sub-header with Back Button */}
-          <div className="sticky top-[61px] z-30 bg-[#F0F2F5]/80 dark:bg-background/80 backdrop-blur-md px-6 sm:px-10 py-4 flex items-center gap-4 border-b border-border/50">
+          <div className={cn(
+            "sticky z-30 bg-[#F0F2F5]/80 dark:bg-background/80 backdrop-blur-md px-6 sm:px-10 py-4 flex items-center gap-4 border-b border-border/50 transition-all duration-300",
+            isPlayerActive ? "top-[125px]" : "top-[61px]"
+          )}>
             <Link href="/">
               <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 transition-colors">
                 <ArrowLeft className="h-6 w-6" />
