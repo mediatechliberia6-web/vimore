@@ -19,10 +19,12 @@ import { Slider } from "@/components/ui/slider";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 
 const QUICK_REACTIONS = ["🔥", "❤️", "🙌", "💯", "🤯", "🚀"];
 
 export function MusicPlayer() {
+  const pathname = usePathname();
   const { 
     currentTrack, isPlaying, isExpanded, progress, volume, reactions,
     togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, clearPlayer
@@ -38,46 +40,62 @@ export function MusicPlayer() {
 
   const currentTime = (progress / 100) * currentTrack.duration;
 
+  // Mini Player View
   if (!isExpanded) {
+    const isHome = pathname === "/";
+    const topOffset = isHome ? "top-[117px]" : "top-[61px]";
+
     return (
       <div 
-        className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[95%] max-w-[800px] h-16 bg-background/60 dark:bg-card/60 backdrop-blur-2xl border border-white/20 dark:border-white/5 shadow-2xl rounded-2xl flex items-center px-4 gap-4 animate-in slide-in-from-bottom-12 z-[70] cursor-pointer group"
+        className={cn(
+          "fixed left-0 right-0 h-16 bg-white/95 dark:bg-card/95 backdrop-blur-xl border-b border-primary/10 shadow-sm flex items-center px-4 gap-4 animate-in slide-in-from-top-4 z-[45] cursor-pointer group transition-all duration-300",
+          topOffset
+        )}
         onClick={() => setIsExpanded(true)}
       >
-        <div className="relative h-10 w-10 rounded-lg overflow-hidden shrink-0 shadow-lg">
-          <Image src={currentTrack.cover} alt={currentTrack.title} fill className="object-cover" />
+        <div className="max-w-[1440px] mx-auto w-full flex items-center gap-4">
+          <div className="relative h-10 w-10 rounded-lg overflow-hidden shrink-0 shadow-lg ring-1 ring-primary/10">
+            <Image src={currentTrack.cover} alt={currentTrack.title} fill className="object-cover" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-bold truncate text-foreground">{currentTrack.title}</p>
+              <div className="flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full">
+                <AudioLines className="h-2 w-2 text-primary animate-pulse" />
+                <span className="text-[8px] font-black text-primary uppercase">Live</span>
+              </div>
+            </div>
+            <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest truncate">{currentTrack.artist}</p>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button 
+              size="icon" variant="ghost" className="h-10 w-10 text-primary"
+              onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+            >
+              {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
+            </Button>
+            <Button 
+              size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground"
+              onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+            <Button 
+              size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground hover:text-destructive"
+              onClick={(e) => { e.stopPropagation(); clearPlayer(); }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold truncate text-foreground">{currentTrack.title}</p>
-          <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest truncate">{currentTrack.artist}</p>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button 
-            size="icon" variant="ghost" className="h-10 w-10"
-            onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-          >
-            {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
-          </Button>
-          <Button 
-            size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground"
-            onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
-          >
-            <Maximize2 className="h-4 w-4" />
-          </Button>
-          <Button 
-            size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground hover:text-destructive"
-            onClick={(e) => { e.stopPropagation(); clearPlayer(); }}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-secondary/50 rounded-full overflow-hidden">
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-secondary/30">
           <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
         </div>
       </div>
     );
   }
 
+  // Expanded Full Screen View
   return (
     <div className="fixed inset-0 z-[100] bg-background flex flex-col animate-in fade-in zoom-in-95 duration-500 overflow-hidden">
       {/* Immersive Orbs */}

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { MainNav } from "@/components/layout/main-nav";
@@ -8,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { useMusic } from "@/context/MusicContext";
 import { 
   Search, 
   TrendingUp, 
@@ -41,14 +41,23 @@ const hubs = [
 ];
 
 export default function ExplorePage() {
+  const { currentTrack, isExpanded } = useMusic();
+  const isPlayerActive = currentTrack && !isExpanded;
+
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#080808] transition-colors duration-300">
       <Header />
       <SubHeader />
 
-      <div className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 px-4 py-6">
+      <div className={cn(
+        "max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 px-4 transition-all duration-300",
+        isPlayerActive ? "py-20" : "py-6"
+      )}>
         {/* Left Navigation */}
-        <aside className="hidden lg:block sticky top-[132px] h-[calc(100vh-132px)]">
+        <aside className={cn(
+          "hidden lg:block sticky h-[calc(100vh-132px)] transition-all duration-300",
+          isPlayerActive ? "top-[196px]" : "top-[132px]"
+        )}>
           <MainNav />
         </aside>
 
@@ -87,9 +96,11 @@ export default function ExplorePage() {
                 <p className="text-white/80 text-sm font-medium line-clamp-2 max-w-md">
                   Join Marcus Stone as he explores the hidden rooftop gardens of San Francisco in this 5-part series.
                 </p>
-                <Button className="mt-4 rounded-xl gap-2 bg-white text-black hover:bg-zinc-200 font-bold px-6">
-                  Watch Now <ChevronRight className="h-4 w-4" />
-                </Button>
+                <Link href="/">
+                  <Button className="mt-4 rounded-xl gap-2 bg-white text-black hover:bg-zinc-200 font-bold px-6">
+                    Watch Now <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </Link>
               </div>
             </div>
 
@@ -216,5 +227,3 @@ export default function ExplorePage() {
     </div>
   );
 }
-
-    

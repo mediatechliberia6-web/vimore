@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -12,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useMusic } from "@/context/MusicContext";
 import { 
   ArrowLeft, 
   Camera, 
@@ -41,12 +41,15 @@ import { aiTranslatePost } from "@/app/actions/ai";
 
 export default function MyProfilePage() {
   const { currentUser, posts, highlights } = usePosts();
+  const { currentTrack, isExpanded } = useMusic();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isPlayingIntro, setIsPlayingIntro] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [translatedBio, setTranslatedBio] = useState<string | null>(null);
   
+  const isPlayerActive = currentTrack && !isExpanded;
+
   const [skills, setSkills] = useState([
     { name: "UI/UX Design", count: 42, endorsed: false },
     { name: "Mobile Photography", count: 28, endorsed: false },
@@ -110,11 +113,17 @@ export default function MyProfilePage() {
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-background flex justify-center">
       <div className="max-w-[1440px] w-full grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[280px_1fr_360px] gap-8 px-0 md:px-4">
         
-        <aside className="hidden md:block sticky top-0 h-screen border-r border-border/50">
+        <aside className={cn(
+          "hidden md:block sticky h-screen border-r border-border/50 transition-all duration-300",
+          isPlayerActive ? "top-16" : "top-0"
+        )}>
           <MainNav />
         </aside>
 
-        <main className="w-full bg-white dark:bg-card min-h-screen shadow-sm">
+        <main className={cn(
+          "w-full bg-white dark:bg-card min-h-screen shadow-sm transition-all duration-300",
+          isPlayerActive ? "mt-16" : "mt-0"
+        )}>
           <header className="sticky top-0 z-50 bg-white/95 dark:bg-card/95 backdrop-blur-sm border-b border-border h-14 px-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Link href="/">
@@ -276,7 +285,10 @@ export default function MyProfilePage() {
           </div>
         </main>
 
-        <aside className="hidden lg:block sticky top-0 h-screen">
+        <aside className={cn(
+          "hidden lg:block sticky h-screen transition-all duration-300",
+          isPlayerActive ? "top-16" : "top-0"
+        )}>
           <RightSidebar />
         </aside>
       </div>
