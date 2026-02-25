@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -6,7 +5,7 @@ import Link from "next/link";
 import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye, BellOff, VolumeX } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { usePosts } from "@/context/PostContext";
+import { usePosts, StorySegment } from "@/context/PostContext";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import {
@@ -89,7 +88,6 @@ export function StoryViewer() {
       pausedTime.current = 0;
       setVotedSegmentId(null);
     } else {
-      // Re-start current segment
       setProgress(0);
       startTime.current = null;
       pausedTime.current = 0;
@@ -142,20 +140,12 @@ export function StoryViewer() {
     }
   };
 
-  const handleStartPress = () => {
-    setIsPaused(true);
-  };
-
-  const handleEndPress = () => {
-    setIsPaused(false);
-  };
-
   const addReaction = (emoji: string) => {
     const id = Date.now();
     const newReaction = {
       id,
       emoji,
-      x: Math.random() * 60 + 20, // 20% to 80% to stay centered
+      x: Math.random() * 60 + 20,
     };
     setReactions(prev => [...prev, newReaction]);
     setTimeout(() => {
@@ -184,22 +174,12 @@ export function StoryViewer() {
   return (
     <div 
       className="fixed inset-0 z-[100] bg-black flex items-center justify-center overflow-hidden animate-in fade-in duration-300"
-      onMouseDown={handleStartPress}
-      onMouseUp={handleEndPress}
-      onMouseLeave={handleEndPress}
-      onTouchStart={handleStartPress}
-      onTouchEnd={handleEndPress}
+      onMouseDown={() => setIsPaused(true)}
+      onMouseUp={() => setIsPaused(false)}
+      onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={() => setIsPaused(true)}
+      onTouchEnd={() => setIsPaused(false)}
     >
-      {/* Background Blur */}
-      <div className="absolute inset-0 opacity-40 blur-3xl pointer-events-none">
-        <Image 
-          src={currentSegment.image} 
-          alt="Blur Background" 
-          fill 
-          className="object-cover"
-        />
-      </div>
-
       <div className="relative w-full max-w-[500px] h-full sm:h-[90vh] sm:rounded-2xl overflow-hidden bg-zinc-900 shadow-2xl flex flex-col">
         {/* Progress Bars */}
         <div className="absolute top-4 left-4 right-4 z-[60] flex gap-1.5 px-1">
@@ -240,95 +220,87 @@ export function StoryViewer() {
                   <span className="text-[9px] bg-[#42b72a] text-white px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider">Close Friends</span>
                 )}
               </div>
-              <span className="text-[10px] text-white/60 font-medium">10h ago</span>
+              <span className="text-[10px] text-white/60 font-medium">Recently</span>
             </div>
           </Link>
           
-          <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-2">
-              {isOwner && activeStory.viewCount !== undefined && (
-                <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full text-white/90">
-                  <Eye className="h-3 w-3" />
-                  <span className="text-[10px] font-bold">{activeStory.viewCount}</span>
-                </div>
-              )}
-              
-              <DropdownMenu onOpenChange={(open) => setIsPaused(open)}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-8 w-8">
-                    <MoreHorizontal className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 rounded-xl p-2">
-                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={() => toggleMuteUser(activeStory.user.name)}>
-                    <VolumeX className="h-4 w-4" />
-                    {mutedUserNames.includes(activeStory.user.name) ? "Unmute" : "Mute"} {activeStory.user.name}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold text-destructive focus:text-destructive">
-                    <BellOff className="h-4 w-4" />
-                    Turn off story notifications
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+          <div className="flex items-center gap-2">
+            {isOwner && activeStory.viewCount !== undefined && (
+              <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full text-white/90">
+                <Eye className="h-3 w-3" />
+                <span className="text-[10px] font-bold">{activeStory.viewCount}</span>
+              </div>
+            )}
+            
+            <DropdownMenu onOpenChange={(open) => setIsPaused(open)}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-8 w-8">
+                  <MoreHorizontal className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 rounded-xl p-2">
+                <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={() => toggleMuteUser(activeStory.user.name)}>
+                  <VolumeX className="h-4 w-4" />
+                  {mutedUserNames.includes(activeStory.user.name) ? "Unmute" : "Mute"} {activeStory.user.name}
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 cursor-pointer font-bold text-destructive focus:text-destructive">
+                  <BellOff className="h-4 w-4" />
+                  Notifications Off
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="text-white hover:bg-white/10 rounded-full h-8 w-8"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleClose();
-                }}
-              >
-                <X className="h-6 w-6" />
-              </Button>
-            </div>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-8 w-8" onClick={handleClose}>
+              <X className="h-6 w-6" />
+            </Button>
           </div>
         </div>
 
         {/* Media Container */}
         <div 
-          className="relative flex-1 cursor-pointer select-none flex items-center justify-center"
+          className={cn(
+            "relative flex-1 cursor-pointer select-none flex items-center justify-center overflow-hidden",
+            // @ts-ignore - checking for background from text stories
+            currentSegment.background || "bg-black"
+          )}
           onClick={handleTap}
         >
-          <Image 
-            src={currentSegment.image} 
-            alt="Story Content" 
-            fill 
-            className={cn("object-cover", currentSegment.filter)}
-            priority
-          />
+          {currentSegment.type === 'video' ? (
+            <video 
+              src={currentSegment.image} 
+              className="w-full h-full object-cover" 
+              autoPlay 
+              muted 
+              loop 
+              playsInline 
+            />
+          ) : currentSegment.image ? (
+            <Image 
+              src={currentSegment.image} 
+              alt="Story Content" 
+              fill 
+              className={cn("object-cover", currentSegment.filter)}
+              priority
+            />
+          ) : null}
 
-          {/* Draggable Text Overlays */}
+          {/* Draggable Text Overlays / Centered Story Text */}
           {currentSegment.textOverlays?.map((overlay, i) => (
             <div 
               key={i}
-              className="absolute z-40 p-2 pointer-events-none"
+              className="absolute z-40 p-6 pointer-events-none w-full text-center"
               style={{ 
                 top: `${overlay.y}%`, 
                 left: `${overlay.x}%`, 
                 transform: 'translate(-50%, -50%)',
                 color: overlay.color,
-                textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+                textShadow: '0 2px 8px rgba(0,0,0,0.3)'
               }}
             >
-              <span className="text-2xl font-black italic uppercase tracking-tighter bg-black/20 px-3 py-1 rounded-lg backdrop-blur-sm">
+              <span className="text-3xl font-black italic uppercase tracking-tighter leading-tight">
                 {overlay.text}
               </span>
             </div>
-          ))}
-
-          {/* Mentions */}
-          {currentSegment.mentions?.map((mention, i) => (
-            <Link 
-              key={i}
-              href={`/profile/${mention.username}`}
-              onClick={handleClose}
-              className="absolute z-40 bg-white/20 backdrop-blur-md border border-white/30 px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-lg animate-in zoom-in duration-300 hover:bg-white/40 transition-colors"
-              style={{ top: mention.y, left: mention.x }}
-            >
-              @{mention.username}
-            </Link>
           ))}
 
           {/* Poll Sticker */}
@@ -387,7 +359,6 @@ export function StoryViewer() {
           "absolute bottom-0 left-0 right-0 p-6 pt-12 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300",
           isPaused ? "opacity-0" : "opacity-100"
         )}>
-          {/* Quick Reactions */}
           <div className="flex items-center justify-between mb-4 px-2">
             {QUICK_REACTIONS.map((emoji) => (
               <button
@@ -404,7 +375,7 @@ export function StoryViewer() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex-1 h-12 bg-white/10 backdrop-blur-md rounded-full border border-white/20 px-5 flex items-center text-white/60 text-sm focus-within:text-white transition-colors group">
+            <div className="flex-1 h-12 bg-white/10 backdrop-blur-md rounded-full border border-white/20 px-5 flex items-center text-white/60 text-sm transition-colors group">
               <input 
                 type="text"
                 placeholder={`Reply to ${activeStory.user.name}...`}
@@ -429,7 +400,7 @@ export function StoryViewer() {
           </div>
         </div>
 
-        {/* Desktop Navigation Arrows */}
+        {/* Navigation Arrows */}
         <div className="hidden sm:block">
           <Button 
             variant="ghost" 
