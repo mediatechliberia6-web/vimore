@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -44,6 +43,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { aiTranslatePost } from "@/app/actions/ai";
 import { useToast } from "@/hooks/use-toast";
+import { usePosts } from "@/context/PostContext";
 
 interface Comment {
   id: string;
@@ -98,41 +98,26 @@ interface PostCardProps {
   sharedPost?: PostCardProps;
 }
 
-export function PostCard({ 
-  user, 
-  collaborator,
-  content, 
-  image, 
-  images = [], 
-  imageFilter,
-  theme,
-  language,
-  likes, 
-  unlikes,
-  comments, 
-  time, 
-  hashtags,
-  feeling,
-  commentsDisabled,
-  isPinned,
-  isSeries,
-  seriesTitle,
-  poll,
-  initialComments = [],
-  isShared = false,
-  sharedPost
-}: PostCardProps) {
-  const [isLiked, setIsLiked] = useState(false);
-  const [isUnliked, setIsUnliked] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
+export function PostCard(props: PostCardProps) {
+  const { 
+    id, user, collaborator, content, image, images = [], imageFilter, theme, language,
+    likes, unlikes, comments, time, hashtags, feeling, commentsDisabled, isPinned, 
+    isSeries, seriesTitle, poll, initialComments = [], isShared = false, sharedPost 
+  } = props;
+
+  const { 
+    isPostLiked, isPostUnliked, isPostSaved, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost 
+  } = usePosts();
+
+  const isLiked = isPostLiked(id);
+  const isUnliked = isPostUnliked(id);
+  const isBookmarked = isPostSaved(id);
+
   const [isExpanded, setIsExpanded] = useState(false);
-  const [likeCount, setLikeCount] = useState(likes);
-  const [unlikeCount, setUnlikeCount] = useState(unlikes);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [isHidden, setIsHidden] = useState(false);
   const [viewerLanguage, setViewerLanguage] = useState<string | null>(null);
-  
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
 
@@ -144,15 +129,16 @@ export function PostCard({
   const { toast } = useToast();
 
   useEffect(() => {
-    // Client-side detection to avoid hydration mismatch
     if (typeof window !== 'undefined') {
       setViewerLanguage(window.navigator.language.split('-')[0]);
     }
   }, []);
 
+  const effectiveLikes = isLiked ? likes + 1 : likes;
+  const effectiveUnlikes = isUnliked ? unlikes + 1 : unlikes;
+
   const showTranslateButton = useMemo(() => {
     if (!language || !viewerLanguage) return false;
-    // Don't show if languages match or if it's too short to be worth it
     if (language === viewerLanguage) return false;
     if (content.length < 5) return false;
     return true;
@@ -164,40 +150,26 @@ export function PostCard({
     return list;
   }, [image, images]);
 
-  const triggerHaptic = () => {
-    if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
-      window.navigator.vibrate(50);
+  const triggerHaptic = (intensity = 10) => {
+    if (typeof window !== 'undefined' && window.navigator?.vibrate) {
+      window.navigator.vibrate(intensity);
     }
   };
 
   const handleLike = () => {
-    triggerHaptic();
-    if (isLiked) {
-      setIsLiked(false);
-      setLikeCount(prev => prev - 1);
-    } else {
-      setIsLiked(true);
-      setLikeCount(prev => prev + 1);
-      if (isUnliked) {
-        setIsUnliked(false);
-        setUnlikeCount(prev => prev - 1);
-      }
-    }
+    triggerHaptic(20);
+    toggleLikePost(id);
   };
 
   const handleUnlike = () => {
-    triggerHaptic();
-    if (isUnliked) {
-      setIsUnliked(false);
-      setUnlikeCount(prev => prev - 1);
-    } else {
-      setIsUnliked(true);
-      setUnlikeCount(prev => prev + 1);
-      if (isLiked) {
-        setIsLiked(false);
-        setLikeCount(prev => prev - 1);
-      }
-    }
+    triggerHaptic(15);
+    toggleUnlikePost(id);
+  };
+
+  const handleSave = () => {
+    triggerHaptic(5);
+    toggleSavePost(id);
+    toast({ description: isBookmarked ? "Removed from Vault" : "Saved to Vault ✨" });
   };
 
   const handleTranslate = async () => {
@@ -211,14 +183,14 @@ export function PostCard({
       const result = await aiTranslatePost({ postContent: content, targetLanguage: viewerLanguage || "English" });
       setTranslatedText(result.translation);
     } catch (error) {
-      toast({ description: "Translation failed. Try again later.", variant: "destructive" });
+      toast({ description: "Translation failed", variant: "destructive" });
     } finally {
       setIsTranslating(false);
     }
   };
 
   const handleVote = (index: number) => {
-    triggerHaptic();
+    triggerHaptic(30);
     if (!poll) return;
     const newOptions = [...localPollOptions];
     let newTotal = localTotalVotes;
@@ -240,55 +212,30 @@ export function PostCard({
     setLocalTotalVotes(newTotal);
   };
 
-  const handleArchive = () => {
+  const handleArchiveClick = () => {
     triggerHaptic();
-    setIsHidden(true);
-    toast({ title: "Post Archived", description: "You can find this in your private archive." });
-  };
-
-  const handleGift = () => {
-    triggerHaptic();
-    toast({ title: "Send Support", description: "Choosing a virtual gift for " + user.name });
+    archivePost(id);
+    toast({ title: "Archived", description: "Post moved to your private archives." });
   };
 
   const renderContent = (text: string) => {
     const parts = text.split(/(\*\*.*?\*\*|_.*?_|`.*?`)/g);
     return parts.map((part, i) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={i}>{part.slice(2, -2)}</strong>;
-      }
-      if (part.startsWith('_') && part.endsWith('_')) {
-        return <em key={i}>{part.slice(1, -1)}</em>;
-      }
-      if (part.startsWith('`') && part.endsWith('`')) {
-        return <code key={i} className="bg-secondary/30 px-1 rounded text-sm font-mono">{part.slice(1, -1)}</code>;
-      }
+      if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{part.slice(2, -2)}</strong>;
+      if (part.startsWith('_') && part.endsWith('_')) return <em key={i}>{part.slice(1, -1)}</em>;
+      if (part.startsWith('`') && part.endsWith('`')) return <code key={i} className="bg-secondary/30 px-1 rounded text-sm font-mono">{part.slice(1, -1)}</code>;
       return part;
     });
   };
 
-  if (isHidden) {
-    return (
-      <Card className="p-4 flex items-center justify-between bg-secondary/20 border-dashed border-2">
-        <span className="text-sm font-medium text-muted-foreground">Post hidden or archived</span>
-        <Button variant="ghost" size="sm" onClick={() => setIsHidden(false)} className="text-primary font-bold">Undo</Button>
-      </Card>
-    );
-  }
+  if (isHidden) return null;
 
   const TRUNCATE_LIMIT = 280;
   const isLongContent = content.length > TRUNCATE_LIMIT;
-  const displayedContent = isLongContent && !isExpanded 
-    ? content.slice(0, TRUNCATE_LIMIT) + "..." 
-    : content;
+  const displayedContent = isLongContent && !isExpanded ? content.slice(0, TRUNCATE_LIMIT) + "..." : content;
 
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const foundUrl = content.match(urlRegex)?.[0];
-
-  const visiblePollOptions = isPollExpanded ? localPollOptions : localPollOptions.slice(0, 4);
-  const hasMorePollOptions = localPollOptions.length > 4;
-
-  const showGiftIcon = (user.followers || 0) >= 1000;
 
   return (
     <Card className={cn(
@@ -304,36 +251,20 @@ export function PostCard({
 
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <Link href={`/profile/${user.username}`}>
-              <Avatar className="h-10 w-10 border border-primary/10 hover:opacity-80 transition-opacity">
-                <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback>{user.name[0]}</AvatarFallback>
-              </Avatar>
-            </Link>
-            {user.isOnline && (
-              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-card rounded-full" />
-            )}
-          </div>
+          <Link href={`/profile/${user.username}`}>
+            <Avatar className="h-10 w-10 border border-primary/10 hover:opacity-80 transition-opacity">
+              <AvatarImage src={user.avatar} alt={user.name} />
+              <AvatarFallback>{user.name[0]}</AvatarFallback>
+            </Avatar>
+          </Link>
           <div className="flex flex-col">
             <div className="flex items-center gap-1">
               <div className="flex items-center flex-wrap gap-x-1">
-                <Link href={`/profile/${user.username}`} className="font-bold text-sm hover:underline cursor-pointer">
-                  {user.name}
-                </Link>
+                <Link href={`/profile/${user.username}`} className="font-bold text-sm hover:underline">{user.name}</Link>
                 {collaborator && (
-                  <>
-                    <span className="text-xs text-muted-foreground font-medium">with</span>
-                    <Link href={`/profile/${collaborator.username}`} className="font-bold text-sm hover:underline cursor-pointer">
-                      {collaborator.name}
-                    </Link>
-                  </>
+                  <><span className="text-xs text-muted-foreground font-medium">with</span><Link href={`/profile/${collaborator.username}`} className="font-bold text-sm hover:underline">{collaborator.name}</Link></>
                 )}
-                {feeling && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    is {feeling.emoji} {feeling.text}
-                  </span>
-                )}
+                {feeling && <span className="text-xs text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
                 {user.isVerified && <CheckCircle2 className="h-3 w-3 text-primary fill-primary text-white" />}
               </div>
             </div>
@@ -344,13 +275,7 @@ export function PostCard({
                   <span>•</span>
                   <Badge variant="ghost" className="p-0 h-auto font-normal text-[10px]">Public</Badge>
                   {isSeries && (
-                    <>
-                      <span>•</span>
-                      <div className="flex items-center gap-0.5 text-primary font-bold">
-                        <GalleryVerticalEnd className="h-2.5 w-2.5" />
-                        <span>Series: {seriesTitle || "Curated"}</span>
-                      </div>
-                    </>
+                    <><span className="mx-1">•</span><div className="flex items-center gap-0.5 text-primary font-bold"><GalleryVerticalEnd className="h-2.5 w-2.5" /><span>{seriesTitle || "Curated"}</span></div></>
                   )}
                 </>
               )}
@@ -360,14 +285,8 @@ export function PostCard({
         {!isShared && (
           <div className="flex items-center gap-0.5">
             <Button 
-              variant="ghost" 
-              size="icon" 
-              className={cn("h-8 w-8 rounded-full", isBookmarked && "text-primary")}
-              onClick={() => {
-                triggerHaptic();
-                setIsBookmarked(!isBookmarked);
-                toast({ description: isBookmarked ? "Removed from bookmarks" : "Saved to bookmarks" });
-              }}
+              variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isBookmarked && "text-primary")}
+              onClick={handleSave}
             >
               <Bookmark className={cn("h-4 w-4", isBookmarked && "fill-current")} />
             </Button>
@@ -378,23 +297,11 @@ export function PostCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5">
-                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setIsHidden(true)}>
-                  <EyeOff className="h-4 w-4" />
-                  Hide post
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={handleArchive}>
-                  <Archive className="h-4 w-4" />
-                  Archive post
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => toast({ description: isPinned ? "Unpinned from top" : "Pinned to top" })}>
-                  <Pin className="h-4 w-4" />
-                  {isPinned ? "Unpin post" : "Pin to profile"}
-                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setIsHidden(true)}><EyeOff className="h-4 w-4" />Hide post</DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={handleArchiveClick}><Archive className="h-4 w-4" />Archive post</DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => { triggerHaptic(); togglePinPost(id); }}><Pin className="h-4 w-4" />{isPinned ? "Unpin post" : "Pin to profile"}</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="gap-2 cursor-pointer text-destructive focus:text-destructive">
-                  <Flag className="h-4 w-4" />
-                  Report post
-                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 cursor-pointer text-destructive focus:text-destructive"><Flag className="h-4 w-4" />Report post</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -407,24 +314,15 @@ export function PostCard({
             {renderContent(translatedText || displayedContent)}
           </div>
           {isLongContent && (
-            <button 
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="text-[13px] font-bold text-primary hover:underline"
-            >
+            <button onClick={() => setIsExpanded(!isExpanded)} className="text-[13px] font-bold text-primary hover:underline">
               {isExpanded ? "Show less" : "See more"}
             </button>
           )}
           {!theme && showTranslateButton && (
             <div className="flex items-center gap-2 pt-1">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-6 px-1.5 text-[10px] font-bold text-muted-foreground hover:text-primary gap-1"
-                onClick={handleTranslate}
-                disabled={isTranslating}
-              >
+              <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[10px] font-bold text-muted-foreground hover:text-primary gap-1" onClick={handleTranslate} disabled={isTranslating}>
                 {isTranslating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" />}
-                {translatedText ? "Show Original" : "See Translation"}
+                {translatedText ? "Show Original" : "Translate"}
               </Button>
             </div>
           )}
@@ -432,11 +330,7 @@ export function PostCard({
         
         {hashtags && hashtags.length > 0 && !theme && (
           <div className="flex flex-wrap gap-1">
-            {hashtags.map((tag) => (
-              <span key={tag} className="text-xs font-bold text-primary hover:underline cursor-pointer">
-                #{tag}
-              </span>
-            ))}
+            {hashtags.map((tag) => <span key={tag} className="text-xs font-bold text-primary hover:underline cursor-pointer">#{tag}</span>)}
           </div>
         )}
 
@@ -444,118 +338,39 @@ export function PostCard({
           <div className="mt-3 p-4 rounded-xl border border-primary/10 bg-primary/5 space-y-3">
             <h4 className="font-bold text-sm text-foreground">{poll.question}</h4>
             <div className="space-y-2">
-              {visiblePollOptions.map((option, i) => {
+              {(isPollExpanded ? localPollOptions : localPollOptions.slice(0, 4)).map((option, i) => {
                 const percentage = localTotalVotes > 0 ? (option.votes / localTotalVotes) * 100 : 0;
                 const isSelected = userVote === i;
                 return (
-                  <button 
-                    key={i} 
-                    onClick={() => handleVote(i)}
-                    className={cn(
-                      "w-full relative h-10 rounded-lg border overflow-hidden group transition-all",
-                      isSelected ? "border-primary bg-primary/10" : "border-primary/20 hover:border-primary/40"
-                    )}
-                  >
-                    <div 
-                      className={cn(
-                        "absolute inset-y-0 left-0 transition-all duration-500",
-                        isSelected ? "bg-primary/20" : "bg-primary/5"
-                      )} 
-                      style={{ width: `${percentage}%` }}
-                    />
+                  <button key={i} onClick={() => handleVote(i)} className={cn("w-full relative h-10 rounded-lg border overflow-hidden group transition-all", isSelected ? "border-primary bg-primary/10" : "border-primary/20 hover:border-primary/40")}>
+                    <div className={cn("absolute inset-y-0 left-0 transition-all duration-500", isSelected ? "bg-primary/20" : "bg-primary/5")} style={{ width: `${percentage}%` }} />
                     <div className="absolute inset-0 flex items-center justify-between px-3 text-sm">
-                      <span className={cn("font-medium", isSelected && "text-primary font-bold")}>
-                        {option.text}
-                        {isSelected && <CheckCircle2 className="inline ml-2 h-3.5 w-3.5" />}
-                      </span>
+                      <span className={cn("font-medium", isSelected && "text-primary font-bold")}>{option.text}{isSelected && <CheckCircle2 className="inline ml-2 h-3.5 w-3.5" />}</span>
                       <span className="text-xs font-bold text-primary">{Math.round(percentage)}%</span>
                     </div>
                   </button>
                 );
               })}
             </div>
-            
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
-                {localTotalVotes} votes {poll.duration && `• ${poll.duration}`} {userVote !== null && "• You voted"}
-              </p>
-              {hasMorePollOptions && (
-                <button 
-                  onClick={() => setIsPollExpanded(!isPollExpanded)}
-                  className="flex items-center gap-1 text-[10px] font-bold text-primary hover:underline"
-                >
-                  {isPollExpanded ? (
-                    <>Show less <ChevronUp className="h-3 w-3" /></>
-                  ) : (
-                    <>See more ({localPollOptions.length - 4}) <ChevronDown className="h-3 w-3" /></>
-                  )}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {sharedPost && !theme && (
-          <div className="mt-2">
-            <PostCard {...sharedPost} isShared={true} />
-          </div>
-        )}
-
-        {foundUrl && !allImages.length && !sharedPost && !theme && (
-          <div className="rounded-xl border border-border overflow-hidden bg-secondary/20 cursor-pointer hover:bg-secondary/30 transition-colors">
-            <div className="relative aspect-[1.91/1] w-full">
-               <Image src={`https://picsum.photos/seed/${foundUrl}/800/420`} alt="Link preview" fill className="object-cover" />
-            </div>
-            <div className="p-3 space-y-1">
-              <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{new URL(foundUrl).hostname}</p>
-              <h4 className="text-sm font-bold line-clamp-1 text-foreground">Discover more with ViMore Connect</h4>
-              <p className="text-xs text-muted-foreground line-clamp-1">Explore the latest trends and connect with creators around the world.</p>
-            </div>
+            {localPollOptions.length > 4 && (
+              <button onClick={() => setIsPollExpanded(!isPollExpanded)} className="text-[10px] font-bold text-primary hover:underline">
+                {isPollExpanded ? "Show less" : `See more (${localPollOptions.length - 4})`}
+              </button>
+            )}
           </div>
         )}
 
         {allImages.length > 0 && !isShared && !theme && (
           <div className="relative mt-2 -mx-3 sm:mx-0 group">
             {allImages.length === 1 ? (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <div className="relative aspect-video rounded-lg overflow-hidden border border-border/50 cursor-pointer">
-                    <Image 
-                      src={allImages[0]} 
-                      alt="Post content" 
-                      fill 
-                      className={cn("object-cover hover:scale-105 transition-transform duration-500", imageFilter)} 
-                    />
-                  </div>
-                </DialogTrigger>
-                <DialogContent className="max-w-none w-screen h-screen p-0 bg-black/95 border-none flex flex-col items-center justify-center">
-                  <DialogTitle className="sr-only">Media Preview</DialogTitle>
-                  <DialogDescription className="sr-only">Full screen view of post media</DialogDescription>
-                  <div className="relative w-full h-full">
-                    <Image src={allImages[0]} alt="Lightbox" fill className={cn("object-contain", imageFilter)} />
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <div className="relative aspect-video rounded-lg overflow-hidden border border-border/50">
+                <Image src={allImages[0]} alt="Post" fill className={cn("object-cover", imageFilter)} />
+              </div>
             ) : (
               <Carousel className="w-full">
                 <CarouselContent>
                   {allImages.map((img, i) => (
-                    <CarouselItem key={i}>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <div className="relative aspect-video rounded-lg overflow-hidden border border-border/50 cursor-pointer">
-                            <Image src={img} alt={`Slide ${i}`} fill className={cn("object-cover", imageFilter)} />
-                          </div>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-none w-screen h-screen p-0 bg-black/95 border-none flex flex-col items-center justify-center">
-                          <DialogTitle className="sr-only">Media Preview - Slide {i + 1}</DialogTitle>
-                          <DialogDescription className="sr-only">Full screen view of carousel image {i + 1}</DialogDescription>
-                          <div className="relative w-full h-full">
-                            <Image src={img} alt="Lightbox" fill className={cn("object-contain", imageFilter)} />
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    </CarouselItem>
+                    <CarouselItem key={i}><div className="relative aspect-video rounded-lg overflow-hidden"><Image src={img} alt="Post" fill className={cn("object-cover", imageFilter)} /></div></CarouselItem>
                   ))}
                 </CarouselContent>
                 <CarouselPrevious className="left-2 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -569,16 +384,12 @@ export function PostCard({
           <div className={cn("flex items-center justify-between py-1 border-b", theme ? "border-white/20 mb-2" : "border-secondary")}>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
-                <div className="bg-primary p-1 rounded-full text-white ring-2 ring-white dark:ring-card">
-                  <ThumbsUp className="h-2.5 w-2.5 fill-current" />
-                </div>
-                <span className={cn("text-[11px] ml-1 font-bold", theme ? "text-white" : "text-muted-foreground")}>{likeCount}</span>
+                <div className="bg-primary p-1 rounded-full text-white ring-2 ring-white dark:ring-card"><ThumbsUp className="h-2.5 w-2.5 fill-current" /></div>
+                <span className={cn("text-[11px] ml-1 font-bold", theme ? "text-white" : "text-muted-foreground")}>{effectiveLikes}</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="bg-destructive p-1 rounded-full text-white ring-2 ring-white dark:ring-card">
-                  <ThumbsDown className="h-2.5 w-2.5 fill-current" />
-                </div>
-                <span className={cn("text-[11px] ml-1 font-bold", theme ? "text-white" : "text-muted-foreground")}>{unlikeCount}</span>
+                <div className="bg-destructive p-1 rounded-full text-white ring-2 ring-white dark:ring-card"><ThumbsDown className="h-2.5 w-2.5 fill-current" /></div>
+                <span className={cn("text-[11px] ml-1 font-bold", theme ? "text-white" : "text-muted-foreground")}>{effectiveUnlikes}</span>
               </div>
             </div>
             <div className={cn("flex items-center gap-2 text-[11px] font-bold", theme ? "text-white/80" : "text-muted-foreground")}>
@@ -592,96 +403,29 @@ export function PostCard({
 
       {!isShared && (
         <CardFooter className="p-1 px-3 flex flex-col gap-1 relative">
-          <div className="flex items-center justify-between gap-1 w-full relative">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className={cn(
-                "flex-1 gap-2 rounded-md h-9 hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors select-none", 
-                isLiked ? "text-primary" : (theme ? "text-white/70 hover:text-white" : "text-muted-foreground")
-              )}
-              onClick={handleLike}
-              aria-label={isLiked ? "Unlike post" : "Like post"}
-            >
+          <div className="flex items-center justify-between gap-1 w-full">
+            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-all", isLiked ? "text-primary" : (theme ? "text-white/70" : "text-muted-foreground"))} onClick={handleLike}>
               <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />
             </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className={cn(
-                "flex-1 gap-2 rounded-md h-9 hover:bg-secondary dark:hover:bg-white/5 font-bold text-xs transition-colors select-none", 
-                isUnliked ? "text-destructive" : (theme ? "text-white/70 hover:text-white" : "text-muted-foreground")
-              )}
-              onClick={handleUnlike}
-              aria-label={isUnliked ? "Remove unlike" : "Unlike post"}
-            >
+            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-all", isUnliked ? "text-destructive" : (theme ? "text-white/70" : "text-muted-foreground"))} onClick={handleUnlike}>
               <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} />
             </Button>
-            
-            {showGiftIcon && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-colors", theme ? "text-yellow-300 hover:text-yellow-100" : "text-yellow-500")}
-                onClick={handleGift}
-              >
-                <Gift className="h-4 w-4" />
-              </Button>
-            )}
-
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              disabled={commentsDisabled}
-              className={cn(
-                "flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-colors", 
-                theme ? "text-white/70 hover:text-white" : "text-muted-foreground",
-                commentsDisabled && "opacity-30 cursor-not-allowed"
-              )}
-              onClick={() => { triggerHaptic(); setShowComments(!showComments); }}
-            >
+            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs", theme ? "text-white/70" : "text-muted-foreground")} onClick={() => setShowComments(!showComments)} disabled={commentsDisabled}>
               <MessageCircle className="h-4 w-4" />
             </Button>
-
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-colors", theme ? "text-white/70 hover:text-white" : "text-muted-foreground")}
-              onClick={() => triggerHaptic()}
-            >
+            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs", theme ? "text-white/70" : "text-muted-foreground")}>
               <Share2 className="h-4 w-4" />
             </Button>
           </div>
-
           {showComments && !commentsDisabled && (
-            <div className="w-full pt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="w-full pt-4 space-y-4 animate-in slide-in-from-top-2">
               <div className="flex items-center gap-2">
-                <Link href={`/profile/${CURRENT_USER.username}`}>
-                  <Avatar className="h-8 w-8 hover:opacity-80 transition-opacity">
-                    <AvatarImage src={CURRENT_USER.avatar} />
-                    <AvatarFallback>JD</AvatarFallback>
-                  </Avatar>
-                </Link>
+                <Avatar className="h-8 w-8"><AvatarImage src={INITIAL_USER.avatar} /></Avatar>
                 <div className="flex-1 bg-secondary/30 rounded-full px-4 py-2 flex items-center gap-2">
-                  <Input 
-                    placeholder="Write a comment..." 
-                    className="bg-transparent border-none focus-visible:ring-0 h-7 text-xs p-0"
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                  />
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => triggerHaptic()}>
-                    <Send className="h-4 w-4" />
-                  </Button>
+                  <Input placeholder="Write a comment..." className="bg-transparent border-none focus-visible:ring-0 h-7 text-xs p-0" value={commentText} onChange={(e) => setCommentText(e.target.value)} />
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => triggerHaptic(5)}><Send className="h-4 w-4" /></Button>
                 </div>
               </div>
-            </div>
-          )}
-
-          {commentsDisabled && (
-            <div className="w-full py-3 flex items-center justify-center gap-2 text-muted-foreground bg-secondary/10 rounded-lg mt-1 border border-dashed border-secondary">
-              <MessageCircleOff className="h-3.5 w-3.5" />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Comments are turned off</span>
             </div>
           )}
         </CardFooter>
@@ -690,8 +434,4 @@ export function PostCard({
   );
 }
 
-const CURRENT_USER = {
-  name: "John Doe",
-  username: "johndoe_creative",
-  avatar: "https://picsum.photos/seed/me/400/400"
-};
+const INITIAL_USER = { name: "John Doe", username: "johndoe_creative", avatar: "https://picsum.photos/seed/me/400/400" };

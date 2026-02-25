@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useMemo } from "react";
 import { MainNav } from "@/components/layout/main-nav";
 import { RightSidebar } from "@/components/layout/right-sidebar";
 import { PostCard } from "@/components/post/post-card";
@@ -102,18 +102,18 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     { name: "Creative Thinking", count: 8, endorsed: false },
   ]);
 
-  const triggerHaptic = () => {
+  const triggerHaptic = (intensity = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
-      window.navigator.vibrate(50);
+      window.navigator.vibrate(intensity);
     }
   };
 
   const handleFollow = () => {
-    triggerHaptic();
+    triggerHaptic(20);
     setIsFollowing(!isFollowing);
     toast({ 
       title: isFollowing ? "Network Removed" : "Connected!",
-      description: isFollowing ? `You are no longer following ${displayUser.name}` : `Following ${displayUser.name}` 
+      description: isFollowing ? `You are no longer following ${displayUser.name}` : `Following ${displayUser.name} ✨` 
     });
   };
 
@@ -135,7 +135,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   };
 
   const handleEndorse = (idx: number) => {
-    triggerHaptic();
+    triggerHaptic(15);
     const newSkills = [...skills];
     if (newSkills[idx].endorsed) {
       newSkills[idx].count--;
@@ -148,10 +148,11 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     setSkills(newSkills);
   };
 
-  const userPosts = posts.filter(p => p.user.username === username);
+  const userPosts = useMemo(() => posts.filter(p => p.user.username === username), [posts, username]);
+  const mediaPosts = useMemo(() => userPosts.filter(p => p.image || p.images?.length), [userPosts]);
 
   if (isMe) {
-    return <div className="flex items-center justify-center min-h-screen text-primary font-bold animate-pulse">Redirecting to workspace...</div>;
+    return <div className="flex flex-col items-center justify-center min-h-screen text-primary font-bold animate-pulse gap-4"><Zap className="h-10 w-10" /><span>Redirecting to your workspace...</span></div>;
   }
 
   return (
@@ -186,9 +187,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
             <div className="relative h-48 sm:h-64 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/20 overflow-hidden">
               <Image 
                 src={displayUser.cover || `https://picsum.photos/seed/cover_${username}/1200/400`} 
-                alt="Cover" 
-                fill 
-                className="object-cover dark:brightness-75" 
+                alt="Cover" fill className="object-cover dark:brightness-75" 
               />
             </div>
 
@@ -204,38 +203,22 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                 <div className="flex items-center flex-wrap gap-2">
                   <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{displayUser.name}</h1>
                   <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className={cn(
-                      "h-7 px-2 rounded-full gap-1.5 font-bold text-[11px] transition-all",
-                      isPlayingIntro ? "bg-primary text-white scale-105 shadow-lg shadow-primary/20" : "bg-secondary/40"
-                    )}
-                    onClick={() => { triggerHaptic(); setIsPlayingIntro(!isPlayingIntro); if (!isPlayingIntro) toast({ title: "Sonic Intro", description: `Fetching ${displayUser.name}'s digital signature...` }); }}
+                    variant="ghost" size="sm" 
+                    className={cn("h-7 px-2 rounded-full gap-1.5 font-bold text-[11px] transition-all", isPlayingIntro ? "bg-primary text-white scale-105 shadow-lg" : "bg-secondary/40")}
+                    onClick={() => { triggerHaptic(15); setIsPlayingIntro(!isPlayingIntro); if (!isPlayingIntro) toast({ title: "Sonic Intro", description: `Streaming ${displayUser.name}'s digital signature...` }); }}
                   >
-                    {isPlayingIntro ? <Volume2 className="h-3.5 w-3.5 animate-pulse" /> : <Play className="h-3.5 w-3.5" />}
-                    Intro
+                    {isPlayingIntro ? <Volume2 className="h-3.5 w-3.5 animate-pulse" /> : <Play className="h-3.5 w-3.5" />} Intro
                   </Button>
                 </div>
                 
                 <div className="flex items-center gap-6 py-2">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-lg leading-none">{displayUser.followers}</span>
-                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Fans</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-bold text-lg leading-none">{displayUser.following}</span>
-                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Network</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-bold text-lg leading-none">{userPosts.length || displayUser.posts}</span>
-                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Vibes</span>
-                  </div>
+                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{displayUser.followers}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Fans</span></div>
+                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{displayUser.following}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Network</span></div>
+                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{userPosts.length || displayUser.posts}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Vibes</span></div>
                 </div>
 
                 <div className="flex items-start gap-4 py-2 group">
-                  <p className="text-[15px] leading-relaxed flex-1">
-                    {translatedBio || displayUser.bio}
-                  </p>
+                  <p className="text-[15px] leading-relaxed flex-1">{translatedBio || displayUser.bio}</p>
                   <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={handleTranslateBio} disabled={isTranslating}>
                     {isTranslating ? <Zap className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}
                   </Button>
@@ -246,7 +229,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                     onClick={handleFollow}
                     className={cn(
                       "flex-1 rounded-lg gap-2 h-11 font-bold active:scale-95 transition-all shadow-lg",
-                      isFollowing ? "bg-secondary text-foreground shadow-black/5" : "bg-primary text-white shadow-primary/20"
+                      isFollowing ? "bg-secondary text-foreground" : "bg-primary text-white shadow-primary/20"
                     )}
                   >
                     {isFollowing ? <UserMinus className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
@@ -260,19 +243,10 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                 </div>
 
                 <div className="mt-6">
-                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <Star className="h-3.5 w-3.5 text-yellow-500" /> Endorsed Skills
-                  </h3>
+                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2"><Star className="h-3.5 w-3.5 text-yellow-500" /> Endorsed Skills</h3>
                   <div className="flex flex-wrap gap-2">
                     {skills.map((skill, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleEndorse(idx)}
-                        className={cn(
-                          "px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all active:scale-95",
-                          skill.endorsed ? "bg-primary text-white border-primary shadow-md shadow-primary/10" : "bg-white dark:bg-card hover:border-primary/30"
-                        )}
-                      >
+                      <button key={idx} onClick={() => handleEndorse(idx)} className={cn("px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all active:scale-95", skill.endorsed ? "bg-primary text-white border-primary shadow-md" : "bg-white dark:bg-card hover:border-primary/30")}>
                         {skill.name} <span className={cn("px-1.5 rounded", skill.endorsed ? "bg-white/20" : "bg-black/10")}>{skill.count}</span>
                       </button>
                     ))}
@@ -289,6 +263,19 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
               
               <TabsContent value="all" className="p-4 space-y-4">
                 {userPosts.map(post => <PostCard key={post.id} {...post} />)}
+              </TabsContent>
+
+              <TabsContent value="media" className="p-4">
+                <div className="grid grid-cols-3 gap-1">
+                  {mediaPosts.length > 0 ? mediaPosts.map(post => (
+                    <div key={post.id} className="aspect-square relative group cursor-pointer overflow-hidden rounded-lg">
+                      <Image src={post.image || post.images![0]} alt="Media" fill className="object-cover transition-transform group-hover:scale-110" />
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"><Play className="h-6 w-6" /></div>
+                    </div>
+                  )) : (
+                    <div className="col-span-3 py-20 text-center text-muted-foreground"><p className="font-bold">No media shared yet</p></div>
+                  )}
+                </div>
               </TabsContent>
             </Tabs>
           </div>

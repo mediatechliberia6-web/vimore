@@ -99,6 +99,9 @@ interface PostContextType {
   stories: Story[];
   highlights: Highlight[];
   mutedUserNames: string[];
+  likedPostIds: Set<string>;
+  unlikedPostIds: Set<string>;
+  savedPostIds: Set<string>;
   activeStoryIndex: number | null;
   setActiveStoryIndex: (index: number | null) => void;
   addPost: (post: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => void;
@@ -108,6 +111,12 @@ interface PostContextType {
   togglePinPost: (postId: string) => void;
   archivePost: (postId: string) => void;
   updateCurrentUser: (data: Partial<User>) => void;
+  toggleLikePost: (postId: string) => void;
+  toggleUnlikePost: (postId: string) => void;
+  toggleSavePost: (postId: string) => void;
+  isPostLiked: (postId: string) => boolean;
+  isPostUnliked: (postId: string) => boolean;
+  isPostSaved: (postId: string) => boolean;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -236,16 +245,38 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [stories, setStories] = useState<Story[]>(initialMockStories);
   const [highlights] = useState<Highlight[]>(initialHighlights);
   const [mutedUserNames, setMutedUserNames] = useState<string[]>([]);
+  const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
+  const [unlikedPostIds, setUnlikedPostIds] = useState<Set<string>>(new Set());
+  const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('vimore_user');
+    const savedLikes = localStorage.getItem('vimore_liked_posts');
+    const savedUnlikes = localStorage.getItem('vimore_unliked_posts');
+    const savedSaves = localStorage.getItem('vimore_saved_posts');
+
     if (savedUser) {
       try {
         setCurrentUser(JSON.parse(savedUser));
       } catch (e) { console.error("User load failed", e); }
     }
+    if (savedLikes) setLikedPostIds(new Set(JSON.parse(savedLikes)));
+    if (savedUnlikes) setUnlikedPostIds(new Set(JSON.parse(savedUnlikes)));
+    if (savedSaves) setSavedPostIds(new Set(JSON.parse(savedSaves)));
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('vimore_liked_posts', JSON.stringify(Array.from(likedPostIds)));
+  }, [likedPostIds]);
+
+  useEffect(() => {
+    localStorage.setItem('vimore_unliked_posts', JSON.stringify(Array.from(unlikedPostIds)));
+  }, [unlikedPostIds]);
+
+  useEffect(() => {
+    localStorage.setItem('vimore_saved_posts', JSON.stringify(Array.from(savedPostIds)));
+  }, [savedPostIds]);
 
   const updateCurrentUser = (data: Partial<User>) => {
     setCurrentUser(prev => {
@@ -289,6 +320,45 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const toggleLikePost = (postId: string) => {
+    setLikedPostIds(prev => {
+      const next = new Set(prev);
+      if (next.has(postId)) next.delete(postId);
+      else {
+        next.add(postId);
+        unlikedPostIds.delete(postId);
+        setUnlikedPostIds(new Set(unlikedPostIds));
+      }
+      return next;
+    });
+  };
+
+  const toggleUnlikePost = (postId: string) => {
+    setUnlikedPostIds(prev => {
+      const next = new Set(prev);
+      if (next.has(postId)) next.delete(postId);
+      else {
+        next.add(postId);
+        likedPostIds.delete(postId);
+        setLikedPostIds(new Set(likedPostIds));
+      }
+      return next;
+    });
+  };
+
+  const toggleSavePost = (postId: string) => {
+    setSavedPostIds(prev => {
+      const next = new Set(prev);
+      if (next.has(postId)) next.delete(postId);
+      else next.add(postId);
+      return next;
+    });
+  };
+
+  const isPostLiked = (postId: string) => likedPostIds.has(postId);
+  const isPostUnliked = (postId: string) => unlikedPostIds.has(postId);
+  const isPostSaved = (postId: string) => savedPostIds.has(postId);
+
   const voteOnStoryPoll = (storyId: string, segmentId: string, optionIndex: number) => {
     setStories(prev => prev.map(story => {
       if (story.id !== storyId) return story;
@@ -323,6 +393,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
       stories, 
       highlights, 
       mutedUserNames,
+      likedPostIds,
+      unlikedPostIds,
+      savedPostIds,
       activeStoryIndex, 
       setActiveStoryIndex, 
       addPost, 
@@ -331,7 +404,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
       toggleMuteUser,
       togglePinPost,
       archivePost,
-      updateCurrentUser
+      updateCurrentUser,
+      toggleLikePost,
+      toggleUnlikePost,
+      toggleSavePost,
+      isPostLiked,
+      isPostUnliked,
+      isPostSaved
     }}>
       {children}
     </PostContext.Provider>
