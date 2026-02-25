@@ -18,6 +18,8 @@ export interface Track {
   cover: string;
   duration: number; // in seconds
   streams?: string;
+  likes?: number;
+  unlikes?: number;
   comments?: Comment[];
 }
 
@@ -61,10 +63,13 @@ interface MusicContextType {
   volume: number;
   reactions: MusicReaction[];
   likedSongIds: Set<string | number>;
+  unlikedSongIds: Set<string | number>;
+  downloadedSongIds: Set<string | number>;
   likedTracks: Track[];
   userPlaylists: Playlist[];
   isCreatePlaylistOpen: boolean;
   trackForNewPlaylist: Track | null;
+  trackStats: Record<string | number, { likes: number; unlikes: number }>;
   
   setTrack: (track: Track) => void;
   togglePlay: () => void;
@@ -79,7 +84,11 @@ interface MusicContextType {
   addComment: (text: string) => void;
   clearPlayer: () => void;
   toggleLike: (track: Track) => void;
+  toggleUnlike: (track: Track) => void;
+  simulateDownload: (track: Track) => Promise<void>;
   isTrackLiked: (trackId: string | number) => boolean;
+  isTrackUnliked: (trackId: string | number) => boolean;
+  isTrackDownloaded: (trackId: string | number) => boolean;
   playCollection: (tracks: Track[], startIndex?: number) => void;
   addToQueue: (track: Track) => void;
   
@@ -101,11 +110,11 @@ const MOCK_COMMENTS: Comment[] = [
 ];
 
 const MOCK_SONGS: Track[] = [
-  { id: 1, title: "Essence", artist: "Wizkid ft. Tems", artistUsername: "arivera", cover: "https://picsum.photos/seed/song1/600/600", duration: 240, streams: "124M", comments: MOCK_COMMENTS },
-  { id: 2, title: "Last Last", artist: "Burna Boy", artistUsername: "schen_dev", cover: "https://picsum.photos/seed/song2/600/600", duration: 172, streams: "98M", comments: MOCK_COMMENTS.slice(0, 2) },
-  { id: 3, title: "Unavailable", artist: "Davido", artistUsername: "mstone", cover: "https://picsum.photos/seed/song3/600/600", duration: 185, streams: "75M", comments: MOCK_COMMENTS.slice(1) },
-  { id: 4, title: "Calm Down", artist: "Rema", artistUsername: "arivera", cover: "https://picsum.photos/seed/song4/600/600", duration: 219, streams: "320M", comments: MOCK_COMMENTS },
-  { id: 5, title: "Soweto", artist: "Victony", artistUsername: "techex", cover: "https://picsum.photos/seed/song5/600/600", duration: 164, streams: "45M", comments: MOCK_COMMENTS.slice(0, 1) },
+  { id: 1, title: "Essence", artist: "Wizkid ft. Tems", artistUsername: "arivera", cover: "https://picsum.photos/seed/song1/600/600", duration: 240, streams: "124M", likes: 12400, unlikes: 42, comments: MOCK_COMMENTS },
+  { id: 2, title: "Last Last", artist: "Burna Boy", artistUsername: "schen_dev", cover: "https://picsum.photos/seed/song2/600/600", duration: 172, streams: "98M", likes: 8900, unlikes: 12, comments: MOCK_COMMENTS.slice(0, 2) },
+  { id: 3, title: "Unavailable", artist: "Davido", artistUsername: "mstone", cover: "https://picsum.photos/seed/song3/600/600", duration: 185, streams: "75M", likes: 15600, unlikes: 88, comments: MOCK_COMMENTS.slice(1) },
+  { id: 4, title: "Calm Down", artist: "Rema", artistUsername: "arivera", cover: "https://picsum.photos/seed/song4/600/600", duration: 219, streams: "320M", likes: 42000, unlikes: 156, comments: MOCK_COMMENTS },
+  { id: 5, title: "Soweto", artist: "Victony", artistUsername: "techex", cover: "https://picsum.photos/seed/song5/600/600", duration: 164, streams: "45M", likes: 3200, unlikes: 5, comments: MOCK_COMMENTS.slice(0, 1) },
 ];
 
 export function MusicProvider({ children }: { children: ReactNode }) {
@@ -118,9 +127,15 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState(80);
   const [reactions, setReactions] = useState<MusicReaction[]>([]);
+  
+  // State for IDs
   const [likedSongIds, setLikedSongIds] = useState<Set<string | number>>(new Set());
+  const [unlikedSongIds, setUnlikedSongIds] = useState<Set<string | number>>(new Set());
+  const [downloadedSongIds, setDownloadedSongIds] = useState<Set<string | number>>(new Set());
+  
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
+  const [trackStats, setTrackStats] = useState<Record<string | number, { likes: number; unlikes: number }>>({});
   
   // Creation States
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
@@ -133,9 +148,17 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // LOAD from LocalStorage
+  // Initialize stats and Load from LocalStorage
   useEffect(() => {
+    const stats: Record<string | number, { likes: number; unlikes: number }> = {};
+    MOCK_SONGS.forEach(s => {
+      stats[s.id] = { likes: s.likes || 0, unlikes: s.unlikes || 0 };
+    });
+    setTrackStats(stats);
+
     const savedLikes = localStorage.getItem('vimore_liked_tracks');
+    const savedUnlikes = localStorage.getItem('vimore_unliked_ids');
+    const savedDownloads = localStorage.getItem('vimore_downloaded_ids');
     const savedPlaylists = localStorage.getItem('vimore_user_playlists');
     
     if (savedLikes) {
@@ -144,6 +167,20 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         setLikedTracks(parsedLikes);
         setLikedSongIds(new Set(parsedLikes.map(t => t.id)));
       } catch (e) { console.error("Failed to load likes", e); }
+    }
+
+    if (savedUnlikes) {
+      try {
+        const parsedUnlikes = JSON.parse(savedUnlikes) as (string | number)[];
+        setUnlikedSongIds(new Set(parsedUnlikes));
+      } catch (e) { console.error("Failed to load unlikes", e); }
+    }
+
+    if (savedDownloads) {
+      try {
+        const parsedDownloads = JSON.parse(savedDownloads) as (string | number)[];
+        setDownloadedSongIds(new Set(parsedDownloads));
+      } catch (e) { console.error("Failed to load downloads", e); }
     }
     
     if (savedPlaylists) {
@@ -154,15 +191,24 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // SAVE to LocalStorage
+  // Persistence Effects
   useEffect(() => {
     localStorage.setItem('vimore_liked_tracks', JSON.stringify(likedTracks));
   }, [likedTracks]);
 
   useEffect(() => {
+    localStorage.setItem('vimore_unliked_ids', JSON.stringify(Array.from(unlikedSongIds)));
+  }, [unlikedSongIds]);
+
+  useEffect(() => {
+    localStorage.setItem('vimore_downloaded_ids', JSON.stringify(Array.from(downloadedSongIds)));
+  }, [downloadedSongIds]);
+
+  useEffect(() => {
     localStorage.setItem('vimore_user_playlists', JSON.stringify(userPlaylists));
   }, [userPlaylists]);
 
+  // Audio Progress Tick
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isPlaying && currentTrack) {
@@ -177,6 +223,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [isPlaying, currentTrack]);
 
+  // Handle End of Track
   useEffect(() => {
     if (progress >= 100 && isPlaying) {
       nextTrack();
@@ -242,22 +289,61 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleLike = (track: Track) => {
-    triggerHaptic(likedSongIds.has(track.id) ? 5 : 25);
     const trackId = track.id;
+    const isCurrentlyLiked = likedSongIds.has(trackId);
+    triggerHaptic(isCurrentlyLiked ? 5 : 25);
+
     setLikedSongIds((prev) => {
       const next = new Set(prev);
-      if (next.has(trackId)) {
+      if (isCurrentlyLiked) {
         next.delete(trackId);
         setLikedTracks(prevTracks => prevTracks.filter(t => t.id !== trackId));
+        setTrackStats(s => ({ ...s, [trackId]: { ...s[trackId], likes: Math.max(0, s[trackId].likes - 1) } }));
       } else {
         next.add(trackId);
         setLikedTracks(prevTracks => [track, ...prevTracks]);
+        setTrackStats(s => ({ ...s, [trackId]: { ...s[trackId], likes: s[trackId].likes + 1 } }));
+        // Mutual Exclusivity: Remove from unlikes
+        if (unlikedSongIds.has(trackId)) {
+          toggleUnlike(track);
+        }
       }
       return next;
     });
   };
 
+  const toggleUnlike = (track: Track) => {
+    const trackId = track.id;
+    const isCurrentlyUnliked = unlikedSongIds.has(trackId);
+    triggerHaptic(isCurrentlyUnliked ? 5 : 15);
+
+    setUnlikedSongIds((prev) => {
+      const next = new Set(prev);
+      if (isCurrentlyUnliked) {
+        next.delete(trackId);
+        setTrackStats(s => ({ ...s, [trackId]: { ...s[trackId], unlikes: Math.max(0, s[trackId].unlikes - 1) } }));
+      } else {
+        next.add(trackId);
+        setTrackStats(s => ({ ...s, [trackId]: { ...s[trackId], unlikes: s[trackId].unlikes + 1 } }));
+        // Mutual Exclusivity: Remove from likes
+        if (likedSongIds.has(trackId)) {
+          toggleLike(track);
+        }
+      }
+      return next;
+    });
+  };
+
+  const simulateDownload = async (track: Track) => {
+    if (downloadedSongIds.has(track.id)) return;
+    triggerHaptic(10);
+    // Simulation period handled by component if needed, but we just add ID here
+    setDownloadedSongIds(prev => new Set(prev).add(track.id));
+  };
+
   const isTrackLiked = (trackId: string | number) => likedSongIds.has(trackId);
+  const isTrackUnliked = (trackId: string | number) => unlikedSongIds.has(trackId);
+  const isTrackDownloaded = (trackId: string | number) => downloadedSongIds.has(trackId);
 
   // Playlist Methods
   const openCreatePlaylist = (track?: Track) => {
@@ -332,9 +418,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   return (
     <MusicContext.Provider value={{
-      currentTrack, queue, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds, likedTracks, userPlaylists,
+      currentTrack, queue, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, 
+      likedSongIds, unlikedSongIds, downloadedSongIds, likedTracks, userPlaylists, trackStats,
       isCreatePlaylistOpen, trackForNewPlaylist,
-      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, isTrackLiked, playCollection, addToQueue,
+      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, 
+      toggleLike, toggleUnlike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded,
+      playCollection, addToQueue,
       openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic
     }}>
       {children}

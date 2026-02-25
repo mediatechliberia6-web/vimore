@@ -1,6 +1,6 @@
 "use client";
 
-import { Play, Pause, MoreVertical, Heart, TrendingUp, Music2, Share2, Plus, Download, User, ListPlus } from "lucide-react";
+import { Play, Pause, MoreVertical, Heart, ThumbsDown, TrendingUp, Music2, Share2, Plus, Download, User, ListPlus, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMusic, Track, Album, Playlist } from "@/context/MusicContext";
 import Image from "next/image";
@@ -17,6 +17,7 @@ import {
   DropdownMenuSubContent
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface MusicGridProps {
   type: "song" | "album" | "playlist" | "artist" | "hero";
@@ -25,8 +26,9 @@ interface MusicGridProps {
 }
 
 export function MusicGrid({ type, items, title }: MusicGridProps) {
-  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist, toggleLike, isTrackLiked, addToQueue, userPlaylists, openCreatePlaylist, addTrackToPlaylist } = useMusic();
+  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, isTrackDownloaded, simulateDownload, addToQueue, userPlaylists, openCreatePlaylist, addTrackToPlaylist, trackStats } = useMusic();
   const { toast } = useToast();
+  const [downloadingIds, setDownloadingIds] = useState<Set<string | number>>(new Set());
 
   const handleShare = (item: any) => {
     const url = typeof window !== 'undefined' ? `${window.location.origin}/music/${type}/${item.id}` : '';
@@ -34,8 +36,21 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
     toast({ title: "Link Copied!", description: "Share the vibe with your community." });
   };
 
-  const handleDownload = (title: string) => {
-    toast({ title: "Download Started", description: `Fetching high-res audio for ${title}...` });
+  const handleDownload = async (track: Track) => {
+    if (isTrackDownloaded(track.id)) return;
+    
+    setDownloadingIds(prev => new Set(prev).add(track.id));
+    toast({ title: "Sonic Download", description: `Fetching high-res audio for ${track.title}...` });
+    
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    await simulateDownload(track);
+    
+    setDownloadingIds(prev => {
+      const next = new Set(prev);
+      next.delete(track.id);
+      return next;
+    });
+    toast({ title: "Download Complete", description: `${track.title} is now available offline.` });
   };
 
   const triggerHaptic = () => {
@@ -47,6 +62,10 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
   const renderCard = (item: any) => {
     const isCurrent = currentTrack?.id === item.id;
     const isLiked = isTrackLiked(item.id);
+    const isUnliked = isTrackUnliked(item.id);
+    const isDownloaded = isTrackDownloaded(item.id);
+    const isDownloading = downloadingIds.has(item.id);
+    const stats = trackStats[item.id] || { likes: item.likes || 0, unlikes: item.unlikes || 0 };
     
     if (type === "hero") {
       return (
@@ -56,6 +75,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
           <div className="absolute bottom-6 left-6 right-6 sm:bottom-10 sm:left-10 sm:right-10 space-y-2 sm:space-y-4">
             <div className="flex items-center gap-2">
               <span className="bg-primary px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-black text-white uppercase tracking-widest animate-pulse">#1 Trending Now</span>
+              {isDownloaded && <CheckCircle2 className="h-3 w-3 text-green-400" />}
             </div>
             <h1 className="text-2xl sm:text-5xl font-black italic uppercase tracking-tighter text-white drop-shadow-lg leading-none">{item.title}</h1>
             <Link href={`/profile/${item.artistUsername || 'arivera'}`} onClick={(e) => e.stopPropagation()}>
@@ -70,14 +90,24 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
                 {isCurrent && isPlaying ? <Pause className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current" /> : <Play className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current" />}
                 {isCurrent && isPlaying ? "PAUSE" : "PLAY NOW"}
               </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className={cn("h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-white/10 text-white", isLiked && "text-red-500")}
-                onClick={(e) => { e.stopPropagation(); triggerHaptic(); toggleLike(item); }}
-              >
-                <Heart className={cn("h-5 w-5 sm:h-7 sm:w-7", isLiked && "fill-current")} />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={cn("h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-white/10 text-white", isLiked && "text-red-500")}
+                  onClick={(e) => { e.stopPropagation(); triggerHaptic(); toggleLike(item); }}
+                >
+                  <Heart className={cn("h-5 w-5 sm:h-7 sm:w-7", isLiked && "fill-current")} />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={cn("h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-white/10 text-white", isUnliked && "text-primary")}
+                  onClick={(e) => { e.stopPropagation(); triggerHaptic(); toggleUnlike(item); }}
+                >
+                  <ThumbsDown className={cn("h-5 w-5 sm:h-7 sm:w-7", isUnliked && "fill-current")} />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -134,6 +164,12 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
             <Image src={item.cover} alt={item.title} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
             <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent" />
             
+            {isDownloaded && !isDownloading && (
+              <div className="absolute top-2 left-2 bg-green-500 text-white p-1 rounded-full shadow-lg z-20">
+                <CheckCircle2 className="h-3 w-3" />
+              </div>
+            )}
+
             {type !== "album" && type !== "playlist" && (
               <div className={cn(
                 "absolute inset-0 bg-primary/20 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center",
@@ -155,14 +191,24 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
 
             <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               {type !== "album" && type !== "playlist" && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={cn("h-8 w-8 rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-black/40", isLiked && "text-red-500")}
-                  onClick={(e) => { e.stopPropagation(); triggerHaptic(); toggleLike(item); }}
-                >
-                  <Heart className={cn("h-4 w-4", isLiked && "fill-current")} />
-                </Button>
+                <>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn("h-8 w-8 rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-black/40", isLiked && "text-red-500")}
+                    onClick={(e) => { e.stopPropagation(); triggerHaptic(); toggleLike(item); }}
+                  >
+                    <Heart className={cn("h-4 w-4", isLiked && "fill-current")} />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn("h-8 w-8 rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-black/40", isUnliked && "text-primary")}
+                    onClick={(e) => { e.stopPropagation(); triggerHaptic(); toggleUnlike(item); }}
+                  >
+                    <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} />
+                  </Button>
+                </>
               )}
               
               <DropdownMenu>
@@ -206,8 +252,13 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
                     </>
                   )}
                   
-                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); triggerHaptic(); handleDownload(item.title); }}>
-                    <Download className="h-4 w-4" /> Download
+                  <DropdownMenuItem 
+                    className="gap-2 cursor-pointer font-bold" 
+                    disabled={isDownloading || isDownloaded}
+                    onClick={(e) => { e.stopPropagation(); triggerHaptic(); handleDownload(item); }}
+                  >
+                    {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : isDownloaded ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Download className="h-4 w-4" />}
+                    {isDownloaded ? "Downloaded" : "Download"}
                   </DropdownMenuItem>
                   <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); triggerHaptic(); handleShare(item); }}>
                     <Share2 className="h-4 w-4" /> Share
@@ -222,7 +273,12 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
         </div>
         
         <div className="space-y-0.5 sm:space-y-1">
-          <h3 className="font-bold text-xs sm:text-sm truncate group-hover:text-primary transition-colors">{item.title}</h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="font-bold text-xs sm:text-sm truncate group-hover:text-primary transition-colors">{item.title}</h3>
+            {type === "song" && (
+              <span className="text-[9px] font-black text-primary/60 shrink-0">{(stats.likes / 1000).toFixed(1)}K</span>
+            )}
+          </div>
           <div className="flex items-center gap-1.5 sm:gap-2 text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-widest">
             {type === "song" && (
               <>

@@ -12,11 +12,13 @@ import {
   Plus,
   Share2,
   ListMusic,
-  Clock
+  Clock,
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useMusic } from "@/context/MusicContext";
+import { useMusic, Track } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
@@ -27,10 +29,15 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 export function AlbumDetail() {
-  const { selectedAlbum, setSelectedAlbum, currentTrack, isPlaying, setTrack, togglePlay, playCollection, toggleLike, isTrackLiked } = useMusic();
+  const { 
+    selectedAlbum, setSelectedAlbum, currentTrack, isPlaying, setTrack, togglePlay, playCollection, 
+    toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, isTrackDownloaded, simulateDownload, trackStats 
+  } = useMusic();
   const { toast } = useToast();
+  const [downloadingIds, setDownloadingIds] = useState<Set<string | number>>(new Set());
 
   if (!selectedAlbum) return null;
 
@@ -52,7 +59,27 @@ export function AlbumDetail() {
     toast({ title: "Album Link Copied!", description: "Share this collection with your community." });
   };
 
-  const handleDownload = () => {
+  const handleTrackDownload = async (track: Track) => {
+    if (isTrackDownloaded(track.id)) return;
+    setDownloadingIds(prev => new Set(prev).add(track.id));
+    toast({ title: "Sonic Download", description: `Fetching ${track.title}...` });
+    await new Promise(r => setTimeout(resolve, 2000));
+    await simulateDownload(track);
+    setDownloadingIds(prev => {
+      const next = new Set(prev);
+      next.delete(track.id);
+      return next;
+    });
+    toast({ title: "Ready Offline", description: `${track.title} saved.` });
+  };
+
+  const handleDownloadFull = async () => {
+    toast({ title: "Mass Fetching", description: `Starting download for ${selectedAlbum.songs.length} tracks...` });
+    for (const track of selectedAlbum.songs) {
+      if (!isTrackDownloaded(track.id)) {
+        await simulateDownload(track);
+      }
+    }
     toast({ title: "Album Downloaded", description: `${selectedAlbum.title} is now available offline.` });
   };
 
@@ -84,7 +111,7 @@ export function AlbumDetail() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 rounded-xl p-2">
-              <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={handleDownload}>
+              <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={handleDownloadFull}>
                 <Download className="h-4 w-4" /> Download Full Album
               </DropdownMenuItem>
               <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={() => toast({ title: "Library", description: "Album saved to your digital collection." })}>
@@ -125,7 +152,7 @@ export function AlbumDetail() {
                 <Play className="h-6 w-6 fill-current" />
                 PLAY ALL
               </Button>
-              <Button variant="secondary" className="h-14 w-14 rounded-2xl" onClick={handleDownload}>
+              <Button variant="secondary" className="h-14 w-14 rounded-2xl" onClick={handleDownloadFull}>
                 <Download className="h-6 w-6" />
               </Button>
             </div>
@@ -159,6 +186,10 @@ export function AlbumDetail() {
               {selectedAlbum.songs.map((song, idx) => {
                 const isCurrent = currentTrack?.id === song.id;
                 const isLiked = isTrackLiked(song.id);
+                const isUnliked = isTrackUnliked(song.id);
+                const isDownloaded = isTrackDownloaded(song.id);
+                const isDownloading = downloadingIds.has(song.id);
+                const stats = trackStats[song.id] || { likes: song.likes || 0, unlikes: song.unlikes || 0 };
                 
                 return (
                   <div 
@@ -177,15 +208,21 @@ export function AlbumDetail() {
                         {idx + 1}
                       </span>
                       <div className="flex flex-col min-w-0">
-                        <span className={cn(
-                          "font-bold text-sm truncate",
-                          isCurrent ? "text-primary" : "text-foreground"
-                        )}>
-                          {song.title}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground font-medium hover:text-primary transition-colors">
-                          {song.artist}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            "font-bold text-sm truncate",
+                            isCurrent ? "text-primary" : "text-foreground"
+                          )}>
+                            {song.title}
+                          </span>
+                          {isDownloaded && <CheckCircle2 className="h-3 w-3 text-green-500" />}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground font-medium hover:text-primary transition-colors">
+                            {song.artist}
+                          </span>
+                          <span className="text-[8px] font-black text-primary/40 uppercase tracking-widest">{(stats.likes / 1000).toFixed(1)}K Likes</span>
+                        </div>
                       </div>
                     </div>
 
@@ -193,10 +230,16 @@ export function AlbumDetail() {
                       <span className="text-[10px] font-black text-muted-foreground">{formatDuration(song.duration)}</span>
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button 
-                          variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isLiked && "text-primary")}
-                          onClick={(e) => { e.stopPropagation(); toggleLike(song.id); }}
+                          variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isLiked && "text-red-500")}
+                          onClick={(e) => { e.stopPropagation(); toggleLike(song); }}
                         >
                           <Heart className={cn("h-4 w-4", isLiked && "fill-current")} />
+                        </Button>
+                        <Button 
+                          variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isUnliked && "text-primary")}
+                          onClick={(e) => { e.stopPropagation(); toggleUnlike(song); }}
+                        >
+                          <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} />
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -208,8 +251,13 @@ export function AlbumDetail() {
                             <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); toast({ title: "Playlist", description: "Track added to your playlist." }); }}>
                               <Plus className="h-4 w-4" /> Add to Playlist
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); toast({ title: "Download", description: "Single track download started." }); }}>
-                              <Download className="h-4 w-4" /> Download Single
+                            <DropdownMenuItem 
+                              className="gap-2 cursor-pointer font-bold" 
+                              disabled={isDownloading || isDownloaded}
+                              onClick={(e) => { e.stopPropagation(); handleTrackDownload(song); }}
+                            >
+                              {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} 
+                              {isDownloaded ? "Available Offline" : "Download Single"}
                             </DropdownMenuItem>
                             <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/track/${song.id}`); toast({ title: "Shared", description: "Song link copied to clipboard." }); }}>
                               <Share2 className="h-4 w-4" /> Share Song

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -19,7 +18,9 @@ import {
   MoreHorizontal,
   X,
   Send,
-  MessageCircle
+  MessageCircle,
+  Loader2,
+  CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -31,21 +32,26 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 
 const QUICK_REACTIONS = ["🔥", "❤️", "🙌", "💯", "🤯", "🚀"];
 
 export function MusicPlayer() {
   const pathname = usePathname();
+  const { toast } = useToast();
   const { 
-    currentTrack, isPlaying, isExpanded, progress, volume, reactions,
-    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, isTrackLiked
+    currentTrack, isPlaying, isExpanded, progress, volume, reactions, trackStats,
+    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, simulateDownload, isTrackDownloaded
   } = useMusic();
 
   const [commentInput, setCommentInput] = useState("");
   const [isMuted, setIsMuted] = useState(false);
   const [preMuteVolume, setPreMuteVolume] = useState(80);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   if (!currentTrack) return null;
+
+  const stats = trackStats[currentTrack.id] || { likes: 0, unlikes: 0 };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -78,7 +84,22 @@ export function MusicPlayer() {
     else setIsMuted(true);
   };
 
+  const handleDownloadClick = async () => {
+    if (isTrackDownloaded(currentTrack.id)) return;
+    setIsDownloading(true);
+    toast({ title: "Sonic Download", description: `Fetching high-res audio for ${currentTrack.title}...` });
+    
+    // Simulate high-res fetch
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    
+    await simulateDownload(currentTrack);
+    setIsDownloading(false);
+    toast({ title: "Download Complete", description: "Vibe saved to your digital vault." });
+  };
+
   const isLiked = isTrackLiked(currentTrack.id);
+  const isUnliked = isTrackUnliked(currentTrack.id);
+  const isDownloaded = isTrackDownloaded(currentTrack.id);
 
   // Mini Player View
   if (!isExpanded) {
@@ -104,6 +125,7 @@ export function MusicPlayer() {
           <div className="flex-1 min-0">
             <div className="flex items-center gap-2">
               <p className="text-xs font-bold truncate text-foreground">{currentTrack.title}</p>
+              {isDownloaded && <CheckCircle2 className="h-2.5 w-2.5 text-green-500" />}
               <div className="flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full">
                 <AudioLines className="h-2 w-2 text-primary animate-pulse" />
                 <span className="text-[8px] font-black text-primary uppercase">Live</span>
@@ -164,8 +186,14 @@ export function MusicPlayer() {
           </div>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
-          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20" title="Download">
-            <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+          <Button 
+            variant="ghost" size="icon" 
+            className={cn("rounded-full bg-secondary/20", isDownloaded && "text-green-500")} 
+            title="Download"
+            onClick={handleDownloadClick}
+            disabled={isDownloading}
+          >
+            {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : isDownloaded ? <CheckCircle2 className="h-4 w-4" /> : <Download className="h-4 w-4 sm:h-5 sm:w-5" />}
           </Button>
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20" title="Share">
             <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -201,21 +229,40 @@ export function MusicPlayer() {
             <div className="flex items-start justify-between">
               <div className="space-y-1 sm:space-y-2">
                 <h2 className="text-3xl sm:text-5xl font-black italic uppercase tracking-tighter leading-tight sm:leading-none">{currentTrack.title}</h2>
-                <Link href={`/profile/${currentTrack.artistUsername || 'arivera'}`} onClick={() => setIsExpanded(false)}>
-                  <p className="text-xl sm:text-2xl text-primary font-bold hover:underline">{currentTrack.artist}</p>
-                </Link>
+                <div className="flex items-center gap-3">
+                  <Link href={`/profile/${currentTrack.artistUsername || 'arivera'}`} onClick={() => setIsExpanded(false)}>
+                    <p className="text-xl sm:text-2xl text-primary font-bold hover:underline">{currentTrack.artist}</p>
+                  </Link>
+                  {isDownloaded && <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-[10px] font-black tracking-widest uppercase">Offline Ready</Badge>}
+                </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <Button 
-                  variant="ghost" size="icon" 
-                  className={cn("h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-secondary/20 transition-all", isLiked ? "text-red-500 bg-red-500/10" : "hover:text-red-500")}
-                  onClick={() => toggleLike(currentTrack.id)}
-                >
-                  <Heart className={cn("h-5 w-5 sm:h-7 sm:w-7", isLiked && "fill-current")} />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-secondary/20 hover:text-destructive">
-                  <ThumbsDown className="h-5 w-5 sm:h-7 sm:w-7" />
-                </Button>
+              <div className="flex flex-col gap-3 items-center">
+                <div className="flex flex-col items-center gap-1">
+                  <Button 
+                    variant="ghost" size="icon" 
+                    className={cn("h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-secondary/20 transition-all", isLiked ? "text-red-500 bg-red-500/10" : "hover:text-red-500")}
+                    onClick={() => toggleLike(currentTrack)}
+                  >
+                    <Heart className={cn("h-5 w-5 sm:h-7 sm:w-7", isLiked && "fill-current")} />
+                  </Button>
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                    {(stats.likes / 1000).toFixed(1)}K
+                  </span>
+                </div>
+                
+                <div className="flex flex-col items-center gap-1">
+                  <Button 
+                    variant="ghost" size="icon" 
+                    className={cn("h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-secondary/20 transition-all", isUnliked ? "text-primary bg-primary/10" : "hover:text-destructive")}
+                    onClick={() => toggleUnlike(currentTrack)}
+                  >
+                    <ThumbsDown className={cn("h-5 w-5 sm:h-7 sm:w-7", isUnliked && "fill-current")} />
+                  </Button>
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                    {stats.unlikes}
+                  </span>
+                </div>
+
                 <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-secondary/20">
                   <MoreHorizontal className="h-5 w-5 sm:h-7 sm:w-7" />
                 </Button>
