@@ -63,7 +63,7 @@ export function AlbumDetail() {
     if (isTrackDownloaded(track.id)) return;
     setDownloadingIds(prev => new Set(prev).add(track.id));
     toast({ title: "Sonic Download", description: `Fetching ${track.title}...` });
-    await new Promise(r => setTimeout(resolve, 2000));
+    await new Promise(r => setTimeout(r, 2000));
     await simulateDownload(track);
     setDownloadingIds(prev => {
       const next = new Set(prev);
@@ -193,7 +193,7 @@ export function AlbumDetail() {
                 
                 return (
                   <div 
-                    key={song.id} 
+                    key={`${selectedAlbum.id}-${song.id}-${idx}`} 
                     className={cn(
                       "flex items-center justify-between p-4 rounded-2xl transition-all group cursor-pointer",
                       isCurrent ? "bg-primary/10" : "hover:bg-secondary/10"

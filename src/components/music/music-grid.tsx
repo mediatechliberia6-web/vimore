@@ -67,9 +67,11 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
     const isDownloading = downloadingIds.has(item.id);
     const stats = trackStats[item.id] || { likes: item.likes || 0, unlikes: item.unlikes || 0 };
     
+    const stableKey = `${type}-${item.id || idx}-${idx}`;
+
     if (type === "hero") {
       return (
-        <div key={item.id || `hero-${idx}`} className="relative w-full max-w-4xl aspect-video sm:h-[400px] rounded-[2rem] sm:rounded-[3rem] overflow-hidden group cursor-pointer shadow-2xl ring-1 ring-white/10">
+        <div key={stableKey} className="relative w-full max-w-4xl aspect-video sm:h-[400px] rounded-[2rem] sm:rounded-[3rem] overflow-hidden group cursor-pointer shadow-2xl ring-1 ring-white/10">
           <Image src={item.cover} alt={item.title} fill className="object-cover transition-transform duration-1000 group-hover:scale-105" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
           <div className="absolute bottom-6 left-6 right-6 sm:bottom-10 sm:left-10 sm:right-10 space-y-2 sm:space-y-4">
@@ -116,7 +118,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
 
     if (type === "artist") {
       return (
-        <Link key={item.id || `artist-${idx}`} href={`/profile/${item.username || 'arivera'}`} className="inline-block w-[120px] sm:w-[160px] text-center space-y-3 group cursor-pointer shrink-0 snap-start">
+        <Link key={stableKey} href={`/profile/${item.username || 'arivera'}`} className="inline-block w-[120px] sm:w-[160px] text-center space-y-3 group cursor-pointer shrink-0 snap-start">
           <div className="relative mx-auto h-24 w-24 sm:h-32 sm:w-32">
             <div className={cn(
               "absolute inset-0 bg-primary/30 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity",
@@ -153,7 +155,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
 
     return (
       <div 
-        key={item.id || `${type}-${idx}`} 
+        key={stableKey} 
         className={cn("inline-block group cursor-pointer shrink-0 snap-start", cardWidth)}
         onClick={handleCardClick}
       >
