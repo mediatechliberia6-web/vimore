@@ -1,14 +1,16 @@
+
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, MessageCircle, Search, Bell, Settings, LogOut, PlusSquare, Compass, Menu } from "lucide-react";
+import { Home, User, MessageCircle, Bell, PlusSquare, Compass, Menu, Music2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Compass, label: "Explore", href: "/explore" },
+  { icon: Music2, label: "Music", href: "/music" },
   { icon: Bell, label: "Notifications", href: "/notifications" },
   { icon: MessageCircle, label: "Messages", href: "/messages" },
   { icon: User, label: "Profile", href: "/profile" },
@@ -59,13 +61,6 @@ export function MainNav() {
           </Button>
         </div>
       </nav>
-
-      <div className="pt-6 border-t border-border">
-        <button className="flex items-center gap-4 px-4 py-3 w-full rounded-xl hover:bg-destructive/10 text-destructive transition-colors group">
-          <LogOut className="w-6 h-6 group-hover:-translate-x-1 transition-transform" />
-          <span className="font-bold text-sm">Logout</span>
-        </button>
-      </div>
     </div>
   );
 }

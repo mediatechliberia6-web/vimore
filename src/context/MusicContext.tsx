@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
@@ -11,11 +12,6 @@ export interface Track {
   streams?: string;
 }
 
-export interface Listener {
-  name: string;
-  avatar: string;
-}
-
 export interface MusicReaction {
   id: number;
   emoji: string;
@@ -27,19 +23,14 @@ interface MusicContextType {
   queue: Track[];
   isPlaying: boolean;
   isExpanded: boolean;
-  isSpatial: boolean;
-  isSmartShuffle: boolean;
   progress: number;
   volume: number;
-  listeners: Listener[];
   reactions: MusicReaction[];
   setTrack: (track: Track) => void;
   togglePlay: () => void;
   nextTrack: () => void;
   prevTrack: () => void;
   setIsExpanded: (expanded: boolean) => void;
-  setIsSpatial: (spatial: boolean) => void;
-  setIsSmartShuffle: (shuffle: boolean) => void;
   setProgress: (progress: number) => void;
   setVolume: (volume: number) => void;
   addReaction: (emoji: string) => void;
@@ -55,25 +46,15 @@ const MOCK_TRACKS: Track[] = [
   { id: 5, title: "Soweto", artist: "Victony", cover: "https://picsum.photos/seed/song5/600/600", duration: 164, streams: "45M" },
 ];
 
-const MOCK_LISTENERS: Listener[] = [
-  { name: "Alex", avatar: "https://picsum.photos/seed/1/100/100" },
-  { name: "Sarah", avatar: "https://picsum.photos/seed/2/100/100" },
-  { name: "Marcus", avatar: "https://picsum.photos/seed/3/100/100" },
-];
-
 export function MusicProvider({ children }: { children: ReactNode }) {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(MOCK_TRACKS[0]);
-  const [queue, setQueue] = useState<Track[]>(MOCK_TRACKS);
+  const [queue] = useState<Track[]>(MOCK_TRACKS);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isSpatial, setIsSpatial] = useState(false);
-  const [isSmartShuffle, setIsSmartShuffle] = useState(false);
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState(80);
   const [reactions, setReactions] = useState<MusicReaction[]>([]);
-  const [listeners] = useState<Listener[]>(MOCK_LISTENERS);
 
-  // Auto-progress simulation
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isPlaying) {
@@ -101,16 +82,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const nextTrack = () => {
     const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
-    let nextIndex;
-    
-    if (isSmartShuffle) {
-      // Logic for Smart Shuffle: avoid playing the same track twice if possible
-      nextIndex = Math.floor(Math.random() * queue.length);
-      if (nextIndex === currentIndex) nextIndex = (nextIndex + 1) % queue.length;
-    } else {
-      nextIndex = (currentIndex + 1) % queue.length;
-    }
-    
+    const nextIndex = (currentIndex + 1) % queue.length;
     setTrack(queue[nextIndex]);
   };
 
@@ -122,39 +94,15 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const addReaction = (emoji: string) => {
     const id = Date.now();
-    const newReaction = {
-      id,
-      emoji,
-      x: Math.random() * 80 + 10,
-    };
+    const newReaction = { id, emoji, x: Math.random() * 80 + 10 };
     setReactions((prev) => [...prev, newReaction]);
-    setTimeout(() => {
-      setReactions((prev) => prev.filter((r) => r.id !== id));
-    }, 2000);
+    setTimeout(() => setReactions((prev) => prev.filter((r) => r.id !== id)), 2000);
   };
 
   return (
     <MusicContext.Provider value={{
-      currentTrack,
-      queue,
-      isPlaying,
-      isExpanded,
-      isSpatial,
-      isSmartShuffle,
-      progress,
-      volume,
-      listeners,
-      reactions,
-      setTrack,
-      togglePlay,
-      nextTrack,
-      prevTrack,
-      setIsExpanded,
-      setIsSpatial,
-      setIsSmartShuffle,
-      setProgress,
-      setVolume,
-      addReaction
+      currentTrack, queue, isPlaying, isExpanded, progress, volume, reactions,
+      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction
     }}>
       {children}
     </MusicContext.Provider>

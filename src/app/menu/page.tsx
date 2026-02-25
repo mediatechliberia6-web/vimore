@@ -1,3 +1,4 @@
+
 "use client";
 
 import { 
@@ -17,7 +18,8 @@ import {
   HelpCircle,
   UserPlus,
   LogOut,
-  Sparkles
+  Sparkles,
+  Music2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -32,7 +34,7 @@ import { cn } from "@/lib/utils";
 
 const menuGrid = [
   { label: "Home feed", icon: Home, color: "text-primary", bg: "bg-primary/10", href: "/" },
-  { label: "Friends", icon: Users, color: "text-pink-500", bg: "bg-pink-50", href: "/" },
+  { label: "Music Hub", icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music" },
   { label: "Messages", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages" },
   { label: "Reels", icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-50", href: "/" },
   { label: "Notifications", icon: Bell, color: "text-yellow-500", bg: "bg-yellow-50", href: "/notifications" },
@@ -48,7 +50,7 @@ export default function MenuPage() {
               <ArrowLeft className="h-6 w-6" />
             </Button>
           </Link>
-          <h1 className="text-xl font-bold font-headline tracking-tight">Menu</h1>
+          <h1 className="text-xl font-bold font-headline tracking-tight text-foreground">Menu</h1>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 dark:bg-white/5">
@@ -74,7 +76,7 @@ export default function MenuPage() {
                 </div>
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-xl tracking-tight">John Doe</span>
+                <span className="font-bold text-xl tracking-tight text-foreground">John Doe</span>
                 <span className="text-sm text-muted-foreground font-medium">View your digital workspace</span>
               </div>
             </div>
@@ -99,7 +101,7 @@ export default function MenuPage() {
                 <div className={cn("p-3.5 rounded-2xl transition-all group-hover:rotate-6", item.bg)}>
                   <item.icon className={cn("h-6 w-6", item.color)} />
                 </div>
-                <span className="font-bold text-[15px] tracking-tight">{item.label}</span>
+                <span className="font-bold text-[15px] tracking-tight text-foreground">{item.label}</span>
               </Link>
             ))}
           </div>
@@ -113,7 +115,7 @@ export default function MenuPage() {
                   <div className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl group-hover:scale-110 transition-transform">
                     <Settings className="h-5 w-5 text-slate-600 dark:text-slate-400" />
                   </div>
-                  <span className="font-bold text-lg tracking-tight">Settings & Privacy</span>
+                  <span className="font-bold text-lg tracking-tight text-foreground">Settings & Privacy</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-4 space-y-1">
@@ -129,44 +131,7 @@ export default function MenuPage() {
                 ))}
               </AccordionContent>
             </AccordionItem>
-
-            <AccordionItem value="support" className="border-b-0">
-              <AccordionTrigger className="px-6 py-5 hover:no-underline hover:bg-secondary/10 group">
-                <div className="flex items-center gap-4">
-                  <div className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl group-hover:scale-110 transition-transform">
-                    <LifeBuoy className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                  </div>
-                  <span className="font-bold text-lg tracking-tight">Help & Support</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-4 space-y-1">
-                {[
-                  { label: "Help Center", icon: HelpCircle, color: "text-purple-500" },
-                  { label: "Report a Problem", icon: Info, color: "text-red-500" }
-                ].map((sub) => (
-                  <button key={sub.label} className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-secondary/50 transition-colors font-semibold text-[15px] text-left">
-                    <sub.icon className={cn("h-4 w-4", sub.color)} />
-                    {sub.label}
-                  </button>
-                ))}
-              </AccordionContent>
-            </AccordionItem>
           </Accordion>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 pb-12">
-          <button className="w-full bg-white dark:bg-card p-5 rounded-[1.75rem] border border-border/50 shadow-lg shadow-black/5 flex items-center gap-4 transition-all hover:bg-secondary/20 active:scale-[0.98] group text-left">
-            <div className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl group-hover:bg-primary group-hover:text-white transition-all">
-              <UserPlus className="h-5 w-5" />
-            </div>
-            <span className="font-bold text-lg tracking-tight">Add Account</span>
-          </button>
-          <button className="w-full bg-white dark:bg-card p-5 rounded-[1.75rem] border border-border/50 shadow-lg shadow-black/5 flex items-center gap-4 transition-all hover:bg-destructive/10 active:scale-[0.98] group text-left">
-            <div className="p-2.5 bg-destructive/10 rounded-xl group-hover:bg-destructive group-hover:text-white transition-all">
-              <LogOut className="h-5 w-5 text-destructive group-hover:text-white" />
-            </div>
-            <span className="font-bold text-lg tracking-tight text-destructive">Log Out</span>
-          </button>
         </div>
       </main>
       <div className="h-20 lg:hidden" />
