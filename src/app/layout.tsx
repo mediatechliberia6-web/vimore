@@ -1,9 +1,10 @@
-
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { PostProvider } from "@/context/PostContext";
 import { MusicProvider } from "@/context/MusicContext";
+import { MusicPlayer } from "@/components/music/music-player";
+import { AlbumDetail } from "@/components/music/album-detail";
 
 export const metadata: Metadata = {
   title: 'ViMore - Real-time Social Connection',
@@ -26,6 +27,8 @@ export default function RootLayout({
         <PostProvider>
           <MusicProvider>
             {children}
+            <MusicPlayer />
+            <AlbumDetail />
             <Toaster />
           </MusicProvider>
         </PostProvider>

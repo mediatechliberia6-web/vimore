@@ -3,9 +3,7 @@
 import { MainNav } from "@/components/layout/main-nav";
 import { Header } from "@/components/layout/header";
 import { MusicGrid } from "@/components/music/music-grid";
-import { MusicPlayer } from "@/components/music/music-player";
 import { MusicNav } from "@/components/music/music-nav";
-import { AlbumDetail } from "@/components/music/album-detail";
 import { useMusic, Album, Track } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 
@@ -133,8 +131,6 @@ export default function MusicPage() {
         </main>
       </div>
 
-      <MusicPlayer />
-      <AlbumDetail />
       <MusicNav />
     </div>
   );

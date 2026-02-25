@@ -1,4 +1,3 @@
-
 "use client";
 
 import { 
@@ -12,7 +11,8 @@ import {
   AudioLines,
   Heart,
   Share2,
-  MoreHorizontal
+  MoreHorizontal,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -25,7 +25,7 @@ const QUICK_REACTIONS = ["🔥", "❤️", "🙌", "💯", "🤯", "🚀"];
 export function MusicPlayer() {
   const { 
     currentTrack, isPlaying, isExpanded, progress, volume, reactions,
-    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction
+    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, clearPlayer
   } = useMusic();
 
   if (!currentTrack) return null;
@@ -51,15 +51,24 @@ export function MusicPlayer() {
           <p className="text-xs font-bold truncate text-foreground">{currentTrack.title}</p>
           <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest truncate">{currentTrack.artist}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Button 
             size="icon" variant="ghost" className="h-10 w-10"
             onClick={(e) => { e.stopPropagation(); togglePlay(); }}
           >
             {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
           </Button>
-          <Button size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground">
+          <Button 
+            size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground"
+            onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
+          >
             <Maximize2 className="h-4 w-4" />
+          </Button>
+          <Button 
+            size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground hover:text-destructive"
+            onClick={(e) => { e.stopPropagation(); clearPlayer(); }}
+          >
+            <X className="h-4 w-4" />
           </Button>
         </div>
         <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-secondary/50 rounded-full overflow-hidden">
@@ -89,9 +98,14 @@ export function MusicPlayer() {
             <span className="text-[10px] font-black text-primary uppercase">Sonic Immersive</span>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20">
-          <Share2 className="h-5 w-5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20">
+            <Share2 className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20 hover:text-destructive" onClick={clearPlayer}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
       </header>
 
       <main className="flex-1 flex flex-col lg:flex-row items-center justify-center p-8 gap-12 max-w-7xl mx-auto w-full">

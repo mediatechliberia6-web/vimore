@@ -46,6 +46,7 @@ interface MusicContextType {
   setProgress: (progress: number) => void;
   setVolume: (volume: number) => void;
   addReaction: (emoji: string) => void;
+  clearPlayer: () => void;
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
@@ -59,7 +60,7 @@ const MOCK_SONGS: Track[] = [
 ];
 
 export function MusicProvider({ children }: { children: ReactNode }) {
-  const [currentTrack, setCurrentTrack] = useState<Track | null>(MOCK_SONGS[0]);
+  const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [queue] = useState<Track[]>(MOCK_SONGS);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -70,7 +71,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isPlaying) {
+    if (isPlaying && currentTrack) {
       interval = setInterval(() => {
         setProgress((prev) => {
           if (prev >= 100) {
@@ -112,10 +113,17 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setTimeout(() => setReactions((prev) => prev.filter((r) => r.id !== id)), 2000);
   };
 
+  const clearPlayer = () => {
+    setIsPlaying(false);
+    setCurrentTrack(null);
+    setIsExpanded(false);
+    setProgress(0);
+  };
+
   return (
     <MusicContext.Provider value={{
       currentTrack, queue, isPlaying, isExpanded, selectedAlbum, progress, volume, reactions,
-      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setProgress, setVolume, addReaction
+      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setProgress, setVolume, addReaction, clearPlayer
     }}>
       {children}
     </MusicContext.Provider>
