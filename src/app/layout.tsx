@@ -1,4 +1,4 @@
-import type {Metadata} from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { PostProvider } from "@/context/PostContext";
@@ -10,6 +10,20 @@ import { PlaylistDetail } from "@/components/music/playlist-detail";
 export const metadata: Metadata = {
   title: 'ViMore - Real-time Social Connection',
   description: 'Connect, share, and enhance your voice with ViMore.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'ViMore',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#9940E5',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
