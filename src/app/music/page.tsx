@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -7,6 +6,7 @@ import { Header } from "@/components/layout/header";
 import { MusicGrid } from "@/components/music/music-grid";
 import { MusicNav } from "@/components/music/music-nav";
 import { MusicCharts } from "@/components/music/music-charts";
+import { MusicUpload } from "@/components/music/music-upload";
 import { useMusic, Album, Track, Playlist } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -135,7 +135,7 @@ export default function MusicPage() {
           </div>
 
           <div className="px-6 sm:px-10 py-10 space-y-16">
-            {activeTab === "discover" ? (
+            {activeTab === "discover" && (
               <div className="space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-1000">
                 {/* 1. Hero Spotlight */}
                 <MusicGrid type="hero" items={[MOCK_SONGS[0]]} />
@@ -155,8 +155,12 @@ export default function MusicPage() {
                 {/* 6. Trending Artists */}
                 <MusicGrid type="artist" title="Trending Artists" items={MOCK_ARTISTS} />
               </div>
-            ) : (
-              <MusicCharts />
+            )}
+            
+            {activeTab === "chart" && <MusicCharts />}
+            
+            {activeTab === "upload" && (
+              <MusicUpload onCancel={() => setActiveTab("discover")} />
             )}
           </div>
         </main>
