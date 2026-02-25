@@ -129,6 +129,7 @@ const initialMockStories: Story[] = [
     id: "s1",
     user: { name: "Alex Rivera", username: "arivera", avatar: "https://picsum.photos/seed/1/100/100" },
     isCloseFriends: true,
+    viewCount: 42,
     segments: [
       { 
         id: "seg1", 
@@ -145,6 +146,7 @@ const initialMockStories: Story[] = [
   {
     id: "s2",
     user: { name: "Sarah Chen", username: "schen_dev", avatar: "https://picsum.photos/seed/2/100/100" },
+    viewCount: 156,
     segments: [
       { 
         id: "seg3", 
@@ -233,7 +235,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
 
   const addPost = (newPostData: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => {
-    // Determine language from browser if not provided
     const detectedLanguage = newPostData.language || (typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en');
     
     const newPost: Post = {
@@ -257,12 +258,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
         const updated = [...prev];
         updated[userStoryIndex] = {
           ...updated[userStoryIndex],
-          segments: [newSegment, ...updated[userStoryIndex].segments]
+          segments: [newSegment, ...updated[userStoryIndex].segments],
+          viewCount: updated[userStoryIndex].viewCount || 0
         };
         return updated;
       });
     } else {
-      setStories([{ id: Date.now().toString(), user: CURRENT_USER, segments: [newSegment] }, ...stories]);
+      setStories([{ id: Date.now().toString(), user: CURRENT_USER, segments: [newSegment], viewCount: 0 }, ...stories]);
     }
   };
 

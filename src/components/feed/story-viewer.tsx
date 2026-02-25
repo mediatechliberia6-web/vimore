@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -217,10 +218,10 @@ export function StoryViewer() {
                 </Avatar>
               </Link>
               
-              {isOwner && activeStory.viewCount !== undefined && (
+              {isOwner && (
                 <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full text-white/90 border border-white/10 shadow-lg animate-in slide-in-from-top-1">
-                  <Eye className="h-2.5 w-2.5" />
-                  <span className="text-[10px] font-black tracking-tighter">{activeStory.viewCount}</span>
+                  <Eye className="h-2.5 w-2.5 text-primary" />
+                  <span className="text-[10px] font-black tracking-tighter">{activeStory.viewCount || 0}</span>
                 </div>
               )}
             </div>
