@@ -4,6 +4,7 @@ import { Play, Pause, MoreVertical, Heart, TrendingUp, Music2 } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { useMusic, Track, Album, Playlist } from "@/context/MusicContext";
 import Image from "next/image";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -30,8 +31,10 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
               <span className="bg-primary px-3 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-widest animate-pulse">#1 Trending Now</span>
             </div>
             <h1 className="text-5xl font-black italic uppercase tracking-tighter text-white drop-shadow-lg">{item.title}</h1>
-            <p className="text-xl text-white/70 font-bold">{item.artist}</p>
-            <div className="flex items-center gap-4">
+            <Link href={`/profile/${item.artistUsername || 'arivera'}`} onClick={(e) => e.stopPropagation()}>
+              <p className="text-xl text-white/70 font-bold hover:text-white transition-colors underline-offset-4 hover:underline">{item.artist}</p>
+            </Link>
+            <div className="flex items-center gap-4 mt-4">
               <Button 
                 size="lg" 
                 className="rounded-full bg-white text-primary font-black px-10 h-14 hover:scale-105 transition-transform"
@@ -49,7 +52,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
     // Artist remains circular for visual distinction
     if (type === "artist") {
       return (
-        <div key={item.id} className="inline-block w-[160px] text-center space-y-3 group cursor-pointer">
+        <Link key={item.id} href={`/profile/${item.username || 'arivera'}`} className="inline-block w-[160px] text-center space-y-3 group cursor-pointer">
           <div className="relative mx-auto h-32 w-32">
             <div className={cn(
               "absolute inset-0 bg-primary/30 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity",
@@ -69,7 +72,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
             <h3 className="font-bold text-sm truncate group-hover:text-primary transition-colors">{item.name}</h3>
             <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{item.role}</p>
           </div>
-        </div>
+        </Link>
       );
     }
 
@@ -90,14 +93,12 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
         onClick={handleCardClick}
       >
         <div className="relative aspect-square mb-4">
-          {/* Jewel Case Visual Spine */}
           <div className="absolute -left-2 top-2 bottom-2 w-3 bg-white/20 backdrop-blur-md rounded-l-lg z-10 border-r border-white/30" />
           
           <div className="relative h-full w-full rounded-[1rem] overflow-hidden shadow-xl ring-1 ring-white/10 group-hover:-translate-y-2 transition-transform duration-500">
             <Image src={item.cover} alt={item.title} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
             <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent" />
             
-            {/* Play Overlay (Only for non-album/playlist direct action) */}
             {type !== "album" && type !== "playlist" && (
               <div className={cn(
                 "absolute inset-0 bg-primary/20 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center",
@@ -123,21 +124,25 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-black uppercase tracking-widest">
             {type === "song" && (
               <>
-                <span>{item.artist}</span>
+                <Link href={`/profile/${item.artistUsername || 'arivera'}`} onClick={(e) => e.stopPropagation()} className="hover:text-primary transition-colors">
+                  {item.artist}
+                </Link>
                 <span>•</span>
                 <span>{item.streams}</span>
               </>
             )}
             {type === "album" && (
               <>
-                <span>{item.artist}</span>
+                <Link href={`/profile/${item.artistUsername || 'arivera'}`} onClick={(e) => e.stopPropagation()} className="hover:text-primary transition-colors">
+                  {item.artist}
+                </Link>
                 <span>•</span>
                 <span>{item.tracks} Tracks</span>
               </>
             )}
             {type === "playlist" && (
               <>
-                <span>By @{item.creator || 'vimore'}</span>
+                <span>By <Link href={`/profile/${item.creator || 'arivera'}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline">@{item.creator || 'vimore'}</Link></span>
                 <span>•</span>
                 <span>{item.totalStreams || '0'} Plays</span>
               </>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { MainNav } from "@/components/layout/main-nav";
@@ -12,11 +11,11 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 const MOCK_SONGS: Track[] = [
-  { id: 1, title: "Essence", artist: "Wizkid ft. Tems", cover: "https://picsum.photos/seed/song1/600/600", duration: 240, streams: "124M" },
-  { id: 2, title: "Last Last", artist: "Burna Boy", cover: "https://picsum.photos/seed/song2/600/600", duration: 172, streams: "98M" },
-  { id: 3, title: "Unavailable", artist: "Davido", cover: "https://picsum.photos/seed/song3/600/600", duration: 185, streams: "75M" },
-  { id: 4, title: "Calm Down", artist: "Rema", cover: "https://picsum.photos/seed/song4/600/600", duration: 219, streams: "320M" },
-  { id: 5, title: "Soweto", artist: "Victony", cover: "https://picsum.photos/seed/song5/600/600", duration: 164, streams: "45M" },
+  { id: 1, title: "Essence", artist: "Wizkid ft. Tems", artistUsername: "arivera", cover: "https://picsum.photos/seed/song1/600/600", duration: 240, streams: "124M" },
+  { id: 2, title: "Last Last", artist: "Burna Boy", artistUsername: "schen_dev", cover: "https://picsum.photos/seed/song2/600/600", duration: 172, streams: "98M" },
+  { id: 3, title: "Unavailable", artist: "Davido", artistUsername: "mstone", cover: "https://picsum.photos/seed/song3/600/600", duration: 185, streams: "75M" },
+  { id: 4, title: "Calm Down", artist: "Rema", artistUsername: "techex", cover: "https://picsum.photos/seed/song4/600/600", duration: 219, streams: "320M" },
+  { id: 5, title: "Soweto", artist: "Victony", artistUsername: "jmoore", cover: "https://picsum.photos/seed/song5/600/600", duration: 164, streams: "45M" },
 ];
 
 const MOCK_ALBUMS: Album[] = [
@@ -24,57 +23,32 @@ const MOCK_ALBUMS: Album[] = [
     id: 'a1', 
     title: "Timeless", 
     artist: "Davido", 
+    artistUsername: "mstone",
     cover: "https://picsum.photos/seed/album1/400/400", 
     year: "2023", 
     tracks: 17,
     totalStreams: "850M",
     songs: [
-      { id: 's31', title: "Unavailable", artist: "Davido", cover: "https://picsum.photos/seed/album1/400/400", duration: 185 },
-      { id: 's32', title: "Feel", artist: "Davido", cover: "https://picsum.photos/seed/album1/400/400", duration: 195 },
-      { id: 's33', title: "Away", artist: "Davido", cover: "https://picsum.photos/seed/album1/400/400", duration: 178 },
-      { id: 's34', title: "Precision", artist: "Davido", cover: "https://picsum.photos/seed/album1/400/400", duration: 162 },
-      { id: 's35', title: "Kante", artist: "Davido ft. Fave", cover: "https://picsum.photos/seed/album1/400/400", duration: 205 },
+      { id: 's31', title: "Unavailable", artist: "Davido", artistUsername: "mstone", cover: "https://picsum.photos/seed/album1/400/400", duration: 185 },
+      { id: 's32', title: "Feel", artist: "Davido", artistUsername: "mstone", cover: "https://picsum.photos/seed/album1/400/400", duration: 195 },
+      { id: 's33', title: "Away", artist: "Davido", artistUsername: "mstone", cover: "https://picsum.photos/seed/album1/400/400", duration: 178 },
+      { id: 's34', title: "Precision", artist: "Davido", artistUsername: "mstone", cover: "https://picsum.photos/seed/album1/400/400", duration: 162 },
+      { id: 's35', title: "Kante", artist: "Davido ft. Fave", artistUsername: "mstone", cover: "https://picsum.photos/seed/album1/400/400", duration: 205 },
     ]
   },
   { 
     id: 'a2', 
     title: "More Love, Less Ego", 
     artist: "Wizkid", 
+    artistUsername: "arivera",
     cover: "https://picsum.photos/seed/album2/400/400", 
     year: "2022", 
     tracks: 13,
     totalStreams: "620M",
     songs: [
-      { id: 's21', title: "Money & Love", artist: "Wizkid", cover: "https://picsum.photos/seed/album2/400/400", duration: 210 },
-      { id: 's22', title: "Balance", artist: "Wizkid", cover: "https://picsum.photos/seed/album2/400/400", duration: 185 },
-      { id: 's23', title: "Bad To Me", artist: "Wizkid", cover: "https://picsum.photos/seed/album2/400/400", duration: 192 },
-    ]
-  },
-  { 
-    id: 'a3', 
-    title: "Love, Damini", 
-    artist: "Burna Boy", 
-    cover: "https://picsum.photos/seed/album3/400/400", 
-    year: "2022", 
-    tracks: 19,
-    totalStreams: "1.2B",
-    songs: [
-      { id: 's11', title: "Last Last", artist: "Burna Boy", cover: "https://picsum.photos/seed/album3/400/400", duration: 172 },
-      { id: 's12', title: "It's Plenty", artist: "Burna Boy", cover: "https://picsum.photos/seed/album3/400/400", duration: 198 },
-      { id: 's13', title: "Kilometre", artist: "Burna Boy", cover: "https://picsum.photos/seed/album3/400/400", duration: 165 },
-    ]
-  },
-  { 
-    id: 'a4', 
-    title: "Rave & Roses", 
-    artist: "Rema", 
-    cover: "https://picsum.photos/seed/album4/400/400", 
-    year: "2023", 
-    tracks: 16,
-    totalStreams: "940M",
-    songs: [
-      { id: 's41', title: "Calm Down", artist: "Rema", cover: "https://picsum.photos/seed/album4/400/400", duration: 219 },
-      { id: 's42', title: "Soundgasm", artist: "Rema", cover: "https://picsum.photos/seed/album4/400/400", duration: 204 },
+      { id: 's21', title: "Money & Love", artist: "Wizkid", artistUsername: "arivera", cover: "https://picsum.photos/seed/album2/400/400", duration: 210 },
+      { id: 's22', title: "Balance", artist: "Wizkid", artistUsername: "arivera", cover: "https://picsum.photos/seed/album2/400/400", duration: 185 },
+      { id: 's23', title: "Bad To Me", artist: "Wizkid", artistUsername: "arivera", cover: "https://picsum.photos/seed/album2/400/400", duration: 192 },
     ]
   },
 ];
@@ -83,7 +57,7 @@ const MOCK_PLAYLISTS: Playlist[] = [
   { 
     id: 'p1', 
     title: "AFRO-FUSION", 
-    creator: "johndoe_creative",
+    creator: "arivera",
     cover: "https://picsum.photos/seed/play1/800/450",
     totalStreams: "1.2M",
     songs: MOCK_SONGS
@@ -91,26 +65,18 @@ const MOCK_PLAYLISTS: Playlist[] = [
   { 
     id: 'p2', 
     title: "MIDNIGHT LO-FI", 
-    creator: "arivera",
+    creator: "schen_dev",
     cover: "https://picsum.photos/seed/play2/800/450",
     totalStreams: "850k",
     songs: MOCK_SONGS.slice(2)
   },
-  { 
-    id: 'p3', 
-    title: "URBAN ENERGY", 
-    creator: "schen_dev",
-    cover: "https://picsum.photos/seed/play3/800/450",
-    totalStreams: "450k",
-    songs: MOCK_SONGS.slice(0, 3)
-  },
 ];
 
 const MOCK_ARTISTS = [
-  { id: 'ar1', name: "Ayra Starr", role: "Vocalist", avatar: "https://picsum.photos/seed/art1/200/200", isLive: true },
-  { id: 'ar2', name: "Asake", role: "Singer", avatar: "https://picsum.photos/seed/art2/200/200" },
-  { id: 'ar3', name: "Tems", role: "Producer", avatar: "https://picsum.photos/seed/art3/200/200" },
-  { id: 'ar4', name: "Olamide", role: "Rapper", avatar: "https://picsum.photos/seed/art4/200/200" },
+  { id: 'ar1', name: "Ayra Starr", username: "arivera", role: "Vocalist", avatar: "https://picsum.photos/seed/art1/200/200", isLive: true },
+  { id: 'ar2', name: "Asake", username: "schen_dev", role: "Singer", avatar: "https://picsum.photos/seed/art2/200/200" },
+  { id: 'ar3', name: "Tems", username: "techex", role: "Producer", avatar: "https://picsum.photos/seed/art3/200/200" },
+  { id: 'ar4', name: "Olamide", username: "mstone", role: "Rapper", avatar: "https://picsum.photos/seed/art4/200/200" },
 ];
 
 export default function MusicPage() {

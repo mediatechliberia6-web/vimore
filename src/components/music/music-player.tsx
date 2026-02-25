@@ -27,6 +27,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const QUICK_REACTIONS = ["🔥", "❤️", "🙌", "💯", "🤯", "🚀"];
@@ -59,7 +60,12 @@ export function MusicPlayer() {
   // Mini Player View
   if (!isExpanded) {
     const isHome = pathname === "/";
-    const topOffset = isHome ? "top-[117px]" : "top-[61px]";
+    const isMusic = pathname === "/music";
+    
+    // Calculate dynamic top offset
+    let topOffset = "top-[61px]";
+    if (isHome) topOffset = "top-[117px]";
+    if (isMusic) topOffset = "top-[61px]";
 
     return (
       <div 
@@ -81,7 +87,11 @@ export function MusicPlayer() {
                 <span className="text-[8px] font-black text-primary uppercase">Live</span>
               </div>
             </div>
-            <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest truncate">{currentTrack.artist}</p>
+            <Link href={`/profile/${currentTrack.artistUsername || 'arivera'}`} onClick={(e) => e.stopPropagation()}>
+              <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest truncate hover:text-primary hover:underline">
+                {currentTrack.artist}
+              </p>
+            </Link>
           </div>
           <div className="flex items-center gap-1">
             <Button 
@@ -172,7 +182,9 @@ export function MusicPlayer() {
             <div className="flex items-start justify-between">
               <div className="space-y-1 sm:space-y-2">
                 <h2 className="text-3xl sm:text-5xl font-black italic uppercase tracking-tighter leading-tight sm:leading-none">{currentTrack.title}</h2>
-                <p className="text-xl sm:text-2xl text-primary font-bold">{currentTrack.artist}</p>
+                <Link href={`/profile/${currentTrack.artistUsername || 'arivera'}`} onClick={() => setIsExpanded(false)}>
+                  <p className="text-xl sm:text-2xl text-primary font-bold hover:underline">{currentTrack.artist}</p>
+                </Link>
               </div>
               <div className="flex flex-col gap-2">
                 <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-secondary/20 hover:text-red-500">
@@ -244,13 +256,17 @@ export function MusicPlayer() {
                   {currentTrack.comments && currentTrack.comments.length > 0 ? (
                     currentTrack.comments.map((comment) => (
                       <div key={comment.id} className="flex gap-4 group animate-in slide-in-from-bottom-2 duration-300">
-                        <Avatar className="h-10 w-10 border-2 border-primary/10 shrink-0">
-                          <AvatarImage src={comment.avatar} />
-                          <AvatarFallback>{comment.user[0]}</AvatarFallback>
-                        </Avatar>
+                        <Link href={`/profile/${comment.user === 'John Doe' ? 'johndoe_creative' : (comment.user === 'Alex Rivera' ? 'arivera' : (comment.user === 'Sarah Chen' ? 'schen_dev' : 'mstone'))}`} onClick={() => setIsExpanded(false)}>
+                          <Avatar className="h-10 w-10 border-2 border-primary/10 shrink-0 hover:scale-105 transition-transform">
+                            <AvatarImage src={comment.avatar} />
+                            <AvatarFallback>{comment.user[0]}</AvatarFallback>
+                          </Avatar>
+                        </Link>
                         <div className="flex flex-col gap-1 flex-1 min-w-0">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold hover:underline cursor-pointer">{comment.user}</span>
+                            <Link href={`/profile/${comment.user === 'John Doe' ? 'johndoe_creative' : (comment.user === 'Alex Rivera' ? 'arivera' : (comment.user === 'Sarah Chen' ? 'schen_dev' : 'mstone'))}`} onClick={() => setIsExpanded(false)}>
+                              <span className="text-xs font-bold hover:underline cursor-pointer">{comment.user}</span>
+                            </Link>
                             <span className="text-[9px] text-muted-foreground font-medium">{comment.time}</span>
                           </div>
                           <p className="text-sm text-foreground/80 leading-relaxed bg-white/50 dark:bg-black/20 p-3 rounded-2xl rounded-tl-none border border-white/10">{comment.text}</p>

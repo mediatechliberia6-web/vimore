@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import Link from "next/link";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -78,10 +79,12 @@ export function PlaylistDetail() {
             
             <div className="space-y-2">
               <h1 className="text-4xl lg:text-5xl font-black italic uppercase tracking-tighter leading-none">{selectedPlaylist.title}</h1>
-              <div className="flex items-center justify-center lg:justify-start gap-2 text-primary font-bold">
-                <User className="h-4 w-4" />
-                <span>@{selectedPlaylist.creator}</span>
-              </div>
+              <Link href={`/profile/${selectedPlaylist.creator}`} onClick={handleClose}>
+                <div className="flex items-center justify-center lg:justify-start gap-2 text-primary font-bold hover:underline transition-all">
+                  <User className="h-4 w-4" />
+                  <span>@{selectedPlaylist.creator}</span>
+                </div>
+              </Link>
               <div className="flex items-center justify-center lg:justify-start gap-4 text-xs font-black uppercase tracking-widest text-muted-foreground pt-2">
                 <span>Playlist</span>
                 <span>•</span>
@@ -157,7 +160,9 @@ export function PlaylistDetail() {
                         )}>
                           {song.title}
                         </span>
-                        <span className="text-[10px] text-muted-foreground font-medium">{song.artist}</span>
+                        <span className="text-[10px] text-muted-foreground font-medium hover:text-primary transition-colors">
+                          {song.artist}
+                        </span>
                       </div>
                     </div>
 

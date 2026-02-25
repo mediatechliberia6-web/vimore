@@ -19,6 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import Link from "next/link";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -79,7 +80,9 @@ export function AlbumDetail() {
             
             <div className="space-y-2">
               <h1 className="text-4xl lg:text-5xl font-black italic uppercase tracking-tighter leading-none">{selectedAlbum.title}</h1>
-              <p className="text-xl text-primary font-bold">{selectedAlbum.artist}</p>
+              <Link href={`/profile/${selectedAlbum.artistUsername || 'arivera'}`} onClick={handleClose}>
+                <p className="text-xl text-primary font-bold hover:underline transition-all underline-offset-4">{selectedAlbum.artist}</p>
+              </Link>
               <div className="flex items-center justify-center lg:justify-start gap-4 text-xs font-black uppercase tracking-widest text-muted-foreground pt-2">
                 <span>{selectedAlbum.year}</span>
                 <span>•</span>
@@ -155,7 +158,9 @@ export function AlbumDetail() {
                         )}>
                           {song.title}
                         </span>
-                        <span className="text-[10px] text-muted-foreground font-medium">{song.artist}</span>
+                        <span className="text-[10px] text-muted-foreground font-medium hover:text-primary transition-colors">
+                          {song.artist}
+                        </span>
                       </div>
                     </div>
 
