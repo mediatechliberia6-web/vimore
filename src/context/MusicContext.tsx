@@ -65,6 +65,7 @@ interface MusicContextType {
   likedSongIds: Set<string | number>;
   unlikedSongIds: Set<string | number>;
   downloadedSongIds: Set<string | number>;
+  likedCollectionIds: Set<string | number>; // For Playlists/Albums
   likedTracks: Track[];
   userPlaylists: Playlist[];
   userSongs: Track[];
@@ -87,10 +88,12 @@ interface MusicContextType {
   clearPlayer: () => void;
   toggleLike: (track: Track) => void;
   toggleUnlike: (track: Track) => void;
+  toggleCollectionLike: (id: string | number) => void;
   simulateDownload: (track: Track) => Promise<void>;
   isTrackLiked: (trackId: string | number) => boolean;
   isTrackUnliked: (trackId: string | number) => boolean;
   isTrackDownloaded: (trackId: string | number) => boolean;
+  isCollectionLiked: (id: string | number) => boolean;
   playCollection: (tracks: Track[], startIndex?: number) => void;
   addToQueue: (track: Track) => void;
   
@@ -136,6 +139,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [likedSongIds, setLikedSongIds] = useState<Set<string | number>>(new Set());
   const [unlikedSongIds, setUnlikedSongIds] = useState<Set<string | number>>(new Set());
   const [downloadedSongIds, setDownloadedSongIds] = useState<Set<string | number>>(new Set());
+  const [likedCollectionIds, setLikedCollectionIds] = useState<Set<string | number>>(new Set());
   
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
@@ -158,7 +162,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   // Initialize stats and Load from LocalStorage
   useEffect(() => {
-    // Initializing registry with mock data
     const initialStats: Record<string | number, { likes: number; unlikes: number }> = {};
     MOCK_SONGS.forEach(s => {
       initialStats[s.id] = { likes: s.likes || 0, unlikes: s.unlikes || 0 };
@@ -167,6 +170,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     const savedLikes = localStorage.getItem('vimore_liked_tracks');
     const savedUnlikes = localStorage.getItem('vimore_unliked_ids');
     const savedDownloads = localStorage.getItem('vimore_downloaded_ids');
+    const savedCollLikes = localStorage.getItem('vimore_liked_collections');
     const savedPlaylists = localStorage.getItem('vimore_user_playlists');
     const savedUserSongs = localStorage.getItem('vimore_user_songs');
     const savedUserAlbums = localStorage.getItem('vimore_user_albums');
@@ -182,22 +186,25 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
     if (savedUnlikes) {
       try {
-        const parsedUnlikes = JSON.parse(savedUnlikes) as (string | number)[];
-        setUnlikedSongIds(new Set(parsedUnlikes));
+        setUnlikedSongIds(new Set(JSON.parse(savedUnlikes)));
       } catch (e) { console.error("Failed to load unlikes", e); }
     }
 
     if (savedDownloads) {
       try {
-        const parsedDownloads = JSON.parse(savedDownloads) as (string | number)[];
-        setDownloadedSongIds(new Set(parsedDownloads));
+        setDownloadedSongIds(new Set(JSON.parse(savedDownloads)));
       } catch (e) { console.error("Failed to load downloads", e); }
+    }
+
+    if (savedCollLikes) {
+      try {
+        setLikedCollectionIds(new Set(JSON.parse(savedCollLikes)));
+      } catch (e) { console.error("Failed to load collection likes", e); }
     }
     
     if (savedPlaylists) {
       try {
-        const parsedPlaylists = JSON.parse(savedPlaylists) as Playlist[];
-        setUserPlaylists(parsedPlaylists);
+        setUserPlaylists(JSON.parse(savedPlaylists));
       } catch (e) { console.error("Failed to load playlists", e); }
     }
 
@@ -215,8 +222,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
     if (savedStats) {
       try {
-        const parsedStats = JSON.parse(savedStats);
-        setTrackStats({ ...initialStats, ...parsedStats });
+        setTrackStats({ ...initialStats, ...JSON.parse(savedStats) });
       } catch (e) { setTrackStats(initialStats); }
     } else {
       setTrackStats(initialStats);
@@ -235,6 +241,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('vimore_downloaded_ids', JSON.stringify(Array.from(downloadedSongIds)));
   }, [downloadedSongIds]);
+
+  useEffect(() => {
+    localStorage.setItem('vimore_liked_collections', JSON.stringify(Array.from(likedCollectionIds)));
+  }, [likedCollectionIds]);
 
   useEffect(() => {
     localStorage.setItem('vimore_user_playlists', JSON.stringify(userPlaylists));
@@ -339,7 +349,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     
     triggerHaptic(isCurrentlyLiked ? 5 : 25);
 
-    // Flat sequential state updates to avoid React Strict Mode double-calling issues
     if (isCurrentlyLiked) {
       setLikedSongIds(prev => {
         const next = new Set(prev);
@@ -430,6 +439,16 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const toggleCollectionLike = (id: string | number) => {
+    triggerHaptic(20);
+    setLikedCollectionIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const simulateDownload = async (track: Track) => {
     if (downloadedSongIds.has(track.id)) return;
     triggerHaptic(10);
@@ -443,6 +462,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const isTrackLiked = (trackId: string | number) => likedSongIds.has(trackId);
   const isTrackUnliked = (trackId: string | number) => unlikedSongIds.has(trackId);
   const isTrackDownloaded = (trackId: string | number) => downloadedSongIds.has(trackId);
+  const isCollectionLiked = (id: string | number) => likedCollectionIds.has(id);
 
   // Publishing Methods
   const publishTrack = (track: Track) => {
@@ -533,10 +553,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   return (
     <MusicContext.Provider value={{
       currentTrack, queue, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, 
-      likedSongIds, unlikedSongIds, downloadedSongIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats,
+      likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats,
       isCreatePlaylistOpen, trackForNewPlaylist,
       setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, 
-      toggleLike, toggleUnlike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded,
+      toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked,
       playCollection, addToQueue, publishTrack, publishAlbum,
       openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic
     }}>

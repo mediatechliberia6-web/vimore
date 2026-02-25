@@ -16,7 +16,6 @@ import {
   Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMusic, Track } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -33,10 +32,11 @@ import { useState } from "react";
 export function PlaylistDetail() {
   const { 
     selectedPlaylist, setSelectedPlaylist, currentTrack, isPlaying, setTrack, togglePlay, playCollection, 
-    toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, isTrackDownloaded, simulateDownload, trackStats 
+    toggleLike, toggleUnlike, toggleCollectionLike, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked, simulateDownload, trackStats, triggerHaptic 
   } = useMusic();
   const { toast } = useToast();
   const [downloadingIds, setDownloadingIds] = useState<Set<string | number>>(new Set());
+  const [isFullDownloading, setIsFullDownloading] = useState(false);
 
   if (!selectedPlaylist) return null;
 
@@ -49,10 +49,12 @@ export function PlaylistDetail() {
   };
 
   const handlePlayAll = () => {
+    triggerHaptic(20);
     playCollection(selectedPlaylist.songs);
   };
 
   const handleShare = () => {
+    triggerHaptic(5);
     const url = typeof window !== 'undefined' ? `${window.location.origin}/music/playlist/${selectedPlaylist.id}` : '';
     navigator.clipboard.writeText(url);
     toast({ title: "Playlist Shared", description: "Link copied to your clipboard." });
@@ -71,6 +73,25 @@ export function PlaylistDetail() {
     });
     toast({ title: "Offline Ready", description: `${track.title} saved.` });
   };
+
+  const handleFullDownload = async () => {
+    if (isFullDownloading) return;
+    triggerHaptic(30);
+    setIsFullDownloading(true);
+    toast({ title: "Syncing Library", description: "Starting mass fetch for offline availability." });
+    
+    for (const song of selectedPlaylist.songs) {
+      if (!isTrackDownloaded(song.id)) {
+        await new Promise(r => setTimeout(r, 500));
+        await simulateDownload(song);
+      }
+    }
+    
+    setIsFullDownloading(false);
+    toast({ title: "Vibe Synced", description: "All tracks are now ready for offline listening." });
+  };
+
+  const isLiked = isCollectionLiked(selectedPlaylist.id);
 
   return (
     <div className="fixed inset-0 z-[120] bg-background flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-500 overflow-hidden">
@@ -137,15 +158,26 @@ export function PlaylistDetail() {
                 <Play className="h-6 w-6 fill-current" />
                 PLAY VIBE
               </Button>
-              <Button variant="secondary" className="h-14 w-14 rounded-2xl" onClick={() => toast({ title: "Synced", description: "Playlist content synced to device." })}>
-                <Download className="h-6 w-6" />
+              <Button 
+                variant="secondary" 
+                className={cn("h-14 w-14 rounded-2xl", isFullDownloading && "animate-pulse")}
+                onClick={handleFullDownload}
+                disabled={isFullDownloading}
+              >
+                {isFullDownloading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Download className="h-6 w-6" />}
               </Button>
             </div>
 
             <div className="flex items-center justify-center lg:justify-start gap-8 pt-4">
-              <button className="flex flex-col items-center gap-1 group" onClick={() => toast({ title: "Saved", description: "Vibe added to your favorites." })}>
-                <div className="p-3 bg-secondary/20 rounded-full group-hover:bg-primary/10 transition-colors">
-                  <Heart className="h-6 w-6 group-hover:text-primary transition-colors" />
+              <button 
+                className="flex flex-col items-center gap-1 group" 
+                onClick={() => toggleCollectionLike(selectedPlaylist.id)}
+              >
+                <div className={cn(
+                  "p-3 rounded-full transition-all",
+                  isLiked ? "bg-primary/20 text-primary" : "bg-secondary/20 group-hover:bg-primary/10"
+                )}>
+                  <Heart className={cn("h-6 w-6 transition-colors", isLiked && "fill-current")} />
                 </div>
                 <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Like Vibe</span>
               </button>
