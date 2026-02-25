@@ -102,6 +102,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setIsPlaying(true);
     setProgress(0);
     setReactions([]);
+    setIsExpanded(true); // Open full-screen player immediately on track selection
   };
 
   const togglePlay = () => setIsPlaying(!isPlaying);

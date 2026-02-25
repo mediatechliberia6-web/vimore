@@ -10,6 +10,8 @@ import {
   ChevronDown,
   AudioLines,
   Heart,
+  ThumbsDown,
+  Download,
   Share2,
   MoreHorizontal,
   X
@@ -117,10 +119,13 @@ export function MusicPlayer() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20">
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20" title="Download">
+            <Download className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20" title="Share">
             <Share2 className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20 hover:text-destructive" onClick={clearPlayer}>
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20 hover:text-destructive" onClick={clearPlayer} title="Close Player">
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -155,6 +160,9 @@ export function MusicPlayer() {
             <div className="flex flex-col gap-2">
               <Button variant="ghost" size="icon" className="h-14 w-14 rounded-full bg-secondary/20 hover:text-red-500">
                 <Heart className="h-7 w-7" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-14 w-14 rounded-full bg-secondary/20 hover:text-destructive">
+                <ThumbsDown className="h-7 w-7" />
               </Button>
               <Button variant="ghost" size="icon" className="h-14 w-14 rounded-full bg-secondary/20">
                 <MoreHorizontal className="h-7 w-7" />
