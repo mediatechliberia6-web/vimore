@@ -32,7 +32,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { useMusic } from "@/context/MusicContext";
+import { useMusic, Track, Album } from "@/context/MusicContext";
 
 interface TrackSlot {
   id: number;
@@ -49,7 +49,7 @@ const GENRES = ["Afrobeats", "Amapiano", "Hip-Hop", "R&B", "Trap", "Jazz", "Lo-F
 
 export function MusicUpload({ onCancel }: { onCancel: () => void }) {
   const { toast } = useToast();
-  const { triggerHaptic } = useMusic();
+  const { triggerHaptic, publishTrack, publishAlbum } = useMusic();
   const [step, setStep] = useState<"choice" | "studio">("choice");
   const [projectType, setProjectType] = useState<"single" | "album">("single");
   const [coverArt, setCoverArt] = useState<string | null>(null);
@@ -85,7 +85,6 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
           setProjectType(draft.projectType);
           setStep("studio");
         }
-        // Metadata only, file blobs are not persisted for performance
         if (draft.tracks) {
           setTracks(draft.tracks.map((t: any) => ({ ...t, file: null, fileName: null })));
         }
@@ -137,7 +136,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
   };
 
   const calculateProgress = () => {
-    let totalFields = 3; // Cover, Title, Genre
+    let totalFields = 3; 
     let completedFields = 0;
     if (coverArt) completedFields++;
     if (projectTitle.trim()) completedFields++;
@@ -166,9 +165,53 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
     }
 
     triggerHaptic(100);
+    
+    // Create actual context data
+    if (projectType === "single") {
+      const track: Track = {
+        id: Date.now(),
+        title: projectTitle,
+        artist: "John Doe",
+        artistUsername: "johndoe_creative",
+        cover: coverArt || "https://picsum.photos/seed/single/600/600",
+        duration: 180,
+        streams: "0",
+        likes: 0,
+        unlikes: 0,
+        comments: []
+      };
+      publishTrack(track);
+    } else {
+      const albumSongs: Track[] = tracks.filter(t => t.file).map(t => ({
+        id: `song-${Date.now()}-${t.id}`,
+        title: t.title,
+        artist: "John Doe",
+        artistUsername: "johndoe_creative",
+        cover: coverArt || "https://picsum.photos/seed/album/600/600",
+        duration: 180,
+        streams: "0",
+        likes: 0,
+        unlikes: 0,
+        comments: []
+      }));
+      
+      const album: Album = {
+        id: `album-${Date.now()}`,
+        title: projectTitle,
+        artist: "John Doe",
+        artistUsername: "johndoe_creative",
+        cover: coverArt || "https://picsum.photos/seed/album/600/600",
+        year: new Date().getFullYear().toString(),
+        tracks: albumSongs.length,
+        totalStreams: "0",
+        songs: albumSongs
+      };
+      publishAlbum(album);
+    }
+
     toast({ 
       title: "Project Published!", 
-      description: `${projectTitle} is now live on ViMore.` 
+      description: `${projectTitle} is now live on ViMore and in your Library.` 
     });
     localStorage.removeItem('vimore_studio_draft');
     onCancel();

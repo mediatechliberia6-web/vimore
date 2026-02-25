@@ -12,7 +12,7 @@ import { useMusic, Album, Track, Playlist } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search, X, Heart, ListMusic, Plus } from "lucide-react";
+import { ArrowLeft, Search, X, Heart, ListMusic, Plus, Music, Disc3, Download } from "lucide-react";
 import Link from "next/link";
 
 const MOCK_SONGS: Track[] = [
@@ -33,13 +33,7 @@ const MOCK_ALBUMS: Album[] = [
     year: "2023", 
     tracks: 17,
     totalStreams: "850M",
-    songs: [
-      { id: 's31', title: "Unavailable", artist: "Davido", artistUsername: "mstone", cover: "https://picsum.photos/seed/album1/400/400", duration: 185 },
-      { id: 's32', title: "Feel", artist: "Davido", artistUsername: "mstone", cover: "https://picsum.photos/seed/album1/400/400", duration: 195 },
-      { id: 's33', title: "Away", artist: "Davido", artistUsername: "mstone", cover: "https://picsum.photos/seed/album1/400/400", duration: 178 },
-      { id: 's34', title: "Precision", artist: "Davido", artistUsername: "mstone", cover: "https://picsum.photos/seed/album1/400/400", duration: 162 },
-      { id: 's35', title: "Kante", artist: "Davido ft. Fave", artistUsername: "mstone", cover: "https://picsum.photos/seed/album1/400/400", duration: 205 },
-    ]
+    songs: MOCK_SONGS
   },
   { 
     id: 'a2', 
@@ -50,11 +44,7 @@ const MOCK_ALBUMS: Album[] = [
     year: "2022", 
     tracks: 13,
     totalStreams: "620M",
-    songs: [
-      { id: 's21', title: "Money & Love", artist: "Wizkid", artistUsername: "arivera", cover: "https://picsum.photos/seed/album2/400/400", duration: 210 },
-      { id: 's22', title: "Balance", artist: "Wizkid", artistUsername: "arivera", cover: "https://picsum.photos/seed/album2/400/400", duration: 185 },
-      { id: 's23', title: "Bad To Me", artist: "Wizkid", artistUsername: "arivera", cover: "https://picsum.photos/seed/album2/400/400", duration: 192 },
-    ]
+    songs: MOCK_SONGS.slice(0, 3)
   },
 ];
 
@@ -85,8 +75,9 @@ const MOCK_ARTISTS = [
 ];
 
 export default function MusicPage() {
-  const { currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, openCreatePlaylist } = useMusic();
+  const { currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, userSongs, userAlbums, openCreatePlaylist, downloadedSongIds, queue } = useMusic();
   const [activeTab, setActiveTab] = useState("discover");
+  const [libraryTab, setLibraryTab] = useState("playlists");
   const [searchQuery, setSearchQuery] = useState("");
   
   const isPlayerActive = currentTrack && !isExpanded;
@@ -124,6 +115,16 @@ export default function MusicPage() {
   }, [searchQuery]);
 
   const hasResults = filteredSongs.length > 0 || filteredAlbums.length > 0 || filteredPlaylists.length > 0 || filteredArtists.length > 0;
+
+  // Find all tracks that are marked as downloaded
+  const downloadedTracks = useMemo(() => {
+    const allKnownTracks = [...MOCK_SONGS, ...userSongs, ...likedTracks];
+    const uniqueTracksMap = new Map();
+    allKnownTracks.forEach(t => {
+      if (downloadedSongIds.has(t.id)) uniqueTracksMap.set(t.id, t);
+    });
+    return Array.from(uniqueTracksMap.values());
+  }, [downloadedSongIds, userSongs, likedTracks]);
 
   return (
     <div className={cn(
@@ -178,7 +179,7 @@ export default function MusicPage() {
             </div>
           </div>
 
-          <div className="px-4 sm:px-10 py-6 sm:py-10 space-y-10 sm:space-y-16">
+          <div className="px-4 sm:px-10 py-6 sm:py-10">
             {activeTab === "discover" && (
               <div className="space-y-10 sm:space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-1000">
                 {!hasResults ? (
@@ -212,35 +213,128 @@ export default function MusicPage() {
             )}
 
             {activeTab === "library" && (
-              <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-3xl font-black italic uppercase tracking-tighter">My Library</h2>
-                  <Button variant="outline" className="rounded-full border-primary text-primary font-bold gap-2" onClick={() => openCreatePlaylist()}>
-                    <Plus className="h-4 w-4" /> New Playlist
-                  </Button>
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <h2 className="text-3xl font-black italic uppercase tracking-tighter">My Library</h2>
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
+                      {[
+                        { id: "playlists", label: "Playlists", count: userPlaylists.length },
+                        { id: "songs", label: "My Songs", count: userSongs.length },
+                        { id: "albums", label: "My Albums", count: userAlbums.length },
+                        { id: "downloaded", label: "Downloaded", count: downloadedTracks.length }
+                      ].map((tab) => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setLibraryTab(tab.id)}
+                          className={cn(
+                            "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 border",
+                            libraryTab === tab.id 
+                              ? "bg-primary border-primary text-white shadow-lg shadow-primary/20" 
+                              : "bg-white/50 dark:bg-card/50 border-border text-muted-foreground hover:border-primary/30"
+                          )}
+                        >
+                          {tab.label} <span className="ml-1 opacity-50">({tab.count})</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
-                {likedTracks.length === 0 && userPlaylists.length === 0 ? (
-                  <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2rem] border border-border/50">
-                    <div className="h-24 w-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary">
-                      <ListMusic className="h-12 w-12" />
+                <div className="pt-4">
+                  {libraryTab === "playlists" && (
+                    <div className="space-y-8">
+                      <div className="flex items-center justify-between border-b border-border/50 pb-4">
+                        <div className="flex items-center gap-2">
+                          <ListMusic className="h-5 w-5 text-primary" />
+                          <h3 className="font-bold text-sm uppercase tracking-widest">My Created Vibes</h3>
+                        </div>
+                        <Button 
+                          className="rounded-full bg-primary text-white font-bold gap-2 text-xs h-9 px-5" 
+                          onClick={() => openCreatePlaylist()}
+                        >
+                          <Plus className="h-4 w-4" /> Create Playlist
+                        </Button>
+                      </div>
+
+                      {userPlaylists.length === 0 ? (
+                        <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2rem] border border-border/50">
+                          <ListMusic className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
+                          <div className="space-y-1">
+                            <h3 className="text-xl font-bold">No playlists yet</h3>
+                            <p className="text-muted-foreground text-sm">Start curating your unique sonic signature.</p>
+                          </div>
+                          <Button variant="outline" className="rounded-full border-primary text-primary" onClick={() => openCreatePlaylist()}>Create First Playlist</Button>
+                        </div>
+                      ) : (
+                        <MusicGrid type="playlist" items={userPlaylists} />
+                      )}
                     </div>
-                    <div className="space-y-2">
-                      <h3 className="text-2xl font-black italic uppercase tracking-tighter">Your Library is Empty</h3>
-                      <p className="text-muted-foreground text-sm max-w-sm mx-auto">Start liking songs or creating playlists to build your digital sonic collection.</p>
+                  )}
+
+                  {libraryTab === "songs" && (
+                    <div className="space-y-8">
+                      <div className="flex items-center gap-2 border-b border-border/50 pb-4">
+                        <Music className="h-5 w-5 text-primary" />
+                        <h3 className="font-bold text-sm uppercase tracking-widest">Published Tracks</h3>
+                      </div>
+                      {userSongs.length === 0 ? (
+                        <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2rem] border border-border/50">
+                          <Music className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
+                          <div className="space-y-1">
+                            <h3 className="text-xl font-bold">Your Catalog is Empty</h3>
+                            <p className="text-muted-foreground text-sm">Upload your first single in the Studio.</p>
+                          </div>
+                          <Button variant="outline" className="rounded-full border-primary text-primary" onClick={() => setActiveTab("upload")}>Go to Studio</Button>
+                        </div>
+                      ) : (
+                        <MusicGrid type="song" items={userSongs} />
+                      )}
                     </div>
-                    <Button className="rounded-full px-8 font-bold bg-primary" onClick={() => setActiveTab("discover")}>Discover Music</Button>
-                  </div>
-                ) : (
-                  <>
-                    {likedTracks.length > 0 && (
-                      <MusicGrid type="song" title="Liked Songs" items={likedTracks} />
-                    )}
-                    {userPlaylists.length > 0 && (
-                      <MusicGrid type="playlist" title="My Playlists" items={userPlaylists} />
-                    )}
-                  </>
-                )}
+                  )}
+
+                  {libraryTab === "albums" && (
+                    <div className="space-y-8">
+                      <div className="flex items-center gap-2 border-b border-border/50 pb-4">
+                        <Disc3 className="h-5 w-5 text-primary" />
+                        <h3 className="font-bold text-sm uppercase tracking-widest">Discography</h3>
+                      </div>
+                      {userAlbums.length === 0 ? (
+                        <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2rem] border border-border/50">
+                          <Disc3 className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
+                          <div className="space-y-1">
+                            <h3 className="text-xl font-bold">No Projects Published</h3>
+                            <p className="text-muted-foreground text-sm">Curate and publish full albums to showcase your range.</p>
+                          </div>
+                          <Button variant="outline" className="rounded-full border-primary text-primary" onClick={() => setActiveTab("upload")}>Open Studio</Button>
+                        </div>
+                      ) : (
+                        <MusicGrid type="album" items={userAlbums} />
+                      )}
+                    </div>
+                  )}
+
+                  {libraryTab === "downloaded" && (
+                    <div className="space-y-8">
+                      <div className="flex items-center gap-2 border-b border-border/50 pb-4">
+                        <Download className="h-5 w-5 text-green-500" />
+                        <h3 className="font-bold text-sm uppercase tracking-widest">Offline Vault</h3>
+                      </div>
+                      {downloadedTracks.length === 0 ? (
+                        <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2rem] border border-border/50">
+                          <Download className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
+                          <div className="space-y-1">
+                            <h3 className="text-xl font-bold">Vault is Empty</h3>
+                            <p className="text-muted-foreground text-sm">Download tracks to listen even when you're off-grid.</p>
+                          </div>
+                          <Button variant="outline" className="rounded-full border-primary text-primary" onClick={() => setActiveTab("discover")}>Discover Music</Button>
+                        </div>
+                      ) : (
+                        <MusicGrid type="song" items={downloadedTracks} />
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

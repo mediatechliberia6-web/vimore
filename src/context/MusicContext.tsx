@@ -67,6 +67,8 @@ interface MusicContextType {
   downloadedSongIds: Set<string | number>;
   likedTracks: Track[];
   userPlaylists: Playlist[];
+  userSongs: Track[];
+  userAlbums: Album[];
   isCreatePlaylistOpen: boolean;
   trackForNewPlaylist: Track | null;
   trackStats: Record<string | number, { likes: number; unlikes: number }>;
@@ -92,7 +94,9 @@ interface MusicContextType {
   playCollection: (tracks: Track[], startIndex?: number) => void;
   addToQueue: (track: Track) => void;
   
-  // Playlist Management
+  // Publishing & Management
+  publishTrack: (track: Track) => void;
+  publishAlbum: (album: Album) => void;
   openCreatePlaylist: (firstTrack?: Track) => void;
   closeCreatePlaylist: () => void;
   confirmCreatePlaylist: (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => void;
@@ -135,6 +139,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
+  const [userSongs, setUserSongs] = useState<Track[]>([]);
+  const [userAlbums, setUserAlbums] = useState<Album[]>([]);
   const [trackStats, setTrackStats] = useState<Record<string | number, { likes: number; unlikes: number }>>({});
   
   // Creation States
@@ -160,6 +166,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     const savedUnlikes = localStorage.getItem('vimore_unliked_ids');
     const savedDownloads = localStorage.getItem('vimore_downloaded_ids');
     const savedPlaylists = localStorage.getItem('vimore_user_playlists');
+    const savedUserSongs = localStorage.getItem('vimore_user_songs');
+    const savedUserAlbums = localStorage.getItem('vimore_user_albums');
     
     if (savedLikes) {
       try {
@@ -189,6 +197,18 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         setUserPlaylists(parsedPlaylists);
       } catch (e) { console.error("Failed to load playlists", e); }
     }
+
+    if (savedUserSongs) {
+      try {
+        setUserSongs(JSON.parse(savedUserSongs));
+      } catch (e) { console.error("Failed to load user songs", e); }
+    }
+
+    if (savedUserAlbums) {
+      try {
+        setUserAlbums(JSON.parse(savedUserAlbums));
+      } catch (e) { console.error("Failed to load user albums", e); }
+    }
   }, []);
 
   // Persistence Effects
@@ -207,6 +227,14 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('vimore_user_playlists', JSON.stringify(userPlaylists));
   }, [userPlaylists]);
+
+  useEffect(() => {
+    localStorage.setItem('vimore_user_songs', JSON.stringify(userSongs));
+  }, [userSongs]);
+
+  useEffect(() => {
+    localStorage.setItem('vimore_user_albums', JSON.stringify(userAlbums));
+  }, [userAlbums]);
 
   // Audio Progress Tick
   useEffect(() => {
@@ -303,7 +331,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         next.add(trackId);
         setLikedTracks(prevTracks => [track, ...prevTracks]);
         setTrackStats(s => ({ ...s, [trackId]: { ...s[trackId], likes: s[trackId].likes + 1 } }));
-        // Mutual Exclusivity: Remove from unlikes
         if (unlikedSongIds.has(trackId)) {
           toggleUnlike(track);
         }
@@ -325,7 +352,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       } else {
         next.add(trackId);
         setTrackStats(s => ({ ...s, [trackId]: { ...s[trackId], unlikes: s[trackId].unlikes + 1 } }));
-        // Mutual Exclusivity: Remove from likes
         if (likedSongIds.has(trackId)) {
           toggleLike(track);
         }
@@ -337,13 +363,25 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const simulateDownload = async (track: Track) => {
     if (downloadedSongIds.has(track.id)) return;
     triggerHaptic(10);
-    // Simulation period handled by component if needed, but we just add ID here
     setDownloadedSongIds(prev => new Set(prev).add(track.id));
   };
 
   const isTrackLiked = (trackId: string | number) => likedSongIds.has(trackId);
   const isTrackUnliked = (trackId: string | number) => unlikedSongIds.has(trackId);
   const isTrackDownloaded = (trackId: string | number) => downloadedSongIds.has(trackId);
+
+  // Publishing Methods
+  const publishTrack = (track: Track) => {
+    setUserSongs(prev => [track, ...prev]);
+    setTrackStats(prev => ({ ...prev, [track.id]: { likes: 0, unlikes: 0 } }));
+  };
+
+  const publishAlbum = (album: Album) => {
+    setUserAlbums(prev => [album, ...prev]);
+    album.songs.forEach(s => {
+      setTrackStats(prev => ({ ...prev, [s.id]: { likes: 0, unlikes: 0 } }));
+    });
+  };
 
   // Playlist Methods
   const openCreatePlaylist = (track?: Track) => {
@@ -419,11 +457,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   return (
     <MusicContext.Provider value={{
       currentTrack, queue, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, 
-      likedSongIds, unlikedSongIds, downloadedSongIds, likedTracks, userPlaylists, trackStats,
+      likedSongIds, unlikedSongIds, downloadedSongIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats,
       isCreatePlaylistOpen, trackForNewPlaylist,
       setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, 
       toggleLike, toggleUnlike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded,
-      playCollection, addToQueue,
+      playCollection, addToQueue, publishTrack, publishAlbum,
       openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic
     }}>
       {children}
