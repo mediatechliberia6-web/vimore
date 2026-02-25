@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -56,22 +55,32 @@ export function Stories() {
           {sortedStories.map((story) => {
             const index = stories.findIndex(s => s.id === story.id);
             const isMuted = mutedUserNames.includes(story.user.name);
+            const firstSegment = story.segments[0];
             
             return (
               <div 
                 key={story.id} 
                 className={cn(
                   "relative w-28 h-48 rounded-2xl overflow-hidden cursor-pointer group shadow-sm hover:shadow-md transition-all",
-                  isMuted && "opacity-50 grayscale contrast-75"
+                  isMuted && "opacity-50 grayscale contrast-75",
+                  !firstSegment.image && firstSegment.background
                 )}
                 onClick={() => setActiveStoryIndex(index)}
               >
-                <Image 
-                  src={story.segments[0].image} 
-                  alt={story.user.name} 
-                  fill 
-                  className={cn("object-cover transition-transform group-hover:scale-110 duration-500", story.segments[0].filter)}
-                />
+                {firstSegment.image ? (
+                  <Image 
+                    src={firstSegment.image} 
+                    alt={story.user.name} 
+                    fill 
+                    className={cn("object-cover transition-transform group-hover:scale-110 duration-500", firstSegment.filter)}
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center p-4">
+                    <span className="text-[10px] font-black italic uppercase text-white/60 text-center line-clamp-4">
+                      {firstSegment.textOverlays?.[0]?.text || "Vibe"}
+                    </span>
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
                 
                 <div className={cn(

@@ -81,7 +81,7 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
     if (step === 'edit' && !selectedMedia) return;
 
     addStory({
-      image: selectedMedia || "", // Using image field for text story bg or media preview
+      image: selectedMedia || "", // Empty for text stories
       type: mediaType || 'image',
       filter: selectedFilter.class,
       textOverlays: step === 'text' ? [{
@@ -90,7 +90,6 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
         y: 50,
         color: "#FFFFFF"
       }] : [],
-      // @ts-ignore - custom property for text stories
       background: step === 'text' ? selectedGradient.class : undefined
     });
 

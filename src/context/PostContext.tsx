@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
@@ -35,6 +34,7 @@ export interface StorySegment {
   id: string;
   image: string;
   type: 'image' | 'video';
+  background?: string;
   mentions?: Mention[];
   poll?: StoryPoll;
   filter?: string;

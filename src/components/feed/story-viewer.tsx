@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -272,7 +271,6 @@ export function StoryViewer() {
         <div 
           className={cn(
             "relative flex-1 cursor-pointer select-none flex items-center justify-center overflow-hidden",
-            // @ts-ignore - checking for background from text stories
             currentSegment.background || "bg-black"
           )}
           onClick={handleTap}
