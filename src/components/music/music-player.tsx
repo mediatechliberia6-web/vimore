@@ -212,7 +212,7 @@ export function MusicPlayer() {
               "absolute inset-0 bg-primary/30 blur-[100px] rounded-full transition-opacity duration-1000",
               isPlaying ? "opacity-100" : "opacity-0"
             )} />
-            <div className="relative h-full w-full rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden shadow-2xl ring-1 ring-white/20">
+            <div className="relative h-full w-full rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden shadow-2xl ring-1 ring-white/10">
               <Image src={currentTrack.cover} alt={currentTrack.title} fill className="object-cover" />
               {reactions.map((r) => (
                 <div

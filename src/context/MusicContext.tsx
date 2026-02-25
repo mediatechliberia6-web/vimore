@@ -141,6 +141,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
   const [userSongs, setUserSongs] = useState<Track[]>([]);
   const [userAlbums, setUserAlbums] = useState<Album[]>([]);
+  
+  // CENTRAL METRICS REGISTRY
   const [trackStats, setTrackStats] = useState<Record<string | number, { likes: number; unlikes: number }>>({});
   
   // Creation States
@@ -156,11 +158,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   // Initialize stats and Load from LocalStorage
   useEffect(() => {
-    const stats: Record<string | number, { likes: number; unlikes: number }> = {};
+    // Initializing registry with mock data
+    const initialStats: Record<string | number, { likes: number; unlikes: number }> = {};
     MOCK_SONGS.forEach(s => {
-      stats[s.id] = { likes: s.likes || 0, unlikes: s.unlikes || 0 };
+      initialStats[s.id] = { likes: s.likes || 0, unlikes: s.unlikes || 0 };
     });
-    setTrackStats(stats);
 
     const savedLikes = localStorage.getItem('vimore_liked_tracks');
     const savedUnlikes = localStorage.getItem('vimore_unliked_ids');
@@ -168,6 +170,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     const savedPlaylists = localStorage.getItem('vimore_user_playlists');
     const savedUserSongs = localStorage.getItem('vimore_user_songs');
     const savedUserAlbums = localStorage.getItem('vimore_user_albums');
+    const savedStats = localStorage.getItem('vimore_track_stats');
     
     if (savedLikes) {
       try {
@@ -209,6 +212,15 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         setUserAlbums(JSON.parse(savedUserAlbums));
       } catch (e) { console.error("Failed to load user albums", e); }
     }
+
+    if (savedStats) {
+      try {
+        const parsedStats = JSON.parse(savedStats);
+        setTrackStats({ ...initialStats, ...parsedStats });
+      } catch (e) { setTrackStats(initialStats); }
+    } else {
+      setTrackStats(initialStats);
+    }
   }, []);
 
   // Persistence Effects
@@ -235,6 +247,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('vimore_user_albums', JSON.stringify(userAlbums));
   }, [userAlbums]);
+
+  useEffect(() => {
+    localStorage.setItem('vimore_track_stats', JSON.stringify(trackStats));
+  }, [trackStats]);
 
   // Audio Progress Tick
   useEffect(() => {
@@ -319,6 +335,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const toggleLike = (track: Track) => {
     const trackId = track.id;
     const isCurrentlyLiked = likedSongIds.has(trackId);
+    const isCurrentlyUnliked = unlikedSongIds.has(trackId);
     triggerHaptic(isCurrentlyLiked ? 5 : 25);
 
     setLikedSongIds((prev) => {
@@ -326,13 +343,33 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       if (isCurrentlyLiked) {
         next.delete(trackId);
         setLikedTracks(prevTracks => prevTracks.filter(t => t.id !== trackId));
-        setTrackStats(s => ({ ...s, [trackId]: { ...s[trackId], likes: Math.max(0, s[trackId].likes - 1) } }));
+        setTrackStats(s => ({
+          ...s,
+          [trackId]: { ...s[trackId], likes: Math.max(0, (s[trackId]?.likes || 0) - 1) }
+        }));
       } else {
         next.add(trackId);
         setLikedTracks(prevTracks => [track, ...prevTracks]);
-        setTrackStats(s => ({ ...s, [trackId]: { ...s[trackId], likes: s[trackId].likes + 1 } }));
-        if (unlikedSongIds.has(trackId)) {
-          toggleUnlike(track);
+        
+        // Accurate Sync: Inc Likes, if Unliked Dec Unlikes
+        setTrackStats(s => {
+          const current = s[trackId] || { likes: 0, unlikes: 0 };
+          return {
+            ...s,
+            [trackId]: {
+              ...current,
+              likes: current.likes + 1,
+              unlikes: isCurrentlyUnliked ? Math.max(0, current.unlikes - 1) : current.unlikes
+            }
+          };
+        });
+
+        if (isCurrentlyUnliked) {
+          setUnlikedSongIds(prevU => {
+            const nextU = new Set(prevU);
+            nextU.delete(trackId);
+            return nextU;
+          });
         }
       }
       return next;
@@ -342,18 +379,40 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const toggleUnlike = (track: Track) => {
     const trackId = track.id;
     const isCurrentlyUnliked = unlikedSongIds.has(trackId);
+    const isCurrentlyLiked = likedSongIds.has(trackId);
     triggerHaptic(isCurrentlyUnliked ? 5 : 15);
 
     setUnlikedSongIds((prev) => {
       const next = new Set(prev);
       if (isCurrentlyUnliked) {
         next.delete(trackId);
-        setTrackStats(s => ({ ...s, [trackId]: { ...s[trackId], unlikes: Math.max(0, s[trackId].unlikes - 1) } }));
+        setTrackStats(s => ({
+          ...s,
+          [trackId]: { ...s[trackId], unlikes: Math.max(0, (s[trackId]?.unlikes || 0) - 1) }
+        }));
       } else {
         next.add(trackId);
-        setTrackStats(s => ({ ...s, [trackId]: { ...s[trackId], unlikes: s[trackId].unlikes + 1 } }));
-        if (likedSongIds.has(trackId)) {
-          toggleLike(track);
+        
+        // Accurate Sync: Inc Unlikes, if Liked Dec Likes
+        setTrackStats(s => {
+          const current = s[trackId] || { likes: 0, unlikes: 0 };
+          return {
+            ...s,
+            [trackId]: {
+              ...current,
+              unlikes: current.unlikes + 1,
+              likes: isCurrentlyLiked ? Math.max(0, current.likes - 1) : current.likes
+            }
+          };
+        });
+
+        if (isCurrentlyLiked) {
+          setLikedSongIds(prevL => {
+            const nextL = new Set(prevL);
+            nextL.delete(trackId);
+            return nextL;
+          });
+          setLikedTracks(prevTracks => prevTracks.filter(t => t.id !== trackId));
         }
       }
       return next;
@@ -378,9 +437,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const publishAlbum = (album: Album) => {
     setUserAlbums(prev => [album, ...prev]);
+    const newStats = { ...trackStats };
     album.songs.forEach(s => {
-      setTrackStats(prev => ({ ...prev, [s.id]: { likes: 0, unlikes: 0 } }));
+      newStats[s.id] = { likes: 0, unlikes: 0 };
     });
+    setTrackStats(newStats);
   };
 
   // Playlist Methods
