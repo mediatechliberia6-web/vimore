@@ -23,24 +23,24 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
     // Hero remains the large spotlight for visual hierarchy
     if (type === "hero") {
       return (
-        <div key={item.id} className="relative w-full max-w-4xl h-[400px] rounded-[3rem] overflow-hidden group cursor-pointer shadow-2xl ring-1 ring-white/10">
+        <div key={item.id} className="relative w-full max-w-4xl aspect-video sm:h-[400px] rounded-[2rem] sm:rounded-[3rem] overflow-hidden group cursor-pointer shadow-2xl ring-1 ring-white/10">
           <Image src={item.cover} alt={item.title} fill className="object-cover transition-transform duration-1000 group-hover:scale-105" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-          <div className="absolute bottom-10 left-10 right-10 space-y-4">
+          <div className="absolute bottom-6 left-6 right-6 sm:bottom-10 sm:left-10 sm:right-10 space-y-2 sm:space-y-4">
             <div className="flex items-center gap-2">
-              <span className="bg-primary px-3 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-widest animate-pulse">#1 Trending Now</span>
+              <span className="bg-primary px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-black text-white uppercase tracking-widest animate-pulse">#1 Trending Now</span>
             </div>
-            <h1 className="text-5xl font-black italic uppercase tracking-tighter text-white drop-shadow-lg">{item.title}</h1>
+            <h1 className="text-2xl sm:text-5xl font-black italic uppercase tracking-tighter text-white drop-shadow-lg leading-none">{item.title}</h1>
             <Link href={`/profile/${item.artistUsername || 'arivera'}`} onClick={(e) => e.stopPropagation()}>
-              <p className="text-xl text-white/70 font-bold hover:text-white transition-colors underline-offset-4 hover:underline">{item.artist}</p>
+              <p className="text-sm sm:text-xl text-white/70 font-bold hover:text-white transition-colors underline-offset-4 hover:underline">{item.artist}</p>
             </Link>
-            <div className="flex items-center gap-4 mt-4">
+            <div className="flex items-center gap-4 mt-2 sm:mt-4">
               <Button 
                 size="lg" 
-                className="rounded-full bg-white text-primary font-black px-10 h-14 hover:scale-105 transition-transform"
+                className="rounded-full bg-white text-primary font-black px-6 sm:px-10 h-10 sm:h-14 hover:scale-105 transition-transform text-xs sm:text-base"
                 onClick={() => isCurrent ? togglePlay() : setTrack(item)}
               >
-                {isCurrent && isPlaying ? <Pause className="mr-2 h-6 w-6 fill-current" /> : <Play className="mr-2 h-6 w-6 fill-current" />}
+                {isCurrent && isPlaying ? <Pause className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current" /> : <Play className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current" />}
                 {isCurrent && isPlaying ? "PAUSE" : "PLAY NOW"}
               </Button>
             </div>
@@ -52,31 +52,31 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
     // Artist remains circular for visual distinction
     if (type === "artist") {
       return (
-        <Link key={item.id} href={`/profile/${item.username || 'arivera'}`} className="inline-block w-[160px] text-center space-y-3 group cursor-pointer">
-          <div className="relative mx-auto h-32 w-32">
+        <Link key={item.id} href={`/profile/${item.username || 'arivera'}`} className="inline-block w-[120px] sm:w-[160px] text-center space-y-3 group cursor-pointer shrink-0 snap-start">
+          <div className="relative mx-auto h-24 w-24 sm:h-32 sm:w-32">
             <div className={cn(
               "absolute inset-0 bg-primary/30 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity",
               item.isLive && "opacity-100 animate-pulse bg-red-500/20"
             )} />
             <div className={cn(
-              "relative h-full w-full rounded-full overflow-hidden border-4 border-background transition-all duration-500",
+              "relative h-full w-full rounded-full overflow-hidden border-2 sm:border-4 border-background transition-all duration-500",
               item.isLive ? "border-red-500" : "group-hover:border-primary"
             )}>
               <Image src={item.avatar} alt={item.name} fill className="object-cover" />
             </div>
             {item.isLive && (
-              <span className="absolute -top-1 right-2 bg-red-500 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full ring-2 ring-background">LIVE</span>
+              <span className="absolute -top-1 right-1 sm:right-2 bg-red-500 text-white text-[6px] sm:text-[8px] font-black uppercase px-1.5 sm:px-2 py-0.5 rounded-full ring-2 ring-background">LIVE</span>
             )}
           </div>
-          <div className="space-y-1">
-            <h3 className="font-bold text-sm truncate group-hover:text-primary transition-colors">{item.name}</h3>
-            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">{item.role}</p>
+          <div className="space-y-0.5 sm:space-y-1">
+            <h3 className="font-bold text-xs sm:text-sm truncate group-hover:text-primary transition-colors">{item.name}</h3>
+            <p className="text-[8px] sm:text-[9px] text-muted-foreground font-black uppercase tracking-widest">{item.role}</p>
           </div>
         </Link>
       );
     }
 
-    const cardWidth = type === "playlist" ? "w-[240px]" : "w-[200px]";
+    const cardWidth = type === "playlist" ? "w-[200px] sm:w-[240px]" : "w-[160px] sm:w-[200px]";
     
     const handleCardClick = () => {
       if (type === "album") {
@@ -89,13 +89,13 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
     return (
       <div 
         key={item.id} 
-        className={cn("inline-block group cursor-pointer", cardWidth)}
+        className={cn("inline-block group cursor-pointer shrink-0 snap-start", cardWidth)}
         onClick={handleCardClick}
       >
-        <div className="relative aspect-square mb-4">
-          <div className="absolute -left-2 top-2 bottom-2 w-3 bg-white/20 backdrop-blur-md rounded-l-lg z-10 border-r border-white/30" />
+        <div className="relative aspect-square mb-3 sm:mb-4">
+          <div className="absolute -left-1 sm:-left-2 top-2 bottom-2 w-2 sm:w-3 bg-white/20 backdrop-blur-md rounded-l-lg z-10 border-r border-white/30" />
           
-          <div className="relative h-full w-full rounded-[1rem] overflow-hidden shadow-xl ring-1 ring-white/10 group-hover:-translate-y-2 transition-transform duration-500">
+          <div className="relative h-full w-full rounded-[0.75rem] sm:rounded-[1rem] overflow-hidden shadow-xl ring-1 ring-white/10 group-hover:-translate-y-1 sm:group-hover:-translate-y-2 transition-transform duration-500">
             <Image src={item.cover} alt={item.title} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
             <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent" />
             
@@ -106,25 +106,25 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
               )}>
                 <Button 
                   size="icon" 
-                  className="h-12 w-12 rounded-full bg-primary text-white shadow-2xl transition-transform active:scale-90"
+                  className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-primary text-white shadow-2xl transition-transform active:scale-90"
                   onClick={(e) => {
                     e.stopPropagation();
                     isCurrent ? togglePlay() : setTrack(item);
                   }}
                 >
-                  {isCurrent && isPlaying ? <Pause className="h-6 w-6 fill-current" /> : <Play className="h-6 w-6 fill-current ml-1" />}
+                  {isCurrent && isPlaying ? <Pause className="h-5 w-5 sm:h-6 sm:w-6 fill-current" /> : <Play className="h-5 w-5 sm:h-6 sm:w-6 fill-current ml-0.5 sm:ml-1" />}
                 </Button>
               </div>
             )}
           </div>
         </div>
         
-        <div className="space-y-1">
-          <h3 className="font-bold text-sm truncate group-hover:text-primary transition-colors">{item.title}</h3>
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-black uppercase tracking-widest">
+        <div className="space-y-0.5 sm:space-y-1">
+          <h3 className="font-bold text-xs sm:text-sm truncate group-hover:text-primary transition-colors">{item.title}</h3>
+          <div className="flex items-center gap-1.5 sm:gap-2 text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-widest">
             {type === "song" && (
               <>
-                <Link href={`/profile/${item.artistUsername || 'arivera'}`} onClick={(e) => e.stopPropagation()} className="hover:text-primary transition-colors">
+                <Link href={`/profile/${item.artistUsername || 'arivera'}`} onClick={(e) => e.stopPropagation()} className="hover:text-primary transition-colors truncate max-w-[80px]">
                   {item.artist}
                 </Link>
                 <span>•</span>
@@ -133,7 +133,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
             )}
             {type === "album" && (
               <>
-                <Link href={`/profile/${item.artistUsername || 'arivera'}`} onClick={(e) => e.stopPropagation()} className="hover:text-primary transition-colors">
+                <Link href={`/profile/${item.artistUsername || 'arivera'}`} onClick={(e) => e.stopPropagation()} className="hover:text-primary transition-colors truncate max-w-[80px]">
                   {item.artist}
                 </Link>
                 <span>•</span>
@@ -142,7 +142,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
             )}
             {type === "playlist" && (
               <>
-                <span>By <Link href={`/profile/${item.creator || 'arivera'}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline">@{item.creator || 'vimore'}</Link></span>
+                <span className="truncate max-w-[120px]">By <Link href={`/profile/${item.creator || 'arivera'}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline">@{item.creator || 'vimore'}</Link></span>
                 <span>•</span>
                 <span>{item.totalStreams || '0'} Plays</span>
               </>
@@ -154,16 +154,16 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
   };
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-4 sm:space-y-6">
       {title && (
-        <div className="flex items-center justify-between px-2">
-          <h2 className="text-2xl font-black italic uppercase tracking-tighter">{title}</h2>
-          <Button variant="ghost" className="text-primary font-black text-xs uppercase tracking-widest hover:bg-primary/5 rounded-full">See All</Button>
+        <div className="flex items-center justify-between px-1 sm:px-2">
+          <h2 className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter">{title}</h2>
+          <Button variant="ghost" className="text-primary font-black text-[10px] sm:text-xs uppercase tracking-widest hover:bg-primary/5 rounded-full h-8 px-3">See All</Button>
         </div>
       )}
       <div className={cn(
-        "pb-6 px-2",
-        type === "hero" ? "flex justify-center" : "flex gap-8 overflow-x-auto scrollbar-hide whitespace-nowrap"
+        "pb-4 sm:pb-6 px-1 sm:px-2",
+        type === "hero" ? "flex justify-center" : "flex gap-4 sm:gap-8 overflow-x-auto scrollbar-hide snap-x snap-mandatory whitespace-nowrap"
       )}>
         {items.map(renderCard)}
       </div>

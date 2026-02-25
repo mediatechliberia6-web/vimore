@@ -62,9 +62,10 @@ export function MusicPlayer() {
     const isHome = pathname === "/";
     const isMusic = pathname === "/music";
     
-    // Calculate dynamic top offset
+    // Calculate dynamic top offset to avoid overlapping subheaders
     let topOffset = "top-[61px]";
     if (isHome) topOffset = "top-[117px]";
+    // On music page, the search header shifts down when player active, so player stays at 61px
     if (isMusic) topOffset = "top-[61px]";
 
     return (
@@ -101,7 +102,7 @@ export function MusicPlayer() {
               {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
             </Button>
             <Button 
-              size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground"
+              size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground hidden sm:flex"
               onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
             >
               <Maximize2 className="h-4 w-4" />
@@ -158,7 +159,7 @@ export function MusicPlayer() {
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="flex flex-col lg:flex-row items-start justify-center p-6 sm:p-12 gap-8 lg:gap-16 max-w-7xl mx-auto w-full min-h-full">
           {/* Artwork Container */}
-          <div className="relative w-full max-w-[320px] sm:max-w-[400px] lg:max-w-[500px] aspect-square group shrink-0 lg:sticky lg:top-12">
+          <div className="relative w-full max-w-[320px] sm:max-w-[400px] lg:max-w-[500px] aspect-square group shrink-0 lg:sticky lg:top-12 mx-auto lg:mx-0">
             <div className={cn(
               "absolute inset-0 bg-primary/30 blur-[100px] rounded-full transition-opacity duration-1000",
               isPlaying ? "opacity-100" : "opacity-0"
@@ -178,7 +179,7 @@ export function MusicPlayer() {
           </div>
 
           {/* Controls, Track Info and Comments */}
-          <div className="flex-1 w-full max-w-[500px] flex flex-col gap-6 sm:gap-10">
+          <div className="flex-1 w-full max-w-[500px] flex flex-col gap-6 sm:gap-10 mx-auto lg:mx-0">
             <div className="flex items-start justify-between">
               <div className="space-y-1 sm:space-y-2">
                 <h2 className="text-3xl sm:text-5xl font-black italic uppercase tracking-tighter leading-tight sm:leading-none">{currentTrack.title}</h2>
@@ -284,7 +285,7 @@ export function MusicPlayer() {
               </ScrollArea>
 
               {/* Comment Input */}
-              <div className="relative group pt-4">
+              <div className="relative group pt-4 mb-10 lg:mb-0">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
                   <Avatar className="h-8 w-8 border-2 border-primary/20">
                     <AvatarImage src="https://picsum.photos/seed/me/100/100" />
