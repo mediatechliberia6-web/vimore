@@ -201,37 +201,48 @@ export function StoryViewer() {
           "absolute top-8 left-0 right-0 z-50 px-6 flex items-start justify-between transition-opacity duration-300",
           isPaused ? "opacity-0" : "opacity-100"
         )}>
-          <Link 
-            href={`/profile/${activeStory.user.username || 'johndoe_creative'}`} 
-            onClick={handleClose} 
-            className="flex items-center gap-3 group"
-          >
-            <Avatar className={cn(
-              "h-9 w-9 border-2 transition-transform group-hover:scale-105",
-              activeStory.isCloseFriends ? "border-[#42b72a]" : "border-white/20"
-            )}>
-              <AvatarImage src={activeStory.user.avatar} />
-              <AvatarFallback>{activeStory.user.name[0]}</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold text-white drop-shadow-md group-hover:underline">{activeStory.user.name}</span>
-                {activeStory.isCloseFriends && (
-                  <span className="text-[9px] bg-[#42b72a] text-white px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider">Close Friends</span>
-                )}
-              </div>
-              <span className="text-[10px] text-white/60 font-medium">Recently</span>
+          <div className="flex items-start gap-3">
+            <div className="flex flex-col items-center gap-1.5">
+              <Link 
+                href={`/profile/${activeStory.user.username || 'johndoe_creative'}`} 
+                onClick={handleClose}
+                className="transition-transform hover:scale-105 active:scale-95"
+              >
+                <Avatar className={cn(
+                  "h-10 w-10 border-2",
+                  activeStory.isCloseFriends ? "border-[#42b72a]" : "border-white/20"
+                )}>
+                  <AvatarImage src={activeStory.user.avatar} />
+                  <AvatarFallback>{activeStory.user.name[0]}</AvatarFallback>
+                </Avatar>
+              </Link>
+              
+              {isOwner && activeStory.viewCount !== undefined && (
+                <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full text-white/90 border border-white/10 shadow-lg animate-in slide-in-from-top-1">
+                  <Eye className="h-2.5 w-2.5" />
+                  <span className="text-[10px] font-black tracking-tighter">{activeStory.viewCount}</span>
+                </div>
+              )}
             </div>
-          </Link>
+
+            <div className="flex flex-col pt-0.5">
+              <Link 
+                href={`/profile/${activeStory.user.username || 'johndoe_creative'}`} 
+                onClick={handleClose} 
+                className="group"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold text-white drop-shadow-md group-hover:underline">{activeStory.user.name}</span>
+                  {activeStory.isCloseFriends && (
+                    <span className="text-[9px] bg-[#42b72a] text-white px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider">Close Friends</span>
+                  )}
+                </div>
+              </Link>
+              <span className="text-[10px] text-white/60 font-medium mt-0.5">Recently</span>
+            </div>
+          </div>
           
           <div className="flex items-center gap-2">
-            {isOwner && activeStory.viewCount !== undefined && (
-              <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full text-white/90">
-                <Eye className="h-3 w-3" />
-                <span className="text-[10px] font-bold">{activeStory.viewCount}</span>
-              </div>
-            )}
-            
             <DropdownMenu onOpenChange={(open) => setIsPaused(open)}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-8 w-8">
@@ -405,7 +416,7 @@ export function StoryViewer() {
             <div className="flex flex-col items-center gap-2 mb-2 animate-in slide-in-from-bottom-2">
               <div className="h-1 w-8 bg-white/20 rounded-full mb-2" />
               <div className="flex items-center gap-2 text-white/40 font-bold text-[10px] uppercase tracking-[0.2em]">
-                <Eye className="h-3 w-3" /> {activeStory.viewCount || 0} Vibe Checks
+                Owner Presence
               </div>
             </div>
           )}
