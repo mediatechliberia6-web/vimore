@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Play, Pause, MoreVertical, Heart, TrendingUp } from "lucide-react";
@@ -16,7 +17,7 @@ const MOCK_SONGS: Track[] = [
   { id: 6, title: "Rush", artist: "Ayra Starr", cover: "https://picsum.photos/seed/song6/400/400", streams: "110M", duration: 188 },
 ];
 
-export function MusicGrid({ type }: { type: "trending" | "charts" }) {
+export function MusicGrid({ type, isRow }: { type: "trending" | "charts", isRow?: boolean }) {
   const { currentTrack, isPlaying, setTrack, togglePlay } = useMusic();
   const [likedSongs, setLikedSongs] = useState<Set<number | string>>(new Set());
 
@@ -31,8 +32,12 @@ export function MusicGrid({ type }: { type: "trending" | "charts" }) {
     setLikedSongs(newLiked);
   };
 
+  const gridClasses = isRow 
+    ? "flex flex-nowrap" 
+    : "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6";
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6 sm:gap-8">
+    <div className={cn(gridClasses, "gap-6 sm:gap-8")}>
       {MOCK_SONGS.map((song) => {
         const isCurrent = currentTrack?.id === song.id;
         const isLiked = likedSongs.has(song.id);
@@ -40,7 +45,10 @@ export function MusicGrid({ type }: { type: "trending" | "charts" }) {
         return (
           <div 
             key={song.id} 
-            className="group relative flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-500"
+            className={cn(
+              "group relative flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-500",
+              isRow && "min-w-[180px] sm:min-w-[220px]"
+            )}
           >
             {/* Cover Art Wrapper */}
             <div className="relative aspect-square rounded-[2rem] overflow-hidden bg-card shadow-lg ring-1 ring-primary/5 transition-all duration-500 group-hover:shadow-2xl group-hover:shadow-primary/20 group-hover:-translate-y-1">
@@ -135,7 +143,7 @@ export function MusicGrid({ type }: { type: "trending" | "charts" }) {
                    <TrendingUp className="h-3 w-3 text-primary opacity-40" />
                    <span className="text-[10px] font-black text-muted-foreground/60">{song.streams}</span>
                 </div>
-                <span className="text-[9px] font-bold text-muted-foreground/40 bg-secondary/30 px-2 py-0.5 rounded-full">
+                <span className="text-[9px] font-bold text-muted-foreground/40 bg-secondary/30 px-2 py-0.5 rounded-full whitespace-nowrap">
                   {Math.floor(song.duration / 60)}:{(song.duration % 60).toString().padStart(2, '0')}
                 </span>
               </div>
