@@ -4,7 +4,7 @@ import { MainNav } from "@/components/layout/main-nav";
 import { Header } from "@/components/layout/header";
 import { MusicGrid } from "@/components/music/music-grid";
 import { MusicNav } from "@/components/music/music-nav";
-import { useMusic, Album, Track } from "@/context/MusicContext";
+import { useMusic, Album, Track, Playlist } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 
 const MOCK_SONGS: Track[] = [
@@ -75,10 +75,31 @@ const MOCK_ALBUMS: Album[] = [
   },
 ];
 
-const MOCK_PLAYLISTS = [
-  { id: 'p1', title: "AFRO-FUSION", cover: "https://picsum.photos/seed/play1/800/450" },
-  { id: 'p2', title: "MIDNIGHT LO-FI", cover: "https://picsum.photos/seed/play2/800/450" },
-  { id: 'p3', title: "URBAN ENERGY", cover: "https://picsum.photos/seed/play3/800/450" },
+const MOCK_PLAYLISTS: Playlist[] = [
+  { 
+    id: 'p1', 
+    title: "AFRO-FUSION", 
+    creator: "johndoe_creative",
+    cover: "https://picsum.photos/seed/play1/800/450",
+    totalStreams: "1.2M",
+    songs: MOCK_SONGS
+  },
+  { 
+    id: 'p2', 
+    title: "MIDNIGHT LO-FI", 
+    creator: "arivera",
+    cover: "https://picsum.photos/seed/play2/800/450",
+    totalStreams: "850k",
+    songs: MOCK_SONGS.slice(2)
+  },
+  { 
+    id: 'p3', 
+    title: "URBAN ENERGY", 
+    creator: "schen_dev",
+    cover: "https://picsum.photos/seed/play3/800/450",
+    totalStreams: "450k",
+    songs: MOCK_SONGS.slice(0, 3)
+  },
 ];
 
 const MOCK_ARTISTS = [
@@ -89,12 +110,12 @@ const MOCK_ARTISTS = [
 ];
 
 export default function MusicPage() {
-  const { isExpanded, selectedAlbum } = useMusic();
+  const { isExpanded, selectedAlbum, selectedPlaylist } = useMusic();
 
   return (
     <div className={cn(
       "min-h-screen bg-[#F0F2F5] dark:bg-background transition-colors duration-300",
-      (isExpanded || selectedAlbum) && "h-screen overflow-hidden"
+      (isExpanded || selectedAlbum || selectedPlaylist) && "h-screen overflow-hidden"
     )}>
       <Header />
       

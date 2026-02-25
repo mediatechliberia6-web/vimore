@@ -5,6 +5,7 @@ import { PostProvider } from "@/context/PostContext";
 import { MusicProvider } from "@/context/MusicContext";
 import { MusicPlayer } from "@/components/music/music-player";
 import { AlbumDetail } from "@/components/music/album-detail";
+import { PlaylistDetail } from "@/components/music/playlist-detail";
 
 export const metadata: Metadata = {
   title: 'ViMore - Real-time Social Connection',
@@ -29,6 +30,7 @@ export default function RootLayout({
             {children}
             <MusicPlayer />
             <AlbumDetail />
+            <PlaylistDetail />
             <Toaster />
           </MusicProvider>
         </PostProvider>

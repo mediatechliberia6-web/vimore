@@ -22,6 +22,15 @@ export interface Album {
   songs: Track[];
 }
 
+export interface Playlist {
+  id: string | number;
+  title: string;
+  creator: string; // The username of the creator
+  cover: string;
+  totalStreams: string;
+  songs: Track[];
+}
+
 export interface MusicReaction {
   id: number;
   emoji: string;
@@ -34,6 +43,7 @@ interface MusicContextType {
   isPlaying: boolean;
   isExpanded: boolean;
   selectedAlbum: Album | null;
+  selectedPlaylist: Playlist | null;
   progress: number;
   volume: number;
   reactions: MusicReaction[];
@@ -43,6 +53,7 @@ interface MusicContextType {
   prevTrack: () => void;
   setIsExpanded: (expanded: boolean) => void;
   setSelectedAlbum: (album: Album | null) => void;
+  setSelectedPlaylist: (playlist: Playlist | null) => void;
   setProgress: (progress: number) => void;
   setVolume: (volume: number) => void;
   addReaction: (emoji: string) => void;
@@ -65,6 +76,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState(80);
   const [reactions, setReactions] = useState<MusicReaction[]>([]);
@@ -122,8 +134,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   return (
     <MusicContext.Provider value={{
-      currentTrack, queue, isPlaying, isExpanded, selectedAlbum, progress, volume, reactions,
-      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setProgress, setVolume, addReaction, clearPlayer
+      currentTrack, queue, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions,
+      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, clearPlayer
     }}>
       {children}
     </MusicContext.Provider>

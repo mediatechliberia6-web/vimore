@@ -2,7 +2,7 @@
 
 import { Play, Pause, MoreVertical, Heart, TrendingUp, Music2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useMusic, Track, Album } from "@/context/MusicContext";
+import { useMusic, Track, Album, Playlist } from "@/context/MusicContext";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -14,7 +14,7 @@ interface MusicGridProps {
 }
 
 export function MusicGrid({ type, items, title }: MusicGridProps) {
-  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum } = useMusic();
+  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist } = useMusic();
 
   const renderCard = (item: any) => {
     const isCurrent = currentTrack?.id === item.id;
@@ -78,6 +78,8 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
     const handleCardClick = () => {
       if (type === "album") {
         setSelectedAlbum(item as Album);
+      } else if (type === "playlist") {
+        setSelectedPlaylist(item as Playlist);
       }
     };
 
@@ -135,9 +137,9 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
             )}
             {type === "playlist" && (
               <>
-                <span>Curated Vibe</span>
+                <span>By @{item.creator || 'vimore'}</span>
                 <span>•</span>
-                <span>Multi-Artist</span>
+                <span>{item.totalStreams || '0'} Plays</span>
               </>
             )}
           </div>
