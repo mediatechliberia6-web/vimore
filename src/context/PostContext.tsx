@@ -77,6 +77,7 @@ export interface Post {
   feeling?: { emoji: string; text: string };
   location?: string;
   theme?: string;
+  language?: string; // Captured at creation
   commentsDisabled?: boolean;
   isPinned?: boolean;
   isSeries?: boolean;
@@ -175,6 +176,7 @@ const initialMockPosts: Post[] = [
     likes: 24,
     unlikes: 2,
     comments: 4,
+    language: "en",
     hashtags: ["NewBeginnings", "SocialMedia"],
     images: [
       "https://picsum.photos/seed/multi1/800/600",
@@ -194,6 +196,7 @@ const initialMockPosts: Post[] = [
     likes: 156,
     unlikes: 12,
     comments: 12,
+    language: "en",
     poll: {
       question: "Next Video Topic?",
       options: [
@@ -203,6 +206,22 @@ const initialMockPosts: Post[] = [
       totalVotes: 134,
       duration: "24 Hours"
     }
+  },
+  {
+    id: "3",
+    user: { 
+      name: "Alex Rivera", 
+      username: "arivera", 
+      avatar: "https://picsum.photos/seed/1/100/100",
+      followers: 12200
+    },
+    content: "¡Hola a todos! Estoy emocionado de probar la nueva función de traducción automática en ViMore. ¿Qué les parece?",
+    time: "45m",
+    likes: 88,
+    unlikes: 1,
+    comments: 15,
+    language: "es",
+    hashtags: ["Hola", "ViMore", "Diseño"]
   }
 ];
 
@@ -214,6 +233,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
 
   const addPost = (newPostData: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => {
+    // Determine language from browser if not provided
+    const detectedLanguage = newPostData.language || (typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en');
+    
     const newPost: Post = {
       ...newPostData,
       id: Date.now().toString(),
@@ -221,6 +243,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       likes: 0,
       unlikes: 0,
       comments: 0,
+      language: detectedLanguage
     };
     setPosts([newPost, ...posts]);
   };

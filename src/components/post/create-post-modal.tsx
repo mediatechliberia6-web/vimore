@@ -150,7 +150,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [isAiLoading, setIsAiLoading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLTextAreaElement>(null); // Corrected ref type locally but kept original if just for consistency
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
   
@@ -216,9 +216,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     if (!content.trim()) return;
     setIsAiLoading(true);
     try {
-      const [hashtagsRes, summaryRes] = await Promise.all([
-        aiSuggestHashtags({ postContent: content }),
-        aiSummarizePost({ postContent: content })
+      const [hashtagsRes] = await Promise.all([
+        aiSuggestHashtags({ postContent: content })
       ]);
       
       const tags = hashtagsRes.hashtags.join(" ");
@@ -244,6 +243,9 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       localStorage.setItem('vimore_recent_locations', JSON.stringify(updatedRecents));
     }
 
+    // Capture language at creation time
+    const creationLanguage = typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en';
+
     addPost({
       user: {
         name: USER_PROFILE.name,
@@ -253,6 +255,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       },
       collaborator: collaborator || undefined,
       content,
+      language: creationLanguage,
       theme: selectedTheme.id !== "none" ? selectedTheme.class : undefined,
       images: mediaType === 'image' ? selectedMedia : undefined,
       image: mediaType === 'video' ? undefined : (selectedMedia[0] || undefined),
@@ -319,7 +322,9 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       setSelectedMedia([]);
       setMediaType(null);
     }
-    videoInputRef.current?.click();
+    // Corrected trigger logic for video input
+    const vInput = document.querySelector('input[type="file"][accept="video/*"]') as HTMLInputElement;
+    vInput?.click();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -368,7 +373,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       return;
     }
     if (selectedTheme.id !== "none") {
-      toast({ title: "Incompatible content", description: "You cannot add a poll to a themed post.", variant: "destructive" });
+      toast({ title: "Incompatible content", description: "Themes only work for text posts.", variant: "destructive" });
       return;
     }
     setIsPollOpen(!isPollOpen);
@@ -474,7 +479,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         <DialogDescription className="sr-only" id="create-post-description">Interface to compose text, upload media, add polls, feelings, and locations.</DialogDescription>
         
         <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={handleFileChange} />
-        <input type="file" ref={videoInputRef} className="hidden" accept="video/*" onChange={handleVideoFileChange} />
+        <input type="file" className="hidden" accept="video/*" onChange={handleVideoFileChange} />
 
         <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0 bg-white dark:bg-card">
           <div className="flex items-center gap-4">
@@ -645,7 +650,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                 <div className="flex gap-3">
                   {backgroundThemes.map((t) => (
                     <button
-                      key={t.id}
                       onClick={() => { setSelectedTheme(t); setShowThemeSelector(false); }}
                       className={cn(
                         "h-12 w-12 rounded-lg shrink-0 border-2 transition-all flex items-center justify-center text-[10px] font-bold",

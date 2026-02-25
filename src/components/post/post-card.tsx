@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { 
@@ -76,6 +76,7 @@ interface PostCardProps {
   images?: string[];
   imageFilter?: string;
   theme?: string;
+  language?: string;
   likes: number;
   unlikes: number;
   comments: number;
@@ -105,6 +106,7 @@ export function PostCard({
   images = [], 
   imageFilter,
   theme,
+  language,
   likes, 
   unlikes,
   comments, 
@@ -129,6 +131,7 @@ export function PostCard({
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [isHidden, setIsHidden] = useState(false);
+  const [viewerLanguage, setViewerLanguage] = useState<string | null>(null);
   
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
@@ -139,6 +142,21 @@ export function PostCard({
   const [isPollExpanded, setIsPollExpanded] = useState(false);
 
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Client-side detection to avoid hydration mismatch
+    if (typeof window !== 'undefined') {
+      setViewerLanguage(window.navigator.language.split('-')[0]);
+    }
+  }, []);
+
+  const showTranslateButton = useMemo(() => {
+    if (!language || !viewerLanguage) return false;
+    // Don't show if languages match or if it's too short to be worth it
+    if (language === viewerLanguage) return false;
+    if (content.length < 5) return false;
+    return true;
+  }, [language, viewerLanguage, content]);
 
   const allImages = useMemo(() => {
     const list = [...images];
@@ -190,7 +208,7 @@ export function PostCard({
     }
     setIsTranslating(true);
     try {
-      const result = await aiTranslatePost({ postContent: content });
+      const result = await aiTranslatePost({ postContent: content, targetLanguage: viewerLanguage || "English" });
       setTranslatedText(result.translation);
     } catch (error) {
       toast({ description: "Translation failed. Try again later.", variant: "destructive" });
@@ -396,7 +414,7 @@ export function PostCard({
               {isExpanded ? "Show less" : "See more"}
             </button>
           )}
-          {!theme && (
+          {!theme && showTranslateButton && (
             <div className="flex items-center gap-2 pt-1">
               <Button 
                 variant="ghost" 
