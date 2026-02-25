@@ -1,12 +1,18 @@
 "use client";
 
-import { Play, Pause, MoreVertical, Heart, TrendingUp, Music2 } from "lucide-react";
+import { Play, Pause, MoreVertical, Heart, TrendingUp, Music2, Share2, Plus, Download, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMusic, Track, Album, Playlist } from "@/context/MusicContext";
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 interface MusicGridProps {
   type: "song" | "album" | "playlist" | "artist" | "hero";
@@ -15,12 +21,23 @@ interface MusicGridProps {
 }
 
 export function MusicGrid({ type, items, title }: MusicGridProps) {
-  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist } = useMusic();
+  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist, toggleLike, isTrackLiked } = useMusic();
+  const { toast } = useToast();
+
+  const handleShare = (item: any) => {
+    const url = typeof window !== 'undefined' ? `${window.location.origin}/music/${type}/${item.id}` : '';
+    navigator.clipboard.writeText(url);
+    toast({ title: "Link Copied!", description: "Share the vibe with your community." });
+  };
+
+  const handleDownload = (title: string) => {
+    toast({ title: "Download Started", description: `Fetching high-res audio for ${title}...` });
+  };
 
   const renderCard = (item: any) => {
     const isCurrent = currentTrack?.id === item.id;
+    const isLiked = isTrackLiked(item.id);
     
-    // Hero remains the large spotlight for visual hierarchy
     if (type === "hero") {
       return (
         <div key={item.id} className="relative w-full max-w-4xl aspect-video sm:h-[400px] rounded-[2rem] sm:rounded-[3rem] overflow-hidden group cursor-pointer shadow-2xl ring-1 ring-white/10">
@@ -43,13 +60,20 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
                 {isCurrent && isPlaying ? <Pause className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current" /> : <Play className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current" />}
                 {isCurrent && isPlaying ? "PAUSE" : "PLAY NOW"}
               </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className={cn("h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-white/10 text-white", isLiked && "text-red-500")}
+                onClick={(e) => { e.stopPropagation(); toggleLike(item.id); }}
+              >
+                <Heart className={cn("h-5 w-5 sm:h-7 sm:w-7", isLiked && "fill-current")} />
+              </Button>
             </div>
           </div>
         </div>
       );
     }
 
-    // Artist remains circular for visual distinction
     if (type === "artist") {
       return (
         <Link key={item.id} href={`/profile/${item.username || 'arivera'}`} className="inline-block w-[120px] sm:w-[160px] text-center space-y-3 group cursor-pointer shrink-0 snap-start">
@@ -116,6 +140,47 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
                 </Button>
               </div>
             )}
+
+            <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className={cn("h-8 w-8 rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-black/40", isLiked && "text-red-500")}
+                onClick={(e) => { e.stopPropagation(); toggleLike(item.id); }}
+              >
+                <Heart className={cn("h-4 w-4", isLiked && "fill-current")} />
+              </Button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-black/40"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 rounded-xl p-2">
+                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); toast({ title: "Added", description: "Added to your playback queue." }); }}>
+                    <Plus className="h-4 w-4" /> Add to Queue
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); toast({ title: "Saved", description: "Saved to your library." }); }}>
+                    <Plus className="h-4 w-4" /> Save to Library
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); handleDownload(item.title); }}>
+                    <Download className="h-4 w-4" /> Download
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); handleShare(item); }}>
+                    <Share2 className="h-4 w-4" /> Share
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); toast({ title: "Navigation", description: "Taking you to artist profile." }); }}>
+                    <User className="h-4 w-4" /> Go to Artist
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
         

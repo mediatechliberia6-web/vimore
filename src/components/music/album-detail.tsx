@@ -1,4 +1,3 @@
-
 "use client";
 
 import { 
@@ -27,9 +26,11 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 export function AlbumDetail() {
   const { selectedAlbum, setSelectedAlbum, currentTrack, isPlaying, setTrack, togglePlay, playCollection, toggleLike, isTrackLiked } = useMusic();
+  const { toast } = useToast();
 
   if (!selectedAlbum) return null;
 
@@ -43,6 +44,16 @@ export function AlbumDetail() {
 
   const handlePlayAll = () => {
     playCollection(selectedAlbum.songs);
+  };
+
+  const handleShare = () => {
+    const url = typeof window !== 'undefined' ? `${window.location.origin}/music/album/${selectedAlbum.id}` : '';
+    navigator.clipboard.writeText(url);
+    toast({ title: "Album Link Copied!", description: "Share this collection with your community." });
+  };
+
+  const handleDownload = () => {
+    toast({ title: "Album Downloaded", description: `${selectedAlbum.title} is now available offline.` });
   };
 
   return (
@@ -63,12 +74,24 @@ export function AlbumDetail() {
           <ArrowLeft className="h-6 w-6" />
         </Button>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20">
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20" onClick={handleShare}>
             <Share2 className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20">
-            <MoreHorizontal className="h-5 w-5" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20">
+                <MoreHorizontal className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 rounded-xl p-2">
+              <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={handleDownload}>
+                <Download className="h-4 w-4" /> Download Full Album
+              </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={() => toast({ title: "Library", description: "Album saved to your digital collection." })}>
+                <Plus className="h-4 w-4" /> Add to Library
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
@@ -102,19 +125,19 @@ export function AlbumDetail() {
                 <Play className="h-6 w-6 fill-current" />
                 PLAY ALL
               </Button>
-              <Button variant="secondary" className="h-14 w-14 rounded-2xl">
+              <Button variant="secondary" className="h-14 w-14 rounded-2xl" onClick={handleDownload}>
                 <Download className="h-6 w-6" />
               </Button>
             </div>
 
             <div className="flex items-center justify-center lg:justify-start gap-8 pt-4">
-              <button className="flex flex-col items-center gap-1 group">
+              <button className="flex flex-col items-center gap-1 group" onClick={() => toast({ title: "Liked", description: "Album added to your favorites." })}>
                 <div className="p-3 bg-secondary/20 rounded-full group-hover:bg-primary/10 transition-colors">
                   <Heart className="h-6 w-6 group-hover:text-primary transition-colors" />
                 </div>
                 <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Like Album</span>
               </button>
-              <button className="flex flex-col items-center gap-1 group">
+              <button className="flex flex-col items-center gap-1 group" onClick={() => toast({ title: "Disliked", description: "We'll show you less content like this." })}>
                 <div className="p-3 bg-secondary/20 rounded-full group-hover:bg-destructive/10 transition-colors">
                   <ThumbsDown className="h-6 w-6 group-hover:text-destructive transition-colors" />
                 </div>
@@ -182,13 +205,13 @@ export function AlbumDetail() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-56 rounded-xl p-2">
-                            <DropdownMenuItem className="gap-2 cursor-pointer font-bold">
+                            <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); toast({ title: "Playlist", description: "Track added to your playlist." }); }}>
                               <Plus className="h-4 w-4" /> Add to Playlist
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 cursor-pointer font-bold">
+                            <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); toast({ title: "Download", description: "Single track download started." }); }}>
                               <Download className="h-4 w-4" /> Download Single
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 cursor-pointer font-bold">
+                            <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/track/${song.id}`); toast({ title: "Shared", description: "Song link copied to clipboard." }); }}>
                               <Share2 className="h-4 w-4" /> Share Song
                             </DropdownMenuItem>
                           </DropdownMenuContent>

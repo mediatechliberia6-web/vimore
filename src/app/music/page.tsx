@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MainNav } from "@/components/layout/main-nav";
 import { Header } from "@/components/layout/header";
 import { MusicGrid } from "@/components/music/music-grid";
@@ -11,7 +11,7 @@ import { useMusic, Album, Track, Playlist } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, Search, X } from "lucide-react";
 import Link from "next/link";
 
 const MOCK_SONGS: Track[] = [
@@ -86,7 +86,44 @@ const MOCK_ARTISTS = [
 export default function MusicPage() {
   const { currentTrack, isExpanded, selectedAlbum, selectedPlaylist } = useMusic();
   const [activeTab, setActiveTab] = useState("discover");
+  const [searchQuery, setSearchQuery] = useState("");
+  
   const isPlayerActive = currentTrack && !isExpanded;
+
+  // Real-time Search Logic (Phase 3)
+  const filteredSongs = useMemo(() => {
+    if (!searchQuery) return MOCK_SONGS;
+    return MOCK_SONGS.filter(s => 
+      s.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      s.artist.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery]);
+
+  const filteredAlbums = useMemo(() => {
+    if (!searchQuery) return MOCK_ALBUMS;
+    return MOCK_ALBUMS.filter(a => 
+      a.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      a.artist.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery]);
+
+  const filteredPlaylists = useMemo(() => {
+    if (!searchQuery) return MOCK_PLAYLISTS;
+    return MOCK_PLAYLISTS.filter(p => 
+      p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      p.creator.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery]);
+
+  const filteredArtists = useMemo(() => {
+    if (!searchQuery) return MOCK_ARTISTS;
+    return MOCK_ARTISTS.filter(a => 
+      a.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      a.username.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery]);
+
+  const hasResults = filteredSongs.length > 0 || filteredAlbums.length > 0 || filteredPlaylists.length > 0 || filteredArtists.length > 0;
 
   return (
     <div className={cn(
@@ -95,7 +132,6 @@ export default function MusicPage() {
     )}>
       <Header />
       
-      {/* Immersive Background Glows */}
       <div className="fixed top-0 left-1/4 w-[60%] h-[40%] bg-primary/5 blur-[120px] rounded-full pointer-events-none -z-10" />
       
       <div className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[280px_1fr]">
@@ -110,7 +146,6 @@ export default function MusicPage() {
           "flex flex-col pb-48 relative transition-all duration-300",
           isPlayerActive ? "pt-[64px]" : "pt-0"
         )}>
-          {/* Sub-header with Back Button and Search */}
           <div className={cn(
             "sticky z-30 bg-[#F0F2F5]/80 dark:bg-background/80 backdrop-blur-md px-4 sm:px-10 py-4 flex items-center justify-between border-b border-border/50 transition-all duration-300",
             isPlayerActive ? "top-[125px]" : "top-[61px]"
@@ -124,36 +159,49 @@ export default function MusicPage() {
               <h1 className="text-lg sm:text-2xl font-black italic uppercase tracking-tighter hidden xs:block">Music Hub</h1>
             </div>
 
-            {/* Music Discovery Search Bar */}
             <div className="relative group flex-1 max-w-md ml-2 sm:ml-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <Input 
-                placeholder="Search..." 
-                className="pl-10 h-10 bg-white/50 dark:bg-card/50 border-primary/10 rounded-xl focus-visible:ring-primary/20 text-sm"
+                placeholder="Search songs, albums, artists..." 
+                className="pl-10 pr-10 h-10 bg-white/50 dark:bg-card/50 border-primary/10 rounded-xl focus-visible:ring-primary/20 text-sm"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
 
           <div className="px-4 sm:px-10 py-6 sm:py-10 space-y-10 sm:space-y-16">
             {activeTab === "discover" && (
               <div className="space-y-10 sm:space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                {/* 1. Hero Spotlight */}
-                <MusicGrid type="hero" items={[MOCK_SONGS[0]]} />
-
-                {/* 2. Trending Songs */}
-                <MusicGrid type="song" title="Trending Songs" items={MOCK_SONGS} />
-
-                {/* 3. Trending Albums */}
-                <MusicGrid type="album" title="Trending Albums" items={MOCK_ALBUMS} />
-
-                {/* 4. New Releases */}
-                <MusicGrid type="song" title="New Releases" items={[...MOCK_SONGS].reverse()} />
-
-                {/* 5. Top Playlists */}
-                <MusicGrid type="playlist" title="Top Playlists" items={MOCK_PLAYLISTS} />
-
-                {/* 6. Trending Artists */}
-                <MusicGrid type="artist" title="Trending Artists" items={MOCK_ARTISTS} />
+                {!hasResults ? (
+                  <div className="py-20 text-center space-y-4">
+                    <div className="h-20 w-20 bg-secondary/30 rounded-full flex items-center justify-center mx-auto">
+                      <Search className="h-10 w-10 text-muted-foreground" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-black italic uppercase tracking-tighter">No results for "{searchQuery}"</h3>
+                      <p className="text-muted-foreground text-sm">Try searching for a different artist or genre</p>
+                    </div>
+                    <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase tracking-widest text-[10px]" onClick={() => setSearchQuery("")}>Clear Search</Button>
+                  </div>
+                ) : (
+                  <>
+                    {!searchQuery && <MusicGrid type="hero" items={[MOCK_SONGS[0]]} />}
+                    {filteredSongs.length > 0 && <MusicGrid type="song" title={searchQuery ? "Matching Songs" : "Trending Songs"} items={filteredSongs} />}
+                    {filteredAlbums.length > 0 && <MusicGrid type="album" title={searchQuery ? "Matching Albums" : "Trending Albums"} items={filteredAlbums} />}
+                    {!searchQuery && <MusicGrid type="song" title="New Releases" items={[...MOCK_SONGS].reverse()} />}
+                    {filteredPlaylists.length > 0 && <MusicGrid type="playlist" title={searchQuery ? "Matching Playlists" : "Top Playlists"} items={filteredPlaylists} />}
+                    {filteredArtists.length > 0 && <MusicGrid type="artist" title={searchQuery ? "Matching Artists" : "Trending Artists"} items={filteredArtists} />}
+                  </>
+                )}
               </div>
             )}
             
