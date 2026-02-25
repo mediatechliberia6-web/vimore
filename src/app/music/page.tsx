@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -11,7 +12,7 @@ import { useMusic, Album, Track, Playlist } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search, X } from "lucide-react";
+import { ArrowLeft, Search, X, Heart, ListMusic, Plus } from "lucide-react";
 import Link from "next/link";
 
 const MOCK_SONGS: Track[] = [
@@ -84,13 +85,12 @@ const MOCK_ARTISTS = [
 ];
 
 export default function MusicPage() {
-  const { currentTrack, isExpanded, selectedAlbum, selectedPlaylist } = useMusic();
+  const { currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, createPlaylist } = useMusic();
   const [activeTab, setActiveTab] = useState("discover");
   const [searchQuery, setSearchQuery] = useState("");
   
   const isPlayerActive = currentTrack && !isExpanded;
 
-  // Real-time Search Logic (Phase 3)
   const filteredSongs = useMemo(() => {
     if (!searchQuery) return MOCK_SONGS;
     return MOCK_SONGS.filter(s => 
@@ -209,6 +209,39 @@ export default function MusicPage() {
             
             {activeTab === "upload" && (
               <MusicUpload onCancel={() => setActiveTab("discover")} />
+            )}
+
+            {activeTab === "library" && (
+              <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-3xl font-black italic uppercase tracking-tighter">My Library</h2>
+                  <Button variant="outline" className="rounded-full border-primary text-primary font-bold gap-2" onClick={() => createPlaylist("New Playlist")}>
+                    <Plus className="h-4 w-4" /> New Playlist
+                  </Button>
+                </div>
+
+                {likedTracks.length === 0 && userPlaylists.length === 0 ? (
+                  <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2rem] border border-border/50">
+                    <div className="h-24 w-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary">
+                      <ListMusic className="h-12 w-12" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-black italic uppercase tracking-tighter">Your Library is Empty</h3>
+                      <p className="text-muted-foreground text-sm max-w-sm mx-auto">Start liking songs or creating playlists to build your digital sonic collection.</p>
+                    </div>
+                    <Button className="rounded-full px-8 font-bold bg-primary" onClick={() => setActiveTab("discover")}>Discover Music</Button>
+                  </div>
+                ) : (
+                  <>
+                    {likedTracks.length > 0 && (
+                      <MusicGrid type="song" title="Liked Songs" items={likedTracks} />
+                    )}
+                    {userPlaylists.length > 0 && (
+                      <MusicGrid type="playlist" title="My Playlists" items={userPlaylists} />
+                    )}
+                  </>
+                )}
+              </div>
             )}
           </div>
         </main>

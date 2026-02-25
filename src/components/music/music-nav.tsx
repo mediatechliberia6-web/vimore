@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Compass, Plus, BarChart3 } from "lucide-react";
+import { Compass, Plus, BarChart3, ListMusic } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MusicNavProps {
@@ -12,8 +12,9 @@ interface MusicNavProps {
 export function MusicNav({ activeTab, onTabChange }: MusicNavProps) {
   const items = [
     { id: "discover", icon: Compass, label: "Discover" },
-    { id: "upload", icon: Plus, label: "Upload", isSpecial: true },
     { id: "chart", icon: BarChart3, label: "Chart" },
+    { id: "upload", icon: Plus, label: "Upload", isSpecial: true },
+    { id: "library", icon: ListMusic, label: "Library" },
   ];
 
   return (

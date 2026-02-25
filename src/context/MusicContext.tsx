@@ -60,6 +60,8 @@ interface MusicContextType {
   volume: number;
   reactions: MusicReaction[];
   likedSongIds: Set<string | number>;
+  likedTracks: Track[];
+  userPlaylists: Playlist[];
   
   setTrack: (track: Track) => void;
   togglePlay: () => void;
@@ -73,9 +75,12 @@ interface MusicContextType {
   addReaction: (emoji: string) => void;
   addComment: (text: string) => void;
   clearPlayer: () => void;
-  toggleLike: (trackId: string | number) => void;
+  toggleLike: (track: Track) => void;
   isTrackLiked: (trackId: string | number) => boolean;
   playCollection: (tracks: Track[], startIndex?: number) => void;
+  addToQueue: (track: Track) => void;
+  createPlaylist: (title: string, firstTrack?: Track) => void;
+  addTrackToPlaylist: (playlistId: string | number, track: Track) => void;
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
@@ -105,6 +110,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [volume, setVolume] = useState(80);
   const [reactions, setReactions] = useState<MusicReaction[]>([]);
   const [likedSongIds, setLikedSongIds] = useState<Set<string | number>>(new Set());
+  const [likedTracks, setLikedTracks] = useState<Track[]>([]);
+  const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -128,7 +135,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   }, [progress]);
 
   const setTrack = (track: Track) => {
-    // If selecting a single track from discover, reset queue to mock songs or the current queue
     if (!queue.some(t => t.id === track.id)) {
       setQueue([track, ...queue.filter(t => t.id !== track.id)]);
     }
@@ -137,6 +143,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setProgress(0);
     setReactions([]);
     setIsExpanded(true); 
+  };
+
+  const addToQueue = (track: Track) => {
+    if (!queue.some(t => t.id === track.id)) {
+      setQueue(prev => [...prev, track]);
+    }
   };
 
   const playCollection = (tracks: Track[], startIndex: number = 0) => {
@@ -172,16 +184,44 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setIsPlaying(true);
   };
 
-  const toggleLike = (trackId: string | number) => {
+  const toggleLike = (track: Track) => {
+    const trackId = track.id;
     setLikedSongIds((prev) => {
       const next = new Set(prev);
-      if (next.has(trackId)) next.delete(trackId);
-      else next.add(trackId);
+      if (next.has(trackId)) {
+        next.delete(trackId);
+        setLikedTracks(prevTracks => prevTracks.filter(t => t.id !== trackId));
+      } else {
+        next.add(trackId);
+        setLikedTracks(prevTracks => [track, ...prevTracks]);
+      }
       return next;
     });
   };
 
   const isTrackLiked = (trackId: string | number) => likedSongIds.has(trackId);
+
+  const createPlaylist = (title: string, firstTrack?: Track) => {
+    const newPlaylist: Playlist = {
+      id: Date.now(),
+      title,
+      creator: "John Doe",
+      cover: firstTrack?.cover || "https://picsum.photos/seed/playlist/400/400",
+      totalStreams: "0",
+      songs: firstTrack ? [firstTrack] : []
+    };
+    setUserPlaylists(prev => [newPlaylist, ...prev]);
+  };
+
+  const addTrackToPlaylist = (playlistId: string | number, track: Track) => {
+    setUserPlaylists(prev => prev.map(p => {
+      if (p.id === playlistId) {
+        if (p.songs.some(s => s.id === track.id)) return p;
+        return { ...p, songs: [...p.songs, track] };
+      }
+      return p;
+    }));
+  };
 
   const addReaction = (emoji: string) => {
     const id = Date.now();
@@ -214,8 +254,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   return (
     <MusicContext.Provider value={{
-      currentTrack, queue, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds,
-      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, isTrackLiked, playCollection
+      currentTrack, queue, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds, likedTracks, userPlaylists,
+      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, isTrackLiked, playCollection, addToQueue, createPlaylist, addTrackToPlaylist
     }}>
       {children}
     </MusicContext.Provider>

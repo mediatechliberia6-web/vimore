@@ -1,6 +1,7 @@
+
 "use client";
 
-import { Play, Pause, MoreVertical, Heart, TrendingUp, Music2, Share2, Plus, Download, User } from "lucide-react";
+import { Play, Pause, MoreVertical, Heart, TrendingUp, Music2, Share2, Plus, Download, User, ListPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMusic, Track, Album, Playlist } from "@/context/MusicContext";
 import Image from "next/image";
@@ -10,7 +11,11 @@ import {
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 
@@ -21,7 +26,7 @@ interface MusicGridProps {
 }
 
 export function MusicGrid({ type, items, title }: MusicGridProps) {
-  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist, toggleLike, isTrackLiked } = useMusic();
+  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist, toggleLike, isTrackLiked, addToQueue, userPlaylists, createPlaylist, addTrackToPlaylist } = useMusic();
   const { toast } = useToast();
 
   const handleShare = (item: any) => {
@@ -32,6 +37,12 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
 
   const handleDownload = (title: string) => {
     toast({ title: "Download Started", description: `Fetching high-res audio for ${title}...` });
+  };
+
+  const triggerHaptic = () => {
+    if (typeof window !== 'undefined' && window.navigator?.vibrate) {
+      window.navigator.vibrate(50);
+    }
   };
 
   const renderCard = (item: any) => {
@@ -54,8 +65,8 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
             <div className="flex items-center gap-4 mt-2 sm:mt-4">
               <Button 
                 size="lg" 
-                className="rounded-full bg-white text-primary font-black px-6 sm:px-10 h-10 sm:h-14 hover:scale-105 transition-transform text-xs sm:text-base"
-                onClick={() => isCurrent ? togglePlay() : setTrack(item)}
+                className="rounded-full bg-white text-primary font-black px-6 sm:px-10 h-10 sm:h-14 hover:scale-105 transition-transform text-xs sm:base"
+                onClick={() => { triggerHaptic(); isCurrent ? togglePlay() : setTrack(item); }}
               >
                 {isCurrent && isPlaying ? <Pause className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current" /> : <Play className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current" />}
                 {isCurrent && isPlaying ? "PAUSE" : "PLAY NOW"}
@@ -64,7 +75,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
                 variant="ghost" 
                 size="icon" 
                 className={cn("h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-white/10 text-white", isLiked && "text-red-500")}
-                onClick={(e) => { e.stopPropagation(); toggleLike(item.id); }}
+                onClick={(e) => { e.stopPropagation(); triggerHaptic(); toggleLike(item); }}
               >
                 <Heart className={cn("h-5 w-5 sm:h-7 sm:w-7", isLiked && "fill-current")} />
               </Button>
@@ -103,6 +114,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
     const cardWidth = type === "playlist" ? "w-[200px] sm:w-[240px]" : "w-[160px] sm:w-[200px]";
     
     const handleCardClick = () => {
+      triggerHaptic();
       if (type === "album") {
         setSelectedAlbum(item as Album);
       } else if (type === "playlist") {
@@ -133,6 +145,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
                   className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-primary text-white shadow-2xl transition-transform active:scale-90"
                   onClick={(e) => {
                     e.stopPropagation();
+                    triggerHaptic();
                     isCurrent ? togglePlay() : setTrack(item);
                   }}
                 >
@@ -142,14 +155,16 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
             )}
 
             <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className={cn("h-8 w-8 rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-black/40", isLiked && "text-red-500")}
-                onClick={(e) => { e.stopPropagation(); toggleLike(item.id); }}
-              >
-                <Heart className={cn("h-4 w-4", isLiked && "fill-current")} />
-              </Button>
+              {type !== "album" && type !== "playlist" && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={cn("h-8 w-8 rounded-full bg-black/20 backdrop-blur-md text-white hover:bg-black/40", isLiked && "text-red-500")}
+                  onClick={(e) => { e.stopPropagation(); triggerHaptic(); toggleLike(item); }}
+                >
+                  <Heart className={cn("h-4 w-4", isLiked && "fill-current")} />
+                </Button>
+              )}
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -163,16 +178,39 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 rounded-xl p-2">
-                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); toast({ title: "Added", description: "Added to your playback queue." }); }}>
-                    <Plus className="h-4 w-4" /> Add to Queue
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); toast({ title: "Saved", description: "Saved to your library." }); }}>
-                    <Plus className="h-4 w-4" /> Save to Library
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); handleDownload(item.title); }}>
+                  {type === "song" && (
+                    <>
+                      <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); triggerHaptic(); addToQueue(item); toast({ title: "Added", description: "Added to your playback queue." }); }}>
+                        <Plus className="h-4 w-4" /> Add to Queue
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); triggerHaptic(); toggleLike(item); toast({ title: "Saved", description: "Saved to your library." }); }}>
+                        <Heart className="h-4 w-4" /> Save to Library
+                      </DropdownMenuItem>
+                      
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger className="gap-2 cursor-pointer font-bold">
+                          <ListPlus className="h-4 w-4" /> Add to Playlist
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="w-56 rounded-xl p-2">
+                          <DropdownMenuItem className="gap-2 cursor-pointer font-bold text-primary" onClick={(e) => { e.stopPropagation(); createPlaylist(`${item.title} Playlist`, item); toast({ title: "Playlist Created" }); }}>
+                            <Plus className="h-4 w-4" /> Create New Playlist
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {userPlaylists.map(p => (
+                            <DropdownMenuItem key={p.id} className="cursor-pointer font-medium" onClick={(e) => { e.stopPropagation(); addTrackToPlaylist(p.id, item); toast({ title: "Added to " + p.title }); }}>
+                              {p.title}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  
+                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); triggerHaptic(); handleDownload(item.title); }}>
                     <Download className="h-4 w-4" /> Download
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); handleShare(item); }}>
+                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); triggerHaptic(); handleShare(item); }}>
                     <Share2 className="h-4 w-4" /> Share
                   </DropdownMenuItem>
                   <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); toast({ title: "Navigation", description: "Taking you to artist profile." }); }}>
