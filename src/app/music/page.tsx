@@ -7,7 +7,8 @@ import { MusicNav } from "@/components/music/music-nav";
 import { useMusic, Album, Track, Playlist } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Search } from "lucide-react";
 import Link from "next/link";
 
 const MOCK_SONGS: Track[] = [
@@ -105,17 +106,28 @@ export default function MusicPage() {
           "flex flex-col pb-48 relative transition-all duration-300",
           isPlayerActive ? "pt-[64px]" : "pt-0"
         )}>
-          {/* Sub-header with Back Button */}
+          {/* Sub-header with Back Button and Search */}
           <div className={cn(
-            "sticky z-30 bg-[#F0F2F5]/80 dark:bg-background/80 backdrop-blur-md px-6 sm:px-10 py-4 flex items-center gap-4 border-b border-border/50 transition-all duration-300",
+            "sticky z-30 bg-[#F0F2F5]/80 dark:bg-background/80 backdrop-blur-md px-6 sm:px-10 py-4 flex items-center justify-between border-b border-border/50 transition-all duration-300",
             isPlayerActive ? "top-[125px]" : "top-[61px]"
           )}>
-            <Link href="/">
-              <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 transition-colors">
-                <ArrowLeft className="h-6 w-6" />
-              </Button>
-            </Link>
-            <h1 className="text-2xl font-black italic uppercase tracking-tighter">Music Hub</h1>
+            <div className="flex items-center gap-4">
+              <Link href="/">
+                <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 transition-colors">
+                  <ArrowLeft className="h-6 w-6" />
+                </Button>
+              </Link>
+              <h1 className="text-2xl font-black italic uppercase tracking-tighter hidden xs:block">Music Hub</h1>
+            </div>
+
+            {/* Music Discovery Search Bar */}
+            <div className="relative group flex-1 max-w-md ml-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+              <Input 
+                placeholder="Search songs, albums, or artists..." 
+                className="pl-10 h-10 bg-white/50 dark:bg-card/50 border-primary/10 rounded-xl focus-visible:ring-primary/20 text-sm"
+              />
+            </div>
           </div>
 
           <div className="px-6 sm:px-10 py-10 space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-1000">
