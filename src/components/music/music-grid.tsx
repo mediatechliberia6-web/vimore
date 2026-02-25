@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Play, Pause, MoreVertical, Heart, TrendingUp, Music2, Share2, Plus, Download, User, ListPlus } from "lucide-react";
@@ -26,7 +25,7 @@ interface MusicGridProps {
 }
 
 export function MusicGrid({ type, items, title }: MusicGridProps) {
-  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist, toggleLike, isTrackLiked, addToQueue, userPlaylists, createPlaylist, addTrackToPlaylist } = useMusic();
+  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist, toggleLike, isTrackLiked, addToQueue, userPlaylists, openCreatePlaylist, addTrackToPlaylist } = useMusic();
   const { toast } = useToast();
 
   const handleShare = (item: any) => {
@@ -192,7 +191,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
                           <ListPlus className="h-4 w-4" /> Add to Playlist
                         </DropdownMenuSubTrigger>
                         <DropdownMenuSubContent className="w-56 rounded-xl p-2">
-                          <DropdownMenuItem className="gap-2 cursor-pointer font-bold text-primary" onClick={(e) => { e.stopPropagation(); createPlaylist(`${item.title} Playlist`, item); toast({ title: "Playlist Created" }); }}>
+                          <DropdownMenuItem className="gap-2 cursor-pointer font-bold text-primary" onClick={(e) => { e.stopPropagation(); openCreatePlaylist(item); }}>
                             <Plus className="h-4 w-4" /> Create New Playlist
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />

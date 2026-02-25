@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -8,6 +7,7 @@ import { MusicGrid } from "@/components/music/music-grid";
 import { MusicNav } from "@/components/music/music-nav";
 import { MusicCharts } from "@/components/music/music-charts";
 import { MusicUpload } from "@/components/music/music-upload";
+import { CreatePlaylistModal } from "@/components/music/create-playlist-modal";
 import { useMusic, Album, Track, Playlist } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -85,7 +85,7 @@ const MOCK_ARTISTS = [
 ];
 
 export default function MusicPage() {
-  const { currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, createPlaylist } = useMusic();
+  const { currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, openCreatePlaylist } = useMusic();
   const [activeTab, setActiveTab] = useState("discover");
   const [searchQuery, setSearchQuery] = useState("");
   
@@ -215,7 +215,7 @@ export default function MusicPage() {
               <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
                 <div className="flex items-center justify-between">
                   <h2 className="text-3xl font-black italic uppercase tracking-tighter">My Library</h2>
-                  <Button variant="outline" className="rounded-full border-primary text-primary font-bold gap-2" onClick={() => createPlaylist("New Playlist")}>
+                  <Button variant="outline" className="rounded-full border-primary text-primary font-bold gap-2" onClick={() => openCreatePlaylist()}>
                     <Plus className="h-4 w-4" /> New Playlist
                   </Button>
                 </div>
@@ -248,6 +248,7 @@ export default function MusicPage() {
       </div>
 
       <MusicNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <CreatePlaylistModal />
     </div>
   );
 }

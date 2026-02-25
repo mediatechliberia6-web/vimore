@@ -40,6 +40,8 @@ export interface Playlist {
   cover: string;
   totalStreams: string;
   songs: Track[];
+  description?: string;
+  isPrivate?: boolean;
 }
 
 export interface MusicReaction {
@@ -61,6 +63,8 @@ interface MusicContextType {
   likedSongIds: Set<string | number>;
   likedTracks: Track[];
   userPlaylists: Playlist[];
+  isCreatePlaylistOpen: boolean;
+  trackForNewPlaylist: Track | null;
   
   setTrack: (track: Track) => void;
   togglePlay: () => void;
@@ -78,8 +82,13 @@ interface MusicContextType {
   isTrackLiked: (trackId: string | number) => boolean;
   playCollection: (tracks: Track[], startIndex?: number) => void;
   addToQueue: (track: Track) => void;
-  createPlaylist: (title: string, firstTrack?: Track) => void;
+  
+  // Playlist Management
+  openCreatePlaylist: (firstTrack?: Track) => void;
+  closeCreatePlaylist: () => void;
+  confirmCreatePlaylist: (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => void;
   addTrackToPlaylist: (playlistId: string | number, track: Track) => void;
+  
   triggerHaptic: (intensity?: number) => void;
 }
 
@@ -112,6 +121,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [likedSongIds, setLikedSongIds] = useState<Set<string | number>>(new Set());
   const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
+  
+  // Creation States
+  const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
+  const [trackForNewPlaylist, setTrackForNewPlaylist] = useState<Track | null>(null);
 
   // Haptic utility
   const triggerHaptic = (intensity: number = 10) => {
@@ -143,15 +156,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   // SAVE to LocalStorage
   useEffect(() => {
-    if (likedTracks.length > 0) {
-      localStorage.setItem('vimore_liked_tracks', JSON.stringify(likedTracks));
-    }
+    localStorage.setItem('vimore_liked_tracks', JSON.stringify(likedTracks));
   }, [likedTracks]);
 
   useEffect(() => {
-    if (userPlaylists.length > 0) {
-      localStorage.setItem('vimore_user_playlists', JSON.stringify(userPlaylists));
-    }
+    localStorage.setItem('vimore_user_playlists', JSON.stringify(userPlaylists));
   }, [userPlaylists]);
 
   useEffect(() => {
@@ -250,17 +259,32 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const isTrackLiked = (trackId: string | number) => likedSongIds.has(trackId);
 
-  const createPlaylist = (title: string, firstTrack?: Track) => {
+  // Playlist Methods
+  const openCreatePlaylist = (track?: Track) => {
+    triggerHaptic(10);
+    setTrackForNewPlaylist(track || null);
+    setIsCreatePlaylistOpen(true);
+  };
+
+  const closeCreatePlaylist = () => {
+    setIsCreatePlaylistOpen(false);
+    setTrackForNewPlaylist(null);
+  };
+
+  const confirmCreatePlaylist = (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => {
     triggerHaptic(30);
     const newPlaylist: Playlist = {
       id: Date.now(),
-      title,
+      title: data.title,
+      description: data.description,
+      isPrivate: data.isPrivate,
       creator: "John Doe",
-      cover: firstTrack?.cover || "https://picsum.photos/seed/playlist/400/400",
+      cover: data.cover || trackForNewPlaylist?.cover || "https://picsum.photos/seed/playlist/400/400",
       totalStreams: "0",
-      songs: firstTrack ? [firstTrack] : []
+      songs: trackForNewPlaylist ? [trackForNewPlaylist] : []
     };
     setUserPlaylists(prev => [newPlaylist, ...prev]);
+    closeCreatePlaylist();
   };
 
   const addTrackToPlaylist = (playlistId: string | number, track: Track) => {
@@ -309,7 +333,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   return (
     <MusicContext.Provider value={{
       currentTrack, queue, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds, likedTracks, userPlaylists,
-      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, isTrackLiked, playCollection, addToQueue, createPlaylist, addTrackToPlaylist, triggerHaptic
+      isCreatePlaylistOpen, trackForNewPlaylist,
+      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, isTrackLiked, playCollection, addToQueue,
+      openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic
     }}>
       {children}
     </MusicContext.Provider>
