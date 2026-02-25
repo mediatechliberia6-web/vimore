@@ -6,6 +6,9 @@ import { MusicGrid } from "@/components/music/music-grid";
 import { MusicNav } from "@/components/music/music-nav";
 import { useMusic, Album, Track, Playlist } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 const MOCK_SONGS: Track[] = [
   { id: 1, title: "Essence", artist: "Wizkid ft. Tems", cover: "https://picsum.photos/seed/song1/600/600", duration: 240, streams: "124M" },
@@ -128,6 +131,16 @@ export default function MusicPage() {
         </aside>
 
         <main className="flex flex-col pb-48 relative">
+          {/* Sub-header with Back Button */}
+          <div className="sticky top-[61px] z-30 bg-[#F0F2F5]/80 dark:bg-background/80 backdrop-blur-md px-6 sm:px-10 py-4 flex items-center gap-4 border-b border-border/50">
+            <Link href="/">
+              <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 transition-colors">
+                <ArrowLeft className="h-6 w-6" />
+              </Button>
+            </Link>
+            <h1 className="text-2xl font-black italic uppercase tracking-tighter">Music Hub</h1>
+          </div>
+
           <div className="px-6 sm:px-10 py-10 space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-1000">
             
             {/* 1. Hero Spotlight */}
