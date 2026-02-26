@@ -86,6 +86,7 @@ export interface Post {
   hashtags?: string[];
   images?: string[];
   image?: string;
+  videoUrl?: string; // Added for Reels support
   imageFilter?: string;
   feeling?: { emoji: string; text: string };
   location?: string;
@@ -150,7 +151,7 @@ const INITIAL_USER: User = {
   followers: "8.4k",
   following: "1.2k",
   posts: "142",
-  introUrl: "" // Initialize empty
+  introUrl: ""
 };
 
 const MOCK_CONNECTIONS: Connection[] = [
@@ -328,6 +329,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const savedUnlikes = localStorage.getItem('vimore_unliked_posts');
     const savedSaves = localStorage.getItem('vimore_saved_posts');
     const savedFollowing = localStorage.getItem('vimore_following');
+    const savedLocalPosts = localStorage.getItem('vimore_local_posts');
 
     if (savedUser) {
       try {
@@ -338,6 +340,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (savedUnlikes) setUnlikedPostIds(new Set(JSON.parse(savedUnlikes)));
     if (savedSaves) setSavedPostIds(new Set(JSON.parse(savedSaves)));
     if (savedFollowing) setFollowingUsernames(new Set(JSON.parse(savedFollowing)));
+    if (savedLocalPosts) {
+      try {
+        setPosts([...JSON.parse(savedLocalPosts), ...initialMockPosts]);
+      } catch (e) {}
+    }
   }, []);
 
   useEffect(() => {
@@ -376,7 +383,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
       comments: 0,
       language: detectedLanguage
     };
-    setPosts([newPost, ...posts]);
+    
+    const updatedPosts = [newPost, ...posts];
+    setPosts(updatedPosts);
+    
+    // Save to local storage only user-created posts for persistence
+    const userOnlyPosts = updatedPosts.filter(p => p.user.username === currentUser.username);
+    localStorage.setItem('vimore_local_posts', JSON.stringify(userOnlyPosts));
   };
 
   const addStory = (segmentData: Omit<StorySegment, 'id'>) => {

@@ -1,15 +1,14 @@
-
 "use client";
 
 import { useRef, useState, useEffect, useMemo } from "react";
 import { ReelCard } from "./reel-card";
 import { useMusic } from "@/context/MusicContext";
-import { usePosts } from "@/context/PostContext";
+import { usePosts, Post } from "@/context/PostContext";
 import { ReelTab } from "@/app/reels/page";
 import { Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const MOCK_REELS = [
+const MOCK_REELS_DATA = [
   {
     id: "r1",
     videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-lit-city-at-night-11411-preview.mp4",
@@ -72,47 +71,53 @@ const MOCK_REELS = [
       artist: "Davido",
       cover: "https://picsum.photos/seed/song3/100/100"
     }
-  },
-  {
-    id: "r4",
-    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-fashion-model-in-a-red-light-studio-40029-preview.mp4",
-    user: {
-      name: "Julianne Moore",
-      username: "jmoore",
-      avatar: "https://picsum.photos/seed/50/200/200",
-      role: "Content Creator",
-      isVerified: true
-    },
-    caption: "New fashion drop is live! 👠 Testing the red light aesthetic today. #Fashion #Vibe #Studio",
-    likes: 45000,
-    comments: 210,
-    shares: 56,
-    music: {
-      id: 4,
-      title: "Calm Down",
-      artist: "Rema",
-      cover: "https://picsum.photos/seed/song4/100/100"
-    }
   }
 ];
 
 export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
-  const { followingUsernames } = usePosts();
+  const { posts, followingUsernames } = usePosts();
   const { triggerHaptic } = useMusic();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const filteredReels = useMemo(() => {
-    if (activeTab === "foryou") return MOCK_REELS;
-    return MOCK_REELS.filter(reel => followingUsernames.has(reel.user.username));
-  }, [activeTab, followingUsernames]);
+  const allReels = useMemo(() => {
+    // Convert posts with videoUrl to Reel format
+    const userReels = posts
+      .filter(p => p.videoUrl)
+      .map(p => ({
+        id: p.id,
+        videoUrl: p.videoUrl!,
+        user: {
+          name: p.user.name,
+          username: p.user.username,
+          avatar: p.user.avatar,
+          role: p.user.category || "Creator",
+          isVerified: p.user.isVerified
+        },
+        caption: p.content,
+        likes: p.likes,
+        comments: p.comments,
+        shares: 0,
+        music: {
+          id: 'custom',
+          title: "Original Audio",
+          artist: p.user.name,
+          cover: p.user.avatar
+        }
+      }));
+
+    const combined = [...userReels, ...MOCK_REELS_DATA];
+    
+    if (activeTab === "foryou") return combined;
+    return combined.filter(reel => followingUsernames.has(reel.user.username));
+  }, [activeTab, followingUsernames, posts]);
 
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (filteredReels.length > 0 && !activeReelId) {
-      setActiveReelId(filteredReels[0].id);
+    if (allReels.length > 0 && !activeReelId) {
+      setActiveReelId(allReels[0].id);
     }
-  }, [filteredReels, activeReelId]);
+  }, [allReels, activeReelId]);
 
   useEffect(() => {
     const options = {
@@ -137,15 +142,15 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
     cards?.forEach((card) => observer.observe(card));
 
     return () => observer.disconnect();
-  }, [activeReelId, triggerHaptic, filteredReels]);
+  }, [activeReelId, triggerHaptic, allReels]);
 
   return (
     <div 
       ref={containerRef}
       className="flex-1 w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide bg-black"
     >
-      {filteredReels.length > 0 ? (
-        filteredReels.map((reel) => (
+      {allReels.length > 0 ? (
+        allReels.map((reel) => (
           <div key={reel.id} data-reel-id={reel.id} className="snap-start h-[100dvh] w-full relative">
             <ReelCard 
               {...reel} 

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -29,7 +28,8 @@ import {
   MessageCircleOff,
   Filter,
   Wand2,
-  Trash2
+  Trash2,
+  Video
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -150,13 +150,14 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [isAiLoading, setIsAiLoading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLTextAreaElement>(null); // Corrected ref type locally but kept original if just for consistency
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
   
   const CHARACTER_LIMIT = 2000;
   const MAX_PHOTOS = 6;
   const MAX_POLL_OPTIONS = 8;
+  const MAX_VIDEO_DURATION = 300; // 5 minutes in seconds
 
   useEffect(() => {
     const savedContent = localStorage.getItem('vimore_post_draft');
@@ -243,7 +244,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       localStorage.setItem('vimore_recent_locations', JSON.stringify(updatedRecents));
     }
 
-    // Capture language at creation time
     const creationLanguage = typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en';
 
     addPost({
@@ -259,6 +259,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       theme: selectedTheme.id !== "none" ? selectedTheme.class : undefined,
       images: mediaType === 'image' ? selectedMedia : undefined,
       image: mediaType === 'video' ? undefined : (selectedMedia[0] || undefined),
+      videoUrl: mediaType === 'video' ? selectedMedia[0] : undefined,
       imageFilter: selectedFilter.id !== "none" ? selectedFilter.class : undefined,
       feeling: feeling || undefined,
       location: location || undefined,
@@ -271,7 +272,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       } : undefined
     });
 
-    toast({ title: "Post created!", description: "Your post has been shared with the community." });
+    toast({ title: "Vibe Shared!", description: mediaType === 'video' ? "Your Reel is now live." : "Your post has been shared." });
     localStorage.removeItem('vimore_post_draft');
     
     setContent("");
@@ -322,9 +323,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       setSelectedMedia([]);
       setMediaType(null);
     }
-    // Corrected trigger logic for video input
-    const vInput = document.querySelector('input[type="file"][accept="video/*"]') as HTMLInputElement;
-    vInput?.click();
+    videoInputRef.current?.click();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -347,14 +346,31 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setMediaType('video');
-    setSelectedMedia([]); 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
-      setSelectedMedia([base64String]);
+
+    // Duration Check
+    const videoElement = document.createElement('video');
+    videoElement.preload = 'metadata';
+    videoElement.onloadedmetadata = () => {
+      window.URL.revokeObjectURL(videoElement.src);
+      if (videoElement.duration > MAX_VIDEO_DURATION) {
+        toast({ 
+          variant: "destructive", 
+          title: "Video Too Long", 
+          description: "Reels are limited to 5 minutes or less." 
+        });
+        return;
+      }
+      
+      setMediaType('video');
+      setSelectedMedia([]); 
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setSelectedMedia([base64String]);
+      };
+      reader.readAsDataURL(file);
     };
-    reader.readAsDataURL(file);
+    videoElement.src = URL.createObjectURL(file);
     e.target.value = "";
   };
 
@@ -399,8 +415,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       disabled: isPollOpen || selectedTheme.id !== "none"
     },
     { 
-      icon: Clapperboard, 
-      label: "Video", 
+      icon: Video, 
+      label: "Upload Reel", 
       color: "text-red-500", 
       onClick: handleVideoUploadClick,
       disabled: isPollOpen || selectedTheme.id !== "none"
@@ -479,7 +495,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         <DialogDescription className="sr-only" id="create-post-description">Interface to compose text, upload media, add polls, feelings, and locations.</DialogDescription>
         
         <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={handleFileChange} />
-        <input type="file" className="hidden" accept="video/*" onChange={handleVideoFileChange} />
+        <input type="file" ref={videoInputRef} className="hidden" accept="video/*" onChange={handleVideoFileChange} />
 
         <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0 bg-white dark:bg-card">
           <div className="flex items-center gap-4">

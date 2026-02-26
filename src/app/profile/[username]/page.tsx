@@ -22,7 +22,8 @@ import {
   MessageCircle,
   Zap,
   Languages,
-  UserCheck
+  UserCheck,
+  Clapperboard
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
@@ -99,14 +100,12 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const amIFollowing = isFollowing(username);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Pointer-event cleanup to prevent UI locks
   useEffect(() => {
     if (!confirmUser) {
       document.body.style.pointerEvents = 'auto';
     }
   }, [confirmUser]);
 
-  // Get user data or fallback
   const displayUser = MOCK_USERS[username] || {
     name: username.charAt(0).toUpperCase() + username.slice(1),
     username: username,
@@ -219,6 +218,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   };
 
   const userPosts = useMemo(() => posts.filter(p => p.user.username === username), [posts, username]);
+  const userReels = useMemo(() => userPosts.filter(p => p.videoUrl), [userPosts]);
   const mediaPosts = useMemo(() => userPosts.filter(p => p.image || p.images?.length), [userPosts]);
 
   if (isMe) {
@@ -351,11 +351,32 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
             <Tabs defaultValue="all" className="w-full mt-2">
               <TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0">
                 <TabsTrigger value="all" className="flex-1 font-bold text-sm">Posts</TabsTrigger>
+                <TabsTrigger value="reels" className="flex-1 font-bold text-sm">Reels</TabsTrigger>
                 <TabsTrigger value="media" className="flex-1 font-bold text-sm">Media</TabsTrigger>
               </TabsList>
               
               <TabsContent value="all" className="p-4 space-y-4">
                 {userPosts.map(post => <PostCard key={post.id} {...post} />)}
+              </TabsContent>
+
+              <TabsContent value="reels" className="p-4">
+                <div className="grid grid-cols-3 gap-1">
+                  {userReels.length > 0 ? userReels.map(reel => (
+                    <Link key={reel.id} href="/reels" className="aspect-[9/16] relative group overflow-hidden rounded-xl bg-black">
+                      <video src={reel.videoUrl} className="object-cover w-full h-full opacity-80" muted playsInline />
+                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
+                      <div className="absolute bottom-2 left-2 flex items-center gap-1 text-white text-[10px] font-black">
+                        <Clapperboard className="h-3 w-3" />
+                        {reel.likes}
+                      </div>
+                    </Link>
+                  )) : (
+                    <div className="col-span-3 py-20 text-center text-muted-foreground bg-secondary/10 rounded-[2rem] border-2 border-dashed border-border/50">
+                      <Clapperboard className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                      <p className="font-bold">No Reels yet</p>
+                    </div>
+                  )}
+                </div>
               </TabsContent>
 
               <TabsContent value="media" className="p-4">
@@ -382,7 +403,6 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
         </aside>
       </div>
 
-      {/* Unfollow/Unfriend Confirmation */}
       <AlertDialog open={!!confirmUser} onOpenChange={(open) => !open && setConfirmUser(null)}>
         <AlertDialogContent className="rounded-[2rem] sm:max-w-[400px] z-[200]">
           <AlertDialogHeader>

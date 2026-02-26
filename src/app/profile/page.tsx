@@ -31,7 +31,8 @@ import {
   UserMinus,
   Mic2,
   Trash2,
-  Loader2
+  Loader2,
+  Clapperboard
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
@@ -76,13 +77,11 @@ export default function MyProfilePage() {
 
   const isPlayerActive = currentTrack && !isExpanded;
 
-  // Audio References
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const introInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
-  // Pointer-event cleanup to prevent UI locks
   useEffect(() => {
     if (!confirmUser && !isEditModalOpen) {
       document.body.style.pointerEvents = 'auto';
@@ -177,7 +176,6 @@ export default function MyProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // Restrict duration to 10 seconds
     const audio = document.createElement('audio');
     audio.src = URL.createObjectURL(file);
     
@@ -272,6 +270,7 @@ export default function MyProfilePage() {
   };
 
   const myPosts = useMemo(() => posts.filter(p => p.user.username === currentUser.username), [posts, currentUser.username]);
+  const myReels = useMemo(() => myPosts.filter(p => p.videoUrl), [myPosts]);
   const taggedPosts = useMemo(() => posts.filter(p => p.collaborator?.username === currentUser.username), [posts, currentUser.username]);
   const savedPosts = useMemo(() => posts.filter(p => isPostSaved(p.id)), [posts, isPostSaved]);
 
@@ -455,6 +454,7 @@ export default function MyProfilePage() {
             <Tabs defaultValue="all" className="w-full mt-2">
               <TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0">
                 <TabsTrigger value="all" className="flex-1 font-bold text-sm">Posts</TabsTrigger>
+                <TabsTrigger value="reels" className="flex-1 font-bold text-sm">Reels</TabsTrigger>
                 <TabsTrigger value="tagged" className="flex-1 font-bold text-sm">Tagged</TabsTrigger>
                 <TabsTrigger value="saved" className="flex-1 font-bold text-sm">Vault</TabsTrigger>
               </TabsList>
@@ -463,6 +463,27 @@ export default function MyProfilePage() {
                 {myPosts.length > 0 ? myPosts.map(post => <PostCard key={post.id} {...post} />) : (
                   <div className="py-20 text-center text-muted-foreground bg-secondary/10 rounded-[2rem] border-2 border-dashed border-border/50"><Plus className="h-10 w-10 mx-auto mb-2 opacity-20" /><p className="font-bold">No active vibes</p><p className="text-sm">Start curating your thoughts.</p></div>
                 )}
+              </TabsContent>
+
+              <TabsContent value="reels" className="p-4">
+                <div className="grid grid-cols-3 gap-1">
+                  {myReels.length > 0 ? myReels.map(reel => (
+                    <Link key={reel.id} href="/reels" className="aspect-[9/16] relative group overflow-hidden rounded-xl bg-black">
+                      <video src={reel.videoUrl} className="object-cover w-full h-full opacity-80" muted playsInline />
+                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
+                      <div className="absolute bottom-2 left-2 flex items-center gap-1 text-white text-[10px] font-black">
+                        <Clapperboard className="h-3 w-3" />
+                        {reel.likes}
+                      </div>
+                    </Link>
+                  )) : (
+                    <div className="col-span-3 py-20 text-center text-muted-foreground bg-secondary/10 rounded-[2rem] border-2 border-dashed border-border/50">
+                      <Clapperboard className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                      <p className="font-bold">No Reels yet</p>
+                      <p className="text-sm">Upload your first Vibe.</p>
+                    </div>
+                  )}
+                </div>
               </TabsContent>
 
               <TabsContent value="tagged" className="p-4 space-y-4">
@@ -500,7 +521,6 @@ export default function MyProfilePage() {
       
       <CreateStoryModal isOpen={isStoryModalOpen} onClose={() => setIsStoryModalOpen(false)} />
 
-      {/* Unfollow/Unfriend Confirmation */}
       <AlertDialog open={!!confirmUser} onOpenChange={(open) => !open && setConfirmUser(null)}>
         <AlertDialogContent className="rounded-[2rem] sm:max-w-[400px] z-[200]">
           <AlertDialogHeader>
