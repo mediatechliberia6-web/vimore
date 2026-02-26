@@ -121,6 +121,7 @@ interface PostContextType {
   connections: Connection[];
   setActiveStoryIndex: (index: number | null) => void;
   addPost: (post: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments' | 'shares'>) => void;
+  deletePost: (postId: string) => void;
   addStory: (segment: Omit<StorySegment, 'id'>) => void;
   voteOnStoryPoll: (storyId: string, segmentId: string, optionIndex: number) => void;
   toggleMuteUser: (username: string) => void;
@@ -434,6 +435,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
     safePersist('vimore_local_posts', userOnlyPosts);
   };
 
+  const deletePost = (postId: string) => {
+    setPosts(prev => {
+      const updated = prev.filter(p => p.id !== postId);
+      const userOnlyPosts = updated.filter(p => p.user.username === currentUser.username).slice(0, 10);
+      safePersist('vimore_local_posts', userOnlyPosts);
+      return updated;
+    });
+  };
+
   const addStory = (segmentData: Omit<StorySegment, 'id'>) => {
     const userStoryIndex = stories.findIndex(s => s.user.username === currentUser.username);
     const newSegment: StorySegment = { ...segmentData, id: Date.now().toString() };
@@ -544,6 +554,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       connections,
       setActiveStoryIndex, 
       addPost, 
+      deletePost,
       addStory, 
       voteOnStoryPoll,
       toggleMuteUser,

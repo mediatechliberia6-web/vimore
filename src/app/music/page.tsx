@@ -12,8 +12,25 @@ import { useMusic, Album, Track, Playlist } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search, X, Heart, ListMusic, Plus, Music, Disc3, Download } from "lucide-react";
+import { ArrowLeft, Search, X, Heart, ListMusic, Plus, Music, Disc3, Download, Trash2, MoreVertical } from "lucide-react";
 import Link from "next/link";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 const MOCK_SONGS: Track[] = [
   { id: 1, title: "Essence", artist: "Wizkid ft. Tems", artistUsername: "arivera", cover: "https://picsum.photos/seed/song1/600/600", duration: 240, streams: "124M" },
@@ -75,10 +92,12 @@ const MOCK_ARTISTS = [
 ];
 
 export default function MusicPage() {
-  const { currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, userSongs, userAlbums, openCreatePlaylist, downloadedSongIds, queue } = useMusic();
+  const { currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, userSongs, userAlbums, openCreatePlaylist, downloadedSongIds, queue, deleteUserTrack, deleteUserAlbum, triggerHaptic } = useMusic();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("discover");
   const [libraryTab, setLibraryTab] = useState("playlists");
   const [searchQuery, setSearchQuery] = useState("");
+  const [deleteItem, setDeleteItem] = useState<{ id: string | number, type: 'track' | 'album' } | null>(null);
   
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -125,6 +144,19 @@ export default function MusicPage() {
     });
     return Array.from(uniqueTracksMap.values());
   }, [downloadedSongIds, userSongs, likedTracks]);
+
+  const confirmDelete = () => {
+    if (!deleteItem) return;
+    triggerHaptic(50);
+    if (deleteItem.type === 'track') {
+      deleteUserTrack(deleteItem.id);
+      toast({ title: "Track Withdrawn", description: "Your single has been removed from the network." });
+    } else {
+      deleteUserAlbum(deleteItem.id);
+      toast({ title: "Album Purged", description: "The project has been removed from your discography." });
+    }
+    setDeleteItem(null);
+  };
 
   return (
     <div className={cn(
@@ -288,7 +320,25 @@ export default function MusicPage() {
                           <Button variant="outline" className="rounded-full border-primary text-primary" onClick={() => setActiveTab("upload")}>Go to Studio</Button>
                         </div>
                       ) : (
-                        <MusicGrid type="song" items={userSongs} />
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                          {userSongs.map(song => (
+                            <div key={song.id} className="group relative">
+                              <MusicGrid type="song" items={[song]} />
+                              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-black/40 text-white"><MoreVertical className="h-4 w-4" /></Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem className="text-destructive gap-2" onClick={() => setDeleteItem({ id: song.id, type: 'track' })}>
+                                      <Trash2 className="h-4 w-4" /> Withdraw Track
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
                   )}
@@ -309,7 +359,25 @@ export default function MusicPage() {
                           <Button variant="outline" className="rounded-full border-primary text-primary" onClick={() => setActiveTab("upload")}>Open Studio</Button>
                         </div>
                       ) : (
-                        <MusicGrid type="album" items={userAlbums} />
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                          {userAlbums.map(album => (
+                            <div key={album.id} className="group relative">
+                              <MusicGrid type="album" items={[album]} />
+                              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-black/40 text-white"><MoreVertical className="h-4 w-4" /></Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem className="text-destructive gap-2" onClick={() => setDeleteItem({ id: album.id, type: 'album' })}>
+                                      <Trash2 className="h-4 w-4" /> Purge Album
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
                   )}
@@ -343,6 +411,29 @@ export default function MusicPage() {
 
       <MusicNav activeTab={activeTab} onTabChange={setActiveTab} />
       <CreatePlaylistModal />
+
+      <AlertDialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}>
+        <AlertDialogContent className="rounded-[2.5rem] sm:max-w-[400px]">
+          <AlertDialogHeader>
+            <div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4">
+              <Trash2 className="h-8 w-8" />
+            </div>
+            <AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">Purge Content?</AlertDialogTitle>
+            <AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">
+              This will permanently remove your signature from the ViMore music network.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6">
+            <AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50 border-none">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="rounded-xl h-12 font-black italic uppercase tracking-widest bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20"
+            >
+              Confirm Purge
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

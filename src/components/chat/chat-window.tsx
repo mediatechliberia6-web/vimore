@@ -73,6 +73,11 @@ interface Message {
   };
 }
 
+interface ChatWindowProps {
+  contact: Connection;
+  onBack: () => void;
+}
+
 const QUICK_REACTIONS = ["🔥", "❤️", "🙌", "💯", "🤯", "🚀"];
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
@@ -209,6 +214,11 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const handleDownloadMessage = (id: string) => {
     setMessages(prev => prev.map(m => m.id === id ? { ...m, isDownloaded: true } : m));
     toast({ title: "Node Synced", description: "Vibe cached for offline playback." });
+  };
+
+  const handleDeleteMessage = (id: string) => {
+    setMessages(prev => prev.filter(m => m.id !== id));
+    toast({ title: "Message Purged", description: "Node removed from conversation." });
   };
 
   const openViewOnce = (id: string) => {
@@ -418,6 +428,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                 onMediaOpen={openFullScreen}
                 onDownload={handleDownloadMessage}
                 onExternalLink={setExternalPortalUrl}
+                onDelete={handleDeleteMessage}
               />
             </div>
           ))}

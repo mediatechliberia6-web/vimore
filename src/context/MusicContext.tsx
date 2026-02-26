@@ -107,6 +107,8 @@ interface MusicContextType {
   // Publishing & Management
   publishTrack: (track: Track) => void;
   publishAlbum: (album: Album) => void;
+  deleteUserTrack: (trackId: string | number) => void;
+  deleteUserAlbum: (albumId: string | number) => void;
   openCreatePlaylist: (firstTrack?: Track) => void;
   closeCreatePlaylist: () => void;
   confirmCreatePlaylist: (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => void;
@@ -490,6 +492,19 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setTrackStats(newStats);
   };
 
+  const deleteUserTrack = (trackId: string | number) => {
+    setUserSongs(prev => prev.filter(t => t.id !== trackId));
+    setTrackStats(prev => {
+      const next = { ...prev };
+      delete next[trackId];
+      return next;
+    });
+  };
+
+  const deleteUserAlbum = (albumId: string | number) => {
+    setUserAlbums(prev => prev.filter(a => a.id !== albumId));
+  };
+
   // Playlist Methods
   const openCreatePlaylist = (track?: Track) => {
     triggerHaptic(10);
@@ -581,7 +596,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       isCaptureStudioOpen, captureTrack, openCaptureStudio, closeCaptureStudio, setCaptureTrack,
       setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, 
       toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked,
-      playCollection, addToQueue, publishTrack, publishAlbum,
+      playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum,
       openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic
     }}>
       {children}

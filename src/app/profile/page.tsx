@@ -33,7 +33,8 @@ import {
   Mic2,
   Trash2,
   Loader2,
-  Clapperboard
+  Clapperboard,
+  Image as ImageIcon
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
@@ -56,6 +57,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -80,6 +87,7 @@ export default function MyProfilePage() {
 
   const [confirmUser, setConfirmUser] = useState<any | null>(null);
   const [confirmType, setConfirmType] = useState<"unfollow" | "unfriend">("unfollow");
+  const [visualToDelete, setVisualToDelete] = useState<"avatar" | "cover" | null>(null);
 
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -183,6 +191,19 @@ export default function MyProfilePage() {
     });
 
     toast({ title: "Presence Refreshed", description: `Your profile ${refinementMode} is now updated and shared.` });
+  };
+
+  const handleRemoveVisual = () => {
+    if (!visualToDelete) return;
+    triggerHaptic(50);
+    if (visualToDelete === 'avatar') {
+      updateCurrentUser({ avatar: "https://picsum.photos/seed/default/400/400" });
+      toast({ title: "Avatar Purged", description: "Profile visual reset to default." });
+    } else {
+      updateCurrentUser({ cover: "" });
+      toast({ title: "Cover Purged", description: "Workspace background removed." });
+    }
+    setVisualToDelete(null);
   };
 
   const handleIntroUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -347,9 +368,25 @@ export default function MyProfilePage() {
                 src={currentUser.cover || "https://picsum.photos/seed/my_cover/1200/400"} 
                 alt="Cover" fill className="object-cover dark:brightness-75 transition-transform duration-700 group-hover:scale-105" 
               />
-              <button onClick={() => coverInputRef.current?.click()} className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                <div className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30"><Camera className="h-6 w-6" /></div>
-              </button>
+              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30 text-white hover:bg-white/40 transition-all">
+                      <Camera className="h-6 w-6" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="center" className="rounded-xl">
+                    <DropdownMenuItem className="gap-2 font-bold" onClick={() => coverInputRef.current?.click()}>
+                      <ImageIcon className="h-4 w-4" /> Change Background
+                    </DropdownMenuItem>
+                    {currentUser.cover && (
+                      <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive font-bold" onClick={() => setVisualToDelete('cover')}>
+                        <Trash2 className="h-4 w-4" /> Remove Visual
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
               <input type="file" ref={coverInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageChoice(e, 'cover')} />
             </div>
 
@@ -360,9 +397,23 @@ export default function MyProfilePage() {
                     <AvatarImage src={currentUser.avatar} />
                     <AvatarFallback>JD</AvatarFallback>
                   </Avatar>
-                  <button onClick={() => avatarInputRef.current?.click()} className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                    <Camera className="h-8 w-8" />
-                  </button>
+                  <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30 text-white hover:bg-white/40 transition-all">
+                          <Camera className="h-8 w-8" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="center" className="rounded-xl">
+                        <DropdownMenuItem className="gap-2 font-bold" onClick={() => avatarInputRef.current?.click()}>
+                          <ImageIcon className="h-4 w-4" /> Refine Photo
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive font-bold" onClick={() => setVisualToDelete('avatar')}>
+                          <Trash2 className="h-4 w-4" /> Reset Signature
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                   <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageChoice(e, 'avatar')} />
                 </div>
               </div>
@@ -559,6 +610,29 @@ export default function MyProfilePage() {
               className="rounded-xl h-12 font-black italic uppercase tracking-widest bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20"
             >
               Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!visualToDelete} onOpenChange={(open) => !open && setVisualToDelete(null)}>
+        <AlertDialogContent className="rounded-[2.5rem] sm:max-w-[400px]">
+          <AlertDialogHeader>
+            <div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4">
+              <Trash2 className="h-8 w-8" />
+            </div>
+            <AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">Purge Visual?</AlertDialogTitle>
+            <AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">
+              This will remove this signature visual from your workspace profile.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6">
+            <AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50 border-none">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleRemoveVisual}
+              className="rounded-xl h-12 font-black italic uppercase tracking-widest bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20"
+            >
+              Confirm Purge
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
