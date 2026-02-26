@@ -151,37 +151,19 @@ export function PostCard(props: PostCardProps) {
     }
   };
 
-  const handleLike = () => {
-    triggerHaptic(20);
-    toggleLikePost(id);
-  };
-
-  const handleUnlike = () => {
-    triggerHaptic(15);
-    toggleUnlikePost(id);
-  };
-
-  const handleSave = () => {
-    triggerHaptic(5);
-    toggleSavePost(id);
-    toast({ description: isBookmarked ? "Removed from Vault" : "Saved to Vault ✨" });
-  };
+  const handleLike = () => { triggerHaptic(20); toggleLikePost(id); };
+  const handleUnlike = () => { triggerHaptic(15); toggleUnlikePost(id); };
+  const handleSave = () => { triggerHaptic(5); toggleSavePost(id); toast({ description: isBookmarked ? "Removed" : "Saved ✨" }); };
 
   const handleTranslate = async () => {
     triggerHaptic();
-    if (translatedText) {
-      setTranslatedText(null);
-      return;
-    }
+    if (translatedText) { setTranslatedText(null); return; }
     setIsTranslating(true);
     try {
       const result = await aiTranslatePost({ postContent: content, targetLanguage: viewerLanguage || "English" });
       setTranslatedText(result.translation);
-    } catch (error) {
-      toast({ description: "Translation failed", variant: "destructive" });
-    } finally {
-      setIsTranslating(false);
-    }
+    } catch (error) { toast({ description: "Translation failed", variant: "destructive" }); }
+    finally { setIsTranslating(false); }
   };
 
   const handleVote = (originalIndex: number) => {
@@ -189,28 +171,18 @@ export function PostCard(props: PostCardProps) {
     if (!poll) return;
     const newOptions = [...localPollOptions];
     let newTotal = localTotalVotes;
-
     if (userVote === originalIndex) {
       newOptions[originalIndex] = { ...newOptions[originalIndex], votes: Math.max(0, newOptions[originalIndex].votes - 1) };
       newTotal = Math.max(0, newTotal - 1);
       setUserVote(null);
     } else {
-      if (userVote !== null) {
-        newOptions[userVote] = { ...newOptions[userVote], votes: Math.max(0, newOptions[userVote].votes - 1) };
-        newTotal -= 1;
-      }
+      if (userVote !== null) { newOptions[userVote] = { ...newOptions[userVote], votes: Math.max(0, newOptions[userVote].votes - 1) }; newTotal -= 1; }
       newOptions[originalIndex] = { ...newOptions[originalIndex], votes: newOptions[originalIndex].votes + 1 };
       newTotal += 1;
       setUserVote(originalIndex);
     }
     setLocalPollOptions(newOptions);
     setLocalTotalVotes(newTotal);
-  };
-
-  const handleArchiveClick = () => {
-    triggerHaptic();
-    archivePost(id);
-    toast({ title: "Archived", description: "Post moved to your private archives." });
   };
 
   const rankedPollOptions = useMemo(() => {
@@ -233,232 +205,76 @@ export function PostCard(props: PostCardProps) {
   if (isHidden) return null;
 
   const isLimitedType = !!theme || allImages.length > 0 || !!videoUrl || !!poll;
-  const TRUNCATE_LIMIT = 150; 
+  const TRUNCATE_LIMIT = 150; // HIGH-VELOCITY THRESHOLD
   const isLongContent = content.length > TRUNCATE_LIMIT && !isLimitedType;
   const displayedContent = isLongContent && !isExpanded ? content.slice(0, TRUNCATE_LIMIT) + "..." : content;
 
-  const isMe = user.username === currentUser.username;
-  const profileHref = isMe ? "/profile" : `/profile/${user.username}`;
-
   return (
-    <Card className={cn(
-      "border-none shadow-sm overflow-hidden bg-white dark:bg-card mb-4 transition-colors relative",
-      isShared ? "ring-1 ring-primary/10 shadow-none scale-[0.98] mx-2" : "ring-1 ring-black/5 dark:ring-white/5"
-    )}>
-      {isPinned && !isShared && (
-        <div className="absolute top-0 right-0 z-10 p-1 px-2 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-bl-lg flex items-center gap-1 shadow-md">
-          <Pin className="h-2 w-2 fill-current" /> Pinned
-        </div>
-      )}
-
+    <Card className={cn("border-none shadow-sm overflow-hidden bg-white dark:bg-card mb-4 transition-colors relative ring-1 ring-black/5 dark:ring-white/5")}>
+      {isPinned && !isShared && <div className="absolute top-0 right-0 z-10 p-1 px-2 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-bl-lg flex items-center gap-1 shadow-md"><Pin className="h-2 w-2 fill-current" /> Pinned</div>}
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 bg-white dark:bg-card">
         <div className="flex items-center gap-2">
-          <Link href={profileHref}>
-            <Avatar className="h-10 w-10 border border-primary/10 hover:opacity-80 transition-opacity">
-              <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback>{user.name[0]}</AvatarFallback>
-            </Avatar>
-          </Link>
+          <Link href={`/profile/${user.username}`}><Avatar className="h-10 w-10 border border-primary/10 hover:opacity-80 transition-opacity"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name[0]}</AvatarFallback></Avatar></Link>
           <div className="flex flex-col">
             <div className="flex items-center gap-1">
-              <div className="flex items-center flex-wrap gap-x-1">
-                <Link href={profileHref} className="font-bold text-sm text-foreground hover:underline">{user.name}</Link>
-                {collaborator && (
-                  <><span className="text-xs text-muted-foreground font-medium">with</span><Link href={collaborator.username === currentUser.username ? '/profile' : `/profile/${collaborator.username}`} className="font-bold text-sm text-foreground hover:underline">{collaborator.name}</Link></>
-                )}
-                {feeling && <span className="text-xs text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
-                {user.isVerified && <CheckCircle2 className="h-3 w-3 text-primary fill-primary text-white" />}
-              </div>
+              <Link href={`/profile/${user.username}`} className="font-bold text-sm text-foreground hover:underline">{user.name}</Link>
+              {feeling && <span className="text-xs text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
+              {user.isVerified && <CheckCircle2 className="h-3 w-3 text-primary fill-primary text-white" />}
             </div>
-            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-              <span>{time}</span>
-              {!isShared && (
-                <>
-                  <span>•</span>
-                  <Badge variant="ghost" className="p-0 h-auto font-normal text-[10px]">Public</Badge>
-                  {isSeries && (
-                    <><span className="mx-1">•</span><div className="flex items-center gap-0.5 text-primary font-bold"><GalleryVerticalEnd className="h-2.5 w-2.5" /><span>{seriesTitle || "Curated"}</span></div></>
-                  )}
-                </>
-              )}
-            </div>
+            <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><span>{time}</span><span>•</span><Badge variant="ghost" className="p-0 h-auto font-normal text-[10px]">Public</Badge></div>
           </div>
         </div>
-        {!isShared && (
-          <div className="flex items-center gap-0.5">
-            <Button 
-              variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isBookmarked && "text-primary")}
-              onClick={handleSave}
-            >
-              <Bookmark className={cn("h-4 w-4", isBookmarked && "fill-current")} />
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full hover:bg-secondary">
-                  <MoreHorizontal className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5">
-                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setIsHidden(true)}><EyeOff className="h-4 w-4" />Hide post</DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={handleArchiveClick}><Archive className="h-4 w-4" />Archive post</DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => { triggerHaptic(); togglePinPost(id); }}><Pin className="h-4 w-4" />{isPinned ? "Unpin post" : "Pin to profile"}</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="gap-2 cursor-pointer text-destructive focus:text-destructive"><Flag className="h-4 w-4" />Report post</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )}
+        <div className="flex items-center gap-0.5">
+          <Button variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isBookmarked && "text-primary")} onClick={handleSave}><Bookmark className={cn("h-4 w-4", isBookmarked && "fill-current")} /></Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full"><MoreHorizontal className="h-5 w-5" /></Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5">
+              <DropdownMenuItem className="gap-2" onClick={() => setIsHidden(true)}><EyeOff className="h-4 w-4" />Hide post</DropdownMenuItem>
+              <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); togglePinPost(id); }}><Pin className="h-4 w-4" />{isPinned ? "Unpin" : "Pin to profile"}</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </CardHeader>
-      
       <CardContent className={cn("px-3 pb-2 space-y-2", theme && !isShared ? theme + " py-12 px-8 text-center" : "bg-white dark:bg-card")}>
-        <div className="space-y-1">
-          <div className={cn("text-[13px] leading-relaxed whitespace-pre-wrap", theme && !isShared ? "text-2xl leading-tight font-black italic uppercase tracking-tighter" : "text-foreground")}>
-            {renderContent(translatedText || displayedContent)}
-          </div>
-          {isLongContent && (
-            <button onClick={() => setIsExpanded(!isExpanded)} className={cn("text-[13px] font-bold hover:underline", theme && !isShared ? "text-white/80" : "text-primary")}>
-              {isExpanded ? "Show less" : "See more"}
-            </button>
-          )}
-          {!theme && showTranslateButton && (
-            <div className="flex items-center gap-2 pt-1">
-              <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[10px] font-bold text-muted-foreground hover:text-primary gap-1" onClick={handleTranslate} disabled={isTranslating}>
-                {isTranslating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" />}
-                {translatedText ? "Show Original" : "Translate"}
-              </Button>
-            </div>
-          )}
-        </div>
-        
-        {hashtags && hashtags.length > 0 && !theme && (
-          <div className="flex flex-wrap gap-1">
-            {hashtags.map((tag) => <span key={tag} className="text-xs font-bold text-primary hover:underline cursor-pointer">#{tag}</span>)}
-          </div>
-        )}
-
+        <div className={cn("text-[13px] leading-relaxed whitespace-pre-wrap", theme && !isShared ? "text-2xl leading-tight font-black italic uppercase tracking-tighter" : "text-foreground")}>{renderContent(translatedText || displayedContent)}</div>
+        {isLongContent && <button onClick={() => setIsExpanded(!isExpanded)} className="text-[13px] font-bold text-primary">{isExpanded ? "Show less" : "See more"}</button>}
         {poll && !theme && (
           <div className="mt-3 p-4 rounded-xl border border-primary/10 bg-primary/5 space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="font-bold text-sm text-foreground">{poll.question}</h4>
-              <Badge variant="secondary" className="bg-primary/10 text-primary border-none text-[8px] font-black h-4 px-2">RANKED</Badge>
-            </div>
+            <div className="flex items-center justify-between"><h4 className="font-bold text-sm">{poll.question}</h4><Badge variant="secondary" className="bg-primary/10 text-primary border-none text-[8px] font-black h-4 px-2">RANKED</Badge></div>
             <div className="space-y-2">
               {(isPollExpanded ? rankedPollOptions : rankedPollOptions.slice(0, 4)).map((option, i) => {
-                const percentage = localTotalVotes > 0 ? (option.votes / localTotalVotes) * 100 : 0;
+                const p = localTotalVotes > 0 ? (option.votes / localTotalVotes) * 100 : 0;
                 const isSelected = userVote === option.originalIndex;
                 return (
-                  <button 
-                    key={option.originalIndex} 
-                    onClick={() => handleVote(option.originalIndex)} 
-                    className={cn(
-                      "w-full relative h-10 rounded-lg border overflow-hidden group transition-all", 
-                      isSelected ? "border-primary bg-primary/10 shadow-sm" : "border-primary/20 hover:border-primary/40 bg-white/40"
-                    )}
-                  >
-                    <div 
-                      className={cn("absolute inset-y-0 left-0 transition-all duration-700 ease-out", isSelected ? "bg-primary/20" : "bg-primary/5")} 
-                      style={{ width: `${percentage}%` }} 
-                    />
+                  <button key={option.originalIndex} onClick={() => handleVote(option.originalIndex)} className={cn("w-full relative h-10 rounded-lg border overflow-hidden transition-all", isSelected ? "border-primary bg-primary/10" : "border-primary/20 bg-white/40")}>
+                    <div className={cn("absolute inset-y-0 left-0 transition-all duration-700", isSelected ? "bg-primary/20" : "bg-primary/5")} style={{ width: `${p}%` }} />
                     <div className="absolute inset-0 flex items-center justify-between px-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black text-primary/40 italic">#{i + 1}</span>
-                        <span className={cn("font-medium", isSelected && "text-primary font-bold")}>{option.text}{isSelected && <CheckCircle2 className="inline ml-2 h-3.5 w-3.5" />}</span>
-                      </div>
-                      <span className="text-xs font-black text-primary">{Math.round(percentage)}%</span>
+                      <div className="flex items-center gap-2"><span className="text-[10px] font-black text-primary/40">#{i + 1}</span><span className={cn("font-medium", isSelected && "text-primary font-bold")}>{option.text}</span></div>
+                      <span className="text-xs font-black text-primary">{Math.round(p)}%</span>
                     </div>
                   </button>
                 );
               })}
             </div>
             <div className="flex items-center justify-between pt-1 border-t border-primary/5">
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                {localTotalVotes.toLocaleString()} {localTotalVotes === 1 ? 'Vote' : 'Votes'}
-              </span>
-              {rankedPollOptions.length > 4 && (
-                <button onClick={() => setIsPollExpanded(!isPollExpanded)} className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">
-                  {isPollExpanded ? "Collapse" : `View all ${rankedPollOptions.length} options`}
-                </button>
-              )}
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{localTotalVotes.toLocaleString()} Votes</span>
+              {rankedPollOptions.length > 4 && <button onClick={() => setIsPollExpanded(!isPollExpanded)} className="text-[10px] font-black text-primary uppercase">{isPollExpanded ? "Collapse" : "View all"}</button>}
             </div>
           </div>
         )}
-
         {allImages.length > 0 && !isShared && !theme && (
-          <div className="relative mt-2 -mx-3 sm:mx-0 group">
-            {allImages.length === 1 ? (
-              <div className="relative aspect-video rounded-lg overflow-hidden border border-border/50">
-                <Image src={allImages[0]} alt="Post" fill className={cn("object-cover", imageFilter)} />
-              </div>
-            ) : (
-              <Carousel className="w-full">
-                <CarouselContent>
-                  {allImages.map((img, i) => (
-                    <CarouselItem key={i}><div className="relative aspect-video rounded-lg overflow-hidden"><Image src={img} alt="Post" fill className={cn("object-cover", imageFilter)} /></div></CarouselItem>
-                  ))}
-                </CarouselContent>
-                <CarouselPrevious className="left-2 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <CarouselNext className="right-2 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </Carousel>
-            )}
-          </div>
+          <div className="relative mt-2 -mx-3 sm:mx-0"><Carousel className="w-full"><CarouselContent>{allImages.map((img, i) => (<CarouselItem key={i}><div className="relative aspect-video rounded-lg overflow-hidden"><Image src={img} alt="Post" fill className={cn("object-cover", imageFilter)} /></div></CarouselItem>))}</CarouselContent></Carousel></div>
         )}
-
-        {videoUrl && !isShared && !theme && (
-          <div className="relative mt-2 -mx-3 sm:mx-0 rounded-lg overflow-hidden border border-border/50 bg-black aspect-video flex items-center justify-center">
-            <video src={videoUrl} className="w-full h-full object-cover" controls playsInline />
-          </div>
-        )}
-
-        {!isShared && (
-          <div className={cn("flex items-center justify-between py-1 border-b mt-2", theme ? "border-white/20 mb-2" : "border-secondary")}>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                <div className="bg-primary p-1 rounded-full text-white ring-2 ring-white dark:ring-card"><ThumbsUp className="h-2.5 w-2.5 fill-current" /></div>
-                <span className={cn("text-[11px] ml-1 font-bold", theme ? "text-white" : "text-muted-foreground")}>{effectiveLikes}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="bg-destructive p-1 rounded-full text-white ring-2 ring-white dark:ring-card"><ThumbsDown className="h-2.5 w-2.5 fill-current" /></div>
-                <span className={cn("text-[11px] ml-1 font-bold", theme ? "text-white" : "text-muted-foreground")}>{effectiveUnlikes}</span>
-              </div>
-            </div>
-            <div className={cn("flex items-center gap-2 text-[11px] font-bold", theme ? "text-white/80" : "text-muted-foreground")}>
-              <span>{commentsDisabled ? 0 : comments} comments</span>
-              <span>•</span>
-              <span>28 shares</span>
-            </div>
-          </div>
-        )}
+        {videoUrl && !isShared && !theme && <div className="relative mt-2 -mx-3 sm:mx-0 rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center"><video src={videoUrl} className="w-full h-full object-cover" controls playsInline /></div>}
       </CardContent>
-
-      {!isShared && (
-        <CardFooter className="p-1 px-3 flex flex-col gap-1 relative bg-white dark:bg-card">
-          <div className="flex items-center justify-between gap-1 w-full">
-            <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isLiked ? "text-primary" : "text-muted-foreground")} onClick={handleLike}>
-              <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} /> Like
-            </button>
-            <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isUnliked ? "text-destructive" : "text-muted-foreground")} onClick={handleUnlike}>
-              <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} /> Dislike
-            </button>
-            <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary")} onClick={() => setShowComments(!showComments)} disabled={commentsDisabled}>
-              <MessageCircle className="h-4 w-4" /> Comment
-            </button>
-            <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary")}>
-              <Share2 className="h-4 w-4" /> Share
-            </button>
-          </div>
-          {showComments && !commentsDisabled && (
-            <div className="w-full pt-4 space-y-4 animate-in slide-in-from-top-2 border-t mt-1 pb-3">
-              <div className="flex items-center gap-2">
-                <Avatar className="h-8 w-8"><AvatarImage src={INITIAL_USER.avatar} /></Avatar>
-                <div className="flex-1 bg-secondary/30 rounded-full px-4 py-2 flex items-center gap-2">
-                  <Input placeholder="Write a comment..." className="bg-transparent border-none focus-visible:ring-0 h-7 text-xs p-0 text-foreground" value={commentText} onChange={(e) => setCommentText(e.target.value)} />
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => triggerHaptic(5)}><Send className="h-4 w-4" /></Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </CardFooter>
-      )}
+      <CardFooter className="p-1 px-3 flex flex-col gap-1 relative bg-white dark:bg-card">
+        <div className="flex items-center justify-between gap-1 w-full">
+          <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isLiked ? "text-primary" : "text-muted-foreground")} onClick={handleLike}><ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} /> Like</button>
+          <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isUnliked ? "text-destructive" : "text-muted-foreground")} onClick={handleUnlike}><ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} /> Dislike</button>
+          <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary" onClick={() => setShowComments(!showComments)} disabled={commentsDisabled}><MessageCircle className="h-4 w-4" /> Comment</button>
+          <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary"><Share2 className="h-4 w-4" /> Share</button>
+        </div>
+      </CardFooter>
     </Card>
   );
 }

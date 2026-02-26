@@ -159,8 +159,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const MAX_PHOTOS = 6;
   const MAX_POLL_OPTIONS = 8;
 
-  // REFINED CHARACTER LIMITS: 150 for themed/media, 2000 for pure text
-  const isLimitedType = selectedTheme.id !== "none" || selectedMedia.length > 0 || mediaType !== null;
+  // HIGH-VELOCITY LIMITS: 150 for themed/media, 2000 for pure text
+  const isLimitedType = selectedTheme.id !== "none" || selectedMedia.length > 0 || mediaType !== null || isPollOpen;
   const currentLimit = isLimitedType ? 150 : 2000;
   const progress = (content.length / currentLimit) * 100;
   const isOverLimit = content.length > currentLimit;
@@ -323,7 +323,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       toast({ title: "Incompatible content", description: "You cannot add a video to a themed post.", variant: "destructive" });
       return;
     }
-    
     triggerHaptic(15);
     setIsOpen(false);
     openCaptureStudio();
@@ -380,155 +379,48 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   };
 
   const actionItems = [
-    { 
-      icon: ImageIcon, 
-      label: "Photo", 
-      color: "text-green-500", 
-      onClick: handlePhotoUploadClick,
-      disabled: isPollOpen || selectedTheme.id !== "none"
-    },
-    { 
-      icon: Video, 
-      label: "Upload Reel", 
-      color: "text-red-500", 
-      onClick: handleVideoUploadClick,
-      disabled: isPollOpen || selectedTheme.id !== "none"
-    },
-    { 
-      icon: ListTodo, 
-      label: "Create Poll", 
-      color: "text-purple-500", 
-      onClick: togglePoll,
-      disabled: selectedMedia.length > 0 || selectedTheme.id !== "none"
-    },
-    {
-      icon: Palette,
-      label: "Theme",
-      color: "text-pink-500",
-      onClick: () => {
-        if (selectedMedia.length > 0 || isPollOpen) {
-          toast({ title: "Incompatible content", description: "Themes only work for text posts.", variant: "destructive" });
-          return;
-        }
-        setShowThemeSelector(!showThemeSelector);
-        setShowFeelingSelector(false);
-        setShowLocationSelector(false);
-        setShowSettings(false);
-      }
-    },
-    { 
-      icon: Smile, 
-      label: "Feeling/activity", 
-      color: "text-yellow-500", 
-      onClick: () => {
-        setShowFeelingSelector(!showFeelingSelector);
-        setShowLocationSelector(false);
-        setShowThemeSelector(false);
-        setShowSettings(false);
-      } 
-    },
-    { 
-      icon: UserPlus, 
-      label: "Tag people", 
-      color: "text-blue-500", 
-      onClick: () => setContent(prev => prev + " @") 
-    },
-    { 
-      icon: MapPin, 
-      label: "Add location", 
-      color: "text-red-500",
-      onClick: () => {
-        setShowLocationSelector(!showLocationSelector);
-        setShowFeelingSelector(false);
-        setShowThemeSelector(false);
-        setShowSettings(false);
-      } 
-    },
-    {
-      icon: Settings2,
-      label: "Post Settings",
-      color: "text-slate-500",
-      onClick: () => {
-        setShowSettings(!showSettings);
-        setShowFeelingSelector(false);
-        setShowLocationSelector(false);
-        setShowThemeSelector(false);
-      }
-    }
+    { icon: ImageIcon, label: "Photo", color: "text-green-500", onClick: handlePhotoUploadClick, disabled: isPollOpen || selectedTheme.id !== "none" },
+    { icon: Video, label: "Upload Reel", color: "text-red-500", onClick: handleVideoUploadClick, disabled: isPollOpen || selectedTheme.id !== "none" },
+    { icon: ListTodo, label: "Create Poll", color: "text-purple-500", onClick: togglePoll, disabled: selectedMedia.length > 0 || selectedTheme.id !== "none" },
+    { icon: Palette, label: "Theme", color: "text-pink-500", onClick: () => { if (selectedMedia.length > 0 || isPollOpen) { toast({ title: "Incompatible content", description: "Themes only work for text posts.", variant: "destructive" }); return; } setShowThemeSelector(!showThemeSelector); setShowFeelingSelector(false); setShowLocationSelector(false); setShowSettings(false); } },
+    { icon: Smile, label: "Feeling/activity", color: "text-yellow-500", onClick: () => { setShowFeelingSelector(!showFeelingSelector); setShowLocationSelector(false); setShowThemeSelector(false); setShowSettings(false); } },
+    { icon: UserPlus, label: "Tag people", color: "text-blue-500", onClick: () => setContent(prev => prev + " @") },
+    { icon: MapPin, label: "Add location", color: "text-red-500", onClick: () => { setShowLocationSelector(!showLocationSelector); setShowFeelingSelector(false); setShowThemeSelector(false); setShowSettings(false); } },
+    { icon: Settings2, label: "Post Settings", color: "text-slate-500", onClick: () => { setShowSettings(!showSettings); setShowFeelingSelector(false); setShowLocationSelector(false); setShowThemeSelector(false); } }
   ];
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
-      
-      <DialogContent className="max-w-none w-screen h-[100dvh] m-0 rounded-none border-none flex flex-col p-0 gap-0 overflow-hidden bg-white dark:bg-background translate-x-0 translate-y-0 left-0 top-0" aria-describedby="create-post-description">
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="max-w-none w-screen h-[100dvh] m-0 rounded-none border-none flex flex-col p-0 gap-0 overflow-hidden bg-white dark:bg-background translate-x-0 translate-y-0 left-0 top-0">
         <DialogTitle className="sr-only">Create a New Post</DialogTitle>
-        <DialogDescription className="sr-only" id="create-post-description">Interface to compose text, upload media, add polls, feelings, and locations.</DialogDescription>
-        
-        <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={handleFileChange} />
-
         <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0 bg-white dark:bg-card">
           <div className="flex items-center gap-4">
-            <DialogClose asChild>
-              <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" aria-label="Go back">
-                <ArrowLeft className="h-6 w-6" />
-              </Button>
-            </DialogClose>
+            <DialogClose asChild><Button variant="ghost" size="icon" className="rounded-full h-8 w-8"><ArrowLeft className="h-6 w-6" /></Button></DialogClose>
             <DialogTitle className="font-bold text-lg">Create post</DialogTitle>
           </div>
           <div className="flex items-center gap-2">
-             <Button 
-              variant="ghost" 
-              size="icon" 
-              className="text-primary h-9 w-9" 
-              onClick={handleAiEnhance}
-              disabled={isAiLoading || !content.trim()}
-              title="AI Enhance"
-            >
-              {isAiLoading ? <Clock className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}
-            </Button>
-            {content && (
-              <Button variant="ghost" size="icon" className="text-destructive h-9 w-9" onClick={clearDraft} title="Clear Draft">
-                <Trash2 className="h-5 w-5" />
-              </Button>
-            )}
-            <Button 
-              variant="ghost" 
-              className={cn("font-bold text-primary text-base", (!content.trim() && selectedMedia.length === 0 && !pollQuestion || isOverLimit) && "opacity-50")}
-              disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit}
-              onClick={handlePost}
-            >
-              POST
-            </Button>
+             <Button variant="ghost" size="icon" className="text-primary h-9 w-9" onClick={handleAiEnhance} disabled={isAiLoading || !content.trim()}>{isAiLoading ? <Clock className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}</Button>
+            {content && <Button variant="ghost" size="icon" className="text-destructive h-9 w-9" onClick={clearDraft}><Trash2 className="h-5 w-5" /></Button>}
+            <Button variant="ghost" className={cn("font-bold text-primary text-base", ((!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit) && "opacity-50")} disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit} onClick={handlePost}>POST</Button>
           </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto pb-safe">
           <div className="p-4 flex items-center gap-3">
-            <Avatar className="h-12 w-12 border border-primary/10">
-              <AvatarImage src={USER_PROFILE.avatar} />
-              <AvatarFallback>JD</AvatarFallback>
-            </Avatar>
+            <Avatar className="h-12 w-12 border border-primary/10"><AvatarImage src={USER_PROFILE.avatar} /><AvatarFallback>JD</AvatarFallback></Avatar>
             <div className="flex flex-col gap-0.5">
               <div className="flex flex-wrap items-center gap-1">
                 <p className="font-bold text-base">{USER_PROFILE.name}</p>
                 {feeling && <span className="text-[13px] text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
                 {location && <span className="text-[13px] text-muted-foreground">— in <span className="font-bold text-foreground">{location}</span></span>}
               </div>
-              
               <div className="flex items-center gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="sm" className="h-7 px-2 bg-secondary/60 rounded-md flex items-center gap-1.5">
-                      <privacy.icon className="h-3.5 w-3.5" />
-                      <span className="text-[13px] font-bold">{privacy.label}</span>
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    </Button>
+                    <Button variant="secondary" size="sm" className="h-7 px-2 bg-secondary/60 rounded-md flex items-center gap-1.5"><privacy.icon className="h-3.5 w-3.5" /><span className="text-[13px] font-bold">{privacy.label}</span><ChevronDown className="h-3.5 w-3.5" /></Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-64 rounded-xl p-2">
-                    <div className="px-2 py-1.5 text-xs font-bold text-muted-foreground uppercase">Select Audience</div>
                     {privacySettings.map((item) => (
                       <DropdownMenuItem key={item.id} className="flex flex-col items-start gap-0.5 py-3 cursor-pointer" onClick={() => setPrivacy(item)}>
                         <div className="flex items-center gap-2 font-bold text-sm"><item.icon className="h-4 w-4" />{item.label}</div>
@@ -537,34 +429,15 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="sm" className={cn(
-                      "h-7 px-2 rounded-md flex items-center gap-1.5",
-                      collaborator ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/60"
-                    )}>
-                      <Users2 className="h-3.5 w-3.5" />
-                      <span className="text-[13px] font-bold">
-                        {collaborator ? `With ${collaborator.name}` : "Collaborator"}
-                      </span>
-                      <ChevronDown className="h-3.5 w-3.5" />
-                    </Button>
+                    <Button variant="secondary" size="sm" className={cn("h-7 px-2 rounded-md flex items-center gap-1.5", collaborator ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/60")}><Users2 className="h-3.5 w-3.5" /><span className="text-[13px] font-bold">{collaborator ? `With ${collaborator.name}` : "Collaborator"}</span><ChevronDown className="h-3.5 w-3.5" /></Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-64 rounded-xl p-2">
-                    <div className="px-2 py-1.5 text-xs font-bold text-muted-foreground uppercase">Tag Collaborator</div>
-                    {collaborator && (
-                      <DropdownMenuItem className="py-2.5 text-destructive font-bold cursor-pointer" onClick={() => setCollaborator(null)}>
-                        Remove Collaborator
-                      </DropdownMenuItem>
-                    )}
                     {mockFriends.map((friend) => (
                       <DropdownMenuItem key={friend.username} className="flex items-center gap-3 py-2.5 cursor-pointer" onClick={() => setCollaborator(friend)}>
                         <Avatar className="h-8 w-8"><AvatarImage src={friend.avatar} /><AvatarFallback>{friend.name[0]}</AvatarFallback></Avatar>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-sm">{friend.name}</span>
-                          <span className="text-[10px] text-muted-foreground">@{friend.username}</span>
-                        </div>
+                        <div className="flex flex-col"><span className="font-bold text-sm">{friend.name}</span><span className="text-[10px] text-muted-foreground">@{friend.username}</span></div>
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
@@ -574,45 +447,13 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           </div>
 
           <div className="p-4 border-b flex gap-4 bg-secondary/10">
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => applyFormatting("**", "**")} title="Bold">
-              <Bold className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => applyFormatting("_", "_")} title="Italic">
-              <Italic className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => applyFormatting("`", "`")} title="Code">
-              <Code className="h-4 w-4" />
-            </Button>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => applyFormatting("**", "**")}><Bold className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => applyFormatting("_", "_")}><Italic className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => applyFormatting("`", "`")}><Code className="h-4 w-4" /></Button>
           </div>
 
           <div className={cn("px-4 relative min-h-[220px] transition-all duration-300 flex items-center justify-center p-8", selectedTheme.class)}>
-            <Textarea 
-              ref={textareaRef}
-              placeholder={isLimitedType ? "Short vibe... (150 chars max)" : "What's on your mind? (2000 chars max)"}
-              className={cn(
-                "border-none focus-visible:ring-0 text-2xl resize-none p-0 placeholder:text-muted-foreground/50 min-h-[160px] bg-transparent text-center",
-                selectedTheme.id !== "none" ? "text-white placeholder:text-white/60" : "text-foreground"
-              )}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              autoFocus
-            />
-            
-            {isTagging && (
-              <div className="absolute top-0 left-4 right-4 z-50 mt-1 bg-white dark:bg-card border rounded-xl shadow-xl p-2 animate-in fade-in slide-in-from-top-2">
-                <p className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mention Friends</p>
-                {mockFriends.map((friend) => (
-                  <button key={friend.username} className="w-full flex items-center gap-3 p-2 hover:bg-secondary rounded-lg transition-colors" onClick={() => handleMention(friend)}>
-                    <Avatar className="h-8 w-8"><AvatarImage src={friend.avatar} /><AvatarFallback>{friend.name[0]}</AvatarFallback></Avatar>
-                    <div className="text-left">
-                      <span className="font-bold text-sm block">{friend.name}</span>
-                      <span className="text-[10px] text-muted-foreground">@{friend.username}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
+            <Textarea ref={textareaRef} placeholder={isLimitedType ? "Short vibe... (150 chars max)" : "What's on your mind? (2000 chars max)"} className={cn("border-none focus-visible:ring-0 text-2xl resize-none p-0 min-h-[160px] bg-transparent text-center", selectedTheme.id !== "none" ? "text-white placeholder:text-white/60" : "text-foreground")} value={content} onChange={(e) => setContent(e.target.value)} autoFocus />
             <div className="absolute bottom-4 right-4 flex items-center gap-2">
               <div className="relative w-6 h-6">
                 <svg className="w-full h-full" viewBox="0 0 36 36">
@@ -624,291 +465,32 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           </div>
 
-          {showThemeSelector && (
-            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-white dark:bg-card shadow-sm animate-in fade-in slide-in-from-top-2">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-bold text-primary uppercase tracking-wider">Select Background Theme</span>
-                <button onClick={() => setShowThemeSelector(false)} className="text-muted-foreground hover:text-foreground">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <ScrollArea className="w-full whitespace-nowrap pb-2">
-                <div className="flex gap-3">
-                  {backgroundThemes.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => { setSelectedTheme(t); setShowThemeSelector(false); }}
-                      className={cn(
-                        "h-12 w-12 rounded-lg shrink-0 border-2 transition-all flex items-center justify-center text-[10px] font-bold",
-                        t.class,
-                        selectedTheme.id === t.id ? "border-primary scale-110 shadow-lg" : "border-transparent"
-                      )}
-                    >
-                      {t.id === "none" && <X className="h-4 w-4 text-muted-foreground" />}
-                    </button>
-                  ))}
-                </div>
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            </div>
-          )}
-
-          {showFeelingSelector && (
-            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-white dark:bg-card shadow-sm animate-in fade-in slide-in-from-top-2">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-bold text-primary uppercase tracking-wider">How are you feeling?</span>
-                <button onClick={() => setShowFeelingSelector(false)} className="text-muted-foreground hover:text-foreground">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {feelings.map((f) => (
-                  <button
-                    key={f.text}
-                    onClick={() => { setFeeling(f); setShowFeelingSelector(false); }}
-                    className={cn(
-                      "flex items-center gap-2 p-2.5 rounded-xl text-sm transition-all border",
-                      feeling?.text === f.text 
-                        ? "bg-primary/10 border-primary text-primary font-bold" 
-                        : "hover:bg-secondary/50 border-transparent text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <span className="text-lg">{f.emoji}</span>
-                    <span className="truncate">{f.text}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {showLocationSelector && (
-            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-white dark:bg-card shadow-sm animate-in fade-in slide-in-from-top-2">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-bold text-primary uppercase tracking-wider">Add Location</span>
-                <button onClick={() => setShowLocationSelector(false)} className="text-muted-foreground hover:text-foreground">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              
-              <form onSubmit={handleLocationSubmit} className="relative mb-4">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Where are you?" 
-                  className="pl-9 rounded-xl border-primary/10 focus-visible:ring-primary h-11"
-                  value={locationSearch}
-                  onChange={(e) => setLocationSearch(e.target.value)}
-                  autoFocus
-                />
-              </form>
-
-              <ScrollArea className="h-[200px] -mx-4 px-4">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">From your profile</p>
-                    <button
-                      onClick={() => { setLocation(USER_PROFILE.homeLocation); setShowLocationSelector(false); }}
-                      className={cn(
-                        "w-full flex items-center justify-between p-3 rounded-xl transition-all border",
-                        location === USER_PROFILE.homeLocation ? "bg-primary/10 border-primary" : "hover:bg-secondary/50 border-transparent"
-                      )}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-                          <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm font-bold">{USER_PROFILE.homeLocation}</p>
-                          <p className="text-[10px] text-muted-foreground">Home Town</p>
-                        </div>
-                      </div>
-                      {location === USER_PROFILE.homeLocation && <Check className="h-4 w-4 text-primary" />}
-                    </button>
-                  </div>
-
-                  {recentLocations.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Recent places</p>
-                      <div className="space-y-1">
-                        {recentLocations.map((loc) => (
-                          <button
-                            key={loc}
-                            onClick={() => { setLocation(loc); setShowLocationSelector(false); }}
-                            className={cn(
-                              "w-full flex items-center justify-between p-3 rounded-xl transition-all border",
-                              location === loc ? "bg-primary/10 border-primary" : "hover:bg-secondary/50 border-transparent"
-                            )}
-                          >
-                            <div className="flex items-center gap-3">
-                              <History className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm font-medium">{loc}</span>
-                            </div>
-                            {location === loc && <Check className="h-4 w-4 text-primary" />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
-          )}
-
-          {showSettings && (
-            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-white dark:bg-card shadow-sm animate-in fade-in slide-in-from-top-2">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-bold text-primary uppercase tracking-wider">Post Settings</span>
-                <button onClick={() => setShowSettings(false)} className="text-muted-foreground hover:text-foreground">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/20">
-                  <div className="flex items-center gap-3">
-                    <MessageCircleOff className="h-5 w-5 text-muted-foreground" />
-                    <div className="flex flex-col">
-                      <Label htmlFor="disable-comments" className="text-sm font-bold cursor-pointer">Disable Comments</Label>
-                      <span className="text-[10px] text-muted-foreground">Prevent others from commenting on this post</span>
-                    </div>
-                  </div>
-                  <Switch 
-                    id="disable-comments" 
-                    checked={commentsDisabled} 
-                    onCheckedChange={setCommentsDisabled} 
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
           {isPollOpen && (
             <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-primary/5 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-primary uppercase">Poll Settings</span>
-                <button onClick={() => setIsPollOpen(false)}><X className="h-4 w-4" /></button>
-              </div>
               <Input placeholder="Ask a question..." className="bg-white border-primary/10 rounded-xl" value={pollQuestion} onChange={(e) => setPollQuestion(e.target.value)} />
               <div className="space-y-2">
                 {pollOptions.map((opt, i) => (
                   <div key={i} className="flex gap-2 items-center">
-                    <Input placeholder={`Option ${i + 1}`} className="bg-white border-primary/10 rounded-xl flex-1" value={opt} onChange={(e) => {
-                      const newOptions = [...pollOptions];
-                      newOptions[i] = e.target.value;
-                      setPollOptions(newOptions);
-                    }} />
+                    <Input placeholder={`Option ${i + 1}`} className="bg-white border-primary/10 rounded-xl flex-1" value={opt} onChange={(e) => { const n = [...pollOptions]; n[i] = e.target.value; setPollOptions(n); }} />
                     {pollOptions.length > 2 && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPollOptions(pollOptions.filter((_, idx) => idx !== i))}><X className="h-4 w-4" /></Button>}
                   </div>
                 ))}
-                {pollOptions.length < MAX_POLL_OPTIONS && (
-                  <Button variant="ghost" className="w-full text-xs font-bold text-primary" onClick={() => setPollOptions([...pollOptions, ""])}>
-                    <PlusSquare className="h-4 w-4 mr-2" /> Add Option ({pollOptions.length}/{MAX_POLL_OPTIONS})
-                  </Button>
-                )}
+                {pollOptions.length < MAX_POLL_OPTIONS && <Button variant="ghost" className="w-full text-xs font-bold text-primary" onClick={() => setPollOptions([...pollOptions, ""])}><PlusSquare className="h-4 w-4 mr-2" /> Add Option</Button>}
               </div>
-              
-              <div className="flex items-center justify-between pt-2 border-t border-primary/10">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-primary" />
-                  <span className="text-[11px] font-bold text-muted-foreground uppercase">Poll Duration</span>
-                </div>
-                <Select value={pollDuration} onValueChange={setPollDuration}>
-                  <SelectTrigger className="w-[140px] h-8 text-xs bg-white rounded-lg">
-                    <SelectValue placeholder="Duration" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pollDurations.map((d) => (
-                      <SelectItem key={d} value={d} className="text-xs">{d}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-
-          {selectedMedia.length > 0 && (
-            <div className="px-4 pb-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Media Preview</span>
-                {mediaType === 'image' && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-7 px-2 text-[10px] font-bold text-primary gap-1"
-                    onClick={() => setShowFilterSelector(!showFilterSelector)}
-                  >
-                    <Filter className="h-3 w-3" />
-                    Filters
-                  </Button>
-                )}
-              </div>
-
-              {showFilterSelector && mediaType === 'image' && (
-                <div className="mb-4 animate-in fade-in slide-in-from-top-2">
-                  <ScrollArea className="w-full whitespace-nowrap pb-2">
-                    <div className="flex gap-2">
-                      {imageFilters.map((f) => (
-                        <button
-                          key={f.id}
-                          onClick={() => { setSelectedFilter(f); setShowFilterSelector(false); }}
-                          className={cn(
-                            "flex flex-col items-center gap-1.5 p-1 rounded-lg border transition-all shrink-0",
-                            selectedFilter.id === f.id ? "border-primary bg-primary/5" : "border-transparent"
-                          )}
-                        >
-                          <div className={cn("h-12 w-16 rounded bg-muted overflow-hidden relative", f.class)}>
-                            <Image src={selectedMedia[0]} alt={f.label} fill className="object-cover" />
-                          </div>
-                          <span className="text-[9px] font-bold">{f.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
-                </div>
-              )}
-
-              <ScrollArea className="w-full whitespace-nowrap rounded-xl">
-                <div className="flex gap-2 p-1">
-                  {selectedMedia.map((url, i) => (
-                    <div key={i} className="relative w-32 h-32 rounded-lg overflow-hidden shrink-0 border border-primary/10 bg-black flex items-center justify-center">
-                      {mediaType === 'video' ? (
-                        <><video src={url} className="object-cover w-full h-full opacity-60" /><Play className="absolute h-8 w-8 text-white fill-white/20" /></>
-                      ) : (
-                        <Image src={url} alt={`Preview ${i}`} fill className={cn("object-cover", selectedFilter.class)} />
-                      )}
-                      <button onClick={() => removeMedia(i)} className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 z-10"><X className="h-3 w-3" /></button>
-                    </div>
-                  ))}
-                  {mediaType === 'image' && selectedMedia.length < MAX_PHOTOS && !isPollOpen && (
-                    <button onClick={handlePhotoUploadClick} className="w-32 h-32 rounded-lg border-2 border-dashed border-primary/20 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:bg-primary/5">
-                      <PlusSquare className="h-6 w-6" /><span className="text-[10px] font-bold">Add More</span>
-                    </button>
-                  )}
-                </div>
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
             </div>
           )}
 
           <div className="border-t">
             {actionItems.map((item, i) => (
               <button key={i} onClick={item.onClick} disabled={item.disabled} className={cn("w-full flex items-center justify-between p-4 transition-colors", item.disabled ? "opacity-30 cursor-not-allowed" : "hover:bg-secondary/20")}>
-                <div className="flex items-center gap-4">
-                  <item.icon className={cn("h-6 w-6", item.color)} />
-                  <span className="text-base font-medium">{item.label}</span>
-                </div>
+                <div className="flex items-center gap-4"><item.icon className={cn("h-6 w-6", item.color)} /><span className="text-base font-medium">{item.label}</span></div>
               </button>
             ))}
           </div>
         </div>
 
         <div className="p-4 bg-white dark:bg-card border-t shrink-0">
-          <Button 
-            className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" 
-            disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit} 
-            onClick={handlePost}
-          >
-            POST
-          </Button>
+          <Button className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit} onClick={handlePost}>POST</Button>
         </div>
       </DialogContent>
     </Dialog>

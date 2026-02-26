@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
@@ -40,7 +39,7 @@ const FILTERS = [
   { id: "arctic", label: "Arctic", class: "hue-rotate-[180deg] saturate-125 brightness-110" },
 ];
 
-const RECORDING_LIMIT = 300; // 5 minutes in seconds
+const RECORDING_LIMIT = 300; // 5 minutes
 
 export function CaptureStudio() {
   const { isCaptureStudioOpen, closeCaptureStudio, captureTrack, setCaptureTrack, triggerHaptic } = useMusic();
@@ -77,65 +76,62 @@ export function CaptureStudio() {
 
   const stopStream = useCallback(() => {
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach(track => {
+        track.stop();
+        track.enabled = false;
+      });
       setStream(null);
     }
   }, [stream]);
 
   const startCamera = useCallback(async () => {
-    try {
-      // Clear any existing stream
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
+    // CRITICAL: Robust release of hardware before re-acquisition to prevent NotReadableError
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+    }
 
-      // HIGH FIDELITY CONSTRAINTS: Dimension-First approach for clarity
+    try {
+      // Dimension-First Handshake: Request high-res portrait natively
       const constraints = {
         video: { 
           facingMode: cameraMode,
-          // Requesting specific HD dimensions to force high-quality sensor use
-          width: cameraMode === 'user' ? { ideal: 1080 } : { ideal: 1920 },
-          height: cameraMode === 'user' ? { ideal: 1920 } : { ideal: 1080 },
-          frameRate: { ideal: 60, min: 30 },
-          aspectRatio: { ideal: 9/16 }, 
+          width: { ideal: 1080 },
+          height: { ideal: 1920 },
+          aspectRatio: { ideal: 9/16 },
+          frameRate: { ideal: 60, min: 30 }
         },
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 48000, 
+          sampleRate: 48000
         }
       };
 
       const newStream = await navigator.mediaDevices.getUserMedia(constraints);
       
-      const track = newStream.getVideoTracks()[0];
-      const capabilities = track.getCapabilities() as any;
+      const videoTrack = newStream.getVideoTracks()[0];
+      const capabilities = videoTrack.getCapabilities() as any;
       
-      // Hardware Optimization handshake
+      // Hardware Optimization: Continuous Focus & Exposure for back lens clarity
       const advanced: any[] = [];
-      if (capabilities.focusMode?.includes('continuous')) {
-        advanced.push({ focusMode: 'continuous' });
-      }
-      if (capabilities.exposureMode?.includes('continuous')) {
-        advanced.push({ exposureMode: 'continuous' });
-      }
+      if (capabilities.focusMode?.includes('continuous')) advanced.push({ focusMode: 'continuous' });
+      if (capabilities.exposureMode?.includes('continuous')) advanced.push({ exposureMode: 'continuous' });
       
-      // Manual Zoom Support
+      // Zoom capability probing
       if (capabilities.zoom) {
         setIsZoomSupported(true);
         setMinZoom(capabilities.zoom.min || 1);
         setMaxZoom(capabilities.zoom.max || 1);
-        setZoom(track.getSettings().zoom || 1);
+        setZoom(videoTrack.getSettings().zoom || 1);
       } else {
         setIsZoomSupported(false);
       }
 
       if (advanced.length > 0) {
         try {
-          await track.applyConstraints({ advanced } as any);
+          await videoTrack.applyConstraints({ advanced } as any);
         } catch (e) {
-          console.warn("Advanced hardware handshake bypassed", e);
+          console.warn("Advanced lens handshake bypassed", e);
         }
       }
 
@@ -144,29 +140,27 @@ export function CaptureStudio() {
         videoRef.current.srcObject = newStream;
       }
     } catch (error) {
-      console.error("Studio entrance blocked", error);
+      console.error("Studio source error:", error);
       toast({ 
         variant: "destructive", 
-        title: "Lens Access Error", 
-        description: "Please check your browser permissions to enter the creation studio." 
+        title: "Hardware Conflict", 
+        description: "Could not start video source. Please ensure other camera apps are closed." 
       });
       closeCaptureStudio();
     }
-  }, [cameraMode, closeCaptureStudio, stream, toast]);
+  }, [cameraMode, closeCaptureStudio, toast]);
 
   useEffect(() => {
     if (isCaptureStudioOpen && !recordedUrl) {
       startCamera();
     }
-  }, [isCaptureStudioOpen, cameraMode, recordedUrl, startCamera]);
-
-  // Handle closing studio
-  useEffect(() => {
-    if (!isCaptureStudioOpen) {
-      stopStream();
-      resetStudio();
-    }
-  }, [isCaptureStudioOpen, stopStream]);
+    return () => {
+      // Ensure we release camera if the modal closes or flips
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, [isCaptureStudioOpen, cameraMode, recordedUrl]);
 
   const resetStudio = () => {
     setIsRecording(false);
@@ -184,15 +178,11 @@ export function CaptureStudio() {
     if (!stream || !isZoomSupported) return;
     const track = stream.getVideoTracks()[0];
     try {
-      await track.applyConstraints({
-        advanced: [{ zoom: value }]
-      } as any);
+      await track.applyConstraints({ advanced: [{ zoom: value }] } as any);
       setZoom(value);
-      if (value === minZoom || value === maxZoom) {
-        triggerHaptic(10);
-      }
+      if (value === minZoom || value === maxZoom) triggerHaptic(10);
     } catch (e) {
-      console.error("Zoom constraint failed", e);
+      console.error("Zoom lock failure", e);
     }
   };
 
@@ -204,15 +194,13 @@ export function CaptureStudio() {
     if (capabilities.torch) {
       triggerHaptic(5);
       try {
-        await track.applyConstraints({
-          advanced: [{ torch: !isFlashOn }]
-        } as any);
+        await track.applyConstraints({ advanced: [{ torch: !isFlashOn }] } as any);
         setIsFlashOn(!isFlashOn);
       } catch (e) {
-        console.error("Flash relay failure", e);
+        console.error("Flash handshake failure", e);
       }
     } else {
-      toast({ description: "Flash not supported on this sensor." });
+      toast({ description: "Flash not supported on this lens." });
     }
   };
 
@@ -232,7 +220,7 @@ export function CaptureStudio() {
 
     const recorder = new MediaRecorder(stream, { 
       mimeType,
-      videoBitsPerSecond: 8000000 
+      videoBitsPerSecond: 8000000 // 8Mbps high-fidelity
     });
     mediaRecorderRef.current = recorder;
 
@@ -245,13 +233,12 @@ export function CaptureStudio() {
       const url = URL.createObjectURL(blob);
       setRecordedUrl(url);
       setIsProcessing(false);
-      // Stop camera once recorded to switch to preview mode
+      // Finalize hardware session
       stopStream();
     };
 
     recorder.start();
     setIsRecording(true);
-    setIsProcessing(false);
 
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
@@ -277,22 +264,15 @@ export function CaptureStudio() {
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const video = document.createElement('video');
     video.preload = 'metadata';
     const tempUrl = URL.createObjectURL(file);
-    
     video.onloadedmetadata = () => {
       window.URL.revokeObjectURL(tempUrl);
       if (video.duration > RECORDING_LIMIT) {
-        toast({ 
-          variant: "destructive", 
-          title: "Clip Too Long", 
-          description: "Reels are capped at 5 minutes for high-velocity streaming." 
-        });
+        toast({ variant: "destructive", title: "Clip Too Long", description: "Reels are capped at 5 minutes." });
         return;
       }
-      
       triggerHaptic(10);
       setRecordedUrl(URL.createObjectURL(file));
       stopStream();
@@ -303,25 +283,20 @@ export function CaptureStudio() {
   const handlePublish = () => {
     if (!recordedUrl) return;
     triggerHaptic(100);
-    
     addPost({
       user: currentUser,
-      content: `Captured a vibe with **${captureTrack?.title || 'Original Audio'}** ⚡️ #CaptureStudio #HighFidelity`,
+      content: `Captured a high-fidelity vibe with **${captureTrack?.title || 'Original Audio'}** ⚡️ #ViMore #HighFidelity`,
       videoUrl: recordedUrl,
       language: 'en'
     });
-
-    toast({ title: "Launch Successful", description: "Your high-fidelity vibe is now live." });
+    toast({ title: "Launch Successful", description: "Your vibe is now live." });
     closeCaptureStudio();
   };
 
   const filteredSongs = useMemo(() => {
     if (!soundSearchQuery) return ALL_SONGS;
     const q = soundSearchQuery.toLowerCase();
-    return ALL_SONGS.filter(s => 
-      s.title.toLowerCase().includes(q) || 
-      s.artist.toLowerCase().includes(q)
-    );
+    return ALL_SONGS.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q));
   }, [soundSearchQuery]);
 
   const toggleSoundPreview = (track: Track) => {
@@ -331,12 +306,12 @@ export function CaptureStudio() {
       triggerHaptic(10);
       setPreviewTrackId(track.id);
       if (!audioPreviewRef.current) {
-        audioPreviewRef.current = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'); // Mock audio
+        audioPreviewRef.current = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'); 
       } else {
         audioPreviewRef.current.pause();
         audioPreviewRef.current.currentTime = 0;
       }
-      audioPreviewRef.current.play().catch(e => console.error("Preview failed", e));
+      audioPreviewRef.current.play().catch(() => {});
     }
   };
 
@@ -348,19 +323,10 @@ export function CaptureStudio() {
     setPreviewTrackId(null);
   };
 
-  const handleSelectSound = (track: Track) => {
-    triggerHaptic(25);
-    setCaptureTrack(track);
-    setIsSearchingSound(false);
-    stopPreview();
-    toast({ title: "Sonic Selected", description: `${track.title} synced to recording.` });
-  };
-
   if (!isCaptureStudioOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[250] bg-black flex flex-col animate-in fade-in duration-500 overflow-hidden">
-      
       <div className="relative flex-1 bg-zinc-950 flex items-center justify-center overflow-hidden">
         {recordedUrl ? (
           <div className="relative w-full h-full animate-in zoom-in-95 duration-500">
@@ -371,7 +337,6 @@ export function CaptureStudio() {
               loop 
               playsInline 
             />
-            <div className="absolute inset-0 bg-black/20 pointer-events-none" />
           </div>
         ) : (
           <video 
@@ -387,7 +352,6 @@ export function CaptureStudio() {
           />
         )}
 
-        {/* Studio Controls Header */}
         <div className="absolute top-6 left-0 right-0 z-50 flex flex-col items-center gap-4 px-6">
           <div className="flex items-center justify-between w-full">
             <Button variant="ghost" size="icon" className="text-white bg-black/20 backdrop-blur-md rounded-full" onClick={closeCaptureStudio}>
@@ -397,7 +361,7 @@ export function CaptureStudio() {
             <div className="flex-1 flex justify-center">
               <button 
                 onClick={() => { triggerHaptic(5); setIsSearchingSound(true); }}
-                className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-full px-4 py-2 flex items-center gap-3 max-w-[200px] group cursor-pointer hover:bg-black/60 transition-all active:scale-95"
+                className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-full px-4 py-2 flex items-center gap-3 max-w-[200px] group hover:bg-black/60 transition-all active:scale-95"
               >
                 <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center animate-pulse shrink-0">
                   <Music2 className="h-3 w-3 text-white" />
@@ -417,9 +381,7 @@ export function CaptureStudio() {
               >
                 Launch
               </Button>
-            ) : (
-              <div className="w-10" /> 
-            )}
+            ) : <div className="w-10" />}
           </div>
 
           {isRecording && (
@@ -432,59 +394,26 @@ export function CaptureStudio() {
           )}
         </div>
 
-        {/* Right Interaction Rail */}
         {!recordedUrl && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-6">
-            <button 
-              className="flex flex-col items-center gap-1.5 group"
-              onClick={handleFlipCamera}
-            >
-              <div className="h-11 w-11 rounded-full bg-black/30 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white group-active:scale-90 transition-all">
-                <RefreshCw className="h-5 w-5" />
-              </div>
+            <button className="flex flex-col items-center gap-1.5 group" onClick={handleFlipCamera}>
+              <div className="h-11 w-11 rounded-full bg-black/30 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white group-active:scale-90 transition-all"><RefreshCw className="h-5 w-5" /></div>
               <span className="text-[8px] font-black text-white uppercase tracking-[0.2em] drop-shadow-md">Flip</span>
             </button>
-
-            <button 
-              className="flex flex-col items-center gap-1.5 group"
-              onClick={handleToggleFlash}
-            >
-              <div className={cn(
-                "h-11 w-11 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all",
-                isFlashOn ? "bg-primary text-white border-primary shadow-[0_0_15px_rgba(153,64,229,0.5)]" : "bg-black/30 text-white border-white/10"
-              )}>
-                <Zap className={cn("h-5 w-5", isFlashOn && "fill-current")} />
-              </div>
+            <button className="flex flex-col items-center gap-1.5 group" onClick={handleToggleFlash}>
+              <div className={cn("h-11 w-11 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all", isFlashOn ? "bg-primary text-white border-primary shadow-lg" : "bg-black/30 text-white border-white/10")}><Zap className={cn("h-5 w-5", isFlashOn && "fill-current")} /></div>
               <span className="text-[8px] font-black text-white uppercase tracking-[0.2em] drop-shadow-md">Flash</span>
             </button>
-
-            <button 
-              className="flex flex-col items-center gap-1.5 group"
-              onClick={() => { triggerHaptic(5); setShowFilters(!showFilters); }}
-            >
-              <div className={cn(
-                "h-11 w-11 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all",
-                showFilters ? "bg-accent text-white border-accent shadow-[0_0_15px_rgba(110,150,255,0.5)]" : "bg-black/30 text-white border-white/10"
-              )}>
-                <Filter className="h-5 w-5" />
-              </div>
+            <button className="flex flex-col items-center gap-1.5 group" onClick={() => setShowFilters(!showFilters)}>
+              <div className={cn("h-11 w-11 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all", showFilters ? "bg-accent text-white border-accent" : "bg-black/30 text-white border-white/10")}><Filter className="h-5 w-5" /></div>
               <span className="text-[8px] font-black text-white uppercase tracking-[0.2em] drop-shadow-md">Filters</span>
             </button>
 
-            {/* Manual Zoom Control Rail */}
             {isZoomSupported && !isRecording && (
               <div className="flex flex-col items-center gap-4 py-4 bg-black/20 backdrop-blur-md rounded-full border border-white/10">
                 <ZoomIn className="h-4 w-4 text-white/60" />
                 <div className="h-32 flex flex-col items-center">
-                  <Slider
-                    orientation="vertical"
-                    min={minZoom}
-                    max={maxZoom}
-                    step={0.1}
-                    value={[zoom]}
-                    onValueChange={(val) => handleZoomChange(val[0])}
-                    className="h-full"
-                  />
+                  <Slider orientation="vertical" min={minZoom} max={maxZoom} step={0.1} value={[zoom]} onValueChange={(val) => handleZoomChange(val[0])} className="h-full" />
                 </div>
                 <ZoomOut className="h-4 w-4 text-white/60" />
               </div>
@@ -492,86 +421,39 @@ export function CaptureStudio() {
           </div>
         )}
 
-        {/* Bottom Interaction Area */}
         <div className="absolute bottom-10 left-0 right-0 z-50 px-8 flex items-center justify-between">
           {!recordedUrl ? (
             <>
-              <div 
-                className="flex flex-col items-center gap-2 cursor-pointer group"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <div className="h-12 w-12 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center overflow-hidden transition-transform group-hover:scale-110 active:scale-90">
-                  <ImageIcon className="h-6 w-6 text-white/60" />
-                </div>
+              <div className="flex flex-col items-center gap-2 cursor-pointer group" onClick={() => fileInputRef.current?.click()}>
+                <div className="h-12 w-12 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center transition-transform group-hover:scale-110 active:scale-90"><ImageIcon className="h-6 w-6 text-white/60" /></div>
                 <span className="text-[8px] font-black text-white uppercase tracking-[0.2em]">Upload</span>
                 <input type="file" ref={fileInputRef} className="hidden" accept="video/*" onChange={handleUpload} />
               </div>
-
               <div className="relative">
-                <div className={cn(
-                  "absolute inset-0 rounded-full blur-xl transition-all duration-500",
-                  isRecording ? "bg-destructive/40 scale-150" : "bg-primary/20 scale-110"
-                )} />
-                <button 
-                  className={cn(
-                    "relative h-20 w-20 rounded-full border-4 flex items-center justify-center transition-all duration-300 active:scale-90 shadow-2xl",
-                    isRecording ? "border-white p-1" : "border-white"
-                  )}
-                  onClick={isRecording ? stopRecording : startRecording}
-                >
-                  <div className={cn(
-                    "rounded-full transition-all duration-300",
-                    isRecording ? "h-10 w-10 bg-destructive rounded-lg" : "h-16 w-16 bg-white"
-                  )} />
+                <div className={cn("absolute inset-0 rounded-full blur-xl transition-all duration-500", isRecording ? "bg-destructive/40 scale-150" : "bg-primary/20 scale-110")} />
+                <button className="relative h-20 w-20 rounded-full border-4 border-white flex items-center justify-center transition-all duration-300 active:scale-90 shadow-2xl" onClick={isRecording ? stopRecording : startRecording}>
+                  <div className={cn("rounded-full transition-all duration-300", isRecording ? "h-10 w-10 bg-destructive rounded-lg" : "h-16 w-16 bg-white")} />
                 </button>
               </div>
-
               <div className="flex flex-col items-center gap-2">
-                <div className="h-12 w-12 rounded-xl border border-primary/20 bg-primary/5 flex flex-col items-center justify-center">
-                  <span className="text-[8px] font-black text-primary leading-none">PRO</span>
-                  <span className="text-[10px] font-black text-white">HD</span>
-                </div>
+                <div className="h-12 w-12 rounded-xl border border-primary/20 bg-primary/5 flex flex-col items-center justify-center"><span className="text-[8px] font-black text-primary leading-none">PRO</span><span className="text-[10px] font-black text-white">HD</span></div>
                 <span className="text-[8px] font-black text-white uppercase tracking-[0.2em]">Cinematic</span>
               </div>
             </>
           ) : (
             <div className="w-full flex items-center justify-between gap-4">
-              <Button 
-                variant="ghost" 
-                className="flex-1 bg-white/10 backdrop-blur-md text-white border border-white/10 rounded-2xl h-14 font-black uppercase italic tracking-widest text-xs"
-                onClick={resetStudio}
-              >
-                <Trash2 className="mr-2 h-4 w-4" /> Discard
-              </Button>
-              <Button 
-                className="flex-1 bg-primary text-white border border-primary/20 rounded-2xl h-14 font-black uppercase italic tracking-widest text-xs shadow-xl shadow-primary/20"
-                onClick={handlePublish}
-              >
-                Launch Vibe <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
+              <Button variant="ghost" className="flex-1 bg-white/10 backdrop-blur-md text-white border border-white/10 rounded-2xl h-14 font-black uppercase text-xs" onClick={resetStudio}><Trash2 className="mr-2 h-4 w-4" /> Discard</Button>
+              <Button className="flex-1 bg-primary text-white border border-primary/20 rounded-2xl h-14 font-black uppercase text-xs shadow-xl" onClick={handlePublish}>Launch Vibe <ChevronRight className="ml-2 h-4 w-4" /></Button>
             </div>
           )}
         </div>
 
-        {/* Filter Selection Panel */}
         {showFilters && !recordedUrl && (
-          <div className="absolute bottom-36 left-0 right-0 z-[60] animate-in slide-in-from-bottom-4 duration-300 px-6">
+          <div className="absolute bottom-36 left-0 right-0 z-[60] px-6">
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
               {FILTERS.map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => { triggerHaptic(5); setActiveFilter(f); }}
-                  className={cn(
-                    "flex flex-col items-center gap-2 shrink-0 group",
-                    activeFilter.id === f.id ? "scale-110" : "opacity-60"
-                  )}
-                >
-                  <div className={cn(
-                    "h-16 w-16 rounded-2xl border-2 overflow-hidden transition-all",
-                    activeFilter.id === f.id ? "border-primary shadow-[0_0_15px_rgba(153,64,229,0.5)]" : "border-white/20"
-                  )}>
-                    <div className={cn("w-full h-full bg-zinc-800", f.class)} />
-                  </div>
+                <button key={f.id} onClick={() => { triggerHaptic(5); setActiveFilter(f); }} className={cn("flex flex-col items-center gap-2 shrink-0 group", activeFilter.id === f.id ? "scale-110" : "opacity-60")}>
+                  <div className={cn("h-16 w-16 rounded-2xl border-2 overflow-hidden transition-all", activeFilter.id === f.id ? "border-primary shadow-lg" : "border-white/20")}><div className={cn("w-full h-full bg-zinc-800", f.class)} /></div>
                   <span className="text-[9px] font-black text-white uppercase tracking-widest">{f.label}</span>
                 </button>
               ))}
@@ -579,109 +461,47 @@ export function CaptureStudio() {
           </div>
         )}
 
-        {/* Processing Overlay */}
         {isProcessing && (
           <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4">
-            <Loader2 className="h-12 w-12 text-primary animate-spin" />
-            <p className="text-sm font-black uppercase italic tracking-widest text-white">Finalizing Cinematic Vibe...</p>
+            <Loader2 className="h-12 w-12 text-primary animate-spin" /><p className="text-sm font-black uppercase italic text-white">Finalizing Vibe...</p>
           </div>
         )}
 
-        {/* Sonic Picker Overlay */}
         {isSearchingSound && (
           <div className="absolute inset-0 z-[200] bg-black/80 backdrop-blur-2xl flex flex-col animate-in slide-in-from-bottom-full duration-500">
             <header className="px-6 py-8 flex items-center justify-between shrink-0">
-              <Button variant="ghost" size="icon" className="text-white rounded-full bg-white/5" onClick={() => { triggerHaptic(5); setIsSearchingSound(false); stopPreview(); }}>
-                <ArrowLeft className="h-6 w-6" />
-              </Button>
-              <div className="flex flex-col items-center">
-                <h2 className="text-sm font-black italic uppercase tracking-[0.2em] text-white">Sonic Picker</h2>
-                <span className="text-[10px] font-bold text-primary uppercase">Synchronize Vibe</span>
-              </div>
+              <Button variant="ghost" size="icon" className="text-white rounded-full bg-white/5" onClick={() => { triggerHaptic(5); setIsSearchingSound(false); stopPreview(); }}><ArrowLeft className="h-6 w-6" /></Button>
+              <div className="flex flex-col items-center"><h2 className="text-sm font-black italic uppercase tracking-[0.2em] text-white">Sonic Picker</h2><span className="text-[10px] font-bold text-primary uppercase">Synchronize Vibe</span></div>
               <div className="w-10" />
             </header>
-
             <div className="px-6 pb-4">
               <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                <Input 
-                  placeholder="Search vibes, artists, genres..." 
-                  className="pl-11 h-12 bg-white/5 border-white/10 rounded-2xl focus-visible:ring-primary/30 text-white"
-                  value={soundSearchQuery}
-                  onChange={(e) => setSoundSearchQuery(e.target.value)}
-                  autoFocus
-                />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary" />
+                <Input placeholder="Search vibes..." className="pl-11 h-12 bg-white/5 border-white/10 rounded-2xl text-white" value={soundSearchQuery} onChange={(e) => setSoundSearchQuery(e.target.value)} autoFocus />
               </div>
             </div>
-
             <div className="flex-1 overflow-y-auto px-6 pb-32">
               <div className="space-y-6">
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                  {soundSearchQuery ? "Search Results" : "Trending Sonic IDs"}
-                </p>
-                
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{soundSearchQuery ? "Results" : "Trending"}</p>
                 <div className="grid grid-cols-1 gap-3">
-                  {filteredSongs.length > 0 ? filteredSongs.map((track) => (
-                    <div 
-                      key={track.id}
-                      className={cn(
-                        "flex items-center justify-between p-3 rounded-[1.5rem] transition-all group border",
-                        captureTrack?.id === track.id ? "bg-primary/10 border-primary/20" : "bg-white/5 border-transparent hover:border-white/10"
-                      )}
-                    >
+                  {filteredSongs.map((track) => (
+                    <div key={track.id} className={cn("flex items-center justify-between p-3 rounded-[1.5rem] transition-all group border", captureTrack?.id === track.id ? "bg-primary/10 border-primary/20" : "bg-white/5 border-transparent hover:border-white/10")}>
                       <div className="flex items-center gap-4 flex-1 min-w-0">
                         <div className="relative h-12 w-12 rounded-xl overflow-hidden shrink-0 shadow-lg">
                           <Image src={track.cover} alt={track.title} fill className="object-cover" />
-                          <button 
-                            onClick={() => toggleSoundPreview(track)}
-                            className="absolute inset-0 bg-black/40 flex items-center justify-center text-white transition-opacity"
-                          >
-                            {previewTrackId === track.id ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
-                          </button>
+                          <button onClick={() => toggleSoundPreview(track)} className="absolute inset-0 bg-black/40 flex items-center justify-center text-white">{previewTrackId === track.id ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}</button>
                         </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-bold text-sm text-white truncate">{track.title}</span>
-                          <span className="text-[10px] text-muted-foreground font-medium truncate">{track.artist}</span>
-                        </div>
+                        <div className="flex flex-col min-w-0"><span className="font-bold text-sm text-white truncate">{track.title}</span><span className="text-[10px] text-muted-foreground font-medium truncate">{track.artist}</span></div>
                       </div>
-
-                      <Button 
-                        size="sm" 
-                        className={cn(
-                          "rounded-xl h-9 px-5 font-black uppercase italic tracking-widest text-[9px] transition-all",
-                          captureTrack?.id === track.id ? "bg-primary text-white" : "bg-white/10 text-white hover:bg-primary"
-                        )}
-                        onClick={() => handleSelectSound(track)}
-                      >
-                        {captureTrack?.id === track.id ? <Check className="h-3 w-3 mr-1" /> : <Music2 className="h-3 w-3 mr-1" />}
-                        {captureTrack?.id === track.id ? "SYNCED" : "USE"}
-                      </Button>
+                      <Button size="sm" className={cn("rounded-xl h-9 px-5 font-black uppercase italic text-[9px]", captureTrack?.id === track.id ? "bg-primary text-white" : "bg-white/10 text-white hover:bg-primary")} onClick={() => { triggerHaptic(25); setCaptureTrack(track); setIsSearchingSound(false); stopPreview(); }}>{captureTrack?.id === track.id ? "SYNCED" : "USE"}</Button>
                     </div>
-                  )) : (
-                    <div className="py-20 text-center space-y-4">
-                      <div className="h-16 w-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto border border-dashed border-white/10">
-                        <Music2 className="h-6 w-6 text-muted-foreground/40" />
-                      </div>
-                      <p className="text-sm font-medium text-muted-foreground">No vibes matched your search</p>
-                    </div>
-                  )}
+                  ))}
                 </div>
               </div>
             </div>
           </div>
         )}
       </div>
-
-      <style jsx global>{`
-        @keyframes marquee {
-          0% { transform: translateX(100%); }
-          100% { transform: translateX(-100%); }
-        }
-        .animate-marquee {
-          display: inline-block;
-          animation: marquee 10s linear infinite;
-        }
-      `}</style>
     </div>
   );
 }
