@@ -62,10 +62,19 @@ export function ChatBubble({
   const { triggerHaptic } = useMusic();
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
   const isRead = status === "read";
+
+  const formatDisplayTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Clean up audio on unmount
   useEffect(() => {
@@ -74,6 +83,7 @@ export function ChatBubble({
         audioRef.current.pause();
         audioRef.current = null;
       }
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
 
@@ -110,18 +120,32 @@ export function ChatBubble({
 
     if (!audioRef.current) {
       audioRef.current = new Audio(mediaUrl);
-      audioRef.current.onended = () => setIsPlayingVoice(false);
+      audioRef.current.onended = () => {
+        setIsPlayingVoice(false);
+        setElapsedTime(0);
+        if (timerRef.current) clearInterval(timerRef.current);
+      };
     }
 
     if (isPlayingVoice) {
       audioRef.current.pause();
+      setIsPlayingVoice(false);
+      if (timerRef.current) clearInterval(timerRef.current);
     } else {
       audioRef.current.play().catch(err => {
         console.warn("Voice playback failed:", err);
         setIsPlayingVoice(false);
       });
+      setIsPlayingVoice(true);
+      
+      // Start live counter
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        if (audioRef.current) {
+          setElapsedTime(audioRef.current.currentTime);
+        }
+      }, 100);
     }
-    setIsPlayingVoice(!isPlayingVoice);
   };
 
   return (
@@ -289,11 +313,9 @@ export function ChatBubble({
               </div>
               <div className="flex flex-col items-end gap-0.5">
                 <Mic className={cn("h-4 w-4 opacity-40", isMe ? "text-white" : "text-primary")} />
-                {voiceDuration && (
-                  <span className={cn("text-[8px] font-black tabular-nums uppercase", isMe ? "text-white/60" : "text-primary/60")}>
-                    {voiceDuration}
-                  </span>
-                )}
+                <span className={cn("text-[8px] font-black tabular-nums uppercase min-w-[30px] text-right", isMe ? "text-white/60" : "text-primary/60")}>
+                  {isPlayingVoice ? formatDisplayTime(elapsedTime) : voiceDuration}
+                </span>
               </div>
             </div>
           )}
