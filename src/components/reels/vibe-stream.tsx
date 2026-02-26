@@ -14,8 +14,8 @@ const MOCK_REELS = [
       role: "Product Designer",
       isVerified: true
     },
-    caption: "Designing the future of **ViMore**... 🎨✨ Building edge-to-edge experiences for the high-velocity creator. #Design #ViMore #Future",
-    likes: 12400,
+    caption: "Designing the future of **ViMore**... 🎨✨ Building edge-to-edge experiences for the high-velocity creator. #Design #ViMore #Future #Creativity",
+    likes: 124500,
     comments: 856,
     shares: 420,
     music: {
@@ -31,11 +31,11 @@ const MOCK_REELS = [
       name: "Sarah Chen",
       username: "schen_dev",
       avatar: "https://picsum.photos/seed/2/100/100",
-      role: "Fullstack Dev",
+      role: "Fullstack Architect",
       isVerified: true
     },
-    caption: "Sunset sessions at the HQ. 🌅 The lighting here is just literal chills. #Studio #Vibes #DevLife",
-    likes: 8900,
+    caption: "Sunset sessions at the HQ. 🌅 The lighting here is just literal chills. #Studio #Vibes #DevLife #Web3",
+    likes: 89200,
     comments: 432,
     shares: 128,
     music: {
@@ -51,11 +51,11 @@ const MOCK_REELS = [
       name: "Marcus Stone",
       username: "mstone",
       avatar: "https://picsum.photos/seed/3/100/100",
-      role: "Photographer",
+      role: "Visual Storyteller",
       isVerified: false
     },
-    caption: "Late night energy. ⚡️ Exploring motion and light in the new studio setup. #Movement #Neon #Creative",
-    likes: 15600,
+    caption: "Late night energy. ⚡️ Exploring motion and light in the new studio setup. #Movement #Neon #Creative #Vibes",
+    likes: 156000,
     comments: 1204,
     shares: 890,
     music: {
@@ -81,7 +81,13 @@ export function VibeStream() {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           const id = entry.target.getAttribute("data-reel-id");
-          if (id) setActiveReelId(id);
+          if (id) {
+            setActiveReelId(id);
+            // Optional: Trigger haptic on major scroll snap
+            if (typeof window !== 'undefined' && window.navigator?.vibrate) {
+              window.navigator.vibrate(5);
+            }
+          }
         }
       });
     }, options);
@@ -98,7 +104,7 @@ export function VibeStream() {
       className="flex-1 w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide bg-black"
     >
       {MOCK_REELS.map((reel) => (
-        <div key={reel.id} data-reel-id={reel.id} className="snap-start">
+        <div key={reel.id} data-reel-id={reel.id} className="snap-start h-[100dvh] w-full">
           <ReelCard 
             {...reel} 
             isActive={activeReelId === reel.id} 
