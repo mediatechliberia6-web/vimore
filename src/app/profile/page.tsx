@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -26,7 +27,7 @@ import {
   Copy,
   AtSign,
   Bookmark,
-  Check,
+  Search,
   X
 } from "lucide-react";
 import Link from "next/link";
@@ -45,6 +46,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+const MOCK_CONNECTIONS = [
+  { name: "Julianne Moore", username: "jmoore", avatar: "https://picsum.photos/seed/50/200/200", category: "Content Creator", followsYou: true, isFollowing: true },
+  { name: "Tech Explorer", username: "techex", avatar: "https://picsum.photos/seed/51/200/200", category: "Fullstack Developer", followsYou: true, isFollowing: false },
+  { name: "Alex Rivera", username: "arivera", avatar: "https://picsum.photos/seed/1/100/100", category: "Product Designer", followsYou: false, isFollowing: true },
+  { name: "Sarah Chen", username: "schen_dev", avatar: "https://picsum.photos/seed/2/100/100", category: "Software Engineer", followsYou: true, isFollowing: true },
+  { name: "Marcus Stone", username: "mstone", avatar: "https://picsum.photos/seed/3/100/100", category: "Photographer", followsYou: false, isFollowing: false },
+];
 
 export default function MyProfilePage() {
   const { currentUser, posts, updateCurrentUser, isPostSaved, addPost } = usePosts();
@@ -57,6 +67,10 @@ export default function MyProfilePage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
   
+  const [isHubOpen, setIsHubOpen] = useState(false);
+  const [hubTab, setHubTab] = useState("followers");
+  const [hubSearch, setHubSearch] = useState("");
+
   const isPlayerActive = currentTrack && !isExpanded;
 
   const [skills, setSkills] = useState([
@@ -127,11 +141,8 @@ export default function MyProfilePage() {
     const reader = new FileReader();
     reader.onloadend = () => {
       const imageUrl = reader.result as string;
-      
-      // 1. Update the actual profile data
       updateCurrentUser({ [field]: imageUrl });
       
-      // 2. Create the identity milestone post
       addPost({
         user: {
           name: currentUser.name,
@@ -155,6 +166,19 @@ export default function MyProfilePage() {
     setIsEditModalOpen(false);
     toast({ title: "Changes Applied", description: "Your workspace identity has been updated." });
   };
+
+  const openHub = (tab: string) => {
+    triggerHaptic(5);
+    setHubTab(tab);
+    setIsHubOpen(true);
+  };
+
+  const filteredConnections = useMemo(() => {
+    return MOCK_CONNECTIONS.filter(c => 
+      c.name.toLowerCase().includes(hubSearch.toLowerCase()) || 
+      c.username.toLowerCase().includes(hubSearch.toLowerCase())
+    );
+  }, [hubSearch]);
 
   const myPosts = useMemo(() => posts.filter(p => p.user.username === currentUser.username), [posts, currentUser.username]);
   const taggedPosts = useMemo(() => posts.filter(p => p.collaborator?.username === currentUser.username), [posts, currentUser.username]);
@@ -256,8 +280,20 @@ export default function MyProfilePage() {
                 </div>
                 
                 <div className="flex items-center gap-6 py-2">
-                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{currentUser.followers}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div>
-                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{currentUser.following}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
+                  <button 
+                    onClick={() => openHub('followers')}
+                    className="flex flex-col items-start hover:bg-secondary/30 p-2 -m-2 rounded-xl transition-colors group text-left"
+                  >
+                    <span className="font-bold text-lg leading-none group-hover:text-primary transition-colors">{currentUser.followers}</span>
+                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span>
+                  </button>
+                  <button 
+                    onClick={() => openHub('following')}
+                    className="flex flex-col items-start hover:bg-secondary/30 p-2 -m-2 rounded-xl transition-colors group text-left"
+                  >
+                    <span className="font-bold text-lg leading-none group-hover:text-primary transition-colors">{currentUser.following}</span>
+                    <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span>
+                  </button>
                   <div className="flex flex-col"><span className="font-bold text-lg leading-none">{myPosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
                 </div>
 
@@ -347,6 +383,73 @@ export default function MyProfilePage() {
       </div>
       
       <CreateStoryModal isOpen={isStoryModalOpen} onClose={() => setIsStoryModalOpen(false)} />
+
+      {/* Connection Hub Dialog */}
+      <Dialog open={isHubOpen} onOpenChange={setIsHubOpen}>
+        <DialogContent className="sm:max-w-[480px] h-[80vh] flex flex-col p-0 rounded-[2rem] overflow-hidden gap-0">
+          <DialogHeader className="p-6 pb-2 shrink-0">
+            <DialogTitle className="sr-only">Connection Hub</DialogTitle>
+            <div className="flex flex-col gap-4">
+              <Tabs value={hubTab} onValueChange={(v) => { triggerHaptic(5); setHubTab(v); }} className="w-full">
+                <TabsList className="w-full bg-secondary/30 rounded-xl h-12 p-1">
+                  <TabsTrigger value="followers" className="flex-1 rounded-lg font-bold">Followers</TabsTrigger>
+                  <TabsTrigger value="following" className="flex-1 rounded-lg font-bold">Following</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search connections..." 
+                  className="pl-10 h-11 bg-secondary/20 border-none rounded-xl focus-visible:ring-primary/20"
+                  value={hubSearch}
+                  onChange={(e) => setHubSearch(e.target.value)}
+                />
+                {hubSearch && (
+                  <button onClick={() => setHubSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X className="h-4 w-4" /></button>
+                )}
+              </div>
+            </div>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 px-6 pb-6">
+            <div className="space-y-4">
+              {filteredConnections.length > 0 ? filteredConnections.map((user, i) => (
+                <div key={i} className="flex items-center justify-between group animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${i * 50}ms` }}>
+                  <Link href={`/profile/${user.username}`} onClick={() => setIsHubOpen(false)} className="flex items-center gap-3 flex-1 min-w-0">
+                    <Avatar className="h-12 w-12 border-2 border-primary/5 transition-transform group-hover:scale-105">
+                      <AvatarImage src={user.avatar} />
+                      <AvatarFallback>{user.name[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-sm truncate group-hover:underline">{user.name}</span>
+                        {user.followsYou && <Badge variant="secondary" className="bg-secondary/50 text-[8px] h-4 px-1.5 font-bold uppercase">Follows You</Badge>}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground truncate">{user.category}</span>
+                    </div>
+                  </Link>
+                  <Button 
+                    variant={user.isFollowing ? "secondary" : "default"} 
+                    size="sm" 
+                    className={cn(
+                      "rounded-lg h-8 px-4 font-bold text-[11px] transition-all",
+                      !user.isFollowing && "bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/10"
+                    )}
+                    onClick={(e) => { e.preventDefault(); triggerHaptic(15); }}
+                  >
+                    {user.isFollowing ? "Following" : "Connect"}
+                  </Button>
+                </div>
+              )) : (
+                <div className="py-20 text-center space-y-3 opacity-40">
+                  <div className="h-12 w-12 bg-secondary rounded-full flex items-center justify-center mx-auto"><Search className="h-6 w-6" /></div>
+                  <p className="text-sm font-bold">No results found</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
