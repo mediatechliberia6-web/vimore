@@ -8,14 +8,12 @@ import {
   Bookmark, 
   Music2, 
   CheckCircle2, 
-  MoreVertical,
+  Plus, 
+  Sparkles,
   Volume2,
-  VolumeX,
-  Plus,
-  Sparkles
+  VolumeX
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
@@ -99,7 +97,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
       title: music.title,
       artist: music.artist,
       cover: music.cover,
-      duration: 180 // Placeholder duration
+      duration: 180 
     });
   };
 
@@ -147,8 +145,11 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         </div>
       )}
 
-      {/* Right Interaction Rail */}
-      <div className="absolute right-4 bottom-24 z-50 flex flex-col items-center gap-6 animate-in slide-in-from-right-8 duration-700 delay-300">
+      {/* Right Interaction Rail - Staggered entrance when active */}
+      <div className={cn(
+        "absolute right-4 bottom-24 z-50 flex flex-col items-center gap-6 transition-all duration-700 delay-300",
+        isActive ? "translate-x-0 opacity-100" : "translate-x-12 opacity-0"
+      )}>
         <div className="relative group/avatar">
           <Link href={`/profile/${user.username}`}>
             <div className="relative">
@@ -199,10 +200,10 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
           <Share2 className="h-7 w-7" />
         </button>
 
-        {/* Rotating Music Disc - Trigger Global Music */}
+        {/* Rotating Music Disc */}
         <div 
           onClick={handleSonicClick}
-          className="mt-6 relative group/music cursor-pointer animate-in fade-in zoom-in duration-700 delay-500"
+          className="mt-6 relative group/music cursor-pointer"
         >
           <div className="absolute inset-0 bg-primary/40 blur-2xl rounded-full animate-pulse opacity-0 group-hover/music:opacity-100 transition-opacity" />
           <div className="relative h-14 w-14 rounded-full border-4 border-white/10 overflow-hidden animate-[spin_6s_linear_infinite] shadow-[0_0_20px_rgba(0,0,0,0.5)] ring-2 ring-black/50">
@@ -214,9 +215,12 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         </div>
       </div>
 
-      {/* Bottom Info Slate */}
+      {/* Bottom Info Slate - Staggered entrance when active */}
       <div className="absolute bottom-0 left-0 right-0 p-6 pt-24 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none">
-        <div className="max-w-[85%] space-y-5 animate-in fade-in slide-in-from-bottom-8 duration-700">
+        <div className={cn(
+          "max-w-[85%] space-y-5 transition-all duration-700",
+          isActive ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
+        )}>
           <div className="flex flex-col gap-2 pointer-events-auto">
             <div className="flex items-center gap-2.5">
               <Link href={`/profile/${user.username}`} className="text-xl font-black italic uppercase tracking-tighter text-white hover:text-primary transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] flex items-center gap-1.5">

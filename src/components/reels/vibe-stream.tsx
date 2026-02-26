@@ -1,8 +1,12 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { ReelCard } from "./reel-card";
 import { useMusic } from "@/context/MusicContext";
+import { usePosts } from "@/context/PostContext";
+import { ReelTab } from "@/app/reels/page";
+import { Search, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const MOCK_REELS = [
   {
@@ -67,13 +71,47 @@ const MOCK_REELS = [
       artist: "Davido",
       cover: "https://picsum.photos/seed/song3/100/100"
     }
+  },
+  {
+    id: "r4",
+    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-fashion-model-in-a-red-light-studio-40029-preview.mp4",
+    user: {
+      name: "Julianne Moore",
+      username: "jmoore",
+      avatar: "https://picsum.photos/seed/50/200/200",
+      role: "Content Creator",
+      isVerified: true
+    },
+    caption: "New fashion drop is live! 👠 Testing the red light aesthetic today. #Fashion #Vibe #Studio",
+    likes: 45000,
+    comments: 210,
+    shares: 56,
+    music: {
+      id: 4,
+      title: "Calm Down",
+      artist: "Rema",
+      cover: "https://picsum.photos/seed/song4/100/100"
+    }
   }
 ];
 
-export function VibeStream() {
-  const [activeReelId, setActiveReelId] = useState(MOCK_REELS[0].id);
-  const containerRef = useRef<HTMLDivElement>(null);
+export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
+  const { followingUsernames } = usePosts();
   const { triggerHaptic } = useMusic();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const filteredReels = useMemo(() => {
+    if (activeTab === "foryou") return MOCK_REELS;
+    return MOCK_REELS.filter(reel => followingUsernames.has(reel.user.username));
+  }, [activeTab, followingUsernames]);
+
+  const [activeReelId, setActiveReelId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (filteredReels.length > 0 && !activeReelId) {
+      setActiveReelId(filteredReels[0].id);
+    }
+  }, [filteredReels, activeReelId]);
 
   useEffect(() => {
     const options = {
@@ -98,21 +136,36 @@ export function VibeStream() {
     cards?.forEach((card) => observer.observe(card));
 
     return () => observer.disconnect();
-  }, [activeReelId, triggerHaptic]);
+  }, [activeReelId, triggerHaptic, filteredReels]);
 
   return (
     <div 
       ref={containerRef}
       className="flex-1 w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide bg-black"
     >
-      {MOCK_REELS.map((reel) => (
-        <div key={reel.id} data-reel-id={reel.id} className="snap-start h-[100dvh] w-full relative">
-          <ReelCard 
-            {...reel} 
-            isActive={activeReelId === reel.id} 
-          />
+      {filteredReels.length > 0 ? (
+        filteredReels.map((reel) => (
+          <div key={reel.id} data-reel-id={reel.id} className="snap-start h-[100dvh] w-full relative">
+            <ReelCard 
+              {...reel} 
+              isActive={activeReelId === reel.id} 
+            />
+          </div>
+        ))
+      ) : (
+        <div className="h-full w-full flex flex-col items-center justify-center text-white/40 space-y-6 px-12 text-center animate-in fade-in duration-700">
+          <div className="h-24 w-24 bg-white/5 rounded-[2.5rem] flex items-center justify-center border border-white/10">
+            <Search className="h-10 w-10 opacity-20" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Quiet in this Circle</h3>
+            <p className="text-sm font-medium">Follow more creators to populate your custom VibeStream.</p>
+          </div>
+          <Button variant="outline" className="rounded-full border-primary text-primary hover:bg-primary hover:text-white transition-all font-black uppercase tracking-widest text-[10px] h-12 px-8">
+            <Sparkles className="mr-2 h-4 w-4" /> Discover Creators
+          </Button>
         </div>
-      ))}
+      )}
     </div>
   );
 }

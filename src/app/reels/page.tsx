@@ -1,14 +1,16 @@
 "use client";
 
 import { VibeStream } from "@/components/reels/vibe-stream";
-import { ArrowLeft, Search, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
+export type ReelTab = "following" | "foryou";
+
 export default function ReelsPage() {
-  const [activeTab, setActiveTab] = useState<"following" | "foryou">("foryou");
+  const [activeTab, setActiveTab] = useState<ReelTab>("foryou");
 
   return (
     <div className="h-[100dvh] w-full bg-black overflow-hidden relative flex flex-col">
@@ -57,7 +59,7 @@ export default function ReelsPage() {
       </div>
 
       {/* Main Stream */}
-      <VibeStream />
+      <VibeStream activeTab={activeTab} />
     </div>
   );
 }
