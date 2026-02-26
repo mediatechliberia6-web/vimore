@@ -26,6 +26,9 @@ export interface Connection {
   avatar: string;
   category: string;
   followsYou: boolean;
+  isOnline?: boolean;
+  connectionDate?: string;
+  mutualFriends?: string[]; // Array of avatar URLs
 }
 
 export interface Mention {
@@ -149,11 +152,56 @@ const INITIAL_USER: User = {
 };
 
 const MOCK_CONNECTIONS: Connection[] = [
-  { name: "Julianne Moore", username: "jmoore", avatar: "https://picsum.photos/seed/50/200/200", category: "Content Creator", followsYou: true },
-  { name: "Tech Explorer", username: "techex", avatar: "https://picsum.photos/seed/51/200/200", category: "Fullstack Developer", followsYou: true },
-  { name: "Alex Rivera", username: "arivera", avatar: "https://picsum.photos/seed/1/100/100", category: "Product Designer", followsYou: false },
-  { name: "Sarah Chen", username: "schen_dev", avatar: "https://picsum.photos/seed/2/100/100", category: "Software Engineer", followsYou: true },
-  { name: "Marcus Stone", username: "mstone", avatar: "https://picsum.photos/seed/3/100/100", category: "Photographer", followsYou: false },
+  { 
+    name: "Julianne Moore", 
+    username: "jmoore", 
+    avatar: "https://picsum.photos/seed/50/200/200", 
+    category: "Content Creator", 
+    followsYou: true,
+    isOnline: true,
+    connectionDate: "Feb 2024",
+    mutualFriends: ["https://picsum.photos/seed/1/50/50", "https://picsum.photos/seed/2/50/50"]
+  },
+  { 
+    name: "Tech Explorer", 
+    username: "techex", 
+    avatar: "https://picsum.photos/seed/51/200/200", 
+    category: "Fullstack Developer", 
+    followsYou: true,
+    isOnline: false,
+    connectionDate: "Jan 2024",
+    mutualFriends: ["https://picsum.photos/seed/3/50/50"]
+  },
+  { 
+    name: "Alex Rivera", 
+    username: "arivera", 
+    avatar: "https://picsum.photos/seed/1/100/100", 
+    category: "Product Designer", 
+    followsYou: false,
+    isOnline: true,
+    connectionDate: "Mar 2024",
+    mutualFriends: ["https://picsum.photos/seed/4/50/50", "https://picsum.photos/seed/5/50/50", "https://picsum.photos/seed/6/50/50"]
+  },
+  { 
+    name: "Sarah Chen", 
+    username: "schen_dev", 
+    avatar: "https://picsum.photos/seed/2/100/100", 
+    category: "Software Engineer", 
+    followsYou: true,
+    isOnline: true,
+    connectionDate: "Nov 2023",
+    mutualFriends: ["https://picsum.photos/seed/7/50/50"]
+  },
+  { 
+    name: "Marcus Stone", 
+    username: "mstone", 
+    avatar: "https://picsum.photos/seed/3/100/100", 
+    category: "Photographer", 
+    followsYou: false,
+    isOnline: false,
+    connectionDate: "Dec 2023",
+    mutualFriends: ["https://picsum.photos/seed/8/50/50", "https://picsum.photos/seed/9/50/50"]
+  },
 ];
 
 const initialMockStories: Story[] = [
