@@ -153,20 +153,34 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
   // Sonic Intro Logic
   useEffect(() => {
-    if (contact) {
+    if (contact && contact.username) {
       triggerHaptic(15);
       const introUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"; 
       
-      if (audioRef.current) audioRef.current.pause();
-      audioRef.current = new Audio(introUrl);
-      audioRef.current.volume = 0.3;
-      audioRef.current.play().catch(e => {});
+      // Cleanup previous audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+
+      const audio = new Audio(introUrl);
+      audioRef.current = audio;
+      audio.volume = 0.3;
       
-      toast({
-        title: "Sonic Signature",
-        description: `Streaming ${contact.name}'s digital intro...`,
-        duration: 3000,
-      });
+      const playAudio = async () => {
+        try {
+          await audio.play();
+          toast({
+            title: "Sonic Signature",
+            description: `Streaming ${contact.name}'s digital intro...`,
+            duration: 3000,
+          });
+        } catch (e) {
+          console.warn("Sonic intro playback blocked or failed:", e);
+        }
+      };
+
+      playAudio();
     }
 
     return () => {
@@ -264,8 +278,19 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             </Button>
           </header>
           
-          <div className="relative w-full max-w-lg aspect-[9/16] rounded-3xl overflow-hidden shadow-2xl">
-            <Image src={viewingMedia.mediaUrl!} alt="Disappearing Vibe" fill className="object-cover" />
+          <div className="relative w-full max-w-lg aspect-[9/16] rounded-3xl overflow-hidden shadow-2xl bg-zinc-900">
+            {viewingMedia.type === 'video' ? (
+              <video 
+                key={viewingMedia.mediaUrl}
+                src={viewingMedia.mediaUrl} 
+                className="w-full h-full object-cover" 
+                autoPlay 
+                loop 
+                playsInline 
+              />
+            ) : (
+              <Image src={viewingMedia.mediaUrl!} alt="Disappearing Vibe" fill className="object-cover" />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
             <div className="absolute bottom-10 left-0 right-0 text-center space-y-2">
               <p className="text-white text-lg font-bold italic uppercase tracking-tighter">One-Time Glimpse</p>

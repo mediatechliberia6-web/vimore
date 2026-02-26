@@ -55,13 +55,15 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
   const [localLikes, setLocalLikes] = useState(likes);
 
   useEffect(() => {
-    if (isActive) {
-      videoRef.current?.play().catch(() => {});
+    if (isActive && videoRef.current && videoUrl) {
+      videoRef.current.play().catch((err) => {
+        console.warn("Reel playback failed:", err);
+      });
     } else {
       videoRef.current?.pause();
       if (videoRef.current) videoRef.current.currentTime = 0;
     }
-  }, [isActive]);
+  }, [isActive, videoUrl]);
 
   const toggleLike = () => {
     triggerHaptic(20);
@@ -125,6 +127,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
     <div className="relative h-[100dvh] w-full flex items-center justify-center group select-none bg-black overflow-hidden">
       {/* Video Foundation */}
       <video
+        key={videoUrl}
         ref={videoRef}
         src={videoUrl}
         className="h-full w-full object-cover"

@@ -66,6 +66,16 @@ export function ChatBubble({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isRead = status === "read";
 
+  // Clean up audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     triggerHaptic(20);
@@ -80,12 +90,14 @@ export function ChatBubble({
 
   const toggleVideo = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!videoRef.current) return;
+    if (!videoRef.current || !mediaUrl) return;
     triggerHaptic(10);
     if (isPlayingVideo) {
       videoRef.current.pause();
     } else {
-      videoRef.current.play();
+      videoRef.current.play().catch(err => {
+        console.warn("Video playback failed:", err);
+      });
     }
     setIsPlayingVideo(!isPlayingVideo);
   };
@@ -103,7 +115,10 @@ export function ChatBubble({
     if (isPlayingVoice) {
       audioRef.current.pause();
     } else {
-      audioRef.current.play();
+      audioRef.current.play().catch(err => {
+        console.warn("Voice playback failed:", err);
+        setIsPlayingVoice(false);
+      });
     }
     setIsPlayingVoice(!isPlayingVoice);
   };
@@ -175,7 +190,14 @@ export function ChatBubble({
                 <Image src={mediaUrl} alt="Chat Media" fill className="object-cover" />
               ) : (
                 <div className="relative w-full h-full cursor-pointer" onClick={toggleVideo}>
-                  <video ref={videoRef} src={mediaUrl} className="w-full h-full object-cover" muted={!isPlayingVideo} playsInline />
+                  <video 
+                    key={mediaUrl}
+                    ref={videoRef} 
+                    src={mediaUrl} 
+                    className="w-full h-full object-cover" 
+                    muted={!isPlayingVideo} 
+                    playsInline 
+                  />
                   <div className={cn(
                     "absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-300",
                     isPlayingVideo ? "opacity-0" : "opacity-100"
