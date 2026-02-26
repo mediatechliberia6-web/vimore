@@ -11,12 +11,15 @@ import {
   MoreVertical,
   Search,
   ChevronDown,
-  CheckCheck
+  CheckCheck,
+  Volume2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Connection } from "@/context/PostContext";
 import { ChatBubble } from "./chat-bubble";
 import { ChatInput } from "./chat-input";
+import { useMusic } from "@/context/MusicContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface ChatWindowProps {
   contact: Connection;
@@ -29,17 +32,26 @@ interface Message {
   text?: string;
   time: string;
   status: "sent" | "delivered" | "read";
-  type: "text" | "photo" | "video" | "link";
+  type: "text" | "photo" | "video" | "link" | "voice" | "tag";
   mediaUrl?: string;
+  reactions?: string[];
   linkData?: {
     title: string;
     description: string;
     image: string;
     url: string;
   };
+  taggedUser?: {
+    name: string;
+    username: string;
+    avatar: string;
+    category: string;
+  };
 }
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
+  const { triggerHaptic } = useMusic();
+  const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([
     { 
       id: "1", 
@@ -47,7 +59,8 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       text: "Yo! Did you check out the new design system I pushed to the hub?", 
       time: "10:40 AM", 
       status: "read", 
-      type: "text" 
+      type: "text",
+      reactions: ["🔥"]
     },
     { 
       id: "2", 
@@ -66,10 +79,17 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       type: "photo",
       mediaUrl: "https://picsum.photos/seed/chat-ref/800/600"
     },
+    {
+      id: "4",
+      sender: "them",
+      time: "10:44 AM",
+      status: "read",
+      type: "voice",
+    },
     { 
-      id: "4", 
+      id: "5", 
       sender: "them", 
-      time: "10:44 AM", 
+      time: "10:45 AM", 
       status: "read", 
       type: "link",
       text: "Found this great article on motion design: https://vimore.social/motion-trends",
@@ -83,6 +103,37 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   ]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Sonic Intro Logic
+  useEffect(() => {
+    // Play contact's Sonic Intro when switching chats
+    if (contact) {
+      triggerHaptic(15);
+      const introUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"; // Mock intro
+      
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      
+      audioRef.current = new Audio(introUrl);
+      audioRef.current.volume = 0.3; // Low volume background play
+      audioRef.current.play().catch(e => console.log("Intro playback blocked"));
+      
+      toast({
+        title: "Sonic Signature",
+        description: `Streaming ${contact.name}'s digital intro...`,
+        duration: 3000,
+      });
+    }
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, [contact.username]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -100,7 +151,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       type: text.startsWith("http") ? "link" : "text"
     };
 
-    // Simulate simple link detection for Phase 2
     if (text.startsWith("http")) {
       newMessage.linkData = {
         title: "External Vibe",
@@ -112,21 +162,39 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
     setMessages(prev => [...prev, newMessage]);
 
-    // Simple reply simulation
+    // Simulated reply or tag
     setTimeout(() => {
-      if (text.toLowerCase().includes("image") || text.toLowerCase().includes("photo")) {
+      if (text.toLowerCase().includes("collab") || text.toLowerCase().includes("tag")) {
         const reply: Message = {
           id: (Date.now() + 1).toString(),
           sender: "them",
-          text: "Here is that asset you requested! ⚡️",
+          text: "You should definitely connect with Sarah for this project! 🚀",
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           status: "delivered",
-          type: "photo",
-          mediaUrl: "https://picsum.photos/seed/reply-photo/800/800"
+          type: "tag",
+          taggedUser: {
+            name: "Sarah Chen",
+            username: "schen_dev",
+            avatar: "https://picsum.photos/seed/2/100/100",
+            category: "Fullstack Developer"
+          }
         };
         setMessages(prev => [...prev, reply]);
       }
     }, 1500);
+  };
+
+  const handleReact = (msgId: string, emoji: string) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id === msgId) {
+        const reactions = m.reactions || [];
+        if (reactions.includes(emoji)) {
+          return { ...m, reactions: reactions.filter(r => r !== emoji) };
+        }
+        return { ...m, reactions: [...reactions, emoji] };
+      }
+      return m;
+    }));
   };
 
   return (
@@ -148,12 +216,15 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
           </div>
           <div className="flex flex-col min-w-0 ml-1">
             <h3 className="font-bold text-sm sm:text-base truncate">{contact.name}</h3>
-            <span className={cn(
-              "text-[10px] font-bold uppercase tracking-widest",
-              contact.isOnline ? "text-green-500" : "text-muted-foreground"
-            )}>
-              {contact.isOnline ? "Active Now" : "Offline"}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className={cn(
+                "text-[10px] font-bold uppercase tracking-widest",
+                contact.isOnline ? "text-green-500" : "text-muted-foreground"
+              )}>
+                {contact.isOnline ? "Active Now" : "Offline"}
+              </span>
+              <Volume2 className="h-2.5 w-2.5 text-primary animate-pulse" />
+            </div>
           </div>
         </div>
 
@@ -177,7 +248,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       {/* Messages Area */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-6 scroll-smooth bg-opacity-50"
+        className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-8 scroll-smooth bg-opacity-50"
         style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(153,64,229,0.03) 1px, transparent 0)', backgroundSize: '24px 24px' }}
       >
         <div className="flex justify-center mb-8 sticky top-0 z-10">
@@ -196,6 +267,9 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             type={msg.type}
             mediaUrl={msg.mediaUrl}
             linkData={msg.linkData}
+            reactions={msg.reactions}
+            taggedUser={msg.taggedUser}
+            onReact={(emoji) => handleReact(msg.id, emoji)}
           />
         ))}
       </div>

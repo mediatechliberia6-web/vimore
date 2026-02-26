@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { CheckCheck, Play, ExternalLink } from "lucide-react";
+import { CheckCheck, Play, Pause, ExternalLink, UserPlus, Mic } from "lucide-react";
 import Image from "next/image";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useMusic } from "@/context/MusicContext";
 
 interface LinkPreview {
   title: string;
@@ -16,21 +19,42 @@ interface ChatBubbleProps {
   text?: string;
   time: string;
   status?: "sent" | "delivered" | "read";
-  type?: "text" | "photo" | "video" | "link";
+  type?: "text" | "photo" | "video" | "link" | "voice" | "tag";
   mediaUrl?: string;
   linkData?: LinkPreview;
+  reactions?: string[];
+  taggedUser?: {
+    name: string;
+    username: string;
+    avatar: string;
+    category: string;
+  };
+  onReact?: (emoji: string) => void;
 }
 
-export function ChatBubble({ isMe, text, time, status, type = "text", mediaUrl, linkData }: ChatBubbleProps) {
+export function ChatBubble({ 
+  isMe, text, time, status, type = "text", mediaUrl, linkData, reactions = [], taggedUser, onReact 
+}: ChatBubbleProps) {
+  const { triggerHaptic } = useMusic();
+  const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const isRead = status === "read";
 
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    triggerHaptic(20);
+    onReact?.("🔥");
+  };
+
   return (
-    <div className={cn(
-      "flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300",
-      isMe ? "justify-end" : "justify-start"
-    )}>
+    <div 
+      className={cn(
+        "flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300 group",
+        isMe ? "justify-end" : "justify-start"
+      )}
+      onDoubleClick={handleDoubleClick}
+    >
       <div className={cn(
-        "relative max-w-[85%] sm:max-w-[70%] shadow-md overflow-hidden",
+        "relative max-w-[85%] sm:max-w-[70%] shadow-md",
         isMe 
           ? "bg-primary text-white rounded-2xl rounded-tr-none" 
           : "bg-white dark:bg-card text-foreground rounded-2xl rounded-tl-none border border-primary/5",
@@ -83,7 +107,61 @@ export function ChatBubble({ isMe, text, time, status, type = "text", mediaUrl, 
             </div>
           )}
 
-          {/* 3. Text Content */}
+          {/* 3. Voice Note Content */}
+          {type === "voice" && (
+            <div className="px-4 py-3 flex items-center gap-4 min-w-[220px]">
+              <button 
+                onClick={() => { triggerHaptic(5); setIsPlayingVoice(!isPlayingVoice); }}
+                className={cn(
+                  "h-10 w-10 rounded-full flex items-center justify-center transition-all",
+                  isMe ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
+                )}
+              >
+                {isPlayingVoice ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
+              </button>
+              <div className="flex-1 flex items-center gap-1 h-6">
+                {[...Array(12)].map((_, i) => (
+                  <div 
+                    key={i} 
+                    className={cn(
+                      "w-1 rounded-full transition-all duration-300",
+                      isMe ? "bg-white/40" : "bg-primary/30",
+                      isPlayingVoice && "animate-pulse"
+                    )}
+                    style={{ height: `${Math.random() * 100}%`, animationDelay: `${i * 100}ms` }}
+                  />
+                ))}
+              </div>
+              <Mic className={cn("h-4 w-4 opacity-40", isMe ? "text-white" : "text-primary")} />
+            </div>
+          )}
+
+          {/* 4. Collaborator Tag Content */}
+          {type === "tag" && taggedUser && (
+            <div className={cn(
+              "m-1 mb-2 p-3 rounded-xl flex items-center gap-3 border border-white/10",
+              isMe ? "bg-white/10" : "bg-primary/5"
+            )}>
+              <Avatar className="h-12 w-12 border-2 border-white/20">
+                <AvatarImage src={taggedUser.avatar} />
+                <AvatarFallback>{taggedUser.name[0]}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-sm truncate">{taggedUser.name}</p>
+                <p className={cn("text-[10px] font-black uppercase tracking-widest", isMe ? "text-white/60" : "text-primary")}>
+                  {taggedUser.category}
+                </p>
+              </div>
+              <button className={cn(
+                "h-8 w-8 rounded-full flex items-center justify-center",
+                isMe ? "bg-white/20" : "bg-primary text-white"
+              )}>
+                <UserPlus className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {/* 5. Text Content */}
           {text && (
             <div className="px-3 sm:px-4 py-2 sm:py-3">
               <p className="text-sm sm:text-[15px] leading-relaxed break-words font-medium">
@@ -107,6 +185,23 @@ export function ChatBubble({ isMe, text, time, status, type = "text", mediaUrl, 
             )}
           </div>
         </div>
+
+        {/* Reaction Row */}
+        {reactions.length > 0 && (
+          <div className={cn(
+            "absolute -bottom-3 flex gap-1",
+            isMe ? "right-2" : "left-2"
+          )}>
+            {reactions.map((emoji, i) => (
+              <div 
+                key={i} 
+                className="bg-white dark:bg-zinc-800 shadow-lg rounded-full px-1.5 py-0.5 text-xs border border-primary/10 animate-in zoom-in duration-300"
+              >
+                {emoji}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
