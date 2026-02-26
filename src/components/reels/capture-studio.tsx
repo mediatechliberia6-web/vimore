@@ -63,11 +63,12 @@ export function CaptureStudio() {
         stream.getTracks().forEach(track => track.stop());
       }
 
+      // Use aspect ratio instead of hard width/height to reduce digital zoom/cropping
       const constraints = {
         video: { 
           facingMode: cameraMode,
-          width: { ideal: 1080 },
-          height: { ideal: 1920 }
+          aspectRatio: { ideal: 0.5625 }, // 9:16
+          frameRate: { ideal: 30, max: 60 }
         },
         audio: true
       };
@@ -143,7 +144,12 @@ export function CaptureStudio() {
     triggerHaptic(30);
     chunksRef.current = [];
     
-    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9,opus' });
+    // Check for supported mime types
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') 
+      ? 'video/webm;codecs=vp9,opus' 
+      : 'video/mp4';
+
+    const recorder = new MediaRecorder(stream, { mimeType });
     mediaRecorderRef.current = recorder;
 
     recorder.ondataavailable = (e) => {
@@ -244,7 +250,11 @@ export function CaptureStudio() {
             autoPlay 
             muted 
             playsInline 
-            className={cn("w-full h-full object-cover scale-x-[-1]", activeFilter.class)}
+            className={cn(
+              "w-full h-full object-cover", 
+              cameraMode === "user" && "scale-x-[-1]", // Only mirror the user/front camera
+              activeFilter.class
+            )}
           />
         )}
 
