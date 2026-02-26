@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -388,30 +387,24 @@ export default function MyProfilePage() {
       <Dialog open={isHubOpen} onOpenChange={setIsHubOpen}>
         <DialogContent className="sm:max-w-[480px] h-[80vh] flex flex-col p-0 rounded-[2rem] overflow-hidden gap-0">
           <DialogHeader className="p-6 pb-2 shrink-0">
-            <DialogTitle className="sr-only">Connection Hub</DialogTitle>
-            <div className="flex flex-col gap-4">
-              <Tabs value={hubTab} onValueChange={(v) => { triggerHaptic(5); setHubTab(v); }} className="w-full">
-                <TabsList className="w-full bg-secondary/30 rounded-xl h-12 p-1">
-                  <TabsTrigger value="followers" className="flex-1 rounded-lg font-bold">Followers</TabsTrigger>
-                  <TabsTrigger value="following" className="flex-1 rounded-lg font-bold">Following</TabsTrigger>
-                </TabsList>
-              </Tabs>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search connections..." 
-                  className="pl-10 h-11 bg-secondary/20 border-none rounded-xl focus-visible:ring-primary/20"
-                  value={hubSearch}
-                  onChange={(e) => setHubSearch(e.target.value)}
-                />
-                {hubSearch && (
-                  <button onClick={() => setHubSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X className="h-4 w-4" /></button>
-                )}
-              </div>
+            <DialogTitle className="font-black italic uppercase tracking-tighter text-2xl text-center">
+              {hubTab === "followers" ? "Followers" : "Following"}
+            </DialogTitle>
+            <div className="mt-4 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder={`Search ${hubTab}...`}
+                className="pl-10 h-11 bg-secondary/20 border-none rounded-xl focus-visible:ring-primary/20"
+                value={hubSearch}
+                onChange={(e) => setHubSearch(e.target.value)}
+              />
+              {hubSearch && (
+                <button onClick={() => setHubSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X className="h-4 w-4" /></button>
+              )}
             </div>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 px-6 pb-6">
+          <ScrollArea className="flex-1 px-6 pb-6 mt-2">
             <div className="space-y-4">
               {filteredConnections.length > 0 ? filteredConnections.map((user, i) => (
                 <div key={i} className="flex items-center justify-between group animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${i * 50}ms` }}>
@@ -423,7 +416,7 @@ export default function MyProfilePage() {
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="font-bold text-sm truncate group-hover:underline">{user.name}</span>
-                        {user.followsYou && <Badge variant="secondary" className="bg-secondary/50 text-[8px] h-4 px-1.5 font-bold uppercase">Follows You</Badge>}
+                        {user.followsYou && hubTab === "followers" && <Badge variant="secondary" className="bg-secondary/50 text-[8px] h-4 px-1.5 font-bold uppercase">Follows You</Badge>}
                       </div>
                       <span className="text-[10px] text-muted-foreground truncate">{user.category}</span>
                     </div>
