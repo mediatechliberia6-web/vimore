@@ -1,8 +1,9 @@
+
 /**
  * @fileOverview A Genkit flow for suggesting relevant hashtags using Groq.
  */
 
-import {ai, groq} from '@/ai/genkit';
+import {ai, getGroq} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const SuggestHashtagsInputSchema = z.object({
@@ -30,6 +31,7 @@ const aiSuggestHashtagsFlow = ai.defineFlow(
     outputSchema: SuggestHashtagsOutputSchema,
   },
   async input => {
+    const groq = getGroq();
     const response = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: [

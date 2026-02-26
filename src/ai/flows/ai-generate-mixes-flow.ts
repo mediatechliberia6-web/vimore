@@ -1,8 +1,9 @@
+
 /**
  * @fileOverview A Genkit flow for generating creative music mix titles using Groq.
  */
 
-import {ai, groq} from '@/ai/genkit';
+import {ai, getGroq} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateMixesInputSchema = z.object({
@@ -26,6 +27,7 @@ const aiGenerateDailyMixesFlow = ai.defineFlow(
     outputSchema: GenerateMixesOutputSchema,
   },
   async (input) => {
+    const groq = getGroq();
     const response = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: [

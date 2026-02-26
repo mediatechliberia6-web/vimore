@@ -1,3 +1,5 @@
+
+import 'server-only';
 import {genkit} from 'genkit';
 import Groq from 'groq-sdk';
 
@@ -7,8 +9,11 @@ import Groq from 'groq-sdk';
 export const ai = genkit({});
 
 /**
- * Groq client for high-velocity inference.
+ * Lazy-initialized Groq client for high-velocity inference.
+ * This prevents initialization errors during build time.
  */
-export const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+export function getGroq() {
+  return new Groq({
+    apiKey: process.env.GROQ_API_KEY,
+  });
+}

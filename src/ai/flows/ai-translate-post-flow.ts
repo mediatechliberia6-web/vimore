@@ -1,8 +1,9 @@
+
 /**
  * @fileOverview A Genkit flow for translating post content using Groq.
  */
 
-import {ai, groq} from '@/ai/genkit';
+import {ai, getGroq} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const TranslatePostInputSchema = z.object({
@@ -27,6 +28,7 @@ const aiTranslatePostFlow = ai.defineFlow(
     outputSchema: TranslatePostOutputSchema,
   },
   async (input) => {
+    const groq = getGroq();
     const response = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: [
