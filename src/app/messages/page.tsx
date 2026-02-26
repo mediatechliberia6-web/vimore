@@ -4,18 +4,16 @@ import { useState, useEffect } from "react";
 import { MainNav } from "@/components/layout/main-nav";
 import { ChatList } from "@/components/chat/chat-list";
 import { ChatWindow } from "@/components/chat/chat-window";
-import { AudioLounge } from "@/components/chat/audio-lounge";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 import { MessageSquare, Zap } from "lucide-react";
 
 export default function MessagesPage() {
-  const { currentTrack, isExpanded, triggerHaptic } = useMusic();
+  const { currentTrack, isExpanded } = useMusic();
   const { connections } = usePosts();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
-  const [isInLounge, setIsInLounge] = useState(false);
 
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -25,21 +23,10 @@ export default function MessagesPage() {
       setShowMobileChat(true);
     } else {
       setShowMobileChat(false);
-      setIsInLounge(false);
     }
   }, [selectedChatId]);
 
   const selectedContact = connections.find(c => c.username === selectedChatId) || null;
-
-  const handleJoinLounge = () => {
-    triggerHaptic(30);
-    setIsInLounge(true);
-  };
-
-  const handleLeaveLounge = () => {
-    triggerHaptic(15);
-    setIsInLounge(false);
-  };
 
   return (
     <div className="h-[100dvh] bg-background flex justify-center overflow-hidden">
@@ -52,7 +39,7 @@ export default function MessagesPage() {
         {/* Messaging Ecosystem Wrapper */}
         <main className="relative flex flex-col bg-white dark:bg-[#050505] h-full overflow-hidden">
           
-          {/* Top Offset for Mini Player */}
+          {/* Top Offset for Mini Player - Using flex to avoid overflow */}
           {isPlayerActive && <div className="h-16 shrink-0 transition-all duration-300" />}
 
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-[400px_1fr] min-h-0 overflow-hidden">
@@ -67,25 +54,17 @@ export default function MessagesPage() {
               />
             </div>
 
-            {/* Rail 3: Chat Window or Audio Lounge */}
+            {/* Rail 3: Chat Window */}
             <div className={cn(
               "h-full flex flex-col relative transition-all duration-300 min-h-0",
               !showMobileChat ? "hidden lg:flex" : "flex"
             )}>
               {selectedContact ? (
                 <div className="relative h-full flex flex-col min-h-0">
-                  {isInLounge ? (
-                    <AudioLounge 
-                      contact={selectedContact} 
-                      onLeave={handleLeaveLounge} 
-                    />
-                  ) : (
-                    <ChatWindow 
-                      contact={selectedContact} 
-                      onBack={() => setSelectedChatId(null)} 
-                      onJoinLounge={handleJoinLounge}
-                    />
-                  )}
+                  <ChatWindow 
+                    contact={selectedContact} 
+                    onBack={() => setSelectedChatId(null)} 
+                  />
                 </div>
               ) : (
                 <div className="flex-1 hidden lg:flex flex-col items-center justify-center text-center p-12 bg-[#FAFAFF] dark:bg-[#080808]">

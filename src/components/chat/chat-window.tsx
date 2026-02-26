@@ -21,8 +21,7 @@ import {
   Eye,
   FileText,
   Link as LinkIcon,
-  Image as ImageIcon,
-  Radio
+  Image as ImageIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Connection } from "@/context/PostContext";
@@ -35,7 +34,6 @@ import Image from "next/image";
 interface ChatWindowProps {
   contact: Connection;
   onBack: () => void;
-  onJoinLounge?: () => void;
 }
 
 interface Message {
@@ -68,7 +66,7 @@ interface Message {
   };
 }
 
-export function ChatWindow({ contact, onBack, onJoinLounge }: ChatWindowProps) {
+export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const { triggerHaptic } = useMusic();
   const { toast } = useToast();
   
@@ -161,7 +159,6 @@ export function ChatWindow({ contact, onBack, onJoinLounge }: ChatWindowProps) {
       
       if (audioRef.current) audioRef.current.pause();
       audioRef.current = new Audio(introUrl);
-      audioPreviewRef.current = audioRef.current;
       audioRef.current.volume = 0.3;
       audioRef.current.play().catch(e => {});
       
@@ -179,8 +176,6 @@ export function ChatWindow({ contact, onBack, onJoinLounge }: ChatWindowProps) {
       }
     };
   }, [contact.username]);
-
-  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -316,13 +311,6 @@ export function ChatWindow({ contact, onBack, onJoinLounge }: ChatWindowProps) {
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
-            <Button 
-              variant="ghost" size="icon" className="rounded-full h-10 w-10 bg-primary/5 text-primary hover:bg-primary/10 animate-in zoom-in"
-              onClick={onJoinLounge}
-              title="Launch Audio Lounge"
-            >
-              <Radio className="h-5 w-5" />
-            </Button>
             <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-primary">
               <Video className="h-5 w-5" />
             </Button>
