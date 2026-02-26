@@ -183,7 +183,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     }
   }, [messages, showVault]);
 
-  const handleSend = (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean }) => {
+  const handleSend = (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' }) => {
     const newMessage: Message = {
       id: Date.now().toString(),
       sender: "me",
@@ -192,12 +192,12 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       status: "sent",
       type: options?.isWorkspace ? "workspace" : (text.startsWith("http") ? "link" : "text"),
       isViewOnce: options?.isViewOnce,
-      isViewed: false
+      isViewed: false,
+      mediaUrl: options?.mediaUrl
     };
 
-    if (options?.isViewOnce) {
-      newMessage.type = "photo";
-      newMessage.mediaUrl = "https://picsum.photos/seed/newview/800/1200";
+    if (options?.mediaUrl) {
+      newMessage.type = options.mediaType || 'photo';
     }
 
     if (options?.isWorkspace) {
@@ -208,7 +208,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       };
     }
 
-    if (text.startsWith("http") && !options?.isWorkspace) {
+    if (text.startsWith("http") && !options?.isWorkspace && !options?.mediaUrl) {
       newMessage.linkData = {
         title: "External Vibe",
         description: "Checking out shared resources in the ViMore network...",

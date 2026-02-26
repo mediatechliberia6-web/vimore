@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/tooltip";
 
 interface ChatInputProps {
-  onSend: (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean }) => void;
+  onSend: (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' }) => void;
 }
 
 export function ChatInput({ onSend }: ChatInputProps) {
@@ -83,13 +83,29 @@ export function ChatInput({ onSend }: ChatInputProps) {
     const file = e.target.files?.[0];
     if (file) {
       triggerHaptic(20);
+      
+      const isVideo = file.type.startsWith('video');
+      const reader = new FileReader();
+      
+      reader.onloadend = () => {
+        const mediaUrl = reader.result as string;
+        onSend("", { 
+          isViewOnce: isViewOnceEnabled,
+          mediaUrl: mediaUrl,
+          mediaType: isVideo ? 'video' : 'photo'
+        });
+        setIsViewOnceEnabled(false);
+      };
+      
+      reader.readAsDataURL(file);
+
       toast({
         title: isViewOnceEnabled ? "View-Once Vibe Prepared" : "Uploading Assets",
         description: isViewOnceEnabled ? "Media will explode after one view." : `Preparing ${file.name} for transfer...`,
       });
-      // Logic would typically send the file here
-      onSend("", { isViewOnce: isViewOnceEnabled });
-      setIsViewOnceEnabled(false);
+      
+      // Reset input
+      e.target.value = "";
     }
   };
 
