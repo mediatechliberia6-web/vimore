@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Header } from "@/components/layout/header";
 import { SubHeader } from "@/components/layout/sub-header";
 import { MainNav } from "@/components/layout/main-nav";
@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Users, 
   UserPlus, 
@@ -23,7 +24,11 @@ import {
   Calendar,
   Layers,
   Music2,
-  Filter
+  Filter,
+  Play,
+  Bookmark,
+  Volume2,
+  CheckCircle2
 } from "lucide-react";
 import Link from "next/link";
 
@@ -38,11 +43,13 @@ const FILTER_CHIPS = [
 ];
 
 export default function FriendsPage() {
-  const { connections, isFollowing, toggleFollowUser } = usePosts();
-  const { currentTrack, isExpanded } = useMusic();
+  const { connections, isFollowing, toggleFollowUser, toggleSavePost, isPostSaved } = usePosts();
+  const { currentTrack, isExpanded, triggerHaptic } = useMusic();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<HubTab>("all");
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [playingPreview, setPlayingPreview] = useState<string | null>(null);
 
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -60,12 +67,12 @@ export default function FriendsPage() {
       list = connections.filter(c => !c.followsYou && !isFollowing(c.username));
     }
 
-    // 2. Category Chip Filtering (Phase 3)
+    // 2. Category Chip Filtering
     if (activeCategory !== "all") {
       list = list.filter(u => u.category.includes(activeCategory));
     }
 
-    // 3. Advanced Search Filtering (Phase 3)
+    // 3. Advanced Search Filtering
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       list = list.filter(u => 
@@ -85,15 +92,32 @@ export default function FriendsPage() {
     { id: "suggestions", label: "Suggestions", icon: Sparkles },
   ];
 
-  const triggerHaptic = (intensity = 10) => {
-    if (typeof window !== 'undefined' && window.navigator?.vibrate) {
-      window.navigator.vibrate(intensity);
+  const handlePreviewSonic = (username: string, name: string) => {
+    triggerHaptic(15);
+    if (playingPreview === username) {
+      setPlayingPreview(null);
+    } else {
+      setPlayingPreview(username);
+      toast({
+        title: "Sonic Signature",
+        description: `Sampling ${name}'s digital intro...`,
+        duration: 3000,
+      });
+      setTimeout(() => setPlayingPreview(null), 3000);
     }
   };
 
-  // Simulated Discovery Algorithm (Phase 3)
+  const handleVaultUser = (username: string) => {
+    triggerHaptic(5);
+    // Re-using post-saving logic for user archival simulation
+    toast({
+      title: "Vaulted",
+      description: `@${username} has been added to your curated network collection.`
+    });
+  };
+
+  // Simulated Discovery Algorithm
   const getMatchPercentage = (category: string) => {
-    // In a real app, this would compare professional tags and liked music
     if (category.includes("Designer")) return 94;
     if (category.includes("Developer")) return 88;
     return 72;
@@ -162,7 +186,7 @@ export default function FriendsPage() {
               })}
             </div>
 
-            {/* Smart Filter Chips (Phase 3) */}
+            {/* Smart Filter Chips */}
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1">
               <div className="flex items-center gap-2 px-2 border-r border-white/10 mr-2 text-muted-foreground">
                 <Filter className="h-3.5 w-3.5" />
@@ -185,36 +209,50 @@ export default function FriendsPage() {
             </div>
           </div>
 
-          {/* User List Grid */}
+          {/* User List Grid - Staggered animations via index delay */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredUsers.length > 0 ? filteredUsers.map((user, i) => {
               const following = isFollowing(user.username);
               const isMutual = user.followsYou && following;
               const matchScore = getMatchPercentage(user.category);
+              const isPlaying = playingPreview === user.username;
 
               return (
                 <div 
                   key={user.username} 
-                  className="group relative bg-[#0A0A0A] border border-white/5 rounded-[2rem] p-6 transition-all hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/5 animate-in fade-in slide-in-from-bottom-2 duration-500"
-                  style={{ animationDelay: `${i * 50}ms` }}
+                  className="group relative bg-[#0A0A0A] border border-white/5 rounded-[2rem] p-6 transition-all hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/5 animate-in fade-in slide-in-from-bottom-2"
+                  style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}
                 >
                   <div className="absolute -inset-1 bg-gradient-to-br from-primary/20 to-accent/20 rounded-[2.1rem] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity pointer-events-none" />
                   
                   <div className="relative space-y-6">
                     <div className="flex items-center justify-between gap-4">
-                      <Link href={`/profile/${user.username}`} className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
                         <div className="relative shrink-0">
                           <div className={cn(
                             "absolute -inset-1.5 rounded-full blur-md opacity-0 transition-opacity",
                             user.isOnline && "bg-green-500/40 opacity-100 animate-pulse"
                           )} />
-                          <Avatar className={cn(
-                            "h-16 w-16 border-2 transition-transform group-hover:scale-105",
-                            user.isOnline ? "border-green-500" : "border-white/5 group-hover:border-primary/50"
-                          )}>
-                            <AvatarImage src={user.avatar} />
-                            <AvatarFallback>{user.name[0]}</AvatarFallback>
-                          </Avatar>
+                          <div className="relative">
+                            <Avatar className={cn(
+                              "h-16 w-16 border-2 transition-all duration-500 group-hover:scale-105",
+                              user.isOnline ? "border-green-500" : "border-white/5 group-hover:border-primary/50"
+                            )}>
+                              <AvatarImage src={user.avatar} />
+                              <AvatarFallback>{user.name[0]}</AvatarFallback>
+                            </Avatar>
+                            
+                            {/* Sonic Preview Trigger */}
+                            <button 
+                              onClick={() => handlePreviewSonic(user.username, user.name)}
+                              className={cn(
+                                "absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity",
+                                isPlaying && "opacity-100 bg-primary/40"
+                              )}
+                            >
+                              {isPlaying ? <Volume2 className="h-6 w-6 text-white animate-bounce" /> : <Play className="h-6 w-6 text-white fill-current" />}
+                            </button>
+                          </div>
                           {user.followsYou && (
                             <div className="absolute -bottom-1 -right-1 bg-primary text-white text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full border-2 border-[#0A0A0A] shadow-lg">
                               Mutual
@@ -222,18 +260,18 @@ export default function FriendsPage() {
                           )}
                         </div>
                         <div className="flex flex-col min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-lg tracking-tight truncate group-hover:text-primary transition-colors">{user.name}</span>
+                          <Link href={`/profile/${user.username}`} className="flex items-center gap-2">
+                            <span className="font-bold text-lg tracking-tight truncate hover:text-primary transition-colors">{user.name}</span>
                             {activeTab === 'suggestions' && (
                               <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black h-4 px-1.5">
                                 {matchScore}% MATCH
                               </Badge>
                             )}
-                          </div>
+                          </Link>
                           <span className="text-xs text-muted-foreground font-medium truncate">{user.category}</span>
                           {isMutual && <span className="text-[10px] text-primary font-black uppercase tracking-widest mt-1">Direct Friend</span>}
                         </div>
-                      </Link>
+                      </div>
 
                       <div className="flex flex-col gap-2">
                         <Button 
@@ -247,11 +285,21 @@ export default function FriendsPage() {
                         >
                           {following ? "Following" : "Connect"}
                         </Button>
-                        <Link href="/messages">
-                          <Button variant="ghost" size="icon" className="rounded-xl bg-white/5 h-10 w-10 text-muted-foreground hover:text-primary transition-colors">
-                            <MessageCircle className="h-5 w-5" />
+                        <div className="flex gap-2">
+                          <Link href="/messages" className="flex-1">
+                            <Button variant="ghost" size="icon" className="w-full rounded-xl bg-white/5 h-10 text-muted-foreground hover:text-primary transition-colors">
+                              <MessageCircle className="h-5 w-5" />
+                            </Button>
+                          </Link>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="rounded-xl bg-white/5 h-10 w-10 text-muted-foreground hover:text-accent transition-colors"
+                            onClick={() => handleVaultUser(user.username)}
+                          >
+                            <Bookmark className="h-5 w-5" />
                           </Button>
-                        </Link>
+                        </div>
                       </div>
                     </div>
 
@@ -260,7 +308,7 @@ export default function FriendsPage() {
                         <div className="flex items-center gap-3">
                           <div className="flex -space-x-2">
                             {user.mutualFriends.slice(0, 3).map((avatar, idx) => (
-                              <Avatar key={idx} className="h-6 w-6 border-2 border-[#0A0A0A] ring-1 ring-white/5">
+                              <Avatar key={idx} className="h-6 w-6 border-2 border-[#0A0A0A] ring-1 ring-white/5 transition-transform hover:scale-110 hover:z-10">
                                 <AvatarImage src={avatar} />
                                 <AvatarFallback>?</AvatarFallback>
                               </Avatar>
@@ -279,7 +327,7 @@ export default function FriendsPage() {
 
                       {activeTab === 'suggestions' ? (
                         <div className="flex items-center gap-2 bg-primary/5 px-3 py-1 rounded-full border border-primary/10">
-                          <Music2 className="h-3 w-3 text-primary" />
+                          <Music2 className="h-3 w-3 text-primary animate-pulse" />
                           <span className="text-[9px] font-black uppercase tracking-widest text-primary">Simulating Taste...</span>
                         </div>
                       ) : user.connectionDate && (
