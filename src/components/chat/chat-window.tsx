@@ -183,7 +183,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     }
   }, [messages, showVault]);
 
-  const handleSend = (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' }) => {
+  const handleSend = (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice' }) => {
     const newMessage: Message = {
       id: Date.now().toString(),
       sender: "me",

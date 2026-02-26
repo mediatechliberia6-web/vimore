@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/tooltip";
 
 interface ChatInputProps {
-  onSend: (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' }) => void;
+  onSend: (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice' }) => void;
 }
 
 export function ChatInput({ onSend }: ChatInputProps) {
@@ -35,8 +35,13 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const [isViewOnceEnabled, setIsViewOnceEnabled] = useState(false);
   const { triggerHaptic } = useMusic();
   const { toast } = useToast();
+  
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Audio Recording Refs
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -61,22 +66,53 @@ export function ChatInput({ onSend }: ChatInputProps) {
     if (fileInputRef.current) fileInputRef.current.click();
   };
 
-  const handleVoiceStart = () => {
-    triggerHaptic(30);
-    setIsRecording(true);
-    toast({
-      title: "Recording Sonic Note",
-      description: "Speak into the hub...",
-    });
+  const handleVoiceStart = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        onSend("", { mediaUrl: audioUrl, mediaType: 'voice' });
+        
+        // Stop all tracks to release microphone
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      triggerHaptic(30);
+      recorder.start();
+      setIsRecording(true);
+      toast({
+        title: "Recording Sonic Note",
+        description: "Speak into the hub...",
+      });
+    } catch (err) {
+      console.error("Microphone access denied", err);
+      toast({
+        variant: "destructive",
+        title: "Access Denied",
+        description: "Please enable microphone permissions to send voice notes.",
+      });
+    }
   };
 
   const handleVoiceStop = () => {
-    triggerHaptic(15);
-    setIsRecording(false);
-    toast({
-      title: "Note Recorded",
-      description: "Voice signature added to queue.",
-    });
+    if (mediaRecorderRef.current && isRecording) {
+      triggerHaptic(15);
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      toast({
+        title: "Note Recorded",
+        description: "Voice signature launched to conversation.",
+      });
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -250,7 +286,10 @@ export function ChatInput({ onSend }: ChatInputProps) {
                   "rounded-full h-12 w-12 transition-all",
                   isRecording ? "bg-primary text-white shadow-xl scale-125" : "bg-secondary/50 text-muted-foreground hover:text-primary"
                 )}
-                onClick={isRecording ? handleVoiceStop : handleVoiceStart}
+                onMouseDown={handleVoiceStart}
+                onMouseUp={handleVoiceStop}
+                onTouchStart={handleVoiceStart}
+                onTouchEnd={handleVoiceStop}
               >
                 {isRecording ? <Circle className="h-6 w-6 fill-current animate-pulse" /> : <Mic className="h-6 w-6" />}
               </Button>

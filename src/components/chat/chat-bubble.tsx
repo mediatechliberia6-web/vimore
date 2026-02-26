@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { 
   CheckCheck, 
@@ -60,6 +60,10 @@ export function ChatBubble({
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const [isPlayingVideo, setIsPlayingVideo] = useState(false);
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const isRead = status === "read";
 
   const handleDoubleClick = (e: React.MouseEvent) => {
@@ -72,6 +76,36 @@ export function ChatBubble({
     if (isViewed) return;
     triggerHaptic(30);
     onViewOnceOpen?.(id);
+  };
+
+  const toggleVideo = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!videoRef.current) return;
+    triggerHaptic(10);
+    if (isPlayingVideo) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play();
+    }
+    setIsPlayingVideo(!isPlayingVideo);
+  };
+
+  const toggleVoice = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!mediaUrl) return;
+    triggerHaptic(10);
+
+    if (!audioRef.current) {
+      audioRef.current = new Audio(mediaUrl);
+      audioRef.current.onended = () => setIsPlayingVoice(false);
+    }
+
+    if (isPlayingVoice) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlayingVoice(!isPlayingVoice);
   };
 
   return (
@@ -140,9 +174,12 @@ export function ChatBubble({
               {type === "photo" ? (
                 <Image src={mediaUrl} alt="Chat Media" fill className="object-cover" />
               ) : (
-                <div className="relative w-full h-full">
-                  <video src={mediaUrl} className="w-full h-full object-cover" muted />
-                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                <div className="relative w-full h-full cursor-pointer" onClick={toggleVideo}>
+                  <video ref={videoRef} src={mediaUrl} className="w-full h-full object-cover" muted={!isPlayingVideo} playsInline />
+                  <div className={cn(
+                    "absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-300",
+                    isPlayingVideo ? "opacity-0" : "opacity-100"
+                  )}>
                     <div className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30">
                       <Play className="h-6 w-6 text-white fill-current" />
                     </div>
@@ -206,7 +243,7 @@ export function ChatBubble({
           {type === "voice" && (
             <div className="px-4 py-3 flex items-center gap-4 min-w-[220px]">
               <button 
-                onClick={() => { triggerHaptic(5); setIsPlayingVoice(!isPlayingVoice); }}
+                onClick={toggleVoice}
                 className={cn(
                   "h-10 w-10 rounded-full flex items-center justify-center transition-all",
                   isMe ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
@@ -223,7 +260,7 @@ export function ChatBubble({
                       isMe ? "bg-white/40" : "bg-primary/30",
                       isPlayingVoice && "animate-pulse"
                     )}
-                    style={{ height: `${Math.random() * 100}%`, animationDelay: `${i * 100}ms` }}
+                    style={{ height: `${20 + Math.random() * 80}%`, animationDelay: `${i * 100}ms` }}
                   />
                 ))}
               </div>
