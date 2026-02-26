@@ -667,6 +667,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                 <div className="flex gap-3">
                   {backgroundThemes.map((t) => (
                     <button
+                      key={t.id}
                       onClick={() => { setSelectedTheme(t); setShowThemeSelector(false); }}
                       className={cn(
                         "h-12 w-12 rounded-lg shrink-0 border-2 transition-all flex items-center justify-center text-[10px] font-bold",
