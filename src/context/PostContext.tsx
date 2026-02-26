@@ -327,6 +327,25 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [connections, setConnections] = useState<Connection[]>(MOCK_CONNECTIONS);
 
+  // Persistence Helpers
+  const safePersist = (key: string, value: any) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+      if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+        console.warn(`Storage quota exceeded for key: ${key}. Attempting to trim data...`);
+        // Special handling for local posts - keep only most recent
+        if (key === 'vimore_local_posts' && Array.isArray(value)) {
+          try {
+            localStorage.setItem(key, JSON.stringify(value.slice(0, 3)));
+          } catch (innerE) {
+            console.error("Could not persist even trimmed posts.");
+          }
+        }
+      }
+    }
+  };
+
   useEffect(() => {
     const savedUser = localStorage.getItem('vimore_user');
     const savedLikes = localStorage.getItem('vimore_liked_posts');
@@ -352,25 +371,25 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('vimore_liked_posts', JSON.stringify(Array.from(likedPostIds)));
+    safePersist('vimore_liked_posts', Array.from(likedPostIds));
   }, [likedPostIds]);
 
   useEffect(() => {
-    localStorage.setItem('vimore_unliked_posts', JSON.stringify(Array.from(unlikedPostIds)));
+    safePersist('vimore_unliked_posts', Array.from(unlikedPostIds));
   }, [unlikedPostIds]);
 
   useEffect(() => {
-    localStorage.setItem('vimore_saved_posts', JSON.stringify(Array.from(savedPostIds)));
+    safePersist('vimore_saved_posts', Array.from(savedPostIds));
   }, [savedPostIds]);
 
   useEffect(() => {
-    localStorage.setItem('vimore_following', JSON.stringify(Array.from(followingUsernames)));
+    safePersist('vimore_following', Array.from(followingUsernames));
   }, [followingUsernames]);
 
   const updateCurrentUser = (data: Partial<User>) => {
     setCurrentUser(prev => {
       const updated = { ...prev, ...data };
-      localStorage.setItem('vimore_user', JSON.stringify(updated));
+      safePersist('vimore_user', updated);
       return updated;
     });
   };
@@ -392,9 +411,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const updatedPosts = [newPost, ...posts];
     setPosts(updatedPosts);
     
-    // Save to local storage only user-created posts for persistence
-    const userOnlyPosts = updatedPosts.filter(p => p.user.username === currentUser.username);
-    localStorage.setItem('vimore_local_posts', JSON.stringify(userOnlyPosts));
+    // Save to local storage only user-created posts for persistence, capped to prevent quota bloat
+    const userOnlyPosts = updatedPosts.filter(p => p.user.username === currentUser.username).slice(0, 10);
+    safePersist('vimore_local_posts', userOnlyPosts);
   };
 
   const addStory = (segmentData: Omit<StorySegment, 'id'>) => {
