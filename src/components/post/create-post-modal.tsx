@@ -56,7 +56,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { aiSuggestHashtags, aiSummarizePost } from "@/app/actions/ai";
+import { aiSuggestHashtags } from "@/app/actions/ai";
 
 interface CreatePostModalProps {
   children: React.ReactNode;
@@ -154,10 +154,15 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
   
-  const CHARACTER_LIMIT = 2000;
   const MAX_PHOTOS = 6;
   const MAX_POLL_OPTIONS = 8;
   const MAX_VIDEO_DURATION = 300; // 5 minutes in seconds
+
+  // Contextual Character Limits
+  const isLimitedType = selectedTheme.id !== "none" || selectedMedia.length > 0 || mediaType !== null;
+  const currentLimit = isLimitedType ? 300 : 2000;
+  const progress = (content.length / currentLimit) * 100;
+  const isOverLimit = content.length > currentLimit;
 
   useEffect(() => {
     const savedContent = localStorage.getItem('vimore_post_draft');
@@ -217,10 +222,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     if (!content.trim()) return;
     setIsAiLoading(true);
     try {
-      const [hashtagsRes] = await Promise.all([
-        aiSuggestHashtags({ postContent: content })
-      ]);
-      
+      const hashtagsRes = await aiSuggestHashtags({ postContent: content });
       const tags = hashtagsRes.hashtags.join(" ");
       setContent(prev => `${prev}\n\n${tags}`);
       toast({ title: "AI Enhanced!", description: "Suggested hashtags added to your post." });
@@ -347,7 +349,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // High-performance check for duration without memory load
     const videoElement = document.createElement('video');
     videoElement.preload = 'metadata';
     const tempUrl = URL.createObjectURL(file);
@@ -364,7 +365,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       }
       
       setMediaType('video');
-      // Use Blob URL instead of Base64 to prevent freezing
       setSelectedMedia([URL.createObjectURL(file)]); 
     };
     videoElement.src = tempUrl;
@@ -403,9 +403,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       setShowLocationSelector(false);
     }
   };
-
-  const progress = (content.length / CHARACTER_LIMIT) * 100;
-  const isOverLimit = content.length > CHARACTER_LIMIT;
 
   const actionItems = [
     { 
@@ -619,7 +616,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           <div className={cn("px-4 relative min-h-[220px] transition-all duration-300 flex items-center justify-center p-8", selectedTheme.class)}>
             <Textarea 
               ref={textareaRef}
-              placeholder="What's on your mind?" 
+              placeholder={isLimitedType ? "Short vibe... (300 chars max)" : "What's on your mind? (2000 chars max)"}
               className={cn(
                 "border-none focus-visible:ring-0 text-2xl resize-none p-0 placeholder:text-muted-foreground/50 min-h-[160px] bg-transparent text-center",
                 selectedTheme.id !== "none" ? "text-white placeholder:text-white/60" : "text-foreground"
@@ -651,7 +648,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                   <path className={cn(isOverLimit ? "text-destructive" : progress > 90 ? "text-yellow-500" : "text-primary")} strokeDasharray={`${Math.min(progress, 100)}, 100`} strokeWidth="3" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                 </svg>
               </div>
-              <span className={cn("text-[10px] font-bold", isOverLimit && "text-destructive")}>{CHARACTER_LIMIT - content.length}</span>
+              <span className={cn("text-[10px] font-bold", isOverLimit && "text-destructive")}>{currentLimit - content.length}</span>
             </div>
           </div>
 

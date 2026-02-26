@@ -17,11 +17,6 @@ import {
   Flag,
   Languages,
   Loader2,
-  ChevronDown,
-  ChevronUp,
-  Gift,
-  Users2,
-  MessageCircleOff,
   Pin,
   Archive,
   GalleryVerticalEnd
@@ -32,7 +27,6 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { 
   DropdownMenu, 
@@ -96,13 +90,14 @@ interface PostCardProps {
   initialComments?: Comment[];
   isShared?: boolean;
   sharedPost?: PostCardProps;
+  videoUrl?: string;
 }
 
 export function PostCard(props: PostCardProps) {
   const { 
     id, user, collaborator, content, image, images = [], imageFilter, theme, language,
     likes, unlikes, comments, time, hashtags, feeling, commentsDisabled, isPinned, 
-    isSeries, seriesTitle, poll, initialComments = [], isShared = false, sharedPost 
+    isSeries, seriesTitle, poll, isShared = false, videoUrl
   } = props;
 
   const { 
@@ -230,8 +225,12 @@ export function PostCard(props: PostCardProps) {
 
   if (isHidden) return null;
 
-  const TRUNCATE_LIMIT = 280;
-  const isLongContent = content.length > TRUNCATE_LIMIT;
+  // Contextual Character Truncation
+  // Text Only = 300 truncation (max 2000)
+  // Background/Photo/Reel = 300 max (no truncation needed if enforced at creation)
+  const isLimitedType = !!theme || allImages.length > 0 || !!videoUrl || !!poll;
+  const TRUNCATE_LIMIT = 300;
+  const isLongContent = content.length > TRUNCATE_LIMIT && !isLimitedType;
   const displayedContent = isLongContent && !isExpanded ? content.slice(0, TRUNCATE_LIMIT) + "..." : content;
 
   const isMe = user.username === currentUser.username;
@@ -248,7 +247,7 @@ export function PostCard(props: PostCardProps) {
         </div>
       )}
 
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 bg-white dark:bg-card">
         <div className="flex items-center gap-2">
           <Link href={profileHref}>
             <Avatar className="h-10 w-10 border border-primary/10 hover:opacity-80 transition-opacity">
@@ -307,7 +306,7 @@ export function PostCard(props: PostCardProps) {
         )}
       </CardHeader>
       
-      <CardContent className={cn("px-3 pb-2 space-y-2", theme && !isShared ? theme + " py-12 px-8 text-center" : "")}>
+      <CardContent className={cn("px-3 pb-2 space-y-2", theme && !isShared ? theme + " py-12 px-8 text-center" : "bg-white dark:bg-card")}>
         <div className="space-y-1">
           <div className={cn("text-[13px] leading-relaxed whitespace-pre-wrap", theme && !isShared ? "text-2xl leading-tight font-black italic uppercase tracking-tighter" : "text-foreground")}>
             {renderContent(translatedText || displayedContent)}
@@ -379,8 +378,14 @@ export function PostCard(props: PostCardProps) {
           </div>
         )}
 
+        {videoUrl && !isShared && !theme && (
+          <div className="relative mt-2 -mx-3 sm:mx-0 rounded-lg overflow-hidden border border-border/50 bg-black aspect-video flex items-center justify-center">
+            <video src={videoUrl} className="w-full h-full object-cover" controls playsInline />
+          </div>
+        )}
+
         {!isShared && (
-          <div className={cn("flex items-center justify-between py-1 border-b", theme ? "border-white/20 mb-2" : "border-secondary")}>
+          <div className={cn("flex items-center justify-between py-1 border-b mt-2", theme ? "border-white/20 mb-2" : "border-secondary")}>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
                 <div className="bg-primary p-1 rounded-full text-white ring-2 ring-white dark:ring-card"><ThumbsUp className="h-2.5 w-2.5 fill-current" /></div>
@@ -403,18 +408,18 @@ export function PostCard(props: PostCardProps) {
       {!isShared && (
         <CardFooter className="p-1 px-3 flex flex-col gap-1 relative bg-white dark:bg-card">
           <div className="flex items-center justify-between gap-1 w-full">
-            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-all", isLiked ? "text-primary" : "text-muted-foreground")} onClick={handleLike}>
-              <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />
-            </Button>
-            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-all", isUnliked ? "text-destructive" : "text-muted-foreground")} onClick={handleUnlike}>
-              <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} />
-            </Button>
-            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground")} onClick={() => setShowComments(!showComments)} disabled={commentsDisabled}>
-              <MessageCircle className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground")}>
-              <Share2 className="h-4 w-4" />
-            </Button>
+            <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isLiked ? "text-primary" : "text-muted-foreground")} onClick={handleLike}>
+              <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} /> Like
+            </button>
+            <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isUnliked ? "text-destructive" : "text-muted-foreground")} onClick={handleUnlike}>
+              <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} /> Dislike
+            </button>
+            <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary")} onClick={() => setShowComments(!showComments)} disabled={commentsDisabled}>
+              <MessageCircle className="h-4 w-4" /> Comment
+            </button>
+            <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary")}>
+              <Share2 className="h-4 w-4" /> Share
+            </button>
           </div>
           {showComments && !commentsDisabled && (
             <div className="w-full pt-4 space-y-4 animate-in slide-in-from-top-2 border-t mt-1 pb-3">
