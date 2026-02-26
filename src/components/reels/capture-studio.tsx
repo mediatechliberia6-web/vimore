@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { 
   X, 
   Zap, 
@@ -16,11 +16,15 @@ import {
   ArrowLeft,
   Circle,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  Search,
+  Play,
+  Pause
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { useMusic } from "@/context/MusicContext";
+import { Input } from "@/components/ui/input";
+import { useMusic, ALL_SONGS, Track } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -38,7 +42,7 @@ const FILTERS = [
 const RECORDING_LIMIT = 300; // 5 minutes in seconds
 
 export function CaptureStudio() {
-  const { isCaptureStudioOpen, closeCaptureStudio, captureTrack, triggerHaptic } = useMusic();
+  const { isCaptureStudioOpen, closeCaptureStudio, captureTrack, setCaptureTrack, triggerHaptic } = useMusic();
   const { addPost, currentUser } = usePosts();
   const { toast } = useToast();
 
@@ -52,6 +56,11 @@ export function CaptureStudio() {
   const [timeLeft, setTimeLeft] = useState(RECORDING_LIMIT);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Sound Search State
+  const [isSearchingSound, setIsSearchingSound] = useState(false);
+  const [soundSearchQuery, setSoundSearchQuery] = useState("");
+  const [previewTrackId, setPreviewTrackId] = useState<string | number | null>(null);
 
   // Zoom State
   const [zoom, setZoom] = useState(1);
@@ -64,6 +73,7 @@ export function CaptureStudio() {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
 
   const startCamera = useCallback(async () => {
     try {
@@ -158,6 +168,8 @@ export function CaptureStudio() {
     setIsProcessing(false);
     if (timerRef.current) clearInterval(timerRef.current);
     setZoom(1);
+    setIsSearchingSound(false);
+    stopPreview();
   };
 
   const handleZoomChange = async (value: number) => {
@@ -293,6 +305,44 @@ export function CaptureStudio() {
     closeCaptureStudio();
   };
 
+  const filteredSongs = useMemo(() => {
+    if (!soundSearchQuery) return ALL_SONGS;
+    const q = soundSearchQuery.toLowerCase();
+    return ALL_SONGS.filter(s => 
+      s.title.toLowerCase().includes(q) || 
+      s.artist.toLowerCase().includes(q)
+    );
+  }, [soundSearchQuery]);
+
+  const toggleSoundPreview = (track: Track) => {
+    if (previewTrackId === track.id) {
+      stopPreview();
+    } else {
+      triggerHaptic(10);
+      setPreviewTrackId(track.id);
+      if (!audioPreviewRef.current) {
+        audioPreviewRef.current = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'); // Mock audio
+      }
+      audioPreviewRef.current.play().catch(e => console.error("Preview failed", e));
+    }
+  };
+
+  const stopPreview = () => {
+    if (audioPreviewRef.current) {
+      audioPreviewRef.current.pause();
+      audioPreviewRef.current.currentTime = 0;
+    }
+    setPreviewTrackId(null);
+  };
+
+  const handleSelectSound = (track: Track) => {
+    triggerHaptic(25);
+    setCaptureTrack(track);
+    setIsSearchingSound(false);
+    stopPreview();
+    toast({ title: "Sonic Selected", description: `${track.title} synced to recording.` });
+  };
+
   if (!isCaptureStudioOpen) return null;
 
   return (
@@ -321,6 +371,7 @@ export function CaptureStudio() {
           />
         )}
 
+        {/* Studio Controls Header */}
         <div className="absolute top-6 left-0 right-0 z-50 flex flex-col items-center gap-4 px-6">
           <div className="flex items-center justify-between w-full">
             <Button variant="ghost" size="icon" className="text-white bg-black/20 backdrop-blur-md rounded-full" onClick={closeCaptureStudio}>
@@ -328,8 +379,11 @@ export function CaptureStudio() {
             </Button>
             
             <div className="flex-1 flex justify-center">
-              <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-full px-4 py-2 flex items-center gap-3 max-w-[200px] group cursor-pointer hover:bg-black/60 transition-all">
-                <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center animate-pulse">
+              <button 
+                onClick={() => { triggerHaptic(5); setIsSearchingSound(true); }}
+                className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-full px-4 py-2 flex items-center gap-3 max-w-[200px] group cursor-pointer hover:bg-black/60 transition-all active:scale-95"
+              >
+                <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center animate-pulse shrink-0">
                   <Music2 className="h-3 w-3 text-white" />
                 </div>
                 <div className="flex-1 overflow-hidden">
@@ -337,7 +391,7 @@ export function CaptureStudio() {
                     {captureTrack ? `${captureTrack.title} — ${captureTrack.artist}` : "Add Sounds"}
                   </p>
                 </div>
-              </div>
+              </button>
             </div>
 
             {recordedUrl ? (
@@ -362,6 +416,7 @@ export function CaptureStudio() {
           )}
         </div>
 
+        {/* Right Interaction Rail */}
         {!recordedUrl && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-6">
             <button 
@@ -421,6 +476,7 @@ export function CaptureStudio() {
           </div>
         )}
 
+        {/* Bottom Interaction Area */}
         <div className="absolute bottom-10 left-0 right-0 z-50 px-8 flex items-center justify-between">
           {!recordedUrl ? (
             <>
@@ -481,6 +537,7 @@ export function CaptureStudio() {
           )}
         </div>
 
+        {/* Filter Selection Panel */}
         {showFilters && !recordedUrl && (
           <div className="absolute bottom-36 left-0 right-0 z-[60] animate-in slide-in-from-bottom-4 duration-300 px-6">
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
@@ -506,10 +563,95 @@ export function CaptureStudio() {
           </div>
         )}
 
+        {/* Processing Overlay */}
         {isProcessing && (
           <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4">
             <Loader2 className="h-12 w-12 text-primary animate-spin" />
             <p className="text-sm font-black uppercase italic tracking-widest text-white">Processing Cinematic Vibe...</p>
+          </div>
+        )}
+
+        {/* Sonic Picker Overlay */}
+        {isSearchingSound && (
+          <div className="absolute inset-0 z-[200] bg-black/80 backdrop-blur-2xl flex flex-col animate-in slide-in-from-bottom-full duration-500">
+            <header className="px-6 py-8 flex items-center justify-between shrink-0">
+              <Button variant="ghost" size="icon" className="text-white rounded-full bg-white/5" onClick={() => { triggerHaptic(5); setIsSearchingSound(false); stopPreview(); }}>
+                <ArrowLeft className="h-6 w-6" />
+              </Button>
+              <div className="flex flex-col items-center">
+                <h2 className="text-sm font-black italic uppercase tracking-[0.2em] text-white">Sonic Picker</h2>
+                <span className="text-[10px] font-bold text-primary uppercase">Synchronize Vibe</span>
+              </div>
+              <div className="w-10" />
+            </header>
+
+            <div className="px-6 pb-4">
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Input 
+                  placeholder="Search vibes, artists, genres..." 
+                  className="pl-11 h-12 bg-white/5 border-white/10 rounded-2xl focus-visible:ring-primary/30 text-white"
+                  value={soundSearchQuery}
+                  onChange={(e) => setSoundSearchQuery(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 pb-32">
+              <div className="space-y-6">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                  {soundSearchQuery ? "Search Results" : "Trending Sonic IDs"}
+                </p>
+                
+                <div className="grid grid-cols-1 gap-3">
+                  {filteredSongs.length > 0 ? filteredSongs.map((track) => (
+                    <div 
+                      key={track.id}
+                      className={cn(
+                        "flex items-center justify-between p-3 rounded-[1.5rem] transition-all group border",
+                        captureTrack?.id === track.id ? "bg-primary/10 border-primary/20" : "bg-white/5 border-transparent hover:border-white/10"
+                      )}
+                    >
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <div className="relative h-12 w-12 rounded-xl overflow-hidden shrink-0 shadow-lg">
+                          <Image src={track.cover} alt={track.title} fill className="object-cover" />
+                          <button 
+                            onClick={() => toggleSoundPreview(track)}
+                            className="absolute inset-0 bg-black/40 flex items-center justify-center text-white transition-opacity"
+                          >
+                            {previewTrackId === track.id ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
+                          </button>
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-bold text-sm text-white truncate">{track.title}</span>
+                          <span className="text-[10px] text-muted-foreground font-medium truncate">{track.artist}</span>
+                        </div>
+                      </div>
+
+                      <Button 
+                        size="sm" 
+                        className={cn(
+                          "rounded-xl h-9 px-5 font-black uppercase italic tracking-widest text-[9px] transition-all",
+                          captureTrack?.id === track.id ? "bg-primary text-white" : "bg-white/10 text-white hover:bg-primary"
+                        )}
+                        onClick={() => handleSelectSound(track)}
+                      >
+                        {captureTrack?.id === track.id ? <Check className="h-3 w-3 mr-1" /> : <Music2 className="h-3 w-3 mr-1" />}
+                        {captureTrack?.id === track.id ? "SYNCED" : "USE"}
+                      </Button>
+                    </div>
+                  )) : (
+                    <div className="py-20 text-center space-y-4">
+                      <div className="h-16 w-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto border border-dashed border-white/10">
+                        <Music2 className="h-6 w-6 text-muted-foreground/40" />
+                      </div>
+                      <p className="text-sm font-medium text-muted-foreground">No vibes matched your search</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

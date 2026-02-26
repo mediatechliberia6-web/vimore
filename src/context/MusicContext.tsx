@@ -79,6 +79,7 @@ interface MusicContextType {
   captureTrack: Track | null;
   openCaptureStudio: (track?: Track) => void;
   closeCaptureStudio: () => void;
+  setCaptureTrack: (track: Track | null) => void;
   
   setTrack: (track: Track) => void;
   togglePlay: () => void;
@@ -122,7 +123,7 @@ const MOCK_COMMENTS: Comment[] = [
   { id: 3, user: "Marcus Stone", avatar: "https://picsum.photos/seed/3/100/100", text: "Lagos vibes in full effect. 🔥", time: "1h ago" },
 ];
 
-const MOCK_SONGS: Track[] = [
+export const ALL_SONGS: Track[] = [
   { id: 1, title: "Essence", artist: "Wizkid ft. Tems", artistUsername: "arivera", cover: "https://picsum.photos/seed/song1/600/600", duration: 240, streams: "124M", likes: 12400, unlikes: 42, comments: MOCK_COMMENTS },
   { id: 2, title: "Last Last", artist: "Burna Boy", artistUsername: "schen_dev", cover: "https://picsum.photos/seed/song2/600/600", duration: 172, streams: "98M", likes: 8900, unlikes: 12, comments: MOCK_COMMENTS.slice(0, 2) },
   { id: 3, title: "Unavailable", artist: "Davido", artistUsername: "mstone", cover: "https://picsum.photos/seed/song3/600/600", duration: 185, streams: "75M", likes: 15600, unlikes: 88, comments: MOCK_COMMENTS.slice(1) },
@@ -132,7 +133,7 @@ const MOCK_SONGS: Track[] = [
 
 export function MusicProvider({ children }: { children: ReactNode }) {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
-  const [queue, setQueue] = useState<Track[]>(MOCK_SONGS);
+  const [queue, setQueue] = useState<Track[]>(ALL_SONGS);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
@@ -173,7 +174,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   // Initialize stats and Load from LocalStorage
   useEffect(() => {
     const initialStats: Record<string | number, { likes: number; unlikes: number }> = {};
-    MOCK_SONGS.forEach(s => {
+    ALL_SONGS.forEach(s => {
       initialStats[s.id] = { likes: s.likes || 0, unlikes: s.unlikes || 0 };
     });
 
@@ -577,7 +578,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       currentTrack, queue, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, 
       likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats,
       isCreatePlaylistOpen, trackForNewPlaylist,
-      isCaptureStudioOpen, captureTrack, openCaptureStudio, closeCaptureStudio,
+      isCaptureStudioOpen, captureTrack, openCaptureStudio, closeCaptureStudio, setCaptureTrack,
       setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, 
       toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked,
       playCollection, addToQueue, publishTrack, publishAlbum,
