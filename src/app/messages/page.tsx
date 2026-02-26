@@ -43,68 +43,70 @@ export default function MessagesPage() {
 
   return (
     <div className="h-[100dvh] bg-background flex justify-center overflow-hidden">
-      <div className="max-w-[1440px] w-full grid grid-cols-1 md:grid-cols-[280px_1fr] h-full">
+      <div className="max-w-[1440px] w-full grid grid-cols-1 md:grid-cols-[280px_1fr] h-full overflow-hidden">
         {/* Rail 1: Navigation (Desktop) */}
-        <aside className="hidden md:block border-r border-primary/5 bg-white dark:bg-card">
+        <aside className="hidden md:block border-r border-primary/5 bg-white dark:bg-card h-full">
           <MainNav />
         </aside>
 
-        {/* Messaging Ecosystem */}
-        <main className={cn(
-          "relative grid grid-cols-1 lg:grid-cols-[400px_1fr] bg-white dark:bg-[#050505] transition-all duration-300",
-          isPlayerActive ? "pt-[64px]" : "pt-0"
-        )}>
+        {/* Messaging Ecosystem Wrapper */}
+        <main className="relative flex flex-col bg-white dark:bg-[#050505] h-full overflow-hidden">
           
-          {/* Rail 2: Chat List */}
-          <div className={cn(
-            "h-full border-r border-primary/5 flex flex-col transition-all duration-300",
-            showMobileChat ? "hidden lg:flex" : "flex"
-          )}>
-            <ChatList 
-              selectedId={selectedChatId} 
-              onSelect={(id) => setSelectedChatId(id)} 
-            />
-          </div>
+          {/* Top Offset for Mini Player */}
+          {isPlayerActive && <div className="h-16 shrink-0 transition-all duration-300" />}
 
-          {/* Rail 3: Chat Window or Audio Lounge */}
-          <div className={cn(
-            "h-full flex flex-col relative transition-all duration-300",
-            !showMobileChat ? "hidden lg:flex" : "flex"
-          )}>
-            {selectedContact ? (
-              <div className="relative h-full flex flex-col">
-                {isInLounge ? (
-                  <AudioLounge 
-                    contact={selectedContact} 
-                    onLeave={handleLeaveLounge} 
-                  />
-                ) : (
-                  <ChatWindow 
-                    contact={selectedContact} 
-                    onBack={() => setSelectedChatId(null)} 
-                    onJoinLounge={handleJoinLounge}
-                  />
-                )}
-              </div>
-            ) : (
-              <div className="flex-1 hidden lg:flex flex-col items-center justify-center text-center p-12 bg-[#FAFAFF] dark:bg-[#080808]">
-                <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 animate-in zoom-in duration-500">
-                  <MessageSquare className="h-10 w-10 text-primary" />
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-[400px_1fr] min-h-0 overflow-hidden">
+            {/* Rail 2: Chat List */}
+            <div className={cn(
+              "h-full border-r border-primary/5 flex flex-col transition-all duration-300 min-h-0",
+              showMobileChat ? "hidden lg:flex" : "flex"
+            )}>
+              <ChatList 
+                selectedId={selectedChatId} 
+                onSelect={(id) => setSelectedChatId(id)} 
+              />
+            </div>
+
+            {/* Rail 3: Chat Window or Audio Lounge */}
+            <div className={cn(
+              "h-full flex flex-col relative transition-all duration-300 min-h-0",
+              !showMobileChat ? "hidden lg:flex" : "flex"
+            )}>
+              {selectedContact ? (
+                <div className="relative h-full flex flex-col min-h-0">
+                  {isInLounge ? (
+                    <AudioLounge 
+                      contact={selectedContact} 
+                      onLeave={handleLeaveLounge} 
+                    />
+                  ) : (
+                    <ChatWindow 
+                      contact={selectedContact} 
+                      onBack={() => setSelectedChatId(null)} 
+                      onJoinLounge={handleJoinLounge}
+                    />
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">ViMore Connect</h3>
-                  <div className="flex justify-center">
-                    <div className="bg-primary/5 px-3 py-1 rounded-full flex items-center gap-2 border border-primary/10">
-                      <Zap className="h-3 w-3 text-primary animate-pulse" />
-                      <span className="text-[10px] font-black text-primary uppercase tracking-widest">High-Velocity Hub</span>
-                    </div>
+              ) : (
+                <div className="flex-1 hidden lg:flex flex-col items-center justify-center text-center p-12 bg-[#FAFAFF] dark:bg-[#080808]">
+                  <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 animate-in zoom-in duration-500">
+                    <MessageSquare className="h-10 w-10 text-primary" />
                   </div>
-                  <p className="text-muted-foreground text-sm max-w-xs mt-4">
-                    Select a creator or launch a broadcast to begin collaborating in the digital workspace.
-                  </p>
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-black italic uppercase tracking-tighter">ViMore Connect</h3>
+                    <div className="flex justify-center">
+                      <div className="bg-primary/5 px-3 py-1 rounded-full flex items-center gap-2 border border-primary/10">
+                        <Zap className="h-3 w-3 text-primary animate-pulse" />
+                        <span className="text-[10px] font-black text-primary uppercase tracking-widest">High-Velocity Hub</span>
+                      </div>
+                    </div>
+                    <p className="text-muted-foreground text-sm max-w-xs mt-4">
+                      Select a creator or launch a broadcast to begin collaborating in the digital workspace.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </main>
       </div>
