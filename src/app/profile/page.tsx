@@ -177,17 +177,34 @@ export default function MyProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    setIsUploadingIntro(true);
-    triggerHaptic(20);
+    // Restrict duration to 10 seconds
+    const audio = document.createElement('audio');
+    audio.src = URL.createObjectURL(file);
     
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const audioUrl = reader.result as string;
-      updateCurrentUser({ introUrl: audioUrl });
-      setIsUploadingIntro(false);
-      toast({ title: "Sonic ID Updated", description: "Your digital signature is now live." });
+    audio.onloadedmetadata = () => {
+      window.URL.revokeObjectURL(audio.src);
+      if (audio.duration > 10) {
+        toast({ 
+          variant: "destructive", 
+          title: "Intro Too Long", 
+          description: "Your sonic signature must be 10 seconds or less." 
+        });
+        if (introInputRef.current) introInputRef.current.value = "";
+        return;
+      }
+      
+      setIsUploadingIntro(true);
+      triggerHaptic(20);
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const audioUrl = reader.result as string;
+        updateCurrentUser({ introUrl: audioUrl });
+        setIsUploadingIntro(false);
+        toast({ title: "Sonic ID Updated", description: "Your digital signature is now live." });
+      };
+      reader.readAsDataURL(file);
     };
-    reader.readAsDataURL(file);
   };
 
   const togglePlayIntro = () => {
@@ -361,6 +378,7 @@ export default function MyProfilePage() {
                         variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary"
                         onClick={() => introInputRef.current?.click()}
                         disabled={isUploadingIntro}
+                        title="Upload Intro (Max 10s)"
                       >
                         {isUploadingIntro ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mic2 className="h-3.5 w-3.5" />}
                       </Button>
