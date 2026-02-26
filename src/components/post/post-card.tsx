@@ -184,24 +184,24 @@ export function PostCard(props: PostCardProps) {
     }
   };
 
-  const handleVote = (index: number) => {
+  const handleVote = (originalIndex: number) => {
     triggerHaptic(30);
     if (!poll) return;
     const newOptions = [...localPollOptions];
     let newTotal = localTotalVotes;
 
-    if (userVote === index) {
-      newOptions[index] = { ...newOptions[index], votes: newOptions[index].votes - 1 };
+    if (userVote === originalIndex) {
+      newOptions[originalIndex] = { ...newOptions[originalIndex], votes: newOptions[originalIndex].votes - 1 };
       newTotal -= 1;
       setUserVote(null);
     } else {
       if (userVote !== null) {
-        newOptions[userVote] = { ...newOptions[userVote], votes: userVote < localPollOptions.length ? localPollOptions[userVote].votes - 1 : 0 };
+        newOptions[userVote] = { ...newOptions[userVote], votes: Math.max(0, newOptions[userVote].votes - 1) };
         newTotal -= 1;
       }
-      newOptions[index] = { ...newOptions[index], votes: newOptions[index].votes + 1 };
+      newOptions[originalIndex] = { ...newOptions[originalIndex], votes: newOptions[originalIndex].votes + 1 };
       newTotal += 1;
-      setUserVote(index);
+      setUserVote(originalIndex);
     }
     setLocalPollOptions(newOptions);
     setLocalTotalVotes(newTotal);
@@ -212,6 +212,13 @@ export function PostCard(props: PostCardProps) {
     archivePost(id);
     toast({ title: "Archived", description: "Post moved to your private archives." });
   };
+
+  const rankedPollOptions = useMemo(() => {
+    if (!poll) return [];
+    return localPollOptions
+      .map((option, idx) => ({ ...option, originalIndex: idx }))
+      .sort((a, b) => b.votes - a.votes);
+  }, [localPollOptions, poll]);
 
   const renderContent = (text: string) => {
     const parts = text.split(/(\*\*.*?\*\*|_.*?_|`.*?`)/g);
@@ -225,9 +232,6 @@ export function PostCard(props: PostCardProps) {
 
   if (isHidden) return null;
 
-  // Contextual Character Truncation
-  // Text Only = 300 truncation (max 2000)
-  // Background/Photo/Reel = 300 max (no truncation needed if enforced at creation)
   const isLimitedType = !!theme || allImages.length > 0 || !!videoUrl || !!poll;
   const TRUNCATE_LIMIT = 300;
   const isLongContent = content.length > TRUNCATE_LIMIT && !isLimitedType;
@@ -334,25 +338,41 @@ export function PostCard(props: PostCardProps) {
 
         {poll && !theme && (
           <div className="mt-3 p-4 rounded-xl border border-primary/10 bg-primary/5 space-y-3">
-            <h4 className="font-bold text-sm text-foreground">{poll.question}</h4>
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-sm text-foreground">{poll.question}</h4>
+              <Badge variant="secondary" className="bg-primary/10 text-primary border-none text-[8px] font-black h-4 px-2">RANKED</Badge>
+            </div>
             <div className="space-y-2">
-              {(isPollExpanded ? localPollOptions : localPollOptions.slice(0, 4)).map((option, i) => {
+              {(isPollExpanded ? rankedPollOptions : rankedPollOptions.slice(0, 4)).map((option, i) => {
                 const percentage = localTotalVotes > 0 ? (option.votes / localTotalVotes) * 100 : 0;
-                const isSelected = userVote === i;
+                const isSelected = userVote === option.originalIndex;
                 return (
-                  <button key={i} onClick={() => handleVote(i)} className={cn("w-full relative h-10 rounded-lg border overflow-hidden group transition-all", isSelected ? "border-primary bg-primary/10" : "border-primary/20 hover:border-primary/40")}>
-                    <div className={cn("absolute inset-y-0 left-0 transition-all duration-500", isSelected ? "bg-primary/20" : "bg-primary/5")} style={{ width: `${percentage}%` }} />
+                  <button 
+                    key={option.originalIndex} 
+                    onClick={() => handleVote(option.originalIndex)} 
+                    className={cn(
+                      "w-full relative h-10 rounded-lg border overflow-hidden group transition-all", 
+                      isSelected ? "border-primary bg-primary/10 shadow-sm" : "border-primary/20 hover:border-primary/40 bg-white/40"
+                    )}
+                  >
+                    <div 
+                      className={cn("absolute inset-y-0 left-0 transition-all duration-700 ease-out", isSelected ? "bg-primary/20" : "bg-primary/5")} 
+                      style={{ width: `${percentage}%` }} 
+                    />
                     <div className="absolute inset-0 flex items-center justify-between px-3 text-sm">
-                      <span className={cn("font-medium", isSelected && "text-primary font-bold")}>{option.text}{isSelected && <CheckCircle2 className="inline ml-2 h-3.5 w-3.5" />}</span>
-                      <span className="text-xs font-bold text-primary">{Math.round(percentage)}%</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-primary/40 italic">#{i + 1}</span>
+                        <span className={cn("font-medium", isSelected && "text-primary font-bold")}>{option.text}{isSelected && <CheckCircle2 className="inline ml-2 h-3.5 w-3.5" />}</span>
+                      </div>
+                      <span className="text-xs font-black text-primary">{Math.round(percentage)}%</span>
                     </div>
                   </button>
                 );
               })}
             </div>
-            {localPollOptions.length > 4 && (
-              <button onClick={() => setIsPollExpanded(!isPollExpanded)} className="text-[10px] font-bold text-primary hover:underline">
-                {isPollExpanded ? "Show less" : `See more (${localPollOptions.length - 4})`}
+            {rankedPollOptions.length > 4 && (
+              <button onClick={() => setIsPollExpanded(!isPollExpanded)} className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline w-full text-center pt-1">
+                {isPollExpanded ? "Collapse Rankings" : `View all ${rankedPollOptions.length} options`}
               </button>
             )}
           </div>
