@@ -18,7 +18,8 @@ import {
   Download,
   Loader2,
   Image as ImageIcon,
-  Video as VideoIcon
+  Video as VideoIcon,
+  Link as LinkIcon
 } from "lucide-react";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -61,10 +62,11 @@ interface ChatBubbleProps {
   onViewOnceOpen?: (id: string) => void;
   onMediaOpen?: (id: string) => void;
   onDownload?: (id: string) => void;
+  onExternalLink?: (url: string) => void;
 }
 
 export function ChatBubble({ 
-  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, onReact, onViewOnceOpen, onMediaOpen, onDownload 
+  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink 
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
@@ -182,6 +184,32 @@ export function ChatBubble({
         }
       }, 100);
     }
+  };
+
+  const renderFormattedText = (content?: string) => {
+    if (!content) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = content.split(urlRegex);
+    
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return (
+          <button 
+            key={i} 
+            className="text-[#6E96FF] underline hover:text-[#6E96FF]/80 transition-colors font-bold decoration-2 underline-offset-2 animate-pulse inline-flex items-center gap-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              triggerHaptic(5);
+              onExternalLink?.(part);
+            }}
+          >
+            <LinkIcon className="h-3 w-3" />
+            {part}
+          </button>
+        );
+      }
+      return part;
+    });
   };
 
   const showMediaPlaceholder = !isDownloaded && !isMe && (type === 'photo' || type === 'video');
@@ -332,22 +360,30 @@ export function ChatBubble({
           )}
 
           {type === "link" && linkData && (
-            <div className={cn(
-              "m-1 mb-2 rounded-xl overflow-hidden border border-white/10 flex flex-col",
-              isMe ? "bg-white/10" : "bg-secondary/30"
-            )}>
+            <button 
+              className={cn(
+                "m-1 mb-2 rounded-xl overflow-hidden border border-white/10 flex flex-col text-left group/link transition-transform active:scale-95",
+                isMe ? "bg-white/10" : "bg-secondary/30"
+              )}
+              onClick={() => onExternalLink?.(linkData.url)}
+            >
               <div className="relative aspect-video w-full">
-                <Image src={linkData.image} alt="Link Preview" fill className="object-cover" />
+                <Image src={linkData.image} alt="Link Preview" fill className="object-cover transition-transform group-hover/link:scale-105" />
+                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/link:opacity-100 transition-opacity flex items-center justify-center">
+                  <div className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30">
+                    <ExternalLink className="h-5 w-5 text-white" />
+                  </div>
+                </div>
               </div>
               <div className="p-3 space-y-1">
                 <h4 className="font-bold text-xs uppercase tracking-widest truncate">{linkData.title}</h4>
                 <p className="text-[10px] opacity-70 line-clamp-2 leading-tight">{linkData.description}</p>
                 <div className="flex items-center gap-1.5 pt-1 text-[9px] font-black opacity-50 uppercase">
-                  <ExternalLink className="h-2.5 w-2.5" />
+                  <LinkIcon className="h-2.5 w-2.5" />
                   {new URL(linkData.url).hostname}
                 </div>
               </div>
-            </div>
+            </button>
           )}
 
           {type === "voice" && (
@@ -409,9 +445,9 @@ export function ChatBubble({
 
           {text && (
             <div className="px-3 sm:px-4 py-2 sm:py-3">
-              <p className="text-sm sm:text-[15px] leading-relaxed break-words font-medium">
-                {text}
-              </p>
+              <div className="text-sm sm:text-[15px] leading-relaxed break-words font-medium">
+                {renderFormattedText(text)}
+              </div>
             </div>
           )}
 

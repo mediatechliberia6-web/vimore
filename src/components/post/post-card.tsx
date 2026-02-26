@@ -19,7 +19,8 @@ import {
   Loader2,
   Pin,
   Archive,
-  GalleryVerticalEnd
+  GalleryVerticalEnd,
+  Link as LinkIcon
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -193,12 +194,37 @@ export function PostCard(props: PostCardProps) {
   }, [localPollOptions, poll]);
 
   const renderContent = (text: string) => {
-    const parts = text.split(/(\*\*.*?\*\*|_.*?_|`.*?`)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{part.slice(2, -2)}</strong>;
-      if (part.startsWith('_') && part.endsWith('_')) return <em key={i}>{part.slice(1, -1)}</em>;
-      if (part.startsWith('`') && part.endsWith('`')) return <code key={i} className="bg-secondary/30 px-1 rounded text-sm font-mono">{part.slice(1, -1)}</code>;
-      return part;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const boldItalicRegex = /(\*\*.*?\*\*|_.*?_|`.*?`)/g;
+    
+    // First split by bold/italic logic
+    const segments = text.split(boldItalicRegex);
+    
+    return segments.map((segment, i) => {
+      if (segment.startsWith('**') && segment.endsWith('**')) return <strong key={i}>{segment.slice(2, -2)}</strong>;
+      if (segment.startsWith('_') && segment.endsWith('_')) return <em key={i}>{segment.slice(1, -1)}</em>;
+      if (segment.startsWith('`') && segment.endsWith('`')) return <code key={i} className="bg-secondary/30 px-1 rounded text-sm font-mono">{segment.slice(1, -1)}</code>;
+      
+      // For standard segments, parse URLs
+      const parts = segment.split(urlRegex);
+      return parts.map((part, j) => {
+        if (part.match(urlRegex)) {
+          return (
+            <a 
+              key={`${i}-${j}`} 
+              href={part} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-[#6E96FF] font-bold underline decoration-2 underline-offset-2 hover:opacity-80 transition-opacity inline-flex items-center gap-1"
+              onClick={(e) => { e.stopPropagation(); triggerHaptic(5); }}
+            >
+              <LinkIcon className="h-3 w-3" />
+              {part}
+            </a>
+          );
+        }
+        return part;
+      });
     });
   };
 
@@ -276,7 +302,6 @@ export function PostCard(props: PostCardProps) {
         {videoUrl && !isShared && !theme && <div className="relative mt-2 -mx-3 sm:mx-0 rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center"><video src={videoUrl} className="w-full h-full object-cover" controls playsInline /></div>}
       </CardContent>
       <CardFooter className="p-1 px-3 flex flex-col gap-1 relative bg-white dark:bg-card">
-        {/* Metrics Row */}
         <div className="px-1 pt-2 pb-1 flex items-center justify-between w-full text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground/50 border-t border-primary/5">
           <div className="flex items-center gap-3">
             <span className={cn("flex items-center gap-1.5 transition-colors", isLiked && "text-primary")}>
@@ -300,10 +325,13 @@ export function PostCard(props: PostCardProps) {
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex items-center justify-between gap-1 w-full pt-1">
-          <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isLiked ? "text-primary bg-primary/5" : "text-muted-foreground")} onClick={handleLike}><ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} /> Like</button>
-          <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isUnliked ? "text-destructive bg-destructive/5" : "text-muted-foreground")} onClick={handleUnlike}><ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} /> Dislike</button>
+          <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isLiked ? "text-primary bg-primary/5" : "text-muted-foreground")} onClick={handleLike}>
+            <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} /> Like
+          </button>
+          <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isUnliked ? "text-destructive bg-destructive/5" : "text-muted-foreground")} onClick={handleUnlike}>
+            <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} /> Dislike
+          </button>
           <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary" onClick={() => setShowComments(!showComments)} disabled={commentsDisabled}><MessageCircle className="h-4 w-4" /> Comment</button>
           <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary"><Share2 className="h-4 w-4" /> Share</button>
         </div>
