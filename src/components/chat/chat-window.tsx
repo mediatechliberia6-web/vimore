@@ -21,7 +21,8 @@ import {
   Eye,
   FileText,
   Link as LinkIcon,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Radio
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Connection } from "@/context/PostContext";
@@ -34,6 +35,7 @@ import Image from "next/image";
 interface ChatWindowProps {
   contact: Connection;
   onBack: () => void;
+  onJoinLounge?: () => void;
 }
 
 interface Message {
@@ -66,13 +68,12 @@ interface Message {
   };
 }
 
-export function ChatWindow({ contact, onBack }: ChatWindowProps) {
+export function ChatWindow({ contact, onBack, onJoinLounge }: ChatWindowProps) {
   const { triggerHaptic } = useMusic();
   const { toast } = useToast();
   
-  // Phase 4 States
+  // States
   const [showVault, setShowVault] = useState(false);
-  const [isViewOnceActive, setIsViewOnceActive] = useState(false);
   const [viewingMedia, setViewingMedia] = useState<Message | null>(null);
 
   const [messages, setMessages] = useState<Message[]>([
@@ -130,11 +131,10 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Phase 4: Screen Protection Simulation
+  // Screen Protection Simulation
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        // Simple heuristic for focus stealing (potential capture)
         toast({
           variant: "destructive",
           title: "Privacy Guard Active",
@@ -313,6 +313,13 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
+            <Button 
+              variant="ghost" size="icon" className="rounded-full h-10 w-10 bg-primary/5 text-primary hover:bg-primary/10 animate-in zoom-in"
+              onClick={onJoinLounge}
+              title="Launch Audio Lounge"
+            >
+              <Radio className="h-5 w-5" />
+            </Button>
             <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-primary">
               <Video className="h-5 w-5" />
             </Button>
@@ -324,7 +331,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
               variant="ghost" 
               size="icon" 
               className={cn("rounded-full h-10 w-10 transition-all", showVault ? "bg-primary text-white" : "text-muted-foreground hover:text-primary")}
-              onClick={() => setShowVault(!showVault)}
+              onClick={() => { triggerHaptic(5); setShowVault(!showVault); }}
             >
               <Bookmark className="h-5 w-5" />
             </Button>

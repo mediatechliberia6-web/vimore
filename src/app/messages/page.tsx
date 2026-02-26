@@ -4,17 +4,18 @@ import { useState, useEffect } from "react";
 import { MainNav } from "@/components/layout/main-nav";
 import { ChatList } from "@/components/chat/chat-list";
 import { ChatWindow } from "@/components/chat/chat-window";
+import { AudioLounge } from "@/components/chat/audio-lounge";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, MessageSquare } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { MessageSquare, Zap } from "lucide-react";
 
 export default function MessagesPage() {
-  const { currentTrack, isExpanded } = useMusic();
+  const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { connections } = usePosts();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
+  const [isInLounge, setIsInLounge] = useState(false);
 
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -24,10 +25,21 @@ export default function MessagesPage() {
       setShowMobileChat(true);
     } else {
       setShowMobileChat(false);
+      setIsInLounge(false);
     }
   }, [selectedChatId]);
 
   const selectedContact = connections.find(c => c.username === selectedChatId) || null;
+
+  const handleJoinLounge = () => {
+    triggerHaptic(30);
+    setIsInLounge(true);
+  };
+
+  const handleLeaveLounge = () => {
+    triggerHaptic(15);
+    setIsInLounge(false);
+  };
 
   return (
     <div className="h-[100dvh] bg-background flex justify-center overflow-hidden">
@@ -54,25 +66,43 @@ export default function MessagesPage() {
             />
           </div>
 
-          {/* Rail 3: Chat Window */}
+          {/* Rail 3: Chat Window or Audio Lounge */}
           <div className={cn(
             "h-full flex flex-col relative transition-all duration-300",
             !showMobileChat ? "hidden lg:flex" : "flex"
           )}>
             {selectedContact ? (
-              <ChatWindow 
-                contact={selectedContact} 
-                onBack={() => setSelectedChatId(null)} 
-              />
+              <div className="relative h-full flex flex-col">
+                {isInLounge ? (
+                  <AudioLounge 
+                    contact={selectedContact} 
+                    onLeave={handleLeaveLounge} 
+                  />
+                ) : (
+                  <ChatWindow 
+                    contact={selectedContact} 
+                    onBack={() => setSelectedChatId(null)} 
+                    onJoinLounge={handleJoinLounge}
+                  />
+                )}
+              </div>
             ) : (
               <div className="flex-1 hidden lg:flex flex-col items-center justify-center text-center p-12 bg-[#FAFAFF] dark:bg-[#080808]">
                 <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 animate-in zoom-in duration-500">
                   <MessageSquare className="h-10 w-10 text-primary" />
                 </div>
-                <h3 className="text-2xl font-black italic uppercase tracking-tighter">ViMore Connect</h3>
-                <p className="text-muted-foreground text-sm max-w-xs mt-2">
-                  Select a creator to start a high-velocity conversation.
-                </p>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">ViMore Connect</h3>
+                  <div className="flex justify-center">
+                    <div className="bg-primary/5 px-3 py-1 rounded-full flex items-center gap-2 border border-primary/10">
+                      <Zap className="h-3 w-3 text-primary animate-pulse" />
+                      <span className="text-[10px] font-black text-primary uppercase tracking-widest">High-Velocity Hub</span>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground text-sm max-w-xs mt-4">
+                    Select a creator or launch a broadcast to begin collaborating in the digital workspace.
+                  </p>
+                </div>
               </div>
             )}
           </div>
