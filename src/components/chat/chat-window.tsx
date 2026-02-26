@@ -41,11 +41,6 @@ import { useMusic } from "@/context/MusicContext";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 
-interface ChatWindowProps {
-  contact: Connection;
-  onBack: () => void;
-}
-
 interface Message {
   id: string;
   sender: "me" | "them";
@@ -253,7 +248,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const handleVaultSync = () => {
     if (!fullScreenMedia) return;
     triggerHaptic(20);
-    toast({ title: "Vault Synced", description: "Asset migrated to your identity vault." });
+    toast({ title: "Note Synced", description: "Asset migrated to your identity notes." });
   };
 
   return (
@@ -382,7 +377,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center text-slate-400 bg-slate-50">
               <ShieldAlert className="h-12 w-12 mb-4 opacity-20" />
               <h3 className="text-xl font-black italic uppercase text-slate-900 mb-2">Sandbox Handshake Initiated</h3>
-              <p className="text-sm max-w-md font-medium">For security reasons, external frames are restricted. In a production node, this resource would render in a glassmorphic secure environment.</p>
+              <p className="text-sm max-md font-medium">For security reasons, external frames are restricted. In a production node, this resource would render in a glassmorphic secure environment.</p>
               <Button className="mt-8 bg-primary text-white font-black uppercase italic tracking-widest h-12 px-8 rounded-xl shadow-lg" onClick={() => window.open(externalPortalUrl, '_blank')}>
                 Proceed to Site Node
               </Button>
@@ -406,9 +401,9 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary"><Video className="h-5 w-5" /></Button>
-            <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary"><Phone className="h-5 w-5" /></Button>
-            <Button variant="ghost" size="icon" className={cn("rounded-full transition-all", showVault ? "bg-primary text-white" : "text-muted-foreground")} onClick={() => { triggerHaptic(5); setShowVault(!showVault); }}><Bookmark className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary" title="Shared Video"><Video className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary" title="Voice Call"><Phone className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon" className={cn("rounded-full transition-all", showVault ? "bg-primary text-white" : "text-muted-foreground")} title="Shared Notes" onClick={() => { triggerHaptic(5); setShowVault(!showVault); }}><Bookmark className="h-5 w-5" /></Button>
           </div>
         </header>
 
@@ -432,7 +427,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
       <aside className={cn("h-full bg-white dark:bg-card border-l border-primary/5 transition-all duration-500 overflow-hidden flex flex-col shrink-0", showVault ? "w-[320px] opacity-100" : "w-0 opacity-0")}>
         <div className="p-6 border-b border-primary/5 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2"><Bookmark className="h-5 w-5 text-primary" /><h3 className="font-black italic uppercase tracking-tighter">Shared Vault</h3></div>
+          <div className="flex items-center gap-2"><Bookmark className="h-5 w-5 text-primary" /><h3 className="font-black italic uppercase tracking-tighter">Shared Notes</h3></div>
           <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" onClick={() => setShowVault(false)}><X className="h-4 w-4" /></Button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-8">

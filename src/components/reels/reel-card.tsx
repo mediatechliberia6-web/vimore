@@ -201,7 +201,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
               <Bookmark className={cn("h-5 w-5", isBookmarked && "fill-current")} />
             </div>
           </button>
-          <span className="text-[9px] font-black text-white drop-shadow-md uppercase tracking-widest">Vault</span>
+          <span className="text-[9px] font-black text-white drop-shadow-md uppercase tracking-widest">Note</span>
         </div>
 
         <button className="p-2.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white hover:bg-black/40 transition-all active:scale-75 shadow-lg">

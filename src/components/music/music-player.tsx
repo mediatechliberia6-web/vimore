@@ -95,7 +95,7 @@ export function MusicPlayer() {
     
     await simulateDownload(currentTrack);
     setIsDownloading(false);
-    toast({ title: "Download Complete", description: "Vibe saved to your digital vault." });
+    toast({ title: "Music Note Saved", description: "Vibe saved to your identity notes." });
   };
 
   const isLiked = isTrackLiked(currentTrack.id);
@@ -234,7 +234,7 @@ export function MusicPlayer() {
                   <Link href={`/profile/${currentTrack.artistUsername || 'arivera'}`} onClick={() => setIsExpanded(false)}>
                     <p className="text-xl sm:text-2xl text-primary font-bold hover:underline">{currentTrack.artist}</p>
                   </Link>
-                  {isDownloaded && <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-[10px] font-black tracking-widest uppercase">Offline Ready</Badge>}
+                  {isDownloaded && <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-[10px] font-black tracking-widest uppercase">Music Note</Badge>}
                 </div>
               </div>
               <div className="flex flex-col gap-3 items-center">

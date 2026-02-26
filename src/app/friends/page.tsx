@@ -175,8 +175,8 @@ function FriendsPageContent() {
   const handleVaultUser = (username: string) => {
     triggerHaptic(5);
     toast({
-      title: "Vaulted",
-      description: `@${username} added to your workspace collection.`
+      title: "Noted",
+      description: `@${username} noted in your workspace collection.`
     });
   };
 

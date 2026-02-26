@@ -222,7 +222,7 @@ export default function MusicPage() {
                         { id: "playlists", label: "Playlists", count: userPlaylists.length },
                         { id: "songs", label: "My Songs", count: userSongs.length },
                         { id: "albums", label: "My Albums", count: userAlbums.length },
-                        { id: "downloaded", label: "Downloaded", count: downloadedTracks.length }
+                        { id: "downloaded", label: "Music Notes", count: downloadedTracks.length }
                       ].map((tab) => (
                         <button
                           key={tab.id}
@@ -231,7 +231,7 @@ export default function MusicPage() {
                             "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 border",
                             libraryTab === tab.id 
                               ? "bg-primary border-primary text-white shadow-lg shadow-primary/20" 
-                              : "bg-white/50 dark:bg-card/50 border-border text-muted-foreground hover:border-primary/30"
+                              : "bg-white/5 dark:bg-card/50 border-border text-muted-foreground hover:border-primary/30"
                           )}
                         >
                           {tab.label} <span className="ml-1 opacity-50">({tab.count})</span>
@@ -318,14 +318,14 @@ export default function MusicPage() {
                     <div className="space-y-8">
                       <div className="flex items-center gap-2 border-b border-border/50 pb-4">
                         <Download className="h-5 w-5 text-green-500" />
-                        <h3 className="font-bold text-sm uppercase tracking-widest">Offline Vault</h3>
+                        <h3 className="font-bold text-sm uppercase tracking-widest">Music Notes</h3>
                       </div>
                       {downloadedTracks.length === 0 ? (
                         <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2rem] border border-border/50">
                           <Download className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
                           <div className="space-y-1">
-                            <h3 className="text-xl font-bold">Vault is Empty</h3>
-                            <p className="text-muted-foreground text-sm">Download tracks to listen even when you're off-grid.</p>
+                            <h3 className="text-xl font-bold">Your Music Notes are empty</h3>
+                            <p className="text-muted-foreground text-sm">Note tracks to listen even when you're off-grid.</p>
                           </div>
                           <Button variant="outline" className="rounded-full border-primary text-primary" onClick={() => setActiveTab("discover")}>Discover Music</Button>
                         </div>

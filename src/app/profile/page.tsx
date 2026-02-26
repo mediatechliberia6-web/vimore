@@ -469,7 +469,7 @@ export default function MyProfilePage() {
                 <TabsTrigger value="all" className="flex-1 font-bold text-sm">Posts</TabsTrigger>
                 <TabsTrigger value="reels" className="flex-1 font-bold text-sm">Reels</TabsTrigger>
                 <TabsTrigger value="tagged" className="flex-1 font-bold text-sm">Tagged</TabsTrigger>
-                <TabsTrigger value="saved" className="flex-1 font-bold text-sm">Vault</TabsTrigger>
+                <TabsTrigger value="saved" className="flex-1 font-bold text-sm">Post Notes</TabsTrigger>
               </TabsList>
               
               <TabsContent value="all" className="p-4 space-y-4">
@@ -506,7 +506,7 @@ export default function MyProfilePage() {
               </TabsContent>
 
               <TabsContent value="saved" className="p-4 space-y-4">
-                 <div className="flex items-center justify-between px-1 mb-2"><div className="flex items-center gap-2"><Bookmark className="h-5 w-5 text-primary" /><h3 className="font-bold text-lg italic uppercase tracking-tighter">Your Digital Vault</h3></div></div>
+                 <div className="flex items-center justify-between px-1 mb-2"><div className="flex items-center gap-2"><Bookmark className="h-5 w-5 text-primary" /><h3 className="font-bold text-lg italic uppercase tracking-tighter">Your Post Notes</h3></div></div>
                  {savedPosts.length > 0 ? (
                    <div className="space-y-4">{savedPosts.map(post => <PostCard key={post.id} {...post} />) }</div>
                  ) : (
