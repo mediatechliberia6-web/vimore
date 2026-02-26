@@ -159,7 +159,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const MAX_PHOTOS = 6;
   const MAX_POLL_OPTIONS = 8;
 
-  // HIGH-VELOCITY LIMITS: 150 for themed/media, 2000 for pure text
+  // character limit set to 150 for themed/media content
   const isLimitedType = selectedTheme.id !== "none" || selectedMedia.length > 0 || mediaType !== null || isPollOpen;
   const currentLimit = isLimitedType ? 150 : 2000;
   const progress = (content.length / currentLimit) * 100;
@@ -422,7 +422,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-64 rounded-xl p-2">
                     {privacySettings.map((item) => (
-                      <DropdownMenuItem key={item.id} className="flex flex-col items-start gap-0.5 py-3 cursor-pointer" onClick={() => setPrivacy(item)}>
+                      <DropdownMenuItem key={item.id} className="flex flex-col items-start gap-0.5 py-3_cursor-pointer" onClick={() => setPrivacy(item)}>
                         <div className="flex items-center gap-2 font-bold text-sm"><item.icon className="h-4 w-4" />{item.label}</div>
                         <span className="text-[10px] text-muted-foreground ml-6">{item.description}</span>
                       </DropdownMenuItem>

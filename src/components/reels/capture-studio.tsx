@@ -39,7 +39,7 @@ const FILTERS = [
   { id: "arctic", label: "Arctic", class: "hue-rotate-[180deg] saturate-125 brightness-110" },
 ];
 
-const RECORDING_LIMIT = 300; // 5 minutes
+const RECORDING_LIMIT = 300; // 5 minutes standard
 
 export function CaptureStudio() {
   const { isCaptureStudioOpen, closeCaptureStudio, captureTrack, setCaptureTrack, triggerHaptic } = useMusic();
@@ -85,13 +85,13 @@ export function CaptureStudio() {
   }, [stream]);
 
   const startCamera = useCallback(async () => {
-    // CRITICAL: Robust release of hardware before re-acquisition to prevent NotReadableError
+    // 1. HARDWARE RELEASE: Strictly stop existing streams to prevent NotReadableError
     if (stream) {
       stream.getTracks().forEach(t => t.stop());
     }
 
     try {
-      // Dimension-First Handshake: Request high-res portrait natively
+      // 2. DIMENSION-FIRST HANDSHAKE: Request high-res portrait natively
       const constraints = {
         video: { 
           facingMode: cameraMode,
@@ -117,7 +117,7 @@ export function CaptureStudio() {
       if (capabilities.focusMode?.includes('continuous')) advanced.push({ focusMode: 'continuous' });
       if (capabilities.exposureMode?.includes('continuous')) advanced.push({ exposureMode: 'continuous' });
       
-      // Zoom capability probing
+      // Zoom capability probing - Ensure 1x is accessible
       if (capabilities.zoom) {
         setIsZoomSupported(true);
         setMinZoom(capabilities.zoom.min || 1);
@@ -155,18 +155,26 @@ export function CaptureStudio() {
       startCamera();
     }
     return () => {
-      // Ensure we release camera if the modal closes or flips
       if (stream) {
         stream.getTracks().forEach(t => t.stop());
       }
     };
   }, [isCaptureStudioOpen, cameraMode, recordedUrl]);
 
+  // Sync Timer with Sound Duration when not recording
+  useEffect(() => {
+    if (!isRecording && !recordedUrl) {
+      const initialLimit = captureTrack ? Math.min(captureTrack.duration, RECORDING_LIMIT) : RECORDING_LIMIT;
+      setTimeLeft(initialLimit);
+    }
+  }, [captureTrack, isRecording, recordedUrl]);
+
   const resetStudio = () => {
     setIsRecording(false);
     if (recordedUrl) URL.revokeObjectURL(recordedUrl);
     setRecordedUrl(null);
-    setTimeLeft(RECORDING_LIMIT);
+    const initialLimit = captureTrack ? Math.min(captureTrack.duration, RECORDING_LIMIT) : RECORDING_LIMIT;
+    setTimeLeft(initialLimit);
     setIsProcessing(false);
     if (timerRef.current) clearInterval(timerRef.current);
     setZoom(1);
@@ -224,6 +232,13 @@ export function CaptureStudio() {
     });
     mediaRecorderRef.current = recorder;
 
+    // SONIC SYNC: Start sound playback if selected
+    if (captureTrack && audioPreviewRef.current) {
+      audioPreviewRef.current.src = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'; // Mock URL for prototype
+      audioPreviewRef.current.currentTime = 0;
+      audioPreviewRef.current.play().catch(e => console.error("Sonic Playback Error", e));
+    }
+
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) chunksRef.current.push(e.data);
     };
@@ -233,12 +248,21 @@ export function CaptureStudio() {
       const url = URL.createObjectURL(blob);
       setRecordedUrl(url);
       setIsProcessing(false);
-      // Finalize hardware session
       stopStream();
+      
+      // Stop Sonic Playback
+      if (audioPreviewRef.current) {
+        audioPreviewRef.current.pause();
+        audioPreviewRef.current.currentTime = 0;
+      }
     };
 
     recorder.start();
     setIsRecording(true);
+
+    // DYNAMIC LIMIT: Initial time set by sound duration if applicable
+    const initialLimit = captureTrack ? Math.min(captureTrack.duration, RECORDING_LIMIT) : RECORDING_LIMIT;
+    setTimeLeft(initialLimit);
 
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
@@ -258,6 +282,11 @@ export function CaptureStudio() {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       if (timerRef.current) clearInterval(timerRef.current);
+      
+      // Pause sonic preview
+      if (audioPreviewRef.current) {
+        audioPreviewRef.current.pause();
+      }
     }
   };
 
@@ -307,10 +336,8 @@ export function CaptureStudio() {
       setPreviewTrackId(track.id);
       if (!audioPreviewRef.current) {
         audioPreviewRef.current = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'); 
-      } else {
-        audioPreviewRef.current.pause();
-        audioPreviewRef.current.currentTime = 0;
       }
+      audioPreviewRef.current.src = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
       audioPreviewRef.current.play().catch(() => {});
     }
   };
@@ -327,6 +354,8 @@ export function CaptureStudio() {
 
   return (
     <div className="fixed inset-0 z-[250] bg-black flex flex-col animate-in fade-in duration-500 overflow-hidden">
+      <audio ref={audioPreviewRef} className="hidden" />
+      
       <div className="relative flex-1 bg-zinc-950 flex items-center justify-center overflow-hidden">
         {recordedUrl ? (
           <div className="relative w-full h-full animate-in zoom-in-95 duration-500">
@@ -384,14 +413,15 @@ export function CaptureStudio() {
             ) : <div className="w-10" />}
           </div>
 
-          {isRecording && (
-            <div className="bg-destructive/80 backdrop-blur-md px-4 py-1.5 rounded-full text-white flex items-center gap-2 animate-pulse shadow-2xl">
-              <div className="h-2 w-2 bg-white rounded-full animate-ping" />
-              <span className="text-xs font-black tracking-widest">
-                {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-              </span>
-            </div>
-          )}
+          <div className={cn(
+            "bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full text-white flex items-center gap-2 shadow-2xl transition-all",
+            isRecording && "bg-destructive/80 animate-pulse"
+          )}>
+            {isRecording && <div className="h-2 w-2 bg-white rounded-full animate-ping" />}
+            <span className="text-xs font-black tracking-widest">
+              {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+            </span>
+          </div>
         </div>
 
         {!recordedUrl && (

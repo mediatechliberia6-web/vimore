@@ -77,6 +77,8 @@ interface PostCardProps {
   time: string;
   hashtags?: string[];
   feeling?: { emoji: string; text: string };
+  location?: string;
+  themeClass?: string;
   commentsDisabled?: boolean;
   isPinned?: boolean;
   isSeries?: boolean;
@@ -205,7 +207,7 @@ export function PostCard(props: PostCardProps) {
   if (isHidden) return null;
 
   const isLimitedType = !!theme || allImages.length > 0 || !!videoUrl || !!poll;
-  const TRUNCATE_LIMIT = 150; // HIGH-VELOCITY THRESHOLD
+  const TRUNCATE_LIMIT = 150; // Character limit synchronized to 150
   const isLongContent = content.length > TRUNCATE_LIMIT && !isLimitedType;
   const displayedContent = isLongContent && !isExpanded ? content.slice(0, TRUNCATE_LIMIT) + "..." : content;
 
@@ -238,9 +240,13 @@ export function PostCard(props: PostCardProps) {
       <CardContent className={cn("px-3 pb-2 space-y-2", theme && !isShared ? theme + " py-12 px-8 text-center" : "bg-white dark:bg-card")}>
         <div className={cn("text-[13px] leading-relaxed whitespace-pre-wrap", theme && !isShared ? "text-2xl leading-tight font-black italic uppercase tracking-tighter" : "text-foreground")}>{renderContent(translatedText || displayedContent)}</div>
         {isLongContent && <button onClick={() => setIsExpanded(!isExpanded)} className="text-[13px] font-bold text-primary">{isExpanded ? "Show less" : "See more"}</button>}
+        
         {poll && !theme && (
           <div className="mt-3 p-4 rounded-xl border border-primary/10 bg-primary/5 space-y-3">
-            <div className="flex items-center justify-between"><h4 className="font-bold text-sm">{poll.question}</h4><Badge variant="secondary" className="bg-primary/10 text-primary border-none text-[8px] font-black h-4 px-2">RANKED</Badge></div>
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-sm">{poll.question}</h4>
+              <Badge variant="secondary" className="bg-primary/10 text-primary border-none text-[8px] font-black h-4 px-2">RANKED</Badge>
+            </div>
             <div className="space-y-2">
               {(isPollExpanded ? rankedPollOptions : rankedPollOptions.slice(0, 4)).map((option, i) => {
                 const p = localTotalVotes > 0 ? (option.votes / localTotalVotes) * 100 : 0;
@@ -249,7 +255,10 @@ export function PostCard(props: PostCardProps) {
                   <button key={option.originalIndex} onClick={() => handleVote(option.originalIndex)} className={cn("w-full relative h-10 rounded-lg border overflow-hidden transition-all", isSelected ? "border-primary bg-primary/10" : "border-primary/20 bg-white/40")}>
                     <div className={cn("absolute inset-y-0 left-0 transition-all duration-700", isSelected ? "bg-primary/20" : "bg-primary/5")} style={{ width: `${p}%` }} />
                     <div className="absolute inset-0 flex items-center justify-between px-3 text-sm">
-                      <div className="flex items-center gap-2"><span className="text-[10px] font-black text-primary/40">#{i + 1}</span><span className={cn("font-medium", isSelected && "text-primary font-bold")}>{option.text}</span></div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-primary/40">#{i + 1}</span>
+                        <span className={cn("font-medium", isSelected && "text-primary font-bold")}>{option.text}</span>
+                      </div>
                       <span className="text-xs font-black text-primary">{Math.round(p)}%</span>
                     </div>
                   </button>
@@ -257,11 +266,12 @@ export function PostCard(props: PostCardProps) {
               })}
             </div>
             <div className="flex items-center justify-between pt-1 border-t border-primary/5">
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{localTotalVotes.toLocaleString()} Votes</span>
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{localTotalVotes.toLocaleString()} Total Votes</span>
               {rankedPollOptions.length > 4 && <button onClick={() => setIsPollExpanded(!isPollExpanded)} className="text-[10px] font-black text-primary uppercase">{isPollExpanded ? "Collapse" : "View all"}</button>}
             </div>
           </div>
         )}
+
         {allImages.length > 0 && !isShared && !theme && (
           <div className="relative mt-2 -mx-3 sm:mx-0"><Carousel className="w-full"><CarouselContent>{allImages.map((img, i) => (<CarouselItem key={i}><div className="relative aspect-video rounded-lg overflow-hidden"><Image src={img} alt="Post" fill className={cn("object-cover", imageFilter)} /></div></CarouselItem>))}</CarouselContent></Carousel></div>
         )}
@@ -278,5 +288,3 @@ export function PostCard(props: PostCardProps) {
     </Card>
   );
 }
-
-const INITIAL_USER = { name: "John Doe", username: "johndoe_creative", avatar: "https://picsum.photos/seed/me/400/400" };
