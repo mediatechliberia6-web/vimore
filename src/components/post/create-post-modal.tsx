@@ -47,6 +47,7 @@ import {
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { usePosts } from "@/context/PostContext";
+import { useMusic } from "@/context/MusicContext";
 import {
   Select,
   SelectContent,
@@ -122,6 +123,8 @@ const USER_PROFILE = {
 
 export function CreatePostModal({ children }: CreatePostModalProps) {
   const { addPost } = usePosts();
+  const { openCaptureStudio, triggerHaptic } = useMusic();
+  const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState("");
   const [privacy, setPrivacy] = useState<PrivacySetting>(privacySettings[0]);
   const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
@@ -150,15 +153,12 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [isAiLoading, setIsAiLoading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
   
   const MAX_PHOTOS = 6;
   const MAX_POLL_OPTIONS = 8;
-  const MAX_VIDEO_DURATION = 300; 
 
-  // Contextual Character Limits - Updated from 300 to 150
   const isLimitedType = selectedTheme.id !== "none" || selectedMedia.length > 0 || mediaType !== null;
   const currentLimit = isLimitedType ? 150 : 2000;
   const progress = (content.length / currentLimit) * 100;
@@ -290,6 +290,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setSelectedTheme(backgroundThemes[0]);
     setSelectedFilter(imageFilters[0]);
     setCommentsDisabled(false);
+    setIsOpen(false);
   };
 
   const handlePhotoUploadClick = () => {
@@ -321,11 +322,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       toast({ title: "Incompatible content", description: "You cannot add a video to a themed post.", variant: "destructive" });
       return;
     }
-    if (mediaType === 'image' && selectedMedia.length > 0) {
-      setSelectedMedia([]);
-      setMediaType(null);
-    }
-    videoInputRef.current?.click();
+    
+    triggerHaptic(15);
+    setIsOpen(false);
+    openCaptureStudio();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -342,32 +342,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       };
       reader.readAsDataURL(file);
     });
-    e.target.value = "";
-  };
-
-  const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const videoElement = document.createElement('video');
-    videoElement.preload = 'metadata';
-    const tempUrl = URL.createObjectURL(file);
-    
-    videoElement.onloadedmetadata = () => {
-      URL.revokeObjectURL(tempUrl);
-      if (videoElement.duration > MAX_VIDEO_DURATION) {
-        toast({ 
-          variant: "destructive", 
-          title: "Video Too Long", 
-          description: "Reels are limited to 5 minutes or less." 
-        });
-        return;
-      }
-      
-      setMediaType('video');
-      setSelectedMedia([URL.createObjectURL(file)]); 
-    };
-    videoElement.src = tempUrl;
     e.target.value = "";
   };
 
@@ -483,7 +457,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   ];
 
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
@@ -493,7 +467,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         <DialogDescription className="sr-only" id="create-post-description">Interface to compose text, upload media, add polls, feelings, and locations.</DialogDescription>
         
         <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*" onChange={handleFileChange} />
-        <input type="file" ref={videoInputRef} className="hidden" accept="video/*" onChange={handleVideoFileChange} />
 
         <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0 bg-white dark:bg-card">
           <div className="flex items-center gap-4">
@@ -520,16 +493,14 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                 <Trash2 className="h-5 w-5" />
               </Button>
             )}
-            <DialogClose asChild>
-              <Button 
-                variant="ghost" 
-                className={cn("font-bold text-primary text-base", (!content.trim() && selectedMedia.length === 0 && !pollQuestion || isOverLimit) && "opacity-50")}
-                disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit}
-                onClick={handlePost}
-              >
-                POST
-              </Button>
-            </DialogClose>
+            <Button 
+              variant="ghost" 
+              className={cn("font-bold text-primary text-base", (!content.trim() && selectedMedia.length === 0 && !pollQuestion || isOverLimit) && "opacity-50")}
+              disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit}
+              onClick={handlePost}
+            >
+              POST
+            </Button>
           </div>
         </DialogHeader>
 
@@ -930,11 +901,13 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         </div>
 
         <div className="p-4 bg-white dark:bg-card border-t shrink-0">
-          <DialogClose asChild>
-            <Button className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit} onClick={handlePost}>
-              POST
-            </Button>
-          </DialogClose>
+          <Button 
+            className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" 
+            disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit} 
+            onClick={handlePost}
+          >
+            POST
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
