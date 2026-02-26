@@ -32,6 +32,8 @@ interface ChatInputProps {
   onSend: (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string }) => void;
 }
 
+const VIDEO_UPLOAD_LIMIT = 300; // 5 minutes in seconds
+
 export function ChatInput({ onSend }: ChatInputProps) {
   const [text, setText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -92,7 +94,6 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const handleMediaTrigger = (filter: string) => {
     triggerHaptic(5);
     setCurrentFilter(filter);
-    // Timeout ensures React state updates filter before browser opens
     setTimeout(() => {
       if (fileInputRef.current) fileInputRef.current.click();
     }, 10);
@@ -166,19 +167,50 @@ export function ChatInput({ onSend }: ChatInputProps) {
       const isVideo = file.type.startsWith('video');
       const mediaUrl = URL.createObjectURL(file);
       
-      onSend("", { 
-        isViewOnce: isViewOnceEnabled,
-        mediaUrl: mediaUrl,
-        mediaType: isVideo ? 'video' : 'photo'
-      });
+      if (isVideo) {
+        // Duration validation for high-velocity sync
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = () => {
+          // We don't revoke yet as we need it for the chat bubble
+          if (video.duration > VIDEO_UPLOAD_LIMIT) {
+            toast({ 
+              variant: "destructive", 
+              title: "Clip Too Long", 
+              description: "High-velocity sync is capped at 5 minutes per reel." 
+            });
+            URL.revokeObjectURL(mediaUrl);
+            e.target.value = "";
+            return;
+          }
+          sendMedia(mediaUrl, 'video', file.name);
+        };
+        video.onerror = () => {
+          toast({ variant: "destructive", title: "Format Error", description: "Could not decode video metadata." });
+          URL.revokeObjectURL(mediaUrl);
+        };
+        video.src = mediaUrl;
+      } else {
+        // Photos proceed immediately
+        sendMedia(mediaUrl, 'photo', file.name);
+      }
       
-      setIsViewOnceEnabled(false);
-      toast({
-        title: isViewOnceEnabled ? "View-Once Vibe Shared" : "Media Shared",
-        description: `Successfully launched ${file.name} to the hub.`
-      });
       e.target.value = "";
     }
+  };
+
+  const sendMedia = (url: string, type: 'photo' | 'video', fileName: string) => {
+    onSend("", { 
+      isViewOnce: isViewOnceEnabled,
+      mediaUrl: url,
+      mediaType: type
+    });
+    
+    setIsViewOnceEnabled(false);
+    toast({
+      title: isViewOnceEnabled ? "View-Once Vibe Shared" : "Media Shared",
+      description: `Successfully launched ${fileName} to the hub.`
+    });
   };
 
   const toggleViewOnce = () => {
