@@ -333,13 +333,31 @@ export function PostProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(key, JSON.stringify(value));
     } catch (e) {
       if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
-        console.warn(`Storage quota exceeded for key: ${key}. Attempting to trim data...`);
-        // Special handling for local posts - keep only most recent
+        console.warn(`Storage quota exceeded for key: ${key}. Attempting recovery...`);
+        
+        // Strategy 1: If saving posts, try saving fewer.
         if (key === 'vimore_local_posts' && Array.isArray(value)) {
+          const tries = [3, 1, 0]; // Keep 3, then 1, then empty array
+          for (const count of tries) {
+            try {
+              localStorage.setItem(key, JSON.stringify(value.slice(0, count)));
+              console.log(`Recovered space by trimming ${key} to ${count} entries.`);
+              return;
+            } catch (innerE) {
+              // Try next count
+            }
+          }
+        } 
+        
+        // Strategy 2: If saving user identity, clear posts to make room.
+        if (key === 'vimore_user') {
+          console.warn("Prioritizing user identity over post history. Clearing local posts...");
+          localStorage.removeItem('vimore_local_posts');
           try {
-            localStorage.setItem(key, JSON.stringify(value.slice(0, 3)));
+            localStorage.setItem(key, JSON.stringify(value));
+            return;
           } catch (innerE) {
-            console.error("Could not persist even trimmed posts.");
+            console.error("Critical: Storage failed even after clearing history.");
           }
         }
       }
