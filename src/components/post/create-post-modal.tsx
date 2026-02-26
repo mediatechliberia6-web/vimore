@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { 
   ArrowLeft, 
-  Image as ImageIcon, 
+  ImageIcon, 
   ChevronDown, 
   Smile, 
   MapPin, 
@@ -65,7 +65,7 @@ interface CreatePostModalProps {
 type PrivacySetting = {
   id: string;
   label: string;
-  icon: typeof Globe;
+  icon: any;
   description: string;
 };
 
@@ -156,11 +156,11 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   
   const MAX_PHOTOS = 6;
   const MAX_POLL_OPTIONS = 8;
-  const MAX_VIDEO_DURATION = 300; // 5 minutes in seconds
+  const MAX_VIDEO_DURATION = 300; 
 
-  // Contextual Character Limits
+  // Contextual Character Limits - Updated from 300 to 150
   const isLimitedType = selectedTheme.id !== "none" || selectedMedia.length > 0 || mediaType !== null;
-  const currentLimit = isLimitedType ? 300 : 2000;
+  const currentLimit = isLimitedType ? 150 : 2000;
   const progress = (content.length / currentLimit) * 100;
   const isOverLimit = content.length > currentLimit;
 
@@ -616,7 +616,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           <div className={cn("px-4 relative min-h-[220px] transition-all duration-300 flex items-center justify-center p-8", selectedTheme.class)}>
             <Textarea 
               ref={textareaRef}
-              placeholder={isLimitedType ? "Short vibe... (300 chars max)" : "What's on your mind? (2000 chars max)"}
+              placeholder={isLimitedType ? "Short vibe... (150 chars max)" : "What's on your mind? (2000 chars max)"}
               className={cn(
                 "border-none focus-visible:ring-0 text-2xl resize-none p-0 placeholder:text-muted-foreground/50 min-h-[160px] bg-transparent text-center",
                 selectedTheme.id !== "none" ? "text-white placeholder:text-white/60" : "text-foreground"

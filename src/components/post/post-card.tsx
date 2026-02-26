@@ -233,7 +233,7 @@ export function PostCard(props: PostCardProps) {
   if (isHidden) return null;
 
   const isLimitedType = !!theme || allImages.length > 0 || !!videoUrl || !!poll;
-  const TRUNCATE_LIMIT = 300;
+  const TRUNCATE_LIMIT = 150; // Updated from 300 to 150
   const isLongContent = content.length > TRUNCATE_LIMIT && !isLimitedType;
   const displayedContent = isLongContent && !isExpanded ? content.slice(0, TRUNCATE_LIMIT) + "..." : content;
 
