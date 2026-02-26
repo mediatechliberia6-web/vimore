@@ -56,41 +56,63 @@ export function CaptureStudio() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize Camera with Cinematic High-Quality Settings
+  // Initialize Camera with High-Fidelity Cinematic Settings
   const startCamera = useCallback(async () => {
     try {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
 
-      // Requesting High Definition (1080p) and High Frame Rate (60fps)
+      // High-Fidelity Handshake: Demanding Portrait-Native High Res
       const constraints = {
         video: { 
           facingMode: cameraMode,
-          width: { ideal: 1920, max: 3840 }, // 1080p ideal, up to 4K
-          height: { ideal: 1080, max: 2160 },
-          frameRate: { ideal: 60, max: 60 }, // High Velocity 60fps
+          // Explicitly request high-res portrait dimensions to force primary sensor detail
+          width: { ideal: 1080, min: 720 },
+          height: { ideal: 1920, min: 1280 },
+          frameRate: { ideal: 60, min: 30 },
           aspectRatio: { ideal: 0.5625 }, // 9:16 Portrait
         },
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 48000, // High fidelity audio
+          sampleRate: 48000, 
         }
       };
 
       const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      // Hardware Optimization: Continuous Focus and Exposure
+      const track = newStream.getVideoTracks()[0];
+      const capabilities = track.getCapabilities() as any;
+      
+      const advanced: any[] = [];
+      if (capabilities.focusMode?.includes('continuous')) {
+        advanced.push({ focusMode: 'continuous' });
+      }
+      if (capabilities.exposureMode?.includes('continuous')) {
+        advanced.push({ exposureMode: 'continuous' });
+      }
+      
+      if (advanced.length > 0) {
+        try {
+          await track.applyConstraints({ advanced } as any);
+        } catch (e) {
+          console.warn("Advanced hardware handshake bypassed", e);
+        }
+      }
+
       setStream(newStream);
       if (videoRef.current) {
         videoRef.current.srcObject = newStream;
       }
     } catch (error) {
-      console.error("Camera access failed", error);
+      console.error("Studio entrance blocked", error);
       toast({ 
         variant: "destructive", 
-        title: "Hardware Blocked", 
-        description: "Please enable camera and microphone access to enter the studio." 
+        title: "Lens Access Error", 
+        description: "Please check your browser permissions to enter the creation studio." 
       });
       closeCaptureStudio();
     }
@@ -134,10 +156,10 @@ export function CaptureStudio() {
         } as any);
         setIsFlashOn(!isFlashOn);
       } catch (e) {
-        console.error("Flash toggle failed", e);
+        console.error("Flash relay failure", e);
       }
     } else {
-      toast({ description: "Flash is not available on this lens." });
+      toast({ description: "Flash not supported on this sensor." });
     }
   };
 
@@ -151,15 +173,14 @@ export function CaptureStudio() {
     triggerHaptic(30);
     chunksRef.current = [];
     
-    // Check for supported mime types with high-fidelity codecs
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') 
       ? 'video/webm;codecs=vp9,opus' 
       : 'video/mp4';
 
-    // Increase bitrate to 8Mbps for cinematic quality
+    // Cinematic Bitrate: 8Mbps for crystal clear playback
     const recorder = new MediaRecorder(stream, { 
       mimeType,
-      videoBitsPerSecond: 8000000 // 8 Mbps
+      videoBitsPerSecond: 8000000 
     });
     mediaRecorderRef.current = recorder;
 
@@ -212,8 +233,8 @@ export function CaptureStudio() {
       if (video.duration > RECORDING_LIMIT) {
         toast({ 
           variant: "destructive", 
-          title: "Video Too Long", 
-          description: "Please select a video under 5 minutes." 
+          title: "Clip Too Long", 
+          description: "Reels are capped at 5 minutes for high-velocity streaming." 
         });
         return;
       }
@@ -231,7 +252,7 @@ export function CaptureStudio() {
     
     addPost({
       user: currentUser,
-      content: `Vibe check with **${captureTrack?.title || 'Original Audio'}** ⚡️ #CaptureStudio #HighFidelity`,
+      content: `Captured a vibe with **${captureTrack?.title || 'Original Audio'}** ⚡️ #CaptureStudio #HighFidelity`,
       videoUrl: recordedUrl,
       language: 'en'
     });
@@ -245,7 +266,7 @@ export function CaptureStudio() {
   return (
     <div className="fixed inset-0 z-[250] bg-black flex flex-col animate-in fade-in duration-500 overflow-hidden">
       
-      {/* Live Preview / Review Player */}
+      {/* Cinematic Preview / Review Player */}
       <div className="relative flex-1 bg-zinc-950 flex items-center justify-center overflow-hidden">
         {recordedUrl ? (
           <video 
@@ -263,13 +284,13 @@ export function CaptureStudio() {
             playsInline 
             className={cn(
               "w-full h-full object-cover transition-transform duration-500", 
-              cameraMode === "user" && "scale-x-[-1]", // Only mirror selfie
+              cameraMode === "user" && "scale-x-[-1]", // Only mirror the selfie lens
               activeFilter.class
             )}
           />
         )}
 
-        {/* Top Deck: Sound Context */}
+        {/* Top Deck: Context UI */}
         <div className="absolute top-6 left-0 right-0 z-50 flex flex-col items-center gap-4 px-6">
           <div className="flex items-center justify-between w-full">
             <Button variant="ghost" size="icon" className="text-white bg-black/20 backdrop-blur-md rounded-full" onClick={closeCaptureStudio}>
@@ -297,7 +318,7 @@ export function CaptureStudio() {
                 Launch
               </Button>
             ) : (
-              <div className="w-10" /> // Placeholder for balance
+              <div className="w-10" /> 
             )}
           </div>
 
@@ -311,7 +332,7 @@ export function CaptureStudio() {
           )}
         </div>
 
-        {/* Right Rail: Interaction Commands */}
+        {/* Studio Interaction Rail */}
         {!recordedUrl && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-6">
             <button 
@@ -330,7 +351,7 @@ export function CaptureStudio() {
             >
               <div className={cn(
                 "h-11 w-11 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all",
-                isFlashOn ? "bg-primary text-white border-primary" : "bg-black/30 text-white border-white/10"
+                isFlashOn ? "bg-primary text-white border-primary shadow-[0_0_15px_rgba(153,64,229,0.5)]" : "bg-black/30 text-white border-white/10"
               )}>
                 <Zap className={cn("h-5 w-5", isFlashOn && "fill-current")} />
               </div>
@@ -343,7 +364,7 @@ export function CaptureStudio() {
             >
               <div className={cn(
                 "h-11 w-11 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all",
-                showFilters ? "bg-accent text-white border-accent" : "bg-black/30 text-white border-white/10"
+                showFilters ? "bg-accent text-white border-accent shadow-[0_0_15px_rgba(110,150,255,0.5)]" : "bg-black/30 text-white border-white/10"
               )}>
                 <Filter className="h-5 w-5" />
               </div>
@@ -352,11 +373,10 @@ export function CaptureStudio() {
           </div>
         )}
 
-        {/* Bottom Deck: Capture Actions */}
+        {/* Action Center */}
         <div className="absolute bottom-10 left-0 right-0 z-50 px-8 flex items-center justify-between">
           {!recordedUrl ? (
             <>
-              {/* Upload Portal */}
               <div 
                 className="flex flex-col items-center gap-2 cursor-pointer group"
                 onClick={() => fileInputRef.current?.click()}
@@ -368,7 +388,6 @@ export function CaptureStudio() {
                 <input type="file" ref={fileInputRef} className="hidden" accept="video/*" onChange={handleUpload} />
               </div>
 
-              {/* Central Record Button */}
               <div className="relative">
                 <div className={cn(
                   "absolute inset-0 rounded-full blur-xl transition-all duration-500",
@@ -388,13 +407,12 @@ export function CaptureStudio() {
                 </button>
               </div>
 
-              {/* HD Indicator */}
               <div className="flex flex-col items-center gap-2">
                 <div className="h-12 w-12 rounded-xl border border-primary/20 bg-primary/5 flex flex-col items-center justify-center">
-                  <span className="text-[8px] font-black text-primary leading-none">HD</span>
-                  <span className="text-[10px] font-black text-white">60</span>
+                  <span className="text-[8px] font-black text-primary leading-none">PRO</span>
+                  <span className="text-[10px] font-black text-white">HD</span>
                 </div>
-                <span className="text-[8px] font-black text-white uppercase tracking-[0.2em]">High-Fi</span>
+                <span className="text-[8px] font-black text-white uppercase tracking-[0.2em]">Cinematic</span>
               </div>
             </>
           ) : (
@@ -416,7 +434,7 @@ export function CaptureStudio() {
           )}
         </div>
 
-        {/* Filter Overlay Drawer */}
+        {/* Real-time Filter Deck */}
         {showFilters && !recordedUrl && (
           <div className="absolute bottom-36 left-0 right-0 z-[60] animate-in slide-in-from-bottom-4 duration-300 px-6">
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
@@ -442,11 +460,11 @@ export function CaptureStudio() {
           </div>
         )}
 
-        {/* Processing Indicator */}
+        {/* Engine Processing State */}
         {isProcessing && (
           <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4">
             <Loader2 className="h-12 w-12 text-primary animate-spin" />
-            <p className="text-sm font-black uppercase italic tracking-widest text-white">Synthesizing Vibe...</p>
+            <p className="text-sm font-black uppercase italic tracking-widest text-white">Processing Cinematic Vibe...</p>
           </div>
         )}
       </div>
