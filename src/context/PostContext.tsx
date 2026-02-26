@@ -270,6 +270,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
   const [followingUsernames, setFollowingUsernames] = useState<Set<string>>(new Set(["jmoore", "arivera", "schen_dev"]));
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
+  const [connections, setConnections] = useState<Connection[]>(MOCK_CONNECTIONS);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('vimore_user');
@@ -435,7 +436,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       savedPostIds,
       followingUsernames,
       activeStoryIndex, 
-      connections: MOCK_CONNECTIONS,
+      connections,
       setActiveStoryIndex, 
       addPost, 
       addStory, 

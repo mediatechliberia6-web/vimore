@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { MainNav } from "@/components/layout/main-nav";
 import { RightSidebar } from "@/components/layout/right-sidebar";
 import { PostCard } from "@/components/post/post-card";
@@ -76,6 +76,13 @@ export default function MyProfilePage() {
   const [confirmType, setConfirmType] = useState<"unfollow" | "unfriend">("unfollow");
 
   const isPlayerActive = currentTrack && !isExpanded;
+
+  // Pointer-event cleanup to prevent UI locks after modal interactions
+  useEffect(() => {
+    if (!isHubOpen && !confirmUser && !isEditModalOpen) {
+      document.body.style.pointerEvents = 'auto';
+    }
+  }, [isHubOpen, confirmUser, isEditModalOpen]);
 
   const [skills, setSkills] = useState([
     { name: "UI/UX Design", count: 42, endorsed: false },
@@ -212,6 +219,8 @@ export default function MyProfilePage() {
         description: `You no longer follow ${confirmUser.name}` 
       });
       setConfirmUser(null);
+      // Force pointer events release after nested interaction
+      setTimeout(() => { document.body.style.pointerEvents = 'auto'; }, 100);
     }
   };
 

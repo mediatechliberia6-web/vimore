@@ -111,6 +111,13 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
   const amIFollowing = isFollowing(username);
 
+  // Pointer-event cleanup to prevent UI locks after modal interactions
+  useEffect(() => {
+    if (!isHubOpen && !confirmUser) {
+      document.body.style.pointerEvents = 'auto';
+    }
+  }, [isHubOpen, confirmUser]);
+
   // Get user data or fallback
   const displayUser = MOCK_USERS[username] || {
     name: username.charAt(0).toUpperCase() + username.slice(1),
@@ -217,6 +224,8 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
         description: `You no longer follow ${confirmUser.name}` 
       });
       setConfirmUser(null);
+      // Force pointer events release after nested interaction
+      setTimeout(() => { document.body.style.pointerEvents = 'auto'; }, 100);
     }
   };
 
