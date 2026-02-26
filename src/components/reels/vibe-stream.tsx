@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { ReelCard } from "./reel-card";
+import { useMusic } from "@/context/MusicContext";
 
 const MOCK_REELS = [
   {
@@ -19,6 +20,7 @@ const MOCK_REELS = [
     comments: 856,
     shares: 420,
     music: {
+      id: 1,
       title: "Essence",
       artist: "Wizkid",
       cover: "https://picsum.photos/seed/song1/100/100"
@@ -39,6 +41,7 @@ const MOCK_REELS = [
     comments: 432,
     shares: 128,
     music: {
+      id: 2,
       title: "Last Last",
       artist: "Burna Boy",
       cover: "https://picsum.photos/seed/song2/100/100"
@@ -59,6 +62,7 @@ const MOCK_REELS = [
     comments: 1204,
     shares: 890,
     music: {
+      id: 3,
       title: "Unavailable",
       artist: "Davido",
       cover: "https://picsum.photos/seed/song3/100/100"
@@ -69,6 +73,7 @@ const MOCK_REELS = [
 export function VibeStream() {
   const [activeReelId, setActiveReelId] = useState(MOCK_REELS[0].id);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { triggerHaptic } = useMusic();
 
   useEffect(() => {
     const options = {
@@ -81,12 +86,9 @@ export function VibeStream() {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           const id = entry.target.getAttribute("data-reel-id");
-          if (id) {
+          if (id && id !== activeReelId) {
             setActiveReelId(id);
-            // Optional: Trigger haptic on major scroll snap
-            if (typeof window !== 'undefined' && window.navigator?.vibrate) {
-              window.navigator.vibrate(5);
-            }
+            triggerHaptic(5);
           }
         }
       });
@@ -96,7 +98,7 @@ export function VibeStream() {
     cards?.forEach((card) => observer.observe(card));
 
     return () => observer.disconnect();
-  }, []);
+  }, [activeReelId, triggerHaptic]);
 
   return (
     <div 
@@ -104,7 +106,7 @@ export function VibeStream() {
       className="flex-1 w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide bg-black"
     >
       {MOCK_REELS.map((reel) => (
-        <div key={reel.id} data-reel-id={reel.id} className="snap-start h-[100dvh] w-full">
+        <div key={reel.id} data-reel-id={reel.id} className="snap-start h-[100dvh] w-full relative">
           <ReelCard 
             {...reel} 
             isActive={activeReelId === reel.id} 
