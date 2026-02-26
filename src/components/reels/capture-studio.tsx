@@ -14,9 +14,12 @@ import {
   Loader2,
   Trash2,
   ArrowLeft,
-  Circle
+  Circle,
+  ZoomIn,
+  ZoomOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
 import { useToast } from "@/hooks/use-toast";
@@ -50,28 +53,31 @@ export function CaptureStudio() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Zoom State
+  const [zoom, setZoom] = useState(1);
+  const [minZoom, setMinZoom] = useState(1);
+  const [maxZoom, setMaxZoom] = useState(1);
+  const [isZoomSupported, setIsZoomSupported] = useState(false);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize Camera with High-Fidelity Cinematic Settings
   const startCamera = useCallback(async () => {
     try {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
 
-      // High-Fidelity Handshake: Demanding Portrait-Native High Res
       const constraints = {
         video: { 
           facingMode: cameraMode,
-          // Explicitly request high-res portrait dimensions to force primary sensor detail
           width: { ideal: 1080, min: 720 },
           height: { ideal: 1920, min: 1280 },
           frameRate: { ideal: 60, min: 30 },
-          aspectRatio: { ideal: 0.5625 }, // 9:16 Portrait
+          aspectRatio: { ideal: 0.5625 }, 
         },
         audio: {
           echoCancellation: true,
@@ -83,10 +89,10 @@ export function CaptureStudio() {
 
       const newStream = await navigator.mediaDevices.getUserMedia(constraints);
       
-      // Hardware Optimization: Continuous Focus and Exposure
       const track = newStream.getVideoTracks()[0];
       const capabilities = track.getCapabilities() as any;
       
+      // Hardware Optimization
       const advanced: any[] = [];
       if (capabilities.focusMode?.includes('continuous')) {
         advanced.push({ focusMode: 'continuous' });
@@ -95,6 +101,16 @@ export function CaptureStudio() {
         advanced.push({ exposureMode: 'continuous' });
       }
       
+      // Detect Zoom Support
+      if (capabilities.zoom) {
+        setIsZoomSupported(true);
+        setMinZoom(capabilities.zoom.min || 1);
+        setMaxZoom(capabilities.zoom.max || 1);
+        setZoom(track.getSettings().zoom || 1);
+      } else {
+        setIsZoomSupported(false);
+      }
+
       if (advanced.length > 0) {
         try {
           await track.applyConstraints({ advanced } as any);
@@ -141,6 +157,23 @@ export function CaptureStudio() {
     setTimeLeft(RECORDING_LIMIT);
     setIsProcessing(false);
     if (timerRef.current) clearInterval(timerRef.current);
+    setZoom(1);
+  };
+
+  const handleZoomChange = async (value: number) => {
+    if (!stream || !isZoomSupported) return;
+    const track = stream.getVideoTracks()[0];
+    try {
+      await track.applyConstraints({
+        advanced: [{ zoom: value }]
+      } as any);
+      setZoom(value);
+      if (value === minZoom || value === maxZoom) {
+        triggerHaptic(10);
+      }
+    } catch (e) {
+      console.error("Zoom constraint failed", e);
+    }
   };
 
   const handleToggleFlash = async () => {
@@ -177,7 +210,6 @@ export function CaptureStudio() {
       ? 'video/webm;codecs=vp9,opus' 
       : 'video/mp4';
 
-    // Cinematic Bitrate: 8Mbps for crystal clear playback
     const recorder = new MediaRecorder(stream, { 
       mimeType,
       videoBitsPerSecond: 8000000 
@@ -266,7 +298,6 @@ export function CaptureStudio() {
   return (
     <div className="fixed inset-0 z-[250] bg-black flex flex-col animate-in fade-in duration-500 overflow-hidden">
       
-      {/* Cinematic Preview / Review Player */}
       <div className="relative flex-1 bg-zinc-950 flex items-center justify-center overflow-hidden">
         {recordedUrl ? (
           <video 
@@ -284,13 +315,12 @@ export function CaptureStudio() {
             playsInline 
             className={cn(
               "w-full h-full object-cover transition-transform duration-500", 
-              cameraMode === "user" && "scale-x-[-1]", // Only mirror the selfie lens
+              cameraMode === "user" && "scale-x-[-1]", 
               activeFilter.class
             )}
           />
         )}
 
-        {/* Top Deck: Context UI */}
         <div className="absolute top-6 left-0 right-0 z-50 flex flex-col items-center gap-4 px-6">
           <div className="flex items-center justify-between w-full">
             <Button variant="ghost" size="icon" className="text-white bg-black/20 backdrop-blur-md rounded-full" onClick={closeCaptureStudio}>
@@ -332,7 +362,6 @@ export function CaptureStudio() {
           )}
         </div>
 
-        {/* Studio Interaction Rail */}
         {!recordedUrl && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-6">
             <button 
@@ -370,10 +399,28 @@ export function CaptureStudio() {
               </div>
               <span className="text-[8px] font-black text-white uppercase tracking-[0.2em] drop-shadow-md">Filters</span>
             </button>
+
+            {/* Manual Zoom Control */}
+            {isZoomSupported && !isRecording && (
+              <div className="flex flex-col items-center gap-4 py-4 bg-black/20 backdrop-blur-md rounded-full border border-white/10">
+                <ZoomIn className="h-4 w-4 text-white/60" />
+                <div className="h-32 flex flex-col items-center">
+                  <Slider
+                    orientation="vertical"
+                    min={minZoom}
+                    max={maxZoom}
+                    step={0.1}
+                    value={[zoom]}
+                    onValueChange={(val) => handleZoomChange(val[0])}
+                    className="h-full"
+                  />
+                </div>
+                <ZoomOut className="h-4 w-4 text-white/60" />
+              </div>
+            )}
           </div>
         )}
 
-        {/* Action Center */}
         <div className="absolute bottom-10 left-0 right-0 z-50 px-8 flex items-center justify-between">
           {!recordedUrl ? (
             <>
@@ -434,7 +481,6 @@ export function CaptureStudio() {
           )}
         </div>
 
-        {/* Real-time Filter Deck */}
         {showFilters && !recordedUrl && (
           <div className="absolute bottom-36 left-0 right-0 z-[60] animate-in slide-in-from-bottom-4 duration-300 px-6">
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
@@ -460,7 +506,6 @@ export function CaptureStudio() {
           </div>
         )}
 
-        {/* Engine Processing State */}
         {isProcessing && (
           <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4">
             <Loader2 className="h-12 w-12 text-primary animate-spin" />
