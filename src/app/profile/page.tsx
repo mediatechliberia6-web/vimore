@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useMusic } from "@/context/MusicContext";
 import { CreateStoryModal } from "@/components/feed/create-story-modal";
+import { ImageRefinementPortal } from "@/components/profile/image-refinement-portal";
 import { useRouter } from "next/navigation";
 import { 
   ArrowLeft, 
@@ -72,6 +73,11 @@ export default function MyProfilePage() {
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
   const [isUploadingIntro, setIsUploadingIntro] = useState(false);
   
+  // Refinement Portal State
+  const [refiningImage, setRefiningImage] = useState<string | null>(null);
+  const [refinementMode, setRefiningMode] = useState<"avatar" | "cover">("avatar");
+  const [isRefinementOpen, setIsRefinementOpen] = useState(false);
+
   const [confirmUser, setConfirmUser] = useState<any | null>(null);
   const [confirmType, setConfirmType] = useState<"unfollow" | "unfriend">("unfollow");
 
@@ -83,10 +89,10 @@ export default function MyProfilePage() {
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!confirmUser && !isEditModalOpen) {
+    if (!confirmUser && !isEditModalOpen && !isRefinementOpen) {
       document.body.style.pointerEvents = 'auto';
     }
-  }, [confirmUser, isEditModalOpen]);
+  }, [confirmUser, isEditModalOpen, isRefinementOpen]);
 
   const [skills, setSkills] = useState([
     { name: "UI/UX Design", count: 42, endorsed: false },
@@ -146,30 +152,37 @@ export default function MyProfilePage() {
     setSkills(newSkills);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'avatar' | 'cover') => {
+  const handleImageChoice = (e: React.ChangeEvent<HTMLInputElement>, field: 'avatar' | 'cover') => {
     const file = e.target.files?.[0];
     if (!file) return;
     triggerHaptic(15);
     const reader = new FileReader();
     reader.onloadend = () => {
-      const imageUrl = reader.result as string;
-      updateCurrentUser({ [field]: imageUrl });
-      
-      addPost({
-        user: {
-          name: currentUser.name,
-          username: currentUser.username,
-          avatar: field === 'avatar' ? imageUrl : currentUser.avatar,
-          isOnline: true
-        },
-        content: `**${currentUser.name}** updated ${field === 'avatar' ? 'his profile picture' : 'his workspace cover'} ✨`,
-        image: imageUrl,
-        language: 'en'
-      });
-
-      toast({ title: "Presence Refreshed", description: `Your profile ${field} is now updated and shared.` });
+      setRefiningImage(reader.result as string);
+      setRefiningMode(field);
+      setIsRefinementOpen(true);
     };
     reader.readAsDataURL(file);
+    e.target.value = ""; // Reset input
+  };
+
+  const handleRefinementApply = (refinedUrl: string) => {
+    triggerHaptic(30);
+    updateCurrentUser({ [refinementMode]: refinedUrl });
+    
+    addPost({
+      user: {
+        name: currentUser.name,
+        username: currentUser.username,
+        avatar: refinementMode === 'avatar' ? refinedUrl : currentUser.avatar,
+        isOnline: true
+      },
+      content: `**${currentUser.name}** updated ${refinementMode === 'avatar' ? 'his profile picture' : 'his workspace cover'} ✨`,
+      image: refinedUrl,
+      language: 'en'
+    });
+
+    toast({ title: "Presence Refreshed", description: `Your profile ${refinementMode} is now updated and shared.` });
   };
 
   const handleIntroUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -337,7 +350,7 @@ export default function MyProfilePage() {
               <button onClick={() => coverInputRef.current?.click()} className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                 <div className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30"><Camera className="h-6 w-6" /></div>
               </button>
-              <input type="file" ref={coverInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'cover')} />
+              <input type="file" ref={coverInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageChoice(e, 'cover')} />
             </div>
 
             <div className="px-4 pb-4">
@@ -350,7 +363,7 @@ export default function MyProfilePage() {
                   <button onClick={() => avatarInputRef.current?.click()} className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                     <Camera className="h-8 w-8" />
                   </button>
-                  <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'avatar')} />
+                  <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={(e) => handleImageChoice(e, 'avatar')} />
                 </div>
               </div>
 
@@ -520,6 +533,14 @@ export default function MyProfilePage() {
       </div>
       
       <CreateStoryModal isOpen={isStoryModalOpen} onClose={() => setIsStoryModalOpen(false)} />
+
+      <ImageRefinementPortal 
+        isOpen={isRefinementOpen}
+        onClose={() => setIsRefinementOpen(false)}
+        image={refiningImage}
+        mode={refinementMode}
+        onApply={handleRefinementApply}
+      />
 
       <AlertDialog open={!!confirmUser} onOpenChange={(open) => !open && setConfirmUser(null)}>
         <AlertDialogContent className="rounded-[2rem] sm:max-w-[400px] z-[200]">
