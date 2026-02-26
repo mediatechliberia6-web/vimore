@@ -5,14 +5,13 @@ import { Home, Users, Clapperboard, Search, Music2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 import { usePathname } from "next/navigation";
 
 const navItems = [
   { icon: Home, label: "Home", id: "home", href: "/" },
   { icon: Users, label: "Friends", id: "friends", href: "/friends" },
   { icon: Music2, label: "Music", id: "music", href: "/music" },
-  { icon: Clapperboard, label: "Reels", id: "reels", href: "/" },
+  { icon: Clapperboard, label: "Reels", id: "reels", href: "/reels" },
 ];
 
 const USER_PROFILE = {

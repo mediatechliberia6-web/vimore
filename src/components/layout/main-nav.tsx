@@ -1,15 +1,15 @@
-
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, MessageCircle, Bell, PlusSquare, Compass, Menu, Music2 } from "lucide-react";
+import { Home, User, MessageCircle, Bell, PlusSquare, Compass, Menu, Music2, Clapperboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Compass, label: "Explore", href: "/explore" },
+  { icon: Clapperboard, label: "Reels", href: "/reels" },
   { icon: Music2, label: "Music", href: "/music" },
   { icon: Bell, label: "Notifications", href: "/notifications" },
   { icon: MessageCircle, label: "Messages", href: "/messages" },
