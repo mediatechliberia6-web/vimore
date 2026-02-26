@@ -81,13 +81,15 @@ export function CaptureStudio() {
         stream.getTracks().forEach(track => track.stop());
       }
 
+      // HIGH FIDELITY CONSTRAINTS: Dimension-First approach for clarity
       const constraints = {
         video: { 
           facingMode: cameraMode,
+          // Explicitly requesting Portrait HD to avoid low-res crops
           width: { ideal: 1080, min: 720 },
           height: { ideal: 1920, min: 1280 },
           frameRate: { ideal: 60, min: 30 },
-          aspectRatio: { ideal: 0.5625 }, 
+          aspectRatio: { ideal: 0.5625 }, // 9:16
         },
         audio: {
           echoCancellation: true,
@@ -102,7 +104,7 @@ export function CaptureStudio() {
       const track = newStream.getVideoTracks()[0];
       const capabilities = track.getCapabilities() as any;
       
-      // Hardware Optimization
+      // Hardware Optimization handshake
       const advanced: any[] = [];
       if (capabilities.focusMode?.includes('continuous')) {
         advanced.push({ focusMode: 'continuous' });
@@ -111,7 +113,7 @@ export function CaptureStudio() {
         advanced.push({ exposureMode: 'continuous' });
       }
       
-      // Detect Zoom Support
+      // Manual Zoom Support - Universal for all lenses
       if (capabilities.zoom) {
         setIsZoomSupported(true);
         setMinZoom(capabilities.zoom.min || 1);
@@ -222,6 +224,7 @@ export function CaptureStudio() {
       ? 'video/webm;codecs=vp9,opus' 
       : 'video/mp4';
 
+    // HIGH BITRATE: 8Mbps for cinematic data density
     const recorder = new MediaRecorder(stream, { 
       mimeType,
       videoBitsPerSecond: 8000000 
@@ -455,7 +458,7 @@ export function CaptureStudio() {
               <span className="text-[8px] font-black text-white uppercase tracking-[0.2em] drop-shadow-md">Filters</span>
             </button>
 
-            {/* Manual Zoom Control */}
+            {/* Manual Zoom Control Rail */}
             {isZoomSupported && !isRecording && (
               <div className="flex flex-col items-center gap-4 py-4 bg-black/20 backdrop-blur-md rounded-full border border-white/10">
                 <ZoomIn className="h-4 w-4 text-white/60" />

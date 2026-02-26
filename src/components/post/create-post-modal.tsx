@@ -159,6 +159,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const MAX_PHOTOS = 6;
   const MAX_POLL_OPTIONS = 8;
 
+  // REFINED CHARACTER LIMITS: 150 for themed/media, 2000 for pure text
   const isLimitedType = selectedTheme.id !== "none" || selectedMedia.length > 0 || mediaType !== null;
   const currentLimit = isLimitedType ? 150 : 2000;
   const progress = (content.length / currentLimit) * 100;
