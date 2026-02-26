@@ -6,6 +6,7 @@ import { MusicProvider } from "@/context/MusicContext";
 import { MusicPlayer } from "@/components/music/music-player";
 import { AlbumDetail } from "@/components/music/album-detail";
 import { PlaylistDetail } from "@/components/music/playlist-detail";
+import { CaptureStudio } from "@/components/reels/capture-studio";
 
 export const metadata: Metadata = {
   title: 'ViMore',
@@ -45,6 +46,7 @@ export default function RootLayout({
             <MusicPlayer />
             <AlbumDetail />
             <PlaylistDetail />
+            <CaptureStudio />
             <Toaster />
           </MusicProvider>
         </PostProvider>

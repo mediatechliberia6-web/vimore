@@ -74,6 +74,12 @@ interface MusicContextType {
   trackForNewPlaylist: Track | null;
   trackStats: Record<string | number, { likes: number; unlikes: number }>;
   
+  // Capture Studio
+  isCaptureStudioOpen: boolean;
+  captureTrack: Track | null;
+  openCaptureStudio: (track?: Track) => void;
+  closeCaptureStudio: () => void;
+  
   setTrack: (track: Track) => void;
   togglePlay: () => void;
   nextTrack: () => void;
@@ -135,6 +141,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [volume, setVolume] = useState(80);
   const [reactions, setReactions] = useState<MusicReaction[]>([]);
   
+  // Capture Studio State
+  const [isCaptureStudioOpen, setIsCaptureStudioOpen] = useState(false);
+  const [captureTrack, setCaptureTrack] = useState<Track | null>(null);
+
   // State for IDs
   const [likedSongIds, setLikedSongIds] = useState<Set<string | number>>(new Set());
   const [unlikedSongIds, setUnlikedSongIds] = useState<Set<string | number>>(new Set());
@@ -550,11 +560,24 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setProgress(0);
   };
 
+  const openCaptureStudio = (track?: Track) => {
+    triggerHaptic(25);
+    setCaptureTrack(track || null);
+    setIsCaptureStudioOpen(true);
+  };
+
+  const closeCaptureStudio = () => {
+    triggerHaptic(10);
+    setIsCaptureStudioOpen(false);
+    setCaptureTrack(null);
+  };
+
   return (
     <MusicContext.Provider value={{
       currentTrack, queue, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, 
       likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats,
       isCreatePlaylistOpen, trackForNewPlaylist,
+      isCaptureStudioOpen, captureTrack, openCaptureStudio, closeCaptureStudio,
       setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, 
       toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked,
       playCollection, addToQueue, publishTrack, publishAlbum,

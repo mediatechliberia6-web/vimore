@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRef, useState, useEffect } from "react";
@@ -45,7 +44,7 @@ interface ReelCardProps {
 
 export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares, music, isActive }: ReelCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { setTrack, triggerHaptic } = useMusic();
+  const { setTrack, triggerHaptic, openCaptureStudio } = useMusic();
   const [isMuted, setIsMuted] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -92,13 +91,13 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
 
   const handleSonicClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    triggerHaptic(30);
-    setTrack({
+    // Launch Capture Studio with this track
+    openCaptureStudio({
       id: music.id,
       title: music.title,
       artist: music.artist,
       cover: music.cover,
-      duration: 180 
+      duration: 180
     });
   };
 
@@ -131,7 +130,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         onDoubleClick={handleDoubleClick}
       />
 
-      {/* Mute Indicator Overlay - Smaller */}
+      {/* Mute Indicator Overlay */}
       <div className={cn(
         "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/40 backdrop-blur-md p-4 rounded-full transition-all duration-300 pointer-events-none z-[60]",
         showMuteIndicator ? "opacity-100 scale-100" : "opacity-0 scale-50"
@@ -139,14 +138,14 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         {isMuted ? <VolumeX className="h-8 w-8 text-white" /> : <Volume2 className="h-8 w-8 text-white" />}
       </div>
 
-      {/* Double Tap Heart Animation - Smaller */}
+      {/* Double Tap Heart Animation */}
       {showHeartAnimation && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-in zoom-in fade-in duration-300 pointer-events-none z-[60]">
           <Heart className="h-24 w-24 text-primary fill-primary drop-shadow-[0_0_20px_rgba(153,64,229,0.8)] animate-pulse" />
         </div>
       )}
 
-      {/* Right Interaction Rail - Tighter Layout */}
+      {/* Right Interaction Rail */}
       <div className={cn(
         "absolute right-3 bottom-20 z-50 flex flex-col items-center gap-4 transition-all duration-700 delay-300",
         isActive ? "translate-x-0 opacity-100" : "translate-x-12 opacity-0"
@@ -201,7 +200,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
           <Share2 className="h-5 w-5" />
         </button>
 
-        {/* Rotating Music Disc - Smaller */}
+        {/* Rotating Music Disc - Launches Capture Studio */}
         <div 
           onClick={handleSonicClick}
           className="mt-4 relative group/music cursor-pointer"
@@ -216,7 +215,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         </div>
       </div>
 
-      {/* Bottom Info Slate - Compact Width & Hierarchy */}
+      {/* Bottom Info Slate */}
       <div className="absolute bottom-0 left-0 right-0 p-5 pt-20 bg-gradient-to-t from-black/90 via-black/30 to-transparent pointer-events-none">
         <div className={cn(
           "max-w-[75%] space-y-3 transition-all duration-700",
@@ -238,7 +237,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
             </p>
           </div>
 
-          {/* Sonic Experience Ribbon - Slimmer */}
+          {/* Sonic Experience Ribbon */}
           <div 
             onClick={handleSonicClick}
             className="flex items-center gap-2.5 bg-white/5 backdrop-blur-2xl rounded-xl p-2 w-fit border border-white/5 pointer-events-auto hover:bg-white/10 transition-all cursor-pointer group/audio shadow-xl group-active:scale-95"
