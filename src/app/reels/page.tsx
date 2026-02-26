@@ -1,3 +1,4 @@
+
 "use client";
 
 import { VibeStream } from "@/components/reels/vibe-stream";
@@ -14,21 +15,21 @@ export default function ReelsPage() {
 
   return (
     <div className="h-[100dvh] w-full bg-black overflow-hidden relative flex flex-col">
-      {/* Aurora Header Overlay */}
-      <div className="absolute top-0 left-0 right-0 z-[100] h-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent flex items-center justify-between px-6">
+      {/* Aurora Header Overlay - More compact height */}
+      <div className="absolute top-0 left-0 right-0 z-[100] h-16 bg-gradient-to-b from-black/80 via-black/20 to-transparent flex items-center justify-between px-6">
         <div className="flex items-center gap-4">
           <Link href="/">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-10 w-10">
-              <ArrowLeft className="h-6 w-6" />
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-9 w-9">
+              <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
         </div>
 
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-6">
           <button 
             onClick={() => setActiveTab("following")}
             className={cn(
-              "text-sm font-black italic uppercase tracking-[0.2em] transition-all relative pb-1",
+              "text-[10px] font-black italic uppercase tracking-[0.2em] transition-all relative pb-1",
               activeTab === "following" ? "text-white" : "text-white/40 hover:text-white/60"
             )}
           >
@@ -40,7 +41,7 @@ export default function ReelsPage() {
           <button 
             onClick={() => setActiveTab("foryou")}
             className={cn(
-              "text-sm font-black italic uppercase tracking-[0.2em] transition-all relative pb-1",
+              "text-[10px] font-black italic uppercase tracking-[0.2em] transition-all relative pb-1",
               activeTab === "foryou" ? "text-white" : "text-white/40 hover:text-white/60"
             )}
           >
@@ -52,8 +53,8 @@ export default function ReelsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-10 w-10">
-            <Search className="h-5 w-5" />
+          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-9 w-9">
+            <Search className="h-4 w-4" />
           </Button>
         </div>
       </div>

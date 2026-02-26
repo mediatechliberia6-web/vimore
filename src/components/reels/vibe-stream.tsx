@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef, useState, useEffect, useMemo } from "react";
@@ -153,16 +154,16 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
           </div>
         ))
       ) : (
-        <div className="h-full w-full flex flex-col items-center justify-center text-white/40 space-y-6 px-12 text-center animate-in fade-in duration-700">
-          <div className="h-24 w-24 bg-white/5 rounded-[2.5rem] flex items-center justify-center border border-white/10">
-            <Search className="h-10 w-10 opacity-20" />
+        <div className="h-full w-full flex flex-col items-center justify-center text-white/40 space-y-4 px-12 text-center animate-in fade-in duration-700">
+          <div className="h-16 w-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+            <Search className="h-6 w-6 opacity-20" />
           </div>
-          <div className="space-y-2">
-            <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Quiet in this Circle</h3>
-            <p className="text-sm font-medium">Follow more creators to populate your custom VibeStream.</p>
+          <div className="space-y-1">
+            <h3 className="text-lg font-black italic uppercase tracking-tighter text-white">Quiet in this Circle</h3>
+            <p className="text-xs font-medium">Follow more creators to populate your feed.</p>
           </div>
-          <Button variant="outline" className="rounded-full border-primary text-primary hover:bg-primary hover:text-white transition-all font-black uppercase tracking-widest text-[10px] h-12 px-8">
-            <Sparkles className="mr-2 h-4 w-4" /> Discover Creators
+          <Button variant="outline" className="rounded-full border-primary text-primary hover:bg-primary hover:text-white transition-all font-black uppercase tracking-widest text-[9px] h-10 px-6">
+            <Sparkles className="mr-2 h-3.5 w-3.5" /> Discover
           </Button>
         </div>
       )}

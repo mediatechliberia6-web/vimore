@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef, useState, useEffect } from "react";
@@ -110,8 +111,8 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
   const renderCaption = (text: string) => {
     const parts = text.split(/(\*\*.*?\*\*|#\w+)/g);
     return parts.map((part, i) => {
-      if (part.startsWith('**') && part.endsWith('**')) return <strong key={i} className="text-white font-black">{part.slice(2, -2)}</strong>;
-      if (part.startsWith('#')) return <span key={i} className="text-primary font-black hover:underline cursor-pointer transition-colors"> {part}</span>;
+      if (part.startsWith('**') && part.endsWith('**')) return <strong key={i} className="text-white font-bold">{part.slice(2, -2)}</strong>;
+      if (part.startsWith('#')) return <span key={i} className="text-primary font-bold hover:underline cursor-pointer transition-colors"> {part}</span>;
       return part;
     });
   };
@@ -130,140 +131,140 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         onDoubleClick={handleDoubleClick}
       />
 
-      {/* Mute Indicator Overlay */}
+      {/* Mute Indicator Overlay - Smaller */}
       <div className={cn(
-        "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/40 backdrop-blur-md p-6 rounded-full transition-all duration-300 pointer-events-none z-[60]",
+        "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/40 backdrop-blur-md p-4 rounded-full transition-all duration-300 pointer-events-none z-[60]",
         showMuteIndicator ? "opacity-100 scale-100" : "opacity-0 scale-50"
       )}>
-        {isMuted ? <VolumeX className="h-12 w-12 text-white" /> : <Volume2 className="h-12 w-12 text-white" />}
+        {isMuted ? <VolumeX className="h-8 w-8 text-white" /> : <Volume2 className="h-8 w-8 text-white" />}
       </div>
 
-      {/* Double Tap Heart Animation */}
+      {/* Double Tap Heart Animation - Smaller */}
       {showHeartAnimation && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-in zoom-in fade-in duration-300 pointer-events-none z-[60]">
-          <Heart className="h-32 w-32 text-primary fill-primary drop-shadow-[0_0_30px_rgba(153,64,229,0.8)] animate-pulse" />
+          <Heart className="h-24 w-24 text-primary fill-primary drop-shadow-[0_0_20px_rgba(153,64,229,0.8)] animate-pulse" />
         </div>
       )}
 
-      {/* Right Interaction Rail - Staggered entrance when active */}
+      {/* Right Interaction Rail - Tighter Layout */}
       <div className={cn(
-        "absolute right-4 bottom-24 z-50 flex flex-col items-center gap-6 transition-all duration-700 delay-300",
+        "absolute right-3 bottom-20 z-50 flex flex-col items-center gap-4 transition-all duration-700 delay-300",
         isActive ? "translate-x-0 opacity-100" : "translate-x-12 opacity-0"
       )}>
         <div className="relative group/avatar">
           <Link href={`/profile/${user.username}`}>
             <div className="relative">
-              <div className="absolute -inset-1.5 bg-primary/40 blur-md rounded-full animate-pulse opacity-0 group-hover/avatar:opacity-100 transition-opacity" />
-              <Avatar className="h-14 w-14 border-2 border-white/80 ring-4 ring-primary/10 transition-all group-hover/avatar:scale-110 active:scale-95 shadow-2xl">
+              <div className="absolute -inset-1 bg-primary/40 blur-sm rounded-full animate-pulse opacity-0 group-hover/avatar:opacity-100 transition-opacity" />
+              <Avatar className="h-11 w-11 border-[1.5px] border-white/80 ring-2 ring-primary/10 transition-all group-hover/avatar:scale-105 active:scale-95 shadow-xl">
                 <AvatarImage src={user.avatar} />
                 <AvatarFallback>{user.name[0]}</AvatarFallback>
               </Avatar>
             </div>
           </Link>
-          <button className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-primary text-white rounded-full p-1 shadow-xl hover:scale-125 transition-transform ring-2 ring-black">
-            <Plus className="h-3 w-3" />
+          <button className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 bg-primary text-white rounded-full p-0.5 shadow-lg hover:scale-110 transition-transform ring-1 ring-black">
+            <Plus className="h-2 w-2" />
           </button>
         </div>
 
-        <div className="flex flex-col items-center gap-1.5">
+        <div className="flex flex-col items-center gap-1">
           <button onClick={toggleLike} className="group/btn relative">
             <div className={cn(
-              "p-3.5 rounded-full backdrop-blur-xl border border-white/10 transition-all active:scale-75 shadow-2xl",
+              "p-2.5 rounded-full backdrop-blur-xl border border-white/10 transition-all active:scale-75 shadow-lg",
               isLiked ? "bg-primary/20 text-primary border-primary/30" : "bg-black/20 text-white hover:bg-black/40"
             )}>
-              <Heart className={cn("h-7 w-7 transition-all", isLiked && "fill-current animate-bounce")} />
+              <Heart className={cn("h-5 w-5 transition-all", isLiked && "fill-current animate-bounce")} />
             </div>
           </button>
-          <span className="text-[11px] font-black text-white drop-shadow-md uppercase tracking-widest">{formatCount(localLikes)}</span>
+          <span className="text-[9px] font-black text-white drop-shadow-md uppercase tracking-widest">{formatCount(localLikes)}</span>
         </div>
 
-        <div className="flex flex-col items-center gap-1.5">
-          <button className="p-3.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white hover:bg-black/40 transition-all active:scale-75 shadow-2xl">
-            <MessageCircle className="h-7 w-7" />
+        <div className="flex flex-col items-center gap-1">
+          <button className="p-2.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white hover:bg-black/40 transition-all active:scale-75 shadow-lg">
+            <MessageCircle className="h-5 w-5" />
           </button>
-          <span className="text-[11px] font-black text-white drop-shadow-md uppercase tracking-widest">{formatCount(comments)}</span>
+          <span className="text-[9px] font-black text-white drop-shadow-md uppercase tracking-widest">{formatCount(comments)}</span>
         </div>
 
-        <div className="flex flex-col items-center gap-1.5">
+        <div className="flex flex-col items-center gap-1">
           <button onClick={() => { triggerHaptic(30); setIsBookmarked(!isBookmarked); }} className="group/btn relative">
             <div className={cn(
-              "p-3.5 rounded-full backdrop-blur-xl border border-white/10 transition-all active:scale-75 shadow-2xl",
+              "p-2.5 rounded-full backdrop-blur-xl border border-white/10 transition-all active:scale-75 shadow-lg",
               isBookmarked ? "bg-accent/20 text-accent border-accent/30" : "bg-black/20 text-white hover:bg-black/40"
             )}>
-              <Bookmark className={cn("h-7 w-7", isBookmarked && "fill-current")} />
+              <Bookmark className={cn("h-5 w-5", isBookmarked && "fill-current")} />
             </div>
           </button>
-          <span className="text-[11px] font-black text-white drop-shadow-md uppercase tracking-widest">Vault</span>
+          <span className="text-[9px] font-black text-white drop-shadow-md uppercase tracking-widest">Vault</span>
         </div>
 
-        <button className="p-3.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white hover:bg-black/40 transition-all active:scale-75 shadow-2xl">
-          <Share2 className="h-7 w-7" />
+        <button className="p-2.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white hover:bg-black/40 transition-all active:scale-75 shadow-lg">
+          <Share2 className="h-5 w-5" />
         </button>
 
-        {/* Rotating Music Disc */}
+        {/* Rotating Music Disc - Smaller */}
         <div 
           onClick={handleSonicClick}
-          className="mt-6 relative group/music cursor-pointer"
+          className="mt-4 relative group/music cursor-pointer"
         >
-          <div className="absolute inset-0 bg-primary/40 blur-2xl rounded-full animate-pulse opacity-0 group-hover/music:opacity-100 transition-opacity" />
-          <div className="relative h-14 w-14 rounded-full border-4 border-white/10 overflow-hidden animate-[spin_6s_linear_infinite] shadow-[0_0_20px_rgba(0,0,0,0.5)] ring-2 ring-black/50">
+          <div className="absolute inset-0 bg-primary/40 blur-xl rounded-full animate-pulse opacity-0 group-hover/music:opacity-100 transition-opacity" />
+          <div className="relative h-10 w-10 rounded-full border-[3px] border-white/10 overflow-hidden animate-[spin_6s_linear_infinite] shadow-[0_0_15px_rgba(0,0,0,0.5)] ring-1 ring-black/50">
             <Image src={music.cover} alt="Music" fill className="object-cover" />
           </div>
-          <div className="absolute -top-1 -right-1 bg-white rounded-full p-1.5 shadow-xl ring-2 ring-black">
-            <Music2 className="h-2.5 w-2.5 text-primary" />
+          <div className="absolute -top-0.5 -right-0.5 bg-white rounded-full p-1 shadow-lg ring-1 ring-black">
+            <Music2 className="h-2 w-2 text-primary" />
           </div>
         </div>
       </div>
 
-      {/* Bottom Info Slate - Staggered entrance when active */}
-      <div className="absolute bottom-0 left-0 right-0 p-6 pt-24 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none">
+      {/* Bottom Info Slate - Compact Width & Hierarchy */}
+      <div className="absolute bottom-0 left-0 right-0 p-5 pt-20 bg-gradient-to-t from-black/90 via-black/30 to-transparent pointer-events-none">
         <div className={cn(
-          "max-w-[85%] space-y-5 transition-all duration-700",
-          isActive ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
+          "max-w-[75%] space-y-3 transition-all duration-700",
+          isActive ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
         )}>
-          <div className="flex flex-col gap-2 pointer-events-auto">
-            <div className="flex items-center gap-2.5">
-              <Link href={`/profile/${user.username}`} className="text-xl font-black italic uppercase tracking-tighter text-white hover:text-primary transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] flex items-center gap-1.5">
+          <div className="flex flex-col gap-1.5 pointer-events-auto">
+            <div className="flex items-center gap-2">
+              <Link href={`/profile/${user.username}`} className="text-lg font-black italic uppercase tracking-tighter text-white hover:text-primary transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] flex items-center gap-1">
                 @{user.username}
-                {user.isVerified && <CheckCircle2 className="h-4.5 w-4.5 text-primary fill-primary text-white" />}
+                {user.isVerified && <CheckCircle2 className="h-3.5 w-3.5 text-primary fill-primary text-white" />}
               </Link>
-              <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 shadow-xl">
-                <Sparkles className="h-3 w-3 text-accent fill-accent" />
-                <span className="text-[9px] font-black text-white uppercase tracking-[0.15em]">{user.role}</span>
+              <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10">
+                <Sparkles className="h-2.5 w-2.5 text-accent fill-accent" />
+                <span className="text-[8px] font-black text-white uppercase tracking-widest">{user.role}</span>
               </div>
             </div>
-            <p className="text-sm sm:text-base text-white/90 leading-relaxed line-clamp-3 font-medium drop-shadow-md">
+            <p className="text-[13px] sm:text-sm text-white/90 leading-tight line-clamp-2 font-medium drop-shadow-md">
               {renderCaption(caption)}
             </p>
           </div>
 
-          {/* Sonic Experience Ribbon */}
+          {/* Sonic Experience Ribbon - Slimmer */}
           <div 
             onClick={handleSonicClick}
-            className="flex items-center gap-3.5 bg-white/5 backdrop-blur-2xl rounded-2xl p-3 w-fit border border-white/10 pointer-events-auto hover:bg-white/10 transition-all cursor-pointer group/audio shadow-2xl group-active:scale-95"
+            className="flex items-center gap-2.5 bg-white/5 backdrop-blur-2xl rounded-xl p-2 w-fit border border-white/5 pointer-events-auto hover:bg-white/10 transition-all cursor-pointer group/audio shadow-xl group-active:scale-95"
           >
-            <div className="h-10 w-10 rounded-xl overflow-hidden relative shrink-0 shadow-lg ring-1 ring-white/20">
+            <div className="h-8 w-8 rounded-lg overflow-hidden relative shrink-0 shadow-lg ring-1 ring-white/10">
               <Image src={music.cover} alt="Audio" fill className="object-cover" />
               <div className="absolute inset-0 bg-primary/30 flex items-center justify-center opacity-0 group-hover/audio:opacity-100 transition-opacity">
-                <Music2 className="h-5 w-5 text-white animate-pulse" />
+                <Music2 className="h-4 w-4 text-white animate-pulse" />
               </div>
             </div>
-            <div className="flex flex-col min-w-0 pr-6 overflow-hidden">
-              <div className="flex items-center gap-2.5">
-                <div className="animate-marquee whitespace-nowrap flex gap-12">
-                  <span className="text-[11px] font-black text-white uppercase tracking-widest leading-none">
+            <div className="flex flex-col min-w-0 pr-4 overflow-hidden">
+              <div className="flex items-center gap-2">
+                <div className="animate-marquee whitespace-nowrap flex gap-10">
+                  <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none">
                     {music.title} — {music.artist}
                   </span>
-                  <span className="text-[11px] font-black text-white uppercase tracking-widest leading-none">
+                  <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none">
                     {music.title} — {music.artist}
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 mt-1">
+              <div className="flex items-center gap-1 mt-0.5">
                 <div className="flex gap-0.5">
-                  {[1, 2, 3].map(i => <div key={i} className={cn("w-0.5 bg-primary/60 rounded-full animate-bounce", i === 1 ? "h-2" : i === 2 ? "h-3 delay-75" : "h-2 delay-150")} />)}
+                  {[1, 2, 3].map(i => <div key={i} className={cn("w-0.5 bg-primary/60 rounded-full animate-bounce", i === 1 ? "h-1.5" : i === 2 ? "h-2 delay-75" : "h-1.5 delay-150")} />)}
                 </div>
-                <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">Live Sonic Signature</span>
+                <span className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Sonic ID</span>
               </div>
             </div>
           </div>
@@ -276,7 +277,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
           100% { transform: translateX(-50%); }
         }
         .animate-marquee {
-          animation: marquee 10s linear infinite;
+          animation: marquee 8s linear infinite;
         }
       `}</style>
     </div>
