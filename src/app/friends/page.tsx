@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { 
   Users, 
   UserPlus, 
@@ -20,16 +21,27 @@ import {
   Sparkles,
   Zap,
   Calendar,
-  Layers
+  Layers,
+  Music2,
+  Filter
 } from "lucide-react";
 import Link from "next/link";
 
 type HubTab = "all" | "followers" | "following" | "suggestions";
 
+const FILTER_CHIPS = [
+  { id: "all", label: "All Categories" },
+  { id: "Designer", label: "Designers" },
+  { id: "Developer", label: "Developers" },
+  { id: "Creator", label: "Creators" },
+  { id: "Photographer", label: "Photographers" },
+];
+
 export default function FriendsPage() {
   const { connections, isFollowing, toggleFollowUser } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const [activeTab, setActiveTab] = useState<HubTab>("all");
+  const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   const isPlayerActive = currentTrack && !isExpanded;
@@ -37,6 +49,7 @@ export default function FriendsPage() {
   const filteredUsers = useMemo(() => {
     let list = connections;
 
+    // 1. Tab Filtering
     if (activeTab === "all") {
       list = connections.filter(c => c.followsYou && isFollowing(c.username));
     } else if (activeTab === "followers") {
@@ -47,16 +60,23 @@ export default function FriendsPage() {
       list = connections.filter(c => !c.followsYou && !isFollowing(c.username));
     }
 
+    // 2. Category Chip Filtering (Phase 3)
+    if (activeCategory !== "all") {
+      list = list.filter(u => u.category.includes(activeCategory));
+    }
+
+    // 3. Advanced Search Filtering (Phase 3)
     if (searchQuery) {
+      const q = searchQuery.toLowerCase();
       list = list.filter(u => 
-        u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.category.toLowerCase().includes(searchQuery.toLowerCase())
+        u.name.toLowerCase().includes(q) || 
+        u.username.toLowerCase().includes(q) ||
+        u.category.toLowerCase().includes(q)
       );
     }
 
     return list;
-  }, [activeTab, connections, isFollowing, searchQuery]);
+  }, [activeTab, activeCategory, connections, isFollowing, searchQuery]);
 
   const tabs: { id: HubTab; label: string; icon: any }[] = [
     { id: "all", label: "All Friends", icon: Users },
@@ -69,6 +89,14 @@ export default function FriendsPage() {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
       window.navigator.vibrate(intensity);
     }
+  };
+
+  // Simulated Discovery Algorithm (Phase 3)
+  const getMatchPercentage = (category: string) => {
+    // In a real app, this would compare professional tags and liked music
+    if (category.includes("Designer")) return 94;
+    if (category.includes("Developer")) return 88;
+    return 72;
   };
 
   return (
@@ -89,6 +117,7 @@ export default function FriendsPage() {
 
         <main className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
           
+          {/* Header & Tabs */}
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
@@ -98,14 +127,14 @@ export default function FriendsPage() {
                     <Zap className="h-5 w-5 text-primary fill-primary" />
                   </div>
                 </h1>
-                <p className="text-muted-foreground text-sm font-medium">Manage your network and discover new creators</p>
+                <p className="text-muted-foreground text-sm font-medium">Manage your network and discover new matches</p>
               </div>
 
               <div className="relative group w-full sm:max-w-xs">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input 
-                  placeholder="Find connections..." 
-                  className="pl-10 h-11 bg-white/5 border-white/10 rounded-2xl focus-visible:ring-primary/20 transition-all"
+                  placeholder="Advanced Search..." 
+                  className="pl-10 h-11 bg-white/5 border-white/10 rounded-2xl focus-visible:ring-primary/20 transition-all placeholder:text-muted-foreground/40"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -132,12 +161,36 @@ export default function FriendsPage() {
                 );
               })}
             </div>
+
+            {/* Smart Filter Chips (Phase 3) */}
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1">
+              <div className="flex items-center gap-2 px-2 border-r border-white/10 mr-2 text-muted-foreground">
+                <Filter className="h-3.5 w-3.5" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Filter</span>
+              </div>
+              {FILTER_CHIPS.map((chip) => (
+                <button
+                  key={chip.id}
+                  onClick={() => { triggerHaptic(5); setActiveCategory(chip.id); }}
+                  className={cn(
+                    "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 border",
+                    activeCategory === chip.id
+                      ? "bg-white/10 border-primary text-primary"
+                      : "bg-transparent border-white/5 text-muted-foreground hover:border-white/20"
+                  )}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
           </div>
 
+          {/* User List Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredUsers.length > 0 ? filteredUsers.map((user, i) => {
               const following = isFollowing(user.username);
               const isMutual = user.followsYou && following;
+              const matchScore = getMatchPercentage(user.category);
 
               return (
                 <div 
@@ -152,7 +205,7 @@ export default function FriendsPage() {
                       <Link href={`/profile/${user.username}`} className="flex items-center gap-4 flex-1 min-w-0">
                         <div className="relative shrink-0">
                           <div className={cn(
-                            "absolute -inset-1 rounded-full blur-sm opacity-0 transition-opacity",
+                            "absolute -inset-1.5 rounded-full blur-md opacity-0 transition-opacity",
                             user.isOnline && "bg-green-500/40 opacity-100 animate-pulse"
                           )} />
                           <Avatar className={cn(
@@ -169,7 +222,14 @@ export default function FriendsPage() {
                           )}
                         </div>
                         <div className="flex flex-col min-w-0">
-                          <span className="font-bold text-lg tracking-tight truncate group-hover:text-primary transition-colors">{user.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-lg tracking-tight truncate group-hover:text-primary transition-colors">{user.name}</span>
+                            {activeTab === 'suggestions' && (
+                              <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black h-4 px-1.5">
+                                {matchScore}% MATCH
+                              </Badge>
+                            )}
+                          </div>
                           <span className="text-xs text-muted-foreground font-medium truncate">{user.category}</span>
                           {isMutual && <span className="text-[10px] text-primary font-black uppercase tracking-widest mt-1">Direct Friend</span>}
                         </div>
@@ -217,7 +277,12 @@ export default function FriendsPage() {
                         </div>
                       )}
 
-                      {user.connectionDate && (
+                      {activeTab === 'suggestions' ? (
+                        <div className="flex items-center gap-2 bg-primary/5 px-3 py-1 rounded-full border border-primary/10">
+                          <Music2 className="h-3 w-3 text-primary" />
+                          <span className="text-[9px] font-black uppercase tracking-widest text-primary">Simulating Taste...</span>
+                        </div>
+                      ) : user.connectionDate && (
                         <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/5">
                           <Calendar className="h-3 w-3 text-primary" />
                           <span className="text-[9px] font-black uppercase tracking-widest text-primary/80">Since {user.connectionDate}</span>
