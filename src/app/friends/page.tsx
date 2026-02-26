@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { Header } from "@/components/layout/header";
 import { SubHeader } from "@/components/layout/sub-header";
 import { MainNav } from "@/components/layout/main-nav";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useSearchParams } from "next/navigation";
 import { 
   Users, 
   UserPlus, 
@@ -54,10 +55,12 @@ const FILTER_CHIPS = [
   { id: "Photographer", label: "Photographers" },
 ];
 
-export default function FriendsPage() {
+function FriendsPageContent() {
   const { connections, isFollowing, toggleFollowUser } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  
   const [activeTab, setActiveTab] = useState<HubTab>("all");
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,6 +71,14 @@ export default function FriendsPage() {
   const [confirmType, setConfirmType] = useState<"unfollow" | "unfriend">("unfollow");
 
   const isPlayerActive = currentTrack && !isExpanded;
+
+  // Handle Initial Tab from URL
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') as HubTab;
+    if (tabParam && ["all", "followers", "following", "suggestions"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   // Pointer-event cleanup to prevent UI locks
   useEffect(() => {
@@ -136,7 +147,6 @@ export default function FriendsPage() {
 
     if (following) {
       triggerHaptic(15);
-      // If it's mutual, we call it "Unfriend", if one-way, "Unfollow"
       setConfirmType(followsYou ? "unfriend" : "unfollow");
       setConfirmUser(user);
     } else {
@@ -270,7 +280,6 @@ export default function FriendsPage() {
               const isMutual = user.followsYou && following;
               const isPlaying = playingPreview === user.username;
 
-              // Correct Label Logic for the REDESIGN
               let label = "Follow";
               let hoverLabel = "Follow";
               let btnVariant: "default" | "secondary" = "default";
@@ -475,5 +484,13 @@ export default function FriendsPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+export default function FriendsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F2ECF7] dark:bg-[#050505] flex items-center justify-center"><Zap className="h-10 w-10 text-primary animate-pulse" /></div>}>
+      <FriendsPageContent />
+    </Suspense>
   );
 }

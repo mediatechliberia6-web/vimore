@@ -22,8 +22,6 @@ import {
   MessageCircle,
   Zap,
   Languages,
-  Search,
-  X,
   UserCheck
 } from "lucide-react";
 import Link from "next/link";
@@ -31,12 +29,6 @@ import { usePosts } from "@/context/PostContext";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { aiTranslatePost } from "@/app/actions/ai";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,8 +39,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 const MOCK_USERS: Record<string, any> = {
   "arivera": {
@@ -103,10 +93,6 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const [translatedBio, setTranslatedBio] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   
-  const [isHubOpen, setIsHubOpen] = useState(false);
-  const [hubTab, setHubTab] = useState<"followers" | "following">("followers");
-  const [hubSearch, setHubSearch] = useState("");
-
   const [confirmUser, setConfirmUser] = useState<any | null>(null);
   const [confirmType, setConfirmType] = useState<"unfollow" | "unfriend">("unfollow");
 
@@ -115,10 +101,10 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
   // Pointer-event cleanup to prevent UI locks
   useEffect(() => {
-    if (!isHubOpen && !confirmUser) {
+    if (!confirmUser) {
       document.body.style.pointerEvents = 'auto';
     }
-  }, [isHubOpen, confirmUser]);
+  }, [confirmUser]);
 
   // Get user data or fallback
   const displayUser = MOCK_USERS[username] || {
@@ -219,37 +205,6 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     toast({ title: "Streaming Signature", description: `Listening to ${displayUser.name}'s digital intro...` });
   };
 
-  const openHub = (tab: "followers" | "following") => {
-    triggerHaptic(5);
-    setHubTab(tab);
-    setIsHubOpen(true);
-  };
-
-  const filteredConnections = useMemo(() => {
-    const base = connections.filter(c => 
-      hubTab === "followers" ? c.followsYou : isFollowing(c.username)
-    );
-    return base.filter(c => 
-      c.name.toLowerCase().includes(hubSearch.toLowerCase()) || 
-      c.username.toLowerCase().includes(hubSearch.toLowerCase())
-    );
-  }, [hubSearch, hubTab, connections, isFollowing]);
-
-  const handleConnectionAction = (user: any) => {
-    const following = isFollowing(user.username);
-    const followsYou = user.followsYou;
-
-    if (following) {
-      triggerHaptic(15);
-      setConfirmType(followsYou ? "unfriend" : "unfollow");
-      setConfirmUser(user);
-    } else {
-      triggerHaptic(25);
-      toggleFollowUser(user.username);
-      toast({ title: "Connected!", description: `You are now following ${user.name}` });
-    }
-  };
-
   const confirmUnfollow = () => {
     if (confirmUser) {
       triggerHaptic(30);
@@ -270,7 +225,6 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     return <div className="flex flex-col items-center justify-center min-h-screen text-primary font-bold animate-pulse gap-4"><Zap className="h-10 w-10" /><span>Redirecting to your workspace...</span></div>;
   }
 
-  // Action Labels for the main profile button
   let mainLabel = "Connect";
   let mainHoverLabel = "Connect";
   if (amIFollowing) {
@@ -338,20 +292,14 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                 </div>
                 
                 <div className="flex items-center gap-6 py-2">
-                  <button 
-                    onClick={() => openHub('followers')}
-                    className="flex flex-col items-start hover:bg-secondary/30 p-2 -m-2 rounded-xl transition-colors group"
-                  >
-                    <span className="font-bold text-lg leading-none group-hover:text-primary transition-colors">{displayUser.followers}</span>
+                  <div className="flex flex-col items-start p-2 -m-2">
+                    <span className="font-bold text-lg leading-none">{displayUser.followers}</span>
                     <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span>
-                  </button>
-                  <button 
-                    onClick={() => openHub('following')}
-                    className="flex flex-col items-start hover:bg-secondary/30 p-2 -m-2 rounded-xl transition-colors group"
-                  >
-                    <span className="font-bold text-lg leading-none group-hover:text-primary transition-colors">{displayUser.following}</span>
+                  </div>
+                  <div className="flex flex-col items-start p-2 -m-2">
+                    <span className="font-bold text-lg leading-none">{displayUser.following}</span>
                     <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span>
-                  </button>
+                  </div>
                   <div className="flex flex-col"><span className="font-bold text-lg leading-none">{userPosts.length || displayUser.posts}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
                 </div>
 
@@ -371,7 +319,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                     )}
                   >
                     <span className={cn(amIFollowing && "group-hover/btn:hidden")}>
-                      {amIFollowing ? (displayUser.followsYou ? <UserCheck className="h-5 w-5 inline mr-1" /> : <UserCheck className="h-5 w-5 inline mr-1" />) : <UserPlus className="h-5 w-5 inline mr-1" />}
+                      {amIFollowing ? <UserCheck className="h-5 w-5 inline mr-1" /> : <UserPlus className="h-5 w-5 inline mr-1" />}
                       {mainLabel}
                     </span>
                     {amIFollowing && (
@@ -433,92 +381,6 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
           <RightSidebar />
         </aside>
       </div>
-
-      {/* Connection Hub Dialog */}
-      <Dialog open={isHubOpen} onOpenChange={setIsHubOpen}>
-        <DialogContent className="sm:max-w-[480px] h-[80vh] flex flex-col p-0 rounded-[2rem] overflow-hidden gap-0">
-          <DialogHeader className="p-6 pb-2 shrink-0">
-            <DialogTitle className="font-black italic uppercase tracking-tighter text-2xl text-center">
-              {hubTab === "followers" ? "Followers" : "Following"}
-            </DialogTitle>
-            <div className="mt-4 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder={`Search ${hubTab}...`} 
-                className="pl-10 h-11 bg-secondary/20 border-none rounded-xl focus-visible:ring-primary/20"
-                value={hubSearch}
-                onChange={(e) => setHubSearch(e.target.value)}
-              />
-              {hubSearch && (
-                <button onClick={() => setHubSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X className="h-4 w-4" /></button>
-              )}
-            </div>
-          </DialogHeader>
-
-          <ScrollArea className="flex-1 px-6 pb-6 mt-2">
-            <div className="space-y-4">
-              {filteredConnections.length > 0 ? filteredConnections.map((user, i) => {
-                const following = isFollowing(user.username);
-                const isMutual = user.followsYou && following;
-
-                // Action Labels
-                let label = "Follow";
-                let hoverLabel = "Follow";
-                if (following) {
-                  label = isMutual ? "Friend" : "Following";
-                  hoverLabel = isMutual ? "Unfriend" : "Unfollow";
-                } else if (user.followsYou) {
-                  label = "Follow Back";
-                  hoverLabel = "Follow Back";
-                }
-
-                return (
-                  <div key={i} className="flex items-center justify-between group animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${i * 50}ms` }}>
-                    <Link href={`/profile/${user.username}`} onClick={() => setIsHubOpen(false)} className="flex items-center gap-3 flex-1 min-w-0">
-                      <Avatar className="h-12 w-12 border-2 border-primary/5 transition-transform group-hover:scale-105">
-                        <AvatarImage src={user.avatar} />
-                        <AvatarFallback>{user.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-sm truncate group-hover:underline">{user.name}</span>
-                          {user.followsYou && hubTab === "followers" && <Badge variant="secondary" className="bg-secondary/50 text-[8px] h-4 px-1.5 font-bold uppercase">Follows You</Badge>}
-                        </div>
-                        <span className="text-[10px] text-muted-foreground truncate">{user.category}</span>
-                      </div>
-                    </Link>
-                    
-                    <Button 
-                      variant={following ? "secondary" : "default"} 
-                      size="sm" 
-                      className={cn(
-                        "rounded-lg h-8 px-4 font-bold text-[11px] transition-all min-w-[90px] group/btn",
-                        !following ? "bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/10" : "bg-secondary/80 text-foreground hover:bg-destructive hover:text-white"
-                      )}
-                      onClick={() => handleConnectionAction(user)}
-                    >
-                      <span className={cn(following && "group-hover/btn:hidden")}>
-                        {following && isMutual && <UserCheck className="h-3 w-3 mr-1 inline" />}
-                        {label}
-                      </span>
-                      {following && (
-                        <span className="hidden group-hover/btn:inline flex items-center gap-1">
-                          <UserMinus className="h-3 w-3" /> {hoverLabel}
-                        </span>
-                      )}
-                    </Button>
-                  </div>
-                );
-              }) : (
-                <div className="py-20 text-center space-y-3 opacity-40">
-                  <div className="h-12 w-12 bg-secondary rounded-full flex items-center justify-center mx-auto"><Search className="h-6 w-6" /></div>
-                  <p className="text-sm font-bold">No results found</p>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
 
       {/* Unfollow/Unfriend Confirmation */}
       <AlertDialog open={!!confirmUser} onOpenChange={(open) => !open && setConfirmUser(null)}>
