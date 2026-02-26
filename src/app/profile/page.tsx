@@ -47,7 +47,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function MyProfilePage() {
-  const { currentUser, posts, updateCurrentUser, isPostSaved } = usePosts();
+  const { currentUser, posts, updateCurrentUser, isPostSaved, addPost } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { toast } = useToast();
   
@@ -126,8 +126,25 @@ export default function MyProfilePage() {
     triggerHaptic(15);
     const reader = new FileReader();
     reader.onloadend = () => {
-      updateCurrentUser({ [field]: reader.result as string });
-      toast({ title: "Presence Refreshed", description: `Your profile ${field} is now updated.` });
+      const imageUrl = reader.result as string;
+      
+      // 1. Update the actual profile data
+      updateCurrentUser({ [field]: imageUrl });
+      
+      // 2. Create the identity milestone post
+      addPost({
+        user: {
+          name: currentUser.name,
+          username: currentUser.username,
+          avatar: field === 'avatar' ? imageUrl : currentUser.avatar,
+          isOnline: true
+        },
+        content: `**${currentUser.name}** updated ${field === 'avatar' ? 'his profile picture' : 'his workspace cover'} ✨`,
+        image: imageUrl,
+        language: 'en'
+      });
+
+      toast({ title: "Presence Refreshed", description: `Your profile ${field} is now updated and shared.` });
     };
     reader.readAsDataURL(file);
   };
@@ -305,7 +322,7 @@ export default function MyProfilePage() {
               <TabsContent value="saved" className="p-4 space-y-4">
                  <div className="flex items-center justify-between px-1 mb-2"><div className="flex items-center gap-2"><Bookmark className="h-5 w-5 text-primary" /><h3 className="font-bold text-lg italic uppercase tracking-tighter">Your Digital Vault</h3></div></div>
                  {savedPosts.length > 0 ? (
-                   <div className="space-y-4">{savedPosts.map(post => <PostCard key={post.id} {...post} />)}</div>
+                   <div className="space-y-4">{savedPosts.map(post => <PostCard key={post.id} {...post} />) }</div>
                  ) : (
                    <div className="grid grid-cols-2 gap-3">
                       {[1, 2, 3, 4].map(i => (
