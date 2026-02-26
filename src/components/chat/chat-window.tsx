@@ -47,6 +47,7 @@ interface Message {
   voiceDuration?: string;
   isViewOnce?: boolean;
   isViewed?: boolean;
+  isDownloaded?: boolean;
   reactions?: string[];
   linkData?: {
     title: string;
@@ -98,7 +99,8 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       time: "10:43 AM", 
       status: "read", 
       type: "photo",
-      mediaUrl: "https://picsum.photos/seed/chat-ref/800/600"
+      mediaUrl: "https://picsum.photos/seed/chat-ref/800/600",
+      isDownloaded: false
     }
   ]);
 
@@ -124,6 +126,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       type: options?.isWorkspace ? "workspace" : (text.startsWith("http") ? "link" : "text"),
       isViewOnce: options?.isViewOnce,
       isViewed: false,
+      isDownloaded: true, // Sent messages are considered "cached" locally
       mediaUrl: options?.mediaUrl,
       voiceDuration: options?.duration
     };
@@ -152,9 +155,20 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     setMessages(prev => [...prev, newMessage]);
   };
 
+  const handleDownloadMessage = (id: string) => {
+    setMessages(prev => prev.map(m => m.id === id ? { ...m, isDownloaded: true } : m));
+    toast({ title: "Node Synced", description: "Vibe cached for offline playback." });
+  };
+
   const openViewOnce = (id: string) => {
     const msg = messages.find(m => m.id === id);
-    if (msg && !msg.isViewed) setViewingMedia(msg);
+    if (msg && !msg.isViewed) {
+      if (msg.isDownloaded || msg.sender === 'me') {
+        setViewingMedia(msg);
+      } else {
+        toast({ description: "Download to view disappearing vibe." });
+      }
+    }
   };
 
   const closeViewOnce = () => {
@@ -219,8 +233,9 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             <ChatBubble 
               key={msg.id} id={msg.id} isMe={msg.sender === "me"} text={msg.text} time={msg.time} status={msg.status} 
               type={msg.type} mediaUrl={msg.mediaUrl} voiceDuration={msg.voiceDuration} isViewOnce={msg.isViewOnce} 
-              isViewed={msg.isViewed} linkData={msg.linkData} reactions={msg.reactions} taggedUser={msg.taggedUser} 
+              isViewed={msg.isViewed} isDownloaded={msg.isDownloaded} linkData={msg.linkData} reactions={msg.reactions} taggedUser={msg.taggedUser} 
               workspaceData={msg.workspaceData} onReact={(emoji) => handleReact(msg.id, emoji)} onViewOnceOpen={openViewOnce}
+              onDownload={handleDownloadMessage}
             />
           ))}
         </div>

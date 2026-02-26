@@ -14,7 +14,11 @@ import {
   Lock,
   LayoutDashboard,
   Zap,
-  EyeOff
+  EyeOff,
+  Download,
+  Loader2,
+  Image as ImageIcon,
+  Video as VideoIcon
 } from "lucide-react";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -41,6 +45,7 @@ interface ChatBubbleProps {
   reactions?: string[];
   isViewOnce?: boolean;
   isViewed?: boolean;
+  isDownloaded?: boolean;
   taggedUser?: {
     name: string;
     username: string;
@@ -54,15 +59,17 @@ interface ChatBubbleProps {
   };
   onReact?: (emoji: string) => void;
   onViewOnceOpen?: (id: string) => void;
+  onDownload?: (id: string) => void;
 }
 
 export function ChatBubble({ 
-  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, workspaceData, onReact, onViewOnceOpen 
+  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, onReact, onViewOnceOpen, onDownload 
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -76,7 +83,6 @@ export function ChatBubble({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Clean up audio on unmount
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -95,12 +101,33 @@ export function ChatBubble({
 
   const handleViewOnce = () => {
     if (isViewed) return;
+    if (!isDownloaded && !isMe) {
+      handleDownload();
+      return;
+    }
     triggerHaptic(30);
     onViewOnceOpen?.(id);
   };
 
+  const handleDownload = async () => {
+    if (isDownloaded || isDownloading) return;
+    triggerHaptic(15);
+    setIsDownloading(true);
+    
+    // Simulate high-velocity data fetch
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    setIsDownloading(false);
+    onDownload?.(id);
+    triggerHaptic(25);
+  };
+
   const toggleVideo = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!isDownloaded && !isMe) {
+      handleDownload();
+      return;
+    }
     if (!videoRef.current || !mediaUrl) return;
     triggerHaptic(10);
     if (isPlayingVideo) {
@@ -138,7 +165,6 @@ export function ChatBubble({
       });
       setIsPlayingVoice(true);
       
-      // Start live counter
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         if (audioRef.current) {
@@ -147,6 +173,8 @@ export function ChatBubble({
       }, 100);
     }
   };
+
+  const showMediaPlaceholder = !isDownloaded && !isMe && (type === 'photo' || type === 'video');
 
   return (
     <div 
@@ -157,13 +185,12 @@ export function ChatBubble({
       onDoubleClick={handleDoubleClick}
     >
       <div className={cn(
-        "relative max-w-[85%] sm:max-w-[70%] shadow-md",
+        "relative max-w-[85%] sm:max-w-[70%] shadow-md overflow-hidden",
         isMe 
           ? "bg-primary text-white rounded-2xl rounded-tr-none" 
           : "bg-white dark:bg-card text-foreground rounded-2xl rounded-tl-none border border-primary/5",
         (type === "photo" || type === "video" || type === "workspace") && "p-1 pb-0"
       )}>
-        {/* The Tail */}
         <div className={cn(
           "absolute top-0 w-4 h-4 z-10",
           isMe 
@@ -172,7 +199,6 @@ export function ChatBubble({
         )} />
 
         <div className="flex flex-col">
-          {/* 1. View Once Media logic */}
           {isViewOnce && (type === "photo" || type === "video") && (
             <div className="p-3 min-w-[200px]">
               {isViewed ? (
@@ -197,10 +223,12 @@ export function ChatBubble({
                     "h-12 w-12 rounded-full flex items-center justify-center shadow-lg",
                     isMe ? "bg-white/20" : "bg-primary text-white"
                   )}>
-                    <Eye className="h-6 w-6" />
+                    {isDownloading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Eye className="h-6 w-6" />}
                   </div>
                   <div className="text-center">
-                    <p className="text-xs font-black uppercase tracking-widest">View Disappearing Vibe</p>
+                    <p className="text-xs font-black uppercase tracking-widest">
+                      {isMe ? "Sent Disappearing Vibe" : isDownloaded ? "View Disappearing Vibe" : "Download to View"}
+                    </p>
                     <p className="text-[9px] font-bold opacity-60 mt-1 uppercase tracking-tighter">One-time Playback Only</p>
                   </div>
                 </button>
@@ -208,35 +236,60 @@ export function ChatBubble({
             </div>
           )}
 
-          {/* 2. Photo/Video Content (Permanent) */}
           {!isViewOnce && (type === "photo" || type === "video") && mediaUrl && (
-            <div className="relative aspect-square sm:aspect-video min-w-[200px] rounded-xl overflow-hidden mb-1">
-              {type === "photo" ? (
-                <Image src={mediaUrl} alt="Chat Media" fill className="object-cover" />
-              ) : (
-                <div className="relative w-full h-full cursor-pointer" onClick={toggleVideo}>
-                  <video 
-                    key={mediaUrl}
-                    ref={videoRef} 
-                    src={mediaUrl} 
-                    className="w-full h-full object-cover" 
-                    muted={!isPlayingVideo} 
-                    playsInline 
-                  />
+            <div className="relative aspect-square sm:aspect-video min-w-[240px] rounded-xl overflow-hidden mb-1 bg-secondary/20">
+              {showMediaPlaceholder ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 group/download cursor-pointer" onClick={handleDownload}>
+                  <div className="absolute inset-0 bg-black/10 backdrop-blur-md" />
                   <div className={cn(
-                    "absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-300",
-                    isPlayingVideo ? "opacity-0" : "opacity-100"
+                    "relative z-10 h-14 w-14 rounded-full flex items-center justify-center transition-all shadow-xl",
+                    isDownloading ? "bg-primary/20" : "bg-primary text-white group-hover/download:scale-110"
                   )}>
-                    <div className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30">
-                      <Play className="h-6 w-6 text-white fill-current" />
-                    </div>
+                    {isDownloading ? (
+                      <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                    ) : (
+                      <Download className="h-7 w-7" />
+                    )}
+                  </div>
+                  <div className="relative z-10 text-center">
+                    <p className="text-xs font-black uppercase tracking-widest drop-shadow-md text-white">
+                      {isDownloading ? "Syncing Node..." : `Download ${type === 'photo' ? 'Vibe' : 'Reel'}`}
+                    </p>
+                    <span className="text-[9px] font-bold uppercase text-white/60 tracking-widest">High-Velocity Encrypted</span>
+                  </div>
+                  <div className="absolute top-3 left-3 z-10 opacity-40">
+                    {type === 'photo' ? <ImageIcon className="h-4 w-4 text-white" /> : <VideoIcon className="h-4 w-4 text-white" />}
                   </div>
                 </div>
+              ) : (
+                <>
+                  {type === "photo" ? (
+                    <Image src={mediaUrl} alt="Chat Media" fill className="object-cover" />
+                  ) : (
+                    <div className="relative w-full h-full cursor-pointer" onClick={toggleVideo}>
+                      <video 
+                        key={mediaUrl}
+                        ref={videoRef} 
+                        src={mediaUrl} 
+                        className="w-full h-full object-cover" 
+                        muted={!isPlayingVideo} 
+                        playsInline 
+                      />
+                      <div className={cn(
+                        "absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-300",
+                        isPlayingVideo ? "opacity-0" : "opacity-100"
+                      )}>
+                        <div className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30">
+                          <Play className="h-6 w-6 text-white fill-current" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
 
-          {/* 3. Workspace Sync Card */}
           {type === "workspace" && workspaceData && (
             <div className={cn(
               "m-1 mb-2 rounded-xl overflow-hidden border border-white/10 flex flex-col",
@@ -266,7 +319,6 @@ export function ChatBubble({
             </div>
           )}
 
-          {/* 4. Link Preview Content */}
           {type === "link" && linkData && (
             <div className={cn(
               "m-1 mb-2 rounded-xl overflow-hidden border border-white/10 flex flex-col",
@@ -286,7 +338,6 @@ export function ChatBubble({
             </div>
           )}
 
-          {/* 5. Voice Note Content */}
           {type === "voice" && (
             <div className="px-4 py-3 flex items-center gap-4 min-w-[220px]">
               <button 
@@ -320,7 +371,6 @@ export function ChatBubble({
             </div>
           )}
 
-          {/* 6. Collaborator Tag Content */}
           {type === "tag" && taggedUser && (
             <div className={cn(
               "m-1 mb-2 p-3 rounded-xl flex items-center gap-3 border border-white/10",
@@ -345,7 +395,6 @@ export function ChatBubble({
             </div>
           )}
 
-          {/* 7. Text Content */}
           {text && (
             <div className="px-3 sm:px-4 py-2 sm:py-3">
               <p className="text-sm sm:text-[15px] leading-relaxed break-words font-medium">
@@ -354,7 +403,6 @@ export function ChatBubble({
             </div>
           )}
 
-          {/* Timestamp & Status */}
           <div className={cn(
             "flex items-center justify-end gap-1.5 px-3 pb-2",
             isMe ? "text-white/60" : "text-muted-foreground",
@@ -370,7 +418,6 @@ export function ChatBubble({
           </div>
         </div>
 
-        {/* Reaction Row */}
         {reactions.length > 0 && (
           <div className={cn(
             "absolute -bottom-3 flex gap-1",
