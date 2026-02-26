@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { useMusic } from "@/context/MusicContext";
+import { usePosts } from "@/context/PostContext";
 
 interface ReelCardProps {
   id: string;
@@ -45,6 +46,7 @@ interface ReelCardProps {
 export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares, music, isActive }: ReelCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { setTrack, triggerHaptic, openCaptureStudio } = useMusic();
+  const { currentUser } = usePosts();
   const [isMuted, setIsMuted] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -116,6 +118,9 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
     });
   };
 
+  const isMe = user.username === currentUser.username;
+  const profileHref = isMe ? "/profile" : `/profile/${user.username}`;
+
   return (
     <div className="relative h-[100dvh] w-full flex items-center justify-center group select-none bg-black overflow-hidden">
       {/* Video Foundation */}
@@ -151,7 +156,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         isActive ? "translate-x-0 opacity-100" : "translate-x-12 opacity-0"
       )}>
         <div className="relative group/avatar">
-          <Link href={`/profile/${user.username}`}>
+          <Link href={profileHref}>
             <div className="relative">
               <div className="absolute -inset-1 bg-primary/40 blur-sm rounded-full animate-pulse opacity-0 group-hover/avatar:opacity-100 transition-opacity" />
               <Avatar className="h-11 w-11 border-[1.5px] border-white/80 ring-2 ring-primary/10 transition-all group-hover/avatar:scale-105 active:scale-95 shadow-xl">
@@ -223,7 +228,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         )}>
           <div className="flex flex-col gap-1.5 pointer-events-auto">
             <div className="flex items-center gap-2">
-              <Link href={`/profile/${user.username}`} className="text-lg font-black italic uppercase tracking-tighter text-white hover:text-primary transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] flex items-center gap-1">
+              <Link href={profileHref} className="text-lg font-black italic uppercase tracking-tighter text-white hover:text-primary transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] flex items-center gap-1">
                 @{user.username}
                 {user.isVerified && <CheckCircle2 className="h-3.5 w-3.5 text-primary fill-primary text-white" />}
               </Link>

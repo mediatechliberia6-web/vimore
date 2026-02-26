@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useMusic } from "@/context/MusicContext";
+import { useRouter } from "next/navigation";
 import { 
   ArrowLeft, 
   MoreHorizontal, 
@@ -86,6 +87,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const username = resolvedParams.username;
   const { currentUser, posts, connections, isFollowing, toggleFollowUser } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
+  const router = useRouter();
   const isMe = username === currentUser.username;
   const isPlayerActive = currentTrack && !isExpanded;
   
@@ -99,6 +101,13 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
   const amIFollowing = isFollowing(username);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Programmatic Redirect if visiting own profile via username link
+  useEffect(() => {
+    if (isMe) {
+      router.replace('/profile');
+    }
+  }, [isMe, router]);
 
   useEffect(() => {
     if (!confirmUser) {
@@ -222,7 +231,12 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const mediaPosts = useMemo(() => userPosts.filter(p => p.image || p.images?.length), [userPosts]);
 
   if (isMe) {
-    return <div className="flex flex-col items-center justify-center min-h-screen text-primary font-bold animate-pulse gap-4"><Zap className="h-10 w-10" /><span>Redirecting to your workspace...</span></div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-primary font-bold animate-pulse gap-4">
+        <Zap className="h-10 w-10" />
+        <span className="text-sm font-black uppercase tracking-widest">Syncing your workspace...</span>
+      </div>
+    );
   }
 
   let mainLabel = "Connect";

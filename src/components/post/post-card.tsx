@@ -106,7 +106,7 @@ export function PostCard(props: PostCardProps) {
   } = props;
 
   const { 
-    isPostLiked, isPostUnliked, isPostSaved, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost 
+    currentUser, isPostLiked, isPostUnliked, isPostSaved, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost 
   } = usePosts();
 
   const isLiked = isPostLiked(id);
@@ -201,7 +201,7 @@ export function PostCard(props: PostCardProps) {
       setUserVote(null);
     } else {
       if (userVote !== null) {
-        newOptions[userVote] = { ...newOptions[userVote], votes: newOptions[userVote].votes - 1 };
+        newOptions[userVote] = { ...newOptions[userVote], votes: userVote < localPollOptions.length ? localPollOptions[userVote].votes - 1 : 0 };
         newTotal -= 1;
       }
       newOptions[index] = { ...newOptions[index], votes: newOptions[index].votes + 1 };
@@ -234,8 +234,8 @@ export function PostCard(props: PostCardProps) {
   const isLongContent = content.length > TRUNCATE_LIMIT;
   const displayedContent = isLongContent && !isExpanded ? content.slice(0, TRUNCATE_LIMIT) + "..." : content;
 
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const foundUrl = content.match(urlRegex)?.[0];
+  const isMe = user.username === currentUser.username;
+  const profileHref = isMe ? "/profile" : `/profile/${user.username}`;
 
   return (
     <Card className={cn(
@@ -251,7 +251,7 @@ export function PostCard(props: PostCardProps) {
 
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
         <div className="flex items-center gap-2">
-          <Link href={`/profile/${user.username}`}>
+          <Link href={profileHref}>
             <Avatar className="h-10 w-10 border border-primary/10 hover:opacity-80 transition-opacity">
               <AvatarImage src={user.avatar} alt={user.name} />
               <AvatarFallback>{user.name[0]}</AvatarFallback>
@@ -260,9 +260,9 @@ export function PostCard(props: PostCardProps) {
           <div className="flex flex-col">
             <div className="flex items-center gap-1">
               <div className="flex items-center flex-wrap gap-x-1">
-                <Link href={`/profile/${user.username}`} className="font-bold text-sm hover:underline">{user.name}</Link>
+                <Link href={profileHref} className="font-bold text-sm hover:underline">{user.name}</Link>
                 {collaborator && (
-                  <><span className="text-xs text-muted-foreground font-medium">with</span><Link href={`/profile/${collaborator.username}`} className="font-bold text-sm hover:underline">{collaborator.name}</Link></>
+                  <><span className="text-xs text-muted-foreground font-medium">with</span><Link href={collaborator.username === currentUser.username ? '/profile' : `/profile/${collaborator.username}`} className="font-bold text-sm hover:underline">{collaborator.name}</Link></>
                 )}
                 {feeling && <span className="text-xs text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
                 {user.isVerified && <CheckCircle2 className="h-3 w-3 text-primary fill-primary text-white" />}

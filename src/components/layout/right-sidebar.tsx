@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -6,6 +5,7 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { usePosts } from "@/context/PostContext";
 
 const suggestions = [
   { name: "Tech Insider", username: "techex", avatar: "https://picsum.photos/seed/51/100/100" },
@@ -21,6 +21,8 @@ const trends = [
 ];
 
 export function RightSidebar() {
+  const { currentUser } = usePosts();
+
   return (
     <div className="flex flex-col gap-6 py-6 h-full">
       <div className="relative group">
@@ -34,23 +36,28 @@ export function RightSidebar() {
       <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-5 border border-primary/10 space-y-4">
         <h3 className="font-headline font-bold text-lg">Who to follow</h3>
         <div className="space-y-4">
-          {suggestions.map((user) => (
-            <div key={user.username} className="flex items-center justify-between group">
-              <Link href={`/profile/${user.username}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-1 min-w-0">
-                <Avatar className="h-10 w-10 border border-primary/5 transition-transform group-hover:scale-105">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback>{user.name[0]}</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-bold text-sm leading-none truncate group-hover:underline">{user.name}</span>
-                  <span className="text-xs text-muted-foreground truncate">@{user.username}</span>
-                </div>
-              </Link>
-              <Button size="sm" variant="outline" className="rounded-full h-8 px-4 border-accent text-accent hover:bg-accent hover:text-white transition-all">
-                Follow
-              </Button>
-            </div>
-          ))}
+          {suggestions.map((user) => {
+            const isMe = user.username === currentUser.username;
+            const profileHref = isMe ? "/profile" : `/profile/${user.username}`;
+            
+            return (
+              <div key={user.username} className="flex items-center justify-between group">
+                <Link href={profileHref} className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-1 min-w-0">
+                  <Avatar className="h-10 w-10 border border-primary/5 transition-transform group-hover:scale-105">
+                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarFallback>{user.name[0]}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-sm leading-none truncate group-hover:underline">{user.name}</span>
+                    <span className="text-xs text-muted-foreground truncate">@{user.username}</span>
+                  </div>
+                </Link>
+                <Button size="sm" variant="outline" className="rounded-full h-8 px-4 border-accent text-accent hover:bg-accent hover:text-white transition-all">
+                  Follow
+                </Button>
+              </div>
+            );
+          })}
         </div>
         <button className="text-sm font-semibold text-primary hover:underline">Show more</button>
       </div>
