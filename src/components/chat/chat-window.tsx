@@ -8,11 +8,10 @@ import {
   Phone, 
   Video, 
   Info, 
-  MoreVertical,
+  MoreHorizontal,
   Search,
   ChevronDown,
   CheckCheck,
-  Volume2,
   Bookmark,
   X,
   Zap,
@@ -127,7 +126,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   ]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Screen Protection Simulation
   useEffect(() => {
@@ -144,52 +142,12 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
     window.addEventListener('blur', handleVisibilityChange);
     return () => window.removeEventListener('blur', handleVisibilityChange);
-  }, []);
+  }, [toast]);
 
   // Filter media for the Vault
   const vaultMedia = useMemo(() => {
     return messages.filter(m => (m.type === 'photo' || m.type === 'video' || m.type === 'link') && !m.isViewOnce);
   }, [messages]);
-
-  // Sonic Intro Logic
-  useEffect(() => {
-    if (contact && contact.username) {
-      triggerHaptic(15);
-      const introUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"; 
-      
-      // Cleanup previous audio
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-
-      const audio = new Audio(introUrl);
-      audioRef.current = audio;
-      audio.volume = 0.3;
-      
-      const playAudio = async () => {
-        try {
-          await audio.play();
-          toast({
-            title: "Sonic Signature",
-            description: `Streaming ${contact.name}'s digital intro...`,
-            duration: 3000,
-          });
-        } catch (e) {
-          console.warn("Sonic intro playback blocked or failed:", e);
-        }
-      };
-
-      playAudio();
-    }
-
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, [contact.username]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -330,7 +288,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
               <h3 className="font-bold text-sm sm:text-base truncate">{contact.name}</h3>
               <div className="flex items-center gap-1.5">
                 <span className={cn("text-[10px] font-bold uppercase tracking-widest", contact.isOnline ? "text-green-500" : "text-muted-foreground")}>{contact.isOnline ? "Active Now" : "Offline"}</span>
-                <Volume2 className="h-2.5 w-2.5 text-primary animate-pulse" />
               </div>
             </div>
           </div>
