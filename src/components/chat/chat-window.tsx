@@ -21,10 +21,18 @@ import {
   FileText,
   Link as LinkIcon,
   Image as ImageIcon,
-  Play
+  Play,
+  Maximize2,
+  Minimize2,
+  Info as InfoIcon,
+  Heart,
+  Flame,
+  Rocket,
+  CheckCircle2,
+  Download
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Connection } from "@/context/PostContext";
+import { Connection, usePosts } from "@/context/PostContext";
 import { ChatBubble } from "./chat-bubble";
 import { ChatInput } from "./chat-input";
 import { useMusic } from "@/context/MusicContext";
@@ -68,12 +76,17 @@ interface Message {
   };
 }
 
+const QUICK_REACTIONS = ["🔥", "❤️", "🙌", "💯", "🤯", "🚀"];
+
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const { triggerHaptic } = useMusic();
+  const { toggleSavePost } = usePosts();
   const { toast } = useToast();
   
   const [showVault, setShowVault] = useState(false);
   const [viewingMedia, setViewingMedia] = useState<Message | null>(null);
+  const [fullScreenMedia, setFullScreenMedia] = useState<Message | null>(null);
+  const [showMetadata, setShowMetadata] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([
     { 
@@ -189,8 +202,21 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     }));
   };
 
+  const openFullScreen = (id: string) => {
+    const msg = messages.find(m => m.id === id);
+    if (msg) setFullScreenMedia(msg);
+  };
+
+  const handleVaultSync = () => {
+    if (!fullScreenMedia) return;
+    triggerHaptic(20);
+    // Simulate bookmarking to global context
+    toast({ title: "Vault Synced", description: "Asset migrated to your identity vault." });
+  };
+
   return (
     <div className="flex flex-1 min-h-0 bg-[#F0F2F5] dark:bg-[#080808] relative overflow-hidden">
+      {/* 1. View-Once Overlay */}
       {viewingMedia && (
         <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
           <header className="absolute top-8 left-0 right-0 px-8 flex items-center justify-between text-white/60">
@@ -205,6 +231,91 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             )}
           </div>
           <Button className="absolute bottom-12 bg-primary text-white font-black uppercase tracking-widest h-14 px-10 rounded-2xl shadow-xl" onClick={closeViewOnce}>CLOSE VIEW</Button>
+        </div>
+      )}
+
+      {/* 2. Immersive Media Portal (Standard Full Screen) */}
+      {fullScreenMedia && (
+        <div className="fixed inset-0 z-[400] bg-black/95 flex flex-col animate-in zoom-in-95 fade-in duration-300">
+          {/* Aurora Backdrop */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40">
+            <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
+            <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[150px] rounded-full animate-pulse delay-700" />
+            <Image src={fullScreenMedia.mediaUrl!} alt="Aurora" fill className="object-cover blur-[100px] opacity-20 scale-150" />
+          </div>
+
+          <header className="relative z-10 h-20 px-6 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" className="text-white bg-white/10 rounded-full" onClick={() => setFullScreenMedia(null)}>
+                <ArrowLeft className="h-6 w-6" />
+              </Button>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-white">{fullScreenMedia.sender === 'me' ? 'My Signature' : contact.name}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-white/60">{fullScreenMedia.time}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" size="icon" 
+                className={cn("text-white bg-white/10 rounded-full transition-all", showMetadata && "bg-primary text-white")}
+                onClick={() => setShowMetadata(!showMetadata)}
+              >
+                <InfoIcon className="h-5 w-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="text-white bg-white/10 rounded-full" onClick={handleVaultSync}>
+                <Bookmark className="h-5 w-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="text-white bg-white/10 rounded-full" onClick={() => setFullScreenMedia(null)}>
+                <X className="h-6 w-6" />
+              </Button>
+            </div>
+          </header>
+
+          <main className="flex-1 relative flex items-center justify-center p-4">
+            <div className="relative w-full max-w-5xl h-full flex items-center justify-center">
+              {fullScreenMedia.type === 'video' ? (
+                <video src={fullScreenMedia.mediaUrl} className="max-w-full max-h-full rounded-2xl shadow-2xl" controls autoPlay loop playsInline />
+              ) : (
+                <div className="relative w-full h-full">
+                  <Image src={fullScreenMedia.mediaUrl!} alt="Immersive" fill className="object-contain" priority />
+                </div>
+              )}
+
+              {/* Metadata HUD */}
+              {showMetadata && (
+                <div className="absolute top-10 right-10 z-50 bg-black/60 backdrop-blur-md border border-white/10 p-6 rounded-2xl space-y-4 max-w-xs animate-in slide-in-from-right-4 duration-300">
+                  <h4 className="text-xs font-black uppercase tracking-[0.2em] text-primary">Technical Vibe</h4>
+                  <div className="space-y-3 font-mono text-[10px] text-white/80">
+                    <div className="flex justify-between gap-8"><span>NODE_TYPE:</span> <span className="text-white">{fullScreenMedia.type.toUpperCase()}</span></div>
+                    <div className="flex justify-between gap-8"><span>RESOLUTION:</span> <span className="text-white">1080 x 1920</span></div>
+                    <div className="flex justify-between gap-8"><span>SYNC_TIME:</span> <span className="text-white">{fullScreenMedia.time}</span></div>
+                    <div className="flex justify-between gap-8"><span>ENCRYPTION:</span> <span className="text-green-400">ACTIVE</span></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </main>
+
+          <footer className="relative z-10 p-10 bg-gradient-to-t from-black/80 to-transparent flex flex-col items-center gap-6">
+            <div className="flex items-center gap-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full p-2 px-6 shadow-2xl">
+              {QUICK_REACTIONS.map((emoji) => (
+                <button
+                  key={emoji}
+                  className="text-3xl hover:scale-150 hover:-translate-y-2 transition-all active:scale-90 duration-300 px-2"
+                  onClick={() => {
+                    triggerHaptic(15);
+                    handleReact(fullScreenMedia.id, emoji);
+                    toast({ description: `Reacted with ${emoji}` });
+                  }}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-white/40">
+              <Zap className="h-3 w-3 fill-current" /> High-Velocity Inspection Mode
+            </div>
+          </footer>
         </div>
       )}
 
@@ -235,6 +346,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
               type={msg.type} mediaUrl={msg.mediaUrl} voiceDuration={msg.voiceDuration} isViewOnce={msg.isViewOnce} 
               isViewed={msg.isViewed} isDownloaded={msg.isDownloaded} linkData={msg.linkData} reactions={msg.reactions} taggedUser={msg.taggedUser} 
               workspaceData={msg.workspaceData} onReact={(emoji) => handleReact(msg.id, emoji)} onViewOnceOpen={openViewOnce}
+              onMediaOpen={openFullScreen}
               onDownload={handleDownloadMessage}
             />
           ))}
@@ -252,7 +364,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             <div className="flex items-center justify-between px-1"><span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Media Nodes</span><span className="text-[10px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">{vaultMedia.filter(m => m.type === 'photo' || m.type === 'video').length}</span></div>
             <div className="grid grid-cols-2 gap-2">
               {vaultMedia.filter(m => m.type === 'photo' || m.type === 'video').map((m, i) => (
-                <div key={i} className="aspect-square relative rounded-xl overflow-hidden group cursor-pointer bg-secondary/20">
+                <div key={i} className="aspect-square relative rounded-xl overflow-hidden group cursor-pointer bg-secondary/20" onClick={() => openFullScreen(m.id)}>
                   {m.type === 'video' ? (
                     <div className="w-full h-full relative">
                       <video src={m.mediaUrl} className="w-full h-full object-cover opacity-60" />

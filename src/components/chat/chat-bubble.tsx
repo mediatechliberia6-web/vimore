@@ -59,11 +59,12 @@ interface ChatBubbleProps {
   };
   onReact?: (emoji: string) => void;
   onViewOnceOpen?: (id: string) => void;
+  onMediaOpen?: (id: string) => void;
   onDownload?: (id: string) => void;
 }
 
 export function ChatBubble({ 
-  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, onReact, onViewOnceOpen, onDownload 
+  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, onReact, onViewOnceOpen, onMediaOpen, onDownload 
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
@@ -107,6 +108,15 @@ export function ChatBubble({
     }
     triggerHaptic(30);
     onViewOnceOpen?.(id);
+  };
+
+  const handleMediaClick = () => {
+    if (!isDownloaded && !isMe) {
+      handleDownload();
+      return;
+    }
+    triggerHaptic(10);
+    onMediaOpen?.(id);
   };
 
   const handleDownload = async () => {
@@ -264,9 +274,11 @@ export function ChatBubble({
               ) : (
                 <>
                   {type === "photo" ? (
-                    <Image src={mediaUrl} alt="Chat Media" fill className="object-cover" />
+                    <div className="relative w-full h-full cursor-pointer" onClick={handleMediaClick}>
+                      <Image src={mediaUrl} alt="Chat Media" fill className="object-cover" />
+                    </div>
                   ) : (
-                    <div className="relative w-full h-full cursor-pointer" onClick={toggleVideo}>
+                    <div className="relative w-full h-full cursor-pointer" onClick={handleMediaClick}>
                       <video 
                         key={mediaUrl}
                         ref={videoRef} 
