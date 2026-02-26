@@ -212,9 +212,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                 </div>
                 
                 <div className="flex items-center gap-6 py-2">
-                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{displayUser.followers}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Fans</span></div>
-                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{displayUser.following}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Network</span></div>
-                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{userPosts.length || displayUser.posts}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Vibes</span></div>
+                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{displayUser.followers}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div>
+                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{displayUser.following}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
+                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{userPosts.length || displayUser.posts}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
                 </div>
 
                 <div className="flex items-start gap-4 py-2 group">
@@ -257,7 +257,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
             <Tabs defaultValue="all" className="w-full mt-2">
               <TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0">
-                <TabsTrigger value="all" className="flex-1 font-bold text-sm">Vibes</TabsTrigger>
+                <TabsTrigger value="all" className="flex-1 font-bold text-sm">Posts</TabsTrigger>
                 <TabsTrigger value="media" className="flex-1 font-bold text-sm">Media</TabsTrigger>
               </TabsList>
               

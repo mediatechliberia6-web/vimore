@@ -239,9 +239,9 @@ export default function MyProfilePage() {
                 </div>
                 
                 <div className="flex items-center gap-6 py-2">
-                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{currentUser.followers}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Fans</span></div>
-                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{currentUser.following}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Network</span></div>
-                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{myPosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Vibes</span></div>
+                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{currentUser.followers}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div>
+                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{currentUser.following}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
+                  <div className="flex flex-col"><span className="font-bold text-lg leading-none">{myPosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
                 </div>
 
                 <div className="mt-3 relative group max-w-2xl">
