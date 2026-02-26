@@ -9,6 +9,7 @@ import {
   Send, 
   Mic, 
   Image as ImageIcon,
+  Video as VideoIcon,
   MoreHorizontal,
   X,
   Circle,
@@ -43,6 +44,7 @@ export function ChatInput({ onSend }: ChatInputProps) {
   
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentFilter, setCurrentFilter] = useState<string>("image/*,video/*");
   
   // Audio Recording Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -87,9 +89,13 @@ export function ChatInput({ onSend }: ChatInputProps) {
     }
   };
 
-  const handleImageClick = () => {
+  const handleMediaTrigger = (filter: string) => {
     triggerHaptic(5);
-    if (fileInputRef.current) fileInputRef.current.click();
+    setCurrentFilter(filter);
+    // Timeout ensures React state updates filter before browser opens
+    setTimeout(() => {
+      if (fileInputRef.current) fileInputRef.current.click();
+    }, 10);
   };
 
   const handleVoiceStart = async () => {
@@ -108,8 +114,6 @@ export function ChatInput({ onSend }: ChatInputProps) {
         const audioUrl = URL.createObjectURL(audioBlob);
         setRecordedBlobUrl(audioUrl);
         setIsReviewing(true);
-        
-        // Stop all tracks to release microphone
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -117,17 +121,9 @@ export function ChatInput({ onSend }: ChatInputProps) {
       setRecordingDuration(0);
       recorder.start();
       setIsRecording(true);
-      toast({
-        title: "Recording Sonic Note",
-        description: "Speak into the hub...",
-      });
+      toast({ title: "Capturing Sonic Note", description: "Vibe live..." });
     } catch (err) {
-      console.error("Microphone access denied", err);
-      toast({
-        variant: "destructive",
-        title: "Access Denied",
-        description: "Please enable microphone permissions to send voice notes.",
-      });
+      toast({ variant: "destructive", title: "Access Denied", description: "Mic required for voice vibes." });
     }
   };
 
@@ -148,26 +144,18 @@ export function ChatInput({ onSend }: ChatInputProps) {
         duration: formatDuration(recordingDuration)
       });
       resetVoiceState();
-      toast({
-        title: "Note Launched",
-        description: "Voice signature added to conversation.",
-      });
     }
   };
 
   const handleDiscardVoice = () => {
     triggerHaptic(10);
     resetVoiceState();
-    toast({
-      description: "Recording discarded.",
-    });
   };
 
   const resetVoiceState = () => {
     setIsRecording(false);
     setIsReviewing(false);
     setRecordingDuration(0);
-    if (recordedBlobUrl) URL.revokeObjectURL(recordedBlobUrl);
     setRecordedBlobUrl(null);
   };
 
@@ -175,28 +163,20 @@ export function ChatInput({ onSend }: ChatInputProps) {
     const file = e.target.files?.[0];
     if (file) {
       triggerHaptic(20);
-      
       const isVideo = file.type.startsWith('video');
-      const reader = new FileReader();
+      const mediaUrl = URL.createObjectURL(file);
       
-      reader.onloadend = () => {
-        const mediaUrl = reader.result as string;
-        onSend("", { 
-          isViewOnce: isViewOnceEnabled,
-          mediaUrl: mediaUrl,
-          mediaType: isVideo ? 'video' : 'photo'
-        });
-        setIsViewOnceEnabled(false);
-      };
-      
-      reader.readAsDataURL(file);
-
-      toast({
-        title: isViewOnceEnabled ? "View-Once Vibe Prepared" : "Uploading Assets",
-        description: isViewOnceEnabled ? "Media will explode after one view." : `Preparing ${file.name} for transfer...`,
+      onSend("", { 
+        isViewOnce: isViewOnceEnabled,
+        mediaUrl: mediaUrl,
+        mediaType: isVideo ? 'video' : 'photo'
       });
       
-      // Reset input
+      setIsViewOnceEnabled(false);
+      toast({
+        title: isViewOnceEnabled ? "View-Once Vibe Shared" : "Media Shared",
+        description: `Successfully launched ${file.name} to the hub.`
+      });
       e.target.value = "";
     }
   };
@@ -204,68 +184,33 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const toggleViewOnce = () => {
     triggerHaptic(15);
     setIsViewOnceEnabled(!isViewOnceEnabled);
-    if (!isViewOnceEnabled) {
-      toast({
-        title: "Disappearing Mode",
-        description: "Your next media share will explode after one view. 💥",
-      });
-    }
-  };
-
-  const handleWorkspaceShare = () => {
-    triggerHaptic(25);
-    onSend("", { isWorkspace: true });
-    toast({
-      title: "Workspace Synced",
-      description: "Your live hub preview has been shared."
-    });
   };
 
   return (
     <footer className="p-4 sm:p-6 bg-white dark:bg-card border-t border-primary/5 shrink-0 z-20">
       <div className="flex flex-col gap-4 max-w-5xl mx-auto">
-        {/* Attachment & Privacy Toggles */}
         {!isRecording && !isReviewing && (
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-2">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button 
-                      onClick={handleWorkspaceShare}
-                      className="h-10 w-10 rounded-xl bg-secondary/40 flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all active:scale-90"
-                    >
-                      <LayoutDashboard className="h-5 w-5" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-primary text-white font-bold text-[10px] uppercase tracking-widest border-none">Sync Workspace</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button 
-                      onClick={toggleViewOnce}
-                      className={cn(
-                        "h-10 w-10 rounded-xl flex items-center justify-center transition-all active:scale-90",
-                        isViewOnceEnabled ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-secondary/40 text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                      )}
-                    >
-                      <Flame className={cn("h-5 w-5", isViewOnceEnabled && "animate-pulse")} />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-primary text-white font-bold text-[10px] uppercase tracking-widest border-none">View-Once Vibe</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <button 
+                onClick={() => handleMediaTrigger("image/*,video/*")}
+                className="h-10 w-10 rounded-xl bg-secondary/40 flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
+              >
+                <Paperclip className="h-5 w-5" />
+              </button>
+              <button 
+                onClick={toggleViewOnce}
+                className={cn(
+                  "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
+                  isViewOnceEnabled ? "bg-primary text-white shadow-lg" : "bg-secondary/40 text-muted-foreground"
+                )}
+              >
+                <Flame className={cn("h-5 w-5", isViewOnceEnabled && "animate-pulse")} />
+              </button>
             </div>
-
-            <div className={cn(
-              "flex items-center gap-2 px-3 py-1 rounded-full transition-all duration-500",
-              isViewOnceEnabled ? "bg-primary/10 opacity-100" : "opacity-0"
-            )}>
+            <div className={cn("flex items-center gap-2 px-3 py-1 rounded-full transition-all duration-500", isViewOnceEnabled ? "bg-primary/10 opacity-100" : "opacity-0")}>
               <div className="h-1.5 w-1.5 bg-primary rounded-full animate-ping" />
-              <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Disappearing Mode Active</span>
+              <span className="text-[10px] font-black text-primary uppercase tracking-widest">Disappearing Mode</span>
             </div>
           </div>
         )}
@@ -273,53 +218,26 @@ export function ChatInput({ onSend }: ChatInputProps) {
         <div className="flex items-center gap-2 sm:gap-4">
           {!isRecording && !isReviewing && (
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-primary transition-colors">
-                <Smile className="h-6 w-6" />
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-primary transition-colors">
-                <Paperclip className="h-6 w-6" />
-              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-primary"><Smile className="h-6 w-6" /></Button>
+              <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-primary" onClick={() => handleMediaTrigger("video/*")}><VideoIcon className="h-6 w-6" /></Button>
             </div>
           )}
 
-          <div className="flex-1 relative group">
+          <div className="flex-1 relative">
             {isRecording ? (
-              <div className="h-12 bg-primary/10 border-none rounded-2xl px-6 flex items-center justify-between animate-in fade-in slide-in-from-bottom-2">
+              <div className="h-12 bg-primary/10 rounded-2xl px-6 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
                   <span className="text-sm font-black text-primary tabular-nums">{formatDuration(recordingDuration)}</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-primary/60 ml-2 hidden sm:inline">Capturing Sonic ID...</span>
                 </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={handleVoiceStop} 
-                  className="h-8 text-primary hover:bg-primary/10 rounded-full font-black uppercase text-[10px] tracking-widest gap-2"
-                >
-                  <Square className="h-3.5 w-3.5 fill-current" /> STOP
-                </Button>
+                <Button variant="ghost" size="sm" onClick={handleVoiceStop} className="h-8 text-primary font-black uppercase text-[10px] tracking-widest gap-2"><Square className="h-3.5 w-3.5 fill-current" /> STOP</Button>
               </div>
             ) : isReviewing ? (
-              <div className="h-12 bg-secondary/30 border-none rounded-2xl px-6 flex items-center justify-between animate-in fade-in zoom-in-95 duration-300">
-                <div className="flex items-center gap-3">
-                  <Mic className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Final: <span className="text-foreground tabular-nums">{formatDuration(recordingDuration)}</span></span>
-                </div>
+              <div className="h-12 bg-secondary/30 rounded-2xl px-6 flex items-center justify-between">
+                <div className="flex items-center gap-3"><Mic className="h-4 w-4 text-primary" /><span className="text-xs font-black text-muted-foreground uppercase">Review: <span className="text-foreground tabular-nums">{formatDuration(recordingDuration)}</span></span></div>
                 <div className="flex items-center gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={handleDiscardVoice} 
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive rounded-full"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    onClick={handleSendVoice}
-                    className="h-8 px-4 bg-primary text-white rounded-full font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20"
-                  >
-                    SEND VIBE
-                  </Button>
+                  <Button variant="ghost" size="icon" onClick={handleDiscardVoice} className="h-8 w-8 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                  <Button onClick={handleSendVoice} className="h-8 px-4 bg-primary text-white rounded-full font-black uppercase text-[10px] tracking-widest">SEND VIBE</Button>
                 </div>
               </div>
             ) : (
@@ -327,33 +245,14 @@ export function ChatInput({ onSend }: ChatInputProps) {
                 <Input 
                   ref={inputRef}
                   placeholder="Type a high-velocity message..." 
-                  className={cn(
-                    "h-12 border-none rounded-2xl px-6 pr-12 transition-all",
-                    isViewOnceEnabled ? "bg-primary/5 focus-visible:ring-primary/40 text-primary italic font-bold" : "bg-secondary/30 focus-visible:ring-primary/20"
-                  )}
+                  className={cn("h-12 border-none rounded-2xl px-6 pr-12 bg-secondary/30", isViewOnceEnabled && "italic font-bold")}
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={handleKeyDown}
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn(
-                      "rounded-full h-8 w-8 transition-colors",
-                      isViewOnceEnabled ? "text-primary hover:bg-primary/10" : "text-muted-foreground hover:text-primary"
-                    )}
-                    onClick={handleImageClick}
-                  >
-                    <ImageIcon className="h-5 w-5" />
-                  </Button>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    accept="image/*,video/*" 
-                    onChange={handleFileChange} 
-                  />
+                  <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleMediaTrigger("image/*")}><ImageIcon className="h-5 w-5" /></Button>
+                  <input type="file" ref={fileInputRef} className="hidden" accept={currentFilter} onChange={handleFileChange} />
                 </div>
               </>
             )}
@@ -362,22 +261,9 @@ export function ChatInput({ onSend }: ChatInputProps) {
           {!isReviewing && (
             <div className="shrink-0">
               {text.trim() ? (
-                <Button 
-                  onClick={handleSubmit}
-                  className="rounded-full h-12 w-12 p-0 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 scale-110 transition-transform active:scale-95"
-                >
-                  <Send className="h-5 w-5 fill-current" />
-                </Button>
+                <Button onClick={handleSubmit} className="rounded-full h-12 w-12 bg-primary text-white"><Send className="h-5 w-5 fill-current" /></Button>
               ) : (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={cn(
-                    "rounded-full h-12 w-12 transition-all",
-                    isRecording ? "bg-primary text-white shadow-xl scale-125" : "bg-secondary/50 text-muted-foreground hover:text-primary"
-                  )}
-                  onClick={isRecording ? handleVoiceStop : handleVoiceStart}
-                >
+                <Button variant="ghost" size="icon" className={cn("rounded-full h-12 w-12", isRecording ? "bg-primary text-white" : "bg-secondary/50")} onClick={isRecording ? handleVoiceStop : handleVoiceStart}>
                   {isRecording ? <Square className="h-6 w-6 fill-current animate-pulse" /> : <Mic className="h-6 w-6" />}
                 </Button>
               )}
