@@ -191,8 +191,8 @@ export function PostCard(props: PostCardProps) {
     let newTotal = localTotalVotes;
 
     if (userVote === originalIndex) {
-      newOptions[originalIndex] = { ...newOptions[originalIndex], votes: newOptions[originalIndex].votes - 1 };
-      newTotal -= 1;
+      newOptions[originalIndex] = { ...newOptions[originalIndex], votes: Math.max(0, newOptions[originalIndex].votes - 1) };
+      newTotal = Math.max(0, newTotal - 1);
       setUserVote(null);
     } else {
       if (userVote !== null) {
@@ -370,11 +370,16 @@ export function PostCard(props: PostCardProps) {
                 );
               })}
             </div>
-            {rankedPollOptions.length > 4 && (
-              <button onClick={() => setIsPollExpanded(!isPollExpanded)} className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline w-full text-center pt-1">
-                {isPollExpanded ? "Collapse Rankings" : `View all ${rankedPollOptions.length} options`}
-              </button>
-            )}
+            <div className="flex items-center justify-between pt-1 border-t border-primary/5">
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                {localTotalVotes.toLocaleString()} {localTotalVotes === 1 ? 'Vote' : 'Votes'}
+              </span>
+              {rankedPollOptions.length > 4 && (
+                <button onClick={() => setIsPollExpanded(!isPollExpanded)} className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">
+                  {isPollExpanded ? "Collapse" : `View all ${rankedPollOptions.length} options`}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
