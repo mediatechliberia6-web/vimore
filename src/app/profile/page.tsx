@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useRef, useMemo } from "react";
 import { MainNav } from "@/components/layout/main-nav";
 import { RightSidebar } from "@/components/layout/right-sidebar";
 import { PostCard } from "@/components/post/post-card";
@@ -42,8 +41,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -60,16 +57,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-const MOCK_CONNECTIONS = [
-  { name: "Julianne Moore", username: "jmoore", avatar: "https://picsum.photos/seed/50/200/200", category: "Content Creator", followsYou: true, isFollowing: true },
-  { name: "Tech Explorer", username: "techex", avatar: "https://picsum.photos/seed/51/200/200", category: "Fullstack Developer", followsYou: true, isFollowing: false },
-  { name: "Alex Rivera", username: "arivera", avatar: "https://picsum.photos/seed/1/100/100", category: "Product Designer", followsYou: false, isFollowing: true },
-  { name: "Sarah Chen", username: "schen_dev", avatar: "https://picsum.photos/seed/2/100/100", category: "Software Engineer", followsYou: true, isFollowing: true },
-  { name: "Marcus Stone", username: "mstone", avatar: "https://picsum.photos/seed/3/100/100", category: "Photographer", followsYou: false, isFollowing: false },
-];
-
 export default function MyProfilePage() {
-  const { currentUser, posts, updateCurrentUser, isPostSaved, addPost } = usePosts();
+  const { currentUser, posts, updateCurrentUser, isPostSaved, addPost, connections, followingUsernames, toggleFollowUser, isFollowing } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { toast } = useToast();
   
@@ -189,14 +178,14 @@ export default function MyProfilePage() {
   };
 
   const filteredConnections = useMemo(() => {
-    const base = MOCK_CONNECTIONS.filter(c => 
-      hubTab === "followers" ? c.followsYou : c.isFollowing
+    const base = connections.filter(c => 
+      hubTab === "followers" ? c.followsYou : isFollowing(c.username)
     );
     return base.filter(c => 
       c.name.toLowerCase().includes(hubSearch.toLowerCase()) || 
       c.username.toLowerCase().includes(hubSearch.toLowerCase())
     );
-  }, [hubSearch, hubTab]);
+  }, [hubSearch, hubTab, connections, isFollowing]);
 
   const handleConnectionAction = (user: any) => {
     triggerHaptic(15);
@@ -204,13 +193,11 @@ export default function MyProfilePage() {
       setConfirmType("unfollow");
       setConfirmUser(user);
     } else {
-      // Followers list
-      if (user.isFollowing) {
+      if (isFollowing(user.username)) {
         setConfirmType("unfriend");
         setConfirmUser(user);
       } else {
-        // Follow back logic
-        user.isFollowing = true;
+        toggleFollowUser(user.username);
         toast({ title: "Connected!", description: `You are now following ${user.name}` });
       }
     }
@@ -219,7 +206,7 @@ export default function MyProfilePage() {
   const confirmUnfollow = () => {
     if (confirmUser) {
       triggerHaptic(30);
-      confirmUser.isFollowing = false;
+      toggleFollowUser(confirmUser.username);
       toast({ 
         title: confirmType === "unfriend" ? "Connection Adjusted" : "Network Removed", 
         description: `You no longer follow ${confirmUser.name}` 
@@ -256,11 +243,9 @@ export default function MyProfilePage() {
             </div>
             <div className="flex items-center gap-1">
               <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full" onClick={() => { triggerHaptic(5); setEditData({ name: currentUser.name, category: currentUser.category, bio: currentUser.bio, pronouns: currentUser.pronouns }); }}>
-                    <Edit2 className="h-5 w-5" />
-                  </Button>
-                </DialogTrigger>
+                <Button variant="ghost" size="icon" className="rounded-full" onClick={() => { triggerHaptic(5); setIsEditModalOpen(true); setEditData({ name: currentUser.name, category: currentUser.category, bio: currentUser.bio, pronouns: currentUser.pronouns }); }}>
+                  <Edit2 className="h-5 w-5" />
+                </Button>
                 <DialogContent className="sm:max-w-[425px] rounded-[2rem]">
                   <DialogHeader>
                     <DialogTitle className="font-black italic uppercase tracking-tighter text-2xl">Refine Presence</DialogTitle>
@@ -279,9 +264,9 @@ export default function MyProfilePage() {
                       <Textarea value={editData.bio} onChange={(e) => setEditData({ ...editData, bio: e.target.value })} className="rounded-xl bg-secondary/20 border-none min-h-[100px]" />
                     </div>
                   </div>
-                  <DialogFooter>
+                  <div className="flex justify-end">
                     <Button onClick={handleSaveProfile} className="w-full bg-primary hover:bg-primary/90 text-white font-black uppercase italic tracking-widest h-12 rounded-xl shadow-lg shadow-primary/20">Sync Identity</Button>
-                  </DialogFooter>
+                  </div>
                 </DialogContent>
               </Dialog>
               <Button variant="ghost" size="icon" className="rounded-full"><MoreHorizontal className="h-5 w-5" /></Button>
@@ -339,7 +324,7 @@ export default function MyProfilePage() {
                     onClick={() => openHub('following')}
                     className="flex flex-col items-start hover:bg-secondary/30 p-2 -m-2 rounded-xl transition-colors group text-left"
                   >
-                    <span className="font-bold text-lg leading-none group-hover:text-primary transition-colors">{currentUser.following}</span>
+                    <span className="font-bold text-lg leading-none group-hover:text-primary transition-colors">{followingUsernames.size}</span>
                     <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span>
                   </button>
                   <div className="flex flex-col"><span className="font-bold text-lg leading-none">{myPosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
@@ -455,54 +440,57 @@ export default function MyProfilePage() {
 
           <ScrollArea className="flex-1 px-6 pb-6 mt-2">
             <div className="space-y-4">
-              {filteredConnections.length > 0 ? filteredConnections.map((user, i) => (
-                <div key={i} className="flex items-center justify-between group animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${i * 50}ms` }}>
-                  <Link href={`/profile/${user.username}`} onClick={() => setIsHubOpen(false)} className="flex items-center gap-3 flex-1 min-w-0">
-                    <Avatar className="h-12 w-12 border-2 border-primary/5 transition-transform group-hover:scale-105">
-                      <AvatarImage src={user.avatar} />
-                      <AvatarFallback>{user.name[0]}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-sm truncate group-hover:underline">{user.name}</span>
-                        {user.followsYou && hubTab === "followers" && <Badge variant="secondary" className="bg-secondary/50 text-[8px] h-4 px-1.5 font-bold uppercase">Follows You</Badge>}
+              {filteredConnections.length > 0 ? filteredConnections.map((user, i) => {
+                const following = isFollowing(user.username);
+                return (
+                  <div key={i} className="flex items-center justify-between group animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${i * 50}ms` }}>
+                    <Link href={`/profile/${user.username}`} onClick={() => setIsHubOpen(false)} className="flex items-center gap-3 flex-1 min-w-0">
+                      <Avatar className="h-12 w-12 border-2 border-primary/5 transition-transform group-hover:scale-105">
+                        <AvatarImage src={user.avatar} />
+                        <AvatarFallback>{user.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-sm truncate group-hover:underline">{user.name}</span>
+                          {user.followsYou && hubTab === "followers" && <Badge variant="secondary" className="bg-secondary/50 text-[8px] h-4 px-1.5 font-bold uppercase">Follows You</Badge>}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground truncate">{user.category}</span>
                       </div>
-                      <span className="text-[10px] text-muted-foreground truncate">{user.category}</span>
-                    </div>
-                  </Link>
-                  
-                  {hubTab === "following" ? (
-                    <Button 
-                      variant="secondary"
-                      size="sm" 
-                      className="rounded-lg h-8 px-4 font-bold text-[11px] bg-secondary/80 text-foreground hover:bg-destructive hover:text-white transition-all group/btn"
-                      onClick={() => handleConnectionAction(user)}
-                    >
-                      <span className="group-hover/btn:hidden">Following</span>
-                      <span className="hidden group-hover/btn:inline">Unfollow</span>
-                    </Button>
-                  ) : (
-                    <Button 
-                      variant={user.isFollowing ? "secondary" : "default"} 
-                      size="sm" 
-                      className={cn(
-                        "rounded-lg h-8 px-4 font-bold text-[11px] transition-all",
-                        !user.isFollowing ? "bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/10" : "bg-secondary/80 text-foreground hover:bg-destructive hover:text-white group/friend"
-                      )}
-                      onClick={() => handleConnectionAction(user)}
-                    >
-                      {!user.isFollowing ? (
-                        "Follow Back"
-                      ) : (
-                        <>
-                          <span className="group-hover/friend:hidden flex items-center gap-1"><UserCheck className="h-3 w-3" /> Friend</span>
-                          <span className="hidden group-hover/friend:inline flex items-center gap-1"><UserMinus className="h-3 w-3" /> Unfriend</span>
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              )) : (
+                    </Link>
+                    
+                    {hubTab === "following" ? (
+                      <Button 
+                        variant="secondary"
+                        size="sm" 
+                        className="rounded-lg h-8 px-4 font-bold text-[11px] bg-secondary/80 text-foreground hover:bg-destructive hover:text-white transition-all group/btn"
+                        onClick={() => handleConnectionAction(user)}
+                      >
+                        <span className="group-hover/btn:hidden">Following</span>
+                        <span className="hidden group-hover/btn:inline">Unfollow</span>
+                      </Button>
+                    ) : (
+                      <Button 
+                        variant={following ? "secondary" : "default"} 
+                        size="sm" 
+                        className={cn(
+                          "rounded-lg h-8 px-4 font-bold text-[11px] transition-all",
+                          !following ? "bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/10" : "bg-secondary/80 text-foreground hover:bg-destructive hover:text-white group/friend"
+                        )}
+                        onClick={() => handleConnectionAction(user)}
+                      >
+                        {!following ? (
+                          "Follow Back"
+                        ) : (
+                          <>
+                            <span className="group-hover/friend:hidden flex items-center gap-1"><UserCheck className="h-3 w-3" /> Friend</span>
+                            <span className="hidden group-hover/friend:inline flex items-center gap-1"><UserMinus className="h-3 w-3" /> Unfriend</span>
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                );
+              }) : (
                 <div className="py-20 text-center space-y-3 opacity-40">
                   <div className="h-12 w-12 bg-secondary rounded-full flex items-center justify-center mx-auto"><Search className="h-6 w-6" /></div>
                   <p className="text-sm font-bold">No results found</p>
@@ -515,7 +503,7 @@ export default function MyProfilePage() {
 
       {/* Unfollow/Unfriend Confirmation */}
       <AlertDialog open={!!confirmUser} onOpenChange={(open) => !open && setConfirmUser(null)}>
-        <AlertDialogContent className="rounded-[2rem] sm:max-w-[400px]">
+        <AlertDialogContent className="rounded-[2rem] sm:max-w-[400px] z-[200]">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-black italic uppercase tracking-tighter text-2xl">
               {confirmType === "unfriend" ? "Unfriend Creator?" : "Unfollow Creator?"}

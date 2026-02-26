@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, use, useMemo } from "react";
@@ -90,25 +89,16 @@ const MOCK_USERS: Record<string, any> = {
   }
 };
 
-const MOCK_CONNECTIONS = [
-  { name: "Julianne Moore", username: "jmoore", avatar: "https://picsum.photos/seed/50/200/200", category: "Content Creator", followsYou: true, isFollowing: true },
-  { name: "Tech Explorer", username: "techex", avatar: "https://picsum.photos/seed/51/200/200", category: "Fullstack Developer", followsYou: true, isFollowing: false },
-  { name: "Alex Rivera", username: "arivera", avatar: "https://picsum.photos/seed/1/100/100", category: "Product Designer", followsYou: false, isFollowing: true },
-  { name: "Sarah Chen", username: "schen_dev", avatar: "https://picsum.photos/seed/2/100/100", category: "Software Engineer", followsYou: true, isFollowing: true },
-  { name: "Marcus Stone", username: "mstone", avatar: "https://picsum.photos/seed/3/100/100", category: "Photographer", followsYou: false, isFollowing: false },
-];
-
 export default function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const resolvedParams = use(params);
   const username = resolvedParams.username;
-  const { currentUser, posts } = usePosts();
+  const { currentUser, posts, connections, isFollowing, toggleFollowUser } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const isMe = username === currentUser.username;
   const isPlayerActive = currentTrack && !isExpanded;
   
   const { toast } = useToast();
   const [isPlayingIntro, setIsPlayingIntro] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
   const [translatedBio, setTranslatedBio] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   
@@ -118,6 +108,8 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
   const [confirmUser, setConfirmUser] = useState<any | null>(null);
   const [confirmType, setConfirmType] = useState<"unfollow" | "unfriend">("unfollow");
+
+  const amIFollowing = isFollowing(username);
 
   // Get user data or fallback
   const displayUser = MOCK_USERS[username] || {
@@ -146,10 +138,10 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
   const handleFollow = () => {
     triggerHaptic(20);
-    setIsFollowing(!isFollowing);
+    toggleFollowUser(username);
     toast({ 
-      title: isFollowing ? "Network Removed" : "Connected!",
-      description: isFollowing ? `You are no longer following ${displayUser.name}` : `Following ${displayUser.name} ✨` 
+      title: amIFollowing ? "Network Removed" : "Connected!",
+      description: amIFollowing ? `You are no longer following ${displayUser.name}` : `Following ${displayUser.name} ✨` 
     });
   };
 
@@ -191,14 +183,14 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   };
 
   const filteredConnections = useMemo(() => {
-    const base = MOCK_CONNECTIONS.filter(c => 
-      hubTab === "followers" ? c.followsYou : c.isFollowing
+    const base = connections.filter(c => 
+      hubTab === "followers" ? c.followsYou : isFollowing(c.username)
     );
     return base.filter(c => 
       c.name.toLowerCase().includes(hubSearch.toLowerCase()) || 
       c.username.toLowerCase().includes(hubSearch.toLowerCase())
     );
-  }, [hubSearch, hubTab]);
+  }, [hubSearch, hubTab, connections, isFollowing]);
 
   const handleConnectionAction = (user: any) => {
     triggerHaptic(15);
@@ -206,11 +198,11 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
       setConfirmType("unfollow");
       setConfirmUser(user);
     } else {
-      if (user.isFollowing) {
+      if (isFollowing(user.username)) {
         setConfirmType("unfriend");
         setConfirmUser(user);
       } else {
-        user.isFollowing = true;
+        toggleFollowUser(user.username);
         toast({ title: "Connected!", description: `You are now following ${user.name}` });
       }
     }
@@ -219,7 +211,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const confirmUnfollow = () => {
     if (confirmUser) {
       triggerHaptic(30);
-      confirmUser.isFollowing = false;
+      toggleFollowUser(confirmUser.username);
       toast({ 
         title: confirmType === "unfriend" ? "Connection Adjusted" : "Network Removed", 
         description: `You no longer follow ${confirmUser.name}` 
@@ -321,11 +313,11 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                     onClick={handleFollow}
                     className={cn(
                       "flex-1 rounded-lg gap-2 h-11 font-bold active:scale-95 transition-all shadow-lg",
-                      isFollowing ? "bg-secondary text-foreground" : "bg-primary text-white shadow-primary/20"
+                      amIFollowing ? "bg-secondary text-foreground" : "bg-primary text-white shadow-primary/20"
                     )}
                   >
-                    {isFollowing ? <UserMinus className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
-                    {isFollowing ? "Following" : "Connect"}
+                    {amIFollowing ? <UserMinus className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+                    {amIFollowing ? "Following" : "Connect"}
                   </Button>
                   <Link href="/messages" className="flex-1">
                     <Button variant="secondary" className="w-full rounded-lg gap-2 h-11 font-bold active:scale-95 transition-all">
@@ -404,54 +396,57 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
           <ScrollArea className="flex-1 px-6 pb-6 mt-2">
             <div className="space-y-4">
-              {filteredConnections.length > 0 ? filteredConnections.map((user, i) => (
-                <div key={i} className="flex items-center justify-between group animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${i * 50}ms` }}>
-                  <Link href={`/profile/${user.username}`} onClick={() => setIsHubOpen(false)} className="flex items-center gap-3 flex-1 min-w-0">
-                    <Avatar className="h-12 w-12 border-2 border-primary/5 transition-transform group-hover:scale-105">
-                      <AvatarImage src={user.avatar} />
-                      <AvatarFallback>{user.name[0]}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-sm truncate group-hover:underline">{user.name}</span>
-                        {user.followsYou && hubTab === "followers" && <Badge variant="secondary" className="bg-secondary/50 text-[8px] h-4 px-1.5 font-bold uppercase">Follows You</Badge>}
+              {filteredConnections.length > 0 ? filteredConnections.map((user, i) => {
+                const following = isFollowing(user.username);
+                return (
+                  <div key={i} className="flex items-center justify-between group animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${i * 50}ms` }}>
+                    <Link href={`/profile/${user.username}`} onClick={() => setIsHubOpen(false)} className="flex items-center gap-3 flex-1 min-w-0">
+                      <Avatar className="h-12 w-12 border-2 border-primary/5 transition-transform group-hover:scale-105">
+                        <AvatarImage src={user.avatar} />
+                        <AvatarFallback>{user.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-sm truncate group-hover:underline">{user.name}</span>
+                          {user.followsYou && hubTab === "followers" && <Badge variant="secondary" className="bg-secondary/50 text-[8px] h-4 px-1.5 font-bold uppercase">Follows You</Badge>}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground truncate">{user.category}</span>
                       </div>
-                      <span className="text-[10px] text-muted-foreground truncate">{user.category}</span>
-                    </div>
-                  </Link>
-                  
-                  {hubTab === "following" ? (
-                    <Button 
-                      variant="secondary"
-                      size="sm" 
-                      className="rounded-lg h-8 px-4 font-bold text-[11px] bg-secondary/80 text-foreground hover:bg-destructive hover:text-white transition-all group/btn"
-                      onClick={() => handleConnectionAction(user)}
-                    >
-                      <span className="group-hover/btn:hidden">Following</span>
-                      <span className="hidden group-hover/btn:inline">Unfollow</span>
-                    </Button>
-                  ) : (
-                    <Button 
-                      variant={user.isFollowing ? "secondary" : "default"} 
-                      size="sm" 
-                      className={cn(
-                        "rounded-lg h-8 px-4 font-bold text-[11px] transition-all",
-                        !user.isFollowing ? "bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/10" : "bg-secondary/80 text-foreground hover:bg-destructive hover:text-white group/friend"
-                      )}
-                      onClick={() => handleConnectionAction(user)}
-                    >
-                      {!user.isFollowing ? (
-                        "Follow Back"
-                      ) : (
-                        <>
-                          <span className="group-hover/friend:hidden flex items-center gap-1"><UserCheck className="h-3 w-3" /> Friend</span>
-                          <span className="hidden group-hover/friend:inline flex items-center gap-1"><UserMinus className="h-3 w-3" /> Unfriend</span>
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              )) : (
+                    </Link>
+                    
+                    {hubTab === "following" ? (
+                      <Button 
+                        variant="secondary"
+                        size="sm" 
+                        className="rounded-lg h-8 px-4 font-bold text-[11px] bg-secondary/80 text-foreground hover:bg-destructive hover:text-white transition-all group/btn"
+                        onClick={() => handleConnectionAction(user)}
+                      >
+                        <span className="group-hover/btn:hidden">Following</span>
+                        <span className="hidden group-hover/btn:inline">Unfollow</span>
+                      </Button>
+                    ) : (
+                      <Button 
+                        variant={following ? "secondary" : "default"} 
+                        size="sm" 
+                        className={cn(
+                          "rounded-lg h-8 px-4 font-bold text-[11px] transition-all",
+                          !following ? "bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/10" : "bg-secondary/80 text-foreground hover:bg-destructive hover:text-white group/friend"
+                        )}
+                        onClick={() => handleConnectionAction(user)}
+                      >
+                        {!following ? (
+                          "Follow Back"
+                        ) : (
+                          <>
+                            <span className="group-hover/friend:hidden flex items-center gap-1"><UserCheck className="h-3 w-3" /> Friend</span>
+                            <span className="hidden group-hover/friend:inline flex items-center gap-1"><UserMinus className="h-3 w-3" /> Unfriend</span>
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                );
+              }) : (
                 <div className="py-20 text-center space-y-3 opacity-40">
                   <div className="h-12 w-12 bg-secondary rounded-full flex items-center justify-center mx-auto"><Search className="h-6 w-6" /></div>
                   <p className="text-sm font-bold">No results found</p>
@@ -464,7 +459,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
       {/* Unfollow/Unfriend Confirmation */}
       <AlertDialog open={!!confirmUser} onOpenChange={(open) => !open && setConfirmUser(null)}>
-        <AlertDialogContent className="rounded-[2rem] sm:max-w-[400px]">
+        <AlertDialogContent className="rounded-[2rem] sm:max-w-[400px] z-[200]">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-black italic uppercase tracking-tighter text-2xl">
               {confirmType === "unfriend" ? "Unfriend Creator?" : "Unfollow Creator?"}

@@ -20,6 +20,14 @@ export interface User {
   links?: Array<{ label: string; url: string; icon: any }>;
 }
 
+export interface Connection {
+  name: string;
+  username: string;
+  avatar: string;
+  category: string;
+  followsYou: boolean;
+}
+
 export interface Mention {
   username: string;
   x: string | number;
@@ -102,7 +110,9 @@ interface PostContextType {
   likedPostIds: Set<string>;
   unlikedPostIds: Set<string>;
   savedPostIds: Set<string>;
+  followingUsernames: Set<string>;
   activeStoryIndex: number | null;
+  connections: Connection[];
   setActiveStoryIndex: (index: number | null) => void;
   addPost: (post: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => void;
   addStory: (segment: Omit<StorySegment, 'id'>) => void;
@@ -114,9 +124,11 @@ interface PostContextType {
   toggleLikePost: (postId: string) => void;
   toggleUnlikePost: (postId: string) => void;
   toggleSavePost: (postId: string) => void;
+  toggleFollowUser: (username: string) => void;
   isPostLiked: (postId: string) => boolean;
   isPostUnliked: (postId: string) => boolean;
   isPostSaved: (postId: string) => boolean;
+  isFollowing: (username: string) => boolean;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -135,6 +147,14 @@ const INITIAL_USER: User = {
   following: "1.2k",
   posts: "142"
 };
+
+const MOCK_CONNECTIONS: Connection[] = [
+  { name: "Julianne Moore", username: "jmoore", avatar: "https://picsum.photos/seed/50/200/200", category: "Content Creator", followsYou: true },
+  { name: "Tech Explorer", username: "techex", avatar: "https://picsum.photos/seed/51/200/200", category: "Fullstack Developer", followsYou: true },
+  { name: "Alex Rivera", username: "arivera", avatar: "https://picsum.photos/seed/1/100/100", category: "Product Designer", followsYou: false },
+  { name: "Sarah Chen", username: "schen_dev", avatar: "https://picsum.photos/seed/2/100/100", category: "Software Engineer", followsYou: true },
+  { name: "Marcus Stone", username: "mstone", avatar: "https://picsum.photos/seed/3/100/100", category: "Photographer", followsYou: false },
+];
 
 const initialMockStories: Story[] = [
   {
@@ -248,6 +268,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
   const [unlikedPostIds, setUnlikedPostIds] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
+  const [followingUsernames, setFollowingUsernames] = useState<Set<string>>(new Set(["jmoore", "arivera", "schen_dev"]));
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -255,6 +276,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const savedLikes = localStorage.getItem('vimore_liked_posts');
     const savedUnlikes = localStorage.getItem('vimore_unliked_posts');
     const savedSaves = localStorage.getItem('vimore_saved_posts');
+    const savedFollowing = localStorage.getItem('vimore_following');
 
     if (savedUser) {
       try {
@@ -264,6 +286,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (savedLikes) setLikedPostIds(new Set(JSON.parse(savedLikes)));
     if (savedUnlikes) setUnlikedPostIds(new Set(JSON.parse(savedUnlikes)));
     if (savedSaves) setSavedPostIds(new Set(JSON.parse(savedSaves)));
+    if (savedFollowing) setFollowingUsernames(new Set(JSON.parse(savedFollowing)));
   }, []);
 
   useEffect(() => {
@@ -277,6 +300,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('vimore_saved_posts', JSON.stringify(Array.from(savedPostIds)));
   }, [savedPostIds]);
+
+  useEffect(() => {
+    localStorage.setItem('vimore_following', JSON.stringify(Array.from(followingUsernames)));
+  }, [followingUsernames]);
 
   const updateCurrentUser = (data: Partial<User>) => {
     setCurrentUser(prev => {
@@ -355,9 +382,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const toggleFollowUser = (username: string) => {
+    setFollowingUsernames(prev => {
+      const next = new Set(prev);
+      if (next.has(username)) next.delete(username);
+      else next.add(username);
+      return next;
+    });
+  };
+
   const isPostLiked = (postId: string) => likedPostIds.has(postId);
   const isPostUnliked = (postId: string) => unlikedPostIds.has(postId);
   const isPostSaved = (postId: string) => savedPostIds.has(postId);
+  const isFollowing = (username: string) => followingUsernames.has(username);
 
   const voteOnStoryPoll = (storyId: string, segmentId: string, optionIndex: number) => {
     setStories(prev => prev.map(story => {
@@ -396,7 +433,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
       likedPostIds,
       unlikedPostIds,
       savedPostIds,
+      followingUsernames,
       activeStoryIndex, 
+      connections: MOCK_CONNECTIONS,
       setActiveStoryIndex, 
       addPost, 
       addStory, 
@@ -408,9 +447,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
       toggleLikePost,
       toggleUnlikePost,
       toggleSavePost,
+      toggleFollowUser,
       isPostLiked,
       isPostUnliked,
-      isPostSaved
+      isPostSaved,
+      isFollowing
     }}>
       {children}
     </PostContext.Provider>
