@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, use, useMemo } from "react";
@@ -23,7 +24,8 @@ import {
   Zap,
   Languages,
   Search,
-  X
+  X,
+  UserCheck
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
@@ -36,6 +38,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -101,8 +113,11 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const [isTranslating, setIsTranslating] = useState(false);
   
   const [isHubOpen, setIsHubOpen] = useState(false);
-  const [hubTab, setHubTab] = useState("followers");
+  const [hubTab, setHubTab] = useState<"followers" | "following">("followers");
   const [hubSearch, setHubSearch] = useState("");
+
+  const [confirmUser, setConfirmUser] = useState<any | null>(null);
+  const [confirmType, setConfirmType] = useState<"unfollow" | "unfriend">("unfollow");
 
   // Get user data or fallback
   const displayUser = MOCK_USERS[username] || {
@@ -169,18 +184,49 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     setSkills(newSkills);
   };
 
-  const openHub = (tab: string) => {
+  const openHub = (tab: "followers" | "following") => {
     triggerHaptic(5);
     setHubTab(tab);
     setIsHubOpen(true);
   };
 
   const filteredConnections = useMemo(() => {
-    return MOCK_CONNECTIONS.filter(c => 
+    const base = MOCK_CONNECTIONS.filter(c => 
+      hubTab === "followers" ? c.followsYou : c.isFollowing
+    );
+    return base.filter(c => 
       c.name.toLowerCase().includes(hubSearch.toLowerCase()) || 
       c.username.toLowerCase().includes(hubSearch.toLowerCase())
     );
-  }, [hubSearch]);
+  }, [hubSearch, hubTab]);
+
+  const handleConnectionAction = (user: any) => {
+    triggerHaptic(15);
+    if (hubTab === "following") {
+      setConfirmType("unfollow");
+      setConfirmUser(user);
+    } else {
+      if (user.isFollowing) {
+        setConfirmType("unfriend");
+        setConfirmUser(user);
+      } else {
+        user.isFollowing = true;
+        toast({ title: "Connected!", description: `You are now following ${user.name}` });
+      }
+    }
+  };
+
+  const confirmUnfollow = () => {
+    if (confirmUser) {
+      triggerHaptic(30);
+      confirmUser.isFollowing = false;
+      toast({ 
+        title: confirmType === "unfriend" ? "Connection Adjusted" : "Network Removed", 
+        description: `You no longer follow ${confirmUser.name}` 
+      });
+      setConfirmUser(null);
+    }
+  };
 
   const userPosts = useMemo(() => posts.filter(p => p.user.username === username), [posts, username]);
   const mediaPosts = useMemo(() => userPosts.filter(p => p.image || p.images?.length), [userPosts]);
@@ -373,17 +419,37 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                       <span className="text-[10px] text-muted-foreground truncate">{user.category}</span>
                     </div>
                   </Link>
-                  <Button 
-                    variant={user.isFollowing ? "secondary" : "default"} 
-                    size="sm" 
-                    className={cn(
-                      "rounded-lg h-8 px-4 font-bold text-[11px] transition-all",
-                      !user.isFollowing && "bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/10"
-                    )}
-                    onClick={(e) => { e.preventDefault(); triggerHaptic(15); }}
-                  >
-                    {user.isFollowing ? "Following" : "Connect"}
-                  </Button>
+                  
+                  {hubTab === "following" ? (
+                    <Button 
+                      variant="secondary"
+                      size="sm" 
+                      className="rounded-lg h-8 px-4 font-bold text-[11px] bg-secondary/80 text-foreground hover:bg-destructive hover:text-white transition-all group/btn"
+                      onClick={() => handleConnectionAction(user)}
+                    >
+                      <span className="group-hover/btn:hidden">Following</span>
+                      <span className="hidden group-hover/btn:inline">Unfollow</span>
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant={user.isFollowing ? "secondary" : "default"} 
+                      size="sm" 
+                      className={cn(
+                        "rounded-lg h-8 px-4 font-bold text-[11px] transition-all",
+                        !user.isFollowing ? "bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/10" : "bg-secondary/80 text-foreground hover:bg-destructive hover:text-white group/friend"
+                      )}
+                      onClick={() => handleConnectionAction(user)}
+                    >
+                      {!user.isFollowing ? (
+                        "Follow Back"
+                      ) : (
+                        <>
+                          <span className="group-hover/friend:hidden flex items-center gap-1"><UserCheck className="h-3 w-3" /> Friend</span>
+                          <span className="hidden group-hover/friend:inline flex items-center gap-1"><UserMinus className="h-3 w-3" /> Unfriend</span>
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               )) : (
                 <div className="py-20 text-center space-y-3 opacity-40">
@@ -395,6 +461,29 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Unfollow/Unfriend Confirmation */}
+      <AlertDialog open={!!confirmUser} onOpenChange={(open) => !open && setConfirmUser(null)}>
+        <AlertDialogContent className="rounded-[2rem] sm:max-w-[400px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-black italic uppercase tracking-tighter text-2xl">
+              {confirmType === "unfriend" ? "Unfriend Creator?" : "Unfollow Creator?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base font-medium leading-relaxed">
+              Are you sure you want to {confirmType === "unfriend" ? "unfriend" : "unfollow"} <span className="font-bold text-foreground">@{confirmUser?.username}</span>? This action will adjust your community connection.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50 border-none">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmUnfollow}
+              className="rounded-xl h-12 font-black italic uppercase tracking-widest bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20"
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
