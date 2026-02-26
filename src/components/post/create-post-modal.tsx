@@ -112,8 +112,6 @@ const imageFilters = [
   { id: "saturate", label: "Vivid", class: "saturate-150" },
 ];
 
-const pollDurations = ["1 Hour", "6 Hours", "12 Hours", "24 Hours", "3 Days", "7 Days"];
-
 const USER_PROFILE = {
   name: "John Doe",
   username: "johndoe_creative",
@@ -158,25 +156,16 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   
   const MAX_PHOTOS = 6;
   const MAX_POLL_OPTIONS = 8;
+  const TRUNCATE_LIMIT = 150; 
 
-  // character limit set to 150 for themed/media content
   const isLimitedType = selectedTheme.id !== "none" || selectedMedia.length > 0 || mediaType !== null || isPollOpen;
-  const currentLimit = isLimitedType ? 150 : 2000;
+  const currentLimit = isLimitedType ? TRUNCATE_LIMIT : 2000;
   const progress = (content.length / currentLimit) * 100;
   const isOverLimit = content.length > currentLimit;
 
   useEffect(() => {
     const savedContent = localStorage.getItem('vimore_post_draft');
     if (savedContent) setContent(savedContent);
-    
-    const savedLocs = localStorage.getItem('vimore_recent_locations');
-    if (savedLocs) {
-      try {
-        setRecentLocations(JSON.parse(savedLocs));
-      } catch (e) {
-        console.error("Failed to load recents", e);
-      }
-    }
   }, []);
 
   useEffect(() => {
@@ -194,13 +183,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       setIsTagging(false);
     }
   }, [content]);
-
-  const handleMention = (friend: typeof mockFriends[0]) => {
-    const words = content.split(/\s+/);
-    words.pop();
-    setContent([...words, `@${friend.username}`, ""].join(" "));
-    setIsTagging(false);
-  };
 
   const applyFormatting = (prefix: string, suffix: string) => {
     if (!textareaRef.current) return;
@@ -234,19 +216,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     }
   };
 
-  const clearDraft = () => {
-    setContent("");
-    localStorage.removeItem('vimore_post_draft');
-    toast({ description: "Draft cleared." });
-  };
-
   const handlePost = () => {
-    if (location) {
-      const updatedRecents = [location, ...recentLocations.filter(l => l !== location)].slice(0, 5);
-      setRecentLocations(updatedRecents);
-      localStorage.setItem('vimore_recent_locations', JSON.stringify(updatedRecents));
-    }
-
     const creationLanguage = typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en';
 
     addPost({
@@ -275,118 +245,46 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       } : undefined
     });
 
-    toast({ title: "Vibe Shared!", description: mediaType === 'video' ? "Your Reel is now live." : "Your post has been shared." });
+    toast({ title: "Vibe Shared!", description: "Your post has been shared." });
     localStorage.removeItem('vimore_post_draft');
-    
+    resetForm();
+    setIsOpen(false);
+  };
+
+  const resetForm = () => {
     setContent("");
     setSelectedMedia([]);
     setMediaType(null);
     setIsPollOpen(false);
     setFeeling(null);
     setLocation(null);
-    setLocationSearch("");
     setPollQuestion("");
     setPollOptions(["", ""]);
     setCollaborator(null);
     setSelectedTheme(backgroundThemes[0]);
     setSelectedFilter(imageFilters[0]);
-    setCommentsDisabled(false);
-    setIsOpen(false);
   };
 
   const handlePhotoUploadClick = () => {
-    if (isPollOpen) {
-      toast({ title: "Incompatible content", description: "You cannot add photos to a poll.", variant: "destructive" });
-      return;
-    }
-    if (selectedTheme.id !== "none") {
-      toast({ title: "Incompatible content", description: "You cannot add photos to a themed post.", variant: "destructive" });
-      return;
-    }
-    if (mediaType === 'video') {
-      setSelectedMedia([]);
-      setMediaType(null);
-    }
-    if (selectedMedia.length >= MAX_PHOTOS) {
-      toast({ title: "Limit reached", description: `You can only upload up to ${MAX_PHOTOS} photos.`, variant: "destructive" });
-      return;
-    }
+    if (isPollOpen || selectedTheme.id !== "none") return;
     fileInputRef.current?.click();
   };
 
   const handleVideoUploadClick = () => {
-    if (isPollOpen) {
-      toast({ title: "Incompatible content", description: "You cannot add a video to a poll.", variant: "destructive" });
-      return;
-    }
-    if (selectedTheme.id !== "none") {
-      toast({ title: "Incompatible content", description: "You cannot add a video to a themed post.", variant: "destructive" });
-      return;
-    }
+    if (isPollOpen || selectedTheme.id !== "none") return;
     triggerHaptic(15);
     setIsOpen(false);
     openCaptureStudio();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    setMediaType('image');
-    const remainingSlots = MAX_PHOTOS - selectedMedia.length;
-    const filesArray = Array.from(files).slice(0, remainingSlots);
-    filesArray.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setSelectedMedia(prev => [...prev, base64String]);
-      };
-      reader.readAsDataURL(file);
-    });
-    e.target.value = "";
-  };
-
-  const removeMedia = (index: number) => {
-    const itemToRemove = selectedMedia[index];
-    if (itemToRemove.startsWith('blob:')) {
-      URL.revokeObjectURL(itemToRemove);
-    }
-    const updated = selectedMedia.filter((_, i) => i !== index);
-    setSelectedMedia(updated);
-    if (updated.length === 0) {
-      setMediaType(null);
-      setSelectedFilter(imageFilters[0]);
-    }
-  };
-
-  const togglePoll = () => {
-    if (selectedMedia.length > 0) {
-      toast({ title: "Incompatible content", description: "You cannot add a poll to a post that already has media.", variant: "destructive" });
-      return;
-    }
-    if (selectedTheme.id !== "none") {
-      toast({ title: "Incompatible content", description: "Themes only work for text posts.", variant: "destructive" });
-      return;
-    }
-    setIsPollOpen(!isPollOpen);
-  };
-
-  const handleLocationSubmit = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (locationSearch.trim()) {
-      setLocation(locationSearch.trim());
-      setShowLocationSelector(false);
-    }
-  };
-
   const actionItems = [
     { icon: ImageIcon, label: "Photo", color: "text-green-500", onClick: handlePhotoUploadClick, disabled: isPollOpen || selectedTheme.id !== "none" },
     { icon: Video, label: "Upload Reel", color: "text-red-500", onClick: handleVideoUploadClick, disabled: isPollOpen || selectedTheme.id !== "none" },
-    { icon: ListTodo, label: "Create Poll", color: "text-purple-500", onClick: togglePoll, disabled: selectedMedia.length > 0 || selectedTheme.id !== "none" },
-    { icon: Palette, label: "Theme", color: "text-pink-500", onClick: () => { if (selectedMedia.length > 0 || isPollOpen) { toast({ title: "Incompatible content", description: "Themes only work for text posts.", variant: "destructive" }); return; } setShowThemeSelector(!showThemeSelector); setShowFeelingSelector(false); setShowLocationSelector(false); setShowSettings(false); } },
-    { icon: Smile, label: "Feeling/activity", color: "text-yellow-500", onClick: () => { setShowFeelingSelector(!showFeelingSelector); setShowLocationSelector(false); setShowThemeSelector(false); setShowSettings(false); } },
-    { icon: UserPlus, label: "Tag people", color: "text-blue-500", onClick: () => setContent(prev => prev + " @") },
-    { icon: MapPin, label: "Add location", color: "text-red-500", onClick: () => { setShowLocationSelector(!showLocationSelector); setShowFeelingSelector(false); setShowThemeSelector(false); setShowSettings(false); } },
-    { icon: Settings2, label: "Post Settings", color: "text-slate-500", onClick: () => { setShowSettings(!showSettings); setShowFeelingSelector(false); setShowLocationSelector(false); setShowThemeSelector(false); } }
+    { icon: ListTodo, label: "Create Poll", color: "text-purple-500", onClick: () => setIsPollOpen(!isPollOpen), disabled: selectedMedia.length > 0 || selectedTheme.id !== "none" },
+    { icon: Palette, label: "Theme", color: "text-pink-500", onClick: () => setShowThemeSelector(!showThemeSelector), disabled: selectedMedia.length > 0 || isPollOpen },
+    { icon: Smile, label: "Feeling", color: "text-yellow-500", onClick: () => setShowFeelingSelector(!showFeelingSelector) },
+    { icon: UserPlus, label: "Tag", color: "text-blue-500", onClick: () => setContent(prev => prev + " @") },
+    { icon: MapPin, label: "Location", color: "text-red-500", onClick: () => setShowLocationSelector(!showLocationSelector) }
   ];
 
   return (
@@ -401,7 +299,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           </div>
           <div className="flex items-center gap-2">
              <Button variant="ghost" size="icon" className="text-primary h-9 w-9" onClick={handleAiEnhance} disabled={isAiLoading || !content.trim()}>{isAiLoading ? <Clock className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}</Button>
-            {content && <Button variant="ghost" size="icon" className="text-destructive h-9 w-9" onClick={clearDraft}><Trash2 className="h-5 w-5" /></Button>}
             <Button variant="ghost" className={cn("font-bold text-primary text-base", ((!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit) && "opacity-50")} disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit} onClick={handlePost}>POST</Button>
           </div>
         </DialogHeader>
@@ -416,40 +313,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                 {location && <span className="text-[13px] text-muted-foreground">— in <span className="font-bold text-foreground">{location}</span></span>}
               </div>
               <div className="flex items-center gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="sm" className="h-7 px-2 bg-secondary/60 rounded-md flex items-center gap-1.5"><privacy.icon className="h-3.5 w-3.5" /><span className="text-[13px] font-bold">{privacy.label}</span><ChevronDown className="h-3.5 w-3.5" /></Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-64 rounded-xl p-2">
-                    {privacySettings.map((item) => (
-                      <DropdownMenuItem key={item.id} className="flex flex-col items-start gap-0.5 py-3_cursor-pointer" onClick={() => setPrivacy(item)}>
-                        <div className="flex items-center gap-2 font-bold text-sm"><item.icon className="h-4 w-4" />{item.label}</div>
-                        <span className="text-[10px] text-muted-foreground ml-6">{item.description}</span>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="sm" className={cn("h-7 px-2 rounded-md flex items-center gap-1.5", collaborator ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/60")}><Users2 className="h-3.5 w-3.5" /><span className="text-[13px] font-bold">{collaborator ? `With ${collaborator.name}` : "Collaborator"}</span><ChevronDown className="h-3.5 w-3.5" /></Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-64 rounded-xl p-2">
-                    {mockFriends.map((friend) => (
-                      <DropdownMenuItem key={friend.username} className="flex items-center gap-3 py-2.5 cursor-pointer" onClick={() => setCollaborator(friend)}>
-                        <Avatar className="h-8 w-8"><AvatarImage src={friend.avatar} /><AvatarFallback>{friend.name[0]}</AvatarFallback></Avatar>
-                        <div className="flex flex-col"><span className="font-bold text-sm">{friend.name}</span><span className="text-[10px] text-muted-foreground">@{friend.username}</span></div>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button variant="secondary" size="sm" className="h-7 px-2 bg-secondary/60 rounded-md flex items-center gap-1.5"><privacy.icon className="h-3.5 w-3.5" /><span className="text-[13px] font-bold">{privacy.label}</span><ChevronDown className="h-3.5 w-3.5" /></Button>
+                <Button variant="secondary" size="sm" className={cn("h-7 px-2 rounded-md flex items-center gap-1.5", collaborator ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/60")}><Users2 className="h-3.5 w-3.5" /><span className="text-[13px] font-bold">{collaborator ? `With ${collaborator.name}` : "Collaborator"}</span></Button>
               </div>
             </div>
-          </div>
-
-          <div className="p-4 border-b flex gap-4 bg-secondary/10">
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => applyFormatting("**", "**")}><Bold className="h-4 w-4" /></Button>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => applyFormatting("_", "_")}><Italic className="h-4 w-4" /></Button>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => applyFormatting("`", "`")}><Code className="h-4 w-4" /></Button>
           </div>
 
           <div className={cn("px-4 relative min-h-[220px] transition-all duration-300 flex items-center justify-center p-8", selectedTheme.class)}>
@@ -470,12 +337,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               <Input placeholder="Ask a question..." className="bg-white border-primary/10 rounded-xl" value={pollQuestion} onChange={(e) => setPollQuestion(e.target.value)} />
               <div className="space-y-2">
                 {pollOptions.map((opt, i) => (
-                  <div key={i} className="flex gap-2 items-center">
-                    <Input placeholder={`Option ${i + 1}`} className="bg-white border-primary/10 rounded-xl flex-1" value={opt} onChange={(e) => { const n = [...pollOptions]; n[i] = e.target.value; setPollOptions(n); }} />
-                    {pollOptions.length > 2 && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPollOptions(pollOptions.filter((_, idx) => idx !== i))}><X className="h-4 w-4" /></Button>}
-                  </div>
+                  <Input key={i} placeholder={`Option ${i + 1}`} className="bg-white border-primary/10 rounded-xl" value={opt} onChange={(e) => { const n = [...pollOptions]; n[i] = e.target.value; setPollOptions(n); }} />
                 ))}
-                {pollOptions.length < MAX_POLL_OPTIONS && <Button variant="ghost" className="w-full text-xs font-bold text-primary" onClick={() => setPollOptions([...pollOptions, ""])}><PlusSquare className="h-4 w-4 mr-2" /> Add Option</Button>}
               </div>
             </div>
           )}

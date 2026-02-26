@@ -91,7 +91,7 @@ export function CaptureStudio() {
     }
 
     try {
-      // 2. DIMENSION-FIRST HANDSHAKE: Request high-res portrait natively
+      // 2. DIMENSION-FIRST HANDSHAKE: Request portrait natively to prevent zoom-crop
       const constraints = {
         video: { 
           facingMode: cameraMode,
@@ -117,12 +117,20 @@ export function CaptureStudio() {
       if (capabilities.focusMode?.includes('continuous')) advanced.push({ focusMode: 'continuous' });
       if (capabilities.exposureMode?.includes('continuous')) advanced.push({ exposureMode: 'continuous' });
       
-      // Zoom capability probing - Ensure 1x is accessible
+      // Zoom capability probing - Ensure it starts at the absolute floor (Wide View)
       if (capabilities.zoom) {
         setIsZoomSupported(true);
-        setMinZoom(capabilities.zoom.min || 1);
-        setMaxZoom(capabilities.zoom.max || 1);
-        setZoom(videoTrack.getSettings().zoom || 1);
+        const minVal = capabilities.zoom.min || 1;
+        const maxVal = capabilities.zoom.max || 1;
+        setMinZoom(minVal);
+        setMaxZoom(maxVal);
+        setZoom(minVal); // Force widest angle possible
+        
+        try {
+          await videoTrack.applyConstraints({ advanced: [{ zoom: minVal }] } as any);
+        } catch (e) {
+          console.warn("Could not force initial zoom", e);
+        }
       } else {
         setIsZoomSupported(false);
       }
@@ -177,7 +185,7 @@ export function CaptureStudio() {
     setTimeLeft(initialLimit);
     setIsProcessing(false);
     if (timerRef.current) clearInterval(timerRef.current);
-    setZoom(1);
+    setZoom(minZoom);
     setIsSearchingSound(false);
     stopPreview();
   };
@@ -234,7 +242,7 @@ export function CaptureStudio() {
 
     // SONIC SYNC: Start sound playback if selected
     if (captureTrack && audioPreviewRef.current) {
-      audioPreviewRef.current.src = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'; // Mock URL for prototype
+      audioPreviewRef.current.src = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'; 
       audioPreviewRef.current.currentTime = 0;
       audioPreviewRef.current.play().catch(e => console.error("Sonic Playback Error", e));
     }
@@ -260,7 +268,6 @@ export function CaptureStudio() {
     recorder.start();
     setIsRecording(true);
 
-    // DYNAMIC LIMIT: Initial time set by sound duration if applicable
     const initialLimit = captureTrack ? Math.min(captureTrack.duration, RECORDING_LIMIT) : RECORDING_LIMIT;
     setTimeLeft(initialLimit);
 
@@ -283,7 +290,6 @@ export function CaptureStudio() {
       setIsRecording(false);
       if (timerRef.current) clearInterval(timerRef.current);
       
-      // Pause sonic preview
       if (audioPreviewRef.current) {
         audioPreviewRef.current.pause();
       }
@@ -314,11 +320,11 @@ export function CaptureStudio() {
     triggerHaptic(100);
     addPost({
       user: currentUser,
-      content: `Captured a high-fidelity vibe with **${captureTrack?.title || 'Original Audio'}** ⚡️ #ViMore #HighFidelity`,
+      content: `High-fidelity session with **${captureTrack?.title || 'Original Audio'}** ⚡️ #ViMore #Launch`,
       videoUrl: recordedUrl,
       language: 'en'
     });
-    toast({ title: "Launch Successful", description: "Your vibe is now live." });
+    toast({ title: "Vibe Launched", description: "Your vibe is now live in the stream." });
     closeCaptureStudio();
   };
 
@@ -381,6 +387,7 @@ export function CaptureStudio() {
           />
         )}
 
+        {/* Studio UI Overlays */}
         <div className="absolute top-6 left-0 right-0 z-50 flex flex-col items-center gap-4 px-6">
           <div className="flex items-center justify-between w-full">
             <Button variant="ghost" size="icon" className="text-white bg-black/20 backdrop-blur-md rounded-full" onClick={closeCaptureStudio}>

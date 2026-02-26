@@ -131,9 +131,6 @@ export function PostCard(props: PostCardProps) {
     }
   }, []);
 
-  const effectiveLikes = isLiked ? likes + 1 : likes;
-  const effectiveUnlikes = isUnliked ? unlikes + 1 : unlikes;
-
   const showTranslateButton = useMemo(() => {
     if (!language || !viewerLanguage) return false;
     if (language === viewerLanguage) return false;
@@ -206,8 +203,8 @@ export function PostCard(props: PostCardProps) {
 
   if (isHidden) return null;
 
+  const TRUNCATE_LIMIT = 150; 
   const isLimitedType = !!theme || allImages.length > 0 || !!videoUrl || !!poll;
-  const TRUNCATE_LIMIT = 150; // Character limit synchronized to 150
   const isLongContent = content.length > TRUNCATE_LIMIT && !isLimitedType;
   const displayedContent = isLongContent && !isExpanded ? content.slice(0, TRUNCATE_LIMIT) + "..." : content;
 
