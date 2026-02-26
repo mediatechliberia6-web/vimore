@@ -56,21 +56,28 @@ export function CaptureStudio() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize Camera
+  // Initialize Camera with Cinematic High-Quality Settings
   const startCamera = useCallback(async () => {
     try {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
 
-      // Use aspect ratio instead of hard width/height to reduce digital zoom/cropping
+      // Requesting High Definition (1080p) and High Frame Rate (60fps)
       const constraints = {
         video: { 
           facingMode: cameraMode,
-          aspectRatio: { ideal: 0.5625 }, // 9:16
-          frameRate: { ideal: 30, max: 60 }
+          width: { ideal: 1920, max: 3840 }, // 1080p ideal, up to 4K
+          height: { ideal: 1080, max: 2160 },
+          frameRate: { ideal: 60, max: 60 }, // High Velocity 60fps
+          aspectRatio: { ideal: 0.5625 }, // 9:16 Portrait
         },
-        audio: true
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 48000, // High fidelity audio
+        }
       };
 
       const newStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -144,12 +151,16 @@ export function CaptureStudio() {
     triggerHaptic(30);
     chunksRef.current = [];
     
-    // Check for supported mime types
+    // Check for supported mime types with high-fidelity codecs
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus') 
       ? 'video/webm;codecs=vp9,opus' 
       : 'video/mp4';
 
-    const recorder = new MediaRecorder(stream, { mimeType });
+    // Increase bitrate to 8Mbps for cinematic quality
+    const recorder = new MediaRecorder(stream, { 
+      mimeType,
+      videoBitsPerSecond: 8000000 // 8 Mbps
+    });
     mediaRecorderRef.current = recorder;
 
     recorder.ondataavailable = (e) => {
@@ -197,7 +208,7 @@ export function CaptureStudio() {
     const tempUrl = URL.createObjectURL(file);
     
     video.onloadedmetadata = () => {
-      URL.revokeObjectURL(tempUrl);
+      window.URL.revokeObjectURL(tempUrl);
       if (video.duration > RECORDING_LIMIT) {
         toast({ 
           variant: "destructive", 
@@ -220,12 +231,12 @@ export function CaptureStudio() {
     
     addPost({
       user: currentUser,
-      content: `Vibe check with **${captureTrack?.title || 'Original Audio'}** ⚡️ #CaptureStudio #Vibe`,
+      content: `Vibe check with **${captureTrack?.title || 'Original Audio'}** ⚡️ #CaptureStudio #HighFidelity`,
       videoUrl: recordedUrl,
       language: 'en'
     });
 
-    toast({ title: "Launch Successful", description: "Your vibe is now live in the stream." });
+    toast({ title: "Launch Successful", description: "Your high-fidelity vibe is now live." });
     closeCaptureStudio();
   };
 
@@ -251,8 +262,8 @@ export function CaptureStudio() {
             muted 
             playsInline 
             className={cn(
-              "w-full h-full object-cover", 
-              cameraMode === "user" && "scale-x-[-1]", // Only mirror the user/front camera
+              "w-full h-full object-cover transition-transform duration-500", 
+              cameraMode === "user" && "scale-x-[-1]", // Only mirror selfie
               activeFilter.class
             )}
           />
@@ -291,8 +302,8 @@ export function CaptureStudio() {
           </div>
 
           {isRecording && (
-            <div className="bg-destructive/80 backdrop-blur-md px-4 py-1.5 rounded-full text-white flex items-center gap-2 animate-pulse">
-              <div className="h-2 w-2 bg-white rounded-full" />
+            <div className="bg-destructive/80 backdrop-blur-md px-4 py-1.5 rounded-full text-white flex items-center gap-2 animate-pulse shadow-2xl">
+              <div className="h-2 w-2 bg-white rounded-full animate-ping" />
               <span className="text-xs font-black tracking-widest">
                 {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
               </span>
@@ -377,12 +388,13 @@ export function CaptureStudio() {
                 </button>
               </div>
 
-              {/* Duration Indicators */}
-              <div className="flex flex-col items-center gap-2 opacity-40">
-                <div className="h-12 w-12 rounded-xl border border-white/20 flex items-center justify-center">
-                  <span className="text-[10px] font-black text-white">5m</span>
+              {/* HD Indicator */}
+              <div className="flex flex-col items-center gap-2">
+                <div className="h-12 w-12 rounded-xl border border-primary/20 bg-primary/5 flex flex-col items-center justify-center">
+                  <span className="text-[8px] font-black text-primary leading-none">HD</span>
+                  <span className="text-[10px] font-black text-white">60</span>
                 </div>
-                <span className="text-[8px] font-black text-white uppercase tracking-[0.2em]">Max</span>
+                <span className="text-[8px] font-black text-white uppercase tracking-[0.2em]">High-Fi</span>
               </div>
             </>
           ) : (
