@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -11,7 +10,7 @@ import { usePathname } from "next/navigation";
 
 const navItems = [
   { icon: Home, label: "Home", id: "home", href: "/" },
-  { icon: Users, label: "Friends", id: "friends", href: "/" },
+  { icon: Users, label: "Friends", id: "friends", href: "/friends" },
   { icon: Music2, label: "Music", id: "music", href: "/music" },
   { icon: Clapperboard, label: "Reels", id: "reels", href: "/" },
 ];
@@ -23,7 +22,6 @@ const USER_PROFILE = {
 
 export function SubHeader() {
   const pathname = usePathname();
-  const [activeTab, setActiveTab] = useState("home");
 
   return (
     <div className="w-full bg-white dark:bg-card border-b border-primary/5 sticky top-[61px] z-40 shadow-sm transition-all duration-300">
@@ -31,17 +29,14 @@ export function SubHeader() {
         {/* Navigation Tabs */}
         <nav className="flex items-center h-full shrink-0">
           {navItems.map((item) => {
-            const isLinkActive = pathname === item.href && item.href !== "/";
-            const isTabActive = item.id === activeTab && pathname === "/";
-            const isActive = isLinkActive || isTabActive;
+            const isLinkActive = pathname === item.href;
+            const isHomeActive = item.href === "/" && pathname === "/";
+            const isActive = isLinkActive || isHomeActive;
 
             return (
               <Link
                 key={item.id}
                 href={item.href}
-                onClick={() => {
-                  if (item.href === "/") setActiveTab(item.id);
-                }}
                 className={cn(
                   "flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 h-full relative transition-colors group",
                   isActive 
