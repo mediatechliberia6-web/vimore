@@ -29,7 +29,10 @@ import {
   Search,
   X,
   UserCheck,
-  UserMinus
+  UserMinus,
+  Mic2,
+  Trash2,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
@@ -67,6 +70,7 @@ export default function MyProfilePage() {
   const [translatedBio, setTranslatedBio] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
+  const [isUploadingIntro, setIsUploadingIntro] = useState(false);
   
   const [isHubOpen, setIsHubOpen] = useState(false);
   const [hubTab, setHubTab] = useState<"followers" | "following">("followers");
@@ -76,6 +80,12 @@ export default function MyProfilePage() {
   const [confirmType, setConfirmType] = useState<"unfollow" | "unfriend">("unfollow");
 
   const isPlayerActive = currentTrack && !isExpanded;
+
+  // Audio References
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const introInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   // Pointer-event cleanup to prevent UI locks
   useEffect(() => {
@@ -97,9 +107,6 @@ export default function MyProfilePage() {
     bio: currentUser.bio,
     pronouns: currentUser.pronouns
   });
-
-  const avatarInputRef = useRef<HTMLInputElement>(null);
-  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const triggerHaptic = (intensity = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
@@ -169,6 +176,62 @@ export default function MyProfilePage() {
       toast({ title: "Presence Refreshed", description: `Your profile ${field} is now updated and shared.` });
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleIntroUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploadingIntro(true);
+    triggerHaptic(20);
+    
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const audioUrl = reader.result as string;
+      updateCurrentUser({ introUrl: audioUrl });
+      setIsUploadingIntro(false);
+      toast({ title: "Sonic ID Updated", description: "Your digital signature is now live." });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const togglePlayIntro = () => {
+    triggerHaptic(15);
+    
+    if (isPlayingIntro) {
+      audioRef.current?.pause();
+      setIsPlayingIntro(false);
+      return;
+    }
+
+    if (!currentUser.introUrl) {
+      toast({ title: "No Intro Set", description: "Upload your sonic signature to share it with the world." });
+      return;
+    }
+
+    if (!audioRef.current) {
+      audioRef.current = new Audio(currentUser.introUrl);
+      audioRef.current.onended = () => setIsPlayingIntro(false);
+    } else {
+      audioRef.current.src = currentUser.introUrl;
+    }
+
+    audioRef.current.play().catch(e => {
+      console.error("Playback failed", e);
+      toast({ variant: "destructive", description: "Failed to play sonic ID." });
+    });
+    setIsPlayingIntro(true);
+  };
+
+  const handleRemoveIntro = () => {
+    triggerHaptic(30);
+    updateCurrentUser({ introUrl: "" });
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setIsPlayingIntro(false);
+    toast({ title: "Intro Removed", description: "Your sonic signature has been cleared." });
   };
 
   const handleSaveProfile = () => {
@@ -310,13 +373,39 @@ export default function MyProfilePage() {
                 <div className="flex items-center flex-wrap gap-2">
                   <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{currentUser.name}</h1>
                   {currentUser.pronouns && <Badge variant="secondary" className="bg-secondary/50 text-[10px] font-bold uppercase">{currentUser.pronouns}</Badge>}
-                  <Button 
-                    variant="ghost" size="sm" 
-                    className={cn("h-7 px-2 rounded-full gap-1.5 font-bold text-[11px] transition-all", isPlayingIntro ? "bg-primary text-white scale-105 shadow-lg" : "bg-secondary/40")}
-                    onClick={() => { triggerHaptic(15); setIsPlayingIntro(!isPlayingIntro); if (!isPlayingIntro) toast({ title: "Sonic ID", description: "Playing your digital signature." }); }}
-                  >
-                    {isPlayingIntro ? <Volume2 className="h-3.5 w-3.5 animate-pulse" /> : <Play className="h-3.5 w-3.5" />} Intro
-                  </Button>
+                  
+                  <div className="flex items-center gap-1.5 bg-secondary/40 rounded-full p-0.5">
+                    <Button 
+                      variant="ghost" size="sm" 
+                      className={cn(
+                        "h-7 px-3 rounded-full gap-1.5 font-bold text-[11px] transition-all", 
+                        isPlayingIntro ? "bg-primary text-white scale-105 shadow-lg" : "hover:bg-primary/10"
+                      )}
+                      onClick={togglePlayIntro}
+                    >
+                      {isPlayingIntro ? <Volume2 className="h-3.5 w-3.5 animate-pulse" /> : <Play className="h-3.5 w-3.5" />} 
+                      {currentUser.introUrl ? "Play Intro" : "No Intro Set"}
+                    </Button>
+                    
+                    <div className="flex items-center gap-0.5 pr-1">
+                      <Button 
+                        variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary"
+                        onClick={() => introInputRef.current?.click()}
+                        disabled={isUploadingIntro}
+                      >
+                        {isUploadingIntro ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mic2 className="h-3.5 w-3.5" />}
+                      </Button>
+                      {currentUser.introUrl && (
+                        <Button 
+                          variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive"
+                          onClick={handleRemoveIntro}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <input type="file" ref={introInputRef} className="hidden" accept="audio/*" onChange={handleIntroUpload} />
                 </div>
                 
                 <div className="flex items-center gap-6 py-2">

@@ -17,6 +17,7 @@ export interface User {
   pronouns?: string;
   joinDate?: string;
   relationshipStatus?: string;
+  introUrl?: string; // URL to the user's sonic intro audio
   links?: Array<{ label: string; url: string; icon: any }>;
 }
 
@@ -148,7 +149,8 @@ const INITIAL_USER: User = {
   relationshipStatus: "Single",
   followers: "8.4k",
   following: "1.2k",
-  posts: "142"
+  posts: "142",
+  introUrl: "" // Initialize empty
 };
 
 const MOCK_CONNECTIONS: Connection[] = [

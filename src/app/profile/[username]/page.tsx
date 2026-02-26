@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use, useMemo } from "react";
+import { useState, useEffect, use, useMemo, useRef } from "react";
 import { MainNav } from "@/components/layout/main-nav";
 import { RightSidebar } from "@/components/layout/right-sidebar";
 import { PostCard } from "@/components/post/post-card";
@@ -61,7 +61,8 @@ const MOCK_USERS: Record<string, any> = {
     following: "890",
     posts: "342",
     category: "Product Designer",
-    isVerified: true
+    isVerified: true,
+    introUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
   },
   "schen_dev": {
     name: "Sarah Chen",
@@ -110,6 +111,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const [confirmType, setConfirmType] = useState<"unfollow" | "unfriend">("unfollow");
 
   const amIFollowing = isFollowing(username);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Pointer-event cleanup to prevent UI locks
   useEffect(() => {
@@ -188,6 +190,33 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
       toast({ title: "Endorsement Sent", description: `You verified ${displayUser.name}'s expertise in ${newSkills[idx].name}.` });
     }
     setSkills(newSkills);
+  };
+
+  const togglePlayIntro = () => {
+    triggerHaptic(15);
+    
+    if (isPlayingIntro) {
+      audioRef.current?.pause();
+      setIsPlayingIntro(false);
+      return;
+    }
+
+    if (!displayUser.introUrl) {
+      toast({ title: "No Intro", description: `${displayUser.name} hasn't uploaded a sonic signature yet.` });
+      return;
+    }
+
+    if (!audioRef.current) {
+      audioRef.current = new Audio(displayUser.introUrl);
+      audioRef.current.onended = () => setIsPlayingIntro(false);
+    }
+
+    audioRef.current.play().catch(e => {
+      console.error("Playback failed", e);
+      toast({ variant: "destructive", description: "Failed to stream sonic signature." });
+    });
+    setIsPlayingIntro(true);
+    toast({ title: "Streaming Signature", description: `Listening to ${displayUser.name}'s digital intro...` });
   };
 
   const openHub = (tab: "followers" | "following") => {
@@ -302,7 +331,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                   <Button 
                     variant="ghost" size="sm" 
                     className={cn("h-7 px-2 rounded-full gap-1.5 font-bold text-[11px] transition-all", isPlayingIntro ? "bg-primary text-white scale-105 shadow-lg" : "bg-secondary/40")}
-                    onClick={() => { triggerHaptic(15); setIsPlayingIntro(!isPlayingIntro); if (!isPlayingIntro) toast({ title: "Sonic Intro", description: `Streaming ${displayUser.name}'s digital signature...` }); }}
+                    onClick={togglePlayIntro}
                   >
                     {isPlayingIntro ? <Volume2 className="h-3.5 w-3.5 animate-pulse" /> : <Play className="h-3.5 w-3.5" />} Intro
                   </Button>
