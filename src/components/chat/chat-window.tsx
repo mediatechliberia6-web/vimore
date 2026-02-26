@@ -43,6 +43,7 @@ interface Message {
   status: "sent" | "delivered" | "read";
   type: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace";
   mediaUrl?: string;
+  voiceDuration?: string;
   isViewOnce?: boolean;
   isViewed?: boolean;
   reactions?: string[];
@@ -155,7 +156,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     }
   }, [messages, showVault]);
 
-  const handleSend = (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice' }) => {
+  const handleSend = (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string }) => {
     const newMessage: Message = {
       id: Date.now().toString(),
       sender: "me",
@@ -165,7 +166,8 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       type: options?.isWorkspace ? "workspace" : (text.startsWith("http") ? "link" : "text"),
       isViewOnce: options?.isViewOnce,
       isViewed: false,
-      mediaUrl: options?.mediaUrl
+      mediaUrl: options?.mediaUrl,
+      voiceDuration: options?.duration
     };
 
     if (options?.mediaUrl) {
@@ -333,6 +335,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
               status={msg.status}
               type={msg.type}
               mediaUrl={msg.mediaUrl}
+              voiceDuration={msg.voiceDuration}
               isViewOnce={msg.isViewOnce}
               isViewed={msg.isViewed}
               linkData={msg.linkData}

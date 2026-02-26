@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/tooltip";
 
 interface ChatInputProps {
-  onSend: (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice' }) => void;
+  onSend: (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string }) => void;
 }
 
 export function ChatInput({ onSend }: ChatInputProps) {
@@ -142,7 +142,11 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const handleSendVoice = () => {
     if (recordedBlobUrl) {
       triggerHaptic(25);
-      onSend("", { mediaUrl: recordedBlobUrl, mediaType: 'voice' });
+      onSend("", { 
+        mediaUrl: recordedBlobUrl, 
+        mediaType: 'voice',
+        duration: formatDuration(recordingDuration)
+      });
       resetVoiceState();
       toast({
         title: "Note Launched",

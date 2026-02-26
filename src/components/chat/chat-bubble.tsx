@@ -36,6 +36,7 @@ interface ChatBubbleProps {
   status?: "sent" | "delivered" | "read";
   type?: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace";
   mediaUrl?: string;
+  voiceDuration?: string;
   linkData?: LinkPreview;
   reactions?: string[];
   isViewOnce?: boolean;
@@ -56,7 +57,7 @@ interface ChatBubbleProps {
 }
 
 export function ChatBubble({ 
-  id, isMe, text, time, status, type = "text", mediaUrl, linkData, reactions = [], taggedUser, isViewOnce, isViewed, workspaceData, onReact, onViewOnceOpen 
+  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, workspaceData, onReact, onViewOnceOpen 
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
@@ -286,7 +287,14 @@ export function ChatBubble({
                   />
                 ))}
               </div>
-              <Mic className={cn("h-4 w-4 opacity-40", isMe ? "text-white" : "text-primary")} />
+              <div className="flex flex-col items-end gap-0.5">
+                <Mic className={cn("h-4 w-4 opacity-40", isMe ? "text-white" : "text-primary")} />
+                {voiceDuration && (
+                  <span className={cn("text-[8px] font-black tabular-nums uppercase", isMe ? "text-white/60" : "text-primary/60")}>
+                    {voiceDuration}
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
