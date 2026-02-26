@@ -26,18 +26,60 @@ interface ChatWindowProps {
 interface Message {
   id: string;
   sender: "me" | "them";
-  text: string;
+  text?: string;
   time: string;
   status: "sent" | "delivered" | "read";
   type: "text" | "photo" | "video" | "link";
   mediaUrl?: string;
+  linkData?: {
+    title: string;
+    description: string;
+    image: string;
+    url: string;
+  };
 }
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([
-    { id: "1", sender: "them", text: "Yo! Did you check out the new design system I pushed to the hub?", time: "10:40 AM", status: "read", type: "text" },
-    { id: "2", sender: "me", text: "I did! The typography choices are absolute fire. That font pairing is very high-velocity. 🔥", time: "10:42 AM", status: "read", type: "text" },
-    { id: "3", sender: "them", text: "Exactly what I was aiming for. Let's sync on the next sprint later.", time: "10:43 AM", status: "read", type: "text" },
+    { 
+      id: "1", 
+      sender: "them", 
+      text: "Yo! Did you check out the new design system I pushed to the hub?", 
+      time: "10:40 AM", 
+      status: "read", 
+      type: "text" 
+    },
+    { 
+      id: "2", 
+      sender: "me", 
+      text: "I did! The typography choices are absolute fire. That font pairing is very high-velocity. 🔥", 
+      time: "10:42 AM", 
+      status: "read", 
+      type: "text" 
+    },
+    { 
+      id: "3", 
+      sender: "them", 
+      text: "Check out this visual reference for the landing page hero.", 
+      time: "10:43 AM", 
+      status: "read", 
+      type: "photo",
+      mediaUrl: "https://picsum.photos/seed/chat-ref/800/600"
+    },
+    { 
+      id: "4", 
+      sender: "them", 
+      time: "10:44 AM", 
+      status: "read", 
+      type: "link",
+      text: "Found this great article on motion design: https://vimore.social/motion-trends",
+      linkData: {
+        title: "The Future of High-Velocity Motion",
+        description: "Exploring how sub-second transitions are redefining user engagement in social apps.",
+        image: "https://picsum.photos/seed/link-preview/800/400",
+        url: "https://vimore.social/motion-trends"
+      }
+    },
   ]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -55,9 +97,36 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       text,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       status: "sent",
-      type: "text"
+      type: text.startsWith("http") ? "link" : "text"
     };
+
+    // Simulate simple link detection for Phase 2
+    if (text.startsWith("http")) {
+      newMessage.linkData = {
+        title: "External Vibe",
+        description: "Checking out shared resources in the ViMore network...",
+        image: "https://picsum.photos/seed/new-link/800/400",
+        url: text
+      };
+    }
+
     setMessages(prev => [...prev, newMessage]);
+
+    // Simple reply simulation
+    setTimeout(() => {
+      if (text.toLowerCase().includes("image") || text.toLowerCase().includes("photo")) {
+        const reply: Message = {
+          id: (Date.now() + 1).toString(),
+          sender: "them",
+          text: "Here is that asset you requested! ⚡️",
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          status: "delivered",
+          type: "photo",
+          mediaUrl: "https://picsum.photos/seed/reply-photo/800/800"
+        };
+        setMessages(prev => [...prev, reply]);
+      }
+    }, 1500);
   };
 
   return (
@@ -124,6 +193,9 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             text={msg.text}
             time={msg.time}
             status={msg.status}
+            type={msg.type}
+            mediaUrl={msg.mediaUrl}
+            linkData={msg.linkData}
           />
         ))}
       </div>

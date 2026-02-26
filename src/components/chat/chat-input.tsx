@@ -12,6 +12,7 @@ import {
   MoreHorizontal
 } from "lucide-react";
 import { useMusic } from "@/context/MusicContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface ChatInputProps {
   onSend: (text: string) => void;
@@ -20,7 +21,9 @@ interface ChatInputProps {
 export function ChatInput({ onSend }: ChatInputProps) {
   const [text, setText] = useState("");
   const { triggerHaptic } = useMusic();
+  const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -36,6 +39,29 @@ export function ChatInput({ onSend }: ChatInputProps) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
+    }
+  };
+
+  const handleImageClick = () => {
+    triggerHaptic(5);
+    toast({
+      title: "High-Velocity Media",
+      description: "Opening media selector...",
+    });
+    // For prototype simulation, we can just trigger a simulated image send 
+    // when text is empty, or open real file selector
+    if (fileInputRef.current) fileInputRef.current.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      triggerHaptic(20);
+      toast({
+        title: "Uploading Assets",
+        description: `Preparing ${file.name} for the hub...`,
+      });
+      // Logic would go here to send file URL to onSend
     }
   };
 
@@ -65,9 +91,17 @@ export function ChatInput({ onSend }: ChatInputProps) {
               variant="ghost" 
               size="icon" 
               className="rounded-full h-8 w-8 text-muted-foreground hover:text-primary"
+              onClick={handleImageClick}
             >
               <ImageIcon className="h-5 w-5" />
             </Button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              accept="image/*,video/*" 
+              onChange={handleFileChange} 
+            />
           </div>
         </div>
 
