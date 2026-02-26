@@ -46,8 +46,9 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
     if (type === 'video') {
       const video = document.createElement('video');
       video.preload = 'metadata';
+      const tempUrl = URL.createObjectURL(file);
       video.onloadedmetadata = () => {
-        window.URL.revokeObjectURL(video.src);
+        URL.revokeObjectURL(tempUrl);
         if (video.duration > 60) {
           toast({ 
             variant: "destructive", 
@@ -58,7 +59,7 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
         }
         processFile(file, type);
       };
-      video.src = URL.createObjectURL(file);
+      video.src = tempUrl;
     } else {
       processFile(file, type);
     }
@@ -66,14 +67,12 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
 
   const processFile = (file: File, type: 'image' | 'video') => {
     setIsProcessing(true);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setSelectedMedia(reader.result as string);
-      setMediaType(type);
-      setStep('edit');
-      setIsProcessing(false);
-    };
-    reader.readAsDataURL(file);
+    // Use Blob URL for both images and video to prevent freezing
+    const url = URL.createObjectURL(file);
+    setSelectedMedia(url);
+    setMediaType(type);
+    setStep('edit');
+    setIsProcessing(false);
   };
 
   const handleShare = () => {
@@ -99,6 +98,9 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
   };
 
   const resetState = () => {
+    if (selectedMedia && selectedMedia.startsWith('blob:')) {
+      URL.revokeObjectURL(selectedMedia);
+    }
     setStep('choice');
     setSelectedMedia(null);
     setMediaType(null);
@@ -188,7 +190,7 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
               <input type="file" ref={videoInputRef} className="hidden" accept="video/*" onChange={(e) => handleMediaUpload(e, 'video')} />
             </div>
           ) : step === 'text' ? (
-            <div className={cn("flex-1 flex flex-col items-center justify-center relative p-8 transition-all duration-500", selectedGradient.class)}>
+            <div className={cn("flex-1 flex-col flex items-center justify-center relative p-8 transition-all duration-500", selectedGradient.class)}>
               <textarea 
                 autoFocus
                 placeholder="Start typing..."

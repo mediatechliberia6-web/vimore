@@ -347,11 +347,13 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Duration Check
+    // High-performance check for duration without memory load
     const videoElement = document.createElement('video');
     videoElement.preload = 'metadata';
+    const tempUrl = URL.createObjectURL(file);
+    
     videoElement.onloadedmetadata = () => {
-      window.URL.revokeObjectURL(videoElement.src);
+      URL.revokeObjectURL(tempUrl);
       if (videoElement.duration > MAX_VIDEO_DURATION) {
         toast({ 
           variant: "destructive", 
@@ -362,19 +364,18 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       }
       
       setMediaType('video');
-      setSelectedMedia([]); 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setSelectedMedia([base64String]);
-      };
-      reader.readAsDataURL(file);
+      // Use Blob URL instead of Base64 to prevent freezing
+      setSelectedMedia([URL.createObjectURL(file)]); 
     };
-    videoElement.src = URL.createObjectURL(file);
+    videoElement.src = tempUrl;
     e.target.value = "";
   };
 
   const removeMedia = (index: number) => {
+    const itemToRemove = selectedMedia[index];
+    if (itemToRemove.startsWith('blob:')) {
+      URL.revokeObjectURL(itemToRemove);
+    }
     const updated = selectedMedia.filter((_, i) => i !== index);
     setSelectedMedia(updated);
     if (updated.length === 0) {
