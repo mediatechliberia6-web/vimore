@@ -240,8 +240,7 @@ export function PostCard(props: PostCardProps) {
   return (
     <Card className={cn(
       "border-none shadow-sm overflow-hidden bg-white dark:bg-card mb-4 transition-colors relative",
-      isShared ? "ring-1 ring-primary/10 shadow-none scale-[0.98] mx-2" : "ring-1 ring-black/5 dark:ring-white/5",
-      theme && !isShared && "text-white"
+      isShared ? "ring-1 ring-primary/10 shadow-none scale-[0.98] mx-2" : "ring-1 ring-black/5 dark:ring-white/5"
     )}>
       {isPinned && !isShared && (
         <div className="absolute top-0 right-0 z-10 p-1 px-2 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-bl-lg flex items-center gap-1 shadow-md">
@@ -260,9 +259,9 @@ export function PostCard(props: PostCardProps) {
           <div className="flex flex-col">
             <div className="flex items-center gap-1">
               <div className="flex items-center flex-wrap gap-x-1">
-                <Link href={profileHref} className="font-bold text-sm hover:underline">{user.name}</Link>
+                <Link href={profileHref} className="font-bold text-sm text-foreground hover:underline">{user.name}</Link>
                 {collaborator && (
-                  <><span className="text-xs text-muted-foreground font-medium">with</span><Link href={collaborator.username === currentUser.username ? '/profile' : `/profile/${collaborator.username}`} className="font-bold text-sm hover:underline">{collaborator.name}</Link></>
+                  <><span className="text-xs text-muted-foreground font-medium">with</span><Link href={collaborator.username === currentUser.username ? '/profile' : `/profile/${collaborator.username}`} className="font-bold text-sm text-foreground hover:underline">{collaborator.name}</Link></>
                 )}
                 {feeling && <span className="text-xs text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
                 {user.isVerified && <CheckCircle2 className="h-3 w-3 text-primary fill-primary text-white" />}
@@ -308,13 +307,13 @@ export function PostCard(props: PostCardProps) {
         )}
       </CardHeader>
       
-      <CardContent className={cn("px-3 pb-2 space-y-2", theme && !isShared ? theme + " py-8 px-6 text-center text-xl font-bold" : "")}>
+      <CardContent className={cn("px-3 pb-2 space-y-2", theme && !isShared ? theme + " py-12 px-8 text-center" : "")}>
         <div className="space-y-1">
-          <div className={cn("text-[13px] leading-relaxed whitespace-pre-wrap", theme && !isShared ? "text-xl leading-snug" : "")}>
+          <div className={cn("text-[13px] leading-relaxed whitespace-pre-wrap", theme && !isShared ? "text-2xl leading-tight font-black italic uppercase tracking-tighter" : "text-foreground")}>
             {renderContent(translatedText || displayedContent)}
           </div>
           {isLongContent && (
-            <button onClick={() => setIsExpanded(!isExpanded)} className="text-[13px] font-bold text-primary hover:underline">
+            <button onClick={() => setIsExpanded(!isExpanded)} className={cn("text-[13px] font-bold hover:underline", theme && !isShared ? "text-white/80" : "text-primary")}>
               {isExpanded ? "Show less" : "See more"}
             </button>
           )}
@@ -402,27 +401,27 @@ export function PostCard(props: PostCardProps) {
       </CardContent>
 
       {!isShared && (
-        <CardFooter className="p-1 px-3 flex flex-col gap-1 relative">
+        <CardFooter className="p-1 px-3 flex flex-col gap-1 relative bg-white dark:bg-card">
           <div className="flex items-center justify-between gap-1 w-full">
-            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-all", isLiked ? "text-primary" : (theme ? "text-white/70" : "text-muted-foreground"))} onClick={handleLike}>
+            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-all", isLiked ? "text-primary" : "text-muted-foreground")} onClick={handleLike}>
               <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} />
             </Button>
-            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-all", isUnliked ? "text-destructive" : (theme ? "text-white/70" : "text-muted-foreground"))} onClick={handleUnlike}>
+            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs transition-all", isUnliked ? "text-destructive" : "text-muted-foreground")} onClick={handleUnlike}>
               <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} />
             </Button>
-            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs", theme ? "text-white/70" : "text-muted-foreground")} onClick={() => setShowComments(!showComments)} disabled={commentsDisabled}>
+            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground")} onClick={() => setShowComments(!showComments)} disabled={commentsDisabled}>
               <MessageCircle className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs", theme ? "text-white/70" : "text-muted-foreground")}>
+            <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground")}>
               <Share2 className="h-4 w-4" />
             </Button>
           </div>
           {showComments && !commentsDisabled && (
-            <div className="w-full pt-4 space-y-4 animate-in slide-in-from-top-2">
+            <div className="w-full pt-4 space-y-4 animate-in slide-in-from-top-2 border-t mt-1 pb-3">
               <div className="flex items-center gap-2">
                 <Avatar className="h-8 w-8"><AvatarImage src={INITIAL_USER.avatar} /></Avatar>
                 <div className="flex-1 bg-secondary/30 rounded-full px-4 py-2 flex items-center gap-2">
-                  <Input placeholder="Write a comment..." className="bg-transparent border-none focus-visible:ring-0 h-7 text-xs p-0" value={commentText} onChange={(e) => setCommentText(e.target.value)} />
+                  <Input placeholder="Write a comment..." className="bg-transparent border-none focus-visible:ring-0 h-7 text-xs p-0 text-foreground" value={commentText} onChange={(e) => setCommentText(e.target.value)} />
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => triggerHaptic(5)}><Send className="h-4 w-4" /></Button>
                 </div>
               </div>
