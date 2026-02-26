@@ -1,13 +1,8 @@
-'use server';
 /**
- * @fileOverview A Genkit flow for translating post content.
- *
- * - aiTranslatePost - A function that handles the translation process.
- * - TranslatePostInput - The input type for the translation function.
- * - TranslatePostOutput - The return type for the translation function.
+ * @fileOverview A Genkit flow for translating post content using Groq.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai, groq} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const TranslatePostInputSchema = z.object({
@@ -25,18 +20,6 @@ export async function aiTranslatePost(input: TranslatePostInput): Promise<Transl
   return aiTranslatePostFlow(input);
 }
 
-const translatePostPrompt = ai.definePrompt({
-  name: 'translatePostPrompt',
-  input: {schema: TranslatePostInputSchema},
-  output: {schema: TranslatePostOutputSchema},
-  prompt: `You are a professional translator. 
-Translate the following social media post into {{targetLanguage}}. 
-Maintain the original tone, emojis, and formatting.
-
-Post Content:
-"""{{{postContent}}}"""`,
-});
-
 const aiTranslatePostFlow = ai.defineFlow(
   {
     name: 'aiTranslatePostFlow',
@@ -44,7 +27,22 @@ const aiTranslatePostFlow = ai.defineFlow(
     outputSchema: TranslatePostOutputSchema,
   },
   async (input) => {
-    const {output} = await translatePostPrompt(input);
-    return output!;
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a professional translator. Translate the social media post into ${input.targetLanguage}. Maintain the original tone, emojis, and formatting. Return only a JSON object with a "translation" string field.`,
+        },
+        {
+          role: 'user',
+          content: input.postContent,
+        },
+      ],
+      response_format: { type: 'json_object' },
+    });
+
+    const result = JSON.parse(response.choices[0]?.message?.content || '{"translation": "Could not translate post."}');
+    return result;
   }
 );

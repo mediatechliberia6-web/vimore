@@ -1,13 +1,8 @@
-'use server';
 /**
- * @fileOverview A Genkit flow for summarizing user post content.
- *
- * - aiSummarizePost - A function that handles the post summarization process.
- * - AiSummarizePostInput - The input type for the aiSummarizePost function.
- * - AiSummarizePostOutput - The return type for the aiSummarizePost function.
+ * @fileOverview A Genkit flow for summarizing user post content using Groq.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai, groq} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const AiSummarizePostInputSchema = z.object({
@@ -19,7 +14,7 @@ const AiSummarizePostOutputSchema = z.object({
   summary: z
     .string()
     .describe(
-      'A concise summary of the post content, suitable for a social media caption or message.'
+      'A concise summary of the post content.'
     ),
 });
 export type AiSummarizePostOutput = z.infer<typeof AiSummarizePostOutputSchema>;
@@ -30,16 +25,6 @@ export async function aiSummarizePost(
   return aiSummarizePostFlow(input);
 }
 
-const summarizePostPrompt = ai.definePrompt({
-  name: 'summarizePostPrompt',
-  input: {schema: AiSummarizePostInputSchema},
-  output: {schema: AiSummarizePostOutputSchema},
-  prompt: `Summarize the following post content concisely, focusing on the main points for a social media caption or message. Keep it brief and engaging.
-
-Post Content:
-{{{postContent}}}`,
-});
-
 const aiSummarizePostFlow = ai.defineFlow(
   {
     name: 'aiSummarizePostFlow',
@@ -47,7 +32,22 @@ const aiSummarizePostFlow = ai.defineFlow(
     outputSchema: AiSummarizePostOutputSchema,
   },
   async (input) => {
-    const {output} = await summarizePostPrompt(input);
-    return output!;
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'system',
+          content: 'Summarize the following post content concisely, focusing on the main points for a social media caption. Return only a JSON object with a "summary" string field.',
+        },
+        {
+          role: 'user',
+          content: input.postContent,
+        },
+      ],
+      response_format: { type: 'json_object' },
+    });
+
+    const result = JSON.parse(response.choices[0]?.message?.content || '{"summary": "Could not generate summary."}');
+    return result;
   }
 );

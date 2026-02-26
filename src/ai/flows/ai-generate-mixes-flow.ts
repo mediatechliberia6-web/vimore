@@ -1,9 +1,8 @@
-'use server';
 /**
- * @fileOverview A Genkit flow for generating creative music mix titles.
+ * @fileOverview A Genkit flow for generating creative music mix titles using Groq.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai, groq} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateMixesInputSchema = z.object({
@@ -20,15 +19,6 @@ export async function aiGenerateDailyMixes(input: GenerateMixesInput): Promise<G
   return aiGenerateDailyMixesFlow(input);
 }
 
-const generateMixesPrompt = ai.definePrompt({
-  name: 'generateMixesPrompt',
-  input: {schema: GenerateMixesInputSchema},
-  output: {schema: GenerateMixesOutputSchema},
-  prompt: `You are a music curator for a premium streaming service.
-Based on the vibe "{{vibe}}", generate 6 unique, creative, and short playlist titles.
-The titles should be punchy, evocative, and no more than 3 words each.`,
-});
-
 const aiGenerateDailyMixesFlow = ai.defineFlow(
   {
     name: 'aiGenerateDailyMixesFlow',
@@ -36,7 +26,22 @@ const aiGenerateDailyMixesFlow = ai.defineFlow(
     outputSchema: GenerateMixesOutputSchema,
   },
   async (input) => {
-    const {output} = await generateMixesPrompt(input);
-    return output!;
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a music curator for a premium streaming service. Based on the vibe provided, generate 6 unique, creative, and short playlist titles (max 3 words each). Return only a JSON object with a "mixes" array of strings.',
+        },
+        {
+          role: 'user',
+          content: `Vibe: ${input.vibe}`,
+        },
+      ],
+      response_format: { type: 'json_object' },
+    });
+
+    const result = JSON.parse(response.choices[0]?.message?.content || '{"mixes": []}');
+    return result;
   }
 );

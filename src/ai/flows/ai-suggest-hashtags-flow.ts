@@ -1,13 +1,8 @@
-'use server';
 /**
- * @fileOverview A Genkit flow for suggesting relevant hashtags based on post content.
- *
- * - aiSuggestHashtags - A function that handles the hashtag suggestion process.
- * - SuggestHashtagsInput - The input type for the aiSuggestHashtags function.
- * - SuggestHashtagsOutput - The return type for the aiSuggestHashtags function.
+ * @fileOverview A Genkit flow for suggesting relevant hashtags using Groq.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai, groq} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const SuggestHashtagsInputSchema = z.object({
@@ -28,19 +23,6 @@ export async function aiSuggestHashtags(
   return aiSuggestHashtagsFlow(input);
 }
 
-const suggestHashtagsPrompt = ai.definePrompt({
-  name: 'suggestHashtagsPrompt',
-  input: {schema: SuggestHashtagsInputSchema},
-  output: {schema: SuggestHashtagsOutputSchema},
-  prompt: `You are a social media expert specializing in maximizing post discoverability through relevant hashtags.
-
-Based on the following post content, suggest 5-10 highly relevant and popular hashtags.
-Do not include any other text or explanation, just the JSON array of hashtags.
-
-Post content: """{{{postContent}}}"""
-`,
-});
-
 const aiSuggestHashtagsFlow = ai.defineFlow(
   {
     name: 'aiSuggestHashtagsFlow',
@@ -48,7 +30,22 @@ const aiSuggestHashtagsFlow = ai.defineFlow(
     outputSchema: SuggestHashtagsOutputSchema,
   },
   async input => {
-    const {output} = await suggestHashtagsPrompt(input);
-    return output!;
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a social media expert. Suggest 5-10 highly relevant and popular hashtags for the post content. Return only a JSON object with a "hashtags" array of strings.',
+        },
+        {
+          role: 'user',
+          content: input.postContent,
+        },
+      ],
+      response_format: { type: 'json_object' },
+    });
+
+    const result = JSON.parse(response.choices[0]?.message?.content || '{"hashtags": []}');
+    return result;
   }
 );

@@ -6,7 +6,7 @@ import { aiTranslatePost as translateFlow } from '@/ai/flows/ai-translate-post-f
 import { aiGenerateDailyMixes as mixesFlow } from '@/ai/flows/ai-generate-mixes-flow';
 
 /**
- * Generates 6 personalized music mix titles based on a vibe using Genkit.
+ * Generates 6 personalized music mix titles based on a vibe using Genkit and Groq.
  */
 export async function aiGenerateDailyMixes() {
   const vibes = ["Late Night Chill", "High Energy Workout", "Sunday Morning Soul", "Cyberpunk Future", "Tropical Vibes", "Emotional Acoustic"];
@@ -22,7 +22,7 @@ export async function aiGenerateDailyMixes() {
 }
 
 /**
- * Suggests hashtags for a post using Genkit.
+ * Suggests hashtags for a post using Genkit and Groq.
  */
 export async function aiSuggestHashtags({ postContent }: { postContent: string }) {
   try {
@@ -35,7 +35,7 @@ export async function aiSuggestHashtags({ postContent }: { postContent: string }
 }
 
 /**
- * Summarizes a post using Genkit.
+ * Summarizes a post using Genkit and Groq.
  */
 export async function aiSummarizePost({ postContent }: { postContent: string }) {
   try {
@@ -48,7 +48,7 @@ export async function aiSummarizePost({ postContent }: { postContent: string }) 
 }
 
 /**
- * Translates a post to the user's preferred language using Genkit.
+ * Translates a post to the user's preferred language using Genkit and Groq.
  */
 export async function aiTranslatePost({ postContent, targetLanguage = "English" }: { postContent: string, targetLanguage?: string }) {
   try {
