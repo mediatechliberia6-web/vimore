@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
@@ -48,7 +49,6 @@ export function CaptureStudio() {
 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
   const [cameraMode, setCameraMode] = useState<"user" | "environment">("user");
   const [isFlashOn, setIsFlashOn] = useState(false);
@@ -75,8 +75,16 @@ export function CaptureStudio() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
 
+  const stopStream = useCallback(() => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+  }, [stream]);
+
   const startCamera = useCallback(async () => {
     try {
+      // Clear any existing stream
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
@@ -85,11 +93,11 @@ export function CaptureStudio() {
       const constraints = {
         video: { 
           facingMode: cameraMode,
-          // Explicitly requesting Portrait HD to avoid low-res crops
-          width: { ideal: 1080, min: 720 },
-          height: { ideal: 1920, min: 1280 },
+          // Requesting specific HD dimensions to force high-quality sensor use
+          width: cameraMode === 'user' ? { ideal: 1080 } : { ideal: 1920 },
+          height: cameraMode === 'user' ? { ideal: 1920 } : { ideal: 1080 },
           frameRate: { ideal: 60, min: 30 },
-          aspectRatio: { ideal: 0.5625 }, // 9:16
+          aspectRatio: { ideal: 9/16 }, 
         },
         audio: {
           echoCancellation: true,
@@ -113,7 +121,7 @@ export function CaptureStudio() {
         advanced.push({ exposureMode: 'continuous' });
       }
       
-      // Manual Zoom Support - Universal for all lenses
+      // Manual Zoom Support
       if (capabilities.zoom) {
         setIsZoomSupported(true);
         setMinZoom(capabilities.zoom.min || 1);
@@ -147,23 +155,21 @@ export function CaptureStudio() {
   }, [cameraMode, closeCaptureStudio, stream, toast]);
 
   useEffect(() => {
-    if (isCaptureStudioOpen) {
+    if (isCaptureStudioOpen && !recordedUrl) {
       startCamera();
-    } else {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        setStream(null);
-      }
+    }
+  }, [isCaptureStudioOpen, cameraMode, recordedUrl, startCamera]);
+
+  // Handle closing studio
+  useEffect(() => {
+    if (!isCaptureStudioOpen) {
+      stopStream();
       resetStudio();
     }
-    return () => {
-      if (stream) stream.getTracks().forEach(track => track.stop());
-    };
-  }, [isCaptureStudioOpen, cameraMode]);
+  }, [isCaptureStudioOpen, stopStream]);
 
   const resetStudio = () => {
     setIsRecording(false);
-    setRecordedBlob(null);
     if (recordedUrl) URL.revokeObjectURL(recordedUrl);
     setRecordedUrl(null);
     setTimeLeft(RECORDING_LIMIT);
@@ -224,7 +230,6 @@ export function CaptureStudio() {
       ? 'video/webm;codecs=vp9,opus' 
       : 'video/mp4';
 
-    // HIGH BITRATE: 8Mbps for cinematic data density
     const recorder = new MediaRecorder(stream, { 
       mimeType,
       videoBitsPerSecond: 8000000 
@@ -236,10 +241,12 @@ export function CaptureStudio() {
     };
 
     recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'video/mp4' });
-      setRecordedBlob(blob);
-      setRecordedUrl(URL.createObjectURL(blob));
+      const blob = new Blob(chunksRef.current, { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      setRecordedUrl(url);
       setIsProcessing(false);
+      // Stop camera once recorded to switch to preview mode
+      stopStream();
     };
 
     recorder.start();
@@ -260,9 +267,9 @@ export function CaptureStudio() {
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       triggerHaptic(20);
+      setIsProcessing(true);
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      setIsProcessing(true);
       if (timerRef.current) clearInterval(timerRef.current);
     }
   };
@@ -287,8 +294,8 @@ export function CaptureStudio() {
       }
       
       triggerHaptic(10);
-      setRecordedBlob(file);
       setRecordedUrl(URL.createObjectURL(file));
+      stopStream();
     };
     video.src = tempUrl;
   };
@@ -325,6 +332,9 @@ export function CaptureStudio() {
       setPreviewTrackId(track.id);
       if (!audioPreviewRef.current) {
         audioPreviewRef.current = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'); // Mock audio
+      } else {
+        audioPreviewRef.current.pause();
+        audioPreviewRef.current.currentTime = 0;
       }
       audioPreviewRef.current.play().catch(e => console.error("Preview failed", e));
     }
@@ -353,13 +363,16 @@ export function CaptureStudio() {
       
       <div className="relative flex-1 bg-zinc-950 flex items-center justify-center overflow-hidden">
         {recordedUrl ? (
-          <video 
-            src={recordedUrl} 
-            className={cn("w-full h-full object-cover", activeFilter.class)} 
-            autoPlay 
-            loop 
-            playsInline 
-          />
+          <div className="relative w-full h-full animate-in zoom-in-95 duration-500">
+            <video 
+              src={recordedUrl} 
+              className={cn("w-full h-full object-cover", activeFilter.class)} 
+              autoPlay 
+              loop 
+              playsInline 
+            />
+            <div className="absolute inset-0 bg-black/20 pointer-events-none" />
+          </div>
         ) : (
           <video 
             ref={videoRef}
@@ -390,7 +403,7 @@ export function CaptureStudio() {
                   <Music2 className="h-3 w-3 text-white" />
                 </div>
                 <div className="flex-1 overflow-hidden">
-                  <p className="text-[10px] font-black text-white uppercase tracking-widest whitespace-nowrap animate-marquee">
+                  <p className="text-[10px] font-black text-white uppercase tracking-widest whitespace-nowrap">
                     {captureTrack ? `${captureTrack.title} — ${captureTrack.artist}` : "Add Sounds"}
                   </p>
                 </div>
@@ -570,7 +583,7 @@ export function CaptureStudio() {
         {isProcessing && (
           <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4">
             <Loader2 className="h-12 w-12 text-primary animate-spin" />
-            <p className="text-sm font-black uppercase italic tracking-widest text-white">Processing Cinematic Vibe...</p>
+            <p className="text-sm font-black uppercase italic tracking-widest text-white">Finalizing Cinematic Vibe...</p>
           </div>
         )}
 
