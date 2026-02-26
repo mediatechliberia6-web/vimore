@@ -74,6 +74,7 @@ interface PostCardProps {
   likes: number;
   unlikes: number;
   comments: number;
+  shares?: number;
   time: string;
   hashtags?: string[];
   feeling?: { emoji: string; text: string };
@@ -98,7 +99,7 @@ interface PostCardProps {
 export function PostCard(props: PostCardProps) {
   const { 
     id, user, collaborator, content, image, images = [], imageFilter, theme, language,
-    likes, unlikes, comments, time, hashtags, feeling, commentsDisabled, isPinned, 
+    likes, unlikes, comments, shares = 0, time, hashtags, feeling, commentsDisabled, isPinned, 
     isSeries, seriesTitle, poll, isShared = false, videoUrl
   } = props;
 
@@ -275,9 +276,34 @@ export function PostCard(props: PostCardProps) {
         {videoUrl && !isShared && !theme && <div className="relative mt-2 -mx-3 sm:mx-0 rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center"><video src={videoUrl} className="w-full h-full object-cover" controls playsInline /></div>}
       </CardContent>
       <CardFooter className="p-1 px-3 flex flex-col gap-1 relative bg-white dark:bg-card">
-        <div className="flex items-center justify-between gap-1 w-full">
-          <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isLiked ? "text-primary" : "text-muted-foreground")} onClick={handleLike}><ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} /> Like</button>
-          <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isUnliked ? "text-destructive" : "text-muted-foreground")} onClick={handleUnlike}><ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} /> Dislike</button>
+        {/* Metrics Row */}
+        <div className="px-1 pt-2 pb-1 flex items-center justify-between w-full text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground/50 border-t border-primary/5">
+          <div className="flex items-center gap-3">
+            <span className={cn("flex items-center gap-1.5 transition-colors", isLiked && "text-primary")}>
+              <ThumbsUp className={cn("h-3 w-3", isLiked && "fill-current")} />
+              {(likes + (isLiked ? 1 : 0)).toLocaleString()}
+            </span>
+            <span className={cn("flex items-center gap-1.5 transition-colors", isUnliked && "text-destructive")}>
+              <ThumbsDown className={cn("h-3 w-3", isUnliked && "fill-current")} />
+              {(unlikes + (isUnliked ? 1 : 0)).toLocaleString()}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5">
+              <MessageCircle className="h-3 w-3" />
+              {comments.toLocaleString()}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Share2 className="h-3 w-3" />
+              {shares.toLocaleString()}
+            </span>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-between gap-1 w-full pt-1">
+          <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isLiked ? "text-primary bg-primary/5" : "text-muted-foreground")} onClick={handleLike}><ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} /> Like</button>
+          <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isUnliked ? "text-destructive bg-destructive/5" : "text-muted-foreground")} onClick={handleUnlike}><ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} /> Dislike</button>
           <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary" onClick={() => setShowComments(!showComments)} disabled={commentsDisabled}><MessageCircle className="h-4 w-4" /> Comment</button>
           <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary"><Share2 className="h-4 w-4" /> Share</button>
         </div>

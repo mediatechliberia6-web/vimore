@@ -83,6 +83,7 @@ export interface Post {
   likes: number;
   unlikes: number;
   comments: number;
+  shares: number;
   hashtags?: string[];
   images?: string[];
   image?: string;
@@ -119,7 +120,7 @@ interface PostContextType {
   activeStoryIndex: number | null;
   connections: Connection[];
   setActiveStoryIndex: (index: number | null) => void;
-  addPost: (post: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => void;
+  addPost: (post: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments' | 'shares'>) => void;
   addStory: (segment: Omit<StorySegment, 'id'>) => void;
   voteOnStoryPoll: (storyId: string, segmentId: string, optionIndex: number) => void;
   toggleMuteUser: (username: string) => void;
@@ -261,6 +262,7 @@ const initialMockPosts: Post[] = [
     likes: 24,
     unlikes: 2,
     comments: 4,
+    shares: 1,
     language: "en",
     hashtags: ["NewBeginnings", "SocialMedia"],
     images: [
@@ -281,6 +283,7 @@ const initialMockPosts: Post[] = [
     likes: 156,
     unlikes: 12,
     comments: 12,
+    shares: 8,
     language: "en",
     poll: {
       question: "Next Video Topic?",
@@ -305,6 +308,7 @@ const initialMockPosts: Post[] = [
     likes: 88,
     unlikes: 1,
     comments: 15,
+    shares: 3,
     language: "es",
     hashtags: ["Hola", "ViMore", "Diseño"]
   }
@@ -371,7 +375,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const addPost = (newPostData: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments'>) => {
+  const addPost = (newPostData: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments' | 'shares'>) => {
     const detectedLanguage = newPostData.language || (typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en');
     
     const newPost: Post = {
@@ -381,6 +385,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       likes: 0,
       unlikes: 0,
       comments: 0,
+      shares: 0,
       language: detectedLanguage
     };
     

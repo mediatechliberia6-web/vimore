@@ -96,7 +96,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
         caption: p.content,
         likes: p.likes,
         comments: p.comments,
-        shares: 0,
+        shares: p.shares || 0,
         music: {
           id: 'custom',
           title: "Original Audio",
