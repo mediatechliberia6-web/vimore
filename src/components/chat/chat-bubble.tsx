@@ -2,10 +2,24 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { CheckCheck, Play, Pause, ExternalLink, UserPlus, Mic } from "lucide-react";
+import { 
+  CheckCheck, 
+  Play, 
+  Pause, 
+  ExternalLink, 
+  UserPlus, 
+  Mic, 
+  Eye, 
+  Flame, 
+  Lock,
+  LayoutDashboard,
+  Zap,
+  EyeOff
+} from "lucide-react";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMusic } from "@/context/MusicContext";
+import { Button } from "@/components/ui/button";
 
 interface LinkPreview {
   title: string;
@@ -15,25 +29,34 @@ interface LinkPreview {
 }
 
 interface ChatBubbleProps {
+  id: string;
   isMe: boolean;
   text?: string;
   time: string;
   status?: "sent" | "delivered" | "read";
-  type?: "text" | "photo" | "video" | "link" | "voice" | "tag";
+  type?: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace";
   mediaUrl?: string;
   linkData?: LinkPreview;
   reactions?: string[];
+  isViewOnce?: boolean;
+  isViewed?: boolean;
   taggedUser?: {
     name: string;
     username: string;
     avatar: string;
     category: string;
   };
+  workspaceData?: {
+    title: string;
+    metrics: string;
+    image: string;
+  };
   onReact?: (emoji: string) => void;
+  onViewOnceOpen?: (id: string) => void;
 }
 
 export function ChatBubble({ 
-  isMe, text, time, status, type = "text", mediaUrl, linkData, reactions = [], taggedUser, onReact 
+  id, isMe, text, time, status, type = "text", mediaUrl, linkData, reactions = [], taggedUser, isViewOnce, isViewed, workspaceData, onReact, onViewOnceOpen 
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
@@ -43,6 +66,12 @@ export function ChatBubble({
     e.preventDefault();
     triggerHaptic(20);
     onReact?.("🔥");
+  };
+
+  const handleViewOnce = () => {
+    if (isViewed) return;
+    triggerHaptic(30);
+    onViewOnceOpen?.(id);
   };
 
   return (
@@ -58,7 +87,7 @@ export function ChatBubble({
         isMe 
           ? "bg-primary text-white rounded-2xl rounded-tr-none" 
           : "bg-white dark:bg-card text-foreground rounded-2xl rounded-tl-none border border-primary/5",
-        (type === "photo" || type === "video") && "p-1 pb-0"
+        (type === "photo" || type === "video" || type === "workspace") && "p-1 pb-0"
       )}>
         {/* The Tail */}
         <div className={cn(
@@ -69,8 +98,44 @@ export function ChatBubble({
         )} />
 
         <div className="flex flex-col">
-          {/* 1. Photo/Video Content */}
-          {(type === "photo" || type === "video") && mediaUrl && (
+          {/* 1. View Once Media logic */}
+          {isViewOnce && (type === "photo" || type === "video") && (
+            <div className="p-3 min-w-[200px]">
+              {isViewed ? (
+                <div className="flex items-center gap-3 text-white/60 dark:text-muted-foreground italic py-2">
+                  <div className="h-10 w-10 rounded-full bg-black/10 flex items-center justify-center">
+                    <Flame className="h-5 w-5 opacity-40" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black uppercase tracking-widest">Vibe Exploded</span>
+                    <span className="text-[9px] uppercase font-bold opacity-50">Content Purged</span>
+                  </div>
+                </div>
+              ) : (
+                <button 
+                  onClick={handleViewOnce}
+                  className={cn(
+                    "w-full rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-3 p-6 transition-all hover:scale-[1.02] active:scale-95",
+                    isMe ? "border-white/20 hover:border-white/40 bg-white/5" : "border-primary/20 hover:border-primary/40 bg-primary/5"
+                  )}
+                >
+                  <div className={cn(
+                    "h-12 w-12 rounded-full flex items-center justify-center shadow-lg",
+                    isMe ? "bg-white/20" : "bg-primary text-white"
+                  )}>
+                    <Eye className="h-6 w-6" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-black uppercase tracking-widest">View Disappearing Vibe</p>
+                    <p className="text-[9px] font-bold opacity-60 mt-1 uppercase tracking-tighter">One-time Playback Only</p>
+                  </div>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* 2. Photo/Video Content (Permanent) */}
+          {!isViewOnce && (type === "photo" || type === "video") && mediaUrl && (
             <div className="relative aspect-square sm:aspect-video min-w-[200px] rounded-xl overflow-hidden mb-1">
               {type === "photo" ? (
                 <Image src={mediaUrl} alt="Chat Media" fill className="object-cover" />
@@ -87,7 +152,37 @@ export function ChatBubble({
             </div>
           )}
 
-          {/* 2. Link Preview Content */}
+          {/* 3. Workspace Sync Card */}
+          {type === "workspace" && workspaceData && (
+            <div className={cn(
+              "m-1 mb-2 rounded-xl overflow-hidden border border-white/10 flex flex-col",
+              isMe ? "bg-white/10" : "bg-primary/5"
+            )}>
+              <div className="relative h-24 w-full">
+                <Image src={workspaceData.image} alt="Workspace" fill className="object-cover" />
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center">
+                  <LayoutDashboard className="h-8 w-8 text-white opacity-60" />
+                </div>
+                <div className="absolute top-2 right-2">
+                  <div className="bg-primary px-2 py-0.5 rounded-full flex items-center gap-1 shadow-lg border border-white/20">
+                    <Zap className="h-2 w-2 text-white fill-current" />
+                    <span className="text-[8px] font-black text-white uppercase tracking-widest">LIVE SYNC</span>
+                  </div>
+                </div>
+              </div>
+              <div className="p-3 flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-xs uppercase tracking-widest truncate">{workspaceData.title}</h4>
+                  <p className={cn("text-[9px] font-black uppercase opacity-60", isMe ? "text-white" : "text-primary")}>{workspaceData.metrics}</p>
+                </div>
+                <Button size="sm" className={cn("h-8 rounded-lg text-[9px] font-black uppercase px-3", isMe ? "bg-white/20 text-white" : "bg-primary text-white")}>
+                  VIEW HUB
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* 4. Link Preview Content */}
           {type === "link" && linkData && (
             <div className={cn(
               "m-1 mb-2 rounded-xl overflow-hidden border border-white/10 flex flex-col",
@@ -107,7 +202,7 @@ export function ChatBubble({
             </div>
           )}
 
-          {/* 3. Voice Note Content */}
+          {/* 5. Voice Note Content */}
           {type === "voice" && (
             <div className="px-4 py-3 flex items-center gap-4 min-w-[220px]">
               <button 
@@ -136,7 +231,7 @@ export function ChatBubble({
             </div>
           )}
 
-          {/* 4. Collaborator Tag Content */}
+          {/* 6. Collaborator Tag Content */}
           {type === "tag" && taggedUser && (
             <div className={cn(
               "m-1 mb-2 p-3 rounded-xl flex items-center gap-3 border border-white/10",
@@ -161,7 +256,7 @@ export function ChatBubble({
             </div>
           )}
 
-          {/* 5. Text Content */}
+          {/* 7. Text Content */}
           {text && (
             <div className="px-3 sm:px-4 py-2 sm:py-3">
               <p className="text-sm sm:text-[15px] leading-relaxed break-words font-medium">
