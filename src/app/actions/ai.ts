@@ -1,10 +1,24 @@
-
 'use server';
 
 import { aiSummarizePost as summarizeFlow } from '@/ai/flows/ai-summarize-post-flow';
 import { aiSuggestHashtags as hashtagsFlow } from '@/ai/flows/ai-suggest-hashtags-flow';
 import { aiTranslatePost as translateFlow } from '@/ai/flows/ai-translate-post-flow';
 import { aiGenerateDailyMixes as mixesFlow } from '@/ai/flows/ai-generate-mixes-flow';
+import { aiGenerateVerificationCode as codeFlow } from '@/ai/flows/ai-generate-verification-code-flow';
+
+/**
+ * Generates a unique 6-character verification code using Groq.
+ */
+export async function aiGenerateVerificationCode({ packageName }: { packageName: string }) {
+  try {
+    const result = await codeFlow({ packageName });
+    return { code: result.code };
+  } catch (error) {
+    console.error("Code Generation Error:", error);
+    const fallback = Math.random().toString(36).substring(2, 8).toUpperCase();
+    return { code: fallback };
+  }
+}
 
 /**
  * Generates 6 personalized music mix titles based on a vibe using Genkit and Groq.

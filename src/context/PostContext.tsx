@@ -150,7 +150,7 @@ interface PostContextType {
   toggleUnlikePost: (postId: string) => void;
   toggleSavePost: (postId: string) => void;
   toggleFollowUser: (username: string) => void;
-  initiateTransaction: (data: Omit<PendingTransaction, 'code' | 'timestamp'>) => string;
+  initiateTransaction: (data: Omit<PendingTransaction, 'timestamp'>) => void;
   cancelTransaction: () => void;
   isPostLiked: (postId: string) => boolean;
   isPostUnliked: (postId: string) => boolean;
@@ -553,17 +553,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const initiateTransaction = (data: Omit<PendingTransaction, 'code' | 'timestamp'>) => {
+  const initiateTransaction = (data: Omit<PendingTransaction, 'timestamp'>) => {
     triggerHaptic(20);
-    const randomHex = Math.random().toString(16).substring(2, 8);
-    const code = `VBC-${randomHex}`;
     const tx: PendingTransaction = {
       ...data,
-      code,
       timestamp: Date.now()
     };
     setPendingTransaction(tx);
-    return code;
   };
 
   const cancelTransaction = () => {

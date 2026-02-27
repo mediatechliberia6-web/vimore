@@ -17,19 +17,23 @@ import {
   Trash2,
   X,
   CreditCard,
-  Building2
+  Building2,
+  Loader2,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
+import { useNotifications } from "@/context/NotificationContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
+import { aiGenerateVerificationCode } from "@/app/actions/ai";
 
 const GOLD_PACKAGES = [
   { id: "g1", gd: 200, priceLD: 500, priceUSD: 2.50, label: "Starter Pulse" },
@@ -47,6 +51,7 @@ const DIAMOND_PACKAGES = [
 export default function CurrencyHub() {
   const { currentUser, initiateTransaction, pendingTransaction, cancelTransaction, triggerHaptic } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
+  const { addSignal } = useNotifications();
   const { toast } = useToast();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -56,6 +61,7 @@ export default function CurrencyHub() {
   const [selectedPackage, setSelectedPackage] = useState<any | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"ORANGE" | "MTN" | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   const [uploadedScreenshot, setUploadedScreenshot] = useState<string | null>(null);
 
   const isPlayerActive = currentTrack && !isExpanded;
@@ -71,18 +77,31 @@ export default function CurrencyHub() {
     setSelectedPackage({ ...pkg, type });
   };
 
-  const handleProceedToPayment = () => {
+  const handleProceedToPayment = async () => {
     if (!selectedPackage) return;
     triggerHaptic(20);
-    const amount = currencyMode === 'LD' ? selectedPackage.priceLD : selectedPackage.priceUSD;
-    initiateTransaction({
-      packageId: selectedPackage.id,
-      packageName: selectedPackage.label,
-      amount: amount.toString(),
-      currency: currencyMode,
-      type: selectedPackage.type
-    });
-    setSelectedPackage(null);
+    setIsGeneratingCode(true);
+    
+    // AI Code Generation Phase
+    try {
+      const { code } = await aiGenerateVerificationCode({ packageName: selectedPackage.label });
+      const amount = currencyMode === 'LD' ? selectedPackage.priceLD : selectedPackage.priceUSD;
+      
+      initiateTransaction({
+        packageId: selectedPackage.id,
+        packageName: selectedPackage.label,
+        amount: amount.toString(),
+        currency: currencyMode,
+        type: selectedPackage.type,
+        code: `VBC-${code}`
+      });
+      
+      setSelectedPackage(null);
+    } catch (e) {
+      toast({ variant: "destructive", title: "Protocol Error", description: "Could not materialize security code." });
+    } finally {
+      setIsGeneratingCode(false);
+    }
   };
 
   const handleScreenshotUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,12 +117,23 @@ export default function CurrencyHub() {
   const handleSubmitForReview = () => {
     setIsUploading(true);
     triggerHaptic(50);
+    
     setTimeout(() => {
       setIsUploading(false);
+      
+      // Global Notification Sync
+      addSignal({
+        type: 'SYSTEM',
+        title: 'Review Node Active',
+        content: `Your receipt for **${pendingTransaction?.packageName}** is now in the review cluster. We will notify you upon approval.`,
+        image: uploadedScreenshot || undefined
+      });
+
       toast({
         title: "Submission Received",
         description: "Review node materialized. Returning to feed..."
       });
+      
       cancelTransaction();
       router.push("/");
     }, 3000);
@@ -146,7 +176,6 @@ export default function CurrencyHub() {
         isPlayerActive ? "pt-[80px]" : "pt-4"
       )}>
         
-        {/* Step 1: Browse or Complete */}
         <Tabs defaultValue={pendingTransaction ? "complete" : "gold"} value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full h-14 bg-white/50 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl p-1 gap-1">
             <TabsTrigger value="gold" className="flex-1 rounded-xl font-black italic uppercase tracking-widest text-[10px] data-[state=active]:bg-primary data-[state=active]:text-white">Buy Gold</TabsTrigger>
@@ -270,7 +299,7 @@ export default function CurrencyHub() {
                     <h3 className="text-2xl font-black italic uppercase tracking-tighter text-emerald-600 dark:text-emerald-400">Sync Active</h3>
                     <p className="text-xs font-bold uppercase tracking-widest text-emerald-600/60">Node: {pendingTransaction.packageName}</p>
                   </div>
-                  <div className="flex justify-center gap-4">
+                  <div className="flex flex-col sm:flex-row justify-center gap-4">
                     <div className="bg-white/50 dark:bg-white/5 px-6 py-3 rounded-2xl border border-emerald-500/10">
                       <span className="text-[10px] font-black uppercase text-muted-foreground block mb-1">AMOUNT</span>
                       <span className="text-xl font-black">{pendingTransaction.currency === 'USD' ? '$' : 'L$'} {pendingTransaction.amount}</span>
@@ -340,7 +369,6 @@ export default function CurrencyHub() {
           </TabsContent>
         </Tabs>
 
-        {/* Selected Package Modal/Handshake Overlay */}
         {selectedPackage && (
           <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-500 overflow-hidden">
             <header className="h-20 px-6 flex items-center justify-between shrink-0 bg-black/40 border-b border-white/5">
@@ -415,10 +443,16 @@ export default function CurrencyHub() {
                         <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 text-center relative group">
                           <span className="text-[10px] font-black uppercase text-primary block mb-1">PLEASE ADD THIS CODE WHEN SENDING FOR EASY VERIFICATION</span>
                           <div className="flex items-center justify-center gap-3">
-                            <span className="text-2xl font-black tracking-widest text-white font-mono">VBC-XXXXXX</span>
-                            <Info className="h-4 w-4 text-primary/40" />
+                            {isGeneratingCode ? (
+                              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                            ) : (
+                              <span className="text-2xl font-black tracking-widest text-white font-mono animate-in zoom-in duration-300">VBC-XXXXXX</span>
+                            )}
+                            {!isGeneratingCode && <Info className="h-4 w-4 text-primary/40" />}
                           </div>
-                          <p className="text-[8px] font-bold text-primary/60 uppercase mt-2">Code will generate on final launch</p>
+                          <p className="text-[8px] font-bold text-primary/60 uppercase mt-2">
+                            {isGeneratingCode ? "CONSULTING AI PROTOCOL..." : "Code will generate on final handshake"}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -433,8 +467,9 @@ export default function CurrencyHub() {
                     <Button 
                       className="w-full h-16 rounded-3xl bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl shadow-primary/20"
                       onClick={handleProceedToPayment}
+                      disabled={isGeneratingCode}
                     >
-                      Materialize Node
+                      {isGeneratingCode ? <><Loader2 className="mr-2 h-6 w-6 animate-spin" /> GENERATING...</> : "Materialize Node"}
                     </Button>
                   </div>
                 )}
