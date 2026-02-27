@@ -21,6 +21,8 @@ export interface User {
   language?: string;
   goldBalance?: number;
   diamondBalance?: number;
+  starBalance?: number;
+  referralCount?: number;
   links?: Array<{ label: string; url: string; icon: any }>;
 }
 
@@ -135,6 +137,7 @@ interface PostContextType {
   selectedPostId: string | null;
   isSearchOpen: boolean;
   pendingTransaction: PendingTransaction | null;
+  referralLink: string;
   setSearchOpen: (open: boolean) => void;
   setSelectedPostId: (id: string | null) => void;
   setActiveStoryIndex: (index: number | null) => void;
@@ -178,6 +181,8 @@ const INITIAL_USER: User = {
   language: "en",
   goldBalance: 0,
   diamondBalance: 0,
+  starBalance: 0,
+  referralCount: 0,
   introUrl: ""
 };
 
@@ -365,6 +370,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [connections, setConnections] = useState<Connection[]>(MOCK_CONNECTIONS);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const referralLink = useMemo(() => {
+    return `http://vimore.appwrite.network/join?ref=${currentUser.username}`;
+  }, [currentUser.username]);
 
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
@@ -619,6 +628,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       selectedPostId,
       isSearchOpen,
       pendingTransaction,
+      referralLink,
       setSearchOpen,
       setSelectedPostId,
       setActiveStoryIndex, 
