@@ -12,7 +12,8 @@ import {
   Smartphone,
   Info,
   Sparkles,
-  Music2
+  Music2,
+  Bell
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -23,19 +24,22 @@ import {
   AccordionTrigger 
 } from "@/components/ui/accordion";
 import { useMusic } from "@/context/MusicContext";
+import { useNotifications } from "@/context/NotificationContext";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-const menuGrid = [
-  { label: "Home feed", icon: Home, color: "text-primary", bg: "bg-primary/10", href: "/" },
-  { label: "Music Hub", icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music" },
-  { label: "Messages", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages" },
-  { label: "Reels", icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-50", href: "/reels" },
-];
-
 export default function MenuPage() {
   const { currentTrack, isExpanded } = useMusic();
+  const { unreadCount } = useNotifications();
   const isPlayerActive = currentTrack && !isExpanded;
+
+  const menuGrid = [
+    { label: "Home feed", icon: Home, color: "text-primary", bg: "bg-primary/10", href: "/" },
+    { label: "Music Hub", icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music" },
+    { label: "Signals", icon: Bell, color: "text-red-500", bg: "bg-red-50", href: "/notifications", badge: unreadCount },
+    { label: "Messages", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages" },
+    { label: "Reels", icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-50", href: "/reels" },
+  ];
 
   return (
     <div className="min-h-screen bg-[#F7F9FC] dark:bg-[#050505] transition-colors duration-300">
@@ -95,12 +99,17 @@ export default function MenuPage() {
               <Link 
                 key={item.label}
                 href={item.href}
-                className="bg-white dark:bg-card p-5 rounded-[1.75rem] border border-border/50 shadow-lg shadow-black/5 flex flex-col items-start gap-4 transition-all hover:-translate-y-1 active:scale-95 group"
+                className="bg-white dark:bg-card p-5 rounded-[1.75rem] border border-border/50 shadow-lg shadow-black/5 flex flex-col items-start gap-4 transition-all hover:-translate-y-1 active:scale-95 group relative"
               >
                 <div className={cn("p-3.5 rounded-2xl transition-all group-hover:rotate-6", item.bg)}>
                   <item.icon className={cn("h-6 w-6", item.color)} />
                 </div>
                 <span className="font-bold text-[15px] tracking-tight text-foreground">{item.label}</span>
+                {item.badge && item.badge > 0 && (
+                  <div className="absolute top-4 right-4 bg-primary text-white text-[10px] font-black h-6 w-6 rounded-full flex items-center justify-center shadow-lg">
+                    {item.badge}
+                  </div>
+                )}
               </Link>
             ))}
           </div>

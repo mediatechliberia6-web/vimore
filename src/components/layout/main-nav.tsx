@@ -2,22 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, MessageCircle, PlusSquare, Compass, Menu, Music2, Clapperboard } from "lucide-react";
+import { Home, User, MessageCircle, PlusSquare, Compass, Menu, Music2, Clapperboard, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
-const navItems = [
-  { icon: Home, label: "Home", href: "/" },
-  { icon: Compass, label: "Explore", href: "/explore" },
-  { icon: Clapperboard, label: "Reels", href: "/reels" },
-  { icon: Music2, label: "Music", href: "/music" },
-  { icon: MessageCircle, label: "Messages", href: "/messages" },
-  { icon: User, label: "Profile", href: "/profile" },
-  { icon: Menu, label: "Menu", href: "/menu" },
-];
+import { useNotifications } from "@/context/NotificationContext";
 
 export function MainNav() {
   const pathname = usePathname();
+  const { unreadCount } = useNotifications();
+
+  const navItems = [
+    { icon: Home, label: "Home", href: "/" },
+    { icon: Compass, label: "Explore", href: "/explore" },
+    { icon: Clapperboard, label: "Reels", href: "/reels" },
+    { icon: Music2, label: "Music", href: "/music" },
+    { icon: Bell, label: "Notifications", href: "/notifications", badge: unreadCount },
+    { icon: MessageCircle, label: "Messages", href: "/messages" },
+    { icon: User, label: "Profile", href: "/profile" },
+    { icon: Menu, label: "Menu", href: "/menu" },
+  ];
 
   return (
     <div className="flex flex-col h-full py-6 px-4 space-y-8">
@@ -41,14 +44,21 @@ export function MainNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group",
+                "flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group",
                 isActive 
                   ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
                   : "hover:bg-secondary text-muted-foreground hover:text-primary"
               )}
             >
-              <item.icon className={cn("w-6 h-6", isActive ? "scale-110" : "group-hover:scale-110 transition-transform")} />
-              <span className="font-bold text-sm">{item.label}</span>
+              <div className="flex items-center gap-4">
+                <item.icon className={cn("w-6 h-6", isActive ? "scale-110" : "group-hover:scale-110 transition-transform")} />
+                <span className="font-bold text-sm">{item.label}</span>
+              </div>
+              {item.badge && item.badge > 0 && !isActive && (
+                <div className="bg-primary text-white text-[10px] font-black h-5 w-5 rounded-full flex items-center justify-center shadow-lg shadow-primary/20">
+                  {item.badge}
+                </div>
+              )}
             </Link>
           );
         })}

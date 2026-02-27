@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
-export type SignalType = 'SOCIAL' | 'SONIC' | 'SYSTEM';
+export type SignalType = 'SOCIAL' | 'SONIC' | 'POST' | 'SYSTEM';
 
 export interface NotificationNode {
   id: string;
@@ -17,6 +17,7 @@ export interface NotificationNode {
   actionLabel?: string;
   actionHref?: string;
   postId?: string; // Anchor to a specific post data node
+  trackId?: string | number; // Anchor to a specific music track
   targetUsername?: string; // Target for social actions like follow
 }
 
@@ -50,17 +51,17 @@ const MOCK_SIGNALS: NotificationNode[] = [
   {
     id: 'sig-2',
     type: 'SONIC',
-    title: 'Playlist Featured',
-    content: 'Your **"Midnight Lo-Fi"** vibe was added to the "Global Rising" chart.',
+    title: 'Track Trending!',
+    content: 'Your favorite track **"Essence"** is climbing the Global Charts.',
     time: '15m ago',
     isRead: false,
-    image: 'https://picsum.photos/seed/play2/100/100',
-    actionLabel: 'View Chart',
-    actionHref: '/music?tab=chart'
+    image: 'https://picsum.photos/seed/song1/100/100',
+    trackId: 1,
+    actionLabel: 'View Chart'
   },
   {
     id: 'sig-3',
-    type: 'SOCIAL',
+    type: 'POST',
     title: 'New Vibe Pulse',
     content: '**Sarah Chen** liked your post about clean aesthetics.',
     time: '30m ago',
@@ -78,24 +79,23 @@ const MOCK_SIGNALS: NotificationNode[] = [
   },
   {
     id: 'sig-5',
-    type: 'SOCIAL',
-    title: 'New Vibe Pulse',
-    content: '**John Doe** liked your post about tech deep-dives.',
+    type: 'POST',
+    title: 'Comment Received',
+    content: '**Marcus Stone** commented: "This setup is absolutely insane! 🔥"',
     time: '2h ago',
     isRead: false,
-    avatar: 'https://picsum.photos/seed/me/100/100',
+    avatar: 'https://picsum.photos/seed/3/100/100',
     postId: '2'
   },
   {
     id: 'sig-6',
-    type: 'SOCIAL',
-    title: 'Network Sync',
-    content: '**Paul** follows you back. Node connection stabilized.',
+    type: 'SONIC',
+    title: 'Music Shared',
+    content: '**Alex Rivera** shared a new playlist: **"AFRO-FUSION"**',
     time: '5h ago',
     isRead: true,
-    avatar: 'https://picsum.photos/seed/paul/100/100',
-    targetUsername: 'paul',
-    actionLabel: 'Follow Back'
+    image: 'https://picsum.photos/seed/play1/100/100',
+    actionHref: '/music'
   }
 ];
 

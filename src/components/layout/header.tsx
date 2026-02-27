@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Search, Plus, Menu, MessageCircle } from "lucide-react";
+import { Search, Plus, Menu, MessageCircle, Bell } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CreatePostModal } from "@/components/post/create-post-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useNotifications } from "@/context/NotificationContext";
 import { cn } from "@/lib/utils";
 
 export function Header() {
+  const { unreadCount } = useNotifications();
+
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-primary/10 px-4 py-2 flex items-center justify-between shadow-sm">
       <div className="flex items-center gap-3">
@@ -36,6 +39,18 @@ export function Header() {
             <Plus className="h-5 w-5" />
           </Button>
         </CreatePostModal>
+        
+        <Link href="/notifications" className="relative">
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
+            <Bell className="h-5 w-5" />
+          </Button>
+          {unreadCount > 0 && (
+            <div className="absolute -top-1 -right-1 bg-primary text-white text-[8px] font-black h-4 w-4 rounded-full flex items-center justify-center border-2 border-white dark:border-background">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </div>
+          )}
+        </Link>
+
         <Link href="/messages">
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
             <MessageCircle className="h-5 w-5" />
