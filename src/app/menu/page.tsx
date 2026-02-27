@@ -1,3 +1,4 @@
+
 "use client";
 
 import { 
@@ -15,7 +16,9 @@ import {
   Music2,
   Bell,
   Coins,
-  Users
+  Users,
+  Star,
+  Gem
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -42,6 +45,7 @@ export default function MenuPage() {
     { label: "Signals", icon: Bell, color: "text-red-500", bg: "bg-red-50", href: "/notifications", badge: unreadCount },
     { label: "Music Hub", icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music" },
     { label: "Currency Hub", icon: Coins, color: "text-amber-500", bg: "bg-amber-50", href: "/currency" },
+    { label: "Star Network", icon: Star, color: "text-yellow-500", bg: "bg-yellow-50", href: "/referrals" },
     { label: "Community", icon: Users, color: "text-emerald-500", bg: "bg-emerald-50", href: "/friends" },
     { label: "Messages", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages" },
     { label: "Reels", icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-50", href: "/reels" },
@@ -84,12 +88,22 @@ export default function MenuPage() {
                   <Sparkles className="h-3 w-3" />
                 </div>
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col gap-1">
                 <span className="font-bold text-xl tracking-tight text-foreground">{currentUser.name}</span>
-                <span className="text-sm text-muted-foreground font-medium flex items-center gap-2">
-                  <Coins className="h-3 w-3 text-amber-500" />
-                  {currentUser.goldBalance || 0} GD • {currentUser.diamondBalance || 0} D
-                </span>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase">
+                    <Coins className="h-3 w-3 text-amber-500" />
+                    {currentUser.goldBalance || 0} GD
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase">
+                    <Gem className="h-3 w-3 text-cyan-500" />
+                    {currentUser.diamondBalance || 0} D
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase">
+                    <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                    {currentUser.starBalance || 0} STAR
+                  </div>
+                </div>
               </div>
             </div>
             <div className="bg-primary/5 p-3 rounded-full group-hover:bg-primary/10 transition-colors">

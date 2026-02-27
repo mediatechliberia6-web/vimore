@@ -1,3 +1,4 @@
+
 "use client";
 
 import { MainNav } from "@/components/layout/main-nav";
@@ -21,7 +22,8 @@ import {
   Star,
   Zap,
   Radio,
-  GalleryVerticalEnd
+  GalleryVerticalEnd,
+  Rocket
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -154,7 +156,21 @@ export default function ExplorePage() {
                </div>
             </div>
 
-            {/* 5. Create Series Tile (Medium) */}
+            {/* 5. Star Network Hub (New prominent tile) */}
+            <Link href="/referrals" className="md:col-span-1 md:row-span-1 bg-gradient-to-br from-yellow-400 via-amber-500 to-orange-600 rounded-3xl p-6 flex flex-col justify-between text-white shadow-xl group hover:shadow-yellow-500/20 transition-all">
+              <div className="flex justify-between items-start">
+                <div className="bg-white/20 backdrop-blur-md p-2 rounded-xl">
+                  <Rocket className="h-6 w-6" />
+                </div>
+                <Badge variant="secondary" className="bg-white/20 border-none text-[10px] font-black uppercase">Earn ⭐</Badge>
+              </div>
+              <div>
+                <h3 className="text-xl font-black italic uppercase tracking-tighter">Growth Hub</h3>
+                <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest">Invite friends & earn</p>
+              </div>
+            </Link>
+
+            {/* 6. Create Series Tile (Medium) */}
             <div className="md:col-span-2 md:row-span-1 bg-gradient-to-br from-primary to-accent rounded-3xl p-8 flex items-center justify-between text-white shadow-xl group cursor-pointer relative overflow-hidden">
                <div className="relative z-10">
                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">Start a Series</h3>
@@ -171,7 +187,7 @@ export default function ExplorePage() {
                </div>
             </div>
 
-            {/* 6. Communities Hub (Large) */}
+            {/* 7. Communities Hub (Large) */}
             <div className="md:col-span-2 md:row-span-1 bg-white dark:bg-card border border-primary/10 rounded-3xl p-6 shadow-lg flex flex-col">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
