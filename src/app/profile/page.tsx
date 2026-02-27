@@ -79,6 +79,7 @@ export default function MyProfilePage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
   const [isUploadingIntro, setIsUploadingIntro] = useState(false);
+  const [deviceLanguage, setDeviceLanguage] = useState<string | null>(null);
   
   // Refinement Portal State
   const [refiningImage, setRefiningImage] = useState<string | null>(null);
@@ -95,6 +96,12 @@ export default function MyProfilePage() {
   const introInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setDeviceLanguage(window.navigator.language.split('-')[0]);
+    }
+  }, []);
 
   // Interaction Recovery Fail-safe
   useEffect(() => {
@@ -140,9 +147,10 @@ export default function MyProfilePage() {
     triggerHaptic();
     setIsTranslating(true);
     try {
-      const res = await aiTranslatePost({ postContent: currentUser.bio || "", targetLanguage: "Spanish" });
+      const target = deviceLanguage || "en";
+      const res = await aiTranslatePost({ postContent: currentUser.bio || "", targetLanguage: target });
       setTranslatedBio(res.translation);
-      toast({ description: "Bio translated to Spanish ✨" });
+      toast({ description: `Bio translated to ${target} ✨` });
     } catch (e) {
       toast({ variant: "destructive", description: "Translation failed" });
     } finally {
@@ -191,7 +199,7 @@ export default function MyProfilePage() {
       },
       content: `**${currentUser.name}** updated ${refinementMode === 'avatar' ? 'his profile picture' : 'his workspace cover'} ✨`,
       image: refinedUrl,
-      language: 'en'
+      language: currentUser.language || 'en'
     });
 
     toast({ title: "Presence Refreshed", description: `Your profile ${refinementMode} is now updated and shared.` });
@@ -322,6 +330,11 @@ export default function MyProfilePage() {
   const myReels = useMemo(() => myPosts.filter(p => p.videoUrl), [myPosts]);
   const taggedPosts = useMemo(() => posts.filter(p => p.collaborator?.username === currentUser.username), [posts, currentUser.username]);
   const savedPosts = useMemo(() => posts.filter(p => isPostSaved(p.id)), [posts, isPostSaved]);
+
+  const showTranslateButton = useMemo(() => {
+    if (!deviceLanguage || !currentUser.language) return false;
+    return deviceLanguage !== currentUser.language && (currentUser.bio?.length || 0) > 5;
+  }, [deviceLanguage, currentUser]);
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-background flex justify-center">
@@ -496,9 +509,11 @@ export default function MyProfilePage() {
                     <p className="text-[15px] leading-relaxed text-foreground flex-1">{translatedBio || currentUser.bio}</p>
                     <div className="flex flex-col gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={handleCopyBio}><Copy className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon" className={cn("h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity", translatedBio && "text-primary opacity-100")} onClick={handleTranslateBio} disabled={isTranslating}>
-                        {isTranslating ? <Zap className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}
-                      </Button>
+                      {showTranslateButton && (
+                        <Button variant="ghost" size="icon" className={cn("h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity", translatedBio && "text-primary opacity-100")} onClick={handleTranslateBio} disabled={isTranslating}>
+                          {isTranslating ? <Zap className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

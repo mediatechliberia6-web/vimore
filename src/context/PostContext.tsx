@@ -18,6 +18,7 @@ export interface User {
   joinDate?: string;
   relationshipStatus?: string;
   introUrl?: string; 
+  language?: string;
   links?: Array<{ label: string; url: string; icon: any }>;
 }
 
@@ -156,6 +157,7 @@ const INITIAL_USER: User = {
   followers: "8.4k",
   following: "1.2k",
   posts: "142",
+  language: "en",
   introUrl: ""
 };
 
@@ -337,13 +339,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [unlikedPostIds, setUnlikedPostIds] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
   
-  // Paul added to initial following list to ensure "Friend" status in Notifications
   const [followingUsernames, setFollowingUsernames] = useState<Set<string>>(new Set(["jmoore", "arivera", "schen_dev", "paul"]));
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [connections, setConnections] = useState<Connection[]>(MOCK_CONNECTIONS);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
-  // Persistence Helpers
   const safePersist = (key: string, value: any) => {
     try {
       localStorage.setItem(key, JSON.stringify(value));

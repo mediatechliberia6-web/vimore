@@ -47,7 +47,7 @@ const MOCK_USERS: Record<string, any> = {
   "arivera": {
     name: "Alex Rivera",
     username: "arivera",
-    bio: "Product Designer & Coffee Enthusiast. Living life one pixel at a time. ☕️🎨",
+    bio: "Diseñador de Productos y entusiasta del café. Viviendo la vida píxel a píxel. ☕️🎨",
     avatar: "https://picsum.photos/seed/1/400/400",
     cover: "https://picsum.photos/seed/cover_arivera/1200/400",
     followers: "12.2k",
@@ -55,6 +55,7 @@ const MOCK_USERS: Record<string, any> = {
     posts: "342",
     category: "Product Designer",
     isVerified: true,
+    language: "es",
     introUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
   },
   "schen_dev": {
@@ -67,7 +68,8 @@ const MOCK_USERS: Record<string, any> = {
     following: "450",
     posts: "128",
     category: "Fullstack Developer",
-    isVerified: true
+    isVerified: true,
+    language: "en"
   },
   "mstone": {
     name: "Marcus Stone",
@@ -79,7 +81,8 @@ const MOCK_USERS: Record<string, any> = {
     following: "1.1k",
     posts: "892",
     category: "Photographer",
-    isVerified: false
+    isVerified: false,
+    language: "en"
   }
 };
 
@@ -96,12 +99,19 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const [isPlayingIntro, setIsPlayingIntro] = useState(false);
   const [translatedBio, setTranslatedBio] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
+  const [deviceLanguage, setDeviceLanguage] = useState<string | null>(null);
   
   const [confirmUser, setConfirmUser] = useState<any | null>(null);
   const [confirmType, setConfirmType] = useState<"unfollow" | "unfriend">("unfollow");
 
   const amIFollowing = isFollowing(username);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setDeviceLanguage(window.navigator.language.split('-')[0]);
+    }
+  }, []);
 
   // Programmatic Redirect if visiting own profile via username link
   useEffect(() => {
@@ -131,6 +141,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     posts: "12",
     category: "ViMore Member",
     isVerified: false,
+    language: "en",
     followsYou: connections.find(c => c.username === username)?.followsYou || false
   };
 
@@ -168,7 +179,8 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     triggerHaptic();
     setIsTranslating(true);
     try {
-      const res = await aiTranslatePost({ postContent: displayUser.bio, targetLanguage: "Spanish" });
+      const target = deviceLanguage || "en";
+      const res = await aiTranslatePost({ postContent: displayUser.bio, targetLanguage: target });
       setTranslatedBio(res.translation);
     } catch (e) {
       toast({ variant: "destructive", description: "Translation failed" });
@@ -238,6 +250,11 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const userPosts = useMemo(() => posts.filter(p => p.user.username === username), [posts, username]);
   const userReels = useMemo(() => userPosts.filter(p => p.videoUrl), [userPosts]);
   const mediaPosts = useMemo(() => userPosts.filter(p => p.image || p.images?.length), [userPosts]);
+
+  const showTranslateButton = useMemo(() => {
+    if (!deviceLanguage || !displayUser.language) return false;
+    return deviceLanguage !== displayUser.language && displayUser.bio.length > 5;
+  }, [deviceLanguage, displayUser]);
 
   if (isMe) {
     return (
@@ -328,9 +345,11 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
                 <div className="flex items-start gap-4 py-2 group">
                   <p className="text-[15px] leading-relaxed flex-1">{translatedBio || displayUser.bio}</p>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={handleTranslateBio} disabled={isTranslating}>
-                    {isTranslating ? <Zap className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}
-                  </Button>
+                  {showTranslateButton && (
+                    <Button variant="ghost" size="icon" className={cn("h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity", translatedBio && "text-primary opacity-100")} onClick={handleTranslateBio} disabled={isTranslating}>
+                      {isTranslating ? <Zap className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}
+                    </Button>
+                  )}
                 </div>
 
                 <div className="mt-4 flex gap-2">
