@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { usePosts } from '@/context/PostContext';
 
 export type SignalType = 'SOCIAL' | 'SONIC' | 'POST' | 'SYSTEM';
 
@@ -34,7 +35,11 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3";
+// Sonic Assets
+const SOUNDS = {
+  cyberpunk: "https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3",
+  lofi: "https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"
+};
 
 const MOCK_SIGNALS: NotificationNode[] = [
   {
@@ -112,6 +117,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<NotificationNode[]>([]);
   const [hasPushPermission, setHasPushPermission] = useState(false);
   const { toast } = useToast();
+  const { settings } = usePosts();
 
   useEffect(() => {
     const saved = localStorage.getItem('vimore_signals');
@@ -135,10 +141,23 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [notifications]);
 
   const triggerSound = useCallback(() => {
-    const audio = new Audio(NOTIFICATION_SOUND);
+    // Silence Node Check
+    if (settings.isSilenceActive) {
+      const now = new Date();
+      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      
+      const isSilenced = settings.silenceStart < settings.silenceEnd 
+        ? (currentTime >= settings.silenceStart && currentTime <= settings.silenceEnd)
+        : (currentTime >= settings.silenceStart || currentTime <= settings.silenceEnd);
+
+      if (isSilenced) return;
+    }
+
+    const soundUrl = settings.activeSoundSet === 'cyberpunk' ? SOUNDS.cyberpunk : SOUNDS.lofi;
+    const audio = new Audio(soundUrl);
     audio.volume = 0.4;
     audio.play().catch(() => {});
-  }, []);
+  }, [settings]);
 
   const addSignal = useCallback((signal: Omit<NotificationNode, 'id' | 'time' | 'isRead'>) => {
     const newNode: NotificationNode = {

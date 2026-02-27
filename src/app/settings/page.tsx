@@ -202,13 +202,28 @@ export default function SettingsPage() {
     return storageData.reduce((acc, curr) => acc + parseFloat(curr.size), 0);
   }, [storageData]);
 
-  // Activity Heatmap Simulation
+  // Activity Heatmap Logic - Real Data Handshake
   const heatmapData = useMemo(() => {
-    return Array.from({ length: 30 }, (_, i) => ({
+    const days = Array.from({ length: 30 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (29 - i));
+      return date.toDateString();
+    });
+
+    const postCounts: Record<string, number> = {};
+    posts.forEach(p => {
+      // Map mock IDs 1, 2, 3 to today for visualization, else use timestamp
+      const isMock = p.id.length < 5;
+      const timestamp = isMock ? Date.now() : parseInt(p.id);
+      const postDate = new Date(timestamp).toDateString();
+      postCounts[postDate] = (postCounts[postDate] || 0) + 1;
+    });
+
+    return days.map((day, i) => ({
       day: i,
-      intensity: Math.floor(Math.random() * 4)
+      intensity: Math.min(postCounts[day] || 0, 3) 
     }));
-  }, []);
+  }, [posts]);
 
   const referrals = currentUser.referralCount || 0;
   const nextMilestone = referrals < 5 ? 5 : referrals < 10 ? 10 : 25;
