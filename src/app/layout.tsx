@@ -11,6 +11,7 @@ import { CaptureStudio } from "@/components/reels/capture-studio";
 import { AdPortal } from "@/components/ad/ad-portal";
 import { PostPortal } from "@/components/post/post-portal";
 import { SearchPortal } from "@/components/layout/search-portal";
+import { FontScaleWrapper } from "@/components/layout/font-scale-wrapper";
 
 export const metadata: Metadata = {
   title: 'ViMore',
@@ -47,15 +48,17 @@ export default function RootLayout({
         <PostProvider>
           <NotificationProvider>
             <MusicProvider>
-              {children}
-              <MusicPlayer />
-              <AlbumDetail />
-              <PlaylistDetail />
-              <CaptureStudio />
-              <AdPortal />
-              <PostPortal />
-              <SearchPortal />
-              <Toaster />
+              <FontScaleWrapper>
+                {children}
+                <MusicPlayer />
+                <AlbumDetail />
+                <PlaylistDetail />
+                <CaptureStudio />
+                <AdPortal />
+                <PostPortal />
+                <SearchPortal />
+                <Toaster />
+              </FontScaleWrapper>
             </MusicProvider>
           </NotificationProvider>
         </PostProvider>

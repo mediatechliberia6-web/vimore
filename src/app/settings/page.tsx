@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { 
   ArrowLeft, 
   User, 
@@ -26,12 +26,20 @@ import {
   Trash2,
   Lock,
   Globe,
-  MoreVertical
+  MoreVertical,
+  HardDrive,
+  Archive,
+  ArrowDownToLine,
+  Activity,
+  Music2,
+  Video
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
 import { 
   Select, 
   SelectContent, 
@@ -50,6 +58,7 @@ export default function SettingsPage() {
   const { currentTrack, isExpanded } = useMusic();
   const { toast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
 
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -62,12 +71,29 @@ export default function SettingsPage() {
     }, 2000);
   };
 
+  const handleArchive = () => {
+    setIsArchiving(true);
+    triggerHaptic(100);
+    toast({ title: "Archive Initiated", description: "Compiling your digital footprint into a secure node..." });
+    setTimeout(() => {
+      setIsArchiving(false);
+      toast({ title: "Ready for Download", description: "Identity archive materialized. 1.2GB ready." });
+    }, 4000);
+  };
+
   const handleUpdate = (data: any) => {
     triggerHaptic(10);
     updateSettings(data);
   };
 
   const friends = connections.filter(c => c.followsYou);
+
+  // Storage Stats (Simulated)
+  const storageData = useMemo(() => [
+    { label: "Sonic Notes", size: "420MB", value: 42, icon: Music2, color: "bg-primary" },
+    { label: "Vibe Cache", size: "680MB", value: 68, icon: Video, color: "bg-accent" },
+    { label: "Core Meta", size: "120MB", value: 12, icon: Database, color: "bg-amber-500" },
+  ], []);
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300">
@@ -184,42 +210,54 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Category: Legacy Handshake Node */}
+        {/* Category: Data & Storage Pulse */}
         <section className="space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Legacy Protocol</h3>
-          <div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-xl shadow-black/5 p-6 space-y-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                <p className="font-bold text-sm">Digital Signature Manager</p>
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Data & Storage Pulse</h3>
+          <div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <HardDrive className="h-4 w-4 text-primary" />
+                  <p className="font-bold text-sm">Cluster Footprint</p>
+                </div>
+                <span className="text-[10px] font-black uppercase text-muted-foreground">1.22 GB / 5 GB Synced</span>
               </div>
-              <p className="text-[10px] text-muted-foreground uppercase font-black leading-relaxed">
-                Designate a trusted node to manage your workspace if your account becomes inactive for 6 months.
-              </p>
+              
+              <div className="space-y-4">
+                {storageData.map((item) => (
+                  <div key={item.label} className="space-y-2">
+                    <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                      <div className="flex items-center gap-2">
+                        <item.icon className="h-3 w-3 text-muted-foreground" />
+                        <span>{item.label}</span>
+                      </div>
+                      <span className="text-muted-foreground">{item.size}</span>
+                    </div>
+                    <Progress value={item.value} className="h-1.5" />
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className="space-y-3 pt-2">
-              <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Select Legacy Node</Label>
-              <Select 
-                value={settings.legacyContact || ""} 
-                onValueChange={(val) => handleUpdate({ legacyContact: val })}
+            <div className="h-px bg-border" />
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Archive className="h-4 w-4 text-accent" />
+                <p className="font-bold text-sm">Identity Archive</p>
+              </div>
+              <p className="text-[10px] text-muted-foreground uppercase font-black leading-relaxed">
+                Download a complete temporal copy of your posts, reels, and sonic notes.
+              </p>
+              <Button 
+                variant="outline" 
+                className="w-full h-12 rounded-xl border-accent/20 text-accent font-black uppercase text-[10px] tracking-widest hover:bg-accent/5 gap-2"
+                onClick={handleArchive}
+                disabled={isArchiving}
               >
-                <SelectTrigger className="h-14 rounded-2xl bg-secondary/20 border-none px-4 font-bold">
-                  <SelectValue placeholder="Select a mutual friend..." />
-                </SelectTrigger>
-                <SelectContent className="rounded-2xl max-h-[300px]">
-                  {friends.length > 0 ? friends.map(friend => (
-                    <SelectItem key={friend.username} value={friend.username} className="py-3">
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold">{friend.name}</span>
-                        <span className="text-[10px] opacity-40 uppercase">@{friend.username}</span>
-                      </div>
-                    </SelectItem>
-                  )) : (
-                    <div className="p-4 text-center text-[10px] font-bold uppercase opacity-40">No mutual friends found</div>
-                  )}
-                </SelectContent>
-              </Select>
+                {isArchiving ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowDownToLine className="h-3 w-3" />}
+                {isArchiving ? "Compiling Node..." : "Materialize Data Archive"}
+              </Button>
             </div>
           </div>
         </section>
