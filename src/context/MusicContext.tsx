@@ -155,7 +155,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   
   // Ad State
   const [isAdPortalOpen, setIsAdPortalOpen] = useState(false);
-  const [adDuration, setAdDuration] = useState(10);
+  const [adDuration, setAdDuration] = useState(30);
   const [pendingDownloadTask, setPendingDownloadTask] = useState<(() => Promise<void>) | null>(null);
 
   // Capture Studio State
@@ -346,7 +346,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const triggerDownloadWithAd = (type: 'single' | 'album' | 'reel', task: () => Promise<void>) => {
     triggerHaptic(15);
-    setAdDuration(type === 'album' ? 20 : 10);
+    setAdDuration(30); // Standardize to 30 seconds as requested
     setPendingDownloadTask(() => task);
     setIsAdPortalOpen(true);
   };
