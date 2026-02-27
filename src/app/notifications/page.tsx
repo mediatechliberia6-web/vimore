@@ -30,13 +30,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 type FilterTab = "ALL" | SignalType;
 
 export default function NotificationsPage() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, purgeSignal, requestPushPermission, hasPushPermission } = useNotifications();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
-  const { setSelectedPostId } = usePosts();
+  const { setSelectedPostId, toggleFollowUser } = usePosts();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<FilterTab>("ALL");
 
   const isPlayerActive = currentTrack && !isExpanded;
@@ -50,9 +52,26 @@ export default function NotificationsPage() {
     triggerHaptic(15);
     markAsRead(node.id);
     
-    // Portal Transition logic: If the signal is anchored to a post, materialize the portal
+    // 1. Portal Transition logic: If the signal is anchored to a post, materialize the portal
     if (node.postId) {
       setSelectedPostId(node.postId);
+      return;
+    }
+
+    // 2. Action Handshake: Handle specific labels like "Follow Back" or "View Chart"
+    if (node.actionLabel === "Follow Back" && node.targetUsername) {
+      toggleFollowUser(node.targetUsername);
+      return;
+    }
+
+    if (node.actionLabel === "View Chart") {
+      router.push('/music?tab=chart');
+      return;
+    }
+
+    // 3. Generic Href Handshake
+    if (node.actionHref) {
+      router.push(node.actionHref);
     }
   };
 
@@ -108,7 +127,7 @@ export default function NotificationsPage() {
                     Signals
                   </h1>
                   {unreadCount > 0 && (
-                    <Badge className="bg-primary text-white text-[10px] font-black h-6 px-3 rounded-full shadow-lg shadow-primary/30 animate-bounce">
+                    <Badge className="bg-primary text-white text-[10px] font-black h-6 px-3 rounded-full shadow-lg shadow-primary/30 animate-pulse">
                       {unreadCount} NEW
                     </Badge>
                   )}

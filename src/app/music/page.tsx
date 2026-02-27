@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { MainNav } from "@/components/layout/main-nav";
 import { Header } from "@/components/layout/header";
 import { MusicGrid } from "@/components/music/music-grid";
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Search, X, Heart, ListMusic, Plus, Music, Disc3, Download, Trash2, MoreVertical } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -92,7 +93,8 @@ const MOCK_ARTISTS = [
   { id: 'ar4', name: "Olamide", username: "mstone", role: "Rapper", avatar: "https://picsum.photos/seed/art4/200/200" },
 ];
 
-export default function MusicPage() {
+function MusicPageContent() {
+  const searchParams = useSearchParams();
   const { currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, userSongs, userAlbums, openCreatePlaylist, downloadedSongIds, queue, deleteUserTrack, deleteUserAlbum, triggerHaptic } = useMusic();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("discover");
@@ -101,6 +103,13 @@ export default function MusicPage() {
   const [deleteItem, setDeleteItem] = useState<{ id: string | number, type: 'track' | 'album' } | null>(null);
   
   const isPlayerActive = currentTrack && !isExpanded;
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ["discover", "chart", "upload", "library"].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!deleteItem) {
@@ -452,5 +461,13 @@ export default function MusicPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+export default function MusicPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F0F2F5] dark:bg-background flex items-center justify-center"><Music className="h-10 w-10 text-primary animate-pulse" /></div>}>
+      <MusicPageContent />
+    </Suspense>
   );
 }

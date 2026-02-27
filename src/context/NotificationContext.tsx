@@ -17,6 +17,7 @@ export interface NotificationNode {
   actionLabel?: string;
   actionHref?: string;
   postId?: string; // Anchor to a specific post data node
+  targetUsername?: string; // Target for social actions like follow
 }
 
 interface NotificationContextType {
@@ -43,7 +44,8 @@ const MOCK_SIGNALS: NotificationNode[] = [
     time: '2m ago',
     isRead: false,
     avatar: 'https://picsum.photos/seed/50/100/100',
-    actionLabel: 'Follow Back'
+    actionLabel: 'Follow Back',
+    targetUsername: 'jmoore'
   },
   {
     id: 'sig-2',
@@ -53,7 +55,8 @@ const MOCK_SIGNALS: NotificationNode[] = [
     time: '15m ago',
     isRead: false,
     image: 'https://picsum.photos/seed/play2/100/100',
-    actionLabel: 'View Chart'
+    actionLabel: 'View Chart',
+    actionHref: '/music?tab=chart'
   },
   {
     id: 'sig-3',
@@ -63,7 +66,7 @@ const MOCK_SIGNALS: NotificationNode[] = [
     time: '30m ago',
     isRead: false,
     avatar: 'https://picsum.photos/seed/2/100/100',
-    postId: '1'
+    postId: '1' // Matches initialMockPosts ID
   },
   {
     id: 'sig-4',
@@ -93,7 +96,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       setNotifications(MOCK_SIGNALS);
     }
 
-    if ("Notification" in window) {
+    if (typeof window !== 'undefined' && "Notification" in window) {
       setHasPushPermission(Notification.permission === "granted");
     }
   }, []);
@@ -121,7 +124,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     triggerSound();
 
     // Browser Level Push if active
-    if (Notification.permission === "granted") {
+    if (typeof window !== 'undefined' && "Notification" in window && Notification.permission === "granted") {
       new Notification(signal.title, {
         body: signal.content.replace(/\*\*/g, ''),
         icon: signal.avatar || '/icon.svg'
