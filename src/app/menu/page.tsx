@@ -1,4 +1,3 @@
-
 "use client";
 
 import { 
@@ -58,7 +57,7 @@ export default function MenuPage() {
             <Search className="h-5 w-5" />
           </Button>
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 dark:bg-white/5">
-            <Settings className="h-5 w-5" />
+            Settings
           </Button>
         </div>
       </header>

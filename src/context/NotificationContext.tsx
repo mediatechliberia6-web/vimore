@@ -40,13 +40,12 @@ const MOCK_SIGNALS: NotificationNode[] = [
   {
     id: 'sig-1',
     type: 'SOCIAL',
-    title: 'New Mutual Connection',
-    content: '**Julianne Moore** just followed you back. You are now mutual nodes.',
+    title: 'New Connection',
+    content: '**Sarah Chen** just followed you back. You are now mutual nodes.',
     time: '2m ago',
     isRead: false,
-    avatar: 'https://picsum.photos/seed/50/100/100',
-    actionLabel: 'Friend',
-    targetUsername: 'jmoore'
+    avatar: 'https://picsum.photos/seed/2/100/100',
+    targetUsername: 'schen_dev'
   },
   {
     id: 'sig-2',
@@ -57,45 +56,45 @@ const MOCK_SIGNALS: NotificationNode[] = [
     isRead: false,
     image: 'https://picsum.photos/seed/song1/100/100',
     trackId: 1,
-    actionLabel: 'View Chart'
+    actionLabel: 'View Charts'
   },
   {
     id: 'sig-3',
     type: 'POST',
-    title: 'New Vibe Pulse',
-    content: '**Sarah Chen** liked your post about clean aesthetics.',
+    title: 'Post Pulse',
+    content: '**Alex Rivera** liked your post: "Just started using ViMore..."',
     time: '30m ago',
     isRead: false,
-    avatar: 'https://picsum.photos/seed/2/100/100',
+    avatar: 'https://picsum.photos/seed/1/100/100',
     postId: '1' 
   },
   {
     id: 'sig-4',
-    type: 'SYSTEM',
-    title: 'Security Handshake',
-    content: 'Your high-velocity workspace was successfully synchronized with the main cluster.',
-    time: '1h ago',
-    isRead: true,
-  },
-  {
-    id: 'sig-5',
     type: 'POST',
-    title: 'Comment Received',
+    title: 'Comment Node',
     content: '**Marcus Stone** commented: "This setup is absolutely insane! 🔥"',
-    time: '2h ago',
+    time: '1h ago',
     isRead: false,
     avatar: 'https://picsum.photos/seed/3/100/100',
     postId: '2'
   },
   {
-    id: 'sig-6',
+    id: 'sig-5',
     type: 'SONIC',
-    title: 'Music Shared',
-    content: '**Alex Rivera** shared a new playlist: **"AFRO-FUSION"**',
-    time: '5h ago',
+    title: 'Sonic Note',
+    content: '**Julianne Moore** shared a new playlist: **"AFRO-FUSION"**',
+    time: '2h ago',
     isRead: true,
     image: 'https://picsum.photos/seed/play1/100/100',
     actionHref: '/music'
+  },
+  {
+    id: 'sig-6',
+    type: 'SYSTEM',
+    title: 'Node Synced',
+    content: 'Your high-velocity workspace has been successfully backed up to the main cluster.',
+    time: '5h ago',
+    isRead: true,
   }
 ];
 
