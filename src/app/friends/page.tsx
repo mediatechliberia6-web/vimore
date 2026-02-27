@@ -80,7 +80,7 @@ function FriendsPageContent() {
     }
   }, [searchParams]);
 
-  // Pointer-event cleanup to prevent UI locks
+  // Interaction Recovery Handshake Fail-safe
   useEffect(() => {
     if (!confirmUser) {
       document.body.style.pointerEvents = 'auto';
@@ -162,13 +162,15 @@ function FriendsPageContent() {
   const confirmRemoval = () => {
     if (confirmUser) {
       triggerHaptic(30);
-      toggleFollowUser(confirmUser.username);
+      const user = { ...confirmUser };
+      setConfirmUser(null);
+      // Restore interaction explicitly
+      document.body.style.pointerEvents = 'auto';
+      toggleFollowUser(user.username);
       toast({ 
         title: "Network Adjusted", 
-        description: `You no longer follow ${confirmUser.name}` 
+        description: `You no longer follow ${user.name}` 
       });
-      setConfirmUser(null);
-      setTimeout(() => { document.body.style.pointerEvents = 'auto'; }, 100);
     }
   };
 

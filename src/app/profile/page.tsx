@@ -96,11 +96,12 @@ export default function MyProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
+  // Interaction Recovery Fail-safe
   useEffect(() => {
-    if (!confirmUser && !isEditModalOpen && !isRefinementOpen) {
+    if (!confirmUser && !isEditModalOpen && !isRefinementOpen && !visualToDelete) {
       document.body.style.pointerEvents = 'auto';
     }
-  }, [confirmUser, isEditModalOpen, isRefinementOpen]);
+  }, [confirmUser, isEditModalOpen, isRefinementOpen, visualToDelete]);
 
   const [skills, setSkills] = useState([
     { name: "UI/UX Design", count: 42, endorsed: false },
@@ -196,14 +197,18 @@ export default function MyProfilePage() {
   const handleRemoveVisual = () => {
     if (!visualToDelete) return;
     triggerHaptic(50);
-    if (visualToDelete === 'avatar') {
+    const mode = visualToDelete;
+    setVisualToDelete(null);
+    // Restore interaction before state change
+    document.body.style.pointerEvents = 'auto';
+    
+    if (mode === 'avatar') {
       updateCurrentUser({ avatar: "https://picsum.photos/seed/default/400/400" });
       toast({ title: "Avatar Purged", description: "Profile visual reset to default." });
     } else {
       updateCurrentUser({ cover: "" });
       toast({ title: "Cover Purged", description: "Workspace background removed." });
     }
-    setVisualToDelete(null);
   };
 
   const handleIntroUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -293,13 +298,15 @@ export default function MyProfilePage() {
   const confirmUnfollow = () => {
     if (confirmUser) {
       triggerHaptic(30);
-      toggleFollowUser(confirmUser.username);
+      const user = { ...confirmUser };
+      setConfirmUser(null);
+      // Explicit interaction restoration
+      document.body.style.pointerEvents = 'auto';
+      toggleFollowUser(user.username);
       toast({ 
         title: "Network Adjusted", 
-        description: `You no longer follow ${confirmUser.name}` 
+        description: `You no longer follow ${user.name}` 
       });
-      setConfirmUser(null);
-      setTimeout(() => { document.body.style.pointerEvents = 'auto'; }, 100);
     }
   };
 

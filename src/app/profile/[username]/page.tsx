@@ -109,6 +109,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     }
   }, [isMe, router]);
 
+  // Interaction Recovery Handshake Fail-safe
   useEffect(() => {
     if (!confirmUser) {
       document.body.style.pointerEvents = 'auto';
@@ -216,13 +217,15 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const confirmUnfollow = () => {
     if (confirmUser) {
       triggerHaptic(30);
-      toggleFollowUser(confirmUser.username);
+      const user = { ...confirmUser };
+      setConfirmUser(null);
+      // Restore interaction explicitly
+      document.body.style.pointerEvents = 'auto';
+      toggleFollowUser(user.username);
       toast({ 
         title: "Network Adjusted", 
-        description: `You no longer follow ${confirmUser.name}` 
+        description: `You no longer follow ${user.name}` 
       });
-      setConfirmUser(null);
-      setTimeout(() => { document.body.style.pointerEvents = 'auto'; }, 100);
     }
   };
 
@@ -271,7 +274,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
               </Link>
               <div className="flex items-center gap-1">
                 <span className="font-bold text-lg truncate">{displayUser.name}</span>
-                {displayUser.isVerified && <Check className="h-4 w-4 text-primary fill-primary text-white" />}
+                {displayUser.isVerified && <CheckCircle2 className="h-4 w-4 text-primary fill-primary text-white" />}
               </div>
             </div>
             <Button variant="ghost" size="icon" className="rounded-full"><MoreHorizontal className="h-5 w-5" /></Button>

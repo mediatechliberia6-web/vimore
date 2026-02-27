@@ -116,6 +116,13 @@ export function ChatBubble({
     };
   }, []);
 
+  // Interaction Recovery Fail-safe
+  useEffect(() => {
+    if (!isDeleteDialogOpen) {
+      document.body.style.pointerEvents = 'auto';
+    }
+  }, [isDeleteDialogOpen]);
+
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     triggerHaptic(20);
@@ -156,8 +163,10 @@ export function ChatBubble({
 
   const handleDelete = () => {
     triggerHaptic(50);
-    onDelete?.(id);
     setIsDeleteDialogOpen(false);
+    // Explicit Interaction Recovery before state update unmounts the component
+    document.body.style.pointerEvents = 'auto';
+    onDelete?.(id);
   };
 
   const toggleVideo = (e: React.MouseEvent) => {

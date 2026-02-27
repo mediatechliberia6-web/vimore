@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { MainNav } from "@/components/layout/main-nav";
 import { Header } from "@/components/layout/header";
 import { MusicGrid } from "@/components/music/music-grid";
@@ -101,6 +101,13 @@ export default function MusicPage() {
   
   const isPlayerActive = currentTrack && !isExpanded;
 
+  // Interaction Recovery Handshake Fail-safe
+  useEffect(() => {
+    if (!deleteItem) {
+      document.body.style.pointerEvents = 'auto';
+    }
+  }, [deleteItem]);
+
   const filteredSongs = useMemo(() => {
     if (!searchQuery) return MOCK_SONGS;
     return MOCK_SONGS.filter(s => 
@@ -148,14 +155,18 @@ export default function MusicPage() {
   const confirmDelete = () => {
     if (!deleteItem) return;
     triggerHaptic(50);
-    if (deleteItem.type === 'track') {
-      deleteUserTrack(deleteItem.id);
+    const itemToDelete = { ...deleteItem };
+    setDeleteItem(null);
+    // Restore interaction before data removal
+    document.body.style.pointerEvents = 'auto';
+    
+    if (itemToDelete.type === 'track') {
+      deleteUserTrack(itemToDelete.id);
       toast({ title: "Track Withdrawn", description: "Your single has been removed from the network." });
     } else {
-      deleteUserAlbum(deleteItem.id);
+      deleteUserAlbum(itemToDelete.id);
       toast({ title: "Album Purged", description: "The project has been removed from your discography." });
     }
-    setDeleteItem(null);
   };
 
   return (

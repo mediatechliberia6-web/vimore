@@ -148,6 +148,13 @@ export function PostCard(props: PostCardProps) {
     }
   }, []);
 
+  // Interaction Recovery Handshake Fail-safe
+  useEffect(() => {
+    if (!isDeleteDialogOpen) {
+      document.body.style.pointerEvents = 'auto';
+    }
+  }, [isDeleteDialogOpen]);
+
   const showTranslateButton = useMemo(() => {
     if (!language || !viewerLanguage) return false;
     if (language === viewerLanguage) return false;
@@ -184,9 +191,11 @@ export function PostCard(props: PostCardProps) {
 
   const handleDelete = () => {
     triggerHaptic(50);
+    setIsDeleteDialogOpen(false);
+    // Explicit Interaction Recovery before state update unmounts the component
+    document.body.style.pointerEvents = 'auto';
     deletePost(id);
     toast({ title: "Content Purged", description: "Your vibe has been removed from the network." });
-    setIsDeleteDialogOpen(false);
   };
 
   const handleVote = (originalIndex: number) => {
@@ -355,10 +364,16 @@ export function PostCard(props: PostCardProps) {
           </div>
 
           <div className="flex items-center justify-between gap-1 w-full pt-1">
-            <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isLiked ? "text-primary bg-primary/5" : "text-muted-foreground")} onClick={handleLike}>
+            <button 
+              className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isLiked ? "text-primary bg-primary/5" : "text-muted-foreground")} 
+              onClick={handleLike}
+            >
               <ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} /> Like
             </button>
-            <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isUnliked ? "text-destructive bg-destructive/5" : "text-muted-foreground")} onClick={handleUnlike}>
+            <button 
+              className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isUnliked ? "text-destructive bg-destructive/5" : "text-muted-foreground")} 
+              onClick={handleUnlike}
+            >
               <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} /> Dislike
             </button>
             <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary" onClick={() => setShowComments(!showComments)} disabled={commentsDisabled}><MessageCircle className="h-4 w-4" /> Comment</button>
