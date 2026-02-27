@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from "react";
@@ -5,6 +6,7 @@ import { Header } from "@/components/layout/header";
 import { SubHeader } from "@/components/layout/sub-header";
 import { MainNav } from "@/components/layout/main-nav";
 import { RightSidebar } from "@/components/layout/right-sidebar";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 import { useNotifications, SignalType, NotificationNode } from "@/context/NotificationContext";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
@@ -154,6 +156,9 @@ export default function NotificationsPage() {
               </div>
             </div>
 
+            {/* RAW Global Ad Banner Integration */}
+            <NativeAdNode type="standard" />
+
             {/* High-Velocity Filter Pill */}
             <div className="sticky top-[132px] z-40 px-1">
               <div className="flex p-1.5 bg-white/80 dark:bg-card/80 backdrop-blur-3xl border border-white dark:border-white/5 rounded-[2rem] overflow-x-auto scrollbar-hide shadow-2xl shadow-black/5">
@@ -256,12 +261,27 @@ export default function NotificationsPage() {
 
                       <div className="flex items-center gap-3">
                         {node.actionLabel && (
-                          <Button size="sm" className="rounded-2xl h-10 px-6 font-black italic uppercase text-[10px] tracking-[0.2em] bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 transition-all active:scale-95">
+                          <Button 
+                            size="sm" 
+                            className="rounded-2xl h-10 px-6 font-black italic uppercase text-[10px] tracking-[0.2em] bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 transition-all active:scale-95"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAction(node);
+                            }}
+                          >
                             {node.actionLabel}
                           </Button>
                         )}
                         {node.postId && (
-                          <Button size="sm" variant="ghost" className="rounded-2xl h-10 px-6 font-black italic uppercase text-[10px] tracking-[0.2em] bg-primary/5 hover:bg-primary/10 text-primary transition-all active:scale-95">
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="rounded-2xl h-10 px-6 font-black italic uppercase text-[10px] tracking-[0.2em] bg-primary/5 hover:bg-primary/10 text-primary transition-all active:scale-95"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAction(node);
+                            }}
+                          >
                             View Vibe
                           </Button>
                         )}

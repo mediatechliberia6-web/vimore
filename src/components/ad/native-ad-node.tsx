@@ -64,7 +64,6 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
       containerRef.current.appendChild(scriptInvoke);
     } else {
       // Native script for Home/Reels (da434b4b)
-      // The script specifically looks for this ID in the global DOM
       containerRef.current.id = "container-da434b4b9d70fa28431080d1f00b7b40";
       
       const script = document.createElement("script");
@@ -79,7 +78,6 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
     return () => {
       if (containerRef.current) {
         containerRef.current.innerHTML = "";
-        // Clean up the ID to prevent conflicts with other nodes
         containerRef.current.id = "";
       }
     };
@@ -92,6 +90,16 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
     });
   };
 
+  // 1. RAW Standard 728x90 (Entire application)
+  if (type === "standard") {
+    return (
+      <div className="w-full flex justify-center py-4 animate-in fade-in duration-700">
+        <div ref={containerRef} className="w-full flex justify-center max-w-full overflow-hidden" />
+      </div>
+    );
+  }
+
+  // 2. Immersive Reel Ad
   if (type === "reel") {
     return (
       <div className="relative h-[100dvh] w-full flex items-center justify-center bg-black overflow-hidden group select-none">
@@ -148,6 +156,7 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
     );
   }
 
+  // 3. Native Banner (Retains Surrounding Card)
   return (
     <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-card mb-4 ring-1 ring-black/5 dark:ring-white/5 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">

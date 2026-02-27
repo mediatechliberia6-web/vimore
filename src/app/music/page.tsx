@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, Suspense } from "react";
@@ -248,15 +249,15 @@ function MusicPageContent() {
                 ) : (
                   <>
                     {!searchQuery && <MusicGrid type="hero" items={[MOCK_SONGS[0]]} />}
-                    {!searchQuery && <NativeAdNode type="standard" />}
+                    {!searchQuery && <NativeAdNode type="standard" /> }
                     {filteredSongs.length > 0 && <MusicGrid type="song" title={searchQuery ? "Matching Songs" : "Trending Songs"} items={filteredSongs} />}
-                    {!searchQuery && <NativeAdNode type="standard" />}
+                    {!searchQuery && <NativeAdNode type="standard" /> }
                     {filteredAlbums.length > 0 && <MusicGrid type="album" title={searchQuery ? "Matching Albums" : "Trending Albums"} items={filteredAlbums} />}
-                    {!searchQuery && <NativeAdNode type="standard" />}
+                    {!searchQuery && <NativeAdNode type="standard" /> }
                     {!searchQuery && <MusicGrid type="song" title="New Releases" items={[...MOCK_SONGS].reverse()} />}
-                    {!searchQuery && <NativeAdNode type="standard" />}
+                    {!searchQuery && <NativeAdNode type="standard" /> }
                     {filteredPlaylists.length > 0 && <MusicGrid type="playlist" title={searchQuery ? "Matching Playlists" : "Top Playlists"} items={filteredPlaylists} />}
-                    {!searchQuery && <NativeAdNode type="standard" />}
+                    {!searchQuery && <NativeAdNode type="standard" /> }
                     {filteredArtists.length > 0 && <MusicGrid type="artist" title={searchQuery ? "Matching Artists" : "Trending Artists"} items={filteredArtists} />}
                   </>
                 )}
