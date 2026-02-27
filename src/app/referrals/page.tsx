@@ -16,13 +16,15 @@ import {
   Sparkles,
   Link as LinkIcon,
   CheckCircle2,
-  Rocket
+  Rocket,
+  Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
+import { useNotifications } from "@/context/NotificationContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -35,8 +37,9 @@ const MOCK_HISTORY = [
 ];
 
 export default function ReferralHub() {
-  const { currentUser, referralLink, triggerHaptic } = usePosts();
+  const { currentUser, referralLink, triggerHaptic, triggerReferralPulse } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
+  const { addSignal } = useNotifications();
   const { toast } = useToast();
   
   const [isCopied, setIsCopied] = useState(false);
@@ -64,6 +67,23 @@ export default function ReferralHub() {
     } else {
       handleCopyLink();
     }
+  };
+
+  const simulateHandshake = () => {
+    // Phase 4: Incentive Engine Test
+    triggerReferralPulse();
+    
+    addSignal({
+      type: 'SOCIAL',
+      title: 'New Node Materialized',
+      content: 'A friend joined via your node! **+5,000 Stars ⭐** and a new follower synced.',
+      avatar: `https://picsum.photos/seed/${Date.now()}/100/100`
+    });
+
+    toast({
+      title: "Handshake Successful",
+      description: "5,000 ⭐ Reward materializing in your vault.",
+    });
   };
 
   return (
@@ -200,7 +220,14 @@ export default function ReferralHub() {
             <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2">
               <History className="h-4 w-4 text-primary" /> Handshake History
             </h3>
-            <Button variant="link" className="text-[10px] font-black uppercase h-auto p-0">View All</Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 rounded-full font-black uppercase text-[9px] gap-1.5 border-primary/20 text-primary"
+              onClick={simulateHandshake}
+            >
+              <Plus className="h-3 w-3" /> Simulate Handshake
+            </Button>
           </div>
           
           <div className="space-y-3">

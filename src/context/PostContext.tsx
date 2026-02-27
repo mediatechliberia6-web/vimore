@@ -155,6 +155,7 @@ interface PostContextType {
   toggleFollowUser: (username: string) => void;
   initiateTransaction: (data: Omit<PendingTransaction, 'timestamp'>) => void;
   cancelTransaction: () => void;
+  triggerReferralPulse: () => void;
   isPostLiked: (postId: string) => boolean;
   isPostUnliked: (postId: string) => boolean;
   isPostSaved: (postId: string) => boolean;
@@ -575,6 +576,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setPendingTransaction(null);
   };
 
+  const triggerReferralPulse = useCallback(() => {
+    triggerHaptic(50);
+    setCurrentUser(prev => {
+      const updated = {
+        ...prev,
+        starBalance: (prev.starBalance || 0) + 5000,
+        referralCount: (prev.referralCount || 0) + 1
+      };
+      safePersist('vimore_user', updated);
+      return updated;
+    });
+  }, [triggerHaptic]);
+
   const isPostLiked = (postId: string) => likedPostIds.has(postId);
   const isPostUnliked = (postId: string) => unlikedPostIds.has(postId);
   const isPostSaved = (postId: string) => savedPostIds.has(postId);
@@ -647,6 +661,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       toggleFollowUser,
       initiateTransaction,
       cancelTransaction,
+      triggerReferralPulse,
       isPostLiked,
       isPostUnliked,
       isPostSaved,
