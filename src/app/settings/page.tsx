@@ -212,7 +212,6 @@ export default function SettingsPage() {
 
     const postCounts: Record<string, number> = {};
     posts.forEach(p => {
-      // Map mock IDs 1, 2, 3 to today for visualization, else use timestamp
       const isMock = p.id.length < 5;
       const timestamp = isMock ? Date.now() : parseInt(p.id);
       const postDate = new Date(timestamp).toDateString();
@@ -225,9 +224,11 @@ export default function SettingsPage() {
     }));
   }, [posts]);
 
+  // AMBASSADOR LOGIC: Derive level and progress
   const referrals = currentUser.referralCount || 0;
-  const nextMilestone = referrals < 5 ? 5 : referrals < 10 ? 10 : 25;
-  const growthProgress = (referrals / nextMilestone) * 100;
+  const currentLevel = referrals < 5 ? 1 : referrals < 10 ? 2 : 3;
+  const nextMilestone = referrals < 5 ? 5 : referrals < 10 ? 10 : referrals;
+  const growthProgress = referrals >= 10 ? 100 : (referrals / nextMilestone) * 100;
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300">
@@ -411,12 +412,14 @@ export default function SettingsPage() {
                     <span className="text-xs font-black uppercase tracking-widest">Ambassador Status</span>
                   </div>
                   <Badge className="bg-primary text-white text-[8px] font-black uppercase tracking-widest border-none">
-                    Level {referrals < 5 ? '1' : referrals < 10 ? '2' : '3'}
+                    Level {currentLevel} {currentLevel === 3 && "MAX"}
                   </Badge>
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter">
-                    <span className="text-muted-foreground">Progress to Level {referrals < 5 ? '2' : referrals < 10 ? '3' : 'MAX'}</span>
+                    <span className="text-muted-foreground">
+                      {currentLevel === 3 ? "Maximum Tier Reached" : `Progress to Level ${currentLevel + 1}`}
+                    </span>
                     <span className="text-primary">{referrals} / {nextMilestone} Nodes</span>
                   </div>
                   <Progress value={growthProgress} className="h-2" />

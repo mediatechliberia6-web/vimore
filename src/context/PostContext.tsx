@@ -172,7 +172,7 @@ interface PostContextType {
   toggleFollowUser: (username: string) => void;
   initiateTransaction: (data: Omit<PendingTransaction, 'timestamp'>) => void;
   cancelTransaction: () => void;
-  triggerReferralPulse: () => void;
+  triggerReferralPulse: (referralCode?: string) => void;
   isPostLiked: (postId: string) => boolean;
   isPostUnliked: (postId: string) => boolean;
   isPostSaved: (postId: string) => boolean;
@@ -411,9 +411,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [currentUser.username]);
 
   const triggerHaptic = useCallback((intensity?: number) => {
-    // Dynamic Handshake: Use provided intensity OR scale based on settings
     const finalIntensity = intensity ?? (settings.hapticIntensity / 2);
-    
     if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
       window.navigator.vibrate(finalIntensity);
     }
@@ -466,6 +464,50 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, [pendingTransaction]);
 
+  const toggleFollowUser = (username: string) => {
+    setFollowingUsernames(prev => {
+      const next = new Set(prev);
+      if (next.has(username)) next.delete(username);
+      else next.add(username);
+      return next;
+    });
+  };
+
+  const triggerReferralPulse = useCallback((referralCode?: string) => {
+    triggerHaptic(50);
+    setCurrentUser(prev => {
+      const updated = {
+        ...prev,
+        starBalance: (prev.starBalance || 0) + 5000,
+        referralCount: (prev.referralCount || 0) + 1
+      };
+      safePersist('vimore_user', updated);
+      return updated;
+    });
+
+    // AUTO-FOLLOW PROTOCOL: If referral handshake is active, follow the referring node
+    if (settings.isAutoFollowEnabled && referralCode) {
+      toggleFollowUser(referralCode);
+    }
+  }, [triggerHaptic, settings.isAutoFollowEnabled]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const referralCode = params.get('ref');
+      
+      if (referralCode) {
+        const sessionKey = `vimore_processed_ref_${referralCode}`;
+        if (!sessionStorage.getItem(sessionKey)) {
+          triggerReferralPulse(referralCode);
+          sessionStorage.setItem(sessionKey, 'true');
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+        }
+      }
+    }
+  }, [triggerReferralPulse]);
+
   const updateCurrentUser = (data: Partial<User>) => {
     setCurrentUser(prev => {
       const updated = { ...prev, ...data };
@@ -482,43 +524,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  // Ghost Mode derived presence
   const finalCurrentUser = useMemo(() => {
     return {
       ...currentUser,
       isOnline: settings.isGhostMode ? false : currentUser.isOnline
     };
   }, [currentUser, settings.isGhostMode]);
-
-  const triggerReferralPulse = useCallback(() => {
-    triggerHaptic(50);
-    setCurrentUser(prev => {
-      const updated = {
-        ...prev,
-        starBalance: (prev.starBalance || 0) + 5000,
-        referralCount: (prev.referralCount || 0) + 1
-      };
-      safePersist('vimore_user', updated);
-      return updated;
-    });
-  }, [triggerHaptic]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const referralCode = params.get('ref');
-      
-      if (referralCode) {
-        const sessionKey = `vimore_processed_ref_${referralCode}`;
-        if (!sessionStorage.getItem(sessionKey)) {
-          triggerReferralPulse();
-          sessionStorage.setItem(sessionKey, 'true');
-          const newUrl = window.location.pathname;
-          window.history.replaceState({}, '', newUrl);
-        }
-      }
-    }
-  }, [triggerReferralPulse]);
 
   const addPost = (newPostData: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments' | 'shares'>) => {
     const detectedLanguage = newPostData.language || (typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en');
@@ -603,15 +614,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const next = new Set(prev);
       if (next.has(postId)) next.delete(postId);
       else next.add(postId);
-      return next;
-    });
-  };
-
-  const toggleFollowUser = (username: string) => {
-    setFollowingUsernames(prev => {
-      const next = new Set(prev);
-      if (next.has(username)) next.delete(username);
-      else next.add(username);
       return next;
     });
   };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { 
   ArrowLeft, 
   ImageIcon, 
@@ -29,10 +29,12 @@ import {
   Filter,
   Wand2,
   Trash2,
-  Video
+  Video,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -76,13 +78,6 @@ const privacySettings: PrivacySetting[] = [
   { id: "private", label: "Only Me", icon: Lock, description: "Only you can see this post" },
 ];
 
-const mockFriends = [
-  { name: "Alex Rivera", username: "arivera", avatar: "https://picsum.photos/seed/1/100/100" },
-  { name: "Sarah Chen", username: "schen_dev", avatar: "https://picsum.photos/seed/2/100/100" },
-  { name: "Marcus Stone", username: "mstone", avatar: "https://picsum.photos/seed/3/100/100" },
-  { name: "Julianne Moore", username: "jmoore", avatar: "https://picsum.photos/seed/50/200/200" },
-];
-
 const feelings = [
   { emoji: "😊", text: "Happy" },
   { emoji: "😇", text: "Blessed" },
@@ -112,16 +107,9 @@ const imageFilters = [
   { id: "saturate", label: "Vivid", class: "saturate-150" },
 ];
 
-const USER_PROFILE = {
-  name: "John Doe",
-  username: "johndoe_creative",
-  avatar: "https://picsum.photos/seed/me/200/200",
-  homeLocation: "Lagos, Nigeria"
-};
-
 export function CreatePostModal({ children }: CreatePostModalProps) {
-  const { addPost } = usePosts();
-  const { openCaptureStudio, triggerHaptic } = useMusic();
+  const { addPost, currentUser, connections, settings, isFollowing, triggerHaptic } = usePosts();
+  const { openCaptureStudio } = useMusic();
   const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState("");
   const [privacy, setPrivacy] = useState<PrivacySetting>(privacySettings[0]);
@@ -135,9 +123,9 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   
   const [feeling, setFeeling] = useState<{ emoji: string; text: string } | null>(null);
   const [location, setLocation] = useState<string | null>(null);
-  const [locationSearch, setLocationSearch] = useState("");
-  const [isTagging, setIsTagging] = useState(false);
-  const [collaborator, setCollaborator] = useState<typeof mockFriends[0] | null>(null);
+  const [isTaggingSelectorOpen, setIsTaggingSelectorOpen] = useState(false);
+  const [tagSearch, setTagSearch] = useState("");
+  const [collaborator, setCollaborator] = useState<any | null>(null);
   const [selectedTheme, setSelectedTheme] = useState(backgroundThemes[0]);
   const [selectedFilter, setSelectedFilter] = useState(imageFilters[0]);
   const [commentsDisabled, setCommentsDisabled] = useState(false);
@@ -145,23 +133,34 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [showFeelingSelector, setShowFeelingSelector] = useState(false);
   const [showLocationSelector, setShowLocationSelector] = useState(false);
   const [showThemeSelector, setShowThemeSelector] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showFilterSelector, setShowFilterSelector] = useState(false);
-  const [recentLocations, setRecentLocations] = useState<string[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
   
-  const MAX_PHOTOS = 6;
-  const MAX_POLL_OPTIONS = 8;
   const TRUNCATE_LIMIT = 150; 
 
   const isLimitedType = selectedTheme.id !== "none" || selectedMedia.length > 0 || mediaType !== null || isPollOpen;
   const currentLimit = isLimitedType ? TRUNCATE_LIMIT : 2000;
-  const progress = (content.length / currentLimit) * 100;
   const isOverLimit = content.length > currentLimit;
+
+  // COLLABORATION WHITELIST: Filter based on tagging privacy settings
+  const filteredTagResults = useMemo(() => {
+    let base = connections;
+    
+    if (settings.taggingPrivacy === 'friends') {
+      // Filter for mutual connections only
+      base = connections.filter(c => c.followsYou && isFollowing(c.username));
+    }
+
+    if (!tagSearch.trim()) return base;
+    
+    return base.filter(c => 
+      c.name.toLowerCase().includes(tagSearch.toLowerCase()) || 
+      c.username.toLowerCase().includes(tagSearch.toLowerCase())
+    );
+  }, [connections, tagSearch, settings.taggingPrivacy, isFollowing]);
 
   useEffect(() => {
     const savedContent = localStorage.getItem('vimore_post_draft');
@@ -173,33 +172,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       localStorage.setItem('vimore_post_draft', content);
     }
   }, [content]);
-
-  useEffect(() => {
-    const words = content.split(/\s+/);
-    const lastWord = words[words.length - 1] || "";
-    if (lastWord.startsWith("@")) {
-      setIsTagging(true);
-    } else {
-      setIsTagging(false);
-    }
-  }, [content]);
-
-  const applyFormatting = (prefix: string, suffix: string) => {
-    if (!textareaRef.current) return;
-    const start = textareaRef.current.selectionStart;
-    const end = textareaRef.current.selectionEnd;
-    const text = content;
-    const selected = text.substring(start, end);
-    const before = text.substring(0, start);
-    const after = text.substring(end);
-    
-    setContent(`${before}${prefix}${selected}${suffix}${after}`);
-    
-    setTimeout(() => {
-      textareaRef.current?.focus();
-      textareaRef.current?.setSelectionRange(start + prefix.length, end + prefix.length);
-    }, 0);
-  };
 
   const handleAiEnhance = async () => {
     if (!content.trim()) return;
@@ -220,12 +192,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     const creationLanguage = typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en';
 
     addPost({
-      user: {
-        name: USER_PROFILE.name,
-        username: USER_PROFILE.username,
-        avatar: USER_PROFILE.avatar,
-        isOnline: true
-      },
+      user: currentUser,
       collaborator: collaborator || undefined,
       content,
       language: creationLanguage,
@@ -265,25 +232,13 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setSelectedFilter(imageFilters[0]);
   };
 
-  const handlePhotoUploadClick = () => {
-    if (isPollOpen || selectedTheme.id !== "none") return;
-    fileInputRef.current?.click();
-  };
-
-  const handleVideoUploadClick = () => {
-    if (isPollOpen || selectedTheme.id !== "none") return;
-    triggerHaptic(15);
-    setIsOpen(false);
-    openCaptureStudio();
-  };
-
   const actionItems = [
-    { icon: ImageIcon, label: "Photo", color: "text-green-500", onClick: handlePhotoUploadClick, disabled: isPollOpen || selectedTheme.id !== "none" },
-    { icon: Video, label: "Upload Reel", color: "text-red-500", onClick: handleVideoUploadClick, disabled: isPollOpen || selectedTheme.id !== "none" },
+    { icon: ImageIcon, label: "Photo", color: "text-green-500", onClick: () => fileInputRef.current?.click(), disabled: isPollOpen || selectedTheme.id !== "none" },
+    { icon: Video, label: "Upload Reel", color: "text-red-500", onClick: () => { triggerHaptic(15); setIsOpen(false); openCaptureStudio(); }, disabled: isPollOpen || selectedTheme.id !== "none" },
     { icon: ListTodo, label: "Create Poll", color: "text-purple-500", onClick: () => setIsPollOpen(!isPollOpen), disabled: selectedMedia.length > 0 || selectedTheme.id !== "none" },
     { icon: Palette, label: "Theme", color: "text-pink-500", onClick: () => setShowThemeSelector(!showThemeSelector), disabled: selectedMedia.length > 0 || isPollOpen },
     { icon: Smile, label: "Feeling", color: "text-yellow-500", onClick: () => setShowFeelingSelector(!showFeelingSelector) },
-    { icon: UserPlus, label: "Tag", color: "text-blue-500", onClick: () => setContent(prev => prev + " @") },
+    { icon: UserPlus, label: "Tag Node", color: "text-blue-500", onClick: () => setIsTaggingSelectorOpen(true) },
     { icon: MapPin, label: "Location", color: "text-red-500", onClick: () => setShowLocationSelector(!showLocationSelector) }
   ];
 
@@ -305,31 +260,30 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
         <div className="flex-1 overflow-y-auto pb-safe">
           <div className="p-4 flex items-center gap-3">
-            <Avatar className="h-12 w-12 border border-primary/10"><AvatarImage src={USER_PROFILE.avatar} /><AvatarFallback>JD</AvatarFallback></Avatar>
+            <Avatar className="h-12 w-12 border border-primary/10"><AvatarImage src={currentUser.avatar} /><AvatarFallback>JD</AvatarFallback></Avatar>
             <div className="flex flex-col gap-0.5">
               <div className="flex flex-wrap items-center gap-1">
-                <p className="font-bold text-base">{USER_PROFILE.name}</p>
+                <p className="font-bold text-base">{currentUser.name}</p>
                 {feeling && <span className="text-[13px] text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
                 {location && <span className="text-[13px] text-muted-foreground">— in <span className="font-bold text-foreground">{location}</span></span>}
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="secondary" size="sm" className="h-7 px-2 bg-secondary/60 rounded-md flex items-center gap-1.5"><privacy.icon className="h-3.5 w-3.5" /><span className="text-[13px] font-bold">{privacy.label}</span><ChevronDown className="h-3.5 w-3.5" /></Button>
-                <Button variant="secondary" size="sm" className={cn("h-7 px-2 rounded-md flex items-center gap-1.5", collaborator ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/60")}><Users2 className="h-3.5 w-3.5" /><span className="text-[13px] font-bold">{collaborator ? `With ${collaborator.name}` : "Collaborator"}</span></Button>
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  className={cn("h-7 px-2 rounded-md flex items-center gap-1.5", collaborator ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/60")}
+                  onClick={() => setIsTaggingSelectorOpen(true)}
+                >
+                  <Users2 className="h-3.5 w-3.5" />
+                  <span className="text-[13px] font-bold">{collaborator ? `With ${collaborator.name}` : "Collaborator"}</span>
+                </Button>
               </div>
             </div>
           </div>
 
           <div className={cn("px-4 relative min-h-[220px] transition-all duration-300 flex items-center justify-center p-8", selectedTheme.class)}>
             <Textarea ref={textareaRef} placeholder={isLimitedType ? "Short vibe... (150 chars max)" : "What's on your mind? (2000 chars max)"} className={cn("border-none focus-visible:ring-0 text-2xl resize-none p-0 min-h-[160px] bg-transparent text-center", selectedTheme.id !== "none" ? "text-white placeholder:text-white/60" : "text-foreground")} value={content} onChange={(e) => setContent(e.target.value)} autoFocus />
-            <div className="absolute bottom-4 right-4 flex items-center gap-2">
-              <div className="relative w-6 h-6">
-                <svg className="w-full h-full" viewBox="0 0 36 36">
-                  <path className="text-muted/30" strokeDasharray="100, 100" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                  <path className={cn(isOverLimit ? "text-destructive" : progress > 90 ? "text-yellow-500" : "text-primary")} strokeDasharray={`${Math.min(progress, 100)}, 100`} strokeWidth="3" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                </svg>
-              </div>
-              <span className={cn("text-[10px] font-bold", isOverLimit && "text-destructive")}>{currentLimit - content.length}</span>
-            </div>
           </div>
 
           {isPollOpen && (
@@ -351,6 +305,55 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             ))}
           </div>
         </div>
+
+        <Dialog open={isTaggingSelectorOpen} onOpenChange={setIsTaggingSelectorOpen}>
+          <DialogContent className="rounded-t-[3rem] p-0 border-primary/10 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-2xl h-[80vh] flex flex-col top-auto bottom-0 translate-y-0 translate-x-[-50%]">
+            <div className="mx-auto w-12 h-1.5 bg-primary/20 rounded-full mt-4 mb-2 shrink-0" />
+            <DialogHeader className="px-6 py-4">
+              <div className="flex items-center justify-between">
+                <DialogTitle className="text-xl font-black italic uppercase tracking-widest">Tag Collaborator</DialogTitle>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[8px] font-black border-primary/20 text-primary">{settings.taggingPrivacy.toUpperCase()} FILTER</Badge>
+                </div>
+              </div>
+            </DialogHeader>
+            <div className="px-6 pb-4">
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Query connections..." className="pl-11 h-12 bg-secondary/30 border-none rounded-2xl" value={tagSearch} onChange={(e) => setTagSearch(e.target.value)} />
+              </div>
+            </div>
+            <ScrollArea className="flex-1 px-6">
+              <div className="space-y-3 pb-10">
+                {filteredTagResults.length > 0 ? filteredTagResults.map((person) => (
+                  <button 
+                    key={person.username}
+                    className={cn(
+                      "w-full flex items-center justify-between p-4 rounded-2xl transition-all border",
+                      collaborator?.username === person.username ? "bg-primary/10 border-primary/20" : "bg-secondary/20 border-transparent hover:bg-secondary/40"
+                    )}
+                    onClick={() => { triggerHaptic(10); setCollaborator(person); setIsTaggingSelectorOpen(false); }}
+                  >
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-12 w-12"><AvatarImage src={person.avatar} /></Avatar>
+                      <div className="text-left">
+                        <p className="font-bold text-sm">{person.name}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-black">@{person.username}</p>
+                      </div>
+                    </div>
+                    {collaborator?.username === person.username && <Check className="h-5 w-5 text-primary" />}
+                  </button>
+                )) : (
+                  <div className="py-20 text-center space-y-4 opacity-40">
+                    <Users2 className="h-12 w-12 mx-auto" />
+                    <p className="text-sm font-bold uppercase tracking-widest">No valid nodes found</p>
+                    {settings.taggingPrivacy === 'friends' && <p className="text-[10px] max-w-[200px] mx-auto">Collaboration Whitelist is active. You can only tag mutual connections.</p>}
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
 
         <div className="p-4 bg-white dark:bg-card border-t shrink-0">
           <Button className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit} onClick={handlePost}>POST</Button>
