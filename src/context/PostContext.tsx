@@ -19,7 +19,19 @@ export interface User {
   relationshipStatus?: string;
   introUrl?: string; 
   language?: string;
+  goldBalance?: number;
+  diamondBalance?: number;
   links?: Array<{ label: string; url: string; icon: any }>;
+}
+
+export interface PendingTransaction {
+  packageId: string;
+  packageName: string;
+  amount: string;
+  currency: 'USD' | 'LD';
+  code: string;
+  type: 'Gold' | 'Diamond';
+  timestamp: number;
 }
 
 export interface Connection {
@@ -122,6 +134,7 @@ interface PostContextType {
   connections: Connection[];
   selectedPostId: string | null;
   isSearchOpen: boolean;
+  pendingTransaction: PendingTransaction | null;
   setSearchOpen: (open: boolean) => void;
   setSelectedPostId: (id: string | null) => void;
   setActiveStoryIndex: (index: number | null) => void;
@@ -137,6 +150,8 @@ interface PostContextType {
   toggleUnlikePost: (postId: string) => void;
   toggleSavePost: (postId: string) => void;
   toggleFollowUser: (username: string) => void;
+  initiateTransaction: (data: Omit<PendingTransaction, 'code' | 'timestamp'>) => string;
+  cancelTransaction: () => void;
   isPostLiked: (postId: string) => boolean;
   isPostUnliked: (postId: string) => boolean;
   isPostSaved: (postId: string) => boolean;
@@ -161,6 +176,8 @@ const INITIAL_USER: User = {
   following: "1.2k",
   posts: "142",
   language: "en",
+  goldBalance: 0,
+  diamondBalance: 0,
   introUrl: ""
 };
 
@@ -341,6 +358,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
   const [unlikedPostIds, setUnlikedPostIds] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
+  const [pendingTransaction, setPendingTransaction] = useState<PendingTransaction | null>(null);
   
   const [followingUsernames, setFollowingUsernames] = useState<Set<string>>(new Set(["jmoore", "arivera", "schen_dev", "paul"]));
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
@@ -387,6 +405,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const savedSaves = localStorage.getItem('vimore_saved_posts');
     const savedFollowing = localStorage.getItem('vimore_following');
     const savedLocalPosts = localStorage.getItem('vimore_local_posts');
+    const savedPending = localStorage.getItem('vimore_pending_transaction');
 
     if (savedUser) {
       try {
@@ -397,6 +416,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (savedUnlikes) setUnlikedPostIds(new Set(JSON.parse(savedUnlikes)));
     if (savedSaves) setSavedPostIds(new Set(JSON.parse(savedSaves)));
     if (savedFollowing) setFollowingUsernames(new Set(JSON.parse(savedFollowing)));
+    if (savedPending) setPendingTransaction(JSON.parse(savedPending));
+    
     if (savedLocalPosts) {
       try {
         setPosts([...JSON.parse(savedLocalPosts), ...initialMockPosts]);
@@ -419,6 +440,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     safePersist('vimore_following', Array.from(followingUsernames));
   }, [followingUsernames]);
+
+  useEffect(() => {
+    if (pendingTransaction) {
+      localStorage.setItem('vimore_pending_transaction', JSON.stringify(pendingTransaction));
+    } else {
+      localStorage.removeItem('vimore_pending_transaction');
+    }
+  }, [pendingTransaction]);
 
   const updateCurrentUser = (data: Partial<User>) => {
     setCurrentUser(prev => {
@@ -524,6 +553,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const initiateTransaction = (data: Omit<PendingTransaction, 'code' | 'timestamp'>) => {
+    triggerHaptic(20);
+    const randomHex = Math.random().toString(16).substring(2, 8);
+    const code = `VBC-${randomHex}`;
+    const tx: PendingTransaction = {
+      ...data,
+      code,
+      timestamp: Date.now()
+    };
+    setPendingTransaction(tx);
+    return code;
+  };
+
+  const cancelTransaction = () => {
+    setPendingTransaction(null);
+  };
+
   const isPostLiked = (postId: string) => likedPostIds.has(postId);
   const isPostUnliked = (postId: string) => unlikedPostIds.has(postId);
   const isPostSaved = (postId: string) => savedPostIds.has(postId);
@@ -576,6 +622,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       connections,
       selectedPostId,
       isSearchOpen,
+      pendingTransaction,
       setSearchOpen,
       setSelectedPostId,
       setActiveStoryIndex, 
@@ -592,6 +639,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       toggleUnlikePost,
       toggleSavePost,
       toggleFollowUser,
+      initiateTransaction,
+      cancelTransaction,
       isPostLiked,
       isPostUnliked,
       isPostSaved,

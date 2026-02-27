@@ -1,4 +1,3 @@
-
 "use client";
 
 import { 
@@ -14,7 +13,8 @@ import {
   Info,
   Sparkles,
   Music2,
-  Bell
+  Bell,
+  Coins
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,18 +26,21 @@ import {
 } from "@/components/ui/accordion";
 import { useMusic } from "@/context/MusicContext";
 import { useNotifications } from "@/context/NotificationContext";
+import { usePosts } from "@/context/PostContext";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export default function MenuPage() {
   const { currentTrack, isExpanded } = useMusic();
   const { unreadCount } = useNotifications();
+  const { currentUser } = usePosts();
   const isPlayerActive = currentTrack && !isExpanded;
 
   const menuGrid = [
     { label: "Home feed", icon: Home, color: "text-primary", bg: "bg-primary/10", href: "/" },
     { label: "Signals", icon: Bell, color: "text-red-500", bg: "bg-red-50", href: "/notifications", badge: unreadCount },
     { label: "Music Hub", icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music" },
+    { label: "Currency Hub", icon: Coins, color: "text-amber-500", bg: "bg-amber-50", href: "/currency" },
     { label: "Messages", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages" },
     { label: "Reels", icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-50", href: "/reels" },
   ];
@@ -72,7 +75,7 @@ export default function MenuPage() {
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Avatar className="h-16 w-16 border-4 border-white dark:border-card ring-2 ring-primary/20">
-                  <AvatarImage src="https://picsum.photos/seed/me/200/200" />
+                  <AvatarImage src={currentUser.avatar} />
                   <AvatarFallback>JD</AvatarFallback>
                 </Avatar>
                 <div className="absolute -bottom-1 -right-1 bg-primary text-white p-1 rounded-full border-2 border-white dark:border-card">
@@ -80,8 +83,11 @@ export default function MenuPage() {
                 </div>
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-xl tracking-tight text-foreground">John Doe</span>
-                <span className="text-sm text-muted-foreground font-medium">View your digital workspace</span>
+                <span className="font-bold text-xl tracking-tight text-foreground">{currentUser.name}</span>
+                <span className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+                  <Coins className="h-3 w-3 text-amber-500" />
+                  {currentUser.goldBalance || 0} GD • {currentUser.diamondBalance || 0} D
+                </span>
               </div>
             </div>
             <div className="bg-primary/5 p-3 rounded-full group-hover:bg-primary/10 transition-colors">
