@@ -189,9 +189,17 @@ export default function ReferralHub() {
               <ArrowLeft className="h-6 w-6" />
             </button>
           </Link>
-          <div className="flex flex-col">
-            <h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground leading-none">Star Network</h1>
-            <span className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1">Global Ambassador</span>
+          <div className="flex items-center gap-2 group">
+            <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-white transition-transform group-hover:scale-105">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-6 h-6">
+                <path d="M3 7L10 19L17 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M13 15L17 7L21 15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <div className="flex flex-col">
+              <h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground leading-none">Star Network</h1>
+              <span className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1">Global Ambassador</span>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -331,7 +339,7 @@ export default function ReferralHub() {
               <div className="flex-1 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black text-primary uppercase tracking-widest">Incoming Node Invite</span>
-                  <Badge variant="secondary" className="text-[8px] bg-secondary/50">vimore.io</Badge>
+                  <Badge variant="secondary" className="text-[8px] bg-secondary/50 font-bold">vimore.appwrite.network</Badge>
                 </div>
                 <h4 className="font-bold text-sm leading-tight">Join {currentUser.name} on the ViMore network!</h4>
                 <p className="text-[11px] text-muted-foreground line-clamp-2 italic">"{customMessage}"</p>

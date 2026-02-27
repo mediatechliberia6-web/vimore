@@ -298,7 +298,7 @@ const initialMockPosts: Post[] = [
       isVerified: true,
       followers: 1500
     },
-    content: "Just started using **ViMore** and I'm loving the clean aesthetic! Check out the multi-image carousel test. ✨ https://vimore.io",
+    content: "Just started using **ViMore** and I'm loving the clean aesthetic! Check out the multi-image carousel test. ✨ http://vimore.appwrite.network",
     time: "5m",
     likes: 24,
     unlikes: 2,
