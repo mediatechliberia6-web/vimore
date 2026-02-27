@@ -24,7 +24,7 @@ export function Header() {
               <path d="M13 15L17 7L21 15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <span className="hidden xs:block font-headline font-bold text-xl tracking-tight text-primary">ViMore</span>
+          <span className="font-headline font-bold text-xl tracking-tight text-primary">ViMore</span>
         </Link>
         <div className="hidden sm:block relative group max-w-[160px] sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
