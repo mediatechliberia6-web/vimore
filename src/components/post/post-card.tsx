@@ -403,21 +403,21 @@ export function PostCard(props: PostCardProps) {
             <div className="flex items-center gap-3">
               <span className={cn("flex items-center gap-1.5 transition-colors", isLiked && "text-primary")}>
                 <ThumbsUp className={cn("h-3 w-3", isLiked && "fill-current")} />
-                {(likes + (isLiked ? 1 : 0)).toLocaleString()}
+                {((likes ?? 0) + (isLiked ? 1 : 0)).toLocaleString()}
               </span>
               <span className={cn("flex items-center gap-1.5 transition-colors", isUnliked && "text-destructive")}>
                 <ThumbsDown className={cn("h-3 w-3", isUnliked && "fill-current")} />
-                {(unlikes + (isUnliked ? 1 : 0)).toLocaleString()}
+                {((unlikes ?? 0) + (isUnliked ? 1 : 0)).toLocaleString()}
               </span>
             </div>
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1.5">
                 <MessageCircle className="h-3 w-3" />
-                {comments.toLocaleString()}
+                {(comments ?? 0).toLocaleString()}
               </span>
               <span className="flex items-center gap-1.5">
                 <Share2 className="h-3 w-3" />
-                {(shares + (isShareHubOpen ? 0 : 0)).toLocaleString()}
+                {((shares ?? 0) + (isShareHubOpen ? 0 : 0)).toLocaleString()}
               </span>
             </div>
           </div>
