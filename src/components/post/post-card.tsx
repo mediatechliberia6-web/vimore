@@ -202,12 +202,14 @@ export function PostCard(props: PostCardProps) {
   const handleSave = () => { triggerHaptic(5); toggleSavePost(id); toast({ description: isBookmarked ? "Removed" : "Noted ✨" }); };
 
   const handleTranslate = async () => {
+    if (isTranslating) return;
     triggerHaptic();
     if (translatedText) { setTranslatedText(null); return; }
     setIsTranslating(true);
     try {
       const result = await aiTranslatePost({ postContent: content, targetLanguage: viewerLanguage || "English" });
       setTranslatedText(result.translation);
+      toast({ description: "Vibe translated ✨" });
     } catch (error) { toast({ description: "Translation failed", variant: "destructive" }); }
     finally { setIsTranslating(false); }
   };
@@ -317,7 +319,25 @@ export function PostCard(props: PostCardProps) {
         </CardHeader>
         <CardContent className={cn("px-3 pb-2 space-y-2", theme && !isShared ? theme + " py-12 px-8 text-center" : "bg-white dark:bg-card")}>
           <div className={cn("text-[13px] leading-relaxed whitespace-pre-wrap", theme && !isShared ? "text-2xl leading-tight font-black italic uppercase tracking-tighter" : "text-foreground")}>{renderContent(translatedText || displayedContent)}</div>
-          {isLongContent && <button onClick={() => setIsExpanded(!isExpanded)} className="text-[13px] font-bold text-primary">{isExpanded ? "Show less" : "See more"}</button>}
+          
+          <div className="flex flex-wrap items-center gap-3 mt-1">
+            {isLongContent && <button onClick={() => setIsExpanded(!isExpanded)} className="text-[13px] font-bold text-primary hover:underline">{isExpanded ? "Show less" : "See more"}</button>}
+            
+            {showTranslateButton && (
+              <button 
+                onClick={handleTranslate} 
+                disabled={isTranslating}
+                className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-primary/60 hover:text-primary transition-colors disabled:opacity-50"
+              >
+                {isTranslating ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Languages className="h-3.5 w-3.5" />
+                )}
+                {translatedText ? "See Original" : "Translate Vibe"}
+              </button>
+            )}
+          </div>
           
           {poll && !theme && (
             <div className="mt-3 p-4 rounded-xl border border-primary/10 bg-primary/5 space-y-3">
