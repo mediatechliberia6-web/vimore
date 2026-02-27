@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useMemo, useEffect } from "react";
@@ -519,7 +520,7 @@ export default function MyProfilePage() {
                 </div>
 
                 <div className="mt-4 flex gap-2">
-                  <Link href="/explore" className="flex-1">
+                  <Link href="/dashboard" className="flex-1">
                     <Button className="w-full rounded-lg gap-2 bg-primary hover:bg-primary/90 h-11 font-bold text-white shadow-lg shadow-primary/20 active:scale-95 transition-all">
                       <LayoutDashboard className="h-5 w-5" /> Dashboard
                     </Button>
