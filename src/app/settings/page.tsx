@@ -45,6 +45,7 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { 
   Select, 
   SelectContent, 
@@ -247,7 +248,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Category: Sensory Node (Phase 4) */}
+        {/* Category: Sensory Node */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Sensory & Atmosphere</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
