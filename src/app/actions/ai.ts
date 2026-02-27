@@ -6,6 +6,20 @@ import { aiTranslatePost as translateFlow } from '@/ai/flows/ai-translate-post-f
 import { aiGenerateDailyMixes as mixesFlow } from '@/ai/flows/ai-generate-mixes-flow';
 import { aiGenerateVerificationCode as codeFlow } from '@/ai/flows/ai-generate-verification-code-flow';
 import { aiVerifySignature as verifyFlow } from '@/ai/flows/ai-verify-signature-flow';
+import { aiSummarizeComments as commentsFlow } from '@/ai/flows/ai-summarize-comments-flow';
+
+/**
+ * Summarizes a thread of comments using Groq.
+ */
+export async function aiSummarizeComments({ comments }: { comments: string[] }) {
+  try {
+    const result = await commentsFlow({ comments });
+    return { summary: result.summary };
+  } catch (error) {
+    console.error("Comment Summarization Error:", error);
+    return { summary: "Discussion pulse is too complex for immediate analysis." };
+  }
+}
 
 /**
  * Audits a verification request using Groq AI.

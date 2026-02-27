@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
@@ -14,7 +13,9 @@ import {
   MessageCircle,
   Zap,
   Trash2,
-  Clock
+  Clock,
+  Sparkles,
+  Wand2
 } from "lucide-react";
 import {
   Sheet,
@@ -29,6 +30,8 @@ import { usePosts, PostComment } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { aiSummarizeComments } from "@/app/actions/ai";
+import { useToast } from "@/hooks/use-toast";
 
 interface CommentNodeProps {
   comment: PostComment;
@@ -37,7 +40,7 @@ interface CommentNodeProps {
   level?: number;
 }
 
-function CommentNode({ comment, postId, onReply, level = 0 }: CommentNodeProps) {
+export function CommentNode({ comment, postId, onReply, level = 0 }: CommentNodeProps) {
   const { triggerHaptic } = useMusic();
   const [isLiked, setIsLiked] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
@@ -49,7 +52,7 @@ function CommentNode({ comment, postId, onReply, level = 0 }: CommentNodeProps) 
   };
 
   return (
-    <div className={cn("space-y-4", level > 0 && "ml-10 mt-4 border-l border-primary/10 pl-4")}>
+    <div className={cn("space-y-4", level > 0 && "ml-10 mt-4 border-l-2 border-primary/5 pl-4")}>
       <div className="group relative flex gap-3 animate-in fade-in slide-in-from-left-2 duration-300">
         <Avatar className={cn(level > 0 ? "h-7 w-7" : "h-9 w-9", "border border-primary/10")}>
           <AvatarImage src={comment.user.avatar} />
@@ -99,7 +102,7 @@ function CommentNode({ comment, postId, onReply, level = 0 }: CommentNodeProps) 
             onClick={() => setShowReplies(!showReplies)}
             className="ml-10 flex items-center gap-2 text-[9px] font-black text-primary uppercase tracking-[0.2em] hover:opacity-80 transition-all"
           >
-            <div className="w-6 h-[1px] bg-primary/20" />
+            <div className="w-6 h-[1.5px] bg-primary/20" />
             {showReplies ? "Hide Activity" : `View ${comment.replies.length} Replies`}
             {showReplies ? <ChevronUp className="h-2.5 w-2.5" /> : <ChevronDown className="h-2.5 w-2.5" />}
           </button>
@@ -125,8 +128,11 @@ function CommentNode({ comment, postId, onReply, level = 0 }: CommentNodeProps) 
 
 export function CommentHub() {
   const { activeCommentPostId, closeCommentHub, posts, addComment, addReply, triggerHaptic } = usePosts();
+  const { toast } = useToast();
   const [text, setText] = useState("");
   const [replyingTo, setReplyingTo] = useState<PostComment | null>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const activePost = useMemo(() => 
@@ -154,6 +160,25 @@ export function CommentHub() {
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
+  const handleSummarize = async () => {
+    if (!activePost || (activePost.commentNodes?.length || 0) === 0) return;
+    
+    triggerHaptic(30);
+    setIsSummarizing(true);
+    setAiSummary(null);
+
+    const commentTexts = activePost.commentNodes!.map(c => c.text);
+    
+    try {
+      const res = await aiSummarizeComments({ comments: commentTexts });
+      setAiSummary(res.summary);
+    } catch (e) {
+      toast({ variant: "destructive", title: "Audit Error", description: "Could not pulse community sentiment." });
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
   if (!activeCommentPostId) return null;
 
   return (
@@ -175,14 +200,47 @@ export function CommentHub() {
                 </span>
               </div>
             </div>
-            <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" onClick={closeCommentHub}>
-              <X className="h-6 w-6" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className={cn(
+                  "rounded-full h-10 w-10 transition-all",
+                  isSummarizing ? "bg-primary/20 text-primary" : "bg-secondary/40 text-muted-foreground hover:text-primary"
+                )}
+                onClick={handleSummarize}
+                disabled={isSummarizing || (activePost?.commentNodes?.length || 0) === 0}
+                title="Groq Pulse Summary"
+              >
+                {isSummarizing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}
+              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" onClick={closeCommentHub}>
+                <X className="h-6 w-6" />
+              </Button>
+            </div>
           </div>
         </SheetHeader>
 
         <ScrollArea className="flex-1 px-6 pt-6">
           <div className="space-y-8 pb-32">
+            {/* AI Summary Card */}
+            {aiSummary && (
+              <div className="p-5 bg-primary/10 border border-primary/20 rounded-[2rem] animate-in zoom-in-95 duration-500 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-3 opacity-20"><Sparkles className="h-10 w-10 text-primary" /></div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Badge className="bg-primary text-white text-[8px] font-black uppercase tracking-widest border-none px-2 py-0.5">Groq Pulse</Badge>
+                  <span className="text-[10px] font-black uppercase text-primary/60 tracking-widest">Sentiment Summary</span>
+                </div>
+                <p className="text-sm font-bold italic leading-relaxed text-foreground">"{aiSummary}"</p>
+                <button 
+                  onClick={() => setAiSummary(null)} 
+                  className="absolute top-2 right-2 p-1 text-primary/40 hover:text-primary transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+
             {activePost?.commentNodes && activePost.commentNodes.length > 0 ? (
               activePost.commentNodes.map(comment => (
                 <CommentNode 
