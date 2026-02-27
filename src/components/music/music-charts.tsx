@@ -124,7 +124,7 @@ export function MusicCharts() {
       </div>
 
       {/* Top Chart Ad */}
-      <NativeAdNode type="banner" />
+      <NativeAdNode type="standard" />
 
       {/* 2. Chart Navigation */}
       <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-4 scrollbar-hide px-1">
@@ -234,7 +234,7 @@ export function MusicCharts() {
       </div>
 
       {/* Mid Chart Ad */}
-      <NativeAdNode type="banner" />
+      <NativeAdNode type="standard" />
 
       {/* 4. Insight Card */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pb-20">
