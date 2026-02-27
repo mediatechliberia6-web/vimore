@@ -85,6 +85,17 @@ const MOCK_SIGNALS: NotificationNode[] = [
     isRead: false,
     avatar: 'https://picsum.photos/seed/me/100/100',
     postId: '2'
+  },
+  {
+    id: 'sig-6',
+    type: 'SOCIAL',
+    title: 'Network Sync',
+    content: '**Paul** follows you back. Node connection stabilized.',
+    time: '5h ago',
+    isRead: true,
+    avatar: 'https://picsum.photos/seed/paul/100/100',
+    targetUsername: 'paul',
+    actionLabel: 'Follow Back'
   }
 ];
 

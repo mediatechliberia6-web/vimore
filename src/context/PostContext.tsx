@@ -210,6 +210,15 @@ const MOCK_CONNECTIONS: Connection[] = [
     connectionDate: "Dec 2023",
     mutualFriends: ["https://picsum.photos/seed/8/50/50", "https://picsum.photos/seed/9/50/50"]
   },
+  {
+    name: "Paul Node",
+    username: "paul",
+    avatar: "https://picsum.photos/seed/paul/100/100",
+    category: "Producer",
+    followsYou: true,
+    isOnline: true,
+    connectionDate: "May 2024"
+  }
 ];
 
 const initialMockStories: Story[] = [
