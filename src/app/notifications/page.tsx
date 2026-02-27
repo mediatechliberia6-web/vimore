@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -30,7 +31,8 @@ import {
   Filter,
   Users2,
   TrendingUp,
-  Star
+  Star,
+  UserCheck
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -39,6 +41,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 const FILTERS = [
   { id: "all", label: "All Signals" },
@@ -49,6 +52,7 @@ const FILTERS = [
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const { notifications, markAsRead, markAllAsRead, purgeSignal } = useNotifications();
   const { setSelectedPostId, isFollowing, toggleFollowUser } = usePosts();
   const { setTrack, currentTrack, isExpanded, triggerHaptic } = useMusic();
@@ -66,13 +70,14 @@ export default function NotificationsPage() {
     triggerHaptic(10);
     markAsRead(node.id);
 
-    // DEEP-LINK DISPATCHER
+    // DEEP-LINK DISPATCHER: Materialize targeted UI states
     if (node.postId) {
       // Content Pulse: Materialize the Post Portal
       setSelectedPostId(node.postId);
+      toast({ title: "Opening Pulse", description: "Navigating to high-velocity content node." });
     } else if (node.trackId) {
       // Sonic Pulse: Navigate to Music and play track
-      const track = ALL_SONGS.find(s => s.id === node.trackId);
+      const track = ALL_SONGS.find(s => String(s.id) === String(node.trackId));
       if (track) {
         setTrack(track);
         router.push('/music');
@@ -86,17 +91,18 @@ export default function NotificationsPage() {
   };
 
   const handleActionClick = (e: React.MouseEvent, node: NotificationNode) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Prevents card click (portal) from firing
     triggerHaptic(25);
     
     if (node.type === 'SOCIAL' && node.targetUsername) {
       if (!isFollowing(node.targetUsername)) {
         toggleFollowUser(node.targetUsername);
+        toast({ title: "Mutual Connected", description: `You are now connected with @${node.targetUsername}` });
       } else {
         router.push(`/profile/${node.targetUsername}`);
       }
     } else if (node.trackId) {
-      const track = ALL_SONGS.find(s => s.id === node.trackId);
+      const track = ALL_SONGS.find(s => String(s.id) === String(node.trackId));
       if (track) {
         setTrack(track);
         router.push('/music');
@@ -135,7 +141,6 @@ export default function NotificationsPage() {
         "max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[280px_1fr_360px] gap-8 px-4 transition-all duration-300",
         isPlayerActive ? "pt-[184px]" : "pt-6"
       )}>
-        {/* Left Navigation */}
         <aside className={cn(
           "hidden lg:block sticky h-[calc(100vh-132px)] overflow-y-auto transition-all duration-300",
           isPlayerActive ? "top-[196px]" : "top-[132px]"
@@ -143,7 +148,6 @@ export default function NotificationsPage() {
           <MainNav />
         </aside>
 
-        {/* Main Signal Stream */}
         <main className="w-full space-y-6 pb-24">
           <div className="bg-white dark:bg-card rounded-[2.5rem] p-6 sm:p-8 shadow-xl border border-primary/5">
             <div className="flex items-center justify-between mb-8">
@@ -158,21 +162,20 @@ export default function NotificationsPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" className="rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary/5 text-primary" onClick={markAllAsRead}>
-                  Clear Unread
+                  Clear All
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 bg-secondary/40"><MoreHorizontal className="h-5 w-5" /></Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="rounded-xl p-2 w-56">
-                    <DropdownMenuItem className="gap-2 font-bold"><BellOff className="h-4 w-4" /> Mute Alerts</DropdownMenuItem>
-                    <DropdownMenuItem className="gap-2 font-bold text-destructive focus:text-destructive" onClick={markAllAsRead}><Check className="h-4 w-4" /> Reset Stream</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2 font-bold"><BellOff className="h-4 w-4" /> Mute Signal Audio</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2 font-bold text-destructive focus:text-destructive" onClick={markAllAsRead}><Check className="h-4 w-4" /> Clear Signal Cache</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
             </div>
 
-            {/* Filter Chips */}
             <div className="flex items-center gap-2 overflow-x-auto pb-6 scrollbar-hide">
               <div className="flex items-center gap-2 pr-2 border-r border-primary/10 mr-2 text-muted-foreground">
                 <Filter className="h-3.5 w-3.5" />
@@ -194,7 +197,6 @@ export default function NotificationsPage() {
               ))}
             </div>
 
-            {/* Feed */}
             <div className="space-y-3">
               {filteredNotifications.length > 0 ? filteredNotifications.map((node, i) => {
                 const isUnread = !node.isRead;
@@ -212,7 +214,6 @@ export default function NotificationsPage() {
                     )}
                     style={{ animationDelay: `${i * 50}ms` }}
                   >
-                    {/* Visual Anchor */}
                     <div className="relative shrink-0 pt-1">
                       <div className="relative">
                         <Avatar className={cn(
@@ -231,7 +232,6 @@ export default function NotificationsPage() {
                       )}
                     </div>
 
-                    {/* Rich Description */}
                     <div className="flex-1 min-w-0 pt-1">
                       <div className="flex flex-col gap-1">
                         <p className="text-sm leading-relaxed text-muted-foreground">
@@ -242,11 +242,10 @@ export default function NotificationsPage() {
                             {node.time}
                           </span>
                           <div className="h-1 w-1 bg-muted-foreground/20 rounded-full" />
-                          <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">{node.type} NODE</span>
+                          <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">{node.type} SIGNAL</span>
                         </div>
                       </div>
 
-                      {/* Action Handshake */}
                       {(node.actionLabel || node.postId || node.trackId || node.targetUsername) && (
                         <div className="mt-4 flex items-center gap-2">
                           <Button 
@@ -258,8 +257,8 @@ export default function NotificationsPage() {
                             onClick={(e) => handleActionClick(e, node)}
                           >
                             {node.type === 'SOCIAL' 
-                              ? (amFollowing ? "Friend" : "Follow Back") 
-                              : (node.actionLabel || "Interact")}
+                              ? (amFollowing ? <><UserCheck className="h-3 w-3 mr-1.5" /> Friend</> : "Follow Back") 
+                              : (node.actionLabel || "View Vibe")}
                           </Button>
                           <Button 
                             variant="ghost" 
@@ -267,13 +266,12 @@ export default function NotificationsPage() {
                             className="h-9 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-destructive"
                             onClick={(e) => { e.stopPropagation(); triggerHaptic(5); purgeSignal(node.id); }}
                           >
-                            Dismiss
+                            Purge
                           </Button>
                         </div>
                       )}
                     </div>
 
-                    {/* Optional Thumbnail Context */}
                     {(node.image || node.postId) && !node.avatar && (
                       <div className="hidden sm:block relative h-16 w-16 rounded-2xl overflow-hidden shrink-0 border border-primary/10 shadow-lg transition-transform group-hover:scale-105">
                         <Image src={node.image || "https://picsum.photos/seed/context/100/100"} alt="Context" fill className="object-cover" />
@@ -292,17 +290,16 @@ export default function NotificationsPage() {
                     <Zap className="h-10 w-10 text-primary/40" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-black italic uppercase tracking-tighter">Quiet Hub</h3>
-                    <p className="text-muted-foreground text-sm font-medium">Your digital workspace is currently silent. No new pulses detected.</p>
+                    <h3 className="text-2xl font-black italic uppercase tracking-tighter">Cluster Empty</h3>
+                    <p className="text-muted-foreground text-sm font-medium">Your network cluster is currently silent. No new pulses detected.</p>
                   </div>
-                  <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase tracking-widest text-[10px]" onClick={() => router.push('/')}>Return to Feed</Button>
+                  <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase tracking-widest text-[10px]" onClick={() => router.push('/')}>Back to Cluster</Button>
                 </div>
               )}
             </div>
           </div>
         </main>
 
-        {/* Right Rail */}
         <aside className={cn(
           "hidden lg:block sticky h-[calc(100vh-132px)] overflow-y-auto transition-all duration-300",
           isPlayerActive ? "top-[196px]" : "top-[132px]"

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
@@ -37,6 +38,16 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3";
 
 const MOCK_SIGNALS: NotificationNode[] = [
+  {
+    id: 'sig-paul',
+    type: 'SOCIAL',
+    title: 'Mutual Pulse',
+    content: '**Paul Node** followed you back. You are now mutual nodes.',
+    time: 'Just now',
+    isRead: false,
+    avatar: 'https://picsum.photos/seed/paul/100/100',
+    targetUsername: 'paul'
+  },
   {
     id: 'sig-1',
     type: 'SOCIAL',
