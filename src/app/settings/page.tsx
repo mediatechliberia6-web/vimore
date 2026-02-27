@@ -32,7 +32,8 @@ import {
   ArrowDownToLine,
   Activity,
   Music2,
-  Video
+  Video,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -269,7 +270,7 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-amber-500" />
+                  <item.icon className="h-4 w-4 text-amber-500" />
                   <p className="font-bold text-sm">Haptic Intensity</p>
                 </div>
                 <Badge variant="secondary" className="text-[9px] font-black uppercase">{settings.hapticIntensity}%</Badge>
