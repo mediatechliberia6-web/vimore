@@ -10,6 +10,7 @@ import { MusicCharts } from "@/components/music/music-charts";
 import { MusicUpload } from "@/components/music/music-upload";
 import { CreatePlaylistModal } from "@/components/music/create-playlist-modal";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
+import { SocialBarNode } from "@/components/ad/social-bar-node";
 import { useMusic, Album, Track, Playlist } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -103,7 +104,6 @@ export default function MusicPage() {
   
   const isPlayerActive = currentTrack && !isExpanded;
 
-  // Interaction Recovery Handshake Fail-safe
   useEffect(() => {
     if (!deleteItem) {
       document.body.style.pointerEvents = 'auto';
@@ -147,7 +147,6 @@ export default function MusicPage() {
 
   const hasResults = filteredSongs.length > 0 || filteredAlbums.length > 0 || filteredPlaylists.length > 0 || filteredArtists.length > 0;
 
-  // Find all tracks that are marked as downloaded
   const downloadedTracks = useMemo(() => {
     const allKnownTracks = [...MOCK_SONGS, ...userSongs, ...likedTracks];
     const uniqueTracksMap = new Map();
@@ -161,13 +160,8 @@ export default function MusicPage() {
     if (!deleteItem) return;
     triggerHaptic(50);
     const itemToDelete = { ...deleteItem };
-    
-    // 1. Force interaction restoration
     document.body.style.pointerEvents = 'auto';
-    // 2. Clear dialog state
     setDeleteItem(null);
-    
-    // 3. Purge data
     if (itemToDelete.type === 'track') {
       deleteUserTrack(itemToDelete.id);
       toast({ title: "Track Withdrawn", description: "Your single has been removed from the network." });
@@ -229,6 +223,9 @@ export default function MusicPage() {
               )}
             </div>
           </div>
+
+          {/* Social Bar Node - Constant across all Music tabs */}
+          <SocialBarNode />
 
           <div className="px-4 sm:px-10 py-6 sm:py-10">
             {activeTab === "discover" && (
@@ -295,7 +292,6 @@ export default function MusicPage() {
                       ))}
                     </div>
                   </div>
-                  {/* Library Native Ad Node */}
                   <NativeAdNode type="standard" />
                 </div>
 

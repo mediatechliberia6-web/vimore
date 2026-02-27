@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, Suspense } from "react";
@@ -5,6 +6,7 @@ import { Header } from "@/components/layout/header";
 import { SubHeader } from "@/components/layout/sub-header";
 import { MainNav } from "@/components/layout/main-nav";
 import { RightSidebar } from "@/components/layout/right-sidebar";
+import { SocialBarNode } from "@/components/ad/social-bar-node";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
@@ -66,13 +68,11 @@ function FriendsPageContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [playingPreview, setPlayingPreview] = useState<string | null>(null);
 
-  // Confirmation States
   const [confirmUser, setConfirmUser] = useState<any | null>(null);
   const [confirmType, setConfirmType] = useState<"unfollow" | "unfriend">("unfollow");
 
   const isPlayerActive = currentTrack && !isExpanded;
 
-  // Handle Initial Tab from URL
   useEffect(() => {
     const tabParam = searchParams.get('tab') as HubTab;
     if (tabParam && ["all", "followers", "following", "suggestions"].includes(tabParam)) {
@@ -80,7 +80,6 @@ function FriendsPageContent() {
     }
   }, [searchParams]);
 
-  // Interaction Recovery Handshake Fail-safe
   useEffect(() => {
     if (!confirmUser) {
       document.body.style.pointerEvents = 'auto';
@@ -93,7 +92,6 @@ function FriendsPageContent() {
   const filteredUsers = useMemo(() => {
     let list = [...connections];
 
-    // 1. Tab Filtering
     if (activeTab === "all") {
       list = connections.filter(c => c.followsYou && isFollowing(c.username));
     } else if (activeTab === "followers") {
@@ -104,12 +102,10 @@ function FriendsPageContent() {
       list = connections.filter(c => !c.followsYou && !isFollowing(c.username));
     }
 
-    // 2. Category Chip Filtering
     if (activeCategory !== "all") {
       list = list.filter(u => u.category.includes(activeCategory));
     }
 
-    // 3. Search Filtering
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       list = list.filter(u => 
@@ -166,12 +162,8 @@ function FriendsPageContent() {
     if (confirmUser) {
       triggerHaptic(30);
       const user = { ...confirmUser };
-      
-      // 1. Force Interaction Restoration
       document.body.style.pointerEvents = 'auto';
-      // 2. Clear Dialog State
       setConfirmUser(null);
-      // 3. Update network
       toggleFollowUser(user.username);
       toast({ 
         title: "Network Adjusted", 
@@ -190,7 +182,6 @@ function FriendsPageContent() {
 
   return (
     <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#050505] text-foreground flex flex-col transition-colors duration-500 overflow-x-hidden">
-      {/* Ambient Visual Orbs */}
       <div className="fixed top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/10 blur-[120px] rounded-full pointer-events-none animate-pulse" />
       <div className="fixed bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-accent/10 blur-[120px] rounded-full pointer-events-none animate-pulse delay-700" />
 
@@ -232,6 +223,9 @@ function FriendsPageContent() {
                 />
               </div>
             </div>
+
+            {/* Social Bar Node - Top Placement */}
+            <SocialBarNode />
 
             {/* Floating Tab Bar */}
             <div className="flex p-1.5 bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-[2rem] overflow-x-auto scrollbar-hide shadow-xl shadow-black/5">
@@ -281,7 +275,6 @@ function FriendsPageContent() {
             </div>
           </div>
 
-          {/* Liquid Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredUsers.length > 0 ? filteredUsers.map((user, i) => {
               const following = isFollowing(user.username);
@@ -316,7 +309,6 @@ function FriendsPageContent() {
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-5 flex-1 min-w-0">
                         <div className="relative shrink-0">
-                          {/* Ambient Pulse Ring */}
                           <div className={cn(
                             "absolute -inset-2 rounded-full blur-md opacity-0 transition-all duration-700 ring-2 ring-primary/40",
                             user.isOnline && "opacity-100 animate-pulse scale-110"
@@ -464,7 +456,6 @@ function FriendsPageContent() {
         </aside>
       </div>
 
-      {/* Connection Confirmation Portal */}
       <AlertDialog open={!!confirmUser} onOpenChange={(open) => !open && setConfirmUser(null)}>
         <AlertDialogContent className="rounded-[2.5rem] sm:max-w-[420px] z-[300] bg-white/90 dark:bg-[#0A0A0A]/90 backdrop-blur-2xl border-primary/10 text-foreground shadow-2xl">
           <AlertDialogHeader>
