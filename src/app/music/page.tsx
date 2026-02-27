@@ -10,7 +10,6 @@ import { MusicCharts } from "@/components/music/music-charts";
 import { MusicUpload } from "@/components/music/music-upload";
 import { CreatePlaylistModal } from "@/components/music/create-playlist-modal";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
-import { SocialBarNode } from "@/components/ad/social-bar-node";
 import { useMusic, Album, Track, Playlist } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -223,9 +222,6 @@ export default function MusicPage() {
               )}
             </div>
           </div>
-
-          {/* Social Bar Node - Constant across all Music tabs */}
-          <SocialBarNode />
 
           <div className="px-4 sm:px-10 py-6 sm:py-10">
             {activeTab === "discover" && (

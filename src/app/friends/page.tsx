@@ -6,7 +6,6 @@ import { Header } from "@/components/layout/header";
 import { SubHeader } from "@/components/layout/sub-header";
 import { MainNav } from "@/components/layout/main-nav";
 import { RightSidebar } from "@/components/layout/right-sidebar";
-import { SocialBarNode } from "@/components/ad/social-bar-node";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
@@ -223,9 +222,6 @@ function FriendsPageContent() {
                 />
               </div>
             </div>
-
-            {/* Social Bar Node - Top Placement */}
-            <SocialBarNode />
 
             {/* Floating Tab Bar */}
             <div className="flex p-1.5 bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-[2rem] overflow-x-auto scrollbar-hide shadow-xl shadow-black/5">
