@@ -60,7 +60,6 @@ export default function ProfessionalDashboard() {
         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, black 1px, transparent 0)', backgroundSize: '32px 32px' }} />
       </div>
 
-      {/* 1. Header Command Node */}
       <header className="sticky top-0 z-50 bg-white/60 dark:bg-card/60 backdrop-blur-xl border-b border-primary/5 h-16 px-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-4">
           <Link href="/profile">
@@ -91,7 +90,6 @@ export default function ProfessionalDashboard() {
         isPlayerActive ? "pt-[80px]" : "pt-4"
       )}>
         
-        {/* 2. Crystalline Identity Card */}
         <section className="relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-accent/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
           <div className="relative bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-8 shadow-2xl overflow-hidden">
@@ -137,7 +135,6 @@ export default function ProfessionalDashboard() {
           </div>
         </section>
 
-        {/* 3. Category Rail - Glassmorphic Buttons */}
         <ScrollArea className="w-full whitespace-nowrap">
           <div className="flex gap-3 pb-4">
             {CATEGORIES.map((cat) => (
@@ -158,24 +155,23 @@ export default function ProfessionalDashboard() {
           <ScrollBar orientation="horizontal" className="opacity-0" />
         </ScrollArea>
 
-        {/* 4. Verification Protocol Card */}
-        <div className="relative group cursor-pointer">
-          <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/40 to-primary/40 blur-xl opacity-20 group-hover:opacity-40 transition-opacity" />
-          <div className="relative bg-gradient-to-br from-indigo-600 to-blue-700 dark:from-indigo-900/40 dark:to-blue-900/40 rounded-[2rem] p-6 flex items-center justify-between border border-white/10 shadow-2xl transition-all hover:translate-y-[-2px] active:scale-[0.98]">
+        {/* 4. Handshake Protocol Card (Verification Portal) */}
+        <Link href="/verification" className="relative group cursor-pointer block">
+          <div className="absolute -inset-1 bg-gradient-to-r from-primary/40 to-accent/40 blur-xl opacity-20 group-hover:opacity-40 transition-opacity" />
+          <div className="relative bg-gradient-to-br from-primary to-indigo-700 dark:from-primary/40 dark:to-indigo-900/40 rounded-[2rem] p-6 flex items-center justify-between border border-white/10 shadow-2xl transition-all hover:translate-y-[-2px] active:scale-[0.98]">
             <div className="flex items-center gap-5">
               <div className="h-14 w-14 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-white shadow-inner group-hover:scale-110 transition-transform">
                 <ShieldCheck className="h-8 w-8 fill-current" />
               </div>
               <div className="space-y-1">
-                <p className="text-lg font-black italic uppercase tracking-tight text-white leading-none">Verified Identity</p>
-                <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Sync your signature for premium benefits</p>
+                <p className="text-lg font-black italic uppercase tracking-tight text-white leading-none">Purple Identity Signature</p>
+                <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Materialize your verified status today</p>
               </div>
             </div>
             <ChevronRight className="h-6 w-6 text-white/40" />
           </div>
-        </div>
+        </Link>
 
-        {/* 5. The Analytics Engine */}
         <section className="space-y-6">
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-3">
@@ -229,7 +225,6 @@ export default function ProfessionalDashboard() {
           </div>
         </section>
 
-        {/* 6. Content Insights Vault */}
         <section className="space-y-4">
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-3">
@@ -273,7 +268,6 @@ export default function ProfessionalDashboard() {
           </div>
         </section>
 
-        {/* 7. System Meta & Footnote */}
         <footer className="pt-10 pb-24 space-y-8">
           <div className="bg-primary/5 rounded-[2rem] p-6 border border-primary/10 flex gap-5 items-start">
             <div className="bg-primary/10 p-3 rounded-2xl shrink-0">

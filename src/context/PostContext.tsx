@@ -38,6 +38,8 @@ export interface User {
   diamondBalance?: number;
   starBalance?: number;
   referralCount?: number;
+  verificationExpiry?: number; // Timestamp
+  hasEverBeenVerified?: boolean;
   links?: Array<{ label: string; url: string; icon: any }>;
 }
 
@@ -173,6 +175,7 @@ interface PostContextType {
   initiateTransaction: (data: Omit<PendingTransaction, 'timestamp'>) => void;
   cancelTransaction: () => void;
   triggerReferralPulse: (referralCode?: string) => void;
+  verifyUser: (cost: number, currency: 'DIAMOND' | 'STAR') => void;
   isPostLiked: (postId: string) => boolean;
   isPostUnliked: (postId: string) => boolean;
   isPostSaved: (postId: string) => boolean;
@@ -197,12 +200,14 @@ const INITIAL_USER: User = {
   following: "1.2k",
   posts: "142",
   language: "en",
-  goldBalance: 0,
-  diamondBalance: 0,
-  starBalance: 0,
+  goldBalance: 50,
+  diamondBalance: 10,
+  starBalance: 15000,
   referralCount: 0,
   introUrl: "",
-  isOnline: true
+  isOnline: true,
+  isVerified: false,
+  hasEverBeenVerified: false
 };
 
 const INITIAL_SETTINGS: AppSettings = {
@@ -450,6 +455,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // TEMPORAL SIGNATURE PULSE: Check for verification expiry on load
+  useEffect(() => {
+    if (currentUser.isVerified && currentUser.verificationExpiry) {
+      if (Date.now() > currentUser.verificationExpiry) {
+        updateCurrentUser({ isVerified: false });
+      }
+    }
+  }, []);
+
   useEffect(() => { safePersist('vimore_liked_posts', Array.from(likedPostIds)); }, [likedPostIds]);
   useEffect(() => { safePersist('vimore_unliked_posts', Array.from(unlikedPostIds)); }, [unlikedPostIds]);
   useEffect(() => { safePersist('vimore_saved_posts', Array.from(savedPostIds)); }, [savedPostIds]);
@@ -485,7 +499,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       return updated;
     });
 
-    // AUTO-FOLLOW PROTOCOL: If referral handshake is active, follow the referring node
     if (settings.isAutoFollowEnabled && referralCode) {
       toggleFollowUser(referralCode);
     }
@@ -511,6 +524,22 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const updateCurrentUser = (data: Partial<User>) => {
     setCurrentUser(prev => {
       const updated = { ...prev, ...data };
+      safePersist('vimore_user', updated);
+      return updated;
+    });
+  };
+
+  const verifyUser = (cost: number, currency: 'DIAMOND' | 'STAR') => {
+    triggerHaptic(100);
+    setCurrentUser(prev => {
+      const updated = {
+        ...prev,
+        diamondBalance: currency === 'DIAMOND' ? (prev.diamondBalance || 0) - cost : prev.diamondBalance,
+        starBalance: currency === 'STAR' ? (prev.starBalance || 0) - cost : prev.starBalance,
+        isVerified: true,
+        hasEverBeenVerified: true,
+        verificationExpiry: Date.now() + (30 * 24 * 60 * 60 * 1000) // 30 Days
+      };
       safePersist('vimore_user', updated);
       return updated;
     });
@@ -706,6 +735,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       initiateTransaction,
       cancelTransaction,
       triggerReferralPulse,
+      verifyUser,
       isPostLiked,
       isPostUnliked,
       isPostSaved,
