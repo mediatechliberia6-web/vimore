@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -44,7 +43,7 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
     containerRef.current.innerHTML = "";
 
     if (type === "standard") {
-      // Standard 728x90 for Music/Library
+      // Standard 728x90 for Music/Library - Clean Raw Implementation
       const scriptOptions = document.createElement("script");
       scriptOptions.type = "text/javascript";
       scriptOptions.innerHTML = `
@@ -91,10 +90,11 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
   };
 
   // 1. RAW Standard 728x90 (Entire application)
+  // This removes the ShadCN Card, Header, and Footer for standard banners globally.
   if (type === "standard") {
     return (
-      <div className="w-full flex justify-center py-4 animate-in fade-in duration-700">
-        <div ref={containerRef} className="w-full flex justify-center max-w-full overflow-hidden" />
+      <div className="w-full flex justify-center py-4 animate-in fade-in duration-700 overflow-hidden">
+        <div ref={containerRef} className="w-full flex justify-center max-w-full" />
       </div>
     );
   }

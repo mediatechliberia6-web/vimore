@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from "react";
@@ -14,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Bell, 
   Settings, 
@@ -40,6 +40,7 @@ export default function NotificationsPage() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, purgeSignal, requestPushPermission, hasPushPermission } = useNotifications();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { setSelectedPostId, toggleFollowUser } = usePosts();
+  const { toast } = useToast();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<FilterTab>("ALL");
 
@@ -57,17 +58,20 @@ export default function NotificationsPage() {
     // 1. Portal Transition logic: If the signal is anchored to a post, materialize the portal
     if (node.postId) {
       setSelectedPostId(node.postId);
+      toast({ title: "Portal Opening", description: "Navigating to vibe node..." });
       return;
     }
 
     // 2. Action Handshake: Handle specific labels like "Follow Back" or "View Chart"
     if (node.actionLabel === "Follow Back" && node.targetUsername) {
       toggleFollowUser(node.targetUsername);
+      toast({ title: "Mutual Connection", description: `You followed back @${node.targetUsername}!` });
       return;
     }
 
     if (node.actionLabel === "View Chart") {
       router.push('/music?tab=chart');
+      toast({ title: "Navigating Hub", description: "Opening global charts..." });
       return;
     }
 
@@ -82,6 +86,7 @@ export default function NotificationsPage() {
     e.preventDefault();
     triggerHaptic(30);
     purgeSignal(id);
+    toast({ title: "Signal Purged", description: "Data node removed from cache." });
   };
 
   const renderContent = (text: string) => {
@@ -140,7 +145,7 @@ export default function NotificationsPage() {
                 <Button 
                   variant="ghost" size="icon" 
                   className="rounded-2xl bg-white/50 dark:bg-white/5 border border-primary/5 hover:bg-primary/10 hover:text-primary transition-all shadow-sm"
-                  onClick={() => { triggerHaptic(5); markAllAsRead(); }}
+                  onClick={() => { triggerHaptic(5); markAllAsRead(); toast({ title: "Cache Synced", description: "All signals marked as viewed." }); }}
                   title="Mark all as read"
                 >
                   <CheckCheck className="h-5 w-5" />
@@ -156,11 +161,11 @@ export default function NotificationsPage() {
               </div>
             </div>
 
-            {/* RAW Global Ad Banner Integration */}
+            {/* RAW Global Ad Banner Integration - Standard type is already raw in NativeAdNode */}
             <NativeAdNode type="standard" />
 
             {/* High-Velocity Filter Pill */}
-            <div className="sticky top-[132px] z-40 px-1">
+            <div className="sticky top-[132px] sm:top-[117px] z-40 px-1 transition-all">
               <div className="flex p-1.5 bg-white/80 dark:bg-card/80 backdrop-blur-3xl border border-white dark:border-white/5 rounded-[2rem] overflow-x-auto scrollbar-hide shadow-2xl shadow-black/5">
                 {[
                   { id: "ALL", label: "All Pulses", icon: Inbox },

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, Suspense } from "react";
@@ -10,7 +9,7 @@ import { MusicCharts } from "@/components/music/music-charts";
 import { MusicUpload } from "@/components/music/music-upload";
 import { CreatePlaylistModal } from "@/components/music/create-playlist-modal";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
-import { useMusic, Album, Track, Playlist } from "@/context/MusicContext";
+import { useMusic, Album, Track, Playlist, ALL_SONGS } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,13 +34,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
-const MOCK_SONGS: Track[] = [
-  { id: 1, title: "Essence", artist: "Wizkid ft. Tems", artistUsername: "arivera", cover: "https://picsum.photos/seed/song1/600/600", duration: 240, streams: "124M" },
-  { id: 2, title: "Last Last", artist: "Burna Boy", artistUsername: "schen_dev", cover: "https://picsum.photos/seed/song2/600/600", duration: 172, streams: "98M" },
-  { id: 3, title: "Unavailable", artist: "Davido", artistUsername: "mstone", cover: "https://picsum.photos/seed/song3/600/600", duration: 185, streams: "75M" },
-  { id: 4, title: "Calm Down", artist: "Rema", artistUsername: "arivera", cover: "https://picsum.photos/seed/song4/600/600", duration: 219, streams: "320M" },
-  { id: 5, title: "Soweto", artist: "Victony", artistUsername: "techex", cover: "https://picsum.photos/seed/song5/600/600", duration: 164, streams: "45M" },
-];
+const MOCK_SONGS: Track[] = ALL_SONGS;
 
 const MOCK_ALBUMS: Album[] = [
   { 
@@ -326,7 +319,7 @@ function MusicPageContent() {
                           <Button variant="outline" className="rounded-full border-primary text-primary" onClick={() => openCreatePlaylist()}>Create First Playlist</Button>
                         </div>
                       ) : (
-                        <MusicGrid type="playlist" />
+                        <MusicGrid type="playlist" items={userPlaylists} />
                       )}
                     </div>
                   )}

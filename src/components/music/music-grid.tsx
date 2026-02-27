@@ -22,10 +22,10 @@ import { useState } from "react";
 interface MusicGridProps {
   type: "song" | "album" | "playlist" | "artist" | "hero";
   title?: string;
-  items: any[];
+  items?: any[];
 }
 
-export function MusicGrid({ type, items, title }: MusicGridProps) {
+export function MusicGrid({ type, items = [], title }: MusicGridProps) {
   const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, isTrackDownloaded, simulateDownload, addToQueue, userPlaylists, openCreatePlaylist, addTrackToPlaylist, trackStats, playCollection, triggerDownloadWithAd } = useMusic();
   const { toast } = useToast();
   const [downloadingIds, setDownloadingIds] = useState<Set<string | number>>(new Set());
@@ -62,6 +62,8 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
   };
 
   const renderCard = (item: any, idx: number) => {
+    if (!item) return null;
+    
     const isCurrent = currentTrack?.id === item.id;
     const isLiked = isTrackLiked(item.id);
     const isUnliked = isTrackUnliked(item.id);
@@ -91,7 +93,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
                 className="rounded-full bg-white text-primary font-black px-6 sm:px-10 h-10 sm:h-14 hover:scale-105 transition-transform text-xs sm:base"
                 onClick={() => { triggerHaptic(); isCurrent ? togglePlay() : setTrack(item); }}
               >
-                {isCurrent && isPlaying ? <Pause className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current" /> : <Play className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current ml-1" />}
+                {isCurrent && isPlaying ? <Pause className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current" /> : <Play className="mr-1 sm:mr-2 h-4 w-4 sm:h-6 sm:w-6 fill-current ml-1 sm:ml-2" />}
                 {isCurrent && isPlaying ? "PAUSE" : "PLAY NOW"}
               </Button>
               <div className="flex items-center gap-2">
@@ -160,7 +162,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
     return (
       <div 
         key={stableKey} 
-        className={cn("inline-block group cursor-pointer shrink-0 snap-start", cardWidth)}
+        className={cn("inline-block group cursor-pointer shrink-0 snap-mandatory snap-start", cardWidth)}
         onClick={handleCardClick}
       >
         <div className="relative aspect-square mb-3 sm:mb-4">
@@ -271,7 +273,7 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
                     disabled={isDownloading || isDownloaded || type === 'playlist'}
                     onClick={(e) => { e.stopPropagation(); triggerHaptic(); handleDownload(item); }}
                   >
-                    {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : isDownloaded ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Download className="h-4 w-4" />}
+                    {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : isDownloaded ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Download className="h-4 w-4 sm:h-5 sm:w-5" />}
                     {isDownloaded ? "Downloaded" : "Download"}
                   </DropdownMenuItem>
                   <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); triggerHaptic(); handleShare(item); }}>
