@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef, useState, useEffect } from "react";
@@ -50,7 +51,7 @@ interface ReelCardProps {
 export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares, music, isActive }: ReelCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { triggerHaptic, openCaptureStudio, triggerDownloadWithAd } = useMusic();
-  const { currentUser } = usePosts();
+  const { currentUser, openCommentHub } = usePosts();
   const { toast } = useToast();
   
   const [isMuted, setIsMuted] = useState(false);
@@ -195,7 +196,10 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         </div>
 
         <div className="flex flex-col items-center gap-1">
-          <button className="p-2.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white hover:bg-black/40 transition-all active:scale-75 shadow-lg">
+          <button 
+            onClick={(e) => { e.stopPropagation(); openCommentHub(id); }}
+            className="p-2.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white hover:bg-black/40 transition-all active:scale-75 shadow-lg"
+          >
             <MessageCircle className="h-5 w-5" />
           </button>
           <span className="text-[9px] font-black text-white drop-shadow-md uppercase tracking-widest">{formatCount(comments)}</span>

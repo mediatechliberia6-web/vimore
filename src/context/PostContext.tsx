@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
@@ -106,6 +107,15 @@ export interface Highlight {
   segments: StorySegment[];
 }
 
+export interface PostComment {
+  id: string;
+  user: User;
+  text: string;
+  time: string;
+  likes: number;
+  replies: PostComment[];
+}
+
 export interface Post {
   id: string;
   user: User;
@@ -135,7 +145,7 @@ export interface Post {
     totalVotes: number;
     duration?: string;
   };
-  initialComments?: any[];
+  commentNodes?: PostComment[];
   sharedPost?: any;
 }
 
@@ -152,16 +162,21 @@ interface PostContextType {
   activeStoryIndex: number | null;
   connections: Connection[];
   selectedPostId: string | null;
+  activeCommentPostId: string | null;
   isSearchOpen: boolean;
   pendingTransaction: PendingTransaction | null;
   referralLink: string;
   settings: AppSettings;
   setSearchOpen: (open: boolean) => void;
   setSelectedPostId: (id: string | null) => void;
+  openCommentHub: (postId: string) => void;
+  closeCommentHub: () => void;
   setActiveStoryIndex: (index: number | null) => void;
   addPost: (post: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments' | 'shares'>) => void;
   deletePost: (postId: string) => void;
   addStory: (segment: Omit<StorySegment, 'id'>) => void;
+  addComment: (postId: string, text: string) => void;
+  addReply: (postId: string, commentId: string, text: string) => void;
   voteOnStoryPoll: (storyId: string, segmentId: string, optionIndex: number) => void;
   toggleMuteUser: (username: string) => void;
   togglePinPost: (postId: string) => void;
@@ -340,13 +355,23 @@ const initialMockPosts: Post[] = [
     time: "5m",
     likes: 24,
     unlikes: 2,
-    comments: 4,
+    comments: 1,
     shares: 1,
     language: "en",
     hashtags: ["NewBeginnings", "SocialMedia"],
     images: [
       "https://picsum.photos/seed/multi1/800/600",
       "https://picsum.photos/seed/multi2/800/600"
+    ],
+    commentNodes: [
+      {
+        id: "c1",
+        user: { name: "Alex Rivera", username: "arivera", avatar: "https://picsum.photos/seed/1/100/100" },
+        text: "The high-velocity aesthetic is incredible! 🚀",
+        time: "2m ago",
+        likes: 5,
+        replies: []
+      }
     ]
   },
   {
@@ -361,7 +386,7 @@ const initialMockPosts: Post[] = [
     time: "22m",
     likes: 156,
     unlikes: 12,
-    comments: 12,
+    comments: 0,
     shares: 8,
     language: "en",
     poll: {
@@ -372,7 +397,8 @@ const initialMockPosts: Post[] = [
       ],
       totalVotes: 134,
       duration: "24 Hours"
-    }
+    },
+    commentNodes: []
   },
   {
     id: "3",
@@ -386,10 +412,11 @@ const initialMockPosts: Post[] = [
     time: "45m",
     likes: 88,
     unlikes: 1,
-    comments: 15,
+    comments: 0,
     shares: 3,
     language: "es",
-    hashtags: ["Hola", "ViMore", "Diseño"]
+    hashtags: ["Hola", "ViMore", "Diseño"],
+    commentNodes: []
   }
 ];
 
@@ -409,6 +436,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [connections, setConnections] = useState<Connection[]>(MOCK_CONNECTIONS);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const referralLink = useMemo(() => {
@@ -455,7 +483,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // TEMPORAL SIGNATURE PULSE: Check for verification expiry on load
   useEffect(() => {
     if (currentUser.isVerified && currentUser.verificationExpiry) {
       if (Date.now() > currentUser.verificationExpiry) {
@@ -571,7 +598,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       unlikes: 0,
       comments: 0,
       shares: 0,
-      language: detectedLanguage
+      language: detectedLanguage,
+      commentNodes: []
     };
     
     const updatedPosts = [newPost, ...posts];
@@ -583,6 +611,71 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const deletePost = (postId: string) => {
     setPosts(prev => {
       const updated = prev.filter(p => p.id !== postId);
+      const userOnlyPosts = updated.filter(p => p.user.username === currentUser.username).slice(0, 10);
+      safePersist('vimore_local_posts', userOnlyPosts);
+      return updated;
+    });
+  };
+
+  const addComment = (postId: string, text: string) => {
+    triggerHaptic(10);
+    setPosts(prev => {
+      const updated = prev.map(post => {
+        if (post.id === postId) {
+          const newComment: PostComment = {
+            id: `c-${Date.now()}`,
+            user: currentUser,
+            text,
+            time: "Just now",
+            likes: 0,
+            replies: []
+          };
+          return {
+            ...post,
+            comments: (post.comments || 0) + 1,
+            commentNodes: [newComment, ...(post.commentNodes || [])]
+          };
+        }
+        return post;
+      });
+      const userOnlyPosts = updated.filter(p => p.user.username === currentUser.username).slice(0, 10);
+      safePersist('vimore_local_posts', userOnlyPosts);
+      return updated;
+    });
+  };
+
+  const addReply = (postId: string, commentId: string, text: string) => {
+    triggerHaptic(15);
+    setPosts(prev => {
+      const updated = prev.map(post => {
+        if (post.id === postId) {
+          const findAndReply = (comments: PostComment[]): PostComment[] => {
+            return comments.map(c => {
+              if (c.id === commentId) {
+                const newReply: PostComment = {
+                  id: `r-${Date.now()}`,
+                  user: currentUser,
+                  text,
+                  time: "Just now",
+                  likes: 0,
+                  replies: []
+                };
+                return { ...c, replies: [...c.replies, newReply] };
+              }
+              if (c.replies.length > 0) {
+                return { ...c, replies: findAndReply(c.replies) };
+              }
+              return c;
+            });
+          };
+          return {
+            ...post,
+            comments: (post.comments || 0) + 1,
+            commentNodes: findAndReply(post.commentNodes || [])
+          };
+        }
+        return post;
+      });
       const userOnlyPosts = updated.filter(p => p.user.username === currentUser.username).slice(0, 10);
       safePersist('vimore_local_posts', userOnlyPosts);
       return updated;
@@ -660,6 +753,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setPendingTransaction(null);
   };
 
+  const openCommentHub = (postId: string) => {
+    triggerHaptic(5);
+    setActiveCommentPostId(postId);
+  };
+
+  const closeCommentHub = () => {
+    setActiveCommentPostId(null);
+  };
+
   const isPostLiked = (postId: string) => likedPostIds.has(postId);
   const isPostUnliked = (postId: string) => unlikedPostIds.has(postId);
   const isPostSaved = (postId: string) => savedPostIds.has(postId);
@@ -711,16 +813,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
       activeStoryIndex, 
       connections,
       selectedPostId,
+      activeCommentPostId,
       isSearchOpen,
       pendingTransaction,
       referralLink,
       settings,
       setSearchOpen,
       setSelectedPostId,
+      openCommentHub,
+      closeCommentHub,
       setActiveStoryIndex, 
       addPost, 
       deletePost,
       addStory, 
+      addComment,
+      addReply,
       incrementShareCount,
       voteOnStoryPoll,
       toggleMuteUser,

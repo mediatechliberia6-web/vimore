@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -119,7 +120,7 @@ export function PostCard(props: PostCardProps) {
   } = props;
 
   const { 
-    currentUser, isPostLiked, isPostUnliked, isPostSaved, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost 
+    currentUser, isPostLiked, isPostUnliked, isPostSaved, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub 
   } = usePosts();
 
   const { addSignal } = useNotifications();
@@ -132,8 +133,6 @@ export function PostCard(props: PostCardProps) {
   const effectiveIsVerified = isOwner ? currentUser.isVerified : user.isVerified;
 
   const [isExpanded, setIsExpanded] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [commentText, setCommentText] = useState("");
   const [isHidden, setIsHidden] = useState(false);
   const [viewerLanguage, setViewerLanguage] = useState<string | null>(null);
   const [translatedText, setTranslatedText] = useState<string | null>(null);
@@ -440,13 +439,13 @@ export function PostCard(props: PostCardProps) {
             </div>
           )}
 
-          {allImages.length > 0 && !theme && (
+          {allImages.length > 0 && (
             <div className={cn("relative mt-2", isShared ? "-mx-1" : "-mx-3 sm:mx-0")}>
               <Carousel className="w-full">
                 <CarouselContent>
                   {allImages.map((img, i) => (
                     <CarouselItem key={i}>
-                      <div className={cn("relative aspect-video overflow-hidden", isShared ? "rounded-lg" : "rounded-lg")}>
+                      <div className={cn("relative aspect-video overflow-hidden rounded-lg")}>
                         <Image src={img} alt="Post" fill className={cn("object-cover", imageFilter)} />
                       </div>
                     </CarouselItem>
@@ -456,7 +455,7 @@ export function PostCard(props: PostCardProps) {
             </div>
           )}
           
-          {videoUrl && !theme && (
+          {videoUrl && (
             <div className={cn(
               "relative mt-2 rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center",
               isShared ? "-mx-1" : "-mx-3 sm:mx-0"
@@ -492,7 +491,7 @@ export function PostCard(props: PostCardProps) {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Share2 className="h-3 w-3" />
-                  {((shares ?? 0) + (isShareHubOpen ? 0 : 0)).toLocaleString()}
+                  {(shares ?? 0).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -510,7 +509,13 @@ export function PostCard(props: PostCardProps) {
               >
                 <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} /> Dislike
               </button>
-              <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary" onClick={() => setShowComments(!showComments)} disabled={commentsDisabled}><MessageCircle className="h-4 w-4" /> Comment</button>
+              <button 
+                className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary" 
+                onClick={() => openCommentHub(id)} 
+                disabled={commentsDisabled}
+              >
+                <MessageCircle className="h-4 w-4" /> Comment
+              </button>
               <button 
                 className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary"
                 onClick={() => { triggerHaptic(10); setIsShareHubOpen(true); }}
