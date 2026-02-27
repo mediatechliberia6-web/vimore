@@ -1,7 +1,9 @@
+
 "use client";
 
 import { useRef, useState, useEffect, useMemo } from "react";
 import { ReelCard } from "./reel-card";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts, Post } from "@/context/PostContext";
 import { ReelTab } from "@/app/reels/page";
@@ -79,7 +81,9 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
   const { triggerHaptic } = useMusic();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const allReels = useMemo(() => {
+  // Ad Injection Logic: 
+  // 2nd position (index 1), then every 4 organic reels thereafter.
+  const reelsWithAds = useMemo(() => {
     // Convert posts with videoUrl to Reel format
     const userReels = posts
       .filter(p => p.videoUrl)
@@ -106,18 +110,35 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
       }));
 
     const combined = [...userReels, ...MOCK_REELS_DATA];
+    const source = activeTab === "foryou" ? combined : combined.filter(reel => followingUsernames.has(reel.user.username));
     
-    if (activeTab === "foryou") return combined;
-    return combined.filter(reel => followingUsernames.has(reel.user.username));
+    const result: (any)[] = [];
+    let organicCount = 0;
+
+    source.forEach((reel, index) => {
+      result.push({ type: 'reel', data: reel });
+      organicCount++;
+
+      // Condition 1: 2nd position (index 1)
+      // Condition 2: Every 4 organic reels after that
+      if (organicCount === 1) { // Will insert at index 1
+        result.push({ type: 'ad', id: `ad-reel-init-${index}` });
+      } else if (organicCount > 1 && (organicCount - 1) % 4 === 0) {
+        result.push({ type: 'ad', id: `ad-reel-seq-${index}` });
+      }
+    });
+
+    return result;
   }, [activeTab, followingUsernames, posts]);
 
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (allReels.length > 0 && !activeReelId) {
-      setActiveReelId(allReels[0].id);
+    if (reelsWithAds.length > 0 && !activeReelId) {
+      const first = reelsWithAds[0];
+      setActiveReelId(first.type === 'ad' ? first.id : first.data.id);
     }
-  }, [allReels, activeReelId]);
+  }, [reelsWithAds, activeReelId]);
 
   useEffect(() => {
     const options = {
@@ -129,7 +150,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          const id = entry.target.getAttribute("data-reel-id");
+          const id = entry.target.getAttribute("data-node-id");
           if (id && id !== activeReelId) {
             setActiveReelId(id);
             triggerHaptic(5);
@@ -138,24 +159,28 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
       });
     }, options);
 
-    const cards = containerRef.current?.querySelectorAll("[data-reel-id]");
+    const cards = containerRef.current?.querySelectorAll("[data-node-id]");
     cards?.forEach((card) => observer.observe(card));
 
     return () => observer.disconnect();
-  }, [activeReelId, triggerHaptic, allReels]);
+  }, [activeReelId, triggerHaptic, reelsWithAds]);
 
   return (
     <div 
       ref={containerRef}
       className="flex-1 w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide bg-black"
     >
-      {allReels.length > 0 ? (
-        allReels.map((reel) => (
-          <div key={reel.id} data-reel-id={reel.id} className="snap-start h-[100dvh] w-full relative">
-            <ReelCard 
-              {...reel} 
-              isActive={activeReelId === reel.id} 
-            />
+      {reelsWithAds.length > 0 ? (
+        reelsWithAds.map((item) => (
+          <div key={item.type === 'ad' ? item.id : item.data.id} data-node-id={item.type === 'ad' ? item.id : item.data.id} className="snap-start h-[100dvh] w-full relative">
+            {item.type === 'ad' ? (
+              <NativeAdNode type="reel" isActive={activeReelId === item.id} />
+            ) : (
+              <ReelCard 
+                {...item.data} 
+                isActive={activeReelId === item.data.id} 
+              />
+            )}
           </div>
         ))
       ) : (
