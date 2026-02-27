@@ -16,7 +16,12 @@ import {
   BarChart3,
   Sparkles,
   Zap,
-  Info
+  Info,
+  Layers,
+  Rocket,
+  ShieldCheck,
+  Globe,
+  LayoutDashboard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -48,50 +53,103 @@ export default function ProfessionalDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#050505] transition-colors duration-300">
-      {/* 1. Header Protocol */}
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-card/80 backdrop-blur-md border-b border-border h-16 px-4 flex items-center justify-between">
+    <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#020202] text-foreground flex flex-col transition-colors duration-500 overflow-x-hidden">
+      {/* Aurora Ambient Background */}
+      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/10 blur-[120px] rounded-full animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-accent/10 blur-[120px] rounded-full animate-pulse delay-700" />
+        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, black 1px, transparent 0)', backgroundSize: '32px 32px' }} />
+      </div>
+
+      {/* 1. Header Command Node */}
+      <header className="sticky top-0 z-50 bg-white/60 dark:bg-card/60 backdrop-blur-xl border-b border-primary/5 h-16 px-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-4">
           <Link href="/profile">
-            <Button variant="ghost" size="icon" className="rounded-full hover:bg-secondary/80 active:scale-90 transition-all">
+            <Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 text-primary active:scale-90 transition-all">
               <ArrowLeft className="h-6 w-6" />
             </Button>
           </Link>
-          <h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground">Professional dashboard</h1>
+          <div className="flex flex-col">
+            <h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground leading-none">Command Hub</h1>
+            <span className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1">Creator Intelligence</span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 dark:bg-white/5">
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/40 text-muted-foreground">
             <Search className="h-5 w-5" />
           </Button>
-          <div className="relative group">
-            <Avatar className="h-9 w-9 border-2 border-primary/10">
+          <Link href="/profile">
+            <Avatar className="h-9 w-9 border-2 border-primary/20 shadow-lg">
               <AvatarImage src={currentUser.avatar} />
               <AvatarFallback>JD</AvatarFallback>
             </Avatar>
-            <div className="absolute -bottom-1 -right-1 bg-white dark:bg-card p-0.5 rounded-full border border-border shadow-sm">
-              <CheckCircle2 className="h-3 w-3 text-green-500 fill-current" />
-            </div>
-          </div>
+          </Link>
         </div>
       </header>
 
       <main className={cn(
-        "max-w-2xl mx-auto p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500",
+        "max-w-2xl mx-auto w-full p-4 sm:p-8 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700",
         isPlayerActive ? "pt-[80px]" : "pt-4"
       )}>
         
-        {/* 2. Category Rail */}
+        {/* 2. Crystalline Identity Card */}
+        <section className="relative group">
+          <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-accent/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-8 shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <div className="relative">
+                  <Avatar className="h-20 w-20 border-4 border-primary/10 shadow-2xl ring-4 ring-primary/5">
+                    <AvatarImage src={currentUser.avatar} />
+                    <AvatarFallback>JD</AvatarFallback>
+                  </Avatar>
+                  <div className="absolute -bottom-1 -right-1 bg-green-500 h-7 w-7 rounded-full border-4 border-white dark:border-[#0A0A0A] flex items-center justify-center shadow-lg">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-white fill-current" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none">{currentUser.name}</h2>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-primary/10 text-primary border-none text-[9px] font-black h-5 uppercase tracking-widest px-3">Pro Creator</Badge>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">@{currentUser.username}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="hidden sm:flex flex-col items-end">
+                <span className="text-4xl font-black italic text-primary leading-none">0%</span>
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">Growth Pulse</span>
+              </div>
+            </div>
+            
+            <div className="mt-8 pt-8 border-t border-primary/5 grid grid-cols-3 gap-4">
+              <div className="text-center space-y-1">
+                <p className="text-xl font-black italic tracking-tighter">1.2K</p>
+                <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Digital Nodes</p>
+              </div>
+              <div className="text-center space-y-1 border-x border-primary/5">
+                <p className="text-xl font-black italic tracking-tighter">142</p>
+                <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Total Vibes</p>
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-xl font-black italic tracking-tighter">0.00</p>
+                <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Credits Earned</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 3. Category Rail - Glassmorphic Buttons */}
         <ScrollArea className="w-full whitespace-nowrap">
-          <div className="flex gap-2 pb-4">
+          <div className="flex gap-3 pb-4">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => handleCategorySelect(cat.id)}
                 className={cn(
-                  "px-6 py-2.5 rounded-full text-sm font-bold transition-all border",
+                  "px-8 py-3 rounded-2xl text-xs font-black italic uppercase tracking-[0.2em] transition-all border shadow-lg",
                   activeCategory === cat.id 
-                    ? "bg-secondary border-transparent text-foreground shadow-sm" 
-                    : "bg-transparent border-border text-muted-foreground hover:bg-secondary/40"
+                    ? "bg-primary border-primary text-white shadow-primary/20 scale-105" 
+                    : "bg-white/40 dark:bg-white/5 border-white/20 text-muted-foreground hover:bg-white/60"
                 )}
               >
                 {cat.label}
@@ -101,132 +159,139 @@ export default function ProfessionalDashboard() {
           <ScrollBar orientation="horizontal" className="opacity-0" />
         </ScrollArea>
 
-        {/* 3. User Identity Pulse */}
-        <section className="flex items-center justify-between group">
-          <Link href="/profile" className="flex items-center gap-4">
-            <div className="relative">
-              <Avatar className="h-16 w-16 border-4 border-primary/5 ring-2 ring-primary/10">
-                <AvatarImage src={currentUser.avatar} />
-                <AvatarFallback>JD</AvatarFallback>
-              </Avatar>
-              <div className="absolute -bottom-1 -right-1 bg-green-500 h-6 w-6 rounded-full border-4 border-white dark:border-[#050505] flex items-center justify-center">
-                <CheckCircle2 className="h-3 w-3 text-white fill-current" />
+        {/* 4. Verification Protocol Card */}
+        <div className="relative group cursor-pointer">
+          <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/40 to-primary/40 blur-xl opacity-20 group-hover:opacity-40 transition-opacity" />
+          <div className="relative bg-gradient-to-br from-indigo-600 to-blue-700 dark:from-indigo-900/40 dark:to-blue-900/40 rounded-[2rem] p-6 flex items-center justify-between border border-white/10 shadow-2xl transition-all hover:translate-y-[-2px] active:scale-[0.98]">
+            <div className="flex items-center gap-5">
+              <div className="h-14 w-14 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-white shadow-inner group-hover:scale-110 transition-transform">
+                <ShieldCheck className="h-8 w-8 fill-current" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-lg font-black italic uppercase tracking-tight text-white leading-none">Verified Identity</p>
+                <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Sync your signature for premium benefits</p>
               </div>
             </div>
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5">
-                <h2 className="text-xl font-black italic uppercase tracking-tighter">{currentUser.name}</h2>
-                <ChevronRight className="h-5 w-5 text-muted-foreground opacity-40" />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-muted-foreground">Weekly progress</span>
-                <span className="text-xs font-black text-foreground">0%</span>
-                <div className="h-3 w-3 rounded-full border-2 border-primary/20" />
-              </div>
-            </div>
-          </Link>
-        </section>
-
-        {/* 4. Verification CTA Card */}
-        <div className="bg-white dark:bg-card border border-border rounded-2xl p-5 flex items-center justify-between shadow-sm transition-all hover:shadow-md cursor-pointer group">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center text-blue-500 shadow-inner group-hover:scale-110 transition-transform">
-              <CheckCircle2 className="h-7 w-7 fill-current" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-foreground leading-snug">Get a verified badge and more benefits with ViMore Verified</p>
-            </div>
+            <ChevronRight className="h-6 w-6 text-white/40" />
           </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground opacity-40 ml-2" />
         </div>
 
-        {/* 5. Analytics Hub */}
+        {/* 5. The Analytics Engine */}
         <section className="space-y-6">
-          <div className="flex items-center gap-2 px-1">
-            <h3 className="text-xl font-black italic uppercase tracking-tighter">Analytics</h3>
-            <ChevronRight className="h-5 w-5 text-muted-foreground opacity-40" />
-          </div>
-
-          {/* Range Selector */}
-          <div className="flex items-center gap-6 overflow-x-auto pb-2 scrollbar-hide px-1">
-            {["28 days", "7 days", "Today"].map((range) => (
-              <button 
-                key={range}
-                onClick={() => { triggerHaptic(5); setActiveRange(range); }}
-                className={cn(
-                  "text-sm font-bold transition-all relative pb-2",
-                  activeRange === range ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {range}
-                {activeRange === range && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-in zoom-in duration-300" />
-                )}
-              </button>
-            ))}
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <h3 className="text-2xl font-black italic uppercase tracking-tighter">Performance Pulse</h3>
+            </div>
+            
+            <div className="flex items-center gap-1 bg-secondary/40 p-1 rounded-xl">
+              {["28D", "7D", "Now"].map((range) => (
+                <button 
+                  key={range}
+                  onClick={() => { triggerHaptic(5); setActiveRange(range === "28D" ? "28 days" : range); }}
+                  className={cn(
+                    "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                    activeRange.includes(range.toLowerCase()) || (range === "28D" && activeRange === "28 days")
+                      ? "bg-white dark:bg-card text-primary shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {range}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: "Views", value: "2,124", delta: "-79%", color: "text-red-500", icon: TrendingDown },
-              { label: "Approximate earnings", value: "$0.00", delta: "--", color: "text-muted-foreground", icon: DollarSign },
-              { label: "Engagement", value: "764", delta: "-77%", color: "text-red-500", icon: TrendingDown },
-              { label: "Net followers", value: "-18", delta: "-238%", color: "text-red-500", icon: TrendingDown },
+              { label: "Network Reach", value: "2,124", delta: "-79%", color: "text-red-500", icon: TrendingDown, bg: "from-red-500/5" },
+              { label: "Approx. Revenue", value: "L$ 0", delta: "--", color: "text-muted-foreground", icon: Zap, bg: "from-amber-500/5" },
+              { label: "Community Pulse", value: "764", delta: "-77%", color: "text-red-500", icon: TrendingDown, bg: "from-blue-500/5" },
+              { label: "New Handshakes", value: "-18", delta: "-238%", color: "text-red-500", icon: TrendingDown, bg: "from-primary/5" },
             ].map((metric, i) => (
-              <div key={i} className="bg-white dark:bg-card border border-border rounded-2xl p-5 space-y-3 shadow-sm">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{metric.label}</span>
-                <div className="space-y-1">
-                  <p className="text-2xl font-black tabular-nums">{metric.value}</p>
-                  <div className={cn("flex items-center gap-1 text-[11px] font-black uppercase", metric.color)}>
-                    <metric.icon className="h-3 w-3" /> {metric.delta}
-                  </div>
+              <div key={i} className={cn(
+                "relative bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.25rem] p-6 shadow-xl space-y-4 overflow-hidden group hover:border-primary/20 transition-all",
+                "bg-gradient-to-br to-transparent"
+              )}>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">{metric.label}</span>
+                  <p className="text-3xl font-black tabular-nums italic tracking-tighter">{metric.value}</p>
+                </div>
+                <div className={cn("flex items-center gap-1.5 text-[10px] font-black uppercase", metric.color)}>
+                  <metric.icon className="h-3 w-3" /> {metric.delta}
+                </div>
+                <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                  <metric.icon className="h-24 w-24 rotate-12" />
                 </div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* 6. Content Insights */}
+        {/* 6. Content Insights Vault */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2 px-1">
-            <h3 className="text-xl font-black italic uppercase tracking-tighter">Content</h3>
-            <ChevronRight className="h-5 w-5 text-muted-foreground opacity-40" />
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                <Layers className="h-5 w-5" />
+              </div>
+              <h3 className="text-2xl font-black italic uppercase tracking-tighter">Content Hub</h3>
+            </div>
+            <Button variant="link" className="text-[10px] font-black text-primary uppercase tracking-widest p-0 h-auto">Browse All</Button>
           </div>
           
-          <div className="space-y-1">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Latest post</span>
-            <div className="bg-white dark:bg-card border border-border rounded-2xl p-5 flex items-start gap-4 shadow-sm hover:shadow-md transition-all cursor-pointer">
-              <div className="flex-1 space-y-4">
-                <p className="text-sm font-bold leading-relaxed line-clamp-2 italic">"Time for Friday favourites! Share the vibes with your circle node..."</p>
-                <div className="h-px bg-border" />
+          <div className="group relative">
+            <div className="absolute -inset-1 bg-primary/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-6 flex items-start gap-6 shadow-xl hover:bg-white/60 transition-all cursor-pointer">
+              <div className="flex-1 space-y-6">
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Views</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg font-black tabular-nums">4</span>
-                    <span className="text-[10px] font-black text-red-500 uppercase flex items-center gap-0.5">
-                      <TrendingDown className="h-2.5 w-2.5" /> -98%
-                    </span>
+                  <span className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Latest Vibe</span>
+                  <p className="text-sm font-bold leading-relaxed line-clamp-2 italic text-foreground/80">"Time for Friday favourites! Share the vibes with your circle node..."</p>
+                </div>
+                
+                <div className="flex items-center gap-8 pt-2">
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Views</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl font-black tabular-nums">4</span>
+                      <span className="text-[9px] font-black text-red-500 uppercase flex items-center gap-0.5">
+                        <TrendingDown className="h-2.5 w-2.5" /> -98%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Retention</span>
+                    <p className="text-xl font-black tabular-nums text-foreground/40">--</p>
                   </div>
                 </div>
               </div>
-              <div className="h-20 w-20 rounded-xl bg-secondary/30 flex items-center justify-center shrink-0">
-                <Plus className="h-6 w-6 text-muted-foreground/40" />
+              <div className="h-24 w-24 rounded-3xl bg-secondary/40 flex items-center justify-center shrink-0 border border-white/20 shadow-inner group-hover:scale-105 transition-transform">
+                <Plus className="h-8 w-8 text-muted-foreground/40" />
               </div>
             </div>
           </div>
         </section>
 
-        {/* 7. System Meta Nodes */}
-        <footer className="pt-10 pb-20 space-y-6">
-          <div className="bg-secondary/10 rounded-2xl p-4 flex gap-4">
-            <Info className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-            <p className="text-[10px] font-medium text-muted-foreground leading-relaxed uppercase tracking-tighter">
-              All data pulses are updated every 24 hours. Percentages represent changes compared to the previous high-velocity period.
+        {/* 7. System Meta & Footnote */}
+        <footer className="pt-10 pb-24 space-y-8">
+          <div className="bg-primary/5 rounded-[2rem] p-6 border border-primary/10 flex gap-5 items-start">
+            <div className="bg-primary/10 p-3 rounded-2xl shrink-0">
+              <Info className="h-5 w-5 text-primary" />
+            </div>
+            <p className="text-[11px] font-medium text-muted-foreground leading-relaxed uppercase tracking-tighter">
+              All data pulses are synchronized every 24 hours across the ViMore network. Percentages represent volatility compared to the previous high-velocity window.
             </p>
           </div>
-          <p className="text-center text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.3em]">
-            ViMore Node v1.5.0-HighVelocity • Pro Insights Active
-          </p>
+          <div className="flex flex-col items-center gap-4 opacity-40">
+            <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center">
+              <Rocket className="h-5 w-5 text-primary" />
+            </div>
+            <p className="text-center text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">
+              ViMore Node v1.5.0-HighVelocity • Command Core Active
+            </p>
+          </div>
         </footer>
 
       </main>
