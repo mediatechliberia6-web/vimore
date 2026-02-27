@@ -33,7 +33,11 @@ import {
   Activity,
   Music2,
   Video,
-  Loader2
+  Loader2,
+  Bell,
+  Clock,
+  Radio,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -87,9 +91,15 @@ export default function SettingsPage() {
     updateSettings(data);
   };
 
-  const friends = connections.filter(c => c.followsYou);
+  // Mock Activity Heatmap Data
+  const heatmapData = useMemo(() => {
+    return Array.from({ length: 30 }, (_, i) => ({
+      day: i,
+      intensity: Math.floor(Math.random() * 4) // 0 to 3
+    }));
+  }, []);
 
-  // Storage Stats (Simulated)
+  // Storage Stats
   const storageData = useMemo(() => [
     { label: "Sonic Notes", size: "420MB", value: 42, icon: Music2, color: "bg-primary" },
     { label: "Vibe Cache", size: "680MB", value: 68, icon: Video, color: "bg-accent" },
@@ -134,8 +144,11 @@ export default function SettingsPage() {
         
         {/* Category: Identity Node */}
         <section className="space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Identity & Signature</h3>
-          <div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-xl shadow-black/5 overflow-hidden">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Identity & Signature</h3>
+            <Badge variant="outline" className="text-[8px] font-black border-primary/20 text-primary">SYNCED</Badge>
+          </div>
+          <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 overflow-hidden">
             <Link href="/profile" className="flex items-center justify-between p-6 hover:bg-secondary/20 transition-colors group">
               <div className="flex items-center gap-4">
                 <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
@@ -148,7 +161,31 @@ export default function SettingsPage() {
               </div>
               <ChevronRight className="h-5 w-5 text-muted-foreground opacity-40" />
             </Link>
+            
+            <div className="px-6 pb-6">
+              <div className="bg-secondary/10 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Network Pulse (30D)</span>
+                  <Activity className="h-3 w-3 text-primary" />
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {heatmapData.map((d) => (
+                    <div 
+                      key={d.day} 
+                      className={cn(
+                        "h-3 w-3 rounded-[3px] transition-all",
+                        d.intensity === 0 ? "bg-secondary/40" :
+                        d.intensity === 1 ? "bg-primary/20" :
+                        d.intensity === 2 ? "bg-primary/50" : "bg-primary"
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <div className="h-px bg-border mx-6" />
+            
             <div className="p-6 space-y-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
@@ -165,7 +202,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Category: Privacy & Security Node */}
+        {/* Category: Security & Privacy Node */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Security & Privacy</h3>
           <div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
@@ -206,7 +243,83 @@ export default function SettingsPage() {
                   <SelectItem value="friends" className="font-bold">Mutual Friends Only</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tighter">Restrict high-velocity collaboration tags</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Category: Sensory Node (Phase 4) */}
+        <section className="space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Sensory & Atmosphere</h3>
+          <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Radio className="h-4 w-4 text-primary" />
+                  <p className="font-bold text-sm">Sonic Atmosphere</p>
+                </div>
+                <Badge variant="secondary" className="text-[9px] font-black uppercase">{settings.activeSoundSet === 'cyberpunk' ? 'Cyber Tech' : 'Lo-Fi Organic'}</Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={() => handleUpdate({ activeSoundSet: 'cyberpunk' })}
+                  className={cn(
+                    "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all",
+                    settings.activeSoundSet === 'cyberpunk' ? "border-primary bg-primary/5" : "border-transparent bg-secondary/20 hover:bg-secondary/40"
+                  )}
+                >
+                  <Zap className={cn("h-6 w-6", settings.activeSoundSet === 'cyberpunk' ? "text-primary" : "text-muted-foreground")} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Cyberpunk</span>
+                </button>
+                <button 
+                  onClick={() => handleUpdate({ activeSoundSet: 'lofi' })}
+                  className={cn(
+                    "flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all",
+                    settings.activeSoundSet === 'lofi' ? "border-primary bg-primary/5" : "border-transparent bg-secondary/20 hover:bg-secondary/40"
+                  )}
+                >
+                  <Music2 className={cn("h-6 w-6", settings.activeSoundSet === 'lofi' ? "text-primary" : "text-muted-foreground")} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Organic</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="h-px bg-border" />
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-amber-500" />
+                  <p className="font-bold text-sm">Silence Nodes</p>
+                </div>
+                <Switch 
+                  checked={settings.isSilenceActive} 
+                  onCheckedChange={(val) => handleUpdate({ isSilenceActive: val })}
+                  className="data-[state=checked]:bg-amber-500"
+                />
+              </div>
+              {settings.isSilenceActive && (
+                <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-300">
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Pulse Off</Label>
+                    <Input 
+                      type="time" 
+                      value={settings.silenceStart} 
+                      onChange={(e) => handleUpdate({ silenceStart: e.target.value })}
+                      className="bg-secondary/20 border-none h-10 rounded-xl font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">Pulse On</Label>
+                    <Input 
+                      type="time" 
+                      value={settings.silenceEnd} 
+                      onChange={(e) => handleUpdate({ silenceEnd: e.target.value })}
+                      className="bg-secondary/20 border-none h-10 rounded-xl font-bold"
+                    />
+                  </div>
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tighter">Automate Do-Not-Disturb periods for the entire network</p>
             </div>
           </div>
         </section>
@@ -270,7 +383,7 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <item.icon className="h-4 w-4 text-amber-500" />
+                  <Smartphone className="h-4 w-4 text-amber-500" />
                   <p className="font-bold text-sm">Haptic Intensity</p>
                 </div>
                 <Badge variant="secondary" className="text-[9px] font-black uppercase">{settings.hapticIntensity}%</Badge>

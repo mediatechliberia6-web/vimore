@@ -12,6 +12,9 @@ export interface AppSettings {
   isBiometricActive: boolean;
   taggingPrivacy: 'everyone' | 'friends';
   legacyContact: string | null;
+  isSilenceActive: boolean;
+  silenceStart: string;
+  silenceEnd: string;
 }
 
 export interface User {
@@ -210,7 +213,10 @@ const INITIAL_SETTINGS: AppSettings = {
   activeSoundSet: 'cyberpunk',
   isBiometricActive: false,
   taggingPrivacy: 'everyone',
-  legacyContact: null
+  legacyContact: null,
+  isSilenceActive: false,
+  silenceStart: "22:00",
+  silenceEnd: "07:00"
 };
 
 const MOCK_CONNECTIONS: Connection[] = [
