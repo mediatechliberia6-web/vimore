@@ -201,7 +201,8 @@ const INITIAL_USER: User = {
   diamondBalance: 0,
   starBalance: 0,
   referralCount: 0,
-  introUrl: ""
+  introUrl: "",
+  isOnline: true
 };
 
 const INITIAL_SETTINGS: AppSettings = {
@@ -479,6 +480,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  // Ghost Mode derived presence
+  const finalCurrentUser = useMemo(() => {
+    return {
+      ...currentUser,
+      isOnline: settings.isGhostMode ? false : currentUser.isOnline
+    };
+  }, [currentUser, settings.isGhostMode]);
+
   const triggerReferralPulse = useCallback(() => {
     triggerHaptic(50);
     setCurrentUser(prev => {
@@ -657,7 +666,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   return (
     <PostContext.Provider value={{ 
-      currentUser,
+      currentUser: finalCurrentUser,
       posts, 
       stories, 
       highlights, 

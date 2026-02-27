@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { 
   ArrowLeft, 
   User, 
@@ -40,7 +40,9 @@ import {
   Sparkles,
   Trophy,
   UserPlus,
-  Rocket
+  Rocket,
+  Search,
+  CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -56,18 +58,29 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function SettingsPage() {
   const { settings, updateSettings, triggerHaptic, currentUser, connections } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { toast } = useToast();
+  
   const [isSyncing, setIsSyncing] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+  const [isLegacySelectorOpen, setIsLegacySelectorOpen] = useState(false);
+  const [legacySearch, setLegacySearch] = useState("");
 
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -94,6 +107,19 @@ export default function SettingsPage() {
     triggerHaptic(10);
     updateSettings(data);
   };
+
+  const filteredConnections = useMemo(() => {
+    return connections.filter(c => 
+      c.followsYou && (
+        c.name.toLowerCase().includes(legacySearch.toLowerCase()) || 
+        c.username.toLowerCase().includes(legacySearch.toLowerCase())
+      )
+    );
+  }, [connections, legacySearch]);
+
+  const selectedLegacyNode = useMemo(() => {
+    return connections.find(c => c.username === settings.legacyContact);
+  }, [connections, settings.legacyContact]);
 
   // Mock Activity Heatmap Data
   const heatmapData = useMemo(() => {
@@ -195,7 +221,7 @@ export default function SettingsPage() {
 
             <div className="h-px bg-border mx-6" />
             
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-8">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <p className="font-bold text-sm">Ghost Node Mode</p>
@@ -206,6 +232,82 @@ export default function SettingsPage() {
                   onCheckedChange={(val) => handleUpdate({ isGhostMode: val })}
                   className="data-[state=checked]:bg-primary"
                 />
+              </div>
+
+              <div className="h-px bg-border -mx-6" />
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-sm">Legacy Handshake</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-black">Designate a node to manage your signature</p>
+                  </div>
+                  <Dialog open={isLegacySelectorOpen} onOpenChange={setIsLegacySelectorOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="rounded-xl h-10 border-primary/20 text-primary font-black uppercase text-[10px]">
+                        {selectedLegacyNode ? "Switch Node" : "Designate"}
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-primary/10">
+                      <DialogHeader className="p-6 bg-primary/5 border-b border-primary/10">
+                        <DialogTitle className="text-xl font-black italic uppercase tracking-widest text-primary">Select Legacy Node</DialogTitle>
+                      </DialogHeader>
+                      <div className="p-4 space-y-4">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            placeholder="Query mutual connections..." 
+                            className="h-12 pl-10 rounded-2xl bg-secondary/20 border-none"
+                            value={legacySearch}
+                            onChange={(e) => setLegacySearch(e.target.value)}
+                          />
+                        </div>
+                        <ScrollArea className="h-[300px]">
+                          <div className="space-y-2 pr-4">
+                            {filteredConnections.length > 0 ? filteredConnections.map((c) => (
+                              <button 
+                                key={c.username}
+                                onClick={() => { 
+                                  handleUpdate({ legacyContact: c.username }); 
+                                  setIsLegacySelectorOpen(false); 
+                                  toast({ title: "Protocol Established", description: `@${c.username} is now your legacy node.` });
+                                }}
+                                className={cn(
+                                  "w-full flex items-center justify-between p-3 rounded-2xl transition-all",
+                                  settings.legacyContact === c.username ? "bg-primary/10 ring-1 ring-primary/20" : "hover:bg-secondary/40"
+                                )}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={c.avatar} /></Avatar>
+                                  <div className="text-left">
+                                    <p className="font-bold text-sm leading-none">{c.name}</p>
+                                    <p className="text-[10px] text-muted-foreground font-black uppercase mt-1">@{c.username}</p>
+                                  </div>
+                                </div>
+                                {settings.legacyContact === c.username && <CheckCircle2 className="h-5 w-5 text-primary" />}
+                              </button>
+                            )) : (
+                              <div className="py-12 text-center text-muted-foreground italic text-sm">No mutual nodes found.</div>
+                            )}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                
+                {selectedLegacyNode && (
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-primary/5 border border-primary/10 animate-in slide-in-from-top-2">
+                    <Avatar className="h-8 w-8"><AvatarImage src={selectedLegacyNode.avatar} /></Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold truncate">{selectedLegacyNode.name}</p>
+                      <p className="text-[9px] font-black uppercase text-primary tracking-widest">Digital Proxy Node</p>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleUpdate({ legacyContact: null })}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -497,7 +599,13 @@ export default function SettingsPage() {
           <Button 
             variant="outline" 
             className="w-full h-14 rounded-2xl border-destructive/20 text-destructive font-black italic uppercase tracking-widest text-[10px] hover:bg-destructive/5"
-            onClick={() => triggerHaptic(100)}
+            onClick={() => {
+              triggerHaptic(100);
+              if (confirm("Initiate Total System Purge? This will clear all local identity nodes.")) {
+                localStorage.clear();
+                window.location.href = "/";
+              }
+            }}
           >
             Purge Local Cache & Sign Out
           </Button>
