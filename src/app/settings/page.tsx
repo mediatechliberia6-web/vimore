@@ -74,8 +74,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function SettingsPage() {
-  const { settings, updateSettings, triggerHaptic, currentUser, connections } = usePosts();
-  const { currentTrack, isExpanded } = useMusic();
+  const { settings, updateSettings, triggerHaptic, currentUser, connections, posts, savedPostIds } = usePosts();
+  const { currentTrack, isExpanded, downloadedSongIds, userSongs } = useMusic();
   const { toast } = useToast();
   
   const [isSyncing, setIsSyncing] = useState(false);
@@ -102,27 +102,38 @@ export default function SettingsPage() {
     setIsArchiving(true);
     triggerHaptic(100);
     toast({ title: "Archive Initiated", description: "Compiling your digital footprint into a secure node..." });
+    
     setTimeout(() => {
       setIsArchiving(false);
       
-      // Simulate JSON download
+      // Comprehensive temporal node compilation
       const data = {
+        meta: {
+          version: "1.5.0-HighVelocity",
+          timestamp: new Date().toISOString(),
+          cluster: "ViMore-Node-Spatial"
+        },
         identity: currentUser,
+        handshakes: connections.map(c => ({ username: c.username, followsYou: c.followsYou })),
         preferences: settings,
-        timestamp: new Date().toISOString(),
-        cluster: "ViMore-Node-1.5"
+        vault: {
+          savedPosts: Array.from(savedPostIds),
+          downloadedSongs: Array.from(downloadedSongIds)
+        },
+        discography: userSongs.map(s => ({ title: s.title, artist: s.artist }))
       };
+
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `vimore_identity_${currentUser.username}.json`;
+      link.download = `vimore_archive_${currentUser.username}_${Date.now()}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      toast({ title: "Ready for Download", description: "Identity archive materialized. Temporal backup complete." });
-    }, 4000);
+      toast({ title: "Archive Materialized", description: "Identity node download complete." });
+    }, 3500);
   };
 
   const handleUpdate = (data: any) => {
@@ -155,6 +166,42 @@ export default function SettingsPage() {
     return connections.find(c => c.username === settings.legacyContact);
   }, [connections, settings.legacyContact]);
 
+  // Dynamic Storage Pulse Logic
+  const storageData = useMemo(() => {
+    // ESTIMATION ENGINE
+    const sonicSize = downloadedSongIds.size * 10.5; // ~10.5MB per track
+    const vibeSize = posts.filter(p => p.videoUrl).length * 15.2; // ~15.2MB per reel
+    const metaSize = (posts.length * 0.5) + (connections.length * 0.2) + 1.2; // Meta in MB
+
+    return [
+      { 
+        label: "Sonic Notes", 
+        size: `${sonicSize.toFixed(1)}MB`, 
+        value: Math.min((sonicSize / 2000) * 100, 100), // 2GB dedicated
+        icon: Music2, 
+        color: "bg-primary" 
+      },
+      { 
+        label: "Vibe Cache", 
+        size: `${vibeSize.toFixed(1)}MB`, 
+        value: Math.min((vibeSize / 2500) * 100, 100), // 2.5GB dedicated
+        icon: Video, 
+        color: "bg-accent" 
+      },
+      { 
+        label: "Core Meta", 
+        size: `${metaSize.toFixed(1)}MB`, 
+        value: Math.min((metaSize / 500) * 100, 100), // 500MB dedicated
+        icon: Database, 
+        color: "bg-amber-500" 
+      },
+    ];
+  }, [downloadedSongIds, posts, connections]);
+
+  const totalUsedMB = useMemo(() => {
+    return storageData.reduce((acc, curr) => acc + parseFloat(curr.size), 0);
+  }, [storageData]);
+
   // Activity Heatmap Simulation
   const heatmapData = useMemo(() => {
     return Array.from({ length: 30 }, (_, i) => ({
@@ -162,13 +209,6 @@ export default function SettingsPage() {
       intensity: Math.floor(Math.random() * 4)
     }));
   }, []);
-
-  // Dynamic Storage Pulse Logic
-  const storageData = useMemo(() => [
-    { label: "Sonic Notes", size: "420MB", value: 42, icon: Music2, color: "bg-primary" },
-    { label: "Vibe Cache", size: "680MB", value: 68, icon: Video, color: "bg-accent" },
-    { label: "Core Meta", size: "120MB", value: 12, icon: Database, color: "bg-amber-500" },
-  ], []);
 
   const referrals = currentUser.referralCount || 0;
   const nextMilestone = referrals < 5 ? 5 : referrals < 10 ? 10 : 25;
@@ -516,7 +556,9 @@ export default function SettingsPage() {
                   <HardDrive className="h-4 w-4 text-primary" />
                   <p className="font-bold text-sm">Cluster Footprint</p>
                 </div>
-                <span className="text-[10px] font-black uppercase text-muted-foreground">1.22 GB / 5 GB Synced</span>
+                <span className="text-[10px] font-black uppercase text-muted-foreground">
+                  {totalUsedMB.toFixed(1)} MB / 5000 MB Synced
+                </span>
               </div>
               
               <div className="space-y-4">
