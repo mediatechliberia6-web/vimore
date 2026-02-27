@@ -37,7 +37,10 @@ import {
   Bell,
   Clock,
   Radio,
-  Sparkles
+  Sparkles,
+  Trophy,
+  UserPlus,
+  Rocket
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -107,6 +110,11 @@ export default function SettingsPage() {
     { label: "Core Meta", size: "120MB", value: 12, icon: Database, color: "bg-amber-500" },
   ], []);
 
+  // Growth Stats
+  const referrals = currentUser.referralCount || 0;
+  const nextMilestone = referrals < 5 ? 5 : referrals < 10 ? 10 : 25;
+  const growthProgress = (referrals / nextMilestone) * 100;
+
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300">
       <header className="sticky top-0 z-50 bg-white/80 dark:bg-card/80 backdrop-blur-md border-b border-border h-16 px-4 flex items-center justify-between">
@@ -133,7 +141,7 @@ export default function SettingsPage() {
           onClick={handleSync}
           disabled={isSyncing}
         >
-          {isSyncing ? <RefreshCcw className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />}
+          {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />}
           Manual Sync
         </Button>
       </header>
@@ -199,6 +207,49 @@ export default function SettingsPage() {
                   className="data-[state=checked]:bg-primary"
                 />
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Category: Growth Hub (Phase 5) */}
+        <section className="space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Growth & Handshakes</h3>
+          <div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
+            <div className="bg-primary/5 rounded-[1.75rem] p-6 border border-primary/10 relative overflow-hidden group">
+              <div className="relative z-10 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="h-5 w-5 text-amber-500" />
+                    <span className="text-xs font-black uppercase tracking-widest">Ambassador Status</span>
+                  </div>
+                  <Badge className="bg-primary text-white text-[8px] font-black uppercase tracking-widest border-none">
+                    Level {referrals < 5 ? '1' : referrals < 10 ? '2' : '3'}
+                  </Badge>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter">
+                    <span className="text-muted-foreground">Progress to Level {referrals < 5 ? '2' : referrals < 10 ? '3' : 'MAX'}</span>
+                    <span className="text-primary">{referrals} / {nextMilestone} Nodes</span>
+                  </div>
+                  <Progress value={growthProgress} className="h-2" />
+                </div>
+              </div>
+              <Rocket className="absolute -right-4 -bottom-4 h-24 w-24 opacity-5 rotate-[-15deg] group-hover:scale-110 transition-transform duration-700" />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4 text-primary" />
+                  <p className="font-bold text-sm">Auto-Follow Protocol</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Automatically follow nodes that join via your link</p>
+              </div>
+              <Switch 
+                checked={settings.isAutoFollowEnabled} 
+                onCheckedChange={(val) => handleUpdate({ isAutoFollowEnabled: val })}
+                className="data-[state=checked]:bg-primary"
+              />
             </div>
           </div>
         </section>
