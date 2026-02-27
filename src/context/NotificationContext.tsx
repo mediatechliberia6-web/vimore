@@ -44,7 +44,7 @@ const MOCK_SIGNALS: NotificationNode[] = [
     time: '2m ago',
     isRead: false,
     avatar: 'https://picsum.photos/seed/50/100/100',
-    actionLabel: 'Follow Back',
+    actionLabel: 'Friend',
     targetUsername: 'jmoore'
   },
   {
@@ -66,7 +66,7 @@ const MOCK_SIGNALS: NotificationNode[] = [
     time: '30m ago',
     isRead: false,
     avatar: 'https://picsum.photos/seed/2/100/100',
-    postId: '1' // Matches initialMockPosts ID
+    postId: '1' 
   },
   {
     id: 'sig-4',
@@ -75,6 +75,16 @@ const MOCK_SIGNALS: NotificationNode[] = [
     content: 'Your high-velocity workspace was successfully synchronized with the main cluster.',
     time: '1h ago',
     isRead: true,
+  },
+  {
+    id: 'sig-5',
+    type: 'SOCIAL',
+    title: 'New Vibe Pulse',
+    content: '**John Doe** liked your post about tech deep-dives.',
+    time: '2h ago',
+    isRead: false,
+    avatar: 'https://picsum.photos/seed/me/100/100',
+    postId: '2'
   }
 ];
 
@@ -83,7 +93,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [hasPushPermission, setHasPushPermission] = useState(false);
   const { toast } = useToast();
 
-  // Load state from local node storage
   useEffect(() => {
     const saved = localStorage.getItem('vimore_signals');
     if (saved) {
@@ -101,7 +110,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Persist state
   useEffect(() => {
     localStorage.setItem('vimore_signals', JSON.stringify(notifications));
   }, [notifications]);
@@ -109,7 +117,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const triggerSound = useCallback(() => {
     const audio = new Audio(NOTIFICATION_SOUND);
     audio.volume = 0.4;
-    audio.play().catch(() => {}); // Browsers might block autoplay without user interaction
+    audio.play().catch(() => {});
   }, []);
 
   const addSignal = useCallback((signal: Omit<NotificationNode, 'id' | 'time' | 'isRead'>) => {
@@ -123,7 +131,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setNotifications(prev => [newNode, ...prev]);
     triggerSound();
 
-    // Browser Level Push if active
     if (typeof window !== 'undefined' && "Notification" in window && Notification.permission === "granted") {
       new Notification(signal.title, {
         body: signal.content.replace(/\*\*/g, ''),

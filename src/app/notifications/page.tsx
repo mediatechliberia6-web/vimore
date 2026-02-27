@@ -39,7 +39,7 @@ type FilterTab = "ALL" | SignalType;
 export default function NotificationsPage() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, purgeSignal, requestPushPermission, hasPushPermission } = useNotifications();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
-  const { setSelectedPostId, toggleFollowUser } = usePosts();
+  const { setSelectedPostId, toggleFollowUser, isFollowing, connections } = usePosts();
   const { toast } = useToast();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<FilterTab>("ALL");
@@ -55,28 +55,49 @@ export default function NotificationsPage() {
     triggerHaptic(15);
     markAsRead(node.id);
     
-    // 1. Portal Transition logic: If the signal is anchored to a post, materialize the portal
+    // 1. Post Portal Transition: If anchored to a post, materialize the portal
     if (node.postId) {
       setSelectedPostId(node.postId);
-      toast({ title: "Portal Opening", description: "Navigating to vibe node..." });
+      toast({ title: "Portal Materialized", description: "Accessing high-velocity post node..." });
       return;
     }
 
-    // 2. Action Handshake: Handle specific labels like "Follow Back" or "View Chart"
-    if (node.actionLabel === "Follow Back" && node.targetUsername) {
-      toggleFollowUser(node.targetUsername);
-      toast({ title: "Mutual Connection", description: `You followed back @${node.targetUsername}!` });
+    // 2. Profile Jump: For social signals, navigate to user workspace
+    if (node.targetUsername) {
+      router.push(`/profile/${node.targetUsername}`);
       return;
     }
 
+    // 3. System/Chart Navigation
+    if (node.actionHref) {
+      router.push(node.actionHref);
+    }
+  };
+
+  const handleButtonClick = (e: React.MouseEvent, node: NotificationNode) => {
+    e.stopPropagation(); // CRITICAL: Prevents triggering the card handleAction
+    triggerHaptic(25);
+    markAsRead(node.id);
+
+    // Social Logic: Toggle follow if not already following
+    if (node.targetUsername && (node.actionLabel === "Follow Back" || node.actionLabel === "Friend")) {
+      if (!isFollowing(node.targetUsername)) {
+        toggleFollowUser(node.targetUsername);
+        toast({ title: "Network Synced", description: `You are now following back @${node.targetUsername}!` });
+      }
+      router.push(`/profile/${node.targetUsername}`);
+      return;
+    }
+
+    // Deep Link Logic
     if (node.actionLabel === "View Chart") {
       router.push('/music?tab=chart');
-      toast({ title: "Navigating Hub", description: "Opening global charts..." });
       return;
     }
 
-    // 3. Generic Href Handshake
-    if (node.actionHref) {
+    if (node.postId) {
+      setSelectedPostId(node.postId);
+    } else if (node.actionHref) {
       router.push(node.actionHref);
     }
   };
@@ -102,7 +123,6 @@ export default function NotificationsPage() {
 
   return (
     <div className="min-h-screen bg-[#F8F9FD] dark:bg-[#020202] flex flex-col transition-colors duration-500 overflow-x-hidden">
-      {/* Immersive Aurora Background */}
       <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[70%] bg-primary/5 blur-[120px] rounded-full animate-pulse" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-accent/5 blur-[120px] rounded-full animate-pulse delay-1000" />
@@ -115,7 +135,6 @@ export default function NotificationsPage() {
         "w-full max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[280px_1fr_360px] gap-8 px-4 transition-all duration-300",
         isPlayerActive ? "pt-[184px]" : "pt-6"
       )}>
-        {/* Rail 1: Navigation */}
         <aside className={cn(
           "hidden lg:block sticky h-[calc(100vh-132px)] overflow-y-auto transition-all duration-300",
           isPlayerActive ? "top-[196px]" : "top-[132px]"
@@ -123,7 +142,6 @@ export default function NotificationsPage() {
           <MainNav />
         </aside>
 
-        {/* Center: Signal Hub */}
         <main className="flex flex-col gap-8 w-full max-w-[720px] mx-auto pb-32">
           
           <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -161,10 +179,8 @@ export default function NotificationsPage() {
               </div>
             </div>
 
-            {/* RAW Global Ad Banner Integration - Standard type is already raw in NativeAdNode */}
             <NativeAdNode type="standard" />
 
-            {/* High-Velocity Filter Pill */}
             <div className="sticky top-[132px] sm:top-[117px] z-40 px-1 transition-all">
               <div className="flex p-1.5 bg-white/80 dark:bg-card/80 backdrop-blur-3xl border border-white dark:border-white/5 rounded-[2rem] overflow-x-auto scrollbar-hide shadow-2xl shadow-black/5">
                 {[
@@ -196,116 +212,118 @@ export default function NotificationsPage() {
               </div>
             </div>
 
-            {/* Notification Stream */}
             <div className="flex flex-col gap-4">
               {filteredNotifications.length > 0 ? (
-                filteredNotifications.map((node, i) => (
-                  <div 
-                    key={node.id}
-                    onClick={() => handleAction(node)}
-                    className={cn(
-                      "group relative bg-white/60 dark:bg-white/5 backdrop-blur-2xl border rounded-[2.5rem] p-6 flex items-start gap-5 transition-all hover:shadow-2xl hover:-translate-y-1 cursor-pointer animate-in fade-in slide-in-from-bottom-4",
-                      !node.isRead 
-                        ? "border-primary/30 bg-gradient-to-br from-primary/[0.03] to-transparent ring-1 ring-primary/10 shadow-lg shadow-primary/5" 
-                        : "border-white dark:border-white/5 opacity-80 hover:opacity-100"
-                    )}
-                    style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}
-                  >
-                    {/* Unread Glow Pulse */}
-                    {!node.isRead && (
-                      <div className="absolute top-8 right-8 h-2.5 w-2.5 bg-primary rounded-full animate-pulse shadow-[0_0_12px_rgba(153,64,229,1)]" />
-                    )}
+                filteredNotifications.map((node, i) => {
+                  const connection = connections.find(c => c.username === node.targetUsername);
+                  const isMutual = node.targetUsername && isFollowing(node.targetUsername) && connection?.followsYou;
+                  const followsMe = connection?.followsYou;
+                  
+                  let displayLabel = node.actionLabel;
+                  if (node.type === 'SOCIAL' && node.targetUsername) {
+                    if (isMutual) displayLabel = "Friend";
+                    else if (followsMe) displayLabel = "Follow Back";
+                  }
 
-                    {/* Left: Identity Node */}
-                    <div className="relative shrink-0">
-                      <div className={cn(
-                        "absolute -inset-2 rounded-[2rem] blur-md opacity-0 transition-opacity duration-700",
-                        !node.isRead && "bg-primary/20 opacity-100"
-                      )} />
-                      
-                      <div className="relative">
-                        {node.avatar ? (
-                          <Avatar className="h-16 w-16 border-4 border-white dark:border-[#0A0A0A] shadow-2xl">
-                            <AvatarImage src={node.avatar} />
-                            <AvatarFallback className="bg-primary/10 text-primary font-black uppercase">{node.title[0]}</AvatarFallback>
-                          </Avatar>
-                        ) : (
-                          <div className={cn(
-                            "h-16 w-16 rounded-[1.5rem] flex items-center justify-center shadow-xl border-2 border-white dark:border-white/5",
-                            node.type === 'SONIC' ? "bg-accent/20 text-accent" : node.type === 'SYSTEM' ? "bg-green-500/20 text-green-500" : "bg-primary/20 text-primary"
-                          )}>
-                            {node.type === 'SONIC' ? <Music2 className="h-8 w-8" /> : node.type === 'SYSTEM' ? <ShieldCheck className="h-8 w-8" /> : <Users className="h-8 w-8" />}
-                          </div>
-                        )}
-                        
+                  return (
+                    <div 
+                      key={node.id}
+                      onClick={() => handleAction(node)}
+                      className={cn(
+                        "group relative bg-white/60 dark:bg-white/5 backdrop-blur-2xl border rounded-[2.5rem] p-6 flex items-start gap-5 transition-all hover:shadow-2xl hover:-translate-y-1 cursor-pointer animate-in fade-in slide-in-from-bottom-4",
+                        !node.isRead 
+                          ? "border-primary/30 bg-gradient-to-br from-primary/[0.03] to-transparent ring-1 ring-primary/10 shadow-lg shadow-primary/5" 
+                          : "border-white dark:border-white/5 opacity-80 hover:opacity-100"
+                      )}
+                      style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both' }}
+                    >
+                      {!node.isRead && (
+                        <div className="absolute top-8 right-8 h-2.5 w-2.5 bg-primary rounded-full animate-pulse shadow-[0_0_12px_rgba(153,64,229,1)]" />
+                      )}
+
+                      <div className="relative shrink-0">
                         <div className={cn(
-                          "absolute -bottom-1 -right-1 h-6 w-6 rounded-full border-4 border-white dark:border-[#0A0A0A] flex items-center justify-center shadow-lg",
-                          node.type === 'SONIC' ? "bg-accent" : node.type === 'SYSTEM' ? "bg-green-500" : "bg-primary"
-                        )}>
-                          {node.type === 'SONIC' ? <Music2 className="h-3 w-3 text-white" /> : node.type === 'SYSTEM' ? <Zap className="h-3 w-3 text-white" /> : <Users className="h-3 w-3 text-white" />}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Middle: Content Context */}
-                    <div className="flex-1 min-w-0 flex flex-col gap-4">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between gap-4">
-                          <h3 className={cn(
-                            "font-black italic uppercase tracking-tighter text-xl leading-none font-headline",
-                            !node.isRead ? "text-foreground" : "text-muted-foreground"
+                          "absolute -inset-2 rounded-[2rem] blur-md opacity-0 transition-opacity duration-700",
+                          !node.isRead && "bg-primary/20 opacity-100"
+                        )} />
+                        
+                        <div className="relative">
+                          {node.avatar ? (
+                            <Avatar className="h-16 w-16 border-4 border-white dark:border-[#0A0A0A] shadow-2xl">
+                              <AvatarImage src={node.avatar} />
+                              <AvatarFallback className="bg-primary/10 text-primary font-black uppercase">{node.title[0]}</AvatarFallback>
+                            </Avatar>
+                          ) : (
+                            <div className={cn(
+                              "h-16 w-16 rounded-[1.5rem] flex items-center justify-center shadow-xl border-2 border-white dark:border-white/5",
+                              node.type === 'SONIC' ? "bg-accent/20 text-accent" : node.type === 'SYSTEM' ? "bg-green-500/20 text-green-500" : "bg-primary/20 text-primary"
+                            )}>
+                              {node.type === 'SONIC' ? <Music2 className="h-8 w-8" /> : node.type === 'SYSTEM' ? <ShieldCheck className="h-8 w-8" /> : <Users className="h-8 w-8" />}
+                            </div>
+                          )}
+                          
+                          <div className={cn(
+                            "absolute -bottom-1 -right-1 h-6 w-6 rounded-full border-4 border-white dark:border-[#0A0A0A] flex items-center justify-center shadow-lg",
+                            node.type === 'SONIC' ? "bg-accent" : node.type === 'SYSTEM' ? "bg-green-500" : "bg-primary"
                           )}>
-                            {node.title}
-                          </h3>
-                          <span className="text-[10px] font-black text-muted-foreground uppercase whitespace-nowrap bg-secondary/30 px-2 py-1 rounded-lg tabular-nums">{node.time}</span>
+                            {node.type === 'SONIC' ? <Music2 className="h-3 w-3 text-white" /> : node.type === 'SYSTEM' ? <Zap className="h-3 w-3 text-white" /> : <Users className="h-3 w-3 text-white" />}
+                          </div>
                         </div>
-                        <p className="text-[14px] leading-relaxed text-muted-foreground font-medium pr-4">
-                          {renderContent(node.content)}
-                        </p>
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        {node.actionLabel && (
-                          <Button 
-                            size="sm" 
-                            className="rounded-2xl h-10 px-6 font-black italic uppercase text-[10px] tracking-[0.2em] bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 transition-all active:scale-95"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAction(node);
-                            }}
-                          >
-                            {node.actionLabel}
-                          </Button>
-                        )}
-                        {node.postId && (
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="rounded-2xl h-10 px-6 font-black italic uppercase text-[10px] tracking-[0.2em] bg-primary/5 hover:bg-primary/10 text-primary transition-all active:scale-95"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAction(node);
-                            }}
-                          >
-                            View Vibe
-                          </Button>
-                        )}
-                        {node.image && (
-                          <div className="h-12 w-12 rounded-[1rem] overflow-hidden border-2 border-white dark:border-white/10 shrink-0 shadow-2xl relative group/img">
-                            <Image src={node.image} alt="Ref" fill className="object-cover transition-transform group-hover/img:scale-110" />
+                      <div className="flex-1 min-w-0 flex flex-col gap-4">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-4">
+                            <h3 className={cn(
+                              "font-black italic uppercase tracking-tighter text-xl leading-none font-headline",
+                              !node.isRead ? "text-foreground" : "text-muted-foreground"
+                            )}>
+                              {node.title}
+                            </h3>
+                            <span className="text-[10px] font-black text-muted-foreground uppercase whitespace-nowrap bg-secondary/30 px-2 py-1 rounded-lg tabular-nums">{node.time}</span>
                           </div>
-                        )}
-                        <Button 
-                          variant="ghost" size="icon" 
-                          className="h-10 w-10 rounded-2xl opacity-0 group-hover:opacity-100 transition-all ml-auto bg-destructive/5 hover:bg-destructive hover:text-white"
-                          onClick={(e) => handlePurge(e, node.id)}
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </Button>
+                          <p className="text-[14px] leading-relaxed text-muted-foreground font-medium pr-4">
+                            {renderContent(node.content)}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          {displayLabel && (
+                            <Button 
+                              size="sm" 
+                              className="rounded-2xl h-10 px-6 font-black italic uppercase text-[10px] tracking-[0.2em] bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 transition-all active:scale-95"
+                              onClick={(e) => handleButtonClick(e, node)}
+                            >
+                              {displayLabel}
+                            </Button>
+                          )}
+                          {node.postId && (
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="rounded-2xl h-10 px-6 font-black italic uppercase text-[10px] tracking-[0.2em] bg-primary/5 hover:bg-primary/10 text-primary transition-all active:scale-95"
+                              onClick={(e) => handleButtonClick(e, node)}
+                            >
+                              View Vibe
+                            </Button>
+                          )}
+                          {node.image && (
+                            <div className="h-12 w-12 rounded-[1rem] overflow-hidden border-2 border-white dark:border-white/10 shrink-0 shadow-2xl relative group/img">
+                              <Image src={node.image} alt="Ref" fill className="object-cover transition-transform group-hover/img:scale-110" />
+                            </div>
+                          )}
+                          <Button 
+                            variant="ghost" size="icon" 
+                            className="h-10 w-10 rounded-2xl opacity-0 group-hover:opacity-100 transition-all ml-auto bg-destructive/5 hover:bg-destructive hover:text-white"
+                            onClick={(e) => handlePurge(e, node.id)}
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="py-32 text-center space-y-8 opacity-60 animate-in fade-in zoom-in-95 duration-1000">
                   <div className="relative mx-auto w-32 h-32">
@@ -333,7 +351,6 @@ export default function NotificationsPage() {
           </div>
         </main>
 
-        {/* Rail 3: Contextual Sidebar */}
         <aside className={cn(
           "hidden lg:block sticky h-[calc(100vh-132px)] overflow-y-auto transition-all duration-300",
           isPlayerActive ? "top-[196px]" : "top-[132px]"
