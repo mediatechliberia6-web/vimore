@@ -17,7 +17,7 @@ export interface User {
   pronouns?: string;
   joinDate?: string;
   relationshipStatus?: string;
-  introUrl?: string; // URL to the user's sonic intro audio
+  introUrl?: string; 
   links?: Array<{ label: string; url: string; icon: any }>;
 }
 
@@ -29,7 +29,7 @@ export interface Connection {
   followsYou: boolean;
   isOnline?: boolean;
   connectionDate?: string;
-  mutualFriends?: string[]; // Array of avatar URLs
+  mutualFriends?: string[]; 
 }
 
 export interface Mention {
@@ -87,7 +87,7 @@ export interface Post {
   hashtags?: string[];
   images?: string[];
   image?: string;
-  videoUrl?: string; // Added for Reels support
+  videoUrl?: string; 
   imageFilter?: string;
   feeling?: { emoji: string; text: string };
   location?: string;
@@ -136,6 +136,7 @@ interface PostContextType {
   isPostUnliked: (postId: string) => boolean;
   isPostSaved: (postId: string) => boolean;
   isFollowing: (username: string) => boolean;
+  incrementShareCount: (postId: string) => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -335,31 +336,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
         console.warn(`Storage quota exceeded for key: ${key}. Attempting recovery...`);
-        
-        // Strategy 1: If saving posts, try saving fewer.
         if (key === 'vimore_local_posts' && Array.isArray(value)) {
-          const tries = [3, 1, 0]; // Keep 3, then 1, then empty array
+          const tries = [3, 1, 0]; 
           for (const count of tries) {
             try {
               localStorage.setItem(key, JSON.stringify(value.slice(0, count)));
-              console.log(`Recovered space by trimming ${key} to ${count} entries.`);
               return;
-            } catch (innerE) {
-              // Try next count
-            }
+            } catch (innerE) {}
           }
         } 
-        
-        // Strategy 2: If saving user identity, clear posts to make room.
         if (key === 'vimore_user') {
-          console.warn("Prioritizing user identity over post history. Clearing local posts...");
           localStorage.removeItem('vimore_local_posts');
           try {
             localStorage.setItem(key, JSON.stringify(value));
             return;
-          } catch (innerE) {
-            console.error("Critical: Storage failed even after clearing history.");
-          }
+          } catch (innerE) {}
         }
       }
     }
@@ -376,7 +367,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (savedUser) {
       try {
         setCurrentUser(JSON.parse(savedUser));
-      } catch (e) { console.error("User load failed", e); }
+      } catch (e) {}
     }
     if (savedLikes) setLikedPostIds(new Set(JSON.parse(savedLikes)));
     if (savedUnlikes) setUnlikedPostIds(new Set(JSON.parse(savedUnlikes)));
@@ -429,8 +420,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     
     const updatedPosts = [newPost, ...posts];
     setPosts(updatedPosts);
-    
-    // Save to local storage only user-created posts for persistence, capped to prevent quota bloat
     const userOnlyPosts = updatedPosts.filter(p => p.user.username === currentUser.username).slice(0, 10);
     safePersist('vimore_local_posts', userOnlyPosts);
   };
@@ -461,6 +450,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } else {
       setStories([{ id: Date.now().toString(), user: currentUser, segments: [newSegment], viewCount: 0 }, ...stories]);
     }
+  };
+
+  const incrementShareCount = (postId: string) => {
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, shares: (p.shares || 0) + 1 } : p));
   };
 
   const toggleLikePost = (postId: string) => {
@@ -556,6 +549,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       addPost, 
       deletePost,
       addStory, 
+      incrementShareCount,
       voteOnStoryPoll,
       toggleMuteUser,
       togglePinPost,

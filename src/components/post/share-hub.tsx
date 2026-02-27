@@ -37,7 +37,7 @@ interface ShareHubProps {
 }
 
 export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
-  const { connections } = usePosts();
+  const { connections, addPost, addStory, incrementShareCount, currentUser } = usePosts();
   const { triggerHaptic } = useMusic();
   const { toast } = useToast();
   
@@ -50,9 +50,35 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
     c.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleAction = (label: string, action: () => void) => {
-    triggerHaptic(15);
-    action();
+  const handleRepost = () => {
+    triggerHaptic(20);
+    addPost({
+      user: currentUser,
+      content: `Sharing a vibe from **${post.user.name}** ✨`,
+      sharedPost: post,
+      language: 'en'
+    });
+    incrementShareCount(post.id);
+    toast({ title: "Shared as Post", description: "Reposted to your feed." });
+    onClose();
+  };
+
+  const handleShareToStory = () => {
+    triggerHaptic(25);
+    addStory({
+      image: post.image || post.user.avatar,
+      type: 'image',
+      background: 'bg-gradient-to-br from-primary to-accent',
+      textOverlays: [{
+        text: `Shared from @${post.user.username}`,
+        x: 50,
+        y: 80,
+        color: "#FFFFFF"
+      }]
+    });
+    incrementShareCount(post.id);
+    toast({ title: "Story Studio", description: "Vibe synced to your story rail." });
+    onClose();
   };
 
   const handleDownload = async () => {
@@ -73,6 +99,7 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
     setSharingTo(username);
     setTimeout(() => {
       setSharingTo(null);
+      incrementShareCount(post.id);
       toast({ title: "Node Shared", description: `Vibe launched to @${username}` });
       onClose();
     }, 800);
@@ -117,7 +144,7 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
             <Button 
               variant="outline" 
               className="h-24 rounded-[2rem] border-primary/10 bg-white dark:bg-card hover:bg-primary/5 flex flex-col items-center justify-center gap-2 transition-all group"
-              onClick={() => handleAction("Post", () => { toast({ title: "Composer", description: "Opening repost composer..." }); onClose(); })}
+              onClick={handleRepost}
             >
               <div className="p-3 bg-primary/10 rounded-2xl group-hover:scale-110 transition-transform">
                 <PlusSquare className="h-6 w-6 text-primary" />
@@ -128,7 +155,7 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
             <Button 
               variant="outline" 
               className="h-24 rounded-[2rem] border-accent/10 bg-white dark:bg-card hover:bg-accent/5 flex flex-col items-center justify-center gap-2 transition-all group"
-              onClick={() => handleAction("Story", () => { toast({ title: "Story Studio", description: "Syncing vibe to your story..." }); onClose(); })}
+              onClick={handleShareToStory}
             >
               <div className="p-3 bg-accent/10 rounded-2xl group-hover:scale-110 transition-transform">
                 <Clapperboard className="h-6 w-6 text-accent" />
