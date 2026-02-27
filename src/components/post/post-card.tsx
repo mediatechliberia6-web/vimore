@@ -40,6 +40,7 @@ import {
 import { aiTranslatePost } from "@/app/actions/ai";
 import { useToast } from "@/hooks/use-toast";
 import { usePosts } from "@/context/PostContext";
+import { ShareHub } from "./share-hub";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -132,6 +133,7 @@ export function PostCard(props: PostCardProps) {
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isShareHubOpen, setIsShareHubOpen] = useState(false);
 
   const [userVote, setUserVote] = useState<number | null>(null);
   const [localPollOptions, setLocalPollOptions] = useState(poll?.options || []);
@@ -347,7 +349,7 @@ export function PostCard(props: PostCardProps) {
               </span>
               <span className="flex items-center gap-1.5">
                 <Share2 className="h-3 w-3" />
-                {shares.toLocaleString()}
+                {(shares + (isShareHubOpen ? 0 : 0)).toLocaleString()}
               </span>
             </div>
           </div>
@@ -360,10 +362,21 @@ export function PostCard(props: PostCardProps) {
               <ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} /> Dislike
             </button>
             <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary" onClick={() => setShowComments(!showComments)} disabled={commentsDisabled}><MessageCircle className="h-4 w-4" /> Comment</button>
-            <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary"><Share2 className="h-4 w-4" /> Share</button>
+            <button 
+              className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary"
+              onClick={() => { triggerHaptic(10); setIsShareHubOpen(true); }}
+            >
+              <Share2 className="h-4 w-4" /> Share
+            </button>
           </div>
         </CardFooter>
       </Card>
+
+      <ShareHub 
+        isOpen={isShareHubOpen} 
+        onClose={() => setIsShareHubOpen(false)} 
+        post={props} 
+      />
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="rounded-[2rem] sm:max-w-[400px]">

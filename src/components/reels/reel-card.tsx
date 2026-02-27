@@ -19,6 +19,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
+import { ShareHub } from "@/components/post/share-hub";
 
 interface ReelCardProps {
   id: string;
@@ -53,6 +54,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
   const [showMuteIndicator, setShowMuteIndicator] = useState(false);
   const [localLikes, setLocalLikes] = useState(likes);
+  const [isShareHubOpen, setIsShareHubOpen] = useState(false);
 
   useEffect(() => {
     if (isActive && videoRef.current && videoUrl) {
@@ -103,6 +105,11 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
       cover: music.cover,
       duration: 180
     });
+  };
+
+  const handleShareClick = () => {
+    triggerHaptic(10);
+    setIsShareHubOpen(true);
   };
 
   const formatCount = (count: number) => {
@@ -204,7 +211,10 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
           <span className="text-[9px] font-black text-white drop-shadow-md uppercase tracking-widest">Note</span>
         </div>
 
-        <button className="p-2.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white hover:bg-black/40 transition-all active:scale-75 shadow-lg">
+        <button 
+          onClick={handleShareClick}
+          className="p-2.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white hover:bg-black/40 transition-all active:scale-75 shadow-lg"
+        >
           <Share2 className="h-5 w-5" />
         </button>
 
@@ -277,6 +287,12 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
           </div>
         </div>
       </div>
+
+      <ShareHub 
+        isOpen={isShareHubOpen} 
+        onClose={() => setIsShareHubOpen(false)} 
+        post={{ id, user, content: caption, image: music.cover }} 
+      />
 
       <style jsx global>{`
         @keyframes marquee {
