@@ -151,7 +151,6 @@ export function PostCard(props: PostCardProps) {
     }
   }, []);
 
-  // Interaction Recovery Handshake Fail-safe
   useEffect(() => {
     if (!isDeleteDialogOpen) {
       document.body.style.pointerEvents = 'auto';
@@ -161,23 +160,22 @@ export function PostCard(props: PostCardProps) {
     };
   }, [isDeleteDialogOpen]);
 
-  const showTranslateButton = useMemo(() => {
-    if (!language || !viewerLanguage) return false;
-    if (language === viewerLanguage) return false;
-    if (content.length < 5) return false;
-    return true;
-  }, [language, viewerLanguage, content]);
-
   const allImages = useMemo(() => {
     const list = [...images];
     if (image && !list.includes(image)) list.unshift(image);
     return list;
   }, [image, images]);
 
-  // Corrected logic: defining these within the component scope
   const TRUNCATE_LIMIT = 150;
   const isLimitedType = useMemo(() => !!theme || allImages.length > 0 || !!videoUrl || !!poll, [theme, allImages, videoUrl, poll]);
-  const isLongContent = useMemo(() => content.length > TRUNCATE_LIMIT && !isLimitedType, [content, isLimitedType, TRUNCATE_LIMIT]);
+  const isLongContent = useMemo(() => content.length > TRUNCATE_LIMIT && !isLimitedType, [content, isLimitedType]);
+
+  const showTranslateButton = useMemo(() => {
+    if (!language || !viewerLanguage) return false;
+    if (language === viewerLanguage) return false;
+    if (content.length < 5) return false;
+    return true;
+  }, [language, viewerLanguage, content]);
 
   const triggerHaptic = (intensity = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
