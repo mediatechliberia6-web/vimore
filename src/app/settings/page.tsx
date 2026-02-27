@@ -51,6 +51,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Select, 
   SelectContent, 
@@ -87,10 +88,14 @@ export default function SettingsPage() {
   const handleSync = () => {
     setIsSyncing(true);
     triggerHaptic(50);
+    // Simulate high-velocity context re-calibration
     setTimeout(() => {
       setIsSyncing(false);
-      toast({ title: "System Balanced", description: "All identity nodes are synchronized." });
-    }, 2000);
+      toast({ 
+        title: "System Balanced", 
+        description: "All digital nodes and identity pulses are now synchronized." 
+      });
+    }, 2500);
   };
 
   const handleArchive = () => {
@@ -99,13 +104,42 @@ export default function SettingsPage() {
     toast({ title: "Archive Initiated", description: "Compiling your digital footprint into a secure node..." });
     setTimeout(() => {
       setIsArchiving(false);
-      toast({ title: "Ready for Download", description: "Identity archive materialized. 1.2GB ready." });
+      
+      // Simulate JSON download
+      const data = {
+        identity: currentUser,
+        preferences: settings,
+        timestamp: new Date().toISOString(),
+        cluster: "ViMore-Node-1.5"
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `vimore_identity_${currentUser.username}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({ title: "Ready for Download", description: "Identity archive materialized. Temporal backup complete." });
     }, 4000);
   };
 
   const handleUpdate = (data: any) => {
     triggerHaptic(10);
     updateSettings(data);
+  };
+
+  const handleTotalPurge = () => {
+    triggerHaptic(150);
+    if (confirm("CRITICAL: Initiate Total System Purge? This will permanently delete all local identity nodes, balances, and history. This action cannot be reversed.")) {
+      toast({ title: "Purge Initiated", description: "Shutting down identity nodes..." });
+      setTimeout(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = "/";
+      }, 1500);
+    }
   };
 
   const filteredConnections = useMemo(() => {
@@ -121,22 +155,21 @@ export default function SettingsPage() {
     return connections.find(c => c.username === settings.legacyContact);
   }, [connections, settings.legacyContact]);
 
-  // Mock Activity Heatmap Data
+  // Activity Heatmap Simulation
   const heatmapData = useMemo(() => {
     return Array.from({ length: 30 }, (_, i) => ({
       day: i,
-      intensity: Math.floor(Math.random() * 4) // 0 to 3
+      intensity: Math.floor(Math.random() * 4)
     }));
   }, []);
 
-  // Storage Stats
+  // Dynamic Storage Pulse Logic
   const storageData = useMemo(() => [
     { label: "Sonic Notes", size: "420MB", value: 42, icon: Music2, color: "bg-primary" },
     { label: "Vibe Cache", size: "680MB", value: 68, icon: Video, color: "bg-accent" },
     { label: "Core Meta", size: "120MB", value: 12, icon: Database, color: "bg-amber-500" },
   ], []);
 
-  // Growth Stats
   const referrals = currentUser.referralCount || 0;
   const nextMilestone = referrals < 5 ? 5 : referrals < 10 ? 10 : 25;
   const growthProgress = (referrals / nextMilestone) * 100;
@@ -163,7 +196,7 @@ export default function SettingsPage() {
         <Button 
           variant="ghost" 
           size="sm" 
-          className="text-[10px] font-black uppercase tracking-widest text-primary gap-2"
+          className="text-[10px] font-black uppercase tracking-widest text-primary gap-2 transition-all active:scale-95"
           onClick={handleSync}
           disabled={isSyncing}
         >
@@ -177,7 +210,6 @@ export default function SettingsPage() {
         isPlayerActive ? "pt-[80px]" : "pt-4"
       )}>
         
-        {/* Category: Identity Node */}
         <section className="space-y-4">
           <div className="flex items-center justify-between px-2">
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Identity & Signature</h3>
@@ -313,7 +345,6 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Category: Growth Hub (Phase 5) */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Growth & Handshakes</h3>
           <div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
@@ -356,7 +387,6 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Category: Security & Privacy Node */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Security & Privacy</h3>
           <div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
@@ -401,7 +431,6 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Category: Sensory Node */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Sensory & Atmosphere</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
@@ -478,7 +507,6 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Category: Data & Storage Pulse */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Data & Storage Pulse</h3>
           <div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
@@ -519,7 +547,7 @@ export default function SettingsPage() {
               </p>
               <Button 
                 variant="outline" 
-                className="w-full h-12 rounded-xl border-accent/20 text-accent font-black uppercase text-[10px] tracking-widest hover:bg-accent/5 gap-2"
+                className="w-full h-12 rounded-xl border-accent/20 text-accent font-black uppercase text-[10px] tracking-widest hover:bg-accent/5 gap-2 transition-all active:scale-95"
                 onClick={handleArchive}
                 disabled={isArchiving}
               >
@@ -530,7 +558,6 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Category: Performance Node */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Pulse & Performance</h3>
           <div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
@@ -571,7 +598,6 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Category: System Node */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Visual Core</h3>
           <div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
@@ -598,14 +624,8 @@ export default function SettingsPage() {
         <section className="pt-10 pb-20">
           <Button 
             variant="outline" 
-            className="w-full h-14 rounded-2xl border-destructive/20 text-destructive font-black italic uppercase tracking-widest text-[10px] hover:bg-destructive/5"
-            onClick={() => {
-              triggerHaptic(100);
-              if (confirm("Initiate Total System Purge? This will clear all local identity nodes.")) {
-                localStorage.clear();
-                window.location.href = "/";
-              }
-            }}
+            className="w-full h-14 rounded-2xl border-destructive/20 text-destructive font-black italic uppercase tracking-widest text-[10px] hover:bg-destructive/5 transition-all active:scale-95 shadow-lg shadow-destructive/5"
+            onClick={handleTotalPurge}
           >
             Purge Local Cache & Sign Out
           </Button>

@@ -411,7 +411,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [currentUser.username]);
 
   const triggerHaptic = useCallback((intensity?: number) => {
-    const finalIntensity = intensity ?? settings.hapticIntensity / 5;
+    // Dynamic Handshake: Use provided intensity OR scale based on settings
+    const finalIntensity = intensity ?? (settings.hapticIntensity / 2);
+    
     if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
       window.navigator.vibrate(finalIntensity);
     }
