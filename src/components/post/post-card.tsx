@@ -78,6 +78,7 @@ interface PostCardProps {
     name: string;
     username: string;
     avatar: string;
+    isVerified?: boolean;
   };
   content: string;
   image?: string;
@@ -114,7 +115,7 @@ export function PostCard(props: PostCardProps) {
   const { 
     id, user, collaborator, content, image, images = [], imageFilter, theme, language,
     likes, unlikes, comments, shares = 0, time, hashtags, feeling, commentsDisabled, isPinned, 
-    isSeries, seriesTitle, poll, isShared = false, videoUrl
+    isSeries, seriesTitle, poll, isShared = false, videoUrl, sharedPost
   } = props;
 
   const { 
@@ -127,6 +128,9 @@ export function PostCard(props: PostCardProps) {
   const isUnliked = isPostUnliked(id);
   const isBookmarked = isPostSaved(id);
   const isOwner = user.username === currentUser.username;
+  
+  // Real-time verification status for the current user
+  const effectiveIsVerified = isOwner ? currentUser.isVerified : user.isVerified;
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -284,6 +288,10 @@ export function PostCard(props: PostCardProps) {
 
   const displayedContent = isLongContent && !isExpanded ? content.slice(0, TRUNCATE_LIMIT) + "..." : content;
 
+  const VerificationBadge = ({ size = "h-3 w-3" }: { size?: string }) => (
+    <CheckCircle2 className={cn(size, "text-primary fill-primary text-white shrink-0")} />
+  );
+
   return (
     <>
       <Card className={cn("border-none shadow-sm overflow-hidden bg-white dark:bg-card mb-4 transition-colors relative ring-1 ring-black/5 dark:ring-white/5")}>
@@ -292,10 +300,19 @@ export function PostCard(props: PostCardProps) {
           <div className="flex items-center gap-2">
             <Link href={`/profile/${user.username}`}><Avatar className="h-10 w-10 border border-primary/10 hover:opacity-80 transition-opacity"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name[0]}</AvatarFallback></Avatar></Link>
             <div className="flex flex-col">
-              <div className="flex items-center gap-1">
-                <Link href={`/profile/${user.username}`} className="font-bold text-sm text-foreground hover:underline">{user.name}</Link>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex items-center gap-1">
+                  <Link href={`/profile/${user.username}`} className="font-bold text-sm text-foreground hover:underline">{user.name}</Link>
+                  {effectiveIsVerified && <VerificationBadge />}
+                </div>
+                {collaborator && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground">and</span>
+                    <Link href={`/profile/${collaborator.username}`} className="font-bold text-sm text-foreground hover:underline">{collaborator.name}</Link>
+                    {collaborator.isVerified && <VerificationBadge />}
+                  </div>
+                )}
                 {feeling && <span className="text-xs text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
-                {user.isVerified && <CheckCircle2 className="h-3 w-3 text-primary fill-primary text-white" />}
               </div>
               <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><span>{time}</span><span>•</span><Badge variant="ghost" className="p-0 h-auto font-normal text-[10px]">Public</Badge></div>
             </div>
@@ -374,6 +391,12 @@ export function PostCard(props: PostCardProps) {
             <div className="relative mt-2 -mx-3 sm:mx-0"><Carousel className="w-full"><CarouselContent>{allImages.map((img, i) => (<CarouselItem key={i}><div className="relative aspect-video rounded-lg overflow-hidden"><Image src={img} alt="Post" fill className={cn("object-cover", imageFilter)} /></div></CarouselItem>))}</CarouselContent></Carousel></div>
           )}
           {videoUrl && !isShared && !theme && <div className="relative mt-2 -mx-3 sm:mx-0 rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center"><video src={videoUrl} className="w-full h-full object-cover" controls playsInline /></div>}
+
+          {sharedPost && (
+            <div className="mt-4 border border-primary/10 rounded-2xl overflow-hidden pointer-events-none opacity-90 scale-[0.98] origin-top">
+              <PostCard {...sharedPost} isShared={true} />
+            </div>
+          )}
         </CardContent>
         <CardFooter className="p-1 px-3 flex flex-col gap-1 relative bg-white dark:bg-card">
           <div className="px-1 pt-2 pb-1 flex items-center justify-between w-full text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground/50 border-t border-primary/5">
