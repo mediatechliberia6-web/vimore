@@ -9,6 +9,9 @@ export interface AppSettings {
   fontScale: number;
   isAutoFollowEnabled: boolean;
   activeSoundSet: 'cyberpunk' | 'lofi';
+  isBiometricActive: boolean;
+  taggingPrivacy: 'everyone' | 'friends';
+  legacyContact: string | null;
 }
 
 export interface User {
@@ -204,7 +207,10 @@ const INITIAL_SETTINGS: AppSettings = {
   playbackQuality: 'standard',
   fontScale: 1,
   isAutoFollowEnabled: true,
-  activeSoundSet: 'cyberpunk'
+  activeSoundSet: 'cyberpunk',
+  isBiometricActive: false,
+  taggingPrivacy: 'everyone',
+  legacyContact: null
 };
 
 const MOCK_CONNECTIONS: Connection[] = [

@@ -19,20 +19,36 @@ import {
   BellOff,
   Database,
   RefreshCcw,
-  Languages
+  Languages,
+  Fingerprint,
+  UserCheck,
+  Users2,
+  Trash2,
+  Lock,
+  Globe,
+  MoreVertical
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SettingsPage() {
-  const { settings, updateSettings, triggerHaptic, currentUser } = usePosts();
+  const { settings, updateSettings, triggerHaptic, currentUser, connections } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
+  const { toast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
 
   const isPlayerActive = currentTrack && !isExpanded;
@@ -42,6 +58,7 @@ export default function SettingsPage() {
     triggerHaptic(50);
     setTimeout(() => {
       setIsSyncing(false);
+      toast({ title: "System Balanced", description: "All identity nodes are synchronized." });
     }, 2000);
   };
 
@@ -49,6 +66,8 @@ export default function SettingsPage() {
     triggerHaptic(10);
     updateSettings(data);
   };
+
+  const friends = connections.filter(c => c.followsYou);
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300">
@@ -82,7 +101,7 @@ export default function SettingsPage() {
       </header>
 
       <main className={cn(
-        "max-w-2xl mx-auto p-4 sm:p-8 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500",
+        "max-w-2xl mx-auto p-4 sm:p-8 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32",
         isPlayerActive ? "pt-[80px]" : "pt-4"
       )}>
         
@@ -115,6 +134,92 @@ export default function SettingsPage() {
                   className="data-[state=checked]:bg-primary"
                 />
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Category: Privacy & Security Node */}
+        <section className="space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Security & Privacy</h3>
+          <div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <Fingerprint className="h-4 w-4 text-primary" />
+                  <p className="font-bold text-sm">Biometric Vault</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Lock currency & messages with device biometrics</p>
+              </div>
+              <Switch 
+                checked={settings.isBiometricActive} 
+                onCheckedChange={(val) => handleUpdate({ isBiometricActive: val })}
+                className="data-[state=checked]:bg-primary"
+              />
+            </div>
+
+            <div className="h-px bg-border" />
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users2 className="h-4 w-4 text-accent" />
+                  <p className="font-bold text-sm">Collaboration Whitelist</p>
+                </div>
+                <Badge variant="secondary" className="text-[9px] font-black uppercase">{settings.taggingPrivacy}</Badge>
+              </div>
+              <Select 
+                value={settings.taggingPrivacy} 
+                onValueChange={(val: any) => handleUpdate({ taggingPrivacy: val })}
+              >
+                <SelectTrigger className="h-12 rounded-xl bg-secondary/20 border-none px-4">
+                  <SelectValue placeholder="Who can tag you?" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="everyone" className="font-bold">Everyone</SelectItem>
+                  <SelectItem value="friends" className="font-bold">Mutual Friends Only</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tighter">Restrict high-velocity collaboration tags</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Category: Legacy Handshake Node */}
+        <section className="space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Legacy Protocol</h3>
+          <div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-xl shadow-black/5 p-6 space-y-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                <p className="font-bold text-sm">Digital Signature Manager</p>
+              </div>
+              <p className="text-[10px] text-muted-foreground uppercase font-black leading-relaxed">
+                Designate a trusted node to manage your workspace if your account becomes inactive for 6 months.
+              </p>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Select Legacy Node</Label>
+              <Select 
+                value={settings.legacyContact || ""} 
+                onValueChange={(val) => handleUpdate({ legacyContact: val })}
+              >
+                <SelectTrigger className="h-14 rounded-2xl bg-secondary/20 border-none px-4 font-bold">
+                  <SelectValue placeholder="Select a mutual friend..." />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl max-h-[300px]">
+                  {friends.length > 0 ? friends.map(friend => (
+                    <SelectItem key={friend.username} value={friend.username} className="py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold">{friend.name}</span>
+                        <span className="text-[10px] opacity-40 uppercase">@{friend.username}</span>
+                      </div>
+                    </SelectItem>
+                  )) : (
+                    <div className="p-4 text-center text-[10px] font-bold uppercase opacity-40">No mutual friends found</div>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </section>
