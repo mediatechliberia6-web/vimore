@@ -1,4 +1,3 @@
-
 "use client";
 
 import { 
@@ -37,7 +36,7 @@ import { cn } from "@/lib/utils";
 export default function MenuPage() {
   const { currentTrack, isExpanded } = useMusic();
   const { unreadCount } = useNotifications();
-  const { currentUser } = usePosts();
+  const { currentUser, triggerHaptic } = usePosts();
   const isPlayerActive = currentTrack && !isExpanded;
 
   const menuGrid = [
@@ -66,9 +65,11 @@ export default function MenuPage() {
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 dark:bg-white/5">
             <Search className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 dark:bg-white/5">
-            Settings
-          </Button>
+          <Link href="/settings">
+            <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 dark:bg-white/5" onClick={() => triggerHaptic(5)}>
+              <Settings className="h-5 w-5" />
+            </Button>
+          </Link>
         </div>
       </header>
 
@@ -150,6 +151,10 @@ export default function MenuPage() {
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-4 space-y-1">
+                <Link href="/settings" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-secondary/50 transition-colors font-semibold text-[15px] text-left">
+                  <Settings className="h-4 w-4 text-slate-500" />
+                  Global Command Center
+                </Link>
                 {[
                   { label: "Privacy Checkup", icon: ShieldCheck, color: "text-green-500" },
                   { label: "Account Center", icon: Smartphone, color: "text-blue-500" },

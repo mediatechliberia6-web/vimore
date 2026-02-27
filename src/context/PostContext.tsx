@@ -2,6 +2,15 @@
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
 
+export interface AppSettings {
+  hapticIntensity: number;
+  isGhostMode: boolean;
+  playbackQuality: 'standard' | 'pro-hd';
+  fontScale: number;
+  isAutoFollowEnabled: boolean;
+  activeSoundSet: 'cyberpunk' | 'lofi';
+}
+
 export interface User {
   name: string;
   username: string;
@@ -138,6 +147,7 @@ interface PostContextType {
   isSearchOpen: boolean;
   pendingTransaction: PendingTransaction | null;
   referralLink: string;
+  settings: AppSettings;
   setSearchOpen: (open: boolean) => void;
   setSelectedPostId: (id: string | null) => void;
   setActiveStoryIndex: (index: number | null) => void;
@@ -149,6 +159,7 @@ interface PostContextType {
   togglePinPost: (postId: string) => void;
   archivePost: (postId: string) => void;
   updateCurrentUser: (data: Partial<User>) => void;
+  updateSettings: (data: Partial<AppSettings>) => void;
   toggleLikePost: (postId: string) => void;
   toggleUnlikePost: (postId: string) => void;
   toggleSavePost: (postId: string) => void;
@@ -185,6 +196,15 @@ const INITIAL_USER: User = {
   starBalance: 0,
   referralCount: 0,
   introUrl: ""
+};
+
+const INITIAL_SETTINGS: AppSettings = {
+  hapticIntensity: 50,
+  isGhostMode: false,
+  playbackQuality: 'standard',
+  fontScale: 1,
+  isAutoFollowEnabled: true,
+  activeSoundSet: 'cyberpunk'
 };
 
 const MOCK_CONNECTIONS: Connection[] = [
@@ -357,6 +377,7 @@ const initialMockPosts: Post[] = [
 
 export function PostProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User>(INITIAL_USER);
+  const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
   const [posts, setPosts] = useState<Post[]>(initialMockPosts);
   const [stories, setStories] = useState<Story[]>(initialMockStories);
   const [highlights] = useState<Highlight[]>(initialHighlights);
@@ -376,40 +397,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
     return `http://vimore.appwrite.network/join?ref=${currentUser.username}`;
   }, [currentUser.username]);
 
-  const triggerHaptic = useCallback((intensity: number = 10) => {
+  const triggerHaptic = useCallback((intensity?: number) => {
+    const finalIntensity = intensity ?? settings.hapticIntensity / 5;
     if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
-      window.navigator.vibrate(intensity);
+      window.navigator.vibrate(finalIntensity);
     }
-  }, []);
+  }, [settings.hapticIntensity]);
 
   const safePersist = (key: string, value: any) => {
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch (e) {
-      if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
-        console.warn(`Storage quota exceeded for key: ${key}. Attempting recovery...`);
-        if (key === 'vimore_local_posts' && Array.isArray(value)) {
-          const tries = [3, 1, 0]; 
-          for (const count of tries) {
-            try {
-              localStorage.setItem(key, JSON.stringify(value.slice(0, count)));
-              return;
-            } catch (innerE) {}
-          }
-        } 
-        if (key === 'vimore_user') {
-          localStorage.removeItem('vimore_local_posts');
-          try {
-            localStorage.setItem(key, JSON.stringify(value));
-            return;
-          } catch (innerE) {}
-        }
-      }
+      console.warn(`Storage quota exceeded for key: ${key}.`);
     }
   };
 
   useEffect(() => {
     const savedUser = localStorage.getItem('vimore_user');
+    const savedSettings = localStorage.getItem('vimore_settings');
     const savedLikes = localStorage.getItem('vimore_liked_posts');
     const savedUnlikes = localStorage.getItem('vimore_unliked_posts');
     const savedSaves = localStorage.getItem('vimore_saved_posts');
@@ -417,11 +422,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const savedLocalPosts = localStorage.getItem('vimore_local_posts');
     const savedPending = localStorage.getItem('vimore_pending_transaction');
 
-    if (savedUser) {
-      try {
-        setCurrentUser(JSON.parse(savedUser));
-      } catch (e) {}
-    }
+    if (savedUser) try { setCurrentUser(JSON.parse(savedUser)); } catch (e) {}
+    if (savedSettings) try { setSettings({ ...INITIAL_SETTINGS, ...JSON.parse(savedSettings) }); } catch (e) {}
     if (savedLikes) setLikedPostIds(new Set(JSON.parse(savedLikes)));
     if (savedUnlikes) setUnlikedPostIds(new Set(JSON.parse(savedUnlikes)));
     if (savedSaves) setSavedPostIds(new Set(JSON.parse(savedSaves)));
@@ -435,21 +437,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  useEffect(() => {
-    safePersist('vimore_liked_posts', Array.from(likedPostIds));
-  }, [likedPostIds]);
-
-  useEffect(() => {
-    safePersist('vimore_unliked_posts', Array.from(unlikedPostIds));
-  }, [unlikedPostIds]);
-
-  useEffect(() => {
-    safePersist('vimore_saved_posts', Array.from(savedPostIds));
-  }, [savedPostIds]);
-
-  useEffect(() => {
-    safePersist('vimore_following', Array.from(followingUsernames));
-  }, [followingUsernames]);
+  useEffect(() => { safePersist('vimore_liked_posts', Array.from(likedPostIds)); }, [likedPostIds]);
+  useEffect(() => { safePersist('vimore_unliked_posts', Array.from(unlikedPostIds)); }, [unlikedPostIds]);
+  useEffect(() => { safePersist('vimore_saved_posts', Array.from(savedPostIds)); }, [savedPostIds]);
+  useEffect(() => { safePersist('vimore_following', Array.from(followingUsernames)); }, [followingUsernames]);
+  useEffect(() => { safePersist('vimore_settings', settings); }, [settings]);
 
   useEffect(() => {
     if (pendingTransaction) {
@@ -467,6 +459,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const updateSettings = (data: Partial<AppSettings>) => {
+    setSettings(prev => {
+      const updated = { ...prev, ...data };
+      safePersist('vimore_settings', updated);
+      return updated;
+    });
+  };
+
   const triggerReferralPulse = useCallback(() => {
     triggerHaptic(50);
     setCurrentUser(prev => {
@@ -480,22 +480,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
     });
   }, [triggerHaptic]);
 
-  // Automatic Referral Detection Node
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const referralCode = params.get('ref');
       
       if (referralCode) {
-        // High-velocity handshake logic:
-        // We simulate a referral join by rewarding the user if they land with a ref code.
-        // In production, this would credit the 'referralCode' user on the server.
         const sessionKey = `vimore_processed_ref_${referralCode}`;
         if (!sessionStorage.getItem(sessionKey)) {
           triggerReferralPulse();
           sessionStorage.setItem(sessionKey, 'true');
-          
-          // Spatial Clean: Remove param from URL to maintain fidelity
           const newUrl = window.location.pathname;
           window.history.replaceState({}, '', newUrl);
         }
@@ -666,6 +660,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       isSearchOpen,
       pendingTransaction,
       referralLink,
+      settings,
       setSearchOpen,
       setSelectedPostId,
       setActiveStoryIndex, 
@@ -678,6 +673,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       togglePinPost,
       archivePost,
       updateCurrentUser,
+      updateSettings,
       toggleLikePost,
       toggleUnlikePost,
       toggleSavePost,
