@@ -96,6 +96,22 @@ export default function ReferralHub() {
     return () => clearInterval(interval);
   }, [currentUser.referralCount, currentUser.starBalance]);
 
+  // Handle successful handshake (Confetti + Sound)
+  useEffect(() => {
+    if (currentUser.starBalance! > 0) {
+      playStarSound();
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3000);
+      
+      addSignal({
+        type: 'SOCIAL',
+        title: 'New Node Materialized',
+        content: 'A friend joined via your node! **+5,000 Stars ⭐** and a new follower synced.',
+        avatar: `https://picsum.photos/seed/${Date.now()}/100/100`
+      });
+    }
+  }, [currentUser.referralCount]);
+
   const handleCopyLink = () => {
     triggerHaptic(15);
     navigator.clipboard.writeText(referralLink);
@@ -118,28 +134,6 @@ export default function ReferralHub() {
     } else {
       handleCopyLink();
     }
-  };
-
-  const simulateHandshake = () => {
-    playStarSound();
-    triggerHaptic(50);
-    triggerReferralPulse();
-    
-    // Trigger Confetti Pulse
-    setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 3000);
-    
-    addSignal({
-      type: 'SOCIAL',
-      title: 'New Node Materialized',
-      content: 'A friend joined via your node! **+5,000 Stars ⭐** and a new follower synced.',
-      avatar: `https://picsum.photos/seed/${Date.now()}/100/100`
-    });
-
-    toast({
-      title: "Handshake Successful",
-      description: "5,000 ⭐ Reward materializing in your vault.",
-    });
   };
 
   return (
@@ -389,14 +383,6 @@ export default function ReferralHub() {
             <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2">
               <History className="h-4 w-4 text-primary" /> Handshake History
             </h3>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-8 rounded-full font-black uppercase text-[9px] gap-1.5 border-primary/20 text-primary hover:bg-primary hover:text-white transition-all group"
-              onClick={simulateHandshake}
-            >
-              <Plus className="h-3 w-3 group-hover:rotate-90 transition-transform" /> Simulate Handshake
-            </Button>
           </div>
           
           <div className="space-y-3">

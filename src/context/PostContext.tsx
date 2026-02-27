@@ -467,6 +467,42 @@ export function PostProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const triggerReferralPulse = useCallback(() => {
+    triggerHaptic(50);
+    setCurrentUser(prev => {
+      const updated = {
+        ...prev,
+        starBalance: (prev.starBalance || 0) + 5000,
+        referralCount: (prev.referralCount || 0) + 1
+      };
+      safePersist('vimore_user', updated);
+      return updated;
+    });
+  }, [triggerHaptic]);
+
+  // Automatic Referral Detection Node
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const referralCode = params.get('ref');
+      
+      if (referralCode) {
+        // High-velocity handshake logic:
+        // We simulate a referral join by rewarding the user if they land with a ref code.
+        // In production, this would credit the 'referralCode' user on the server.
+        const sessionKey = `vimore_processed_ref_${referralCode}`;
+        if (!sessionStorage.getItem(sessionKey)) {
+          triggerReferralPulse();
+          sessionStorage.setItem(sessionKey, 'true');
+          
+          // Spatial Clean: Remove param from URL to maintain fidelity
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+        }
+      }
+    }
+  }, [triggerReferralPulse]);
+
   const addPost = (newPostData: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments' | 'shares'>) => {
     const detectedLanguage = newPostData.language || (typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en');
     
@@ -575,19 +611,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const cancelTransaction = () => {
     setPendingTransaction(null);
   };
-
-  const triggerReferralPulse = useCallback(() => {
-    triggerHaptic(50);
-    setCurrentUser(prev => {
-      const updated = {
-        ...prev,
-        starBalance: (prev.starBalance || 0) + 5000,
-        referralCount: (prev.referralCount || 0) + 1
-      };
-      safePersist('vimore_user', updated);
-      return updated;
-    });
-  }, [triggerHaptic]);
 
   const isPostLiked = (postId: string) => likedPostIds.has(postId);
   const isPostUnliked = (postId: string) => unlikedPostIds.has(postId);
