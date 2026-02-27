@@ -101,6 +101,9 @@ export default function MyProfilePage() {
     if (!confirmUser && !isEditModalOpen && !isRefinementOpen && !visualToDelete) {
       document.body.style.pointerEvents = 'auto';
     }
+    return () => {
+      document.body.style.pointerEvents = 'auto';
+    };
   }, [confirmUser, isEditModalOpen, isRefinementOpen, visualToDelete]);
 
   const [skills, setSkills] = useState([
@@ -198,10 +201,13 @@ export default function MyProfilePage() {
     if (!visualToDelete) return;
     triggerHaptic(50);
     const mode = visualToDelete;
-    setVisualToDelete(null);
-    // Restore interaction before state change
-    document.body.style.pointerEvents = 'auto';
     
+    // 1. Force interaction restoration
+    document.body.style.pointerEvents = 'auto';
+    // 2. Clear dialog state
+    setVisualToDelete(null);
+    
+    // 3. Purge visual
     if (mode === 'avatar') {
       updateCurrentUser({ avatar: "https://picsum.photos/seed/default/400/400" });
       toast({ title: "Avatar Purged", description: "Profile visual reset to default." });
@@ -299,9 +305,11 @@ export default function MyProfilePage() {
     if (confirmUser) {
       triggerHaptic(30);
       const user = { ...confirmUser };
-      setConfirmUser(null);
-      // Explicit interaction restoration
+      // 1. Force interaction restoration
       document.body.style.pointerEvents = 'auto';
+      // 2. Clear dialog state
+      setConfirmUser(null);
+      // 3. Purge relationship
       toggleFollowUser(user.username);
       toast({ 
         title: "Network Adjusted", 
@@ -387,7 +395,7 @@ export default function MyProfilePage() {
                       <ImageIcon className="h-4 w-4" /> Change Background
                     </DropdownMenuItem>
                     {currentUser.cover && (
-                      <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive font-bold" onClick={() => setVisualToDelete('cover')}>
+                      <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive font-bold" onSelect={() => setVisualToDelete('cover')}>
                         <Trash2 className="h-4 w-4" /> Remove Visual
                       </DropdownMenuItem>
                     )}
@@ -415,7 +423,7 @@ export default function MyProfilePage() {
                         <DropdownMenuItem className="gap-2 font-bold" onClick={() => avatarInputRef.current?.click()}>
                           <ImageIcon className="h-4 w-4" /> Refine Photo
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive font-bold" onClick={() => setVisualToDelete('avatar')}>
+                        <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive font-bold" onSelect={() => setVisualToDelete('avatar')}>
                           <Trash2 className="h-4 w-4" /> Reset Signature
                         </DropdownMenuItem>
                       </DropdownMenuContent>

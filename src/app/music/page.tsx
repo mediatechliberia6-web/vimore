@@ -106,6 +106,9 @@ export default function MusicPage() {
     if (!deleteItem) {
       document.body.style.pointerEvents = 'auto';
     }
+    return () => {
+      document.body.style.pointerEvents = 'auto';
+    };
   }, [deleteItem]);
 
   const filteredSongs = useMemo(() => {
@@ -156,10 +159,13 @@ export default function MusicPage() {
     if (!deleteItem) return;
     triggerHaptic(50);
     const itemToDelete = { ...deleteItem };
-    setDeleteItem(null);
-    // Restore interaction before data removal
-    document.body.style.pointerEvents = 'auto';
     
+    // 1. Force interaction restoration
+    document.body.style.pointerEvents = 'auto';
+    // 2. Clear dialog state
+    setDeleteItem(null);
+    
+    // 3. Purge data
     if (itemToDelete.type === 'track') {
       deleteUserTrack(itemToDelete.id);
       toast({ title: "Track Withdrawn", description: "Your single has been removed from the network." });
@@ -341,7 +347,7 @@ export default function MusicPage() {
                                     <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-black/40 text-white"><MoreVertical className="h-4 w-4" /></Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                    <DropdownMenuItem className="text-destructive gap-2" onClick={() => setDeleteItem({ id: song.id, type: 'track' })}>
+                                    <DropdownMenuItem className="text-destructive gap-2" onSelect={() => setDeleteItem({ id: song.id, type: 'track' })}>
                                       <Trash2 className="h-4 w-4" /> Withdraw Track
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
@@ -380,7 +386,7 @@ export default function MusicPage() {
                                     <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-black/40 text-white"><MoreVertical className="h-4 w-4" /></Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                    <DropdownMenuItem className="text-destructive gap-2" onClick={() => setDeleteItem({ id: album.id, type: 'album' })}>
+                                    <DropdownMenuItem className="text-destructive gap-2" onSelect={() => setDeleteItem({ id: album.id, type: 'album' })}>
                                       <Trash2 className="h-4 w-4" /> Purge Album
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>

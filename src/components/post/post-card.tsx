@@ -153,6 +153,10 @@ export function PostCard(props: PostCardProps) {
     if (!isDeleteDialogOpen) {
       document.body.style.pointerEvents = 'auto';
     }
+    return () => {
+      // Final unmount reset
+      document.body.style.pointerEvents = 'auto';
+    };
   }, [isDeleteDialogOpen]);
 
   const showTranslateButton = useMemo(() => {
@@ -191,9 +195,11 @@ export function PostCard(props: PostCardProps) {
 
   const handleDelete = () => {
     triggerHaptic(50);
-    setIsDeleteDialogOpen(false);
-    // Explicit Interaction Recovery before state update unmounts the component
+    // 1. Explicit Interaction Recovery BEFORE removal
     document.body.style.pointerEvents = 'auto';
+    // 2. Clear Dialog State
+    setIsDeleteDialogOpen(false);
+    // 3. Purge Node from network
     deletePost(id);
     toast({ title: "Content Purged", description: "Your vibe has been removed from the network." });
   };
@@ -292,7 +298,7 @@ export function PostCard(props: PostCardProps) {
                 {isOwner && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => setIsDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" />Purge Node</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" />Purge Node</DropdownMenuItem>
                   </>
                 )}
               </DropdownMenuContent>

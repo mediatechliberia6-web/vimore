@@ -113,6 +113,8 @@ export function ChatBubble({
         audioRef.current = null;
       }
       if (timerRef.current) clearInterval(timerRef.current);
+      // Final Interaction Recovery Fail-safe
+      document.body.style.pointerEvents = 'auto';
     };
   }, []);
 
@@ -163,9 +165,11 @@ export function ChatBubble({
 
   const handleDelete = () => {
     triggerHaptic(50);
-    setIsDeleteDialogOpen(false);
-    // Explicit Interaction Recovery before state update unmounts the component
+    // 1. Explicit Interaction Recovery
     document.body.style.pointerEvents = 'auto';
+    // 2. Close Dialog State
+    setIsDeleteDialogOpen(false);
+    // 3. Purge Node
     onDelete?.(id);
   };
 
@@ -274,7 +278,7 @@ export function ChatBubble({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="rounded-xl">
-                  <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => setIsDeleteDialogOpen(true)}>
+                  <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}>
                     <Trash2 className="h-3.5 w-3.5" /> Purge Message
                   </DropdownMenuItem>
                 </DropdownMenuContent>

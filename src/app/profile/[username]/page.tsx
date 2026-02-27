@@ -14,17 +14,18 @@ import { useRouter } from "next/navigation";
 import { 
   ArrowLeft, 
   MoreHorizontal, 
-  Volume2,
-  Play,
-  Star,
-  Check,
-  UserPlus,
-  UserMinus,
-  MessageCircle,
-  Zap,
-  Languages,
-  UserCheck,
-  Clapperboard
+  Volume2, 
+  Play, 
+  Star, 
+  Check, 
+  UserPlus, 
+  UserMinus, 
+  MessageCircle, 
+  Zap, 
+  Languages, 
+  UserCheck, 
+  Clapperboard, 
+  CheckCircle2 
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
@@ -114,6 +115,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     if (!confirmUser) {
       document.body.style.pointerEvents = 'auto';
     }
+    return () => {
+      document.body.style.pointerEvents = 'auto';
+    };
   }, [confirmUser]);
 
   const displayUser = MOCK_USERS[username] || {
@@ -218,9 +222,11 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     if (confirmUser) {
       triggerHaptic(30);
       const user = { ...confirmUser };
-      setConfirmUser(null);
-      // Restore interaction explicitly
+      // 1. Force interaction restoration
       document.body.style.pointerEvents = 'auto';
+      // 2. Clear dialog state
+      setConfirmUser(null);
+      // 3. Purge relationship
       toggleFollowUser(user.username);
       toast({ 
         title: "Network Adjusted", 

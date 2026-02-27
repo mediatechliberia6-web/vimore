@@ -85,6 +85,9 @@ function FriendsPageContent() {
     if (!confirmUser) {
       document.body.style.pointerEvents = 'auto';
     }
+    return () => {
+      document.body.style.pointerEvents = 'auto';
+    };
   }, [confirmUser]);
 
   const filteredUsers = useMemo(() => {
@@ -163,9 +166,12 @@ function FriendsPageContent() {
     if (confirmUser) {
       triggerHaptic(30);
       const user = { ...confirmUser };
-      setConfirmUser(null);
-      // Restore interaction explicitly
+      
+      // 1. Force Interaction Restoration
       document.body.style.pointerEvents = 'auto';
+      // 2. Clear Dialog State
+      setConfirmUser(null);
+      // 3. Update network
       toggleFollowUser(user.username);
       toast({ 
         title: "Network Adjusted", 
