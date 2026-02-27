@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -8,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { CreatePostModal } from "@/components/post/create-post-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNotifications } from "@/context/NotificationContext";
+import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 
 export function Header() {
   const { unreadCount } = useNotifications();
+  const { setSearchOpen } = usePosts();
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-primary/10 px-4 py-2 flex items-center justify-between shadow-sm">
@@ -29,7 +30,9 @@ export function Header() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
           <Input 
             placeholder="Search ViMore" 
-            className="pl-10 rounded-full bg-secondary/50 border-none focus-visible:ring-primary h-9 text-sm" 
+            className="pl-10 rounded-full bg-secondary/50 border-none focus-visible:ring-primary h-9 text-sm cursor-pointer" 
+            readOnly
+            onClick={() => setSearchOpen(true)}
           />
         </div>
       </div>

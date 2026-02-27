@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
+import { usePosts } from "@/context/PostContext";
 
 const navItems = [
   { icon: Home, label: "Home", id: "home", href: "/" },
@@ -21,6 +22,7 @@ const USER_PROFILE = {
 
 export function SubHeader() {
   const pathname = usePathname();
+  const { setSearchOpen } = usePosts();
 
   return (
     <div className="w-full bg-white dark:bg-card border-b border-primary/5 sticky top-[61px] z-40 shadow-sm transition-all duration-300">
@@ -59,7 +61,9 @@ export function SubHeader() {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input 
               placeholder="Search..." 
-              className="pl-8 pr-2 rounded-xl bg-secondary/30 border-none focus-visible:ring-primary h-8 sm:h-9 text-xs sm:text-sm" 
+              className="pl-8 pr-2 rounded-xl bg-secondary/30 border-none focus-visible:ring-primary h-8 sm:h-9 text-xs sm:text-sm cursor-pointer" 
+              readOnly
+              onClick={() => setSearchOpen(true)}
             />
           </div>
           

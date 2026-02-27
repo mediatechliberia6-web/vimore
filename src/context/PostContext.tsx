@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
 
 export interface User {
   name: string;
@@ -121,6 +121,8 @@ interface PostContextType {
   activeStoryIndex: number | null;
   connections: Connection[];
   selectedPostId: string | null;
+  isSearchOpen: boolean;
+  setSearchOpen: (open: boolean) => void;
   setSelectedPostId: (id: string | null) => void;
   setActiveStoryIndex: (index: number | null) => void;
   addPost: (post: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments' | 'shares'>) => void;
@@ -140,6 +142,7 @@ interface PostContextType {
   isPostSaved: (postId: string) => boolean;
   isFollowing: (username: string) => boolean;
   incrementShareCount: (postId: string) => void;
+  triggerHaptic: (intensity?: number) => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -343,6 +346,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [connections, setConnections] = useState<Connection[]>(MOCK_CONNECTIONS);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const triggerHaptic = useCallback((intensity: number = 10) => {
+    if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(intensity);
+    }
+  }, []);
 
   const safePersist = (key: string, value: any) => {
     try {
@@ -546,6 +556,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setPosts(prev => prev.filter(p => p.id !== postId));
   };
 
+  const setSearchOpen = (open: boolean) => {
+    triggerHaptic(5);
+    setIsSearchOpen(open);
+  };
+
   return (
     <PostContext.Provider value={{ 
       currentUser,
@@ -560,6 +575,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       activeStoryIndex, 
       connections,
       selectedPostId,
+      isSearchOpen,
+      setSearchOpen,
       setSelectedPostId,
       setActiveStoryIndex, 
       addPost, 
@@ -578,7 +595,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       isPostLiked,
       isPostUnliked,
       isPostSaved,
-      isFollowing
+      isFollowing,
+      triggerHaptic
     }}>
       {children}
     </PostContext.Provider>
