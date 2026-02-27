@@ -336,7 +336,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
   const [unlikedPostIds, setUnlikedPostIds] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
-  // INITIAL STATE FIX: Added 'paul' to ensured mutual handshake logic
+  // Paul added to initial follow set to ensure mutual logic works
   const [followingUsernames, setFollowingUsernames] = useState<Set<string>>(new Set(["jmoore", "arivera", "schen_dev", "paul"]));
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [connections, setConnections] = useState<Connection[]>(MOCK_CONNECTIONS);

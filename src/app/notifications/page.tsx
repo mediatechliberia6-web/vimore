@@ -69,7 +69,7 @@ export default function NotificationsPage() {
     triggerHaptic(10);
     markAsRead(node.id);
 
-    // DEEP-LINK DISPATCHER: Materialize targeted UI states
+    // DEEP-LINK DISPATCHER
     if (node.postId) {
       // Content Pulse: Materialize the Post Portal
       setSelectedPostId(node.postId);
@@ -94,12 +94,8 @@ export default function NotificationsPage() {
     triggerHaptic(25);
     
     if (node.type === 'SOCIAL' && node.targetUsername) {
-      if (!isFollowing(node.targetUsername)) {
-        toggleFollowUser(node.targetUsername);
-        toast({ title: "Mutual Connected", description: `You are now connected with @${node.targetUsername}` });
-      } else {
-        router.push(`/profile/${node.targetUsername}`);
-      }
+      // Social handshakes always navigate to the profile
+      router.push(`/profile/${node.targetUsername}`);
     } else if (node.trackId) {
       const track = ALL_SONGS.find(s => String(s.id) === String(node.trackId));
       if (track) {
