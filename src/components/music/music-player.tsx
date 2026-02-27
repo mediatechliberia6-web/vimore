@@ -29,6 +29,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMusic } from "@/context/MusicContext";
+import { useNotifications } from "@/context/NotificationContext";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
@@ -44,6 +45,8 @@ export function MusicPlayer() {
     currentTrack, isPlaying, isExpanded, progress, volume, reactions, trackStats,
     togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, simulateDownload, isTrackDownloaded, triggerDownloadWithAd
   } = useMusic();
+
+  const { addSignal } = useNotifications();
 
   const [commentInput, setCommentInput] = useState("");
   const [isMuted, setIsMuted] = useState(false);
@@ -91,10 +94,19 @@ export function MusicPlayer() {
     triggerDownloadWithAd('single', async () => {
       setIsDownloading(true);
       toast({ title: "Sonic Download", description: `Fetching high-res audio for ${currentTrack.title}...` });
+      
       await new Promise(resolve => setTimeout(resolve, 2500));
       await simulateDownload(currentTrack);
+      
       setIsDownloading(false);
       toast({ title: "Music Note Saved", description: "Vibe saved to your identity notes." });
+
+      addSignal({
+        type: 'SONIC',
+        title: 'Track Available Offline',
+        content: `**${currentTrack.title}** by ${currentTrack.artist} has been successfully cached.`,
+        image: currentTrack.cover
+      });
     });
   };
 

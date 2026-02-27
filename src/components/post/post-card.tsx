@@ -40,6 +40,7 @@ import {
 import { aiTranslatePost } from "@/app/actions/ai";
 import { useToast } from "@/hooks/use-toast";
 import { usePosts } from "@/context/PostContext";
+import { useNotifications } from "@/context/NotificationContext";
 import { ShareHub } from "./share-hub";
 import {
   AlertDialog,
@@ -120,6 +121,8 @@ export function PostCard(props: PostCardProps) {
     currentUser, isPostLiked, isPostUnliked, isPostSaved, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost 
   } = usePosts();
 
+  const { addSignal } = useNotifications();
+
   const isLiked = isPostLiked(id);
   const isUnliked = isPostUnliked(id);
   const isBookmarked = isPostSaved(id);
@@ -154,7 +157,6 @@ export function PostCard(props: PostCardProps) {
       document.body.style.pointerEvents = 'auto';
     }
     return () => {
-      // Final unmount reset
       document.body.style.pointerEvents = 'auto';
     };
   }, [isDeleteDialogOpen]);
@@ -172,13 +174,32 @@ export function PostCard(props: PostCardProps) {
     return list;
   }, [image, images]);
 
+  // Corrected logic: defining these within the component scope
+  const TRUNCATE_LIMIT = 150;
+  const isLimitedType = useMemo(() => !!theme || allImages.length > 0 || !!videoUrl || !!poll, [theme, allImages, videoUrl, poll]);
+  const isLongContent = useMemo(() => content.length > TRUNCATE_LIMIT && !isLimitedType, [content, isLimitedType, TRUNCATE_LIMIT]);
+
   const triggerHaptic = (intensity = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
       window.navigator.vibrate(intensity);
     }
   };
 
-  const handleLike = () => { triggerHaptic(20); toggleLikePost(id); };
+  const handleLike = () => { 
+    triggerHaptic(20); 
+    const wasLiked = isLiked;
+    toggleLikePost(id); 
+    
+    if (!wasLiked && !isOwner) {
+      addSignal({
+        type: 'SOCIAL',
+        title: 'New Vibe Pulse',
+        content: `**${currentUser.name}** liked your post: "${content.slice(0, 30)}..."`,
+        avatar: currentUser.avatar
+      });
+    }
+  };
+
   const handleUnlike = () => { triggerHaptic(15); toggleUnlikePost(id); };
   const handleSave = () => { triggerHaptic(5); toggleSavePost(id); toast({ description: isBookmarked ? "Removed" : "Noted ✨" }); };
 
@@ -195,11 +216,8 @@ export function PostCard(props: PostCardProps) {
 
   const handleDelete = () => {
     triggerHaptic(50);
-    // 1. Explicit Interaction Recovery BEFORE removal
     document.body.style.pointerEvents = 'auto';
-    // 2. Clear Dialog State
     setIsDeleteDialogOpen(false);
-    // 3. Purge Node from network
     deletePost(id);
     toast({ title: "Content Purged", description: "Your vibe has been removed from the network." });
   };
@@ -233,8 +251,6 @@ export function PostCard(props: PostCardProps) {
   const renderContent = (text: string) => {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const boldItalicRegex = /(\*\*.*?\*\*|_.*?_|`.*?`)/g;
-    
-    // First split by bold/italic logic
     const segments = text.split(boldItalicRegex);
     
     return segments.map((segment, i) => {
@@ -242,7 +258,6 @@ export function PostCard(props: PostCardProps) {
       if (segment.startsWith('_') && segment.endsWith('_')) return <em key={i}>{segment.slice(1, -1)}</em>;
       if (segment.startsWith('`') && segment.endsWith('`')) return <code key={i} className="bg-secondary/30 px-1 rounded text-sm font-mono">{segment.slice(1, -1)}</code>;
       
-      // For standard segments, parse URLs
       const parts = segment.split(urlRegex);
       return parts.map((part, j) => {
         if (part.match(urlRegex)) {
@@ -267,9 +282,6 @@ export function PostCard(props: PostCardProps) {
 
   if (isHidden) return null;
 
-  const TRUNCATE_LIMIT = 150; 
-  const isLimitedType = !!theme || allImages.length > 0 || !!videoUrl || !!poll;
-  const isLongContent = content.length > TRUNCATE_LIMIT && !isLimitedType;
   const displayedContent = isLongContent && !isExpanded ? content.slice(0, TRUNCATE_LIMIT) + "..." : content;
 
   return (

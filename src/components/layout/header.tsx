@@ -5,18 +5,13 @@ import { Search, Plus, Menu, Bell, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CreatePostModal } from "@/components/post/create-post-modal";
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetTrigger, 
-  SheetHeader, 
-  SheetTitle,
-  SheetDescription 
-} from "@/components/ui/sheet";
-import { MainNav } from "@/components/layout/main-nav";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useNotifications } from "@/context/NotificationContext";
+import { cn } from "@/lib/utils";
 
 export function Header() {
+  const { unreadCount } = useNotifications();
+
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-primary/10 px-4 py-2 flex items-center justify-between shadow-sm">
       <div className="flex items-center gap-3">
@@ -49,10 +44,16 @@ export function Header() {
             <MessageCircle className="h-5 w-5" />
           </Button>
         </Link>
-        <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-1 right-1 w-4 h-4 bg-destructive text-white text-[10px] flex items-center justify-center rounded-full font-bold">2</span>
-        </Button>
+        <Link href="/notifications">
+          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 relative">
+            <Bell className="h-5 w-5" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 w-4 h-4 bg-primary text-white text-[9px] flex items-center justify-center rounded-full font-black shadow-lg shadow-primary/20 animate-pulse border-2 border-white dark:border-card">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </Button>
+        </Link>
         
         <Link href="/profile" className="hidden sm:block ml-2 group">
           <Avatar className="h-9 w-9 border-2 border-primary/10 transition-transform group-hover:scale-105">
