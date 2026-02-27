@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -54,7 +53,7 @@ export default function NotificationsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { notifications, markAsRead, markAllAsRead, purgeSignal } = useNotifications();
-  const { setSelectedPostId, isFollowing, toggleFollowUser } = usePosts();
+  const { setSelectedPostId, isFollowing, toggleFollowUser, currentUser } = usePosts();
   const { setTrack, currentTrack, isExpanded, triggerHaptic } = useMusic();
   
   const [activeFilter, setActiveFilter] = useState("all");
@@ -109,6 +108,9 @@ export default function NotificationsPage() {
       }
     } else if (node.postId) {
       setSelectedPostId(node.postId);
+      toast({ title: "Opening Pulse", description: "Navigating to content node." });
+    } else if (node.actionHref) {
+      router.push(node.actionHref);
     }
   };
 
