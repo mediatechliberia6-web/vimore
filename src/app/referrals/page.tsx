@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
   ArrowLeft, 
   Star, 
@@ -9,19 +9,25 @@ import {
   Share2, 
   Zap, 
   ChevronRight, 
-  Globe, 
-  ShieldCheck, 
   Trophy,
   History,
   Sparkles,
-  Link as LinkIcon,
   CheckCircle2,
   Rocket,
-  Plus
+  Plus,
+  MessageSquare,
+  Globe,
+  Award,
+  Crown,
+  TrendingUp,
+  Volume2,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useNotifications } from "@/context/NotificationContext";
@@ -30,10 +36,21 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 
+const LEADERBOARD = [
+  { rank: 1, name: "Neon Architect", username: "neon_arch", referrals: 142, avatar: "https://picsum.photos/seed/leader1/100/100", isVip: true },
+  { rank: 2, name: "Sarah Chen", username: "schen_dev", referrals: 89, avatar: "https://picsum.photos/seed/2/100/100" },
+  { rank: 3, name: "Marcus Stone", username: "mstone", referrals: 64, avatar: "https://picsum.photos/seed/3/100/100" },
+];
+
+const MILESTONES = [
+  { id: "m1", label: "Star Pioneer", count: 1, icon: Star, color: "text-blue-400" },
+  { id: "m2", label: "Network King", count: 5, icon: Crown, color: "text-amber-400" },
+  { id: "m3", label: "Ambassador", count: 10, icon: Award, color: "text-primary" },
+];
+
 const MOCK_HISTORY = [
   { id: "h1", name: "Alex Rivera", username: "arivera", time: "2h ago", avatar: "https://picsum.photos/seed/1/100/100" },
-  { id: "h2", name: "Sarah Chen", username: "schen_dev", time: "Yesterday", avatar: "https://picsum.photos/seed/2/100/100" },
-  { id: "h3", name: "Marcus Stone", username: "mstone", time: "3 days ago", avatar: "https://picsum.photos/seed/3/100/100" },
+  { id: "h2", name: "Paul Node", username: "paul", time: "Yesterday", avatar: "https://picsum.photos/seed/paul/100/100" },
 ];
 
 export default function ReferralHub() {
@@ -43,7 +60,41 @@ export default function ReferralHub() {
   const { toast } = useToast();
   
   const [isCopied, setIsCopied] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [customMessage, setCustomMessage] = useState("Join me on ViMore! Sync your digital signature and let's build the cluster together. 🚀");
+  const [displayedReferrals, setDisplayedReferrals] = useState(0);
+  const [displayedStars, setDisplayedStars] = useState(0);
+
   const isPlayerActive = currentTrack && !isExpanded;
+
+  // Star Ting Sound Effect
+  const playStarSound = () => {
+    const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3");
+    audio.volume = 0.3;
+    audio.play().catch(() => {});
+  };
+
+  // Rollup Stats Effect
+  useEffect(() => {
+    const targetRef = currentUser.referralCount || 0;
+    const targetStars = currentUser.starBalance || 0;
+    
+    const interval = setInterval(() => {
+      setDisplayedReferrals(prev => {
+        if (prev < targetRef) return prev + 1;
+        return targetRef;
+      });
+      setDisplayedStars(prev => {
+        if (prev < targetStars) {
+          const step = Math.ceil((targetStars - prev) / 10);
+          return prev + step;
+        }
+        return targetStars;
+      });
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [currentUser.referralCount, currentUser.starBalance]);
 
   const handleCopyLink = () => {
     triggerHaptic(15);
@@ -61,7 +112,7 @@ export default function ReferralHub() {
     if (navigator.share) {
       navigator.share({
         title: 'Join me on ViMore',
-        text: 'Sync your digital signature on ViMore and earn stars! 🚀',
+        text: customMessage,
         url: referralLink,
       });
     } else {
@@ -70,8 +121,13 @@ export default function ReferralHub() {
   };
 
   const simulateHandshake = () => {
-    // Phase 4: Incentive Engine Test
+    playStarSound();
+    triggerHaptic(50);
     triggerReferralPulse();
+    
+    // Trigger Confetti Pulse
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 3000);
     
     addSignal({
       type: 'SOCIAL',
@@ -87,12 +143,50 @@ export default function ReferralHub() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300 overflow-x-hidden">
-      {/* Aurora Ambience */}
-      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden opacity-40">
+    <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300 overflow-x-hidden relative">
+      
+      {/* Particle & Aurora Engine */}
+      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/20 blur-[120px] rounded-full animate-pulse" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-accent/20 blur-[120px] rounded-full animate-pulse delay-700" />
+        
+        {/* CSS Star Particles */}
+        {[...Array(20)].map((_, i) => (
+          <div 
+            key={i}
+            className="absolute bg-white rounded-full animate-pulse"
+            style={{
+              width: Math.random() * 3 + 'px',
+              height: Math.random() * 3 + 'px',
+              top: Math.random() * 100 + '%',
+              left: Math.random() * 100 + '%',
+              opacity: Math.random() * 0.5,
+              animationDuration: (Math.random() * 3 + 2) + 's',
+              animationDelay: (Math.random() * 5) + 's'
+            }}
+          />
+        ))}
       </div>
+
+      {/* Confetti Overlay */}
+      {showConfetti && (
+        <div className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center">
+          {[...Array(50)].map((_, i) => (
+            <div 
+              key={i}
+              className="absolute text-2xl animate-bounce"
+              style={{
+                top: Math.random() * 100 + '%',
+                left: Math.random() * 100 + '%',
+                transform: `rotate(${Math.random() * 360}deg)`,
+                animationDuration: (Math.random() * 1 + 0.5) + 's'
+              }}
+            >
+              ⭐
+            </div>
+          ))}
+        </div>
+      )}
 
       <header className="sticky top-0 z-50 bg-white/80 dark:bg-card/80 backdrop-blur-md border-b border-border h-16 px-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -103,13 +197,14 @@ export default function ReferralHub() {
           </Link>
           <div className="flex flex-col">
             <h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground leading-none">Star Network</h1>
-            <span className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1">Growth Hub</span>
+            <span className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1">Global Ambassador</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Badge variant="outline" className="bg-primary/5 border-primary/20 text-primary font-black uppercase text-[10px] h-7 px-3">
-            Ambassador
-          </Badge>
+          <div className="bg-primary/10 border border-primary/20 rounded-full px-3 py-1 flex items-center gap-2">
+            <Award className="h-3.5 w-3.5 text-primary" />
+            <span className="text-[10px] font-black text-primary uppercase tracking-widest">Level 1</span>
+          </div>
           <Avatar className="h-9 w-9 border-2 border-primary/10">
             <AvatarImage src={currentUser.avatar} />
             <AvatarFallback>JD</AvatarFallback>
@@ -122,14 +217,14 @@ export default function ReferralHub() {
         isPlayerActive ? "pt-[80px]" : "pt-4"
       )}>
         
-        {/* Pulse Dashboard */}
+        {/* Pulse Dashboard with Animated Rolling Numbers */}
         <section className="grid grid-cols-2 gap-4">
           <div className="bg-white dark:bg-card rounded-[2rem] p-6 shadow-xl border border-primary/5 flex flex-col items-center text-center gap-2 group transition-all hover:-translate-y-1">
             <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
               <Users className="h-6 w-6" />
             </div>
             <div className="space-y-0.5">
-              <span className="text-3xl font-black italic uppercase tracking-tighter leading-none">{currentUser.referralCount || 0}</span>
+              <span className="text-3xl font-black italic uppercase tracking-tighter leading-none tabular-nums">{displayedReferrals}</span>
               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Nodes Referred</p>
             </div>
           </div>
@@ -138,9 +233,31 @@ export default function ReferralHub() {
               <Star className="h-6 w-6 fill-current" />
             </div>
             <div className="space-y-0.5">
-              <span className="text-3xl font-black italic uppercase tracking-tighter leading-none">{(currentUser.starBalance || 0).toLocaleString()}</span>
+              <span className="text-3xl font-black italic uppercase tracking-tighter leading-none tabular-nums">{displayedStars.toLocaleString()}</span>
               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Stars Earned</p>
             </div>
+          </div>
+        </section>
+
+        {/* Milestone Badges System */}
+        <section className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 rounded-[2rem] p-6">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-6 text-center">Ambassador Achievements</h3>
+          <div className="flex justify-around items-center">
+            {MILESTONES.map((m) => {
+              const isLocked = (currentUser.referralCount || 0) < m.count;
+              return (
+                <div key={m.id} className={cn(
+                  "flex flex-col items-center gap-2 transition-all duration-500",
+                  isLocked ? "opacity-30 grayscale scale-90" : "opacity-100 scale-110"
+                )}>
+                  <div className={cn("h-14 w-14 rounded-full flex items-center justify-center border-2 border-dashed relative", !isLocked && "border-solid bg-white dark:bg-card shadow-lg ring-4 ring-primary/5")}>
+                    <m.icon className={cn("h-6 w-6", m.color)} />
+                    {!isLocked && <div className="absolute -top-1 -right-1 bg-green-500 text-white p-0.5 rounded-full"><CheckCircle2 className="h-3 w-3" /></div>}
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-center max-w-[60px] leading-tight">{m.label}</span>
+                </div>
+              );
+            })}
           </div>
         </section>
 
@@ -180,6 +297,18 @@ export default function ReferralHub() {
                   </button>
                 </div>
 
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 px-1">
+                    <MessageSquare className="h-3.5 w-3.5 text-white/60" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Customize Invite</span>
+                  </div>
+                  <Textarea 
+                    value={customMessage}
+                    onChange={(e) => setCustomMessage(e.target.value)}
+                    className="bg-black/20 border-white/10 rounded-2xl text-white text-xs font-medium placeholder:text-white/30 resize-none min-h-[80px]"
+                  />
+                </div>
+
                 <Button 
                   onClick={handleShare}
                   className="w-full h-14 bg-white text-primary hover:bg-zinc-100 rounded-2xl font-black italic uppercase tracking-widest text-base shadow-2xl transition-all active:scale-[0.98]"
@@ -192,24 +321,64 @@ export default function ReferralHub() {
           </div>
         </section>
 
-        {/* Milestone Tracker Preview */}
-        <section className="bg-white dark:bg-card rounded-[2rem] p-6 shadow-xl border border-primary/5 space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-amber-500" /> Ambassador Progress
-            </h3>
-            <span className="text-[10px] font-black text-primary uppercase">Next: 10 Referrals</span>
+        {/* Invite Preview Hub */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 px-2">
+            <Globe className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-black italic uppercase tracking-widest">Network Preview</h3>
           </div>
-          <div className="space-y-3">
-            <div className="h-3 w-full bg-secondary/30 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-1000 shadow-[0_0_10px_rgba(153,64,229,0.5)]" 
-                style={{ width: `${Math.min(((currentUser.referralCount || 0) / 10) * 100, 100)}%` }} 
-              />
+          <div className="bg-white dark:bg-card border border-border rounded-[2rem] p-6 shadow-xl relative overflow-hidden group">
+            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex gap-4">
+              <div className="relative h-20 w-20 rounded-2xl overflow-hidden shrink-0 shadow-lg">
+                <Image src={currentUser.avatar} alt="Preview" fill className="object-cover" />
+                <div className="absolute inset-0 bg-black/20" />
+              </div>
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-primary uppercase tracking-widest">Incoming Node Invite</span>
+                  <Badge variant="secondary" className="text-[8px] bg-secondary/50">vimore.io</Badge>
+                </div>
+                <h4 className="font-bold text-sm leading-tight">Join {currentUser.name} on the ViMore network!</h4>
+                <p className="text-[11px] text-muted-foreground line-clamp-2 italic">"{customMessage}"</p>
+              </div>
             </div>
-            <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-              <span>{currentUser.referralCount || 0} Synced</span>
-              <span>10 Total</span>
+          </div>
+        </section>
+
+        {/* Global Leaderboard Hub */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-amber-500" />
+              <h3 className="text-sm font-black italic uppercase tracking-widest">Top Networkers</h3>
+            </div>
+            <Button variant="link" className="text-[10px] font-black uppercase p-0 h-auto">View Full Pulse</Button>
+          </div>
+          <div className="bg-white dark:bg-card border border-primary/10 rounded-[2.5rem] overflow-hidden shadow-xl">
+            <div className="divide-y divide-border">
+              {LEADERBOARD.map((user) => (
+                <div key={user.rank} className="p-4 flex items-center justify-between hover:bg-primary/5 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <span className="w-6 text-center text-lg font-black italic text-muted-foreground/40">0{user.rank}</span>
+                    <Avatar className="h-10 w-10 border border-primary/10">
+                      <AvatarImage src={user.avatar} />
+                      <AvatarFallback>U</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm font-bold">{user.name}</span>
+                        {user.isVip && <CheckCircle2 className="h-3 w-3 text-primary fill-primary text-white" />}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">@{user.username}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-sm font-black italic text-primary">{user.referrals}</span>
+                    <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Nodes</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -223,10 +392,10 @@ export default function ReferralHub() {
             <Button 
               variant="outline" 
               size="sm" 
-              className="h-8 rounded-full font-black uppercase text-[9px] gap-1.5 border-primary/20 text-primary"
+              className="h-8 rounded-full font-black uppercase text-[9px] gap-1.5 border-primary/20 text-primary hover:bg-primary hover:text-white transition-all group"
               onClick={simulateHandshake}
             >
-              <Plus className="h-3 w-3" /> Simulate Handshake
+              <Plus className="h-3 w-3 group-hover:rotate-90 transition-transform" /> Simulate Handshake
             </Button>
           </div>
           
@@ -248,7 +417,10 @@ export default function ReferralHub() {
                   </div>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="text-[10px] font-black text-green-500 uppercase">+5,000 ⭐</span>
+                  <div className="flex items-center gap-1">
+                    <Star className="h-3 w-3 text-amber-500 fill-current" />
+                    <span className="text-[10px] font-black text-green-500 uppercase">+5,000</span>
+                  </div>
                   <span className="text-[9px] text-muted-foreground uppercase font-bold">{node.time}</span>
                 </div>
               </div>
