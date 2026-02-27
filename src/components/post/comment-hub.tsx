@@ -15,7 +15,8 @@ import {
   Trash2,
   Clock,
   Sparkles,
-  Wand2
+  Wand2,
+  Loader2
 } from "lucide-react";
 import {
   Sheet,
