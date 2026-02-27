@@ -1,7 +1,6 @@
-
 "use client";
 
-import { Search, Upload, Crown, Bell, MessageSquare, Menu, Gift, Settings } from "lucide-react";
+import { Search, Upload, Crown, MessageSquare, Menu, Gift, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -40,10 +39,6 @@ export function MusicHeader() {
            </Button>
            <Button variant="ghost" size="icon" className="rounded-full bg-secondary/30 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Upload Music">
              <Upload className="h-5 w-5" />
-           </Button>
-           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/30 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors relative" title="Notifications">
-             <Bell className="h-5 w-5" />
-             <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-primary rounded-full ring-2 ring-background" />
            </Button>
            <Button variant="ghost" size="icon" className="rounded-full bg-secondary/30 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Settings">
              <Settings className="h-5 w-5" />
