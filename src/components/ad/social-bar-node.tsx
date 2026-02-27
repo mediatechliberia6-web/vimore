@@ -7,15 +7,28 @@ import { useEffect, useRef, useState } from "react";
  * SocialBarNode handles the injection of Adsterra Social Bar ads.
  * These are designed to be slim, non-intrusive bars that sit at the top of content hubs.
  * Synchronized to vanish after 5 seconds of visibility to maintain feed focus.
+ * Implements a 10-minute recurrence cycle to refresh the monetization signal.
  */
 export function SocialBarNode() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(true);
+  const [sessionKey, setSessionKey] = useState(0);
 
+  // Recurrence Logic: 10 Minute Cycle (600,000ms)
   useEffect(() => {
-    if (typeof window === "undefined" || !containerRef.current) return;
+    const recurrenceInterval = setInterval(() => {
+      setIsVisible(true);
+      setSessionKey(prev => prev + 1);
+    }, 600000);
 
-    // Clear existing content to prevent duplication
+    return () => clearInterval(recurrenceInterval);
+  }, []);
+
+  // Injection and Auto-Dismiss Logic
+  useEffect(() => {
+    if (!isVisible || typeof window === "undefined" || !containerRef.current) return;
+
+    // Clear existing content to prevent duplication on re-injection
     containerRef.current.innerHTML = "";
 
     const script = document.createElement("script");
@@ -26,17 +39,17 @@ export function SocialBarNode() {
     containerRef.current.appendChild(script);
 
     // Temporal Dismissal: 5 second display window
-    const timer = setTimeout(() => {
+    const dismissTimer = setTimeout(() => {
       setIsVisible(false);
     }, 5000);
 
     return () => {
-      clearTimeout(timer);
+      clearTimeout(dismissTimer);
       if (containerRef.current) {
         containerRef.current.innerHTML = "";
       }
     };
-  }, []);
+  }, [isVisible, sessionKey]);
 
   if (!isVisible) return null;
 
