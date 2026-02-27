@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -22,7 +23,7 @@ export function Header() {
               <path d="M13 15L17 7L21 15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <span className="font-headline font-bold text-xl tracking-tight text-primary">ViMore</span>
+          <span className="hidden xs:block font-headline font-bold text-xl tracking-tight text-primary">ViMore</span>
         </Link>
         <div className="hidden sm:block relative group max-w-[160px] sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
@@ -40,12 +41,15 @@ export function Header() {
           </Button>
         </CreatePostModal>
         
-        <Link href="/notifications" className="relative">
-          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
-            <Bell className="h-5 w-5" />
+        <Link href="/notifications" className="relative group">
+          <Button variant="ghost" size="icon" className={cn(
+            "rounded-full bg-secondary/50 transition-all",
+            unreadCount > 0 && "text-primary bg-primary/5 shadow-[0_0_10px_rgba(153,64,229,0.2)]"
+          )}>
+            <Bell className={cn("h-5 w-5", unreadCount > 0 && "animate-pulse")} />
           </Button>
           {unreadCount > 0 && (
-            <div className="absolute -top-1 -right-1 bg-primary text-white text-[8px] font-black h-4 w-4 rounded-full flex items-center justify-center border-2 border-white dark:border-background">
+            <div className="absolute -top-1 -right-1 bg-primary text-white text-[8px] font-black h-4.5 w-4.5 rounded-full flex items-center justify-center border-2 border-white dark:border-background">
               {unreadCount > 9 ? '9+' : unreadCount}
             </div>
           )}
@@ -64,7 +68,6 @@ export function Header() {
           </Avatar>
         </Link>
 
-        {/* Mobile Navigation Trigger - Links to Menu Page */}
         <Link href="/menu" className="lg:hidden">
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50" aria-label="Open menu">
             <Menu className="h-5 w-5" />

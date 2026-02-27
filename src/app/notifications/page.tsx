@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -28,7 +29,8 @@ import {
   ShieldCheck,
   Trash2,
   ChevronRight,
-  Filter
+  Filter,
+  Users2
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -41,8 +43,8 @@ import {
 const FILTERS = [
   { id: "all", label: "All Pulses" },
   { id: "SOCIAL", label: "Social" },
-  { id: "POST", label: "Post Activity" },
-  { id: "SONIC", label: "Sonic Updates" },
+  { id: "POST", label: "Activity" },
+  { id: "SONIC", label: "Sonic" },
 ];
 
 export default function NotificationsPage() {
@@ -64,16 +66,19 @@ export default function NotificationsPage() {
     triggerHaptic(10);
     markAsRead(node.id);
 
-    // Deep-Link Dispatcher
+    // Deep-Link Logic Dispatcher
     if (node.postId) {
+      // Content Pulse: Materialize the Post Portal
       setSelectedPostId(node.postId);
     } else if (node.trackId) {
+      // Sonic Pulse: Navigate to Music and play track
       const track = ALL_SONGS.find(s => s.id === node.trackId);
       if (track) {
         setTrack(track);
         router.push('/music');
       }
     } else if (node.targetUsername) {
+      // Social Pulse: Jump to User Workspace
       router.push(`/profile/${node.targetUsername}`);
     } else if (node.actionHref) {
       router.push(node.actionHref);
@@ -88,7 +93,10 @@ export default function NotificationsPage() {
       toggleFollowUser(node.targetUsername);
     } else if (node.trackId) {
       const track = ALL_SONGS.find(s => s.id === node.trackId);
-      if (track) setTrack(track);
+      if (track) {
+        setTrack(track);
+        router.push('/music');
+      }
     } else if (node.postId) {
       setSelectedPostId(node.postId);
     }
@@ -123,7 +131,7 @@ export default function NotificationsPage() {
         "max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[280px_1fr_360px] gap-8 px-4 transition-all duration-300",
         isPlayerActive ? "pt-[184px]" : "pt-6"
       )}>
-        {/* Left Sidebar */}
+        {/* Left Navigation */}
         <aside className={cn(
           "hidden lg:block sticky h-[calc(100vh-132px)] overflow-y-auto transition-all duration-300",
           isPlayerActive ? "top-[196px]" : "top-[132px]"
@@ -131,8 +139,8 @@ export default function NotificationsPage() {
           <MainNav />
         </aside>
 
-        {/* Main Signals Hub */}
-        <main className="w-full space-y-6 pb-20">
+        {/* Main Signals Feed */}
+        <main className="w-full space-y-6 pb-24">
           <div className="bg-white dark:bg-card rounded-[2.5rem] p-6 sm:p-8 shadow-xl border border-primary/5">
             <div className="flex items-center justify-between mb-8">
               <div className="space-y-1">
@@ -142,11 +150,11 @@ export default function NotificationsPage() {
                     {notifications.filter(n => !n.isRead).length} NEW
                   </Badge>
                 </h1>
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest">Network pulse and cluster updates</p>
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest">Your high-velocity network pulse</p>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" className="rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary/5 text-primary" onClick={markAllAsRead}>
-                  Clear Unread
+                  Mark all read
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -154,7 +162,7 @@ export default function NotificationsPage() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="rounded-xl p-2 w-56">
                     <DropdownMenuItem className="gap-2 font-bold"><BellOff className="h-4 w-4" /> Mute System Pulses</DropdownMenuItem>
-                    <DropdownMenuItem className="gap-2 font-bold text-destructive focus:text-destructive" onClick={markAllAsRead}><Check className="h-4 w-4" /> Mark all read</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2 font-bold text-destructive focus:text-destructive" onClick={markAllAsRead}><Check className="h-4 w-4" /> Clear History</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -164,7 +172,7 @@ export default function NotificationsPage() {
             <div className="flex items-center gap-2 overflow-x-auto pb-6 scrollbar-hide">
               <div className="flex items-center gap-2 pr-2 border-r border-primary/10 mr-2 text-muted-foreground">
                 <Filter className="h-3.5 w-3.5" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Sort</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Filter</span>
               </div>
               {FILTERS.map((f) => (
                 <button
@@ -200,7 +208,7 @@ export default function NotificationsPage() {
                     )}
                     style={{ animationDelay: `${i * 50}ms` }}
                   >
-                    {/* Leading Edge: Avatar & Icon */}
+                    {/* Leading Edge */}
                     <div className="relative shrink-0 pt-1">
                       <div className="relative">
                         <Avatar className={cn(
@@ -219,7 +227,7 @@ export default function NotificationsPage() {
                       )}
                     </div>
 
-                    {/* Rich Content */}
+                    {/* Content Node */}
                     <div className="flex-1 min-w-0 pt-1">
                       <div className="flex flex-col gap-1">
                         <p className="text-sm leading-relaxed text-muted-foreground">
@@ -230,11 +238,11 @@ export default function NotificationsPage() {
                             {node.time}
                           </span>
                           <div className="h-1 w-1 bg-muted-foreground/20 rounded-full" />
-                          <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">{node.type} Node</span>
+                          <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">{node.type} Hub</span>
                         </div>
                       </div>
 
-                      {/* Action Buttons */}
+                      {/* Contextual Actions */}
                       {(node.actionLabel || node.postId || node.trackId || node.targetUsername) && (
                         <div className="mt-4 flex items-center gap-2">
                           <Button 
@@ -247,7 +255,7 @@ export default function NotificationsPage() {
                           >
                             {node.type === 'SOCIAL' 
                               ? (isMutual ? "Friend" : "Follow Back") 
-                              : (node.actionLabel || "View Vibe")}
+                              : (node.actionLabel || "View Details")}
                           </Button>
                           <Button 
                             variant="ghost" 
@@ -261,7 +269,7 @@ export default function NotificationsPage() {
                       )}
                     </div>
 
-                    {/* Context Visual Node (Thumbnail) */}
+                    {/* Context Visual (Thumbnail) */}
                     {(node.image || node.avatar) && !node.avatar && (
                       <div className="hidden sm:block relative h-16 w-16 rounded-2xl overflow-hidden shrink-0 border border-primary/10 shadow-lg transition-transform group-hover:scale-105">
                         <Image src={node.image || node.avatar!} alt="Context" fill className="object-cover" />
@@ -272,31 +280,18 @@ export default function NotificationsPage() {
                         )}
                       </div>
                     )}
-
-                    {/* Quick Access Menu */}
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2 pt-1">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-secondary/50"><MoreHorizontal className="h-4 w-4" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-xl">
-                          <DropdownMenuItem className="gap-2 font-bold" onClick={() => purgeSignal(node.id)}><Trash2 className="h-4 w-4 text-destructive" /> Purge Signal</DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2 font-bold"><BellOff className="h-4 w-4" /> Mute this node</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
                   </div>
                 );
               }) : (
                 <div className="py-32 text-center space-y-6 animate-in fade-in zoom-in-95 duration-700">
                   <div className="h-24 w-24 bg-primary/5 rounded-[2.5rem] flex items-center justify-center mx-auto border-2 border-dashed border-primary/20">
-                    <BellOff className="h-10 w-10 text-primary/40" />
+                    <Zap className="h-10 w-10 text-primary/40" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-black italic uppercase tracking-tighter">Silence in the Node</h3>
-                    <p className="text-muted-foreground text-sm font-medium">Your network is currently stabilized with no active pulses.</p>
+                    <h3 className="text-2xl font-black italic uppercase tracking-tighter">Quiet Nodes</h3>
+                    <p className="text-muted-foreground text-sm font-medium">Your network pulse is stable. No new signals detected.</p>
                   </div>
-                  <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase tracking-widest text-[10px]" onClick={() => router.push('/')}>Refresh Feed</Button>
+                  <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase tracking-widest text-[10px]" onClick={() => router.push('/')}>Return Home</Button>
                 </div>
               )}
             </div>

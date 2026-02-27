@@ -1,3 +1,4 @@
+
 "use client";
 
 import { 
@@ -35,8 +36,8 @@ export default function MenuPage() {
 
   const menuGrid = [
     { label: "Home feed", icon: Home, color: "text-primary", bg: "bg-primary/10", href: "/" },
-    { label: "Music Hub", icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music" },
     { label: "Signals", icon: Bell, color: "text-red-500", bg: "bg-red-50", href: "/notifications", badge: unreadCount },
+    { label: "Music Hub", icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music" },
     { label: "Messages", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages" },
     { label: "Reels", icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-50", href: "/reels" },
   ];
