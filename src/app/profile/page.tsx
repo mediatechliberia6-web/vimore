@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useMemo, useEffect } from "react";
@@ -35,7 +34,8 @@ import {
   Trash2,
   Loader2,
   Clapperboard,
-  Image as ImageIcon
+  Image as ImageIcon,
+  CheckCircle2
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
@@ -84,7 +84,7 @@ export default function MyProfilePage() {
   
   // Refinement Portal State
   const [refiningImage, setRefiningImage] = useState<string | null>(null);
-  const [refinementMode, setRefiningMode] = useState<"avatar" | "cover">("avatar");
+  const [refiningMode, setRefiningMode] = useState<"avatar" | "cover">("avatar");
   const [isRefinementOpen, setIsRefinementOpen] = useState(false);
 
   const [confirmUser, setConfirmUser] = useState<any | null>(null);
@@ -189,21 +189,16 @@ export default function MyProfilePage() {
 
   const handleRefinementApply = (refinedUrl: string) => {
     triggerHaptic(30);
-    updateCurrentUser({ [refinementMode]: refinedUrl });
+    updateCurrentUser({ [refiningMode]: refinedUrl });
     
     addPost({
-      user: {
-        name: currentUser.name,
-        username: currentUser.username,
-        avatar: refinementMode === 'avatar' ? refinedUrl : currentUser.avatar,
-        isOnline: true
-      },
-      content: `**${currentUser.name}** updated ${refinementMode === 'avatar' ? 'his profile picture' : 'his workspace cover'} ✨`,
+      user: currentUser,
+      content: `**${currentUser.name}** updated ${refiningMode === 'avatar' ? 'his profile picture' : 'his workspace cover'} ✨`,
       image: refinedUrl,
       language: currentUser.language || 'en'
     });
 
-    toast({ title: "Presence Refreshed", description: `Your profile ${refinementMode} is now updated and shared.` });
+    toast({ title: "Presence Refreshed", description: `Your profile ${refiningMode} is now updated and shared.` });
   };
 
   const handleRemoveVisual = () => {
@@ -357,7 +352,10 @@ export default function MyProfilePage() {
               <Link href="/">
                 <Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="h-5 w-5" /></Button>
               </Link>
-              <h1 className="font-bold text-lg tracking-tight">My Workspace</h1>
+              <div className="flex items-center gap-1">
+                <h1 className="font-bold text-lg tracking-tight">My Workspace</h1>
+                {currentUser.isVerified && <CheckCircle2 className="h-4 w-4 text-primary fill-primary text-white" />}
+              </div>
             </div>
             <div className="flex items-center gap-1">
               <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
@@ -449,7 +447,10 @@ export default function MyProfilePage() {
 
               <div className="mt-2 space-y-1 px-1">
                 <div className="flex items-center flex-wrap gap-2">
-                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{currentUser.name}</h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{currentUser.name}</h1>
+                    {currentUser.isVerified && <CheckCircle2 className="h-6 w-6 text-primary fill-primary text-white" />}
+                  </div>
                   {currentUser.pronouns && <Badge variant="secondary" className="bg-secondary/50 text-[10px] font-bold uppercase">{currentUser.pronouns}</Badge>}
                   
                   <div className="flex items-center gap-1.5 bg-secondary/40 rounded-full p-0.5">
@@ -620,7 +621,7 @@ export default function MyProfilePage() {
         isOpen={isRefinementOpen}
         onClose={() => setIsRefinementOpen(false)}
         image={refiningImage}
-        mode={refinementMode}
+        mode={refiningMode}
         onApply={handleRefinementApply}
       />
 

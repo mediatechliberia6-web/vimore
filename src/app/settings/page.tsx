@@ -411,7 +411,7 @@ export default function SettingsPage() {
                     <Trophy className="h-5 w-5 text-amber-500" />
                     <span className="text-xs font-black uppercase tracking-widest">Ambassador Status</span>
                   </div>
-                  <Badge className="bg-primary text-white text-[8px] font-black uppercase tracking-widest border-none">
+                  <Badge variant="outline" className="bg-primary text-white text-[8px] font-black uppercase tracking-widest border-none">
                     Level {currentLevel} {currentLevel === 3 && "MAX"}
                   </Badge>
                 </div>

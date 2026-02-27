@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { 
   ArrowLeft, 
   Search, 
@@ -20,7 +20,8 @@ import {
   Rocket,
   ShieldCheck,
   Globe,
-  LayoutDashboard
+  LayoutDashboard,
+  Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -50,6 +51,27 @@ export default function ProfessionalDashboard() {
     triggerHaptic(5);
     setActiveCategory(id);
   };
+
+  const verificationStatus = useMemo(() => {
+    if (!currentUser.isVerified) {
+      return { 
+        label: "Temporal Handshake", 
+        desc: "Materialize your verified status today",
+        badge: null,
+        color: "from-primary to-indigo-700"
+      };
+    }
+    
+    const expiry = currentUser.verificationExpiry ? new Date(currentUser.verificationExpiry) : null;
+    const daysLeft = expiry ? Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
+    
+    return {
+      label: "Signature Active",
+      desc: `Signature synced for ${daysLeft} more days`,
+      badge: <Badge className="bg-white/20 text-white border-none text-[8px] font-black uppercase">TEMPORAL PULSE: {daysLeft}D</Badge>,
+      color: "from-purple-600 to-primary"
+    };
+  }, [currentUser]);
 
   return (
     <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#020202] text-foreground flex flex-col transition-colors duration-500 overflow-x-hidden">
@@ -100,12 +122,17 @@ export default function ProfessionalDashboard() {
                     <AvatarImage src={currentUser.avatar} />
                     <AvatarFallback>JD</AvatarFallback>
                   </Avatar>
-                  <div className="absolute -bottom-1 -right-1 bg-green-500 h-7 w-7 rounded-full border-4 border-white dark:border-[#0A0A0A] flex items-center justify-center shadow-lg">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-white fill-current" />
-                  </div>
+                  {currentUser.isVerified && (
+                    <div className="absolute -bottom-1 -right-1 bg-primary h-7 w-7 rounded-full border-4 border-white dark:border-[#0A0A0A] flex items-center justify-center shadow-lg">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-white fill-current" />
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-1">
-                  <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none">{currentUser.name}</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none">{currentUser.name}</h2>
+                    {currentUser.isVerified && <CheckCircle2 className="h-5 w-5 text-primary fill-primary text-white" />}
+                  </div>
                   <div className="flex items-center gap-2">
                     <Badge className="bg-primary/10 text-primary border-none text-[9px] font-black h-5 uppercase tracking-widest px-3">Pro Creator</Badge>
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">@{currentUser.username}</span>
@@ -128,8 +155,8 @@ export default function ProfessionalDashboard() {
                 <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Total Vibes</p>
               </div>
               <div className="text-center space-y-1">
-                <p className="text-xl font-black italic tracking-tighter">0.00</p>
-                <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Credits Earned</p>
+                <p className="text-xl font-black italic tracking-tighter">{(currentUser.starBalance || 0).toLocaleString()}</p>
+                <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Star Balance</p>
               </div>
             </div>
           </div>
@@ -155,17 +182,23 @@ export default function ProfessionalDashboard() {
           <ScrollBar orientation="horizontal" className="opacity-0" />
         </ScrollArea>
 
-        {/* 4. Handshake Protocol Card (Verification Portal) */}
+        {/* Dynamic Handshake Protocol Card */}
         <Link href="/verification" className="relative group cursor-pointer block">
           <div className="absolute -inset-1 bg-gradient-to-r from-primary/40 to-accent/40 blur-xl opacity-20 group-hover:opacity-40 transition-opacity" />
-          <div className="relative bg-gradient-to-br from-primary to-indigo-700 dark:from-primary/40 dark:to-indigo-900/40 rounded-[2rem] p-6 flex items-center justify-between border border-white/10 shadow-2xl transition-all hover:translate-y-[-2px] active:scale-[0.98]">
+          <div className={cn(
+            "relative bg-gradient-to-br rounded-[2rem] p-6 flex items-center justify-between border border-white/10 shadow-2xl transition-all hover:translate-y-[-2px] active:scale-[0.98]",
+            verificationStatus.color
+          )}>
             <div className="flex items-center gap-5">
               <div className="h-14 w-14 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-white shadow-inner group-hover:scale-110 transition-transform">
-                <ShieldCheck className="h-8 w-8 fill-current" />
+                {currentUser.isVerified ? <ShieldCheck className="h-8 w-8 fill-current" /> : <Zap className="h-8 w-8" />}
               </div>
               <div className="space-y-1">
-                <p className="text-lg font-black italic uppercase tracking-tight text-white leading-none">Purple Identity Signature</p>
-                <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Materialize your verified status today</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-lg font-black italic uppercase tracking-tight text-white leading-none">{verificationStatus.label}</p>
+                  {verificationStatus.badge}
+                </div>
+                <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">{verificationStatus.desc}</p>
               </div>
             </div>
             <ChevronRight className="h-6 w-6 text-white/40" />
@@ -217,7 +250,7 @@ export default function ProfessionalDashboard() {
                 <div className={cn("flex items-center gap-1.5 text-[10px] font-black uppercase", metric.color)}>
                   <metric.icon className="h-3 w-3" /> {metric.delta}
                 </div>
-                <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-100 transition-opacity">
                   <metric.icon className="h-24 w-24 rotate-12" />
                 </div>
               </div>

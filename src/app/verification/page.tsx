@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
+import { useNotifications } from "@/context/NotificationContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -28,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 export default function VerificationHub() {
   const { currentUser, verifyUser, triggerHaptic } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
+  const { addSignal } = useNotifications();
   const { toast } = useToast();
 
   const [currencyChoice, setCurrencyChoice] = useState<'DIAMOND' | 'STAR'>('DIAMOND');
@@ -73,6 +75,15 @@ export default function VerificationHub() {
       if (result.approved) {
         // SECURE TRANSACTION
         verifyUser(result.cost, currencyChoice);
+        
+        // SYNC SIGNAL
+        addSignal({
+          type: 'SYSTEM',
+          title: 'Signature Materialized',
+          content: `Your high-velocity purple signature is now live. **Valid for 30 days.**`,
+          avatar: currentUser.avatar
+        });
+
         toast({
           title: "Signature Materialized",
           description: result.message
@@ -146,9 +157,9 @@ export default function VerificationHub() {
           <div className="space-y-2">
             <div className="flex items-center justify-center gap-2">
               <h2 className="text-3xl font-black italic uppercase tracking-tighter">{currentUser.name}</h2>
-              <CheckCircle2 className="h-6 w-6 text-primary fill-primary text-white" />
+              {currentUser.isVerified && <CheckCircle2 className="h-6 w-6 text-primary fill-primary text-white" />}
             </div>
-            <p className="text-muted-foreground text-sm font-medium uppercase tracking-[0.2em]">Verified Signature Active</p>
+            <p className="text-muted-foreground text-sm font-medium uppercase tracking-[0.2em]">Verified Signature Preview</p>
           </div>
         </section>
 
