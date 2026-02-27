@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -16,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 import { useMusic, Track } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -120,6 +122,9 @@ export function MusicCharts() {
           </div>
         </div>
       </div>
+
+      {/* Top Chart Ad */}
+      <NativeAdNode type="banner" />
 
       {/* 2. Chart Navigation */}
       <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-4 scrollbar-hide px-1">
@@ -227,6 +232,9 @@ export function MusicCharts() {
           })}
         </div>
       </div>
+
+      {/* Mid Chart Ad */}
+      <NativeAdNode type="banner" />
 
       {/* 4. Insight Card */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pb-20">

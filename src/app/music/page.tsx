@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -8,6 +9,7 @@ import { MusicNav } from "@/components/music/music-nav";
 import { MusicCharts } from "@/components/music/music-charts";
 import { MusicUpload } from "@/components/music/music-upload";
 import { CreatePlaylistModal } from "@/components/music/create-playlist-modal";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 import { useMusic, Album, Track, Playlist } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -245,10 +247,15 @@ export default function MusicPage() {
                 ) : (
                   <>
                     {!searchQuery && <MusicGrid type="hero" items={[MOCK_SONGS[0]]} />}
+                    {!searchQuery && <NativeAdNode type="banner" />}
                     {filteredSongs.length > 0 && <MusicGrid type="song" title={searchQuery ? "Matching Songs" : "Trending Songs"} items={filteredSongs} />}
+                    {!searchQuery && <NativeAdNode type="banner" />}
                     {filteredAlbums.length > 0 && <MusicGrid type="album" title={searchQuery ? "Matching Albums" : "Trending Albums"} items={filteredAlbums} />}
+                    {!searchQuery && <NativeAdNode type="banner" />}
                     {!searchQuery && <MusicGrid type="song" title="New Releases" items={[...MOCK_SONGS].reverse()} />}
+                    {!searchQuery && <NativeAdNode type="banner" />}
                     {filteredPlaylists.length > 0 && <MusicGrid type="playlist" title={searchQuery ? "Matching Playlists" : "Top Playlists"} items={filteredPlaylists} />}
+                    {!searchQuery && <NativeAdNode type="banner" />}
                     {filteredArtists.length > 0 && <MusicGrid type="artist" title={searchQuery ? "Matching Artists" : "Trending Artists"} items={filteredArtists} />}
                   </>
                 )}
@@ -288,6 +295,8 @@ export default function MusicPage() {
                       ))}
                     </div>
                   </div>
+                  {/* Library Native Ad Node */}
+                  <NativeAdNode type="banner" />
                 </div>
 
                 <div className="pt-4">
