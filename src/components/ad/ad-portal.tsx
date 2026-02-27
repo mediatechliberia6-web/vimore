@@ -9,22 +9,24 @@ export function AdPortal() {
   const { isAdPortalOpen, adDuration, adUrl, onAdComplete } = useMusic();
   const [timeLeft, setTimeLeft] = useState(adDuration);
 
+  // Timer logic: Updates the local countdown state
   useEffect(() => {
     if (isAdPortalOpen) {
       setTimeLeft(adDuration);
       const timer = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            onAdComplete();
-            return 0;
-          }
-          return prev - 1;
-        });
+        setTimeLeft((prev) => Math.max(0, prev - 1));
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [isAdPortalOpen, adDuration, onAdComplete]);
+  }, [isAdPortalOpen, adDuration]);
+
+  // Completion logic: Triggers the data handshake when timer hits zero
+  // Separated into an effect to avoid "update during render" errors
+  useEffect(() => {
+    if (isAdPortalOpen && timeLeft === 0) {
+      onAdComplete();
+    }
+  }, [timeLeft, isAdPortalOpen, onAdComplete]);
 
   if (!isAdPortalOpen) return null;
 

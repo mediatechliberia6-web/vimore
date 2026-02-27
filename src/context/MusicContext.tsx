@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 
 export interface Comment {
   id: string | number;
@@ -178,11 +178,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
   const [trackForNewPlaylist, setTrackForNewPlaylist] = useState<Track | null>(null);
 
-  const triggerHaptic = (intensity: number = 10) => {
+  const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
       window.navigator.vibrate(intensity);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const initialStats: Record<string | number, { likes: number; unlikes: number }> = {};
@@ -239,9 +239,19 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [isPlaying, currentTrack]);
 
+  const nextTrack = useCallback(() => {
+    if (queue.length === 0) return;
+    triggerHaptic(10);
+    const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
+    const nextIndex = (currentIndex + 1) % queue.length;
+    setCurrentTrack(queue[nextIndex]);
+    setProgress(0);
+    setIsPlaying(true);
+  }, [queue, currentTrack, triggerHaptic]);
+
   useEffect(() => {
     if (progress >= 100 && isPlaying) nextTrack();
-  }, [progress]);
+  }, [progress, isPlaying, nextTrack]);
 
   const setTrack = (track: Track) => {
     triggerHaptic(15);
@@ -271,16 +281,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   };
 
   const togglePlay = () => { triggerHaptic(10); setIsPlaying(!isPlaying); };
-
-  const nextTrack = () => {
-    if (queue.length === 0) return;
-    triggerHaptic(10);
-    const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
-    const nextIndex = (currentIndex + 1) % queue.length;
-    setCurrentTrack(queue[nextIndex]);
-    setProgress(0);
-    setIsPlaying(true);
-  };
 
   const prevTrack = () => {
     if (queue.length === 0) return;
@@ -351,13 +351,13 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setIsAdPortalOpen(true);
   };
 
-  const onAdComplete = () => {
+  const onAdComplete = useCallback(() => {
     setIsAdPortalOpen(false);
     if (pendingDownloadTask) {
       pendingDownloadTask().catch(console.error);
       setPendingDownloadTask(null);
     }
-  };
+  }, [pendingDownloadTask]);
 
   const isTrackLiked = (trackId: string | number) => likedSongIds.has(trackId);
   const isTrackUnliked = (trackId: string | number) => unlikedSongIds.has(trackId);
