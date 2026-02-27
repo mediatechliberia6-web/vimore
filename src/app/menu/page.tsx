@@ -14,7 +14,8 @@ import {
   Sparkles,
   Music2,
   Bell,
-  Coins
+  Coins,
+  Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -41,6 +42,7 @@ export default function MenuPage() {
     { label: "Signals", icon: Bell, color: "text-red-500", bg: "bg-red-50", href: "/notifications", badge: unreadCount },
     { label: "Music Hub", icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music" },
     { label: "Currency Hub", icon: Coins, color: "text-amber-500", bg: "bg-amber-50", href: "/currency" },
+    { label: "Community", icon: Users, color: "text-emerald-500", bg: "bg-emerald-50", href: "/friends" },
     { label: "Messages", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages" },
     { label: "Reels", icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-50", href: "/reels" },
   ];
