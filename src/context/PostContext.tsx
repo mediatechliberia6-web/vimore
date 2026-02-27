@@ -119,6 +119,8 @@ interface PostContextType {
   followingUsernames: Set<string>;
   activeStoryIndex: number | null;
   connections: Connection[];
+  selectedPostId: string | null;
+  setSelectedPostId: (id: string | null) => void;
   setActiveStoryIndex: (index: number | null) => void;
   addPost: (post: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments' | 'shares'>) => void;
   deletePost: (postId: string) => void;
@@ -328,6 +330,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [followingUsernames, setFollowingUsernames] = useState<Set<string>>(new Set(["jmoore", "arivera", "schen_dev"]));
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [connections, setConnections] = useState<Connection[]>(MOCK_CONNECTIONS);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   // Persistence Helpers
   const safePersist = (key: string, value: any) => {
@@ -545,6 +548,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       followingUsernames,
       activeStoryIndex, 
       connections,
+      selectedPostId,
+      setSelectedPostId,
       setActiveStoryIndex, 
       addPost, 
       deletePost,

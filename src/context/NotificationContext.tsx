@@ -16,6 +16,7 @@ export interface NotificationNode {
   image?: string;
   actionLabel?: string;
   actionHref?: string;
+  postId?: string; // Anchor to a specific post data node
 }
 
 interface NotificationContextType {
@@ -56,6 +57,16 @@ const MOCK_SIGNALS: NotificationNode[] = [
   },
   {
     id: 'sig-3',
+    type: 'SOCIAL',
+    title: 'New Vibe Pulse',
+    content: '**Sarah Chen** liked your post about clean aesthetics.',
+    time: '30m ago',
+    isRead: false,
+    avatar: 'https://picsum.photos/seed/2/100/100',
+    postId: '1'
+  },
+  {
+    id: 'sig-4',
     type: 'SYSTEM',
     title: 'Security Handshake',
     content: 'Your high-velocity workspace was successfully synchronized with the main cluster.',

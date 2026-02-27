@@ -7,6 +7,7 @@ import { MainNav } from "@/components/layout/main-nav";
 import { RightSidebar } from "@/components/layout/right-sidebar";
 import { useNotifications, SignalType, NotificationNode } from "@/context/NotificationContext";
 import { useMusic } from "@/context/MusicContext";
+import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ type FilterTab = "ALL" | SignalType;
 export default function NotificationsPage() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, purgeSignal, requestPushPermission, hasPushPermission } = useNotifications();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
+  const { setSelectedPostId } = usePosts();
   const [activeTab, setActiveTab] = useState<FilterTab>("ALL");
 
   const isPlayerActive = currentTrack && !isExpanded;
@@ -45,8 +47,13 @@ export default function NotificationsPage() {
   }, [notifications, activeTab]);
 
   const handleAction = (node: NotificationNode) => {
-    triggerHaptic(5);
+    triggerHaptic(15);
     markAsRead(node.id);
+    
+    // Portal Transition logic: If the signal is anchored to a post, materialize the portal
+    if (node.postId) {
+      setSelectedPostId(node.postId);
+    }
   };
 
   const handlePurge = (e: React.MouseEvent, id: string) => {
@@ -232,6 +239,11 @@ export default function NotificationsPage() {
                         {node.actionLabel && (
                           <Button size="sm" className="rounded-2xl h-10 px-6 font-black italic uppercase text-[10px] tracking-[0.2em] bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 transition-all active:scale-95">
                             {node.actionLabel}
+                          </Button>
+                        )}
+                        {node.postId && (
+                          <Button size="sm" variant="ghost" className="rounded-2xl h-10 px-6 font-black italic uppercase text-[10px] tracking-[0.2em] bg-primary/5 hover:bg-primary/10 text-primary transition-all active:scale-95">
+                            View Vibe
                           </Button>
                         )}
                         {node.image && (
