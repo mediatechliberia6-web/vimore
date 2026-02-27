@@ -65,7 +65,7 @@ interface MusicContextType {
   likedSongIds: Set<string | number>;
   unlikedSongIds: Set<string | number>;
   downloadedSongIds: Set<string | number>;
-  likedCollectionIds: Set<string | number>; // For Playlists/Albums
+  likedCollectionIds: Set<string | number>; 
   likedTracks: Track[];
   userPlaylists: Playlist[];
   userSongs: Track[];
@@ -74,6 +74,13 @@ interface MusicContextType {
   trackForNewPlaylist: Track | null;
   trackStats: Record<string | number, { likes: number; unlikes: number }>;
   
+  // Ad System
+  isAdPortalOpen: boolean;
+  adDuration: number;
+  adUrl: string;
+  triggerDownloadWithAd: (type: 'single' | 'album' | 'reel', task: () => Promise<void>) => void;
+  onAdComplete: () => void;
+
   // Capture Studio
   isCaptureStudioOpen: boolean;
   captureTrack: Track | null;
@@ -119,6 +126,8 @@ interface MusicContextType {
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
 
+const AD_URL = "https://www.effectivegatecpm.com/kry1iawb?key=8a705428be9dbe8fbb378f0520fdba4d";
+
 const MOCK_COMMENTS: Comment[] = [
   { id: 1, user: "Alex Rivera", avatar: "https://picsum.photos/seed/1/100/100", text: "This beat is absolutely insane! 🚀", time: "2m ago" },
   { id: 2, user: "Sarah Chen", avatar: "https://picsum.photos/seed/2/100/100", text: "The transition at 1:45... literal chills.", time: "15m ago" },
@@ -144,6 +153,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [volume, setVolume] = useState(80);
   const [reactions, setReactions] = useState<MusicReaction[]>([]);
   
+  // Ad State
+  const [isAdPortalOpen, setIsAdPortalOpen] = useState(false);
+  const [adDuration, setAdDuration] = useState(10);
+  const [pendingDownloadTask, setPendingDownloadTask] = useState<(() => Promise<void>) | null>(null);
+
   // Capture Studio State
   const [isCaptureStudioOpen, setIsCaptureStudioOpen] = useState(false);
   const [captureTrack, setCaptureTrack] = useState<Track | null>(null);
@@ -159,21 +173,17 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [userSongs, setUserSongs] = useState<Track[]>([]);
   const [userAlbums, setUserAlbums] = useState<Album[]>([]);
   
-  // CENTRAL METRICS REGISTRY
   const [trackStats, setTrackStats] = useState<Record<string | number, { likes: number; unlikes: number }>>({});
   
-  // Creation States
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
   const [trackForNewPlaylist, setTrackForNewPlaylist] = useState<Track | null>(null);
 
-  // Haptic utility
   const triggerHaptic = (intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
       window.navigator.vibrate(intensity);
     }
   };
 
-  // Initialize stats and Load from LocalStorage
   useEffect(() => {
     const initialStats: Record<string | number, { likes: number; unlikes: number }> = {};
     ALL_SONGS.forEach(s => {
@@ -194,88 +204,27 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         const parsedLikes = JSON.parse(savedLikes) as Track[];
         setLikedTracks(parsedLikes);
         setLikedSongIds(new Set(parsedLikes.map(t => t.id)));
-      } catch (e) { console.error("Failed to load likes", e); }
+      } catch (e) {}
     }
-
-    if (savedUnlikes) {
-      try {
-        setUnlikedSongIds(new Set(JSON.parse(savedUnlikes)));
-      } catch (e) { console.error("Failed to load unlikes", e); }
-    }
-
-    if (savedDownloads) {
-      try {
-        setDownloadedSongIds(new Set(JSON.parse(savedDownloads)));
-      } catch (e) { console.error("Failed to load downloads", e); }
-    }
-
-    if (savedCollLikes) {
-      try {
-        setLikedCollectionIds(new Set(JSON.parse(savedCollLikes)));
-      } catch (e) { console.error("Failed to load collection likes", e); }
-    }
-    
-    if (savedPlaylists) {
-      try {
-        setUserPlaylists(JSON.parse(savedPlaylists));
-      } catch (e) { console.error("Failed to load playlists", e); }
-    }
-
-    if (savedUserSongs) {
-      try {
-        setUserSongs(JSON.parse(savedUserSongs));
-      } catch (e) { console.error("Failed to load user songs", e); }
-    }
-
-    if (savedUserAlbums) {
-      try {
-        setUserAlbums(JSON.parse(savedUserAlbums));
-      } catch (e) { console.error("Failed to load user albums", e); }
-    }
-
-    if (savedStats) {
-      try {
-        setTrackStats({ ...initialStats, ...JSON.parse(savedStats) });
-      } catch (e) { setTrackStats(initialStats); }
-    } else {
-      setTrackStats(initialStats);
-    }
+    if (savedUnlikes) try { setUnlikedSongIds(new Set(JSON.parse(savedUnlikes))); } catch (e) {}
+    if (savedDownloads) try { setDownloadedSongIds(new Set(JSON.parse(savedDownloads))); } catch (e) {}
+    if (savedCollLikes) try { setLikedCollectionIds(new Set(JSON.parse(savedCollLikes))); } catch (e) {}
+    if (savedPlaylists) try { setUserPlaylists(JSON.parse(savedPlaylists)); } catch (e) {}
+    if (savedUserSongs) try { setUserSongs(JSON.parse(savedUserSongs)); } catch (e) {}
+    if (savedUserAlbums) try { setUserAlbums(JSON.parse(savedUserAlbums)); } catch (e) {}
+    if (savedStats) try { setTrackStats({ ...initialStats, ...JSON.parse(savedStats) }); } catch (e) { setTrackStats(initialStats); }
+    else setTrackStats(initialStats);
   }, []);
 
-  // Persistence Effects
-  useEffect(() => {
-    localStorage.setItem('vimore_liked_tracks', JSON.stringify(likedTracks));
-  }, [likedTracks]);
+  useEffect(() => { localStorage.setItem('vimore_liked_tracks', JSON.stringify(likedTracks)); }, [likedTracks]);
+  useEffect(() => { localStorage.setItem('vimore_unliked_ids', JSON.stringify(Array.from(unlikedSongIds))); }, [unlikedSongIds]);
+  useEffect(() => { localStorage.setItem('vimore_downloaded_ids', JSON.stringify(Array.from(downloadedSongIds))); }, [downloadedSongIds]);
+  useEffect(() => { localStorage.setItem('vimore_liked_collections', JSON.stringify(Array.from(likedCollectionIds))); }, [likedCollectionIds]);
+  useEffect(() => { localStorage.setItem('vimore_user_playlists', JSON.stringify(userPlaylists)); }, [userPlaylists]);
+  useEffect(() => { localStorage.setItem('vimore_user_songs', JSON.stringify(userSongs)); }, [userSongs]);
+  useEffect(() => { localStorage.setItem('vimore_user_albums', JSON.stringify(userAlbums)); }, [userAlbums]);
+  useEffect(() => { localStorage.setItem('vimore_track_stats', JSON.stringify(trackStats)); }, [trackStats]);
 
-  useEffect(() => {
-    localStorage.setItem('vimore_unliked_ids', JSON.stringify(Array.from(unlikedSongIds)));
-  }, [unlikedSongIds]);
-
-  useEffect(() => {
-    localStorage.setItem('vimore_downloaded_ids', JSON.stringify(Array.from(downloadedSongIds)));
-  }, [downloadedSongIds]);
-
-  useEffect(() => {
-    localStorage.setItem('vimore_liked_collections', JSON.stringify(Array.from(likedCollectionIds)));
-  }, [likedCollectionIds]);
-
-  useEffect(() => {
-    localStorage.setItem('vimore_user_playlists', JSON.stringify(userPlaylists));
-  }, [userPlaylists]);
-
-  useEffect(() => {
-    localStorage.setItem('vimore_user_songs', JSON.stringify(userSongs));
-  }, [userSongs]);
-
-  useEffect(() => {
-    localStorage.setItem('vimore_user_albums', JSON.stringify(userAlbums));
-  }, [userAlbums]);
-
-  useEffect(() => {
-    localStorage.setItem('vimore_track_stats', JSON.stringify(trackStats));
-  }, [trackStats]);
-
-  // Audio Progress Tick
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isPlaying && currentTrack) {
@@ -290,18 +239,13 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [isPlaying, currentTrack]);
 
-  // Handle End of Track
   useEffect(() => {
-    if (progress >= 100 && isPlaying) {
-      nextTrack();
-    }
+    if (progress >= 100 && isPlaying) nextTrack();
   }, [progress]);
 
   const setTrack = (track: Track) => {
     triggerHaptic(15);
-    if (!queue.some(t => t.id === track.id)) {
-      setQueue([track, ...queue.filter(t => t.id !== track.id)]);
-    }
+    if (!queue.some(t => t.id === track.id)) setQueue([track, ...queue.filter(t => t.id !== track.id)]);
     setCurrentTrack(track);
     setIsPlaying(true);
     setProgress(0);
@@ -311,9 +255,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const addToQueue = (track: Track) => {
     triggerHaptic(5);
-    if (!queue.some(t => t.id === track.id)) {
-      setQueue(prev => [...prev, track]);
-    }
+    if (!queue.some(t => t.id === track.id)) setQueue(prev => [...prev, track]);
   };
 
   const playCollection = (tracks: Track[], startIndex: number = 0) => {
@@ -328,18 +270,14 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setIsExpanded(true);
   };
 
-  const togglePlay = () => {
-    triggerHaptic(10);
-    setIsPlaying(!isPlaying);
-  };
+  const togglePlay = () => { triggerHaptic(10); setIsPlaying(!isPlaying); };
 
   const nextTrack = () => {
     if (queue.length === 0) return;
     triggerHaptic(10);
     const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
     const nextIndex = (currentIndex + 1) % queue.length;
-    const next = queue[nextIndex];
-    setCurrentTrack(next);
+    setCurrentTrack(queue[nextIndex]);
     setProgress(0);
     setIsPlaying(true);
   };
@@ -349,8 +287,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     triggerHaptic(10);
     const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
     const prevIndex = (currentIndex - 1 + queue.length) % queue.length;
-    const prev = queue[prevIndex];
-    setCurrentTrack(prev);
+    setCurrentTrack(queue[prevIndex]);
     setProgress(0);
     setIsPlaying(true);
   };
@@ -359,48 +296,19 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     const trackId = track.id;
     const isCurrentlyLiked = likedSongIds.has(trackId);
     const isCurrentlyUnliked = unlikedSongIds.has(trackId);
-    
     triggerHaptic(isCurrentlyLiked ? 5 : 25);
-
     if (isCurrentlyLiked) {
-      setLikedSongIds(prev => {
-        const next = new Set(prev);
-        next.delete(trackId);
-        return next;
-      });
+      setLikedSongIds(prev => { const n = new Set(prev); n.delete(trackId); return n; });
       setLikedTracks(prev => prev.filter(t => t.id !== trackId));
-      setTrackStats(prev => ({
-        ...prev,
-        [trackId]: { 
-          ...prev[trackId], 
-          likes: Math.max(0, (prev[trackId]?.likes || 0) - 1) 
-        }
-      }));
+      setTrackStats(prev => ({ ...prev, [trackId]: { ...prev[trackId], likes: Math.max(0, (prev[trackId]?.likes || 0) - 1) } }));
     } else {
-      setLikedSongIds(prev => {
-        const next = new Set(prev);
-        next.add(trackId);
-        return next;
-      });
+      setLikedSongIds(prev => { const n = new Set(prev); n.add(trackId); return n; });
       setLikedTracks(prev => [track, ...prev]);
       setTrackStats(prev => {
         const current = prev[trackId] || { likes: 0, unlikes: 0 };
-        return {
-          ...prev,
-          [trackId]: {
-            ...current,
-            likes: current.likes + 1,
-            unlikes: isCurrentlyUnliked ? Math.max(0, current.unlikes - 1) : current.unlikes
-          }
-        };
+        return { ...prev, [trackId]: { ...current, likes: current.likes + 1, unlikes: isCurrentlyUnliked ? Math.max(0, current.unlikes - 1) : current.unlikes } };
       });
-      if (isCurrentlyUnliked) {
-        setUnlikedSongIds(prev => {
-          const next = new Set(prev);
-          next.delete(trackId);
-          return next;
-        });
-      }
+      if (isCurrentlyUnliked) setUnlikedSongIds(prev => { const n = new Set(prev); n.delete(trackId); return n; });
     }
   };
 
@@ -408,45 +316,18 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     const trackId = track.id;
     const isCurrentlyUnliked = unlikedSongIds.has(trackId);
     const isCurrentlyLiked = likedSongIds.has(trackId);
-    
     triggerHaptic(isCurrentlyUnliked ? 5 : 15);
-
     if (isCurrentlyUnliked) {
-      setUnlikedSongIds(prev => {
-        const next = new Set(prev);
-        next.delete(trackId);
-        return next;
-      });
-      setTrackStats(prev => ({
-        ...prev,
-        [trackId]: { 
-          ...prev[trackId], 
-          unlikes: Math.max(0, (prev[trackId]?.unlikes || 0) - 1) 
-        }
-      }));
+      setUnlikedSongIds(prev => { const n = new Set(prev); n.delete(trackId); return n; });
+      setTrackStats(prev => ({ ...prev, [trackId]: { ...prev[trackId], unlikes: Math.max(0, (prev[trackId]?.unlikes || 0) - 1) } }));
     } else {
-      setUnlikedSongIds(prev => {
-        const next = new Set(prev);
-        next.add(trackId);
-        return next;
-      });
+      setUnlikedSongIds(prev => { const n = new Set(prev); n.add(trackId); return n; });
       setTrackStats(prev => {
         const current = prev[trackId] || { likes: 0, unlikes: 0 };
-        return {
-          ...prev,
-          [trackId]: {
-            ...current,
-            unlikes: current.unlikes + 1,
-            likes: isCurrentlyLiked ? Math.max(0, current.likes - 1) : current.likes
-          }
-        };
+        return { ...prev, [trackId]: { ...current, unlikes: current.unlikes + 1, likes: isCurrentlyLiked ? Math.max(0, current.likes - 1) : current.likes } };
       });
       if (isCurrentlyLiked) {
-        setLikedSongIds(prev => {
-          const next = new Set(prev);
-          next.delete(trackId);
-          return next;
-        });
+        setLikedSongIds(prev => { const n = new Set(prev); n.delete(trackId); return n; });
         setLikedTracks(prev => prev.filter(t => t.id !== trackId));
       }
     }
@@ -454,22 +335,28 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const toggleCollectionLike = (id: string | number) => {
     triggerHaptic(20);
-    setLikedCollectionIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setLikedCollectionIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   };
 
   const simulateDownload = async (track: Track) => {
     if (downloadedSongIds.has(track.id)) return;
     triggerHaptic(10);
-    setDownloadedSongIds(prev => {
-      const next = new Set(prev);
-      next.add(track.id);
-      return next;
-    });
+    setDownloadedSongIds(prev => { const n = new Set(prev); n.add(track.id); return n; });
+  };
+
+  const triggerDownloadWithAd = (type: 'single' | 'album' | 'reel', task: () => Promise<void>) => {
+    triggerHaptic(15);
+    setAdDuration(type === 'album' ? 20 : 10);
+    setPendingDownloadTask(() => task);
+    setIsAdPortalOpen(true);
+  };
+
+  const onAdComplete = () => {
+    setIsAdPortalOpen(false);
+    if (pendingDownloadTask) {
+      pendingDownloadTask().catch(console.error);
+      setPendingDownloadTask(null);
+    }
   };
 
   const isTrackLiked = (trackId: string | number) => likedSongIds.has(trackId);
@@ -477,72 +364,27 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const isTrackDownloaded = (trackId: string | number) => downloadedSongIds.has(trackId);
   const isCollectionLiked = (id: string | number) => likedCollectionIds.has(id);
 
-  // Publishing Methods
-  const publishTrack = (track: Track) => {
-    setUserSongs(prev => [track, ...prev]);
-    setTrackStats(prev => ({ ...prev, [track.id]: { likes: 0, unlikes: 0 } }));
-  };
-
+  const publishTrack = (track: Track) => { setUserSongs(prev => [track, ...prev]); setTrackStats(prev => ({ ...prev, [track.id]: { likes: 0, unlikes: 0 } })); };
   const publishAlbum = (album: Album) => {
     setUserAlbums(prev => [album, ...prev]);
     const newStats = { ...trackStats };
-    album.songs.forEach(s => {
-      newStats[s.id] = { likes: 0, unlikes: 0 };
-    });
+    album.songs.forEach(s => { newStats[s.id] = { likes: 0, unlikes: 0 }; });
     setTrackStats(newStats);
   };
 
-  const deleteUserTrack = (trackId: string | number) => {
-    setUserSongs(prev => prev.filter(t => t.id !== trackId));
-    setTrackStats(prev => {
-      const next = { ...prev };
-      delete next[trackId];
-      return next;
-    });
-  };
+  const deleteUserTrack = (trackId: string | number) => { setUserSongs(prev => prev.filter(t => t.id !== trackId)); setTrackStats(prev => { const next = { ...prev }; delete next[trackId]; return next; }); };
+  const deleteUserAlbum = (albumId: string | number) => { setUserAlbums(prev => prev.filter(a => a.id !== albumId)); };
 
-  const deleteUserAlbum = (albumId: string | number) => {
-    setUserAlbums(prev => prev.filter(a => a.id !== albumId));
-  };
-
-  // Playlist Methods
-  const openCreatePlaylist = (track?: Track) => {
-    triggerHaptic(10);
-    setTrackForNewPlaylist(track || null);
-    setIsCreatePlaylistOpen(true);
-  };
-
-  const closeCreatePlaylist = () => {
-    setIsCreatePlaylistOpen(false);
-    setTrackForNewPlaylist(null);
-  };
-
+  const openCreatePlaylist = (track?: Track) => { triggerHaptic(10); setTrackForNewPlaylist(track || null); setIsCreatePlaylistOpen(true); };
+  const closeCreatePlaylist = () => { setIsCreatePlaylistOpen(false); setTrackForNewPlaylist(null); };
   const confirmCreatePlaylist = (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => {
     triggerHaptic(30);
-    const newPlaylist: Playlist = {
-      id: Date.now(),
-      title: data.title,
-      description: data.description,
-      isPrivate: data.isPrivate,
-      creator: "John Doe",
-      cover: data.cover || trackForNewPlaylist?.cover || "https://picsum.photos/seed/playlist/400/400",
-      totalStreams: "0",
-      songs: trackForNewPlaylist ? [trackForNewPlaylist] : []
-    };
+    const newPlaylist: Playlist = { id: Date.now(), title: data.title, description: data.description, isPrivate: data.isPrivate, creator: "John Doe", cover: data.cover || trackForNewPlaylist?.cover || "https://picsum.photos/seed/playlist/400/400", totalStreams: "0", songs: trackForNewPlaylist ? [trackForNewPlaylist] : [] };
     setUserPlaylists(prev => [newPlaylist, ...prev]);
     closeCreatePlaylist();
   };
 
-  const addTrackToPlaylist = (playlistId: string | number, track: Track) => {
-    triggerHaptic(15);
-    setUserPlaylists(prev => prev.map(p => {
-      if (p.id === playlistId) {
-        if (p.songs.some(s => s.id === track.id)) return p;
-        return { ...p, songs: [...p.songs, track] };
-      }
-      return p;
-    }));
-  };
+  const addTrackToPlaylist = (playlistId: string | number, track: Track) => { triggerHaptic(15); setUserPlaylists(prev => prev.map(p => { if (p.id === playlistId) { if (p.songs.some(s => s.id === track.id)) return p; return { ...p, songs: [...p.songs, track] }; } return p; })); };
 
   const addReaction = (emoji: string) => {
     triggerHaptic(5);
@@ -555,43 +397,19 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const addComment = (text: string) => {
     if (!currentTrack || !text.trim()) return;
     triggerHaptic(10);
-    const newComment: Comment = {
-      id: Date.now(),
-      user: "John Doe",
-      avatar: "https://picsum.photos/seed/me/100/100",
-      text,
-      time: "Just now"
-    };
-    setCurrentTrack({
-      ...currentTrack,
-      comments: [newComment, ...(currentTrack.comments || [])]
-    });
+    const newComment: Comment = { id: Date.now(), user: "John Doe", avatar: "https://picsum.photos/seed/me/100/100", text, time: "Just now" };
+    setCurrentTrack({ ...currentTrack, comments: [newComment, ...(currentTrack.comments || [])] });
   };
 
-  const clearPlayer = () => {
-    triggerHaptic(5);
-    setIsPlaying(false);
-    setCurrentTrack(null);
-    setIsExpanded(false);
-    setProgress(0);
-  };
-
-  const openCaptureStudio = (track?: Track) => {
-    triggerHaptic(25);
-    setCaptureTrack(track || null);
-    setIsCaptureStudioOpen(true);
-  };
-
-  const closeCaptureStudio = () => {
-    triggerHaptic(10);
-    setIsCaptureStudioOpen(false);
-    setCaptureTrack(null);
-  };
+  const clearPlayer = () => { triggerHaptic(5); setIsPlaying(false); setCurrentTrack(null); setIsExpanded(false); setProgress(0); };
+  const openCaptureStudio = (track?: Track) => { triggerHaptic(25); setCaptureTrack(track || null); setIsCaptureStudioOpen(true); };
+  const closeCaptureStudio = () => { triggerHaptic(10); setIsCaptureStudioOpen(false); setCaptureTrack(null); };
 
   return (
     <MusicContext.Provider value={{
       currentTrack, queue, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, 
       likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats,
+      isAdPortalOpen, adDuration, adUrl: AD_URL, triggerDownloadWithAd, onAdComplete,
       isCreatePlaylistOpen, trackForNewPlaylist,
       isCaptureStudioOpen, captureTrack, openCaptureStudio, closeCaptureStudio, setCaptureTrack,
       setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, 

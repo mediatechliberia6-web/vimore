@@ -11,7 +11,9 @@ import {
   Plus, 
   Sparkles,
   Volume2,
-  VolumeX
+  VolumeX,
+  Download,
+  Loader2
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -20,6 +22,7 @@ import Link from "next/link";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
 import { ShareHub } from "@/components/post/share-hub";
+import { useToast } from "@/hooks/use-toast";
 
 interface ReelCardProps {
   id: string;
@@ -46,11 +49,14 @@ interface ReelCardProps {
 
 export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares, music, isActive }: ReelCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { setTrack, triggerHaptic, openCaptureStudio } = useMusic();
+  const { triggerHaptic, openCaptureStudio, triggerDownloadWithAd } = useMusic();
   const { currentUser } = usePosts();
+  const { toast } = useToast();
+  
   const [isMuted, setIsMuted] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
   const [showMuteIndicator, setShowMuteIndicator] = useState(false);
   const [localLikes, setLocalLikes] = useState(likes);
@@ -95,9 +101,18 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
     setTimeout(() => setShowMuteIndicator(false), 1000);
   };
 
+  const handleDownload = () => {
+    triggerDownloadWithAd('reel', async () => {
+      setIsDownloading(true);
+      toast({ title: "Archiving Vibe", description: "Preparing high-fidelity reel node..." });
+      await new Promise(r => setTimeout(r, 2500));
+      setIsDownloading(false);
+      toast({ title: "Reel Noted", description: "Video saved to your identity notes." });
+    });
+  };
+
   const handleSonicClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Launch Capture Studio with this track
     openCaptureStudio({
       id: music.id,
       title: music.title,
@@ -118,21 +133,11 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
     return count.toString();
   };
 
-  const renderCaption = (text: string) => {
-    const parts = text.split(/(\*\*.*?\*\*|#\w+)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('**') && part.endsWith('**')) return <strong key={i} className="text-white font-bold">{part.slice(2, -2)}</strong>;
-      if (part.startsWith('#')) return <span key={i} className="text-primary font-bold hover:underline cursor-pointer transition-colors"> {part}</span>;
-      return part;
-    });
-  };
-
   const isMe = user.username === currentUser.username;
   const profileHref = isMe ? "/profile" : `/profile/${user.username}`;
 
   return (
     <div className="relative h-[100dvh] w-full flex items-center justify-center group select-none bg-black overflow-hidden">
-      {/* Video Foundation */}
       <video
         key={videoUrl}
         ref={videoRef}
@@ -145,7 +150,6 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         onDoubleClick={handleDoubleClick}
       />
 
-      {/* Mute Indicator Overlay */}
       <div className={cn(
         "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/40 backdrop-blur-md p-4 rounded-full transition-all duration-300 pointer-events-none z-[60]",
         showMuteIndicator ? "opacity-100 scale-100" : "opacity-0 scale-50"
@@ -153,14 +157,12 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         {isMuted ? <VolumeX className="h-8 w-8 text-white" /> : <Volume2 className="h-8 w-8 text-white" />}
       </div>
 
-      {/* Double Tap Heart Animation */}
       {showHeartAnimation && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-in zoom-in fade-in duration-300 pointer-events-none z-[60]">
           <Heart className="h-24 w-24 text-primary fill-primary drop-shadow-[0_0_20px_rgba(153,64,229,0.8)] animate-pulse" />
         </div>
       )}
 
-      {/* Right Interaction Rail */}
       <div className={cn(
         "absolute right-3 bottom-20 z-50 flex flex-col items-center gap-4 transition-all duration-700 delay-300",
         isActive ? "translate-x-0 opacity-100" : "translate-x-12 opacity-0"
@@ -200,12 +202,12 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         </div>
 
         <div className="flex flex-col items-center gap-1">
-          <button onClick={() => { triggerHaptic(30); setIsBookmarked(!isBookmarked); }} className="group/btn relative">
+          <button onClick={handleDownload} className="group/btn relative" disabled={isDownloading}>
             <div className={cn(
               "p-2.5 rounded-full backdrop-blur-xl border border-white/10 transition-all active:scale-75 shadow-lg",
-              isBookmarked ? "bg-accent/20 text-accent border-accent/30" : "bg-black/20 text-white hover:bg-black/40"
+              isDownloading ? "bg-primary/20 text-primary animate-pulse" : "bg-black/20 text-white hover:bg-black/40"
             )}>
-              <Bookmark className={cn("h-5 w-5", isBookmarked && "fill-current")} />
+              {isDownloading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
             </div>
           </button>
           <span className="text-[9px] font-black text-white drop-shadow-md uppercase tracking-widest">Note</span>
@@ -218,7 +220,6 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
           <Share2 className="h-5 w-5" />
         </button>
 
-        {/* Rotating Music Disc - Launches Capture Studio */}
         <div 
           onClick={handleSonicClick}
           className="mt-4 relative group/music cursor-pointer"
@@ -233,7 +234,6 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         </div>
       </div>
 
-      {/* Bottom Info Slate */}
       <div className="absolute bottom-0 left-0 right-0 p-5 pt-20 bg-gradient-to-t from-black/90 via-black/30 to-transparent pointer-events-none">
         <div className={cn(
           "max-w-[75%] space-y-3 transition-all duration-700",
@@ -250,12 +250,9 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
                 <span className="text-[8px] font-black text-white uppercase tracking-widest">{user.role}</span>
               </div>
             </div>
-            <p className="text-[13px] sm:text-sm text-white/90 leading-tight line-clamp-2 font-medium drop-shadow-md">
-              {renderCaption(caption)}
-            </p>
+            <p className="text-[13px] sm:text-sm text-white/90 leading-tight line-clamp-2 font-medium drop-shadow-md">{caption}</p>
           </div>
 
-          {/* Sonic Experience Ribbon */}
           <div 
             onClick={handleSonicClick}
             className="flex items-center gap-2.5 bg-white/5 backdrop-blur-2xl rounded-xl p-2 w-fit border border-white/5 pointer-events-auto hover:bg-white/10 transition-all cursor-pointer group/audio shadow-xl group-active:scale-95"
@@ -267,15 +264,9 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
               </div>
             </div>
             <div className="flex flex-col min-w-0 pr-4 overflow-hidden">
-              <div className="flex items-center gap-2">
-                <div className="animate-marquee whitespace-nowrap flex gap-10">
-                  <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none">
-                    {music.title} — {music.artist}
-                  </span>
-                  <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none">
-                    {music.title} — {music.artist}
-                  </span>
-                </div>
+              <div className="animate-marquee whitespace-nowrap flex gap-10">
+                <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none">{music.title} — {music.artist}</span>
+                <span className="text-[10px] font-black text-white uppercase tracking-widest leading-none">{music.title} — {music.artist}</span>
               </div>
               <div className="flex items-center gap-1 mt-0.5">
                 <div className="flex gap-0.5">
@@ -288,20 +279,11 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         </div>
       </div>
 
-      <ShareHub 
-        isOpen={isShareHubOpen} 
-        onClose={() => setIsShareHubOpen(false)} 
-        post={{ id, user, content: caption, image: music.cover }} 
-      />
+      <ShareHub isOpen={isShareHubOpen} onClose={() => setIsShareHubOpen(false)} post={{ id, user, content: caption, image: music.cover }} />
 
       <style jsx global>{`
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-marquee {
-          animation: marquee 8s linear infinite;
-        }
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .animate-marquee { animation: marquee 8s linear infinite; }
       `}</style>
     </div>
   );

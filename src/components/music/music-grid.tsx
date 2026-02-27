@@ -26,7 +26,7 @@ interface MusicGridProps {
 }
 
 export function MusicGrid({ type, items, title }: MusicGridProps) {
-  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, isTrackDownloaded, simulateDownload, addToQueue, userPlaylists, openCreatePlaylist, addTrackToPlaylist, trackStats, playCollection } = useMusic();
+  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, isTrackDownloaded, simulateDownload, addToQueue, userPlaylists, openCreatePlaylist, addTrackToPlaylist, trackStats, playCollection, triggerDownloadWithAd } = useMusic();
   const { toast } = useToast();
   const [downloadingIds, setDownloadingIds] = useState<Set<string | number>>(new Set());
 
@@ -39,18 +39,20 @@ export function MusicGrid({ type, items, title }: MusicGridProps) {
   const handleDownload = async (track: Track) => {
     if (isTrackDownloaded(track.id)) return;
     
-    setDownloadingIds(prev => new Set(prev).add(track.id));
-    toast({ title: "Sonic Download", description: `Fetching high-res audio for ${track.title}...` });
-    
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    await simulateDownload(track);
-    
-    setDownloadingIds(prev => {
-      const next = new Set(prev);
-      next.delete(track.id);
-      return next;
+    triggerDownloadWithAd('single', async () => {
+      setDownloadingIds(prev => new Set(prev).add(track.id));
+      toast({ title: "Sonic Download", description: `Fetching high-res audio for ${track.title}...` });
+      
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      await simulateDownload(track);
+      
+      setDownloadingIds(prev => {
+        const next = new Set(prev);
+        next.delete(track.id);
+        return next;
+      });
+      toast({ title: "Download Complete", description: `${track.title} is now available offline.` });
     });
-    toast({ title: "Download Complete", description: `${track.title} is now available offline.` });
   };
 
   const triggerHaptic = () => {

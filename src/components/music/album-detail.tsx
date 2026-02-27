@@ -34,7 +34,7 @@ import { useState } from "react";
 export function AlbumDetail() {
   const { 
     selectedAlbum, setSelectedAlbum, currentTrack, isPlaying, setTrack, togglePlay, playCollection, 
-    toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, isTrackDownloaded, simulateDownload, trackStats 
+    toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, isTrackDownloaded, simulateDownload, trackStats, triggerDownloadWithAd 
   } = useMusic();
   const { toast } = useToast();
   const [downloadingIds, setDownloadingIds] = useState<Set<string | number>>(new Set());
@@ -61,26 +61,31 @@ export function AlbumDetail() {
 
   const handleTrackDownload = async (track: Track) => {
     if (isTrackDownloaded(track.id)) return;
-    setDownloadingIds(prev => new Set(prev).add(track.id));
-    toast({ title: "Sonic Download", description: `Fetching ${track.title}...` });
-    await new Promise(r => setTimeout(r, 2000));
-    await simulateDownload(track);
-    setDownloadingIds(prev => {
-      const next = new Set(prev);
-      next.delete(track.id);
-      return next;
+    
+    triggerDownloadWithAd('single', async () => {
+      setDownloadingIds(prev => new Set(prev).add(track.id));
+      toast({ title: "Sonic Download", description: `Fetching ${track.title}...` });
+      await new Promise(r => setTimeout(r, 2000));
+      await simulateDownload(track);
+      setDownloadingIds(prev => {
+        const next = new Set(prev);
+        next.delete(track.id);
+        return next;
+      });
+      toast({ title: "Ready Offline", description: `${track.title} saved.` });
     });
-    toast({ title: "Ready Offline", description: `${track.title} saved.` });
   };
 
   const handleDownloadFull = async () => {
-    toast({ title: "Mass Fetching", description: `Starting download for ${selectedAlbum.songs.length} tracks...` });
-    for (const track of selectedAlbum.songs) {
-      if (!isTrackDownloaded(track.id)) {
-        await simulateDownload(track);
+    triggerDownloadWithAd('album', async () => {
+      toast({ title: "Mass Fetching", description: `Starting download for ${selectedAlbum.songs.length} tracks...` });
+      for (const track of selectedAlbum.songs) {
+        if (!isTrackDownloaded(track.id)) {
+          await simulateDownload(track);
+        }
       }
-    }
-    toast({ title: "Album Downloaded", description: `${selectedAlbum.title} is now available offline.` });
+      toast({ title: "Album Downloaded", description: `${selectedAlbum.title} is now available offline.` });
+    });
   };
 
   return (

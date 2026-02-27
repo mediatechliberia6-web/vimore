@@ -42,7 +42,7 @@ export function MusicPlayer() {
   const { toast } = useToast();
   const { 
     currentTrack, isPlaying, isExpanded, progress, volume, reactions, trackStats,
-    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, simulateDownload, isTrackDownloaded
+    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, simulateDownload, isTrackDownloaded, triggerDownloadWithAd
   } = useMusic();
 
   const [commentInput, setCommentInput] = useState("");
@@ -87,26 +87,24 @@ export function MusicPlayer() {
 
   const handleDownloadClick = async () => {
     if (isTrackDownloaded(currentTrack.id)) return;
-    setIsDownloading(true);
-    toast({ title: "Sonic Download", description: `Fetching high-res audio for ${currentTrack.title}...` });
     
-    // Simulate high-res fetch
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    
-    await simulateDownload(currentTrack);
-    setIsDownloading(false);
-    toast({ title: "Music Note Saved", description: "Vibe saved to your identity notes." });
+    triggerDownloadWithAd('single', async () => {
+      setIsDownloading(true);
+      toast({ title: "Sonic Download", description: `Fetching high-res audio for ${currentTrack.title}...` });
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      await simulateDownload(currentTrack);
+      setIsDownloading(false);
+      toast({ title: "Music Note Saved", description: "Vibe saved to your identity notes." });
+    });
   };
 
   const isLiked = isTrackLiked(currentTrack.id);
   const isUnliked = isTrackUnliked(currentTrack.id);
   const isDownloaded = isTrackDownloaded(currentTrack.id);
 
-  // Mini Player View
   if (!isExpanded) {
     const isHome = pathname === "/";
     const isMusic = pathname === "/music";
-    
     let topOffset = "top-[61px]";
     if (isHome) topOffset = "top-[117px]";
     if (isMusic) topOffset = "top-[61px]";
@@ -166,7 +164,6 @@ export function MusicPlayer() {
     );
   }
 
-  // Expanded Full Screen View - z-index increased to cover detail dialogs
   return (
     <div className="fixed inset-0 z-[200] bg-background flex flex-col animate-in fade-in zoom-in-95 duration-500 overflow-hidden">
       <div className="absolute inset-0 -z-10 overflow-hidden">

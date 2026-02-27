@@ -32,7 +32,7 @@ import { useState } from "react";
 export function PlaylistDetail() {
   const { 
     selectedPlaylist, setSelectedPlaylist, currentTrack, isPlaying, setTrack, togglePlay, playCollection, 
-    toggleLike, toggleUnlike, toggleCollectionLike, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked, simulateDownload, trackStats, triggerHaptic 
+    toggleLike, toggleUnlike, toggleCollectionLike, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked, simulateDownload, trackStats, triggerHaptic, triggerDownloadWithAd 
   } = useMusic();
   const { toast } = useToast();
   const [downloadingIds, setDownloadingIds] = useState<Set<string | number>>(new Set());
@@ -62,33 +62,39 @@ export function PlaylistDetail() {
 
   const handleTrackDownload = async (track: Track) => {
     if (isTrackDownloaded(track.id)) return;
-    setDownloadingIds(prev => new Set(prev).add(track.id));
-    toast({ title: "Sonic Fetch", description: `Downloading ${track.title}...` });
-    await new Promise(r => setTimeout(r, 2000));
-    await simulateDownload(track);
-    setDownloadingIds(prev => {
-      const next = new Set(prev);
-      next.delete(track.id);
-      return next;
+    
+    triggerDownloadWithAd('single', async () => {
+      setDownloadingIds(prev => new Set(prev).add(track.id));
+      toast({ title: "Sonic Fetch", description: `Downloading ${track.title}...` });
+      await new Promise(r => setTimeout(r, 2000));
+      await simulateDownload(track);
+      setDownloadingIds(prev => {
+        const next = new Set(prev);
+        next.delete(track.id);
+        return next;
+      });
+      toast({ title: "Offline Ready", description: `${track.title} saved.` });
     });
-    toast({ title: "Offline Ready", description: `${track.title} saved.` });
   };
 
   const handleFullDownload = async () => {
     if (isFullDownloading) return;
-    triggerHaptic(30);
-    setIsFullDownloading(true);
-    toast({ title: "Syncing Library", description: "Starting mass fetch for offline availability." });
     
-    for (const song of selectedPlaylist.songs) {
-      if (!isTrackDownloaded(song.id)) {
-        await new Promise(r => setTimeout(r, 500));
-        await simulateDownload(song);
+    triggerDownloadWithAd('album', async () => {
+      triggerHaptic(30);
+      setIsFullDownloading(true);
+      toast({ title: "Syncing Library", description: "Starting mass fetch for offline availability." });
+      
+      for (const song of selectedPlaylist.songs) {
+        if (!isTrackDownloaded(song.id)) {
+          await new Promise(r => setTimeout(r, 500));
+          await simulateDownload(song);
+        }
       }
-    }
-    
-    setIsFullDownloading(false);
-    toast({ title: "Vibe Synced", description: "All tracks are now ready for offline listening." });
+      
+      setIsFullDownloading(false);
+      toast({ title: "Vibe Synced", description: "All tracks are now ready for offline listening." });
+    });
   };
 
   const isLiked = isCollectionLiked(selectedPlaylist.id);

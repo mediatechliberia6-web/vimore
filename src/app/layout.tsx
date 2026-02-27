@@ -7,6 +7,7 @@ import { MusicPlayer } from "@/components/music/music-player";
 import { AlbumDetail } from "@/components/music/album-detail";
 import { PlaylistDetail } from "@/components/music/playlist-detail";
 import { CaptureStudio } from "@/components/reels/capture-studio";
+import { AdPortal } from "@/components/ad/ad-portal";
 
 export const metadata: Metadata = {
   title: 'ViMore',
@@ -47,6 +48,7 @@ export default function RootLayout({
             <AlbumDetail />
             <PlaylistDetail />
             <CaptureStudio />
+            <AdPortal />
             <Toaster />
           </MusicProvider>
         </PostProvider>
