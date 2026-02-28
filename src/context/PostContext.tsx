@@ -70,6 +70,7 @@ export interface Connection {
   isOnline?: boolean;
   connectionDate?: string;
   mutualFriends?: string[]; 
+  followers?: string | number;
 }
 
 export interface Mention {
@@ -287,7 +288,8 @@ const MOCK_CONNECTIONS: Connection[] = [
     followsYou: true,
     isOnline: true,
     connectionDate: "Feb 2024",
-    mutualFriends: ["https://picsum.photos/seed/1/50/50", "https://picsum.photos/seed/2/50/50"]
+    mutualFriends: ["https://picsum.photos/seed/1/50/50", "https://picsum.photos/seed/2/50/50"],
+    followers: "1.5k"
   },
   { 
     name: "Tech Explorer", 
@@ -297,7 +299,8 @@ const MOCK_CONNECTIONS: Connection[] = [
     followsYou: true,
     isOnline: false,
     connectionDate: "Jan 2024",
-    mutualFriends: ["https://picsum.photos/seed/3/50/50"]
+    mutualFriends: ["https://picsum.photos/seed/3/50/50"],
+    followers: "12k"
   },
   { 
     name: "Alex Rivera", 
@@ -307,7 +310,8 @@ const MOCK_CONNECTIONS: Connection[] = [
     followsYou: false,
     isOnline: true,
     connectionDate: "Mar 2024",
-    mutualFriends: ["https://picsum.photos/seed/4/50/50", "https://picsum.photos/seed/5/50/50", "https://picsum.photos/seed/6/50/50"]
+    mutualFriends: ["https://picsum.photos/seed/4/50/50", "https://picsum.photos/seed/5/50/50", "https://picsum.photos/seed/6/50/50"],
+    followers: "12.2k"
   },
   { 
     name: "Sarah Chen", 
@@ -317,7 +321,8 @@ const MOCK_CONNECTIONS: Connection[] = [
     followsYou: true,
     isOnline: true,
     connectionDate: "Nov 2023",
-    mutualFriends: ["https://picsum.photos/seed/7/50/50"]
+    mutualFriends: ["https://picsum.photos/seed/7/50/50"],
+    followers: "4.2k"
   },
   { 
     name: "Marcus Stone", 
@@ -327,7 +332,8 @@ const MOCK_CONNECTIONS: Connection[] = [
     followsYou: false,
     isOnline: false,
     connectionDate: "Dec 2023",
-    mutualFriends: ["https://picsum.photos/seed/8/50/50", "https://picsum.photos/seed/9/50/50"]
+    mutualFriends: ["https://picsum.photos/seed/8/50/50", "https://picsum.photos/seed/9/50/50"],
+    followers: "25.1k"
   },
   {
     name: "Paul Node",
@@ -336,7 +342,8 @@ const MOCK_CONNECTIONS: Connection[] = [
     category: "Producer",
     followsYou: true,
     isOnline: true,
-    connectionDate: "May 2024"
+    connectionDate: "May 2024",
+    followers: "156"
   }
 ];
 
