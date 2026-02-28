@@ -28,7 +28,16 @@ import {
   Share2,
   MessageCircle,
   ThumbsUp,
-  Heart
+  Heart,
+  Radio,
+  Copy,
+  UserPlus,
+  Shield,
+  Monitor,
+  Settings2,
+  Lock,
+  ExternalLink,
+  Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -66,12 +75,20 @@ import {
 } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import { Switch } from "@/components/ui/switch";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 
 const CATEGORIES = [
   { id: "analytics", label: "Analytics" },
   { id: "content", label: "Content" },
   { id: "community", label: "Community" },
-  { id: "monetization", label: "Monetization" },
+  { id: "management", label: "Management" },
 ];
 
 const GROWTH_DATA_7D = [
@@ -91,12 +108,19 @@ const GROWTH_DATA_28D = [
   { date: "W4", followers: 8450, engagement: 4200 },
 ];
 
+const METADATA_VAULT = [
+  { id: "v1", label: "Core Hashtags", content: "#ViMore #BuildingInPublic #CreatorEconomy #HighVelocity" },
+  { id: "v2", label: "Shot On Credit", content: "Captured high-fidelity on ViMore Pro-HD Studio node. ⚡️" },
+  { id: "v3", label: "Join Link", content: "Sync your signature at vimore.network/join" },
+];
+
 export default function ProfessionalDashboard() {
-  const { currentUser, posts, togglePinPost, archivePost, deletePost, triggerHaptic, connections } = usePosts();
+  const { currentUser, posts, togglePinPost, archivePost, deletePost, triggerHaptic, connections, settings, updateSettings } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { toast } = useToast();
   const [activeCategory, setActiveCategory] = useState("analytics");
   const [activeRange, setActiveRange] = useState<"7D" | "28D">("7D");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -117,6 +141,14 @@ export default function ProfessionalDashboard() {
   const handleCategorySelect = (id: string) => {
     triggerHaptic(5);
     setActiveCategory(id);
+  };
+
+  const handleCopy = (text: string, id: string) => {
+    triggerHaptic(10);
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    toast({ title: "Node Synced", description: "Metadata copied to your clipboard." });
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const chartData = useMemo(() => {
@@ -651,6 +683,152 @@ export default function ProfessionalDashboard() {
                 <p className="text-[11px] font-medium leading-relaxed uppercase tracking-tighter text-muted-foreground">
                   Peak network vibration detected between <span className="text-primary font-black">18:00 - 21:00</span>. Align your launches with this window to maximize spatial reach by <span className="text-primary font-black">34%</span>.
                 </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Management/Console Category View */}
+        {activeCategory === 'management' && (
+          <section className="space-y-8 animate-in fade-in duration-500">
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                  <Settings2 className="h-5 w-5" />
+                </div>
+                <h3 className="text-2xl font-black italic uppercase tracking-tighter">Creator Console</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                <span className="text-[9px] font-black text-green-500 uppercase tracking-widest">Nodes Operational</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Broadcast Control */}
+              <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-8 shadow-xl space-y-6 relative overflow-hidden group">
+                <div className="relative z-10 space-y-6">
+                  <div className="space-y-2">
+                    <h4 className="text-lg font-black italic uppercase tracking-widest">Broadcast Signal</h4>
+                    <p className="text-xs text-muted-foreground font-medium uppercase leading-relaxed">Push update pulses to your entire network cluster simultaneously.</p>
+                  </div>
+                  <Button 
+                    className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em] text-xs shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
+                    onClick={() => { triggerHaptic(20); toast({ title: "Signal Initialized", description: "Select nodes to receive your collective update pulse." }); }}
+                  >
+                    <Radio className="mr-2 h-4 w-4" /> Launch Broadcast
+                  </Button>
+                </div>
+                <Radio className="absolute -right-4 -bottom-4 h-32 w-32 opacity-5 rotate-12 group-hover:scale-110 transition-transform duration-700" />
+              </div>
+
+              {/* Identity Pulse Toggles */}
+              <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-8 shadow-xl space-y-8">
+                <h4 className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground">Identity Handshakes</h4>
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <p className="font-bold text-sm">Ghost Node Mode</p>
+                      <p className="text-[9px] text-muted-foreground uppercase font-black">Hide your spatial presence in the hub</p>
+                    </div>
+                    <Switch 
+                      checked={settings.isGhostMode} 
+                      onCheckedChange={(val) => { triggerHaptic(5); updateSettings({ isGhostMode: val }); }}
+                      className="data-[state=checked]:bg-primary"
+                    />
+                  </div>
+                  <div className="h-px bg-primary/5" />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <p className="font-bold text-sm">Auto-Follow Protocol</p>
+                      <p className="text-[9px] text-muted-foreground uppercase font-black">Follow nodes that join via your link</p>
+                    </div>
+                    <Switch 
+                      checked={settings.isAutoFollowEnabled} 
+                      onCheckedChange={(val) => { triggerHaptic(5); updateSettings({ isAutoFollowEnabled: val }); }}
+                      className="data-[state=checked]:bg-primary"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Metadata Vault */}
+            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-8 shadow-xl space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
+                    <Lock className="h-4 w-4" />
+                  </div>
+                  <h4 className="text-xl font-black italic uppercase tracking-tighter">Metadata Vault</h4>
+                </div>
+                <Button variant="ghost" size="sm" className="text-[9px] font-black uppercase tracking-widest text-accent">Manage Vault</Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {METADATA_VAULT.map((item) => (
+                  <div key={item.id} className="p-5 rounded-2xl bg-secondary/20 border border-transparent hover:border-accent/20 transition-all group flex flex-col justify-between gap-4">
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-accent">{item.label}</p>
+                      <p className="text-xs font-medium leading-relaxed italic text-foreground/70 truncate">"{item.content}"</p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      className={cn(
+                        "h-10 rounded-xl border-accent/20 text-accent font-black uppercase text-[9px] tracking-widest hover:bg-accent/5",
+                        copiedId === item.id && "bg-accent/10 text-accent border-accent"
+                      )}
+                      onClick={() => handleCopy(item.content, item.id)}
+                    >
+                      {copiedId === item.id ? <><Check className="mr-1.5 h-3 w-3" /> SYNCED</> : <><Copy className="mr-1.5 h-3 w-3" /> COPY NODE</>}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Collaboration Calibration */}
+            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-8 shadow-xl space-y-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                <div className="space-y-1">
+                  <h4 className="text-lg font-black italic uppercase tracking-widest">Collaboration Whitelist</h4>
+                  <p className="text-xs text-muted-foreground font-medium uppercase">Calibrate who can tag your signature in their vibes.</p>
+                </div>
+                <Select 
+                  value={settings.taggingPrivacy} 
+                  onValueChange={(val: any) => { triggerHaptic(5); updateSettings({ taggingPrivacy: val }); }}
+                >
+                  <SelectTrigger className="h-12 w-full sm:w-[240px] rounded-xl bg-secondary/30 border-none px-4 shadow-inner">
+                    <SelectValue placeholder="Who can tag you?" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="everyone" className="font-bold">Everyone (Public Pulse)</SelectItem>
+                    <SelectItem value="friends" className="font-bold">Mutual Nodes Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="h-px bg-primary/5" />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="p-6 bg-primary/5 rounded-[2rem] border border-primary/10 flex items-start gap-5 group">
+                  <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                    <TrendingUp className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold">Spatial reach Optimizer</p>
+                    <p className="text-[10px] text-muted-foreground uppercase leading-relaxed font-medium">Auto-calibrated to high-velocity nodes. Increases discoverability by <span className="text-primary font-black">12%</span>.</p>
+                  </div>
+                </div>
+                <div className="p-6 bg-accent/5 rounded-[2rem] border border-accent/10 flex items-start gap-5 group">
+                  <div className="h-12 w-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                    <ShieldCheck className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold">Encrypted Handshakes</p>
+                    <p className="text-[10px] text-muted-foreground uppercase leading-relaxed font-medium">All Direct Signals are shielded by the ViMore Pro-HD Security Cluster.</p>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
