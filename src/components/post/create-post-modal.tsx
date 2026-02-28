@@ -34,7 +34,8 @@ import {
   Search,
   Coins,
   ShieldCheck,
-  AlertTriangle
+  AlertTriangle,
+  Type
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -92,6 +93,8 @@ const feelings = [
   { emoji: "🤔", text: "Thinking" },
   { emoji: "😴", text: "Tired" },
   { emoji: "🥳", text: "Celebrating" },
+  { emoji: "😤", text: "Productive" },
+  { emoji: "🔥", text: "On Fire" },
 ];
 
 const backgroundThemes = [
@@ -127,7 +130,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [pollDuration, setPollDuration] = useState("24 Hours");
   
   const [feeling, setFeeling] = useState<{ emoji: string; text: string } | null>(null);
-  const [location, setLocation] = useState<string | null>(null);
+  const [location, setLocation] = useState<string>("");
   const [isTaggingSelectorOpen, setIsTaggingSelectorOpen] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
   const [collaborator, setCollaborator] = useState<any | null>(null);
@@ -189,8 +192,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       setSelectedMedia(prev => [...prev, ...urls].slice(0, 10)); // Limit to 10 photos
       toast({ title: "Photos Staged", description: `${fileArray.length} visuals added to draft.` });
     }
-    // Reset theme if media is added
     setSelectedTheme(backgroundThemes[0]);
+    setShowThemeSelector(false);
   };
 
   const removeMedia = (index: number) => {
@@ -205,6 +208,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const handleAiEnhance = async () => {
     if (!content.trim()) return;
     setIsAiLoading(true);
+    triggerHaptic(30);
     try {
       const hashtagsRes = await aiSuggestHashtags({ postContent: content });
       const tags = hashtagsRes.hashtags.join(" ");
@@ -255,7 +259,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setMediaType(null);
     setIsPollOpen(false);
     setFeeling(null);
-    setLocation(null);
+    setLocation("");
     setPollQuestion("");
     setPollOptions(["", ""]);
     setCollaborator(null);
@@ -263,17 +267,32 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setSelectedFilter(imageFilters[0]);
     setIsLocked(false);
     setUnlockPrice(50);
+    setShowFeelingSelector(false);
+    setShowLocationSelector(false);
+    setShowThemeSelector(false);
   };
 
-  const actionItems = [
-    { icon: ImageIcon, label: "Photo", color: "text-green-500", onClick: () => fileInputRef.current?.click(), disabled: isPollOpen || selectedTheme.id !== "none" },
-    { icon: Video, label: "Upload Reel", color: "text-red-500", onClick: () => { triggerHaptic(15); setIsOpen(false); openCaptureStudio(); }, disabled: isPollOpen || selectedTheme.id !== "none" },
-    { icon: ListTodo, label: "Create Poll", color: "text-purple-500", onClick: () => setIsPollOpen(!isPollOpen), disabled: selectedMedia.length > 0 || selectedTheme.id !== "none" },
-    { icon: Palette, label: "Theme", color: "text-pink-500", onClick: () => setShowThemeSelector(!showThemeSelector), disabled: selectedMedia.length > 0 || isPollOpen },
-    { icon: Smile, label: "Feeling", color: "text-yellow-500", onClick: () => setShowFeelingSelector(!showFeelingSelector) },
-    { icon: UserPlus, label: "Tag Node", color: "text-blue-500", onClick: () => setIsTaggingSelectorOpen(true) },
-    { icon: MapPin, label: "Location", color: "text-red-500", onClick: () => setShowLocationSelector(!showLocationSelector) }
-  ];
+  const toggleAction = (type: 'feeling' | 'location' | 'theme' | 'poll') => {
+    triggerHaptic(5);
+    if (type === 'feeling') {
+      setShowFeelingSelector(!showFeelingSelector);
+      setShowLocationSelector(false);
+      setShowThemeSelector(false);
+    } else if (type === 'location') {
+      setShowLocationSelector(!showLocationSelector);
+      setShowFeelingSelector(false);
+      setShowThemeSelector(false);
+    } else if (type === 'theme') {
+      setShowThemeSelector(!showThemeSelector);
+      setShowFeelingSelector(false);
+      setShowLocationSelector(false);
+    } else if (type === 'poll') {
+      setIsPollOpen(!isPollOpen);
+      setShowFeelingSelector(false);
+      setShowLocationSelector(false);
+      setShowThemeSelector(false);
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -286,7 +305,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             <DialogTitle className="font-bold text-lg">Create post</DialogTitle>
           </div>
           <div className="flex items-center gap-2">
-             <Button variant="ghost" size="icon" className="text-primary h-9 w-9" onClick={handleAiEnhance} disabled={isAiLoading || !content.trim()}>{isAiLoading ? <Clock className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}</Button>
+             <Button variant="ghost" size="icon" className="text-primary h-9 w-9" onClick={handleAiEnhance} disabled={isAiLoading || !content.trim()}>{isAiLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}</Button>
             <Button variant="ghost" className={cn("font-bold text-primary text-base", ((!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit) && "opacity-50")} disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit} onClick={handlePost}>POST</Button>
           </div>
         </DialogHeader>
@@ -302,7 +321,27 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                   {location && <span className="text-[13px] text-muted-foreground">— in <span className="font-bold text-foreground">{location}</span></span>}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="secondary" size="sm" className="h-7 px-2 bg-secondary/60 rounded-md flex items-center gap-1.5"><privacy.icon className="h-3.5 w-3.5" /><span className="text-[13px] font-bold">{privacy.label}</span><ChevronDown className="h-3.5 w-3.5" /></Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="secondary" size="sm" className="h-7 px-2 bg-secondary/60 rounded-md flex items-center gap-1.5">
+                        <privacy.icon className="h-3.5 w-3.5" />
+                        <span className="text-[13px] font-bold">{privacy.label}</span>
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56 rounded-xl p-2">
+                      {privacySettings.map((s) => (
+                        <DropdownMenuItem key={s.id} onClick={() => setPrivacy(s)} className="gap-3 py-2.5">
+                          <s.icon className="h-4 w-4" />
+                          <div className="flex flex-col">
+                            <span className="font-bold text-sm">{s.label}</span>
+                            <span className="text-[10px] text-muted-foreground">{s.description}</span>
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  
                   <Button 
                     variant="secondary" 
                     size="sm" 
@@ -410,7 +449,11 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           )}
 
           {isPollOpen && (
-            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-primary/5 space-y-4">
+            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-primary/5 space-y-4 animate-in slide-in-from-bottom-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Post Poll</span>
+                <button onClick={() => setIsPollOpen(false)} className="text-primary"><X className="h-4 w-4" /></button>
+              </div>
               <Input placeholder="Ask a question..." className="bg-white border-primary/10 rounded-xl" value={pollQuestion} onChange={(e) => setPollQuestion(e.target.value)} />
               <div className="space-y-2">
                 {pollOptions.map((opt, i) => (
@@ -420,12 +463,147 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           )}
 
+          {/* Action Selectors */}
+          <div className="px-4 space-y-4 mb-4">
+            {showFeelingSelector && (
+              <div className="p-4 bg-secondary/20 rounded-2xl animate-in slide-in-from-bottom-2">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Feeling</span>
+                  <button onClick={() => setShowFeelingSelector(false)}><X className="h-3 w-3" /></button>
+                </div>
+                <ScrollArea className="w-full">
+                  <div className="flex gap-2 pb-2">
+                    {feelings.map((f) => (
+                      <button
+                        key={f.text}
+                        onClick={() => { triggerHaptic(5); setFeeling(f); setShowFeelingSelector(false); }}
+                        className={cn(
+                          "px-4 py-2 rounded-xl border flex items-center gap-2 transition-all whitespace-nowrap",
+                          feeling?.text === f.text ? "bg-primary border-primary text-white" : "bg-white dark:bg-card border-border hover:border-primary/40"
+                        )}
+                      >
+                        <span>{f.emoji}</span>
+                        <span className="text-xs font-bold">{f.text}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <ScrollBar orientation="horizontal" className="opacity-0" />
+                </ScrollArea>
+              </div>
+            )}
+
+            {showLocationSelector && (
+              <div className="p-4 bg-secondary/20 rounded-2xl animate-in slide-in-from-bottom-2 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Add Location</span>
+                  <button onClick={() => setShowLocationSelector(false)}><X className="h-3 w-3" /></button>
+                </div>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                  <Input 
+                    placeholder="Where are you? (e.g. Lagos, Nigeria)" 
+                    className="pl-10 h-12 bg-white dark:bg-card border-none rounded-xl"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+              </div>
+            )}
+
+            {showThemeSelector && (
+              <div className="p-4 bg-secondary/20 rounded-2xl animate-in slide-in-from-bottom-2">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Theme</span>
+                  <button onClick={() => setShowThemeSelector(false)}><X className="h-3 w-3" /></button>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {backgroundThemes.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => { triggerHaptic(5); setSelectedTheme(t); if(t.id !== 'none') setSelectedMedia([]); }}
+                      className={cn(
+                        "h-12 rounded-xl border-2 transition-all flex items-center justify-center relative overflow-hidden",
+                        selectedTheme.id === t.id ? "border-primary scale-105" : "border-transparent"
+                      )}
+                    >
+                      <div className={cn("absolute inset-0", t.class)} />
+                      <span className={cn("relative z-10 text-[9px] font-black uppercase tracking-tighter", t.id === 'none' ? "text-muted-foreground" : "text-white")}>{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="border-t">
-            {actionItems.map((item, i) => (
-              <button key={i} onClick={item.onClick} disabled={item.disabled} className={cn("w-full flex items-center justify-between p-4 transition-colors", item.disabled ? "opacity-30 cursor-not-allowed" : "hover:bg-secondary/20")}>
-                <div className="flex items-center gap-4"><item.icon className={cn("h-6 w-6", item.color)} /><span className="text-base font-medium">{item.label}</span></div>
-              </button>
-            ))}
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isPollOpen || selectedTheme.id !== "none"}
+              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
+            >
+              <div className="flex items-center gap-4">
+                <ImageIcon className="h-6 w-6 text-green-500" />
+                <span className="text-base font-medium">Photo</span>
+              </div>
+            </button>
+            <button 
+              onClick={() => { triggerHaptic(15); setIsOpen(false); openCaptureStudio(); }}
+              disabled={isPollOpen || selectedTheme.id !== "none"}
+              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
+            >
+              <div className="flex items-center gap-4">
+                <Video className="h-6 w-6 text-red-500" />
+                <span className="text-base font-medium">Upload Reel</span>
+              </div>
+            </button>
+            <button 
+              onClick={() => toggleAction('poll')}
+              disabled={selectedMedia.length > 0 || selectedTheme.id !== "none"}
+              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
+            >
+              <div className="flex items-center gap-4">
+                <ListTodo className="h-6 w-6 text-purple-500" />
+                <span className="text-base font-medium">Create Poll</span>
+              </div>
+            </button>
+            <button 
+              onClick={() => toggleAction('theme')}
+              disabled={selectedMedia.length > 0 || isPollOpen}
+              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
+            >
+              <div className="flex items-center gap-4">
+                <Palette className="h-6 w-6 text-pink-500" />
+                <span className="text-base font-medium">Theme</span>
+              </div>
+            </button>
+            <button 
+              onClick={() => toggleAction('feeling')}
+              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20"
+            >
+              <div className="flex items-center gap-4">
+                <Smile className="h-6 w-6 text-yellow-500" />
+                <span className="text-base font-medium">Feeling</span>
+              </div>
+            </button>
+            <button 
+              onClick={() => setIsTaggingSelectorOpen(true)}
+              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20"
+            >
+              <div className="flex items-center gap-4">
+                <UserPlus className="h-6 w-6 text-blue-500" />
+                <span className="text-base font-medium">Tag Node</span>
+              </div>
+            </button>
+            <button 
+              onClick={() => toggleAction('location')}
+              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20"
+            >
+              <div className="flex items-center gap-4">
+                <MapPin className="h-6 w-6 text-red-500" />
+                <span className="text-base font-medium">Location</span>
+              </div>
+            </button>
           </div>
         </div>
 

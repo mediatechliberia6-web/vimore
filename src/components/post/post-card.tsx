@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -127,7 +128,7 @@ interface PostCardProps {
 export function PostCard(props: PostCardProps) {
   const { 
     id, user, collaborator, content, image, images = [], imageFilter, theme, language,
-    likes = 0, unlikes = 0, comments = 0, shares = 0, time, hashtags, feeling, commentsDisabled, isPinned, 
+    likes = 0, unlikes = 0, comments = 0, shares = 0, time, hashtags, feeling, location, commentsDisabled, isPinned, 
     isSeries, seriesTitle, poll, isShared = false, videoUrl, sharedPost, isLocked, unlockPrice
   } = props;
 
@@ -157,6 +158,7 @@ export function PostCard(props: PostCardProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isShareHubOpen, setIsShareHubOpen] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   const [userVote, setUserVote] = useState<number | null>(null);
   const [localPollOptions, setLocalPollOptions] = useState(poll?.options || []);
@@ -351,6 +353,7 @@ export function PostCard(props: PostCardProps) {
                 <div className="flex items-center gap-1"><Link href={`/profile/${user.username}`} className={cn("font-bold text-foreground hover:underline", isShared ? "text-xs" : "text-sm")}>{user.name}</Link>{effectiveIsVerified && <VerificationBadge size={isShared ? "h-2.5 w-2.5" : "h-3 w-3"} />}</div>
                 {!isShared && collaborator && <div className="flex items-center gap-1"><span className="text-xs text-muted-foreground">and</span><Link href={`/profile/${collaborator.username}`} className="font-bold text-sm text-foreground hover:underline">{collaborator.name}</Link>{collaborator.isVerified && <VerificationBadge />}</div>}
                 {!isShared && feeling && <span className="text-xs text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
+                {!isShared && location && <span className="text-xs text-muted-foreground">— in <span className="font-bold text-foreground">{location}</span></span>}
               </div>
               {!isShared && <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><span>{time}</span><span>•</span><Badge variant="ghost" className="p-0 h-auto font-normal text-[10px]">Public</Badge></div>}
             </div>
@@ -425,7 +428,15 @@ export function PostCard(props: PostCardProps) {
 
               {allImages.length > 0 && (
                 <div className={cn("relative mt-2", isShared ? "-mx-1" : "-mx-3 sm:mx-0")}>
-                  <Carousel className="w-full">
+                  {allImages.length > 1 && (
+                    <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/10 shadow-xl pointer-events-none">
+                      <GalleryVerticalEnd className="h-3 w-3 text-white" />
+                      <span className="text-[10px] font-black text-white uppercase tracking-widest">{currentSlide + 1}/{allImages.length}</span>
+                    </div>
+                  )}
+                  <Carousel className="w-full" setApi={(api) => {
+                    api?.on("select", () => setCurrentSlide(api.selectedScrollSnap()));
+                  }}>
                     <CarouselContent>
                       {allImages.map((img, i) => (
                         <CarouselItem key={i}>
