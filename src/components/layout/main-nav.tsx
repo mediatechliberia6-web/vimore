@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -6,19 +5,28 @@ import { usePathname } from "next/navigation";
 import { Home, User, MessageCircle, PlusSquare, Compass, Menu, Music2, Clapperboard, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useNotifications } from "@/context/NotificationContext";
+import { useNotifications, PulseCategory } from "@/context/NotificationContext";
+
+const PulseBadge = ({ count }: { count: number }) => {
+  if (count <= 0) return null;
+  return (
+    <div className="bg-primary text-white text-[10px] font-black h-5 w-5 min-w-[20px] rounded-full flex items-center justify-center shadow-lg shadow-primary/20 animate-in zoom-in duration-300">
+      {count > 9 ? '9+' : count}
+    </div>
+  );
+};
 
 export function MainNav() {
   const pathname = usePathname();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, categoryPulses, clearPulse } = useNotifications();
 
-  const navItems = [
-    { icon: Home, label: "Home", href: "/" },
+  const navItems: { icon: any; label: string; href: string; badge?: number; category?: PulseCategory }[] = [
+    { icon: Home, label: "Home", href: "/", category: "HOME" },
     { icon: Compass, label: "Explore", href: "/explore" },
-    { icon: Clapperboard, label: "Reels", href: "/reels" },
-    { icon: Music2, label: "Music", href: "/music" },
+    { icon: Clapperboard, label: "Reels", href: "/reels", category: "REELS" },
+    { icon: Music2, label: "Music", href: "/music", category: "MUSIC" },
     { icon: Bell, label: "Notifications", href: "/notifications", badge: unreadCount },
-    { icon: MessageCircle, label: "Messages", href: "/messages" },
+    { icon: MessageCircle, label: "Messages", href: "/messages", category: "MESSAGES" },
     { icon: User, label: "Profile", href: "/profile" },
     { icon: Menu, label: "Menu", href: "/menu" },
   ];
@@ -26,7 +34,7 @@ export function MainNav() {
   return (
     <div className="flex flex-col h-full py-6 px-4 space-y-8">
       <div className="px-2">
-        <Link href="/" className="flex items-center gap-2 group">
+        <Link href="/" className="flex items-center gap-2 group" onClick={() => clearPulse('HOME')}>
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground transition-transform group-hover:scale-110">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-7 h-7">
               <path d="M3 7L10 19L17 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -40,10 +48,13 @@ export function MainNav() {
       <nav className="flex-1 space-y-2">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
+          const displayBadge = item.category ? categoryPulses[item.category] : item.badge;
+
           return (
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => item.category && clearPulse(item.category)}
               className={cn(
                 "flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group",
                 isActive 
@@ -55,10 +66,8 @@ export function MainNav() {
                 <item.icon className={cn("w-6 h-6", isActive ? "scale-110" : "group-hover:scale-110 transition-transform")} />
                 <span className="font-bold text-sm">{item.label}</span>
               </div>
-              {item.badge && item.badge > 0 && !isActive && (
-                <div className="bg-primary text-white text-[10px] font-black h-5 w-5 rounded-full flex items-center justify-center shadow-lg shadow-primary/20">
-                  {item.badge}
-                </div>
+              {displayBadge && displayBadge > 0 && !isActive && (
+                <PulseBadge count={displayBadge} />
               )}
             </Link>
           );

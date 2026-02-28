@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { usePosts } from '@/context/PostContext';
 
 export type SignalType = 'SOCIAL' | 'SONIC' | 'POST' | 'SYSTEM';
+export type PulseCategory = 'HOME' | 'FRIENDS' | 'MUSIC' | 'REELS' | 'MESSAGES';
 
 export interface NotificationNode {
   id: string;
@@ -17,25 +18,26 @@ export interface NotificationNode {
   image?: string;
   actionLabel?: string;
   actionHref?: string;
-  postId?: string; // Anchor to a specific post data node
-  trackId?: string | number; // Anchor to a specific music track
-  targetUsername?: string; // Target for social actions like follow
+  postId?: string; 
+  trackId?: string | number; 
+  targetUsername?: string; 
 }
 
 interface NotificationContextType {
   notifications: NotificationNode[];
   unreadCount: number;
+  categoryPulses: Record<PulseCategory, number>;
   addSignal: (signal: Omit<NotificationNode, 'id' | 'time' | 'isRead'>) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   purgeSignal: (id: string) => void;
+  clearPulse: (category: PulseCategory) => void;
   requestPushPermission: () => Promise<void>;
   hasPushPermission: boolean;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-// Sonic Assets
 const SOUNDS = {
   cyberpunk: "https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3",
   lofi: "https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"
@@ -61,74 +63,34 @@ const MOCK_SIGNALS: NotificationNode[] = [
     isRead: false,
     avatar: 'https://picsum.photos/seed/2/100/100',
     targetUsername: 'schen_dev'
-  },
-  {
-    id: 'sig-2',
-    type: 'SONIC',
-    title: 'Track Trending!',
-    content: 'Your favorite track **"Essence"** is climbing the Global Charts.',
-    time: '15m ago',
-    isRead: false,
-    image: 'https://picsum.photos/seed/song1/100/100',
-    trackId: 1,
-    actionLabel: 'View Charts'
-  },
-  {
-    id: 'sig-3',
-    type: 'POST',
-    title: 'Post Pulse',
-    content: '**Alex Rivera** liked your post: "Just started using ViMore..."',
-    time: '30m ago',
-    isRead: false,
-    avatar: 'https://picsum.photos/seed/1/100/100',
-    postId: '1' 
-  },
-  {
-    id: 'sig-4',
-    type: 'POST',
-    title: 'Comment Node',
-    content: '**Marcus Stone** commented: "This setup is absolutely insane! 🔥"',
-    time: '1h ago',
-    isRead: false,
-    avatar: 'https://picsum.photos/seed/3/100/100',
-    postId: '2'
-  },
-  {
-    id: 'sig-5',
-    type: 'SONIC',
-    title: 'Sonic Note',
-    content: '**Julianne Moore** shared a new playlist: **"AFRO-FUSION"**',
-    time: '2h ago',
-    isRead: true,
-    image: 'https://picsum.photos/seed/play1/100/100',
-    actionHref: '/music'
-  },
-  {
-    id: 'sig-6',
-    type: 'SYSTEM',
-    title: 'Node Synced',
-    content: 'Your high-velocity workspace has been successfully backed up to the main cluster.',
-    time: '5h ago',
-    isRead: true,
   }
 ];
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<NotificationNode[]>([]);
+  const [categoryPulses, setCategoryPulses] = useState<Record<PulseCategory, number>>({
+    HOME: 0,
+    FRIENDS: 0,
+    MUSIC: 0,
+    REELS: 0,
+    MESSAGES: 0
+  });
   const [hasPushPermission, setHasPushPermission] = useState(false);
   const { toast } = useToast();
-  const { settings } = usePosts();
+  const { settings, triggerHaptic } = usePosts();
 
   useEffect(() => {
     const saved = localStorage.getItem('vimore_signals');
+    const savedPulses = localStorage.getItem('vimore_pulses');
+    
     if (saved) {
-      try {
-        setNotifications(JSON.parse(saved));
-      } catch (e) {
-        setNotifications(MOCK_SIGNALS);
-      }
+      try { setNotifications(JSON.parse(saved)); } catch (e) { setNotifications(MOCK_SIGNALS); }
     } else {
       setNotifications(MOCK_SIGNALS);
+    }
+
+    if (savedPulses) {
+      try { setCategoryPulses(JSON.parse(savedPulses)); } catch (e) {}
     }
 
     if (typeof window !== 'undefined' && "Notification" in window) {
@@ -140,16 +102,36 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('vimore_signals', JSON.stringify(notifications));
   }, [notifications]);
 
+  useEffect(() => {
+    localStorage.setItem('vimore_pulses', JSON.stringify(categoryPulses));
+  }, [categoryPulses]);
+
+  // Synthetic Signal Simulator
+  useEffect(() => {
+    const categories: PulseCategory[] = ['HOME', 'FRIENDS', 'MUSIC', 'REELS', 'MESSAGES'];
+    
+    const interval = setInterval(() => {
+      // 30% chance of a pulse every interval
+      if (Math.random() > 0.7) {
+        const randomCat = categories[Math.floor(Math.random() * categories.length)];
+        setCategoryPulses(prev => ({
+          ...prev,
+          [randomCat]: Math.min(prev[randomCat] + 1, 10) // Cap at 10 for "9+" display
+        }));
+        triggerHaptic(5);
+      }
+    }, 45000); // Pulse check every 45 seconds
+
+    return () => clearInterval(interval);
+  }, [triggerHaptic]);
+
   const triggerSound = useCallback(() => {
-    // Silence Node Check
     if (settings.isSilenceActive) {
       const now = new Date();
       const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      
       const isSilenced = settings.silenceStart < settings.silenceEnd 
         ? (currentTime >= settings.silenceStart && currentTime <= settings.silenceEnd)
         : (currentTime >= settings.silenceStart || currentTime <= settings.silenceEnd);
-
       if (isSilenced) return;
     }
 
@@ -190,18 +172,19 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
+  const clearPulse = (category: PulseCategory) => {
+    setCategoryPulses(prev => ({ ...prev, [category]: 0 }));
+  };
+
   const requestPushPermission = async () => {
     if (!("Notification" in window)) {
       toast({ variant: "destructive", title: "Unsupported", description: "This device doesn't support network pulses." });
       return;
     }
-
     const permission = await Notification.requestPermission();
     if (permission === "granted") {
       setHasPushPermission(true);
       toast({ title: "Authorized", description: "High-velocity push notifications enabled." });
-    } else {
-      toast({ variant: "destructive", title: "Access Denied", description: "You won't receive pulses while off-hub." });
     }
   };
 
@@ -211,10 +194,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     <NotificationContext.Provider value={{
       notifications,
       unreadCount,
+      categoryPulses,
       addSignal,
       markAsRead,
       markAllAsRead,
       purgeSignal,
+      clearPulse,
       requestPushPermission,
       hasPushPermission
     }}>

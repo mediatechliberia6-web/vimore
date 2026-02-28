@@ -28,26 +28,26 @@ import {
   AccordionTrigger 
 } from "@/components/ui/accordion";
 import { useMusic } from "@/context/MusicContext";
-import { useNotifications } from "@/context/NotificationContext";
+import { useNotifications, PulseCategory } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export default function MenuPage() {
   const { currentTrack, isExpanded } = useMusic();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, categoryPulses, clearPulse } = useNotifications();
   const { currentUser, triggerHaptic } = usePosts();
   const isPlayerActive = currentTrack && !isExpanded;
 
-  const menuGrid = [
-    { label: "Home feed", icon: Home, color: "text-primary", bg: "bg-primary/10", href: "/" },
+  const menuGrid: { label: string; icon: any; color: string; bg: string; href: string; badge?: number; category?: PulseCategory }[] = [
+    { label: "Home feed", icon: Home, color: "text-primary", bg: "bg-primary/10", href: "/", category: "HOME" },
     { label: "Signals", icon: Bell, color: "text-red-500", bg: "bg-red-50", href: "/notifications", badge: unreadCount },
-    { label: "Music Hub", icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music" },
+    { label: "Music Hub", icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music", category: "MUSIC" },
     { label: "Currency Hub", icon: Coins, color: "text-amber-500", bg: "bg-amber-50", href: "/currency" },
     { label: "Star Network", icon: Star, color: "text-yellow-500", bg: "bg-yellow-50", href: "/referrals" },
-    { label: "Community", icon: Users, color: "text-emerald-500", bg: "bg-emerald-50", href: "/friends" },
-    { label: "Messages", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages" },
-    { label: "Reels", icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-50", href: "/reels" },
+    { label: "Community", icon: Users, color: "text-emerald-500", bg: "bg-emerald-50", href: "/friends", category: "FRIENDS" },
+    { label: "Messages", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages", category: "MESSAGES" },
+    { label: "Reels", icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-50", href: "/reels", category: "REELS" },
   ];
 
   return (
@@ -119,23 +119,28 @@ export default function MenuPage() {
             <Button variant="link" className="text-xs font-bold p-0 h-auto">Edit</Button>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            {menuGrid.map((item) => (
-              <Link 
-                key={item.label}
-                href={item.href}
-                className="bg-white dark:bg-card p-5 rounded-[1.75rem] border border-border/50 shadow-lg shadow-black/5 flex flex-col items-start gap-4 transition-all hover:-translate-y-1 active:scale-95 group relative"
-              >
-                <div className={cn("p-3.5 rounded-2xl transition-all group-hover:rotate-6", item.bg)}>
-                  <item.icon className={cn("h-6 w-6", item.color)} />
-                </div>
-                <span className="font-bold text-[15px] tracking-tight text-foreground">{item.label}</span>
-                {item.badge && item.badge > 0 && (
-                  <div className="absolute top-4 right-4 bg-primary text-white text-[10px] font-black h-6 w-6 rounded-full flex items-center justify-center shadow-lg">
-                    {item.badge}
+            {menuGrid.map((item) => {
+              const displayBadge = item.category ? categoryPulses[item.category] : item.badge;
+              
+              return (
+                <Link 
+                  key={item.label}
+                  href={item.href}
+                  onClick={() => item.category && clearPulse(item.category)}
+                  className="bg-white dark:bg-card p-5 rounded-[1.75rem] border border-border/50 shadow-lg shadow-black/5 flex flex-col items-start gap-4 transition-all hover:-translate-y-1 active:scale-95 group relative"
+                >
+                  <div className={cn("p-3.5 rounded-2xl transition-all group-hover:rotate-6", item.bg)}>
+                    <item.icon className={cn("h-6 w-6", item.color)} />
                   </div>
-                )}
-              </Link>
-            ))}
+                  <span className="font-bold text-[15px] tracking-tight text-foreground">{item.label}</span>
+                  {displayBadge && displayBadge > 0 && (
+                    <div className="absolute top-4 right-4 bg-primary text-white text-[10px] font-black h-6 w-6 min-w-[24px] rounded-full flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
+                      {displayBadge > 9 ? '9+' : displayBadge}
+                    </div>
+                  )}
+                </Link>
+              );
+            })}
           </div>
         </div>
 

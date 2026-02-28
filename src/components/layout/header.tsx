@@ -10,14 +10,23 @@ import { useNotifications } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 
+const PulseBadge = ({ count }: { count: number }) => {
+  if (count <= 0) return null;
+  return (
+    <div className="absolute -top-1.5 -right-1.5 bg-primary text-white text-[8px] font-black h-4.5 w-4.5 min-w-[18px] rounded-full flex items-center justify-center border-2 border-white dark:border-background shadow-lg shadow-primary/20 animate-in zoom-in duration-300">
+      {count > 9 ? '9+' : count}
+    </div>
+  );
+};
+
 export function Header() {
-  const { unreadCount } = useNotifications();
+  const { unreadCount, categoryPulses, clearPulse } = useNotifications();
   const { setSearchOpen } = usePosts();
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-primary/10 px-4 py-2 flex items-center justify-between shadow-sm">
       <div className="flex items-center gap-3">
-        <Link href="/" className="flex items-center gap-2 group">
+        <Link href="/" className="flex items-center gap-2 group" onClick={() => clearPulse('HOME')}>
           <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-white transition-transform group-hover:scale-105">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-6 h-6">
               <path d="M3 7L10 19L17 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -51,17 +60,14 @@ export function Header() {
           )}>
             <Bell className={cn("h-5 w-5", unreadCount > 0 && "animate-pulse")} />
           </Button>
-          {unreadCount > 0 && (
-            <div className="absolute -top-1 -right-1 bg-primary text-white text-[8px] font-black h-4.5 w-4.5 rounded-full flex items-center justify-center border-2 border-white dark:border-background">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </div>
-          )}
+          <PulseBadge count={unreadCount} />
         </Link>
 
-        <Link href="/messages">
+        <Link href="/messages" className="relative group" onClick={() => clearPulse('MESSAGES')}>
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
             <MessageCircle className="h-5 w-5" />
           </Button>
+          <PulseBadge count={categoryPulses.MESSAGES} />
         </Link>
         
         <Link href="/profile" className="hidden sm:block ml-2 group">
@@ -71,10 +77,12 @@ export function Header() {
           </Avatar>
         </Link>
 
-        <Link href="/menu" className="lg:hidden">
+        <Link href="/menu" className="lg:hidden relative">
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50" aria-label="Open menu">
             <Menu className="h-5 w-5" />
           </Button>
+          {/* Aggregate pulse for mobile menu */}
+          <PulseBadge count={unreadCount + Object.values(categoryPulses).reduce((a, b) => a + b, 0)} />
         </Link>
       </div>
     </header>
