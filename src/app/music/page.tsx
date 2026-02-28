@@ -88,7 +88,8 @@ const MOCK_ARTISTS = [
   { id: 'ar4', name: "Olamide", username: "mstone", role: "Rapper", avatar: "https://picsum.photos/seed/art4/200/200" },
 ];
 
-const INTERSTITIAL_INTERVAL = 12 * 60; // 12 minutes in seconds
+const INITIAL_AD_DELAY = 60; // 1 minute in seconds
+const RECURRING_AD_INTERVAL = 12 * 60; // 12 minutes in seconds
 
 function MusicPageContent() {
   const searchParams = useSearchParams();
@@ -102,18 +103,22 @@ function MusicPageContent() {
   // Interstitial State
   const [timeSpent, setTimeSpent] = useState(0);
   const [isInterstitialOpen, setIsInterstitialOpen] = useState(false);
+  const [hasHadFirstAd, setHasHadFirstAd] = useState(false);
   
   const isPlayerActive = currentTrack && !isExpanded;
 
-  // 12-Minute Pulse Logic
+  // High-Velocity Temporal Sync Logic
   useEffect(() => {
     const timer = setInterval(() => {
       if (!isInterstitialOpen) {
         setTimeSpent(prev => {
           const next = prev + 1;
-          if (next >= INTERSTITIAL_INTERVAL) {
+          const currentThreshold = hasHadFirstAd ? RECURRING_AD_INTERVAL : INITIAL_AD_DELAY;
+          
+          if (next >= currentThreshold) {
             setIsInterstitialOpen(true);
-            return 0;
+            setHasHadFirstAd(true);
+            return 0; // Reset count for next interval
           }
           return next;
         });
@@ -121,7 +126,7 @@ function MusicPageContent() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isInterstitialOpen]);
+  }, [isInterstitialOpen, hasHadFirstAd]);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
