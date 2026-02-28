@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -24,7 +25,7 @@ const USER_PROFILE = {
 const PulseBadge = ({ count }: { count: number }) => {
   if (count <= 0) return null;
   return (
-    <div className="absolute top-1.5 right-1 bg-primary text-white text-[7px] font-black h-3.5 w-3.5 min-w-[14px] rounded-full flex items-center justify-center border border-white dark:border-background shadow-sm animate-in zoom-in duration-300">
+    <div className="absolute -top-1.5 -right-1.5 bg-primary text-white text-[7px] font-black h-3.5 w-3.5 min-w-[14px] rounded-full flex items-center justify-center border border-white dark:border-background shadow-sm animate-in zoom-in duration-300">
       {count > 9 ? '9+' : count}
     </div>
   );
