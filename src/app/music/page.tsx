@@ -89,7 +89,7 @@ const MOCK_ARTISTS = [
 ];
 
 const INITIAL_AD_DELAY = 60; // 1 minute in seconds
-const RECURRING_AD_INTERVAL = 12 * 60; // 12 minutes in seconds
+const RECURRING_AD_INTERVAL = 5 * 60; // 5 minutes in seconds
 
 function MusicPageContent() {
   const searchParams = useSearchParams();

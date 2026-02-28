@@ -12,10 +12,9 @@ interface InterstitialPortalProps {
 }
 
 export function InterstitialPortal({ isOpen, onClose }: InterstitialPortalProps) {
-  const { triggerHaptic, isPlaying, togglePlay } = useMusic();
+  const { triggerHaptic, isPlaying, togglePlay, adUrl } = useMusic();
   const [timeLeft, setTimeLeft] = useState(10);
   const [canClose, setCanClose] = useState(false);
-  const adContainerRef = useRef<HTMLDivElement>(null);
   const wasPlayingRef = useRef(false);
 
   // 1. Timer Logic
@@ -44,20 +43,6 @@ export function InterstitialPortal({ isOpen, onClose }: InterstitialPortalProps)
       }, 1000);
 
       return () => clearInterval(timer);
-    }
-  }, [isOpen]);
-
-  // 2. Script Injection Handshake
-  useEffect(() => {
-    if (isOpen && adContainerRef.current) {
-      const container = adContainerRef.current;
-      container.innerHTML = ""; // Purge old node
-      
-      const script = document.createElement("script");
-      script.src = "https://pl28803340.effectivegatecpm.com/ea/33/17/ea33174cb87fd4e73ca39402fe522836.js";
-      script.async = true;
-      
-      container.appendChild(script);
     }
   }, [isOpen]);
 
@@ -117,19 +102,19 @@ export function InterstitialPortal({ isOpen, onClose }: InterstitialPortalProps)
         </div>
       </header>
 
-      <main className="flex-1 relative flex items-center justify-center p-4">
-        {/* Ad Handshake Container */}
-        <div className="w-full h-full flex items-center justify-center">
-          <div 
-            ref={adContainerRef} 
-            className="w-full h-full flex items-center justify-center bg-transparent"
-          />
-          
-          {/* Fallback Loader */}
-          <div className="absolute inset-0 -z-10 flex flex-col items-center justify-center gap-4 opacity-20">
-            <Loader2 className="h-12 w-12 text-primary animate-spin" />
-            <p className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Synchronizing Spatial Node...</p>
-          </div>
+      <main className="flex-1 relative flex items-center justify-center">
+        {/* Adsterra Direct Link Iframe */}
+        <iframe 
+          src={adUrl} 
+          className="w-full h-full border-none shadow-2xl z-10" 
+          title="ViMore High-Velocity Ad"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation-by-user-activation"
+        />
+        
+        {/* Loader behind the iframe */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 opacity-20">
+          <Loader2 className="h-12 w-12 text-primary animate-spin" />
+          <p className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Synchronizing Spatial Node...</p>
         </div>
       </main>
 
