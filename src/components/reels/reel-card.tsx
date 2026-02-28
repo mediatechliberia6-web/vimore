@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef, useState, useEffect } from "react";
@@ -52,7 +53,7 @@ interface ReelCardProps {
 export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares, music, isActive }: ReelCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { triggerHaptic, openCaptureStudio, triggerDownloadWithAd } = useMusic();
-  const { currentUser, openCommentHub } = usePosts();
+  const { currentUser, openCommentHub, openGiftHub } = usePosts();
   const { toast } = useToast();
   
   const [isMuted, setIsMuted] = useState(false);
@@ -132,10 +133,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
   const handleGiftClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     triggerHaptic(30);
-    toast({
-      title: "Network Appreciation",
-      description: `Sending a gift handshake to @${user.username}...`,
-    });
+    openGiftHub(user as any);
   };
 
   const formatCount = (count: number) => {

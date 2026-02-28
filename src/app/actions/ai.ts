@@ -1,3 +1,4 @@
+
 'use server';
 
 import { aiSummarizePost as summarizeFlow } from '@/ai/flows/ai-summarize-post-flow';
@@ -7,6 +8,26 @@ import { aiGenerateDailyMixes as mixesFlow } from '@/ai/flows/ai-generate-mixes-
 import { aiGenerateVerificationCode as codeFlow } from '@/ai/flows/ai-generate-verification-code-flow';
 import { aiVerifySignature as verifyFlow } from '@/ai/flows/ai-verify-signature-flow';
 import { aiSummarizeComments as commentsFlow } from '@/ai/flows/ai-summarize-comments-flow';
+import { aiAuditGiftHandshake as auditFlow } from '@/ai/flows/ai-audit-gift-flow';
+
+/**
+ * Audits a gift transaction using Groq AI.
+ */
+export async function aiAuditGiftHandshake(input: { userBalance: number, giftCost: number, currencyType: 'GOLD' | 'DIAMOND' }) {
+  try {
+    const result = await auditFlow(input);
+    return result;
+  } catch (error) {
+    console.error("Gift Audit Error:", error);
+    // Secure Fallback
+    const approved = input.userBalance >= input.giftCost;
+    return {
+      approved,
+      message: approved ? "Handshake protocol fallback initiated. Transaction valid." : "Insufficient Balance Buy Currency and try again",
+      auditToken: approved ? "TX-FB-" + Math.random().toString(36).substring(2, 10).toUpperCase() : ""
+    };
+  }
+}
 
 /**
  * Summarizes a thread of comments using Groq.

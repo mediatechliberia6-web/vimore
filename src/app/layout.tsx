@@ -1,3 +1,4 @@
+
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
@@ -14,6 +15,7 @@ import { ImageViewerPortal } from "@/components/layout/image-viewer-portal";
 import { SearchPortal } from "@/components/layout/search-portal";
 import { FontScaleWrapper } from "@/components/layout/font-scale-wrapper";
 import { CommentHub } from "@/components/post/comment-hub";
+import { GiftHub } from "@/components/post/gift-hub";
 
 export const metadata: Metadata = {
   title: 'ViMore',
@@ -61,6 +63,7 @@ export default function RootLayout({
                 <ImageViewerPortal />
                 <SearchPortal />
                 <CommentHub />
+                <GiftHub />
                 <Toaster />
               </FontScaleWrapper>
             </MusicProvider>

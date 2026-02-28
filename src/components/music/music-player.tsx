@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -31,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMusic } from "@/context/MusicContext";
 import { useNotifications } from "@/context/NotificationContext";
+import { usePosts } from "@/context/PostContext";
 import { cn, parseFollowerCount } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
@@ -42,6 +44,7 @@ const QUICK_REACTIONS = ["🔥", "❤️", "🙌", "💯", "🤯", "🚀"];
 export function MusicPlayer() {
   const pathname = usePathname();
   const { toast } = useToast();
+  const { openGiftHub } = usePosts();
   const { 
     currentTrack, isPlaying, isExpanded, progress, volume, reactions, trackStats,
     togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, simulateDownload, isTrackDownloaded, triggerDownloadWithAd, triggerHaptic
@@ -114,10 +117,7 @@ export function MusicPlayer() {
   const handleGiftClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     triggerHaptic(30);
-    toast({
-      title: "Sonic Support",
-      description: `Sending tokens to ${currentTrack?.artist}...`,
-    });
+    openGiftHub({ name: currentTrack.artist, username: currentTrack.artistUsername || 'artist', avatar: currentTrack.cover } as any);
   };
 
   const isLiked = isTrackLiked(currentTrack.id);

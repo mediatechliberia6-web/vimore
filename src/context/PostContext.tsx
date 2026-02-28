@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
@@ -171,6 +172,8 @@ interface PostContextType {
   activeCommentPostId: string | null;
   selectedImageUrl: string | null;
   isSearchOpen: boolean;
+  isGiftHubOpen: boolean;
+  targetUserForGift: User | null;
   pendingTransaction: PendingTransaction | null;
   referralLink: string;
   settings: AppSettings;
@@ -179,6 +182,8 @@ interface PostContextType {
   setSelectedImageUrl: (url: string | null) => void;
   openCommentHub: (postId: string) => void;
   closeCommentHub: () => void;
+  openGiftHub: (user: User) => void;
+  closeGiftHub: () => void;
   setActiveStoryIndex: (index: number | null) => void;
   addPost: (post: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments' | 'shares'>) => void;
   deletePost: (postId: string) => void;
@@ -199,6 +204,7 @@ interface PostContextType {
   cancelTransaction: () => void;
   triggerReferralPulse: (referralCode?: string) => void;
   verifyUser: (cost: number, currency: 'DIAMOND' | 'STAR') => void;
+  processGiftTransaction: (cost: number, currency: 'GOLD' | 'DIAMOND') => void;
   isPostLiked: (postId: string) => boolean;
   isPostUnliked: (postId: string) => boolean;
   isPostSaved: (postId: string) => boolean;
@@ -226,8 +232,8 @@ const INITIAL_USER: User = {
   following: "1.2k",
   posts: "142",
   language: "en",
-  goldBalance: 50,
-  diamondBalance: 10,
+  goldBalance: 500,
+  diamondBalance: 25,
   starBalance: 15000,
   referralCount: 0,
   introUrl: "",
@@ -454,6 +460,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isGiftHubOpen, setIsGiftHubOpen] = useState(false);
+  const [targetUserForGift, setTargetUserForGift] = useState<User | null>(null);
 
   const referralLink = useMemo(() => {
     return `http://vimore.appwrite.network/join?ref=${currentUser.username}`;
@@ -595,6 +603,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
       safePersist('vimore_user', updated);
       return updated;
     });
+  };
+
+  const processGiftTransaction = (cost: number, currency: 'GOLD' | 'DIAMOND') => {
+    triggerHaptic(150);
+    setCurrentUser(prev => {
+      const updated = {
+        ...prev,
+        goldBalance: currency === 'GOLD' ? (prev.goldBalance || 0) - cost : prev.goldBalance,
+        diamondBalance: currency === 'DIAMOND' ? (prev.diamondBalance || 0) - cost : prev.diamondBalance
+      };
+      safePersist('vimore_user', updated);
+      return updated;
+    });
+    // In a real app, we would update the creator's balance here. 
+    // Since creators are mock data, we just finish the user's side.
   };
 
   const updateSettings = (data: Partial<AppSettings>) => {
@@ -787,6 +810,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setActiveCommentPostId(null);
   };
 
+  const openGiftHub = (user: User) => {
+    triggerHaptic(15);
+    setTargetUserForGift(user);
+    setIsGiftHubOpen(true);
+  };
+
+  const closeGiftHub = () => {
+    setIsGiftHubOpen(false);
+    setTargetUserForGift(null);
+  };
+
   const isPostLiked = (postId: string) => likedPostIds.has(postId);
   const isPostUnliked = (postId: string) => unlikedPostIds.has(postId);
   const isPostSaved = (postId: string) => savedPostIds.has(postId);
@@ -841,6 +875,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       activeCommentPostId,
       selectedImageUrl,
       isSearchOpen,
+      isGiftHubOpen,
+      targetUserForGift,
       pendingTransaction,
       referralLink,
       settings,
@@ -849,6 +885,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       setSelectedImageUrl,
       openCommentHub,
       closeCommentHub,
+      openGiftHub,
+      closeGiftHub,
       setActiveStoryIndex, 
       addPost, 
       deletePost,
@@ -870,6 +908,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       cancelTransaction,
       triggerReferralPulse,
       verifyUser,
+      processGiftTransaction,
       isPostLiked,
       isPostUnliked,
       isPostSaved,

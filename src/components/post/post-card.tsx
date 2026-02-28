@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -126,7 +127,7 @@ export function PostCard(props: PostCardProps) {
   } = props;
 
   const { 
-    currentUser, isPostLiked, isPostUnliked, isPostSaved, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedImageUrl 
+    currentUser, isPostLiked, isPostUnliked, isPostSaved, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedImageUrl, openGiftHub
   } = usePosts();
 
   const { addSignal } = useNotifications();
@@ -262,10 +263,7 @@ export function PostCard(props: PostCardProps) {
   const handleGiftClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     triggerHaptic(30);
-    toast({
-      title: "Send Energy",
-      description: `Support ${user.name} with a digital gift pulse.`,
-    });
+    openGiftHub(user as any);
   };
 
   const renderContent = (text: string) => {
