@@ -19,7 +19,8 @@ import {
   ZoomOut,
   Search,
   Play,
-  Pause
+  Pause,
+  AlignLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -49,6 +50,7 @@ export function CaptureStudio() {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
+  const [caption, setCaption] = useState("");
   const [cameraMode, setCameraMode] = useState<"user" | "environment">("user");
   const [isFlashOn, setIsFlashOn] = useState(false);
   const [activeFilter, setActiveFilter] = useState(FILTERS[0]);
@@ -85,13 +87,11 @@ export function CaptureStudio() {
   }, [stream]);
 
   const startCamera = useCallback(async () => {
-    // 1. HARDWARE RELEASE: Strictly stop existing streams to prevent NotReadableError
     if (stream) {
       stream.getTracks().forEach(t => t.stop());
     }
 
     try {
-      // 2. DIMENSION-FIRST HANDSHAKE: Request portrait natively to prevent zoom-crop
       const constraints = {
         video: { 
           facingMode: cameraMode,
@@ -112,19 +112,17 @@ export function CaptureStudio() {
       const videoTrack = newStream.getVideoTracks()[0];
       const capabilities = videoTrack.getCapabilities() as any;
       
-      // Hardware Optimization: Continuous Focus & Exposure for back lens clarity
       const advanced: any[] = [];
       if (capabilities.focusMode?.includes('continuous')) advanced.push({ focusMode: 'continuous' });
       if (capabilities.exposureMode?.includes('continuous')) advanced.push({ exposureMode: 'continuous' });
       
-      // Zoom capability probing - Ensure it starts at the absolute floor (Wide View)
       if (capabilities.zoom) {
         setIsZoomSupported(true);
         const minVal = capabilities.zoom.min || 1;
         const maxVal = capabilities.zoom.max || 1;
         setMinZoom(minVal);
         setMaxZoom(maxVal);
-        setZoom(minVal); // Force widest angle possible
+        setZoom(minVal);
         
         try {
           await videoTrack.applyConstraints({ advanced: [{ zoom: minVal }] } as any);
@@ -169,7 +167,6 @@ export function CaptureStudio() {
     };
   }, [isCaptureStudioOpen, cameraMode, recordedUrl]);
 
-  // Sync Timer with Sound Duration when not recording
   useEffect(() => {
     if (!isRecording && !recordedUrl) {
       const initialLimit = captureTrack ? Math.min(captureTrack.duration, RECORDING_LIMIT) : RECORDING_LIMIT;
@@ -181,6 +178,7 @@ export function CaptureStudio() {
     setIsRecording(false);
     if (recordedUrl) URL.revokeObjectURL(recordedUrl);
     setRecordedUrl(null);
+    setCaption("");
     const initialLimit = captureTrack ? Math.min(captureTrack.duration, RECORDING_LIMIT) : RECORDING_LIMIT;
     setTimeLeft(initialLimit);
     setIsProcessing(false);
@@ -236,11 +234,10 @@ export function CaptureStudio() {
 
     const recorder = new MediaRecorder(stream, { 
       mimeType,
-      videoBitsPerSecond: 8000000 // 8Mbps high-fidelity
+      videoBitsPerSecond: 8000000 
     });
     mediaRecorderRef.current = recorder;
 
-    // SONIC SYNC: Start sound playback if selected
     if (captureTrack && audioPreviewRef.current) {
       audioPreviewRef.current.src = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'; 
       audioPreviewRef.current.currentTime = 0;
@@ -258,7 +255,6 @@ export function CaptureStudio() {
       setIsProcessing(false);
       stopStream();
       
-      // Stop Sonic Playback
       if (audioPreviewRef.current) {
         audioPreviewRef.current.pause();
         audioPreviewRef.current.currentTime = 0;
@@ -318,14 +314,20 @@ export function CaptureStudio() {
   const handlePublish = () => {
     if (!recordedUrl) return;
     triggerHaptic(100);
+    
+    const finalContent = caption.trim() 
+      ? caption 
+      : `High-fidelity session with **${captureTrack?.title || 'Original Audio'}** ⚡️ #ViMore #Launch`;
+
     addPost({
       user: currentUser,
-      content: `High-fidelity session with **${captureTrack?.title || 'Original Audio'}** ⚡️ #ViMore #Launch`,
+      content: finalContent,
       videoUrl: recordedUrl,
       language: 'en'
     });
     toast({ title: "Vibe Launched", description: "Your vibe is now live in the stream." });
     closeCaptureStudio();
+    setCaption("");
   };
 
   const filteredSongs = useMemo(() => {
@@ -387,7 +389,6 @@ export function CaptureStudio() {
           />
         )}
 
-        {/* Studio UI Overlays */}
         <div className="absolute top-6 left-0 right-0 z-50 flex flex-col items-center gap-4 px-6">
           <div className="flex items-center justify-between w-full">
             <Button variant="ghost" size="icon" className="text-white bg-black/20 backdrop-blur-md rounded-full" onClick={closeCaptureStudio}>
@@ -430,6 +431,32 @@ export function CaptureStudio() {
             </span>
           </div>
         </div>
+
+        {recordedUrl && (
+          <div className="absolute bottom-32 left-0 right-0 px-6 z-[60] animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl">
+              <div className="flex items-center gap-2 mb-2 px-1">
+                <AlignLeft className="h-3 w-3 text-primary" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-white/60">Reel Caption</span>
+              </div>
+              <textarea 
+                placeholder="Add a high-velocity caption..."
+                className="w-full bg-transparent border-none focus:ring-0 text-sm font-medium text-white placeholder:text-white/30 resize-none min-h-[80px]"
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                maxLength={500}
+              />
+              <div className="flex justify-end pt-2 border-t border-white/5">
+                <span className={cn(
+                  "text-[9px] font-black uppercase tracking-widest",
+                  caption.length > 450 ? "text-primary" : "text-white/20"
+                )}>
+                  {caption.length} / 500
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {!recordedUrl && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-6">
