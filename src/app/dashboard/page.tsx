@@ -21,12 +21,18 @@ import {
   Globe,
   LayoutDashboard,
   Clock,
-  Activity
+  Activity,
+  Pin,
+  Archive,
+  Trash2,
+  Share2,
+  MessageCircle,
+  ThumbsUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { usePosts } from "@/context/PostContext";
+import { usePosts, Post } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -47,6 +53,7 @@ import {
   ChartTooltip, 
   ChartTooltipContent 
 } from "@/components/ui/chart";
+import { useToast } from "@/hooks/use-toast";
 
 const CATEGORIES = [
   { id: "analytics", label: "Analytics" },
@@ -73,12 +80,27 @@ const GROWTH_DATA_28D = [
 ];
 
 export default function ProfessionalDashboard() {
-  const { currentUser, triggerHaptic } = usePosts();
+  const { currentUser, posts, togglePinPost, archivePost, deletePost, triggerHaptic } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
+  const { toast } = useToast();
   const [activeCategory, setActiveCategory] = useState("analytics");
   const [activeRange, setActiveRange] = useState<"7D" | "28D">("7D");
 
   const isPlayerActive = currentTrack && !isExpanded;
+
+  const userPosts = useMemo(() => {
+    return posts.filter(p => p.user.username === currentUser.username);
+  }, [posts, currentUser.username]);
+
+  const calculateImpactScore = (post: Post) => {
+    return (post.likes || 0) + ((post.comments || 0) * 2) + ((post.shares || 0) * 3);
+  };
+
+  const avgScore = useMemo(() => {
+    if (userPosts.length === 0) return 0;
+    const total = userPosts.reduce((acc, p) => acc + calculateImpactScore(p), 0);
+    return total / userPosts.length;
+  }, [userPosts]);
 
   const handleCategorySelect = (id: string) => {
     triggerHaptic(5);
@@ -109,6 +131,22 @@ export default function ProfessionalDashboard() {
       color: "from-purple-600 to-primary"
     };
   }, [currentUser]);
+
+  const handleAction = (action: 'pin' | 'archive' | 'delete', postId: string) => {
+    triggerHaptic(15);
+    if (action === 'pin') {
+      togglePinPost(postId);
+      toast({ title: "Priority Adjusted", description: "Vibe anchor updated on your profile." });
+    } else if (action === 'archive') {
+      archivePost(postId);
+      toast({ title: "Node Migrated", description: "Vibe moved to secure archive cluster." });
+    } else if (action === 'delete') {
+      if (confirm("Purge this content node permanently?")) {
+        deletePost(postId);
+        toast({ variant: "destructive", title: "Node Purged", description: "Signature removed from the network." });
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#020202] text-foreground flex flex-col transition-colors duration-500 overflow-x-hidden">
@@ -184,7 +222,7 @@ export default function ProfessionalDashboard() {
             
             <div className="mt-8 pt-8 border-t border-primary/5 grid grid-cols-3 gap-4">
               <div className="text-center space-y-1">
-                <p className="text-xl font-black italic tracking-tighter">1.2K</p>
+                <p className="text-xl font-black italic tracking-tighter">{userPosts.length}</p>
                 <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Digital Nodes</p>
               </div>
               <div className="text-center space-y-1 border-x border-primary/5">
@@ -219,120 +257,199 @@ export default function ProfessionalDashboard() {
           <ScrollBar orientation="horizontal" className="opacity-0" />
         </ScrollArea>
 
-        {/* Analytics Intelligence Phase 1 */}
-        <section className="space-y-6">
-          <div className="flex items-center justify-between px-2">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                <BarChart3 className="h-5 w-5" />
-              </div>
-              <h3 className="text-2xl font-black italic uppercase tracking-tighter">Analytics Intelligence</h3>
-            </div>
-            
-            <div className="flex items-center gap-1 bg-secondary/40 p-1 rounded-xl">
-              {["7D", "28D"].map((range) => (
-                <button 
-                  key={range}
-                  onClick={() => { triggerHaptic(5); setActiveRange(range as any); }}
-                  className={cn(
-                    "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                    activeRange === range 
-                      ? "bg-white dark:bg-card text-primary shadow-sm" 
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {range}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Network Growth Chart */}
-            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-6 shadow-xl space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Network Growth</span>
-                  <p className="text-2xl font-black italic tracking-tighter">+{activeRange === '7D' ? '250' : '650'} Followers</p>
+        {/* Analytics Category View */}
+        {activeCategory === 'analytics' && (
+          <section className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                  <BarChart3 className="h-5 w-5" />
                 </div>
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                  <TrendingUp className="h-5 w-5" />
-                </div>
+                <h3 className="text-2xl font-black italic uppercase tracking-tighter">Analytics Intelligence</h3>
               </div>
               
-              <div className="h-[200px] w-full">
-                <ChartContainer config={{ 
-                  followers: { label: "Followers", color: "hsl(var(--primary))" } 
-                }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData}>
-                      <defs>
-                        <linearGradient id="colorFollowers" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                      <XAxis 
-                        dataKey="date" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fill: 'rgba(153, 64, 229, 0.5)', fontSize: 10, fontWeight: 'bold' }} 
-                      />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Area 
-                        type="monotone" 
-                        dataKey="followers" 
-                        stroke="hsl(var(--primary))" 
-                        strokeWidth={3}
-                        fillOpacity={1} 
-                        fill="url(#colorFollowers)" 
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
+              <div className="flex items-center gap-1 bg-secondary/40 p-1 rounded-xl">
+                {["7D", "28D"].map((range) => (
+                  <button 
+                    key={range}
+                    onClick={() => { triggerHaptic(5); setActiveRange(range as any); }}
+                    className={cn(
+                      "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                      activeRange === range 
+                        ? "bg-white dark:bg-card text-primary shadow-sm" 
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {range}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Engagement Pulse Chart */}
-            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-6 shadow-xl space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Engagement Pulse</span>
-                  <p className="text-2xl font-black italic tracking-tighter">{activeRange === '7D' ? '4.2K' : '15.8K'} Interactions</p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-6 shadow-xl space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Network Growth</span>
+                    <p className="text-2xl font-black italic tracking-tighter">+{activeRange === '7D' ? '250' : '650'} Followers</p>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
                 </div>
-                <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
-                  <Activity className="h-5 w-5" />
+                
+                <div className="h-[200px] w-full">
+                  <ChartContainer config={{ followers: { label: "Followers", color: "hsl(var(--primary))" } }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData}>
+                        <defs>
+                          <linearGradient id="colorFollowers" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'rgba(153, 64, 229, 0.5)', fontSize: 10, fontWeight: 'bold' }} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Area type="monotone" dataKey="followers" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorFollowers)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
                 </div>
               </div>
-              
-              <div className="h-[200px] w-full">
-                <ChartContainer config={{ 
-                  engagement: { label: "Interactions", color: "hsl(var(--accent))" } 
-                }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                      <XAxis 
-                        dataKey="date" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fill: 'rgba(110, 150, 255, 0.5)', fontSize: 10, fontWeight: 'bold' }} 
-                      />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar 
-                        dataKey="engagement" 
-                        fill="hsl(var(--accent))" 
-                        radius={[6, 6, 0, 0]} 
-                        barSize={activeRange === '7D' ? 30 : 60}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
+
+              <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-6 shadow-xl space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Engagement Pulse</span>
+                    <p className="text-2xl font-black italic tracking-tighter">{activeRange === '7D' ? '4.2K' : '15.8K'} Interactions</p>
+                  </div>
+                  <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+                    <Activity className="h-5 w-5" />
+                  </div>
+                </div>
+                
+                <div className="h-[200px] w-full">
+                  <ChartContainer config={{ engagement: { label: "Interactions", color: "hsl(var(--accent))" } }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: 'rgba(110, 150, 255, 0.5)', fontSize: 10, fontWeight: 'bold' }} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="engagement" fill="hsl(var(--accent))" radius={[6, 6, 0, 0]} barSize={activeRange === '7D' ? 30 : 60} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
+
+        {/* Content Category View - Phase 2 Implementation */}
+        {activeCategory === 'content' && (
+          <section className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
+                  <Layers className="h-5 w-5" />
+                </div>
+                <h3 className="text-2xl font-black italic uppercase tracking-tighter">Vibe Performance Hub</h3>
+              </div>
+              <Badge variant="outline" className="border-accent/20 text-accent text-[9px] font-black uppercase tracking-widest">HEURISTIC SCORING ACTIVE</Badge>
+            </div>
+
+            <div className="space-y-4">
+              {userPosts.length > 0 ? userPosts.map((post) => {
+                const score = calculateImpactScore(post);
+                const isHighVelocity = score > avgScore;
+
+                return (
+                  <div key={post.id} className="group relative bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 shadow-xl transition-all hover:bg-white/60">
+                    <div className="flex items-center gap-6 flex-1 min-w-0">
+                      <div className="relative h-20 w-20 rounded-3xl bg-secondary/40 shrink-0 overflow-hidden border border-white/10">
+                        {post.image || (post.images && post.images[0]) ? (
+                          <Image src={post.image || post.images![0]} alt="Post" fill className="object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
+                            <Zap className="h-6 w-6 text-primary/40" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
+                      </div>
+                      
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Badge className={cn("text-[8px] font-black uppercase border-none px-2", isHighVelocity ? "bg-green-500 text-white" : "bg-primary/10 text-primary")}>
+                            {isHighVelocity ? "High Velocity" : "Stable Pulse"}
+                          </Badge>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">{post.time} ago</span>
+                        </div>
+                        <p className="text-sm font-bold leading-relaxed line-clamp-1 italic text-foreground/80">"{post.content}"</p>
+                        
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground uppercase">
+                            <ThumbsUp className="h-3 w-3" /> {post.likes || 0}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground uppercase">
+                            <MessageCircle className="h-3 w-3" /> {post.comments || 0}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground uppercase">
+                            <Share2 className="h-3 w-3" /> {post.shares || 0}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-6 shrink-0 w-full sm:w-auto pt-4 sm:pt-0 border-t sm:border-none border-primary/5">
+                      <div className="flex flex-col items-end pr-6 border-r border-primary/10">
+                        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Impact Score</span>
+                        <p className="text-3xl font-black italic tracking-tighter text-primary">{score}</p>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="ghost" size="icon" 
+                          className={cn("rounded-xl h-10 w-10 transition-all", post.isPinned ? "bg-primary text-white" : "hover:bg-primary/10")}
+                          onClick={() => handleAction('pin', post.id)}
+                          title="Pin Node"
+                        >
+                          <Pin className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" size="icon" 
+                          className="rounded-xl h-10 w-10 hover:bg-accent/10 hover:text-accent"
+                          onClick={() => handleAction('archive', post.id)}
+                          title="Archive Node"
+                        >
+                          <Archive className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" size="icon" 
+                          className="rounded-xl h-10 w-10 hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => handleAction('delete', post.id)}
+                          title="Purge Node"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }) : (
+                <div className="py-20 text-center space-y-6 opacity-40 animate-in zoom-in-95 duration-500">
+                  <div className="h-20 w-20 bg-primary/5 rounded-[2rem] flex items-center justify-center mx-auto border-2 border-dashed border-primary/20">
+                    <Layers className="h-10 w-10 text-primary/40" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-black italic uppercase tracking-tighter">No Active Nodes</h3>
+                    <p className="text-sm font-medium">Your content pulse will appear here after your first launch.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Dynamic Handshake Protocol Card */}
         <Link href="/verification" className="relative group cursor-pointer block">
@@ -357,84 +474,43 @@ export default function ProfessionalDashboard() {
           </div>
         </Link>
 
-        <section className="space-y-6">
-          <div className="flex items-center justify-between px-2">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-                <TrendingUp className="h-5 w-5" />
+        {activeCategory === 'analytics' && (
+          <section className="space-y-6">
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+                <h3 className="text-2xl font-black italic uppercase tracking-tighter">Quick Performance</h3>
               </div>
-              <h3 className="text-2xl font-black italic uppercase tracking-tighter">Quick Performance</h3>
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              { label: "Network Reach", value: "2,124", delta: "-79%", color: "text-red-500", icon: TrendingDown, bg: "from-red-500/5" },
-              { label: "Approx. Revenue", value: "L$ 0", delta: "--", color: "text-muted-foreground", icon: Zap, bg: "from-amber-500/5" },
-              { label: "Community Pulse", value: "764", delta: "-77%", color: "text-red-500", icon: TrendingDown, bg: "from-blue-500/5" },
-              { label: "New Handshakes", value: "-18", delta: "-238%", color: "text-red-500", icon: TrendingDown, bg: "from-primary/5" },
-            ].map((metric, i) => (
-              <div key={i} className={cn(
-                "relative bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.25rem] p-6 shadow-xl space-y-4 overflow-hidden group hover:border-primary/20 transition-all",
-                "bg-gradient-to-br to-transparent"
-              )}>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">{metric.label}</span>
-                  <p className="text-3xl font-black tabular-nums italic tracking-tighter">{metric.value}</p>
-                </div>
-                <div className={cn("flex items-center gap-1.5 text-[10px] font-black uppercase", metric.color)}>
-                  <metric.icon className="h-3 w-3" /> {metric.delta}
-                </div>
-                <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-100 transition-opacity">
-                  <metric.icon className="h-24 w-24 rotate-12" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <div className="flex items-center justify-between px-2">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                <Layers className="h-5 w-5" />
-              </div>
-              <h3 className="text-2xl font-black italic uppercase tracking-tighter">Content Hub</h3>
-            </div>
-            <Button variant="link" className="text-[10px] font-black text-primary uppercase tracking-widest p-0 h-auto">Browse All</Button>
-          </div>
-          
-          <div className="group relative">
-            <div className="absolute -inset-1 bg-primary/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="relative bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-6 flex items-start gap-6 shadow-xl hover:bg-white/60 transition-all cursor-pointer">
-              <div className="flex-1 space-y-6">
-                <div className="space-y-1">
-                  <span className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Latest Vibe</span>
-                  <p className="text-sm font-bold leading-relaxed line-clamp-2 italic text-foreground/80">"Time for Friday favourites! Share the vibes with your circle node..."</p>
-                </div>
-                
-                <div className="flex items-center gap-8 pt-2">
-                  <div className="space-y-0.5">
-                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Views</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl font-black tabular-nums">4</span>
-                      <span className="text-[9px] font-black text-red-500 uppercase flex items-center gap-0.5">
-                        <TrendingDown className="h-2.5 w-2.5" /> -98%
-                      </span>
-                    </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { label: "Network Reach", value: "2,124", delta: "-79%", color: "text-red-500", icon: TrendingDown, bg: "from-red-500/5" },
+                { label: "Approx. Revenue", value: "L$ 0", delta: "--", color: "text-muted-foreground", icon: Zap, bg: "from-amber-500/5" },
+                { label: "Community Pulse", value: "764", delta: "-77%", color: "text-red-500", icon: TrendingDown, bg: "from-blue-500/5" },
+                { label: "New Handshakes", value: "-18", delta: "-238%", color: "text-red-500", icon: TrendingDown, bg: "from-primary/5" },
+              ].map((metric, i) => (
+                <div key={i} className={cn(
+                  "relative bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.25rem] p-6 shadow-xl space-y-4 overflow-hidden group hover:border-primary/20 transition-all",
+                  "bg-gradient-to-br to-transparent"
+                )}>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">{metric.label}</span>
+                    <p className="text-3xl font-black tabular-nums italic tracking-tighter">{metric.value}</p>
                   </div>
-                  <div className="space-y-0.5">
-                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Retention</span>
-                    <p className="text-xl font-black tabular-nums text-foreground/40">--</p>
+                  <div className={cn("flex items-center gap-1.5 text-[10px] font-black uppercase", metric.color)}>
+                    <metric.icon className="h-3 w-3" /> {metric.delta}
+                  </div>
+                  <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-100 transition-opacity">
+                    <metric.icon className="h-24 w-24 rotate-12" />
                   </div>
                 </div>
-              </div>
-              <div className="h-24 w-24 rounded-3xl bg-secondary/40 flex items-center justify-center shrink-0 border border-white/20 shadow-inner group-hover:scale-105 transition-transform">
-                <Plus className="h-8 w-8 text-muted-foreground/40" />
-              </div>
+              ))}
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         <footer className="pt-10 pb-24 space-y-8">
           <div className="bg-primary/5 rounded-[2rem] p-6 border border-primary/10 flex gap-5 items-start">
@@ -442,7 +518,7 @@ export default function ProfessionalDashboard() {
               <Info className="h-5 w-5 text-primary" />
             </div>
             <p className="text-[11px] font-medium text-muted-foreground leading-relaxed uppercase tracking-tighter">
-              All data pulses are synchronized every 24 hours across the ViMore network. Percentages represent volatility compared to the previous high-velocity window.
+              All data pulses are synchronized every 24 hours across the ViMore network. Performance heuristic weights: Like(1), Comment(2), Share(3).
             </p>
           </div>
           <div className="flex flex-col items-center gap-4 opacity-40">
