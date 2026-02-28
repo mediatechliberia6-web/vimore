@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
@@ -77,6 +76,7 @@ export interface Cluster {
   id: string;
   name: string;
   avatar?: string;
+  adminUsername: string;
   members: Connection[];
   lastMessage?: string;
   lastTime?: string;
@@ -237,6 +237,7 @@ interface PostContextType {
   incrementShareCount: (postId: string) => void;
   triggerHaptic: (intensity?: number) => void;
   createCluster: (name: string, members: Connection[]) => void;
+  leaveCluster: (clusterId: string) => void;
   
   // Call Handshakes
   initiateCall: (contact: Connection, type: CallType) => void;
@@ -912,11 +913,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
       id: `cluster-${Date.now()}`,
       name,
       members,
+      adminUsername: currentUser.username,
       isGroup: true,
       lastMessage: "Cluster materialized.",
       lastTime: "Just now"
     };
     setClusters(prev => [newCluster, ...prev]);
+  };
+
+  const leaveCluster = (clusterId: string) => {
+    triggerHaptic(30);
+    setClusters(prev => prev.filter(c => c.id !== clusterId));
+    if (selectedChatId === clusterId) setSelectedChatId(null);
   };
 
   // CALL HANDSHAKES
@@ -1017,6 +1025,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       isFollowing,
       triggerHaptic,
       createCluster,
+      leaveCluster,
       initiateCall,
       receiveCall,
       acceptCall,
