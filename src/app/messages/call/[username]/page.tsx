@@ -14,7 +14,6 @@ import {
   ShieldCheck, 
   Maximize2, 
   Minimize2,
-  Plus,
   Volume2,
   VolumeX,
   MoreHorizontal,
@@ -53,6 +52,7 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
   const [isUiVisible, setIsUiVisible] = useState(true);
   const [callDuration, setCallDuration] = useState(0);
   const [isConnecting, setIsConnecting] = useState(true);
+  const [cameraMode, setCameraMode] = useState<"user" | "environment">("user");
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteUser = MOCK_USERS[username] || { name: username, avatar: `https://picsum.photos/seed/${username}/400/400`, isVerified: false };
@@ -74,11 +74,20 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
     };
   }, [isConnecting, triggerHaptic]);
 
-  // 2. Camera Access Handshake
+  // 2. Camera Access Handshake with Flip Logic
   useEffect(() => {
     const getCameraPermission = async () => {
+      // 1. Force release of existing tracks
+      if (localVideoRef.current?.srcObject) {
+        const currentStream = localVideoRef.current.srcObject as MediaStream;
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: cameraMode }, 
+          audio: true 
+        });
         setHasCameraPermission(true);
 
         if (localVideoRef.current) {
@@ -100,7 +109,7 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [isVideoOff]);
+  }, [isVideoOff, cameraMode]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -110,8 +119,20 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
 
   const handleEndCall = () => {
     triggerHaptic(100);
+    
+    // Temporal Logic: Store duration for the chat summary
+    const durationStr = formatDuration(callDuration);
+    localStorage.setItem('vimore_last_call_duration', durationStr);
+    
     endCall();
-    router.back();
+    // Return to messages hub with a signal to show the end summary
+    router.push(`/messages?lastCall=${username}`);
+  };
+
+  const handleFlipCamera = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    triggerHaptic(15);
+    setCameraMode(prev => prev === "user" ? "environment" : "user");
   };
 
   const toggleUi = () => {
@@ -150,10 +171,9 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
               <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[120px] rounded-full animate-pulse delay-700" />
               <Image src={remoteUser.avatar} alt="Blur" fill className="object-cover blur-[100px] opacity-20 scale-150" />
             </div>
-            {/* Remote Video Participant (Mocked with high-fidelity asset) */}
+            {/* Remote Video Participant (Mocked) */}
             <div className="relative w-full h-full flex items-center justify-center">
               <Image src={remoteUser.avatar} alt={remoteUser.name} fill className="object-cover brightness-75" />
-              {/* Subtle Vignette for UI Readability */}
               <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80 pointer-events-none" />
             </div>
           </div>
@@ -172,7 +192,8 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
           playsInline 
           className={cn(
             "w-full h-full object-cover transition-all duration-500",
-            isVideoOff && "opacity-0"
+            isVideoOff && "opacity-0",
+            cameraMode === 'user' && "scale-x-[-1]"
           )} 
         />
         {isVideoOff && (
@@ -187,7 +208,7 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
           <span className="text-[8px] font-black uppercase text-white/60 tracking-widest drop-shadow-md">You (Me)</span>
         </div>
         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <Button variant="ghost" size="icon" className="text-white rounded-full bg-white/10">
+          <Button variant="ghost" size="icon" className="text-white rounded-full bg-white/10" onClick={handleFlipCamera}>
             <RefreshCw className="h-5 w-5" />
           </Button>
         </div>
@@ -268,9 +289,9 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
             <Button 
               variant="ghost" size="icon" 
               className="h-14 w-14 rounded-full bg-white/5 text-white hover:bg-white/10"
-              onClick={() => { triggerHaptic(10); }}
+              onClick={handleFlipCamera}
             >
-              <Plus className="h-6 w-6" />
+              <RefreshCw className="h-6 w-6" />
             </Button>
           </TooltipProvider>
         </div>

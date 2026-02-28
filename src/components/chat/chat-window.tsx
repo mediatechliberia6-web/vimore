@@ -42,7 +42,7 @@ import { useMusic } from "@/context/MusicContext";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface Message {
   id: string;
@@ -92,6 +92,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const { triggerHaptic, initiateCall } = usePosts();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const [showVault, setShowVault] = useState(false);
   const [viewingMedia, setViewingMedia] = useState<Message | null>(null);
@@ -158,6 +159,34 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, showVault, fullScreenMedia, externalPortalUrl]);
+
+  // Handle return from Call summary pulse
+  useEffect(() => {
+    const lastCallUser = searchParams.get('lastCall');
+    if (lastCallUser === contact.username) {
+      const duration = localStorage.getItem('vimore_last_call_duration') || '0:00';
+      
+      const endMsg: Message = {
+        id: `call-end-${Date.now()}`,
+        sender: "me",
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        status: "read",
+        type: "call",
+        callData: {
+          type: 'video',
+          status: 'ended',
+          duration
+        }
+      };
+      
+      setMessages(prev => [...prev, endMsg]);
+      localStorage.removeItem('vimore_last_call_duration');
+      
+      // Clean URL state
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [contact.username, searchParams]);
 
   const scrollToMessage = (id: string) => {
     const element = document.getElementById(`msg-${id}`);
