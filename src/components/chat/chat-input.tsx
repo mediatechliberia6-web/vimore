@@ -48,12 +48,10 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentFilter, setCurrentFilter] = useState<string>("image/*,video/*");
   
-  // Audio Recording Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Timer Effect
   useEffect(() => {
     if (isRecording) {
       timerRef.current = setInterval(() => {
@@ -168,11 +166,9 @@ export function ChatInput({ onSend }: ChatInputProps) {
       const mediaUrl = URL.createObjectURL(file);
       
       if (isVideo) {
-        // Duration validation for high-velocity sync
         const video = document.createElement('video');
         video.preload = 'metadata';
         video.onloadedmetadata = () => {
-          // We don't revoke yet as we need it for the chat bubble
           if (video.duration > VIDEO_UPLOAD_LIMIT) {
             toast({ 
               variant: "destructive", 
@@ -191,7 +187,6 @@ export function ChatInput({ onSend }: ChatInputProps) {
         };
         video.src = mediaUrl;
       } else {
-        // Photos proceed immediately
         sendMedia(mediaUrl, 'photo', file.name);
       }
       

@@ -18,7 +18,6 @@ export default function MessagesPage() {
 
   const isPlayerActive = currentTrack && !isExpanded;
 
-  // Handle mobile view state
   useEffect(() => {
     if (selectedChatId) {
       setShowMobileChat(true);
@@ -33,21 +32,17 @@ export default function MessagesPage() {
     <BiometricGate title="Direct Messages">
       <div className="h-[100dvh] bg-background flex justify-center overflow-hidden">
         <div className="max-w-[1440px] w-full grid grid-cols-1 md:grid-cols-[280px_1fr] h-full overflow-hidden">
-          {/* Rail 1: Navigation (Desktop) */}
           <aside className="hidden md:block border-r border-primary/5 bg-white dark:bg-card h-full">
             <div className="sticky top-0 h-full">
               <MainNav />
             </div>
           </aside>
 
-          {/* Messaging Ecosystem Wrapper */}
           <main className="relative flex flex-col bg-white dark:bg-[#050505] h-full overflow-hidden">
             
-            {/* Top Offset for Mini Player - Using flex to avoid overflow */}
             {isPlayerActive && <div className="h-16 shrink-0 transition-all duration-300" />}
 
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-[400px_1fr] min-h-0 overflow-hidden">
-              {/* Rail 2: Chat List */}
               <div className={cn(
                 "h-full border-r border-primary/5 flex flex-col transition-all duration-300 min-h-0",
                 showMobileChat ? "hidden lg:flex" : "flex"
@@ -58,7 +53,6 @@ export default function MessagesPage() {
                 />
               </div>
 
-              {/* Rail 3: Chat Window */}
               <div className={cn(
                 "h-full flex flex-col relative transition-all duration-300 min-h-0",
                 !showMobileChat ? "hidden lg:flex" : "flex"

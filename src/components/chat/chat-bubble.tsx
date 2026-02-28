@@ -113,12 +113,10 @@ export function ChatBubble({
         audioRef.current = null;
       }
       if (timerRef.current) clearInterval(timerRef.current);
-      // Final Interaction Recovery Fail-safe
       document.body.style.pointerEvents = 'auto';
     };
   }, []);
 
-  // Interaction Recovery Fail-safe
   useEffect(() => {
     if (!isDeleteDialogOpen) {
       document.body.style.pointerEvents = 'auto';
@@ -154,10 +152,7 @@ export function ChatBubble({
     if (isDownloaded || isDownloading) return;
     triggerHaptic(15);
     setIsDownloading(true);
-    
-    // Simulate high-velocity data fetch
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
     setIsDownloading(false);
     onDownload?.(id);
     triggerHaptic(25);
@@ -165,11 +160,8 @@ export function ChatBubble({
 
   const handleDelete = () => {
     triggerHaptic(50);
-    // 1. Explicit Interaction Recovery
     document.body.style.pointerEvents = 'auto';
-    // 2. Close Dialog State
     setIsDeleteDialogOpen(false);
-    // 3. Purge Node
     onDelete?.(id);
   };
 

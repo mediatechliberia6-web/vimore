@@ -157,7 +157,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       triggerHaptic(15);
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
       
-      // Visual Pulse Highlight
       element.classList.add('ring-2', 'ring-primary', 'ring-offset-4', 'ring-offset-background', 'rounded-2xl', 'scale-105', 'z-50', 'transition-all', 'duration-500');
       
       setTimeout(() => {
@@ -263,7 +262,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
   return (
     <div className="flex flex-1 min-h-0 bg-[#F0F2F5] dark:bg-[#080808] relative overflow-hidden">
-      {/* 1. View-Once Overlay */}
       {viewingMedia && (
         <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6 animate-in fade-in duration-500">
           <header className="absolute top-8 left-0 right-0 px-8 flex items-center justify-between text-white/60">
@@ -281,12 +279,11 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
         </div>
       )}
 
-      {/* 2. Immersive Media Portal */}
       {fullScreenMedia && (
         <div className="fixed inset-0 z-[400] bg-black/95 flex flex-col animate-in zoom-in-95 fade-in duration-300">
           <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-40">
             <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
-            <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[150px] rounded-full animate-pulse delay-700" />
+            <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[120px] rounded-full animate-pulse duration-1000" />
             {fullScreenMedia.mediaUrl && <Image src={fullScreenMedia.mediaUrl} alt="Aurora" fill className="object-cover blur-[100px] opacity-20 scale-150" />}
           </div>
 
@@ -360,7 +357,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
         </div>
       )}
 
-      {/* 3. External Portal Overlay */}
       {externalPortalUrl && (
         <div className="fixed inset-0 z-[500] bg-black/95 backdrop-blur-2xl flex flex-col animate-in slide-in-from-bottom-full duration-500">
           <header className="h-20 px-6 flex items-center justify-between border-b border-white/10 shrink-0">
