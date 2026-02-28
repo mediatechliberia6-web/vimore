@@ -27,7 +27,8 @@ import {
   Trash2,
   Share2,
   MessageCircle,
-  ThumbsUp
+  ThumbsUp,
+  Heart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -46,14 +47,25 @@ import {
   ResponsiveContainer, 
   XAxis, 
   YAxis,
-  Tooltip
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+  Label
 } from "recharts";
 import { 
   ChartContainer, 
   ChartTooltip, 
   ChartTooltipContent 
 } from "@/components/ui/chart";
+import { 
+  Tooltip as UITooltip, 
+  TooltipContent, 
+  TooltipProvider, 
+  TooltipTrigger 
+} from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
 
 const CATEGORIES = [
   { id: "analytics", label: "Analytics" },
@@ -80,7 +92,7 @@ const GROWTH_DATA_28D = [
 ];
 
 export default function ProfessionalDashboard() {
-  const { currentUser, posts, togglePinPost, archivePost, deletePost, triggerHaptic } = usePosts();
+  const { currentUser, posts, togglePinPost, archivePost, deletePost, triggerHaptic, connections } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { toast } = useToast();
   const [activeCategory, setActiveCategory] = useState("analytics");
@@ -346,7 +358,7 @@ export default function ProfessionalDashboard() {
           </section>
         )}
 
-        {/* Content Category View - Phase 2 Implementation */}
+        {/* Content Category View */}
         {activeCategory === 'content' && (
           <section className="space-y-6 animate-in fade-in duration-500">
             <div className="flex items-center justify-between px-2">
@@ -447,6 +459,199 @@ export default function ProfessionalDashboard() {
                   </div>
                 </div>
               )}
+            </div>
+          </section>
+        )}
+
+        {/* Community Category View */}
+        {activeCategory === 'community' && (
+          <section className="space-y-8 animate-in fade-in duration-500">
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                  <Users className="h-5 w-5" />
+                </div>
+                <h3 className="text-2xl font-black italic uppercase tracking-tighter">Community Connectivity</h3>
+              </div>
+              <Badge variant="outline" className="border-primary/20 text-primary text-[9px] font-black uppercase tracking-widest">NETWORK PULSE ACTIVE</Badge>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Audience Niche Breakdown */}
+              <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-6 shadow-xl space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Audience Composition</span>
+                    <p className="text-2xl font-black italic tracking-tighter">Niche Breakdown</p>
+                  </div>
+                  <Globe className="h-5 w-5 text-primary opacity-40" />
+                </div>
+                
+                <div className="h-[250px] w-full">
+                  <ChartContainer config={{ 
+                    Designers: { label: "Designers", color: "hsl(var(--primary))" },
+                    Developers: { label: "Developers", color: "hsl(var(--accent))" },
+                    Creators: { label: "Creators", color: "hsl(272 77% 75%)" },
+                    Others: { label: "Others", color: "hsl(var(--muted-foreground))" }
+                  }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Designers', value: 45, fill: 'var(--color-Designers)' },
+                            { name: 'Developers', value: 30, fill: 'var(--color-Developers)' },
+                            { name: 'Creators', value: 15, fill: 'var(--color-Creators)' },
+                            { name: 'Others', value: 10, fill: 'var(--color-Others)' },
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          <Label
+                            content={({ viewBox }) => {
+                              if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                                return (
+                                  <text
+                                    x={viewBox.cx}
+                                    y={viewBox.cy}
+                                    textAnchor="middle"
+                                    dominantBaseline="middle"
+                                  >
+                                    <tspan
+                                      x={viewBox.cx}
+                                      y={viewBox.cy}
+                                      className="fill-foreground text-2xl font-black italic tracking-tighter"
+                                    >
+                                      100%
+                                    </tspan>
+                                    <tspan
+                                      x={viewBox.cx}
+                                      y={(viewBox.cy || 0) + 24}
+                                      className="fill-muted-foreground text-[10px] font-black uppercase tracking-widest"
+                                    >
+                                      composition
+                                    </tspan>
+                                  </text>
+                                )
+                              }
+                            }}
+                          />
+                        </Pie>
+                        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: "Designers", value: "45%", color: "bg-primary" },
+                    { label: "Developers", value: "30%", color: "bg-accent" },
+                    { label: "Creators", value: "15%", color: "bg-purple-300" },
+                    { label: "Others", value: "10%", color: "bg-muted-foreground" },
+                  ].map(item => (
+                    <div key={item.label} className="flex items-center gap-2">
+                      <div className={cn("h-2 w-2 rounded-full", item.color)} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{item.label}</span>
+                      <span className="text-[10px] font-black ml-auto">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Core Audience Nodes */}
+              <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-6 shadow-xl space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Active Core Nodes</span>
+                    <p className="text-2xl font-black italic tracking-tighter">Top Engagers</p>
+                  </div>
+                  <Heart className="h-5 w-5 text-red-500 animate-pulse" />
+                </div>
+
+                <div className="space-y-4">
+                  {connections.slice(0, 4).map((fan, i) => (
+                    <div key={fan.username} className="flex items-center justify-between p-3 rounded-2xl bg-secondary/20 border border-transparent hover:border-primary/10 transition-all group">
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <Avatar className="h-10 w-10 border border-primary/10 group-hover:scale-105 transition-transform">
+                            <AvatarImage src={fan.avatar} />
+                            <AvatarFallback>U</AvatarFallback>
+                          </Avatar>
+                          <div className="absolute -top-1 -right-1 h-4 w-4 bg-primary rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-lg">
+                            {i + 1}
+                          </div>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold truncate max-w-[120px]">{fan.name}</span>
+                          <span className="text-[9px] font-black text-primary uppercase tracking-widest">@{fan.username}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-xs font-black italic text-primary">{Math.floor(Math.random() * 50) + 20}</span>
+                        <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">pulses</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <Button variant="outline" className="w-full rounded-xl h-10 border-primary/20 text-primary font-black uppercase text-[10px] tracking-widest">
+                  View Full Network Breakdown
+                </Button>
+              </div>
+            </div>
+
+            {/* Hourly Engagement Heatmap */}
+            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-8 shadow-xl space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Temporal engagement Velocity</span>
+                  <p className="text-2xl font-black italic tracking-tighter">Peak Launch Windows</p>
+                </div>
+                <Clock className="h-5 w-5 text-amber-500" />
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-12 gap-1 sm:gap-2">
+                  {Array.from({ length: 24 }).map((_, i) => {
+                    const intensity = Math.floor(Math.random() * 4); // Simulate intensity 0-3
+                    return (
+                      <TooltipProvider key={i}>
+                        <UITooltip>
+                          <TooltipTrigger asChild>
+                            <div 
+                              className={cn(
+                                "aspect-square rounded-[4px] sm:rounded-md transition-all cursor-pointer hover:ring-2 ring-primary/40",
+                                intensity === 0 ? "bg-secondary/40" :
+                                intensity === 1 ? "bg-primary/20" :
+                                intensity === 2 ? "bg-primary/50" : "bg-primary"
+                              )}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent className="rounded-lg p-2 font-black uppercase text-[8px] tracking-widest">
+                            {i}:00 — {intensity === 3 ? 'High' : intensity === 2 ? 'Medium' : 'Low'} Velocity
+                          </TooltipContent>
+                        </UITooltip>
+                      </TooltipProvider>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between text-[8px] font-black text-muted-foreground uppercase tracking-widest px-1">
+                  <span>00:00</span>
+                  <span>12:00</span>
+                  <span>23:00</span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex items-start gap-4">
+                <Zap className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <p className="text-[11px] font-medium leading-relaxed uppercase tracking-tighter text-muted-foreground">
+                  Peak network vibration detected between <span className="text-primary font-black">18:00 - 21:00</span>. Align your launches with this window to maximize spatial reach by <span className="text-primary font-black">34%</span>.
+                </p>
+              </div>
             </div>
           </section>
         )}
