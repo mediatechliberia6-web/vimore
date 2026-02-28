@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -26,7 +25,8 @@ import {
   Download,
   PlusSquare,
   Play,
-  Video
+  Video,
+  Gift
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -256,6 +256,15 @@ export function PostCard(props: PostCardProps) {
     e.stopPropagation();
     triggerHaptic(15);
     router.push(`/reels?id=${id}`);
+  };
+
+  const handleGiftClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    triggerHaptic(30);
+    toast({
+      title: "Send Energy",
+      description: `Support ${user.name} with a digital gift pulse.`,
+    });
   };
 
   const renderContent = (text: string) => {
@@ -503,10 +512,18 @@ export function PostCard(props: PostCardProps) {
           <CardFooter className="p-1 px-3 flex flex-col gap-1 relative bg-white dark:bg-card">
             <div className="px-1 pt-2 pb-1 flex items-center justify-between w-full text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground/50 border-t border-primary/5">
               <div className="flex items-center gap-3">
-                <span className={cn("flex items-center gap-1.5 transition-colors", isLiked && "text-primary")}>
-                  <ThumbsUp className={cn("h-3 w-3", isLiked && "fill-current")} />
-                  {((likes ?? 0) + (isLiked ? 1 : 0)).toLocaleString()}
-                </span>
+                <div className="relative">
+                  <button 
+                    onClick={handleGiftClick}
+                    className="absolute -top-6 left-1/2 -translate-x-1/2 p-1.5 bg-primary rounded-full text-white shadow-lg animate-shake-vibe z-20"
+                  >
+                    <Gift className="h-3.5 w-3.5" />
+                  </button>
+                  <span className={cn("flex items-center gap-1.5 transition-colors", isLiked && "text-primary")}>
+                    <ThumbsUp className={cn("h-3 w-3", isLiked && "fill-current")} />
+                    {((likes ?? 0) + (isLiked ? 1 : 0)).toLocaleString()}
+                  </span>
+                </div>
                 <span className={cn("flex items-center gap-1.5 transition-colors", isUnliked && "text-destructive")}>
                   <ThumbsDown className={cn("h-3 w-3", isUnliked && "fill-current")} />
                   {((unlikes ?? 0) + (isUnliked ? 1 : 0)).toLocaleString()}

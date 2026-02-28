@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRef, useState, useEffect } from "react";
@@ -14,7 +13,8 @@ import {
   Volume2,
   VolumeX,
   Download,
-  Loader2
+  Loader2,
+  Gift
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -126,6 +126,15 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
   const handleShareClick = () => {
     triggerHaptic(10);
     setIsShareHubOpen(true);
+  };
+
+  const handleGiftClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    triggerHaptic(30);
+    toast({
+      title: "Network Appreciation",
+      description: `Sending a gift handshake to @${user.username}...`,
+    });
   };
 
   const formatCount = (count: number) => {
@@ -244,7 +253,13 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
           isActive ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
         )}>
           <div className="flex flex-col gap-1.5 pointer-events-auto">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 relative">
+              <button 
+                onClick={handleGiftClick}
+                className="absolute -top-8 left-0 p-1.5 bg-primary rounded-full text-white shadow-lg animate-shake-vibe z-50 border border-white/20"
+              >
+                <Gift className="h-3.5 w-3.5" />
+              </button>
               <Link href={profileHref} className="text-lg font-black italic uppercase tracking-tighter text-white hover:text-primary transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] flex items-center gap-1">
                 @{user.username}
                 {user.isVerified && <CheckCircle2 className="h-3.5 w-3.5 text-primary fill-primary text-white" />}

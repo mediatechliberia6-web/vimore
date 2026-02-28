@@ -20,7 +20,8 @@ import {
   Send,
   MessageCircle,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Gift
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -107,6 +108,15 @@ export function MusicPlayer() {
         content: `**${currentTrack.title}** by ${currentTrack.artist} has been successfully cached.`,
         image: currentTrack.cover
       });
+    });
+  };
+
+  const handleGiftClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    triggerHaptic(30);
+    toast({
+      title: "Sonic Support",
+      description: `Sending tokens to ${currentTrack?.artist}...`,
     });
   };
 
@@ -239,7 +249,13 @@ export function MusicPlayer() {
             <div className="flex items-start justify-between">
               <div className="space-y-1 sm:space-y-2">
                 <h2 className="text-3xl sm:text-5xl font-black italic uppercase tracking-tighter leading-tight sm:leading-none">{currentTrack.title}</h2>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 relative">
+                  <button 
+                    onClick={handleGiftClick}
+                    className="absolute -top-8 left-0 p-1.5 bg-primary rounded-full text-white shadow-lg animate-shake-vibe z-50 border border-white/20"
+                  >
+                    <Gift className="h-4 w-4" />
+                  </button>
                   <Link href={`/profile/${currentTrack.artistUsername || 'arivera'}`} onClick={() => setIsExpanded(false)}>
                     <p className="text-xl sm:text-2xl text-primary font-bold hover:underline">{currentTrack.artist}</p>
                   </Link>
