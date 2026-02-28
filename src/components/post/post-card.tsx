@@ -31,7 +31,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, parseFollowerCount } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Input } from "@/components/ui/input";
@@ -79,7 +79,7 @@ interface PostCardProps {
     avatar: string;
     isVerified?: boolean;
     isOnline?: boolean;
-    followers?: number;
+    followers?: string | number;
   };
   collaborator?: {
     name: string;
@@ -139,6 +139,7 @@ export function PostCard(props: PostCardProps) {
   const isOwner = user.username === currentUser.username;
   
   const effectiveIsVerified = isOwner ? currentUser.isVerified : user.isVerified;
+  const isEligibleForGift = parseFollowerCount(user.followers) > 1000;
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
@@ -513,12 +514,14 @@ export function PostCard(props: PostCardProps) {
             <div className="px-1 pt-2 pb-1 flex items-center justify-between w-full text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground/50 border-t border-primary/5">
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <button 
-                    onClick={handleGiftClick}
-                    className="absolute -top-6 left-1/2 -translate-x-1/2 p-1.5 bg-primary rounded-full text-white shadow-lg animate-shake-vibe z-20"
-                  >
-                    <Gift className="h-3.5 w-3.5" />
-                  </button>
+                  {isEligibleForGift && (
+                    <button 
+                      onClick={handleGiftClick}
+                      className="absolute -top-6 left-1/2 -translate-x-1/2 p-1.5 bg-primary rounded-full text-white shadow-lg animate-shake-vibe z-20"
+                    >
+                      <Gift className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   <span className={cn("flex items-center gap-1.5 transition-colors", isLiked && "text-primary")}>
                     <ThumbsUp className={cn("h-3 w-3", isLiked && "fill-current")} />
                     {((likes ?? 0) + (isLiked ? 1 : 0)).toLocaleString()}

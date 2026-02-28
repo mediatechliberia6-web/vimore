@@ -31,7 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMusic } from "@/context/MusicContext";
 import { useNotifications } from "@/context/NotificationContext";
-import { cn } from "@/lib/utils";
+import { cn, parseFollowerCount } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -44,7 +44,7 @@ export function MusicPlayer() {
   const { toast } = useToast();
   const { 
     currentTrack, isPlaying, isExpanded, progress, volume, reactions, trackStats,
-    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, simulateDownload, isTrackDownloaded, triggerDownloadWithAd
+    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, simulateDownload, isTrackDownloaded, triggerDownloadWithAd, triggerHaptic
   } = useMusic();
 
   const { addSignal } = useNotifications();
@@ -123,6 +123,7 @@ export function MusicPlayer() {
   const isLiked = isTrackLiked(currentTrack.id);
   const isUnliked = isTrackUnliked(currentTrack.id);
   const isDownloaded = isTrackDownloaded(currentTrack.id);
+  const isEligibleForGift = parseFollowerCount(currentTrack.artistFollowers) > 1000;
 
   if (!isExpanded) {
     const isHome = pathname === "/";
@@ -250,12 +251,14 @@ export function MusicPlayer() {
               <div className="space-y-1 sm:space-y-2">
                 <h2 className="text-3xl sm:text-5xl font-black italic uppercase tracking-tighter leading-tight sm:leading-none">{currentTrack.title}</h2>
                 <div className="flex items-center gap-3 relative">
-                  <button 
-                    onClick={handleGiftClick}
-                    className="absolute -top-8 left-0 p-1.5 bg-primary rounded-full text-white shadow-lg animate-shake-vibe z-50 border border-white/20"
-                  >
-                    <Gift className="h-4 w-4" />
-                  </button>
+                  {isEligibleForGift && (
+                    <button 
+                      onClick={handleGiftClick}
+                      className="absolute -top-8 left-0 p-1.5 bg-primary rounded-full text-white shadow-lg animate-shake-vibe z-50 border border-white/20"
+                    >
+                      <Gift className="h-4 w-4" />
+                    </button>
+                  )}
                   <Link href={`/profile/${currentTrack.artistUsername || 'arivera'}`} onClick={() => setIsExpanded(false)}>
                     <p className="text-xl sm:text-2xl text-primary font-bold hover:underline">{currentTrack.artist}</p>
                   </Link>

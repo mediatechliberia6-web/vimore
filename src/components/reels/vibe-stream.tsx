@@ -19,7 +19,8 @@ const MOCK_REELS_DATA = [
       username: "arivera",
       avatar: "https://picsum.photos/seed/1/100/100",
       role: "Product Designer",
-      isVerified: true
+      isVerified: true,
+      followers: "12.2k"
     },
     caption: "Designing the future of **ViMore**... 🎨✨ Building edge-to-edge experiences for the high-velocity creator. #Design #ViMore #Future #Creativity",
     likes: 124500,
@@ -40,7 +41,8 @@ const MOCK_REELS_DATA = [
       username: "schen_dev",
       avatar: "https://picsum.photos/seed/2/100/100",
       role: "Fullstack Architect",
-      isVerified: true
+      isVerified: true,
+      followers: "4.2k"
     },
     caption: "Sunset sessions at the HQ. 🌅 The lighting here is just literal chills. #Studio #Vibes #DevLife #Web3",
     likes: 89200,
@@ -61,7 +63,8 @@ const MOCK_REELS_DATA = [
       username: "mstone",
       avatar: "https://picsum.photos/seed/3/100/100",
       role: "Visual Storyteller",
-      isVerified: false
+      isVerified: false,
+      followers: "25.1k"
     },
     caption: "Late night energy. ⚡️ Exploring motion and light in the new studio setup. #Movement #Neon #Creative #Vibes",
     likes: 156000,
@@ -96,7 +99,8 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
           username: p.user.username,
           avatar: p.user.avatar,
           role: p.user.category || "Creator",
-          isVerified: p.user.isVerified
+          isVerified: p.user.isVerified,
+          followers: p.user.followers
         },
         caption: p.content,
         likes: p.likes,

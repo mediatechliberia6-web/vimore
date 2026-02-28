@@ -17,7 +17,7 @@ import {
   Gift
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { cn, parseFollowerCount } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { useMusic } from "@/context/MusicContext";
@@ -34,6 +34,7 @@ interface ReelCardProps {
     avatar: string;
     role: string;
     isVerified?: boolean;
+    followers?: string | number;
   };
   caption: string;
   likes: number;
@@ -145,6 +146,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
 
   const isMe = user.username === currentUser.username;
   const profileHref = isMe ? "/profile" : `/profile/${user.username}`;
+  const isEligibleForGift = parseFollowerCount(user.followers) > 1000;
 
   return (
     <div className="relative h-[100dvh] w-full flex items-center justify-center group select-none bg-black overflow-hidden">
@@ -254,12 +256,14 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         )}>
           <div className="flex flex-col gap-1.5 pointer-events-auto">
             <div className="flex items-center gap-2 relative">
-              <button 
-                onClick={handleGiftClick}
-                className="absolute -top-8 left-0 p-1.5 bg-primary rounded-full text-white shadow-lg animate-shake-vibe z-50 border border-white/20"
-              >
-                <Gift className="h-3.5 w-3.5" />
-              </button>
+              {isEligibleForGift && (
+                <button 
+                  onClick={handleGiftClick}
+                  className="absolute -top-8 left-0 p-1.5 bg-primary rounded-full text-white shadow-lg animate-shake-vibe z-50 border border-white/20"
+                >
+                  <Gift className="h-3.5 w-3.5" />
+                </button>
+              )}
               <Link href={profileHref} className="text-lg font-black italic uppercase tracking-tighter text-white hover:text-primary transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] flex items-center gap-1">
                 @{user.username}
                 {user.isVerified && <CheckCircle2 className="h-3.5 w-3.5 text-primary fill-primary text-white" />}

@@ -15,6 +15,7 @@ export interface Track {
   title: string;
   artist: string;
   artistUsername?: string;
+  artistFollowers?: string | number;
   cover: string;
   duration: number; // in seconds
   streams?: string;
@@ -135,11 +136,11 @@ const MOCK_COMMENTS: Comment[] = [
 ];
 
 export const ALL_SONGS: Track[] = [
-  { id: 1, title: "Essence", artist: "Wizkid ft. Tems", artistUsername: "arivera", cover: "https://picsum.photos/seed/song1/600/600", duration: 240, streams: "124M", likes: 12400, unlikes: 42, comments: MOCK_COMMENTS },
-  { id: 2, title: "Last Last", artist: "Burna Boy", artistUsername: "schen_dev", cover: "https://picsum.photos/seed/song2/600/600", duration: 172, streams: "98M", likes: 8900, unlikes: 12, comments: MOCK_COMMENTS.slice(0, 2) },
-  { id: 3, title: "Unavailable", artist: "Davido", artistUsername: "mstone", cover: "https://picsum.photos/seed/song3/600/600", duration: 185, streams: "75M", likes: 15600, unlikes: 88, comments: MOCK_COMMENTS.slice(1) },
-  { id: 4, title: "Calm Down", artist: "Rema", artistUsername: "arivera", cover: "https://picsum.photos/seed/song4/600/600", duration: 219, streams: "320M", likes: 42000, unlikes: 156, comments: MOCK_COMMENTS },
-  { id: 5, title: "Soweto", artist: "Victony", artistUsername: "techex", cover: "https://picsum.photos/seed/song5/600/600", duration: 164, streams: "45M", likes: 3200, unlikes: 5, comments: MOCK_COMMENTS.slice(0, 1) },
+  { id: 1, title: "Essence", artist: "Wizkid ft. Tems", artistUsername: "arivera", artistFollowers: "12.2k", cover: "https://picsum.photos/seed/song1/600/600", duration: 240, streams: "124M", likes: 12400, unlikes: 42, comments: MOCK_COMMENTS },
+  { id: 2, title: "Last Last", artist: "Burna Boy", artistUsername: "schen_dev", artistFollowers: "4.2k", cover: "https://picsum.photos/seed/song2/600/600", duration: 172, streams: "98M", likes: 8900, unlikes: 12, comments: MOCK_COMMENTS.slice(0, 2) },
+  { id: 3, title: "Unavailable", artist: "Davido", artistUsername: "mstone", artistFollowers: "25.1k", cover: "https://picsum.photos/seed/song3/600/600", duration: 185, streams: "75M", likes: 15600, unlikes: 88, comments: MOCK_COMMENTS.slice(1) },
+  { id: 4, title: "Calm Down", artist: "Rema", artistUsername: "arivera", artistFollowers: "12.2k", cover: "https://picsum.photos/seed/song4/600/600", duration: 219, streams: "320M", likes: 42000, unlikes: 156, comments: MOCK_COMMENTS },
+  { id: 5, title: "Soweto", artist: "Victony", artistUsername: "techex", artistFollowers: 800, cover: "https://picsum.photos/seed/song5/600/600", duration: 164, streams: "45M", likes: 3200, unlikes: 5, comments: MOCK_COMMENTS.slice(0, 1) },
 ];
 
 export function MusicProvider({ children }: { children: ReactNode }) {
