@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
@@ -40,6 +41,7 @@ import { ChatInput } from "./chat-input";
 import { useMusic } from "@/context/MusicContext";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import Link from "next/link";
 
 interface Message {
   id: string;
@@ -149,7 +151,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     if (scrollRef.current && !fullScreenMedia && !externalPortalUrl) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, showVault]);
+  }, [messages, showVault, fullScreenMedia, externalPortalUrl]);
 
   const scrollToMessage = (id: string) => {
     const element = document.getElementById(`msg-${id}`);
@@ -407,7 +409,11 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary" title="Shared Video"><Video className="h-5 w-5" /></Button>
+            <Link href={`/messages/call/${contact.username}`}>
+              <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary" title="Initiate Video Call">
+                <Video className="h-5 w-5" />
+              </Button>
+            </Link>
             <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary" title="Voice Call"><Phone className="h-5 w-5" /></Button>
             <Button variant="ghost" size="icon" className={cn("rounded-full transition-all", showVault ? "bg-primary text-white" : "text-muted-foreground")} title="Shared Notes" onClick={() => { triggerHaptic(5); setShowVault(!showVault); }}><Bookmark className="h-5 w-5" /></Button>
           </div>
