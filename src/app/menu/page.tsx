@@ -17,7 +17,8 @@ import {
   Coins,
   Users,
   Star,
-  Gem
+  Gem,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -44,6 +45,7 @@ export default function MenuPage() {
     { label: "Signals", icon: Bell, color: "text-red-500", bg: "bg-red-50", href: "/notifications", badge: unreadCount },
     { label: "Music Hub", icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music", category: "MUSIC" },
     { label: "Currency Hub", icon: Coins, color: "text-amber-500", bg: "bg-amber-50", href: "/currency" },
+    { label: "Earnings Hub", icon: TrendingUp, color: "text-green-500", bg: "bg-green-50", href: "/earnings" },
     { label: "Star Network", icon: Star, color: "text-yellow-500", bg: "bg-yellow-50", href: "/referrals" },
     { label: "Community", icon: Users, color: "text-emerald-500", bg: "bg-emerald-50", href: "/friends", category: "FRIENDS" },
     { label: "Messages", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages", category: "MESSAGES" },
