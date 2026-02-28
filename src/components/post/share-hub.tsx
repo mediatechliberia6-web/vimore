@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, saveFileToDevice } from "@/lib/utils";
 import Image from "next/image";
 
 interface ShareHubProps {
@@ -84,13 +84,24 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
   const handleDownload = async () => {
     if (isDownloading) return;
     
+    // Determine asset source
+    const assetUrl = post.videoUrl || post.image || post.user.avatar;
+    const extension = post.videoUrl ? 'mp4' : 'jpg';
+    
     triggerDownloadWithAd('reel', async () => {
       setIsDownloading(true);
       toast({ title: "Node Sync", description: "Preparing high-fidelity archive..." });
-      await new Promise(r => setTimeout(r, 2500));
-      setIsDownloading(false);
-      toast({ title: "Archive Ready", description: "Vibe saved to your identity notes." });
-      onClose();
+      
+      try {
+        // BINARY HANDSHAKE: Actual Save to Hardware
+        await saveFileToDevice(assetUrl, `vimore_node_${post.id}.${extension}`);
+        toast({ title: "Archival Ready", description: "Vibe saved to your hardware identity notes." });
+      } catch (e) {
+        console.error("Archival handshake failure", e);
+      } finally {
+        setIsDownloading(false);
+        onClose();
+      }
     });
   };
 
@@ -149,7 +160,7 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
             </Button>
             <Button variant="outline" className="h-24 rounded-[2rem] border-green-500/10 bg-white dark:bg-card hover:bg-green-500/5 flex flex-col items-center justify-center gap-2 transition-all group" onClick={handleDownload} disabled={isDownloading}>
               <div className="p-3 bg-green-500/10 rounded-2xl group-hover:scale-110 transition-transform">{isDownloading ? <Loader2 className="h-6 w-6 text-green-500 animate-spin" /> : <Download className="h-6 w-6 text-green-500" />}</div>
-              <span className="text-[10px] font-black uppercase tracking-widest">Download Node</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">Save to Device</span>
             </Button>
             <Button variant="outline" className="h-24 rounded-[2rem] border-border bg-white dark:bg-card hover:bg-secondary/50 flex flex-col items-center justify-center gap-2 transition-all group" onClick={handleCopyLink}>
               <div className="p-3 bg-secondary rounded-2xl group-hover:scale-110 transition-transform"><LinkIcon className="h-6 w-6 text-muted-foreground" /></div>

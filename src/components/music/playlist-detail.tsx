@@ -65,15 +65,17 @@ export function PlaylistDetail() {
     
     triggerDownloadWithAd('single', async () => {
       setDownloadingIds(prev => new Set(prev).add(track.id));
-      toast({ title: "Sonic Fetch", description: `Downloading ${track.title}...` });
-      await new Promise(r => setTimeout(r, 2000));
+      toast({ title: "Sonic Fetch", description: `Archiving ${track.title} to hardware...` });
+      
+      // Binary Handshake via simulateDownload
       await simulateDownload(track);
+      
       setDownloadingIds(prev => {
         const next = new Set(prev);
         next.delete(track.id);
         return next;
       });
-      toast({ title: "Offline Ready", description: `${track.title} saved.` });
+      toast({ title: "Hardware Node Synced", description: `${track.title} saved.` });
     });
   };
 
@@ -83,24 +85,31 @@ export function PlaylistDetail() {
     triggerDownloadWithAd('album', async () => {
       triggerHaptic(30);
       setIsFullDownloading(true);
-      toast({ title: "Syncing Library", description: "Starting mass fetch for offline availability." });
+      toast({ title: "Mass Fetch Initialized", description: "Starting hardware synchronization for full vibe." });
       
+      // Sequential Binary Handshake
       for (const song of selectedPlaylist.songs) {
         if (!isTrackDownloaded(song.id)) {
-          await new Promise(r => setTimeout(r, 500));
+          setDownloadingIds(prev => new Set(prev).add(song.id));
           await simulateDownload(song);
+          await new Promise(r => setTimeout(r, 800)); // Stagger archival
+          setDownloadingIds(prev => {
+            const next = new Set(prev);
+            next.delete(song.id);
+            return next;
+          });
         }
       }
       
       setIsFullDownloading(false);
-      toast({ title: "Vibe Synced", description: "All tracks are now ready for offline listening." });
+      toast({ title: "Vibe Materialized", description: "Entire playlist node is now stored on your device." });
     });
   };
 
   const isLiked = isCollectionLiked(selectedPlaylist.id);
 
   return (
-    <div className="fixed inset-0 z-[120] bg-background flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-500 overflow-hidden">
+    <div className="fixed inset-0 z-[120] bg-background flex flex-col animate-in fade-in duration-500 overflow-hidden">
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full bg-primary/10 blur-[150px] opacity-40" />
         <Image 
@@ -277,7 +286,7 @@ export function PlaylistDetail() {
                               onClick={(e) => { e.stopPropagation(); handleTrackDownload(song); }}
                             >
                               {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} 
-                              {isDownloaded ? "Offline Ready" : "Download Single"}
+                              {isDownloaded ? "Stored on Hardware" : "Save Single to Device"}
                             </DropdownMenuItem>
                             <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); toast({ title: "Removed", description: "Track removed from playlist." }); }}>
                               <Plus className="h-4 w-4 rotate-45" /> Remove from Playlist

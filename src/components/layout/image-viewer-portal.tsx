@@ -5,7 +5,7 @@ import { X, Download, ZoomIn, ZoomOut, Zap, ShieldCheck, ArrowLeft, Loader2, Max
 import { Button } from "@/components/ui/button";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
-import { cn } from "@/lib/utils";
+import { cn, saveFileToDevice } from "@/lib/utils";
 import Image from "next/image";
 
 export function ImageViewerPortal() {
@@ -41,18 +41,10 @@ export function ImageViewerPortal() {
       triggerHaptic(30);
       
       try {
-        const response = await fetch(selectedImageUrl);
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `vimore_asset_${Date.now()}.jpg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
+        // BINARY HANDSHAKE: Physical Archival
+        await saveFileToDevice(selectedImageUrl, `vimore_visual_${Date.now()}.jpg`);
       } catch (e) {
-        console.error("Download failure", e);
+        console.error("Binary Archival Failure", e);
       } finally {
         setIsDownloading(false);
       }

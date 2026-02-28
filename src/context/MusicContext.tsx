@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import { saveFileToDevice } from '@/lib/utils';
 
 export interface Comment {
   id: string | number;
@@ -342,12 +343,22 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const simulateDownload = async (track: Track) => {
     if (downloadedSongIds.has(track.id)) return;
     triggerHaptic(10);
-    setDownloadedSongIds(prev => { const n = new Set(prev); n.add(track.id); return n; });
+    
+    // BINARY HANDSHAKE: Actual Device Save
+    try {
+      await saveFileToDevice(
+        'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', 
+        `vimore_sonic_${track.id}.mp3`
+      );
+      setDownloadedSongIds(prev => { const n = new Set(prev); n.add(track.id); return n; });
+    } catch (e) {
+      console.error("Binary Archival Failed:", e);
+    }
   };
 
   const triggerDownloadWithAd = (type: 'single' | 'album' | 'reel', task: () => Promise<void>) => {
     triggerHaptic(15);
-    setAdDuration(30); // Standardize to 30 seconds as requested
+    setAdDuration(30); 
     setPendingDownloadTask(() => task);
     setIsAdPortalOpen(true);
   };

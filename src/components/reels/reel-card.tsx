@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRef, useState, useEffect } from "react";
@@ -18,7 +17,7 @@ import {
   Gift
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn, parseFollowerCount } from "@/lib/utils";
+import { cn, parseFollowerCount, saveFileToDevice } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { useMusic } from "@/context/MusicContext";
@@ -108,9 +107,16 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
     triggerDownloadWithAd('reel', async () => {
       setIsDownloading(true);
       toast({ title: "Archiving Vibe", description: "Preparing high-fidelity reel node..." });
-      await new Promise(r => setTimeout(r, 2500));
-      setIsDownloading(false);
-      toast({ title: "Reel Noted", description: "Video saved to your identity notes." });
+      
+      try {
+        // BINARY HANDSHAKE: Actual Save to Hardware
+        await saveFileToDevice(videoUrl, `vimore_reel_${id}.mp4`);
+        toast({ title: "Reel Saved", description: "Vibe archived to your device library." });
+      } catch (e) {
+        console.error("Binary Archival Failure", e);
+      } finally {
+        setIsDownloading(false);
+      }
     });
   };
 

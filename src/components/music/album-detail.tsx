@@ -64,32 +64,43 @@ export function AlbumDetail() {
     
     triggerDownloadWithAd('single', async () => {
       setDownloadingIds(prev => new Set(prev).add(track.id));
-      toast({ title: "Sonic Download", description: `Fetching ${track.title}...` });
-      await new Promise(r => setTimeout(r, 2000));
+      toast({ title: "Sonic Archival", description: `Fetching high-fidelity node: ${track.title}...` });
+      
+      // Perform physical save through simulateDownload protocol
       await simulateDownload(track);
+      
       setDownloadingIds(prev => {
         const next = new Set(prev);
         next.delete(track.id);
         return next;
       });
-      toast({ title: "Ready Offline", description: `${track.title} saved.` });
+      toast({ title: "Archived to Device", description: `${track.title} saved.` });
     });
   };
 
   const handleDownloadFull = async () => {
     triggerDownloadWithAd('album', async () => {
-      toast({ title: "Mass Fetching", description: `Starting download for ${selectedAlbum.songs.length} tracks...` });
+      toast({ title: "Collective Archival", description: `Starting mass fetch for ${selectedAlbum.songs.length} tracks...` });
+      
+      // Sequential Binary Handshake to prevent system blocks
       for (const track of selectedAlbum.songs) {
         if (!isTrackDownloaded(track.id)) {
+          setDownloadingIds(prev => new Set(prev).add(track.id));
           await simulateDownload(track);
+          await new Promise(r => setTimeout(r, 800)); // Stagger the hardware triggers
+          setDownloadingIds(prev => {
+            const next = new Set(prev);
+            next.delete(track.id);
+            return next;
+          });
         }
       }
-      toast({ title: "Album Downloaded", description: `${selectedAlbum.title} is now available offline.` });
+      toast({ title: "Album Synced", description: `${selectedAlbum.title} is now stored on your device.` });
     });
   };
 
   return (
-    <div className="fixed inset-0 z-[120] bg-background flex flex-col animate-in fade-in slide-in-from-bottom-8 duration-500 overflow-hidden">
+    <div className="fixed inset-0 z-[120] bg-background flex flex-col animate-in fade-in duration-500 overflow-hidden">
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full bg-primary/10 blur-[150px] opacity-40" />
         <Image 
@@ -117,7 +128,7 @@ export function AlbumDetail() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 rounded-xl p-2">
               <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={handleDownloadFull}>
-                <Download className="h-4 w-4" /> Download Full Album
+                <Download className="h-4 w-4" /> Save Entire Project
               </DropdownMenuItem>
               <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={() => toast({ title: "Library", description: "Album saved to your digital collection." })}>
                 <Plus className="h-4 w-4" /> Add to Library
@@ -262,7 +273,7 @@ export function AlbumDetail() {
                               onClick={(e) => { e.stopPropagation(); handleTrackDownload(song); }}
                             >
                               {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} 
-                              {isDownloaded ? "Available Offline" : "Download Single"}
+                              {isDownloaded ? "Saved to Hardware" : "Save Single to Device"}
                             </DropdownMenuItem>
                             <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/track/${song.id}`); toast({ title: "Shared", description: "Song link copied to clipboard." }); }}>
                               <Share2 className="h-4 w-4" /> Share Song
