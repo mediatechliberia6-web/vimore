@@ -9,6 +9,7 @@ import { MusicCharts } from "@/components/music/music-charts";
 import { MusicUpload } from "@/components/music/music-upload";
 import { CreatePlaylistModal } from "@/components/music/create-playlist-modal";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
+import { InterstitialPortal } from "@/components/music/interstitial-portal";
 import { useMusic, Album, Track, Playlist, ALL_SONGS } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,8 @@ const MOCK_ARTISTS = [
   { id: 'ar4', name: "Olamide", username: "mstone", role: "Rapper", avatar: "https://picsum.photos/seed/art4/200/200" },
 ];
 
+const INTERSTITIAL_INTERVAL = 12 * 60; // 12 minutes in seconds
+
 function MusicPageContent() {
   const searchParams = useSearchParams();
   const { currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, userSongs, userAlbums, openCreatePlaylist, downloadedSongIds, queue, deleteUserTrack, deleteUserAlbum, triggerHaptic } = useMusic();
@@ -96,7 +99,29 @@ function MusicPageContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteItem, setDeleteItem] = useState<{ id: string | number, type: 'track' | 'album' } | null>(null);
   
+  // Interstitial State
+  const [timeSpent, setTimeSpent] = useState(0);
+  const [isInterstitialOpen, setIsInterstitialOpen] = useState(false);
+  
   const isPlayerActive = currentTrack && !isExpanded;
+
+  // 12-Minute Pulse Logic
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (!isInterstitialOpen) {
+        setTimeSpent(prev => {
+          const next = prev + 1;
+          if (next >= INTERSTITIAL_INTERVAL) {
+            setIsInterstitialOpen(true);
+            return 0;
+          }
+          return next;
+        });
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isInterstitialOpen]);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -175,7 +200,7 @@ function MusicPageContent() {
   return (
     <div className={cn(
       "min-h-screen bg-[#F0F2F5] dark:bg-background transition-colors duration-300",
-      (isExpanded || selectedAlbum || selectedPlaylist) && "h-screen overflow-hidden"
+      (isExpanded || selectedAlbum || selectedPlaylist || isInterstitialOpen) && "h-screen overflow-hidden"
     )}>
       <Header />
       
@@ -431,6 +456,7 @@ function MusicPageContent() {
 
       <MusicNav activeTab={activeTab} onTabChange={setActiveTab} />
       <CreatePlaylistModal />
+      <InterstitialPortal isOpen={isInterstitialOpen} onClose={() => setIsInterstitialOpen(false)} />
 
       <AlertDialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}>
         <AlertDialogContent className="rounded-[2.5rem] sm:max-w-[400px]">
