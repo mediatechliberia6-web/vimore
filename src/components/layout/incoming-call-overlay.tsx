@@ -37,7 +37,7 @@ const QUICK_RESPONSES = [
 export function IncomingCallOverlay() {
   const { callState, acceptCall, endCall, triggerHaptic, settings } = usePosts();
   const { isPlaying, togglePlay } = useMusic();
-  const { addSignal } = useNotifications();
+  const { addSignal, currentUser } = useNotifications();
   const router = useRouter();
   
   const [pulseScale, setPulseScale] = useState(1);
@@ -67,7 +67,7 @@ export function IncomingCallOverlay() {
       // Background Pulse: Mini Handshake signal
       addSignal({
         type: 'SOCIAL',
-        title: 'Incoming Handshake',
+        title: `Incoming ${callState.type === 'video' ? 'Video' : 'Sonic'} Handshake`,
         content: `**${callState.contact?.name}** is requesting a ${callState.type} link.`,
         avatar: callState.contact?.avatar
       });
@@ -90,7 +90,7 @@ export function IncomingCallOverlay() {
         wasMusicPlayingRef.current = false;
       }
     }
-  }, [callState.status, isPlaying, togglePlay, settings.isSilenceActive, addSignal]);
+  }, [callState.status, isPlaying, togglePlay, settings.isSilenceActive, addSignal, callState.type]);
 
   if (callState.status !== 'incoming' || !callState.contact) return null;
 
@@ -127,7 +127,7 @@ export function IncomingCallOverlay() {
           <div className="flex justify-center">
             <div className="bg-primary/10 border border-primary/20 rounded-2xl px-4 py-1.5 flex items-center gap-2">
               <Zap className="h-3.5 w-3.5 text-primary animate-pulse" />
-              <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Incoming Handshake</span>
+              <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Incoming {callState.type.toUpperCase()} Handshake</span>
             </div>
           </div>
           <div className="space-y-1">

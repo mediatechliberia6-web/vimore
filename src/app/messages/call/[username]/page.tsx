@@ -20,7 +20,8 @@ import {
   Sparkles,
   Camera,
   Heart,
-  ChevronLeft
+  ChevronLeft,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -38,24 +39,27 @@ const MOCK_USERS: Record<string, any> = {
   "mstone": { name: "Marcus Stone", avatar: "https://picsum.photos/seed/3/400/400", isVerified: false },
 };
 
-export default function VideoCallPage({ params }: { params: Promise<{ username: string }> }) {
+export default function CallPage({ params }: { params: Promise<{ username: string }> }) {
   const resolvedParams = use(params);
   const username = resolvedParams.username;
   const router = useRouter();
   const { triggerHaptic } = useMusic();
-  const { currentUser, callState, endCall } = usePosts();
+  const { currentUser, callState, endCall, initiateCall } = usePosts();
 
   const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(callState.type === 'audio');
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [hasCameraPermission, setHasCameraPermission] = useState(false);
   const [isUiVisible, setIsUiVisible] = useState(true);
   const [callDuration, setCallDuration] = useState(0);
   const [isConnecting, setIsConnecting] = useState(true);
   const [cameraMode, setCameraMode] = useState<"user" | "environment">("user");
+  const [pulseRings, setPulseRings] = useState<number[]>([]);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteUser = MOCK_USERS[username] || { name: username, avatar: `https://picsum.photos/seed/${username}/400/400`, isVerified: false };
+
+  const isAudioCall = callState.type === 'audio';
 
   // 1. Connection Handshake
   useEffect(() => {
@@ -68,39 +72,46 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
       if (!isConnecting) setCallDuration(prev => prev + 1);
     }, 1000);
 
+    // Initial rings for audio visualizer
+    setPulseRings([1, 2, 3]);
+
     return () => {
       clearTimeout(timer);
       clearInterval(interval);
     };
   }, [isConnecting, triggerHaptic]);
 
-  // 2. Camera Access Handshake with Flip Logic
+  // 2. Hardware Access Handshake
   useEffect(() => {
-    const getCameraPermission = async () => {
-      // 1. Force release of existing tracks
+    const getPermissions = async () => {
+      // Release existing tracks
       if (localVideoRef.current?.srcObject) {
         const currentStream = localVideoRef.current.srcObject as MediaStream;
         currentStream.getTracks().forEach(track => track.stop());
       }
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: cameraMode }, 
+        const constraints = {
+          video: isAudioCall ? false : { facingMode: cameraMode }, 
           audio: true 
-        });
-        setHasCameraPermission(true);
-
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
+        };
+        
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        if (!isAudioCall) {
+          setHasCameraPermission(true);
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = stream;
+          }
         }
       } catch (error) {
-        console.error('Error accessing camera:', error);
+        console.error('Hardware handshake error:', error);
         setHasCameraPermission(false);
       }
     };
 
-    if (!isVideoOff) {
-      getCameraPermission();
+    if (isCaptureActive()) {
+      getPermissions();
     }
 
     return () => {
@@ -109,7 +120,12 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [isVideoOff, cameraMode]);
+  }, [cameraMode, isAudioCall, callState.type]);
+
+  const isCaptureActive = () => {
+    if (isAudioCall) return true; // Audio always needs mic
+    return !isVideoOff; // Video only if lens is active
+  };
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -119,14 +135,17 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
 
   const handleEndCall = () => {
     triggerHaptic(100);
-    
-    // Temporal Logic: Store duration for the chat summary
     const durationStr = formatDuration(callDuration);
     localStorage.setItem('vimore_last_call_duration', durationStr);
-    
     endCall();
-    // Return to messages hub with a signal to show the end summary
     router.push(`/messages?lastCall=${username}`);
+  };
+
+  const handleUpgradeToVideo = () => {
+    triggerHaptic(30);
+    // Transition state to video
+    initiateCall(remoteUser as any, 'video');
+    setIsVideoOff(false);
   };
 
   const handleFlipCamera = (e: React.MouseEvent) => {
@@ -141,7 +160,7 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
 
   return (
     <div className="fixed inset-0 z-[500] bg-black flex flex-col overflow-hidden select-none touch-none">
-      {/* 1. Main Immersive Canvas (Remote User) */}
+      {/* 1. Main Immersive Canvas */}
       <div className="absolute inset-0 z-0 bg-zinc-900" onClick={toggleUi}>
         {isConnecting ? (
           <div className="w-full h-full flex flex-col items-center justify-center space-y-8">
@@ -165,54 +184,77 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
           </div>
         ) : (
           <div className="relative w-full h-full">
-            {/* Fallback Aurora Background */}
+            {/* Immersive Atmosphere (Aurora) */}
             <div className="absolute inset-0 overflow-hidden">
               <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
               <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[120px] rounded-full animate-pulse delay-700" />
               <Image src={remoteUser.avatar} alt="Blur" fill className="object-cover blur-[100px] opacity-20 scale-150" />
             </div>
-            {/* Remote Video Participant (Mocked) */}
-            <div className="relative w-full h-full flex items-center justify-center">
-              <Image src={remoteUser.avatar} alt={remoteUser.name} fill className="object-cover brightness-75" />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80 pointer-events-none" />
-            </div>
+
+            {isAudioCall ? (
+              /* Sonic Signature View */
+              <div className="relative w-full h-full flex flex-col items-center justify-center space-y-12">
+                <div className="relative">
+                  {/* Visual Voice Signature (Pulsing Rings) */}
+                  {pulseRings.map((i) => (
+                    <div 
+                      key={i}
+                      className="absolute inset-[-40px] border border-primary/20 rounded-full animate-ping"
+                      style={{ animationDuration: `${2 + i}s`, animationDelay: `${i * 0.5}s` }}
+                    />
+                  ))}
+                  <div className="relative group">
+                    <div className="absolute -inset-4 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Avatar className="h-48 w-48 border-4 border-white/10 shadow-2xl relative z-10">
+                      <AvatarImage src={remoteUser.avatar} />
+                      <AvatarFallback>{remoteUser.name[0]}</AvatarFallback>
+                    </Avatar>
+                  </div>
+                </div>
+                <div className="text-center space-y-2">
+                  <h3 className="text-3xl font-black italic uppercase tracking-tighter text-white drop-shadow-lg">{remoteUser.name}</h3>
+                  <div className="flex items-center justify-center gap-2 text-primary font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">
+                    <Volume2 className="h-3 w-3" /> Sonic Link Active
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Remote Video Participant */
+              <div className="relative w-full h-full flex items-center justify-center">
+                <Image src={remoteUser.avatar} alt={remoteUser.name} fill className="object-cover brightness-75" />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80 pointer-events-none" />
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* 2. Floating PiP (Local User) */}
-      <div className={cn(
-        "absolute top-20 right-6 z-50 w-32 sm:w-44 aspect-[9/16] rounded-[2.5rem] overflow-hidden shadow-2xl transition-all duration-700 ring-2 ring-white/10 group",
-        !isUiVisible && "opacity-0 translate-y-[-20px] pointer-events-none"
-      )}>
-        <video 
-          ref={localVideoRef} 
-          autoPlay 
-          muted 
-          playsInline 
-          className={cn(
-            "w-full h-full object-cover transition-all duration-500",
-            isVideoOff && "opacity-0",
-            cameraMode === 'user' && "scale-x-[-1]"
-          )} 
-        />
-        {isVideoOff && (
-          <div className="absolute inset-0 bg-zinc-800 flex items-center justify-center">
-            <Avatar className="h-16 w-16 border-2 border-primary/20">
-              <AvatarImage src={currentUser.avatar} />
-              <AvatarFallback>JD</AvatarFallback>
-            </Avatar>
+      {/* 2. Floating PiP (Local User) - Only for Video */}
+      {!isAudioCall && (
+        <div className={cn(
+          "absolute top-20 right-6 z-50 w-32 sm:w-44 aspect-[9/16] rounded-[2.5rem] overflow-hidden shadow-2xl transition-all duration-700 ring-2 ring-white/10 group",
+          (!isUiVisible || isVideoOff) && "opacity-0 translate-y-[-20px] pointer-events-none"
+        )}>
+          <video 
+            ref={localVideoRef} 
+            autoPlay 
+            muted 
+            playsInline 
+            className={cn(
+              "w-full h-full object-cover transition-all duration-500",
+              cameraMode === 'user' && "scale-x-[-1]"
+            )} 
+          />
+          <div className="absolute bottom-4 left-0 right-0 text-center">
+            <span className="text-[8px] font-black uppercase text-white/60 tracking-widest drop-shadow-md">Local Pulse (Me)</span>
           </div>
-        )}
-        <div className="absolute bottom-4 left-0 right-0 text-center">
-          <span className="text-[8px] font-black uppercase text-white/60 tracking-widest drop-shadow-md">You (Me)</span>
+          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <Button variant="ghost" size="icon" className="text-white rounded-full bg-white/10" onClick={handleFlipCamera}>
+              <RefreshCw className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
-        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <Button variant="ghost" size="icon" className="text-white rounded-full bg-white/10" onClick={handleFlipCamera}>
-            <RefreshCw className="h-5 w-5" />
-          </Button>
-        </div>
-      </div>
+      )}
 
       {/* 3. Header Controls */}
       <header className={cn(
@@ -239,7 +281,9 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
         <div className="flex items-center gap-2">
           <div className="bg-primary/20 backdrop-blur-md border border-primary/20 rounded-full px-4 py-1.5 flex items-center gap-2">
             <Zap className="h-3 w-3 text-primary animate-pulse" />
-            <span className="text-[10px] font-black text-white uppercase tracking-widest">High-Velocity Link</span>
+            <span className="text-[10px] font-black text-white uppercase tracking-widest">
+              {isAudioCall ? 'Sonic' : 'High-Velocity'} Link
+            </span>
           </div>
         </div>
       </header>
@@ -259,13 +303,24 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
               {isMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
             </Button>
 
-            <Button 
-              variant="ghost" size="icon" 
-              className={cn("h-14 w-14 rounded-full transition-all", isVideoOff ? "bg-primary/20 text-primary" : "bg-white/5 text-white hover:bg-white/10")}
-              onClick={() => { triggerHaptic(5); setIsVideoOff(!isVideoOff); }}
-            >
-              {isVideoOff ? <VideoOff className="h-6 w-6" /> : <Video className="h-6 w-6" />}
-            </Button>
+            {isAudioCall ? (
+              <Button 
+                variant="ghost" size="icon" 
+                className="h-14 w-14 rounded-full bg-white/5 text-white hover:bg-primary/20 hover:text-primary transition-all"
+                onClick={handleUpgradeToVideo}
+                title="Upgrade to Video"
+              >
+                <Video className="h-6 w-6" />
+              </Button>
+            ) : (
+              <Button 
+                variant="ghost" size="icon" 
+                className={cn("h-14 w-14 rounded-full transition-all", isVideoOff ? "bg-primary/20 text-primary" : "bg-white/5 text-white hover:bg-white/10")}
+                onClick={() => { triggerHaptic(5); setIsVideoOff(!isVideoOff); }}
+              >
+                {isVideoOff ? <VideoOff className="h-6 w-6" /> : <Video className="h-6 w-6" />}
+              </Button>
+            )}
 
             <div className="w-px h-8 bg-white/10 mx-1" />
 
@@ -286,19 +341,21 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
               {isSpeakerOn ? <Volume2 className="h-6 w-6" /> : <VolumeX className="h-6 w-6" />}
             </Button>
 
-            <Button 
-              variant="ghost" size="icon" 
-              className="h-14 w-14 rounded-full bg-white/5 text-white hover:bg-white/10"
-              onClick={handleFlipCamera}
-            >
-              <RefreshCw className="h-6 w-6" />
-            </Button>
+            {!isAudioCall && (
+              <Button 
+                variant="ghost" size="icon" 
+                className="h-14 w-14 rounded-full bg-white/5 text-white hover:bg-white/10"
+                onClick={handleFlipCamera}
+              >
+                <RefreshCw className="h-6 w-6" />
+              </Button>
+            )}
           </TooltipProvider>
         </div>
       </footer>
 
-      {/* Permission Warning */}
-      {!(hasCameraPermission) && !isConnecting && !isVideoOff && (
+      {/* Permission Warning (Video Only) */}
+      {!isAudioCall && !(hasCameraPermission) && !isConnecting && !isVideoOff && (
         <div className="absolute inset-0 z-[100] flex items-center justify-center p-12 bg-black/80 backdrop-blur-sm">
           <div className="max-w-md bg-zinc-900 border border-destructive/20 rounded-3xl p-8 space-y-6">
             <div className="flex items-center gap-3">

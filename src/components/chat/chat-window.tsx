@@ -315,9 +315,8 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     };
     setMessages(prev => [...prev, callLog]);
     
-    if (type === 'video') {
-      router.push(`/messages/call/${contact.username}`);
-    }
+    // Both types navigate to the call page now
+    router.push(`/messages/call/${contact.username}`);
   };
 
   return (
