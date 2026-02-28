@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -9,7 +8,8 @@ import {
   Users2, 
   Sparkles,
   ChevronRight,
-  Plus
+  Plus,
+  ChevronLeft
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -62,24 +62,31 @@ export function CreateClusterModal({ children }: { children: React.ReactNode }) 
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={(val) => { setIsOpen(val); if (!val) reset(); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="rounded-t-[3rem] p-0 border-primary/10 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-3xl h-[85vh] flex flex-col top-auto bottom-0 translate-y-0 translate-x-[-50%] overflow-hidden">
         <div className="mx-auto w-12 h-1.5 bg-primary/20 rounded-full mt-4 mb-2 shrink-0" />
         
         <DialogHeader className="px-6 py-4 shrink-0">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">
-              {step === 'members' ? 'Select Nodes' : 'Cluster Identity'}
-            </DialogTitle>
-            <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setIsOpen(false)}>
+            <div className="flex items-center gap-3">
+              {step === 'identity' && (
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-secondary/40" onClick={() => setStep('members')}>
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              )}
+              <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">
+                {step === 'members' ? 'Select Nodes' : 'Cluster Identity'}
+              </DialogTitle>
+            </div>
+            <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" onClick={() => setIsOpen(false)}>
               <X className="h-6 w-6" />
             </Button>
           </div>
         </DialogHeader>
 
         {step === 'members' ? (
-          <>
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <div className="px-6 pb-4 space-y-4 shrink-0">
               <div className="relative group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary" />
@@ -116,7 +123,7 @@ export function CreateClusterModal({ children }: { children: React.ReactNode }) 
             </div>
 
             <ScrollArea className="flex-1 px-6">
-              <div className="space-y-3 pb-32">
+              <div className="space-y-3 pb-6">
                 {filteredNodes.map((node) => {
                   const isSelected = selectedNodes.some(n => n.username === node.username);
                   return (
@@ -149,7 +156,7 @@ export function CreateClusterModal({ children }: { children: React.ReactNode }) 
               </div>
             </ScrollArea>
 
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white dark:from-[#050505] via-white/95 to-transparent pt-12">
+            <div className="p-6 bg-white dark:bg-[#050505] border-t border-primary/5 shrink-0">
               <Button 
                 className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-widest gap-2 shadow-2xl disabled:opacity-50"
                 disabled={selectedNodes.length < 2}
@@ -158,59 +165,63 @@ export function CreateClusterModal({ children }: { children: React.ReactNode }) 
                 Next Step <ChevronRight className="h-5 w-5" />
               </Button>
             </div>
-          </>
+          </div>
         ) : (
-          <div className="flex-1 px-6 space-y-10 animate-in slide-in-from-right-4 duration-500">
-            <div className="flex flex-col items-center gap-6 py-8">
-              <div className="relative group">
-                <div className="h-32 w-32 rounded-[2.5rem] bg-secondary/40 border-2 border-dashed border-primary/20 flex items-center justify-center relative overflow-hidden group-hover:border-primary/50 transition-all">
-                  {selectedNodes.slice(0, 3).map((node, i) => (
-                    <div 
-                      key={node.username}
-                      className="absolute border-2 border-white dark:border-card rounded-full overflow-hidden shadow-xl"
-                      style={{ 
-                        width: '64px', height: '64px',
-                        left: i === 0 ? '10%' : i === 1 ? '40%' : '25%',
-                        top: i === 2 ? '40%' : '15%',
-                        zIndex: 10 - i
-                      }}
-                    >
-                      <img src={node.avatar} alt="Member" className="w-full h-full object-cover" />
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <ScrollArea className="flex-1 px-6">
+              <div className="space-y-10 py-6 pb-10 animate-in slide-in-from-right-4 duration-500">
+                <div className="flex flex-col items-center gap-6">
+                  <div className="relative group">
+                    <div className="h-32 w-32 rounded-[2.5rem] bg-secondary/40 border-2 border-dashed border-primary/20 flex items-center justify-center relative overflow-hidden group-hover:border-primary/50 transition-all">
+                      {selectedNodes.slice(0, 3).map((node, i) => (
+                        <div 
+                          key={node.username}
+                          className="absolute border-2 border-white dark:border-card rounded-full overflow-hidden shadow-xl"
+                          style={{ 
+                            width: '64px', height: '64px',
+                            left: i === 0 ? '10%' : i === 1 ? '40%' : '25%',
+                            top: i === 2 ? '40%' : '15%',
+                            zIndex: 10 - i
+                          }}
+                        >
+                          <img src={node.avatar} alt="Member" className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                      <div className="absolute inset-0 bg-primary/5 group-hover:bg-primary/10 transition-colors" />
                     </div>
-                  ))}
-                  <div className="absolute inset-0 bg-primary/5 group-hover:bg-primary/10 transition-colors" />
+                    <div className="absolute -bottom-2 -right-2 bg-primary text-white p-2 rounded-xl shadow-lg ring-4 ring-white dark:ring-[#050505]">
+                      <Plus className="h-5 w-5" />
+                    </div>
+                  </div>
+                  <div className="text-center space-y-1">
+                    <h3 className="text-xl font-black italic uppercase tracking-tighter">Collective Signature</h3>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{selectedNodes.length} Nodes in Cluster</p>
+                  </div>
                 </div>
-                <div className="absolute -bottom-2 -right-2 bg-primary text-white p-2 rounded-xl shadow-lg ring-4 ring-white dark:ring-[#050505]">
-                  <Plus className="h-5 w-5" />
+
+                <div className="space-y-6">
+                  <div className="space-y-2 group">
+                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground ml-1 group-focus-within:text-primary transition-colors">Cluster Label</label>
+                    <Input 
+                      placeholder="Project Aura, Design Hub..." 
+                      className="h-16 rounded-2xl bg-secondary/30 border-none px-6 font-black italic uppercase text-2xl tracking-tighter focus-visible:ring-primary/20 transition-all shadow-inner"
+                      value={clusterName}
+                      onChange={(e) => setClusterName(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                  
+                  <div className="bg-primary/5 border border-primary/10 rounded-[2rem] p-6 flex gap-4">
+                    <Sparkles className="h-5 w-5 text-primary shrink-0" />
+                    <p className="text-[11px] font-medium leading-relaxed uppercase tracking-tighter text-muted-foreground">
+                      Clusters are specialized nodes for high-velocity text and media collaboration. Audio/Video calls are disabled to ensure peak focus.
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div className="text-center space-y-1">
-                <h3 className="text-xl font-black italic uppercase tracking-tighter">Collective Signature</h3>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{selectedNodes.length} Nodes in Cluster</p>
-              </div>
-            </div>
+            </ScrollArea>
 
-            <div className="space-y-4">
-              <div className="space-y-2 group">
-                <label className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground ml-1 group-focus-within:text-primary transition-colors">Cluster Label</label>
-                <Input 
-                  placeholder="Project Aura, Design Hub..." 
-                  className="h-16 rounded-2xl bg-secondary/30 border-none px-6 font-black italic uppercase text-2xl tracking-tighter focus-visible:ring-primary/20 transition-all"
-                  value={clusterName}
-                  onChange={(e) => setClusterName(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              
-              <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 flex gap-4">
-                <Sparkles className="h-5 w-5 text-primary shrink-0" />
-                <p className="text-[11px] font-medium leading-relaxed uppercase tracking-tighter text-muted-foreground">
-                  Clusters are specialized nodes for high-velocity text and media collaboration. Audio/Video calls are disabled to ensure peak focus.
-                </p>
-              </div>
-            </div>
-
-            <div className="absolute bottom-0 left-0 right-0 p-6 space-y-4">
+            <div className="p-6 space-y-4 bg-white dark:bg-[#050505] border-t border-primary/5 shrink-0">
               <Button 
                 className="w-full h-16 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl disabled:opacity-50"
                 disabled={!clusterName.trim()}
@@ -218,7 +229,11 @@ export function CreateClusterModal({ children }: { children: React.ReactNode }) 
               >
                 Materialize Cluster
               </Button>
-              <Button variant="ghost" className="w-full text-muted-foreground font-black uppercase text-[10px] tracking-widest" onClick={() => setStep('members')}>
+              <Button 
+                variant="ghost" 
+                className="w-full text-muted-foreground font-black uppercase text-[10px] tracking-widest h-10" 
+                onClick={() => setStep('members')}
+              >
                 Back to Selection
               </Button>
             </div>
