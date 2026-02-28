@@ -61,6 +61,19 @@ export interface PendingTransaction {
   timestamp: number;
 }
 
+export interface WithdrawalNode {
+  id: string;
+  method: string;
+  amount: number;
+  currency: string;
+  payoutAmount: number;
+  payoutCurrency: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  timestamp: number;
+  accountName: string;
+  accountNumber: string;
+}
+
 export interface Connection {
   name: string;
   username: string;
@@ -205,6 +218,7 @@ interface PostContextType {
   isGiftHubOpen: boolean;
   targetUserForGift: User | null;
   pendingTransaction: PendingTransaction | null;
+  withdrawalHistory: WithdrawalNode[];
   referralLink: string;
   settings: AppSettings;
   callState: CallState;
@@ -234,6 +248,7 @@ interface PostContextType {
   toggleFollowUser: (username: string) => void;
   initiateTransaction: (data: Omit<PendingTransaction, 'timestamp'>) => void;
   cancelTransaction: () => void;
+  recordWithdrawal: (node: WithdrawalNode) => void;
   triggerReferralPulse: (referralCode?: string) => void;
   verifyUser: (cost: number, currency: 'DIAMOND' | 'STAR') => void;
   processGiftTransaction: (cost: number, currency: 'GOLD' | 'DIAMOND') => void;
@@ -545,6 +560,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [unlockedPostIds, setUnlockedPostIds] = useState<Set<string>>(new Set());
   const [activeSubscriptions, setActiveSubscriptions] = useState<Set<string>>(new Set());
   const [pendingTransaction, setPendingTransaction] = useState<PendingTransaction | null>(null);
+  const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalNode[]>([]);
   
   const [followingUsernames, setFollowingUsernames] = useState<Set<string>>(new Set(["jmoore", "arivera", "schen_dev", "paul"]));
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
@@ -603,6 +619,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const savedFollowing = localStorage.getItem('vimore_following');
     const savedLocalPosts = localStorage.getItem('vimore_local_posts');
     const savedPending = localStorage.getItem('vimore_pending_transaction');
+    const savedWithdrawals = localStorage.getItem('vimore_withdrawal_history');
     const savedClusters = localStorage.getItem('vimore_clusters');
 
     if (savedUser) try { setCurrentUser(JSON.parse(savedUser)); } catch (e) {}
@@ -614,6 +631,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (savedSubs) setActiveSubscriptions(new Set(JSON.parse(savedSubs)));
     if (savedFollowing) setFollowingUsernames(new Set(JSON.parse(savedFollowing)));
     if (savedPending) setPendingTransaction(JSON.parse(savedPending));
+    if (savedWithdrawals) setWithdrawalHistory(JSON.parse(savedWithdrawals));
     if (savedClusters) setClusters(JSON.parse(savedClusters));
     
     if (savedLocalPosts) {
@@ -638,6 +656,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => { safePersist('vimore_subscriptions', Array.from(activeSubscriptions)); }, [activeSubscriptions]);
   useEffect(() => { safePersist('vimore_following', Array.from(followingUsernames)); }, [followingUsernames]);
   useEffect(() => { safePersist('vimore_settings', settings); }, [settings]);
+  useEffect(() => { safePersist('vimore_withdrawal_history', withdrawalHistory); }, [withdrawalHistory]);
   useEffect(() => { safePersist('vimore_clusters', clusters); }, [clusters]);
 
   useEffect(() => {
@@ -954,6 +973,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setPendingTransaction(null);
   };
 
+  const recordWithdrawal = (node: WithdrawalNode) => {
+    setWithdrawalHistory(prev => [node, ...prev].slice(0, 20));
+  };
+
   const openCommentHub = (postId: string) => {
     triggerHaptic(5);
     setActiveCommentPostId(postId);
@@ -1112,6 +1135,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       isGiftHubOpen,
       targetUserForGift,
       pendingTransaction,
+      withdrawalHistory,
       referralLink,
       settings,
       callState,
@@ -1142,6 +1166,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       toggleFollowUser,
       initiateTransaction,
       cancelTransaction,
+      recordWithdrawal,
       triggerReferralPulse,
       verifyUser,
       processGiftTransaction,

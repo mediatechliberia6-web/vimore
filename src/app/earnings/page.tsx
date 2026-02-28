@@ -28,7 +28,9 @@ import {
   Loader2,
   Clock,
   ShieldAlert,
-  Mail
+  Mail,
+  AlertTriangle,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -86,7 +88,7 @@ const QUALIFICATIONS = [
 ];
 
 export default function EarningsPage() {
-  const { currentUser, triggerHaptic } = usePosts();
+  const { currentUser, triggerHaptic, withdrawalHistory, recordWithdrawal, processGiftTransaction } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
   const { toast } = useToast();
@@ -180,15 +182,33 @@ export default function EarningsPage() {
     triggerHaptic(100);
 
     setTimeout(() => {
+      // FINANCIAL DEB PULSE
+      processGiftTransaction(rawAmount, withdrawCurrency);
+
+      const historyNode = {
+        id: `TX-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+        method: payoutMethod!,
+        amount: rawAmount,
+        currency: withdrawCurrency,
+        payoutAmount: calculation.finalPayout,
+        payoutCurrency: payoutCurrency,
+        status: 'PENDING' as const,
+        timestamp: Date.now(),
+        accountName,
+        accountNumber
+      };
+
+      recordWithdrawal(historyNode);
+
       addSignal({
         type: 'SYSTEM',
-        title: 'Withdrawal Pending',
-        content: `Your request for **${payoutCurrency} ${calculation.finalPayout.toFixed(2)}** has been received and is being audited.`,
+        title: 'Review Node Active',
+        content: `Your withdrawal for **${payoutCurrency} ${calculation.finalPayout.toFixed(2)}** is being audited by the Groq AI Financial Engine.`,
         image: "https://picsum.photos/seed/money/100/100"
       });
 
       toast({
-        title: "Submission Synced",
+        title: "Audit Trail Synchronized",
         description: "Your withdrawal node is now in the review cluster."
       });
 
@@ -213,7 +233,7 @@ export default function EarningsPage() {
     let interval: NodeJS.Timeout;
     if (step === 'verify' && timeLeft > 0) {
       interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
-    } else if (timeLeft === 0) {
+    } else if (timeLeft === 0 && step === 'verify') {
       setStep("form");
       toast({ variant: "destructive", title: "Temporal Expiry", description: "Security code has expired. Please re-initiate." });
     }
@@ -224,8 +244,8 @@ export default function EarningsPage() {
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300 relative overflow-x-hidden">
       {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/10 blur-[120px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-accent/10 blur-[120px] rounded-full animate-pulse delay-700" />
+        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/10 blur-[150px] rounded-full animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/10 blur-[120px] rounded-full animate-pulse delay-700" />
       </div>
 
       <header className="sticky top-0 z-50 bg-white/80 dark:bg-card/80 backdrop-blur-md border-b border-border h-16 px-4 flex items-center justify-between">
@@ -241,7 +261,7 @@ export default function EarningsPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black uppercase px-2 h-5">VERIFIED NODE</Badge>
+          {currentUser.isVerified && <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black uppercase px-2 h-5">VERIFIED NODE</Badge>}
           <Avatar className="h-9 w-9 border-2 border-primary/10">
             <AvatarImage src={currentUser.avatar} />
             <AvatarFallback>JD</AvatarFallback>
@@ -376,7 +396,51 @@ export default function EarningsPage() {
           </Card>
         </div>
 
-        {/* 3. Monetization Requirements Card */}
+        {/* 3. Withdrawal History Vault */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Audit Trail (Recent History)</h3>
+            <span className="text-[9px] font-black text-primary uppercase">{withdrawalHistory.length} NODES</span>
+          </div>
+          <div className="space-y-3">
+            {withdrawalHistory.length > 0 ? withdrawalHistory.map((node) => (
+              <div key={node.id} className="bg-white dark:bg-card border border-primary/5 p-5 rounded-[2rem] flex items-center justify-between group hover:border-primary/20 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "h-12 w-12 rounded-2xl flex items-center justify-center",
+                    node.status === 'PENDING' ? "bg-amber-500/10 text-amber-500" : "bg-green-500/10 text-green-500"
+                  )}>
+                    {node.status === 'PENDING' ? <CircleDashed className="h-6 w-6 animate-spin" /> : <CheckCircle2 className="h-6 w-6" />}
+                  </div>
+                  <div className="flex flex-col">
+                    <p className="text-sm font-bold">{node.payoutCurrency} {node.payoutAmount.toFixed(2)}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase text-muted-foreground">{node.method} Node</span>
+                      <div className="h-1 w-1 bg-muted-foreground/30 rounded-full" />
+                      <span className="text-[10px] font-black uppercase text-primary">Ref: {node.id}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end">
+                  <Badge className={cn(
+                    "font-black text-[8px] uppercase tracking-tighter border-none h-5 px-3",
+                    node.status === 'PENDING' ? "bg-amber-500/10 text-amber-500" : "bg-green-500/10 text-green-500"
+                  )}>
+                    {node.status}
+                  </Badge>
+                  <span className="text-[9px] text-muted-foreground uppercase mt-1">{new Date(node.timestamp).toLocaleDateString()}</span>
+                </div>
+              </div>
+            )) : (
+              <div className="py-16 text-center bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-dashed border-primary/10 rounded-[2.5rem] space-y-4 opacity-40">
+                <FileText className="h-10 w-10 mx-auto" />
+                <p className="text-sm font-black italic uppercase tracking-widest">Vault Empty</p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* 4. Monetization Requirements Card */}
         <Card className="bg-[#0A0A0A] border-white/5 shadow-2xl rounded-[2.5rem] overflow-hidden group">
           <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity"><TrendingUp className="h-32 w-32 text-primary" /></div>
           <CardHeader>
