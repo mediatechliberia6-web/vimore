@@ -9,6 +9,26 @@ import { aiGenerateVerificationCode as codeFlow } from '@/ai/flows/ai-generate-v
 import { aiVerifySignature as verifyFlow } from '@/ai/flows/ai-verify-signature-flow';
 import { aiSummarizeComments as commentsFlow } from '@/ai/flows/ai-summarize-comments-flow';
 import { aiAuditGiftHandshake as auditFlow } from '@/ai/flows/ai-audit-gift-flow';
+import { aiAuditMonetizationHandshake as monetizationFlow } from '@/ai/flows/ai-audit-monetization-flow';
+
+/**
+ * Audits a monetization transaction (Locked Post or Subscription).
+ */
+export async function aiAuditMonetizationHandshake(input: { type: 'LOCK_UNLOCK' | 'SUBSCRIPTION', userBalance: number, cost: number, currencyType: 'GOLD' | 'DIAMOND', creatorUsername: string }) {
+  try {
+    const result = await monetizationFlow(input);
+    return result;
+  } catch (error) {
+    console.error("Monetization Audit Error:", error);
+    const approved = input.userBalance >= input.cost;
+    return {
+      approved,
+      message: approved ? "Handshake protocol fallback initiated." : "Insufficient Energy Buy Currency and sync again",
+      auditToken: approved ? "MT-FB-" + Math.random().toString(36).substring(2, 10).toUpperCase() : "",
+      payoutAmount: input.cost * 0.7
+    };
+  }
+}
 
 /**
  * Audits a gift transaction using Groq AI.

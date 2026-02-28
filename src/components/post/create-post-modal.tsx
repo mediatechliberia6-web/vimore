@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -30,7 +31,10 @@ import {
   Wand2,
   Trash2,
   Video,
-  Search
+  Search,
+  Coins,
+  ShieldCheck,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -38,7 +42,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { cn, parseFollowerCount } from "@/lib/utils";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
@@ -59,6 +63,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { aiSuggestHashtags } from "@/app/actions/ai";
 
 interface CreatePostModalProps {
@@ -130,6 +135,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [selectedFilter, setSelectedFilter] = useState(imageFilters[0]);
   const [commentsDisabled, setCommentsDisabled] = useState(false);
   
+  // Monetization State
+  const [isLocked, setIsLocked] = useState(false);
+  const [unlockPrice, setUnlockPrice] = useState(50);
+  
   const [showFeelingSelector, setShowFeelingSelector] = useState(false);
   const [showLocationSelector, setShowLocationSelector] = useState(false);
   const [showThemeSelector, setShowThemeSelector] = useState(false);
@@ -140,26 +149,17 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const { toast } = useToast();
   
   const TRUNCATE_LIMIT = 150; 
+  const isEliteCreator = parseFollowerCount(currentUser.followers) >= 10000;
 
-  const isLimitedType = selectedTheme.id !== "none" || selectedMedia.length > 0 || mediaType !== null || isPollOpen;
+  const isLimitedType = selectedTheme.id !== "none" || selectedMedia.length > 0 || mediaType !== null || isPollOpen || isLocked;
   const currentLimit = isLimitedType ? TRUNCATE_LIMIT : 2000;
   const isOverLimit = content.length > currentLimit;
 
-  // COLLABORATION WHITELIST: Filter based on tagging privacy settings
   const filteredTagResults = useMemo(() => {
     let base = connections;
-    
-    if (settings.taggingPrivacy === 'friends') {
-      // Filter for mutual connections only
-      base = connections.filter(c => c.followsYou && isFollowing(c.username));
-    }
-
+    if (settings.taggingPrivacy === 'friends') base = connections.filter(c => c.followsYou && isFollowing(c.username));
     if (!tagSearch.trim()) return base;
-    
-    return base.filter(c => 
-      c.name.toLowerCase().includes(tagSearch.toLowerCase()) || 
-      c.username.toLowerCase().includes(tagSearch.toLowerCase())
-    );
+    return base.filter(c => c.name.toLowerCase().includes(tagSearch.toLowerCase()) || c.username.toLowerCase().includes(tagSearch.toLowerCase()));
   }, [connections, tagSearch, settings.taggingPrivacy, isFollowing]);
 
   useEffect(() => {
@@ -168,9 +168,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   }, []);
 
   useEffect(() => {
-    if (content) {
-      localStorage.setItem('vimore_post_draft', content);
-    }
+    if (content) localStorage.setItem('vimore_post_draft', content);
   }, [content]);
 
   const handleAiEnhance = async () => {
@@ -204,6 +202,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       feeling: feeling || undefined,
       location: location || undefined,
       commentsDisabled,
+      isLocked,
+      unlockPrice: isLocked ? unlockPrice : undefined,
       poll: isPollOpen && pollQuestion ? {
         question: pollQuestion,
         options: pollOptions.filter(o => o.trim()).map(text => ({ text, votes: 0 })),
@@ -212,7 +212,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       } : undefined
     });
 
-    toast({ title: "Vibe Shared!", description: "Your post has been shared." });
+    toast({ title: "Vibe Shared!", description: isLocked ? "Monetized node is now live." : "Your post has been shared." });
     localStorage.removeItem('vimore_post_draft');
     resetForm();
     setIsOpen(false);
@@ -230,6 +230,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setCollaborator(null);
     setSelectedTheme(backgroundThemes[0]);
     setSelectedFilter(imageFilters[0]);
+    setIsLocked(false);
+    setUnlockPrice(50);
   };
 
   const actionItems = [
@@ -259,31 +261,69 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto pb-safe">
-          <div className="p-4 flex items-center gap-3">
-            <Avatar className="h-12 w-12 border border-primary/10"><AvatarImage src={currentUser.avatar} /><AvatarFallback>JD</AvatarFallback></Avatar>
-            <div className="flex flex-col gap-0.5">
-              <div className="flex flex-wrap items-center gap-1">
-                <p className="font-bold text-base">{currentUser.name}</p>
-                {feeling && <span className="text-[13px] text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
-                {location && <span className="text-[13px] text-muted-foreground">— in <span className="font-bold text-foreground">{location}</span></span>}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="secondary" size="sm" className="h-7 px-2 bg-secondary/60 rounded-md flex items-center gap-1.5"><privacy.icon className="h-3.5 w-3.5" /><span className="text-[13px] font-bold">{privacy.label}</span><ChevronDown className="h-3.5 w-3.5" /></Button>
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
-                  className={cn("h-7 px-2 rounded-md flex items-center gap-1.5", collaborator ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/60")}
-                  onClick={() => setIsTaggingSelectorOpen(true)}
-                >
-                  <Users2 className="h-3.5 w-3.5" />
-                  <span className="text-[13px] font-bold">{collaborator ? `With ${collaborator.name}` : "Collaborator"}</span>
-                </Button>
+          <div className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-12 w-12 border border-primary/10"><AvatarImage src={currentUser.avatar} /><AvatarFallback>JD</AvatarFallback></Avatar>
+              <div className="flex flex-col gap-0.5">
+                <div className="flex flex-wrap items-center gap-1">
+                  <p className="font-bold text-base">{currentUser.name}</p>
+                  {feeling && <span className="text-[13px] text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
+                  {location && <span className="text-[13px] text-muted-foreground">— in <span className="font-bold text-foreground">{location}</span></span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="secondary" size="sm" className="h-7 px-2 bg-secondary/60 rounded-md flex items-center gap-1.5"><privacy.icon className="h-3.5 w-3.5" /><span className="text-[13px] font-bold">{privacy.label}</span><ChevronDown className="h-3.5 w-3.5" /></Button>
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    className={cn("h-7 px-2 rounded-md flex items-center gap-1.5", collaborator ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/60")}
+                    onClick={() => setIsTaggingSelectorOpen(true)}
+                  >
+                    <Users2 className="h-3.5 w-3.5" />
+                    <span className="text-[13px] font-bold">{collaborator ? `With ${collaborator.name}` : "Collaborator"}</span>
+                  </Button>
+                </div>
               </div>
             </div>
+
+            {isEliteCreator && (
+              <div className="flex items-center gap-2 bg-amber-500/5 p-2 rounded-xl border border-amber-500/10">
+                <Lock className={cn("h-4 w-4", isLocked ? "text-amber-500" : "text-muted-foreground/40")} />
+                <Switch 
+                  checked={isLocked} 
+                  onCheckedChange={(val) => { triggerHaptic(10); setIsLocked(val); if(val) setIsPollOpen(false); }} 
+                  className="data-[state=checked]:bg-amber-500"
+                />
+              </div>
+            )}
           </div>
 
-          <div className={cn("px-4 relative min-h-[220px] transition-all duration-300 flex items-center justify-center p-8", selectedTheme.class)}>
+          <div className={cn("px-4 relative min-h-[220px] transition-all duration-300 flex flex-col items-center justify-center p-8", selectedTheme.class)}>
             <Textarea ref={textareaRef} placeholder={isLimitedType ? "Short vibe... (150 chars max)" : "What's on your mind? (2000 chars max)"} className={cn("border-none focus-visible:ring-0 text-2xl resize-none p-0 min-h-[160px] bg-transparent text-center", selectedTheme.id !== "none" ? "text-white placeholder:text-white/60" : "text-foreground")} value={content} onChange={(e) => setContent(e.target.value)} autoFocus />
+            
+            {isLocked && (
+              <div className="w-full max-w-sm mt-8 p-6 bg-black/20 backdrop-blur-md rounded-[2rem] border border-white/10 space-y-6 animate-in zoom-in-95">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Coins className="h-4 w-4 text-amber-500" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Unlock Price</span>
+                  </div>
+                  <Badge className="bg-amber-500 text-white border-none font-black h-5 px-3 uppercase tracking-tighter">{unlockPrice} GOLD</Badge>
+                </div>
+                <Slider 
+                  value={[unlockPrice]} 
+                  min={20} 
+                  max={200} 
+                  step={10} 
+                  onValueChange={(val) => setUnlockPrice(val[0])}
+                  className="[&_[role=slider]]:bg-amber-500"
+                />
+                <div className="flex justify-between text-[8px] font-black text-white/40 uppercase tracking-widest">
+                  <span>20 GD</span>
+                  <span>200 GD</span>
+                </div>
+                <p className="text-[9px] text-center text-white/40 uppercase font-bold leading-tight">70% of energy will be synced to your vault on unlock.</p>
+              </div>
+            )}
           </div>
 
           {isPollOpen && (

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
@@ -159,6 +160,8 @@ export interface Post {
   isPinned?: boolean;
   isSeries?: boolean;
   seriesTitle?: string;
+  isLocked?: boolean;
+  unlockPrice?: number;
   poll?: {
     question: string;
     options: { text: string; votes: number }[];
@@ -188,6 +191,8 @@ interface PostContextType {
   likedPostIds: Set<string>;
   unlikedPostIds: Set<string>;
   savedPostIds: Set<string>;
+  unlockedPostIds: Set<string>;
+  activeSubscriptions: Set<string>;
   followingUsernames: Set<string>;
   activeStoryIndex: number | null;
   connections: Connection[];
@@ -232,10 +237,15 @@ interface PostContextType {
   triggerReferralPulse: (referralCode?: string) => void;
   verifyUser: (cost: number, currency: 'DIAMOND' | 'STAR') => void;
   processGiftTransaction: (cost: number, currency: 'GOLD' | 'DIAMOND') => void;
+  unlockPost: (postId: string, cost: number) => void;
+  subscribeToCreator: (username: string, cost: number) => void;
+  cancelSubscription: (username: string) => void;
   isPostLiked: (postId: string) => boolean;
   isPostUnliked: (postId: string) => boolean;
   isPostSaved: (postId: string) => boolean;
+  isPostUnlocked: (postId: string) => boolean;
   isFollowing: (username: string) => boolean;
+  isSubscribed: (username: string) => boolean;
   incrementShareCount: (postId: string) => void;
   triggerHaptic: (intensity?: number) => void;
   createCluster: (name: string, members: Connection[]) => void;
@@ -429,8 +439,8 @@ const initialMockPosts: Post[] = [
     language: "en",
     hashtags: ["NewBeginnings", "SocialMedia"],
     images: [
-      "https://picsum.photos/seed/multi1/800/600",
-      "https://picsum.photos/seed/multi2/800/600"
+      "https://images.unsplash.com/photo-1615118265620-d8decf628275?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxuYXR1cmUlMjBsYW5kc2NhcGV8ZW58MHx8fHwxNzcxODUwMDM3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "https://images.unsplash.com/photo-1519662978799-2f05096d3636?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBhcmNoaXRlY3R1cmV8ZW58MHx8fHwxNzcxOTIxNDkzfDA&ixlib=rb-4.1.0&q=80&w=1080"
     ],
     commentNodes: [
       {
@@ -499,6 +509,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
   const [unlikedPostIds, setUnlikedPostIds] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
+  const [unlockedPostIds, setUnlockedPostIds] = useState<Set<string>>(new Set());
+  const [activeSubscriptions, setActiveSubscriptions] = useState<Set<string>>(new Set());
   const [pendingTransaction, setPendingTransaction] = useState<PendingTransaction | null>(null);
   
   const [followingUsernames, setFollowingUsernames] = useState<Set<string>>(new Set(["jmoore", "arivera", "schen_dev", "paul"]));
@@ -544,6 +556,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const savedLikes = localStorage.getItem('vimore_liked_posts');
     const savedUnlikes = localStorage.getItem('vimore_unliked_posts');
     const savedSaves = localStorage.getItem('vimore_saved_posts');
+    const savedUnlocked = localStorage.getItem('vimore_unlocked_posts');
+    const savedSubs = localStorage.getItem('vimore_subscriptions');
     const savedFollowing = localStorage.getItem('vimore_following');
     const savedLocalPosts = localStorage.getItem('vimore_local_posts');
     const savedPending = localStorage.getItem('vimore_pending_transaction');
@@ -554,6 +568,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (savedLikes) setLikedPostIds(new Set(JSON.parse(savedLikes)));
     if (savedUnlikes) setUnlikedPostIds(new Set(JSON.parse(savedUnlikes)));
     if (savedSaves) setSavedPostIds(new Set(JSON.parse(savedSaves)));
+    if (savedUnlocked) setUnlockedPostIds(new Set(JSON.parse(savedUnlocked)));
+    if (savedSubs) setActiveSubscriptions(new Set(JSON.parse(savedSubs)));
     if (savedFollowing) setFollowingUsernames(new Set(JSON.parse(savedFollowing)));
     if (savedPending) setPendingTransaction(JSON.parse(savedPending));
     if (savedClusters) setClusters(JSON.parse(savedClusters));
@@ -576,6 +592,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => { safePersist('vimore_liked_posts', Array.from(likedPostIds)); }, [likedPostIds]);
   useEffect(() => { safePersist('vimore_unliked_posts', Array.from(unlikedPostIds)); }, [unlikedPostIds]);
   useEffect(() => { safePersist('vimore_saved_posts', Array.from(savedPostIds)); }, [savedPostIds]);
+  useEffect(() => { safePersist('vimore_unlocked_posts', Array.from(unlockedPostIds)); }, [unlockedPostIds]);
+  useEffect(() => { safePersist('vimore_subscriptions', Array.from(activeSubscriptions)); }, [activeSubscriptions]);
   useEffect(() => { safePersist('vimore_following', Array.from(followingUsernames)); }, [followingUsernames]);
   useEffect(() => { safePersist('vimore_settings', settings); }, [settings]);
   useEffect(() => { safePersist('vimore_clusters', clusters); }, [clusters]);
@@ -635,7 +653,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setCurrentUser(prev => {
       const updated = { ...prev, ...data };
       
-      // Track visuals history
       if (data.avatar && data.avatar !== prev.avatar) {
         updated.profilePictureHistory = [...(prev.profilePictureHistory || []), data.avatar];
       }
@@ -674,6 +691,43 @@ export function PostProvider({ children }: { children: ReactNode }) {
       };
       safePersist('vimore_user', updated);
       return updated;
+    });
+  };
+
+  const unlockPost = (postId: string, cost: number) => {
+    triggerHaptic(100);
+    setUnlockedPostIds(prev => {
+      const next = new Set(prev);
+      next.add(postId);
+      return next;
+    });
+    setCurrentUser(prev => {
+      const updated = { ...prev, goldBalance: (prev.goldBalance || 0) - cost };
+      safePersist('vimore_user', updated);
+      return updated;
+    });
+  };
+
+  const subscribeToCreator = (username: string, cost: number) => {
+    triggerHaptic(120);
+    setActiveSubscriptions(prev => {
+      const next = new Set(prev);
+      next.add(username);
+      return next;
+    });
+    setCurrentUser(prev => {
+      const updated = { ...prev, diamondBalance: (prev.diamondBalance || 0) - cost };
+      safePersist('vimore_user', updated);
+      return updated;
+    });
+  };
+
+  const cancelSubscription = (username: string) => {
+    triggerHaptic(30);
+    setActiveSubscriptions(prev => {
+      const next = new Set(prev);
+      next.delete(username);
+      return next;
     });
   };
 
@@ -882,7 +936,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const isPostLiked = (postId: string) => likedPostIds.has(postId);
   const isPostUnliked = (postId: string) => unlikedPostIds.has(postId);
   const isPostSaved = (postId: string) => savedPostIds.has(postId);
+  const isPostUnlocked = (postId: string) => unlockedPostIds.has(postId);
   const isFollowing = (username: string) => followingUsernames.has(username);
+  const isSubscribed = (username: string) => activeSubscriptions.has(username);
 
   const voteOnStoryPoll = (storyId: string, segmentId: string, optionIndex: number) => {
     setStories(prev => prev.map(story => {
@@ -954,7 +1010,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (selectedChatId === clusterId) setSelectedChatId(null);
   };
 
-  // CALL HANDSHAKES
   const initiateCall = (contact: Connection, type: CallType) => {
     triggerHaptic(30);
     setCallState({
@@ -1001,6 +1056,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       likedPostIds,
       unlikedPostIds,
       savedPostIds,
+      unlockedPostIds,
+      activeSubscriptions,
       followingUsernames,
       activeStoryIndex, 
       connections,
@@ -1046,10 +1103,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
       triggerReferralPulse,
       verifyUser,
       processGiftTransaction,
+      unlockPost,
+      subscribeToCreator,
+      cancelSubscription,
       isPostLiked,
       isPostUnliked,
       isPostSaved,
+      isPostUnlocked,
       isFollowing,
+      isSubscribed,
       triggerHaptic,
       createCluster,
       addMemberToCluster,
