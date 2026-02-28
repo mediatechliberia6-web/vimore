@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, use, useMemo, useRef } from "react";
@@ -25,7 +26,8 @@ import {
   Languages, 
   UserCheck, 
   Clapperboard, 
-  CheckCircle2 
+  CheckCircle2,
+  Flag
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
@@ -42,6 +44,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const MOCK_USERS: Record<string, any> = {
   "arivera": {
@@ -300,7 +308,22 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                 {displayUser.isVerified && <CheckCircle2 className="h-4 w-4 text-primary fill-primary text-white" />}
               </div>
             </div>
-            <Button variant="ghost" size="icon" className="rounded-full"><MoreHorizontal className="h-5 w-5" /></Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full"><MoreHorizontal className="h-5 w-5" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5">
+                {!isMe && (
+                  <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => toast({ title: "Report Sent", description: "This identity node has been flagged for audit." })}>
+                    <Flag className="h-4 w-4" /> Report Node
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); navigator.clipboard.writeText(window.location.href); toast({ title: "Link Copied" }); }}>
+                  <Share2 className="h-4 w-4" /> Share Profile
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </header>
 
           <div className="relative">

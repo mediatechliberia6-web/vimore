@@ -18,7 +18,6 @@ import {
 
 const STORY_DURATION = 5000; // 5 seconds per segment
 const QUICK_REACTIONS = ["❤️", "🔥", "😂", "😮", "😢", "👏"];
-const CURRENT_USER_NAME = "John Doe";
 
 interface FloatingReaction {
   id: number;
@@ -27,7 +26,7 @@ interface FloatingReaction {
 }
 
 export function StoryViewer() {
-  const { stories, activeStoryIndex, mutedUserNames, setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser } = usePosts();
+  const { stories, activeStoryIndex, mutedUserNames, setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser } = usePosts();
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -39,6 +38,7 @@ export function StoryViewer() {
   const pausedTime = useRef<number>(0);
 
   const activeStory = activeStoryIndex !== null ? stories[activeStoryIndex] : null;
+  const isOwner = activeStory?.user.username === currentUser.username;
 
   const handleClose = useCallback(() => {
     setActiveStoryIndex(null);
@@ -159,7 +159,6 @@ export function StoryViewer() {
   };
 
   const currentSegment = activeStory?.segments[segmentIndex];
-  const isOwner = activeStory?.user.name === CURRENT_USER_NAME;
 
   const handlePollVote = (e: React.MouseEvent, optionIndex: number) => {
     e.stopPropagation();

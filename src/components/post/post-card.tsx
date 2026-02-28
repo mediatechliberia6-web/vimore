@@ -364,11 +364,25 @@ export function PostCard(props: PostCardProps) {
                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full"><MoreHorizontal className="h-5 w-5" /></Button></DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5">
                   <DropdownMenuItem className="gap-2" onClick={() => setIsHidden(true)}><EyeOff className="h-4 w-4" />Hide post</DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); togglePinPost(id); }}><Pin className="h-4 w-4" />{isPinned ? "Unpin" : "Pin to profile"}</DropdownMenuItem>
+                  
+                  {isOwner && (
+                    <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); togglePinPost(id); }}>
+                      <Pin className="h-4 w-4" />{isPinned ? "Unpin" : "Pin to profile"}
+                    </DropdownMenuItem>
+                  )}
+
+                  {!isOwner && (
+                    <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => toast({ title: "Report Sent", description: "This node has been flagged for audit." })}>
+                      <Flag className="h-4 w-4" />Report Vibe
+                    </DropdownMenuItem>
+                  )}
+
                   {isOwner && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" />Purge Node</DropdownMenuItem>
+                      <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}>
+                        <Trash2 className="h-4 w-4" />Purge Node
+                      </DropdownMenuItem>
                     </>
                   )}
                 </DropdownMenuContent>
