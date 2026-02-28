@@ -35,7 +35,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { cn, parseFollowerCount } from "@/lib/utils";
+import { cn, parseFollowerCount, saveFileToDevice } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Input } from "@/components/ui/input";
@@ -374,12 +374,12 @@ export function PostCard(props: PostCardProps) {
 
         <CardContent className={cn("px-3 pb-2 space-y-2 relative", theme && !isShared ? theme + " py-12 px-8 text-center" : "bg-transparent")}>
           {isHiddenByLock ? (
-            <div className="relative aspect-video w-full rounded-[2rem] overflow-hidden flex flex-col items-center justify-center p-8 bg-secondary/20">
+            <div className="relative min-h-[380px] w-full rounded-[2.5rem] overflow-hidden flex flex-col items-center justify-center p-8 bg-secondary/20">
               <div className="absolute inset-0 bg-black/10 backdrop-blur-3xl" />
               {image && <Image src={image} alt="Locked" fill className="object-cover opacity-20 blur-xl" />}
-              <div className="relative z-10 flex flex-col items-center text-center space-y-6 animate-in zoom-in duration-500">
-                <div className="h-20 w-20 bg-amber-500 rounded-[2rem] flex items-center justify-center text-white shadow-2xl shadow-amber-500/20">
-                  <Lock className="h-10 w-10" />
+              <div className="relative z-10 flex flex-col items-center text-center space-y-5 animate-in zoom-in duration-500">
+                <div className="h-16 w-16 bg-amber-500 rounded-[2rem] flex items-center justify-center text-white shadow-2xl shadow-amber-500/20">
+                  <Lock className="h-8 w-8" />
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-2xl font-black italic uppercase tracking-tighter">Locked Node</h3>
