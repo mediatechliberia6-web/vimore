@@ -135,7 +135,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [selectedFilter, setSelectedFilter] = useState(imageFilters[0]);
   const [commentsDisabled, setCommentsDisabled] = useState(false);
   
-  // Monetization State
   const [isLocked, setIsLocked] = useState(false);
   const [unlockPrice, setUnlockPrice] = useState(50);
   
@@ -170,6 +169,38 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   useEffect(() => {
     if (content) localStorage.setItem('vimore_post_draft', content);
   }, [content]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    triggerHaptic(10);
+    const fileArray = Array.from(files);
+    const isVideo = fileArray[0].type.startsWith('video/');
+
+    if (isVideo) {
+      setMediaType('video');
+      const url = URL.createObjectURL(fileArray[0]);
+      setSelectedMedia([url]);
+      toast({ title: "Reel Selected", description: "Your video node is staged for sync." });
+    } else {
+      setMediaType('image');
+      const urls = fileArray.map(file => URL.createObjectURL(file));
+      setSelectedMedia(prev => [...prev, ...urls].slice(0, 10)); // Limit to 10 photos
+      toast({ title: "Photos Staged", description: `${fileArray.length} visuals added to draft.` });
+    }
+    // Reset theme if media is added
+    setSelectedTheme(backgroundThemes[0]);
+  };
+
+  const removeMedia = (index: number) => {
+    triggerHaptic(5);
+    setSelectedMedia(prev => {
+      const updated = prev.filter((_, i) => i !== index);
+      if (updated.length === 0) setMediaType(null);
+      return updated;
+    });
+  };
 
   const handleAiEnhance = async () => {
     if (!content.trim()) return;
@@ -326,6 +357,58 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             )}
           </div>
 
+          {/* Media Preview Grid */}
+          {selectedMedia.length > 0 && (
+            <div className="px-4 pb-6">
+              <div className={cn(
+                "grid gap-2",
+                selectedMedia.length === 1 ? "grid-cols-1" : "grid-cols-2"
+              )}>
+                {selectedMedia.map((url, i) => (
+                  <div key={i} className="relative aspect-video rounded-[1.5rem] overflow-hidden group/media shadow-lg border border-primary/5">
+                    {mediaType === 'video' ? (
+                      <video src={url} className="w-full h-full object-cover" autoPlay muted loop playsInline />
+                    ) : (
+                      <Image src={url} alt="Preview" fill className={cn("object-cover", selectedFilter.class)} />
+                    )}
+                    <button 
+                      onClick={() => removeMedia(i)}
+                      className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-black/80 transition-all active:scale-90"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              
+              {mediaType === 'image' && (
+                <ScrollArea className="w-full whitespace-nowrap mt-4">
+                  <div className="flex gap-3 pb-2">
+                    {imageFilters.map(f => (
+                      <button
+                        key={f.id}
+                        onClick={() => { triggerHaptic(5); setSelectedFilter(f); }}
+                        className={cn(
+                          "flex flex-col items-center gap-2 group",
+                          selectedFilter.id === f.id ? "text-primary" : "text-muted-foreground"
+                        )}
+                      >
+                        <div className={cn(
+                          "h-12 w-12 rounded-xl border-2 transition-all overflow-hidden bg-secondary",
+                          selectedFilter.id === f.id ? "border-primary scale-105" : "border-transparent"
+                        )}>
+                          <div className={cn("w-full h-full bg-zinc-400", f.class)} />
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest">{f.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <ScrollBar orientation="horizontal" className="opacity-0" />
+                </ScrollArea>
+              )}
+            </div>
+          )}
+
           {isPollOpen && (
             <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-primary/5 space-y-4">
               <Input placeholder="Ask a question..." className="bg-white border-primary/10 rounded-xl" value={pollQuestion} onChange={(e) => setPollQuestion(e.target.value)} />
@@ -398,6 +481,16 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         <div className="p-4 bg-white dark:bg-card border-t shrink-0">
           <Button className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit} onClick={handlePost}>POST</Button>
         </div>
+
+        {/* Hidden File Input */}
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          className="hidden" 
+          accept="image/*,video/*" 
+          multiple 
+          onChange={handleFileChange} 
+        />
       </DialogContent>
     </Dialog>
   );
