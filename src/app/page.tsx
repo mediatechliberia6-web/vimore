@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo } from "react";
@@ -7,6 +6,7 @@ import { SubHeader } from "@/components/layout/sub-header";
 import { PostCard } from "@/components/post/post-card";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
 import { Stories } from "@/components/feed/stories";
+import { SuggestedFollows } from "@/components/feed/suggested-follows";
 import { RightSidebar } from "@/components/layout/right-sidebar";
 import { MainNav } from "@/components/layout/main-nav";
 import { usePosts } from "@/context/PostContext";
@@ -18,9 +18,11 @@ export default function Home() {
   const { currentTrack, isExpanded } = useMusic();
   const isPlayerActive = currentTrack && !isExpanded;
 
-  // Ad Injection Logic: 
-  // 3rd position (index 2), then every 5 organic posts thereafter.
-  const postsWithAds = useMemo(() => {
+  // Ad & Discovery Injection Logic: 
+  // 3rd position: First Ad
+  // 4th position: Suggested Follows
+  // Then every 5 organic posts thereafter: sequence Ads
+  const feedItems = useMemo(() => {
     const result: (any)[] = [];
     let organicCount = 0;
 
@@ -28,11 +30,12 @@ export default function Home() {
       result.push({ type: 'post', data: post });
       organicCount++;
 
-      // Condition 1: 3rd position (index 2 in result array)
-      // Condition 2: Every 5 organic posts after that
+      // Injections
       if (organicCount === 2) {
         result.push({ type: 'ad', id: `ad-init-${index}` });
-      } else if (organicCount > 2 && (organicCount - 2) % 5 === 0) {
+      } else if (organicCount === 3) {
+        result.push({ type: 'suggestions', id: `suggested-follows-${index}` });
+      } else if (organicCount > 3 && (organicCount - 3) % 5 === 0) {
         result.push({ type: 'ad', id: `ad-seq-${index}` });
       }
     });
@@ -62,13 +65,15 @@ export default function Home() {
           <Stories />
           
           <div className="flex flex-col gap-1">
-            {postsWithAds.map((item, idx) => (
-              item.type === 'ad' ? (
-                <NativeAdNode key={item.id} type="banner" />
-              ) : (
-                <PostCard key={item.data.id} {...item.data} />
-              )
-            ))}
+            {feedItems.map((item, idx) => {
+              if (item.type === 'ad') {
+                return <NativeAdNode key={item.id} type="banner" />;
+              }
+              if (item.type === 'suggestions') {
+                return <SuggestedFollows key={item.id} />;
+              }
+              return <PostCard key={item.data.id} {...item.data} />;
+            })}
           </div>
         </main>
 

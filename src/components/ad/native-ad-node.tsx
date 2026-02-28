@@ -31,6 +31,15 @@ interface NativeAdNodeProps {
   isActive?: boolean;
 }
 
+const ViMoreAdLogo = () => (
+  <div className="w-full h-full bg-primary flex items-center justify-center text-white">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-2/3 h-2/3">
+      <path d="M3 7L10 19L17 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M13 15L17 7L21 15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  </div>
+);
+
 export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
   const { triggerHaptic, triggerDownloadWithAd } = useMusic();
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -43,12 +52,8 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
     const doc = iframe.contentDocument || iframe.contentWindow?.document;
     if (!doc) return;
 
-    // 1. ISOLATION HANDSHAKE: Clear and open a new document inside the sandbox
     doc.open();
-    
-    // 2. NODE CALIBRATION: Inject specific ad script based on type
     if (type === "standard") {
-      // Standard 728x90 Banner Logic
       doc.write(`
         <html>
           <body style="margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; overflow: hidden;">
@@ -66,7 +71,6 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
         </html>
       `);
     } else {
-      // Native Ad Logic (Banner/Reel)
       doc.write(`
         <html>
           <body style="margin: 0; padding: 0; background: transparent; overflow: hidden; display: flex; justify-content: center;">
@@ -76,12 +80,10 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
         </html>
       `);
     }
-    
     doc.close();
     setIsLoaded(true);
 
     return () => {
-      // PURGE: Ensure the iframe is decommissioned on unmount
       if (iframe) {
         iframe.src = "about:blank";
       }
@@ -95,7 +97,6 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
     });
   };
 
-  // 1. Isolated Standard Banner (728x90)
   if (type === "standard") {
     return (
       <div className="w-full flex justify-center py-4 animate-in fade-in duration-700 overflow-hidden">
@@ -109,7 +110,6 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
     );
   }
 
-  // 2. Immersive Reel Ad Node
   if (type === "reel") {
     return (
       <div className="relative h-[100dvh] w-full flex items-center justify-center bg-black overflow-hidden group select-none">
@@ -144,11 +144,10 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
 
         <div className="absolute right-3 bottom-20 z-50 flex flex-col items-center gap-4">
           <div className="relative">
-            <Avatar className="h-11 w-11 border-[1.5px] border-white/80 ring-2 ring-primary/10">
-              <AvatarImage src="https://picsum.photos/seed/ads/100/100" />
-              <AvatarFallback>AD</AvatarFallback>
-            </Avatar>
-            <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 bg-primary text-white rounded-full p-0.5"><Plus className="h-2 w-2" /></div>
+            <div className="h-11 w-11 rounded-xl overflow-hidden border-[1.5px] border-white/80 ring-2 ring-primary/10 shadow-xl">
+              <ViMoreAdLogo />
+            </div>
+            <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 bg-primary text-white rounded-full p-0.5 shadow-lg"><Plus className="h-2 w-2" /></div>
           </div>
           <div className="flex flex-col items-center gap-1">
             <button className="p-2.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white"><Heart className="h-5 w-5" /></button>
@@ -160,38 +159,36 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
         <div className="absolute bottom-0 left-0 right-0 p-5 pt-20 bg-gradient-to-t from-black/90 to-transparent pointer-events-none">
           <div className="max-w-[75%] space-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-lg font-black italic uppercase tracking-tighter text-white">@ViMoreAds</span>
+              <span className="text-lg font-black italic uppercase tracking-tighter text-white">ViMore Hub</span>
               <div className="flex items-center gap-1 bg-primary/20 border border-primary/20 px-2 py-0.5 rounded-full">
                 <ShieldCheck className="h-2.5 w-2.5 text-primary fill-primary text-white" />
                 <span className="text-[8px] font-black text-white uppercase tracking-widest">Verified Ads</span>
               </div>
             </div>
-            <p className="text-xs text-white/80 leading-tight font-medium">Discover premium nodes curated for high-velocity creators.</p>
+            <p className="text-xs text-white/80 leading-tight font-medium">Discover official ViMore recommendations.</p>
           </div>
         </div>
       </div>
     );
   }
 
-  // 3. Isolated Banner Node (In-Feed)
   return (
     <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-card mb-4 ring-1 ring-black/5 dark:ring-white/5 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Avatar className="h-10 w-10 border border-primary/10">
-              <AvatarImage src="https://picsum.photos/seed/ad-logo/100/100" />
-              <AvatarFallback>AD</AvatarFallback>
-            </Avatar>
+            <div className="h-10 w-10 rounded-xl overflow-hidden border border-primary/10 shadow-sm">
+              <ViMoreAdLogo />
+            </div>
             <div className="absolute -bottom-0.5 -right-0.5 bg-primary text-white p-0.5 rounded-full"><Zap className="h-2 w-2 fill-current" /></div>
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1">
-              <span className="font-bold text-sm">ViMore Ads</span>
+              <span className="font-bold text-sm">ViMore Official</span>
               <Badge variant="secondary" className="bg-secondary/50 text-[8px] font-black h-4 px-1.5 rounded uppercase tracking-tighter">Sponsored</Badge>
             </div>
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase font-black tracking-widest">
-              <ShieldCheck className="h-2.5 w-2.5 text-green-500" /> Secure Ad Node
+              <ShieldCheck className="h-2.5 w-2.5 text-green-500" /> Secure Node
             </div>
           </div>
         </div>
@@ -214,8 +211,8 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
         </div>
 
         <div className="space-y-2 px-1 text-center sm:text-left">
-          <h4 className="text-xl font-black italic uppercase tracking-tighter leading-none text-primary">Unlock High-Velocity Access</h4>
-          <p className="text-[13px] leading-relaxed text-muted-foreground">Tap to explore our latest high-fidelity nodes and tools.</p>
+          <h4 className="text-xl font-black italic uppercase tracking-tighter leading-none text-primary">High-Velocity Recommended Node</h4>
+          <p className="text-[13px] leading-relaxed text-muted-foreground">Tap to explore our latest verified network enhancements.</p>
         </div>
       </CardContent>
 
@@ -224,12 +221,12 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
           onClick={handleLearnMore}
           className="w-full h-12 bg-primary hover:bg-primary/90 text-white rounded-xl font-black italic uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
         >
-          Explore Node <ChevronRight className="ml-2 h-4 w-4" />
+          Explore Now <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-4 text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">
-            <span className="flex items-center gap-1"><Info className="h-3 w-3" /> Transparency</span>
-            <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Secure Link</span>
+            <span className="flex items-center gap-1"><Info className="h-3 w-3" /> Info</span>
+            <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Official</span>
           </div>
           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/40"><Share2 className="h-4 w-4" /></Button>
         </div>
