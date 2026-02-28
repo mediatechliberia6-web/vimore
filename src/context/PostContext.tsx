@@ -73,6 +73,16 @@ export interface Connection {
   followers?: string | number;
 }
 
+export interface Cluster {
+  id: string;
+  name: string;
+  avatar?: string;
+  members: Connection[];
+  lastMessage?: string;
+  lastTime?: string;
+  isGroup: true;
+}
+
 export interface Mention {
   username: string;
   x: string | number;
@@ -179,6 +189,8 @@ interface PostContextType {
   followingUsernames: Set<string>;
   activeStoryIndex: number | null;
   connections: Connection[];
+  clusters: Cluster[];
+  selectedChatId: string | null;
   selectedPostId: string | null;
   activeCommentPostId: string | null;
   selectedImageUrl: string | null;
@@ -190,6 +202,7 @@ interface PostContextType {
   settings: AppSettings;
   callState: CallState;
   setSearchOpen: (open: boolean) => void;
+  setSelectedChatId: (id: string | null) => void;
   setSelectedPostId: (id: string | null) => void;
   setSelectedImageUrl: (url: string | null) => void;
   openCommentHub: (postId: string) => void;
@@ -223,6 +236,7 @@ interface PostContextType {
   isFollowing: (username: string) => boolean;
   incrementShareCount: (postId: string) => void;
   triggerHaptic: (intensity?: number) => void;
+  createCluster: (name: string, members: Connection[]) => void;
   
   // Call Handshakes
   initiateCall: (contact: Connection, type: CallType) => void;
@@ -480,6 +494,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [followingUsernames, setFollowingUsernames] = useState<Set<string>>(new Set(["jmoore", "arivera", "schen_dev", "paul"]));
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [connections, setConnections] = useState<Connection[]>(MOCK_CONNECTIONS);
+  const [clusters, setClusters] = useState<Cluster[]>([]);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
@@ -521,6 +537,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const savedFollowing = localStorage.getItem('vimore_following');
     const savedLocalPosts = localStorage.getItem('vimore_local_posts');
     const savedPending = localStorage.getItem('vimore_pending_transaction');
+    const savedClusters = localStorage.getItem('vimore_clusters');
 
     if (savedUser) try { setCurrentUser(JSON.parse(savedUser)); } catch (e) {}
     if (savedSettings) try { setSettings({ ...INITIAL_SETTINGS, ...JSON.parse(savedSettings) }); } catch (e) {}
@@ -529,6 +546,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (savedSaves) setSavedPostIds(new Set(JSON.parse(savedSaves)));
     if (savedFollowing) setFollowingUsernames(new Set(JSON.parse(savedFollowing)));
     if (savedPending) setPendingTransaction(JSON.parse(savedPending));
+    if (savedClusters) setClusters(JSON.parse(savedClusters));
     
     if (savedLocalPosts) {
       try {
@@ -550,6 +568,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => { safePersist('vimore_saved_posts', Array.from(savedPostIds)); }, [savedPostIds]);
   useEffect(() => { safePersist('vimore_following', Array.from(followingUsernames)); }, [followingUsernames]);
   useEffect(() => { safePersist('vimore_settings', settings); }, [settings]);
+  useEffect(() => { safePersist('vimore_clusters', clusters); }, [clusters]);
 
   useEffect(() => {
     if (pendingTransaction) {
@@ -887,6 +906,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setIsSearchOpen(open);
   };
 
+  const createCluster = (name: string, members: Connection[]) => {
+    triggerHaptic(50);
+    const newCluster: Cluster = {
+      id: `cluster-${Date.now()}`,
+      name,
+      members,
+      isGroup: true,
+      lastMessage: "Cluster materialized.",
+      lastTime: "Just now"
+    };
+    setClusters(prev => [newCluster, ...prev]);
+  };
+
   // CALL HANDSHAKES
   const initiateCall = (contact: Connection, type: CallType) => {
     triggerHaptic(30);
@@ -937,6 +969,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       followingUsernames,
       activeStoryIndex, 
       connections,
+      clusters,
+      selectedChatId,
       selectedPostId,
       activeCommentPostId,
       selectedImageUrl,
@@ -948,6 +982,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       settings,
       callState,
       setSearchOpen,
+      setSelectedChatId,
       setSelectedPostId,
       setSelectedImageUrl,
       openCommentHub,
@@ -981,6 +1016,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       isPostSaved,
       isFollowing,
       triggerHaptic,
+      createCluster,
       initiateCall,
       receiveCall,
       acceptCall,
