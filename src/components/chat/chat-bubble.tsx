@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -127,10 +126,12 @@ export function ChatBubble({
         audioRef.current = null;
       }
       if (timerRef.current) clearInterval(timerRef.current);
+      // Interaction Recovery Fail-safe on Unmount
       document.body.style.pointerEvents = 'auto';
     };
   }, [type]);
 
+  // Ensure pointer events are restored when dialog closes
   useEffect(() => {
     if (!isDeleteDialogOpen) {
       document.body.style.pointerEvents = 'auto';
@@ -174,6 +175,7 @@ export function ChatBubble({
 
   const handleDelete = () => {
     triggerHaptic(50);
+    // FORCE Interaction Recovery before unmounting component
     document.body.style.pointerEvents = 'auto';
     setIsDeleteDialogOpen(false);
     onDelete?.(id);

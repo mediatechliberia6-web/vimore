@@ -149,6 +149,16 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Interaction Recovery Handshake Fail-safe
+  useEffect(() => {
+    if (!isLeaveDialogOpen && !isAddNodeOpen) {
+      document.body.style.pointerEvents = 'auto';
+    }
+    return () => {
+      document.body.style.pointerEvents = 'auto';
+    };
+  }, [isLeaveDialogOpen, isAddNodeOpen]);
+
   // Dynamic Vault Intelligence
   const vaultMedia = useMemo(() => {
     return messages.filter(m => (m.type === 'photo' || m.type === 'video') && !m.isViewOnce && m.mediaUrl);
@@ -213,6 +223,9 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const handleConfirmLeave = () => {
     if (isCluster) {
       triggerHaptic(50);
+      // Restore Interaction before destruction
+      document.body.style.pointerEvents = 'auto';
+      setIsLeaveDialogOpen(false);
       leaveCluster(contact.id);
       toast({ title: "Node Disconnected", description: `You have left the cluster: ${contact.name}` });
       onBack();

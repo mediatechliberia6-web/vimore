@@ -78,6 +78,7 @@ function FriendsPageContent() {
     }
   }, [searchParams]);
 
+  // Interaction Recovery Handshake Fail-safe
   useEffect(() => {
     if (!confirmUser) {
       document.body.style.pointerEvents = 'auto';
@@ -160,6 +161,7 @@ function FriendsPageContent() {
     if (confirmUser) {
       triggerHaptic(30);
       const user = { ...confirmUser };
+      // Force interaction restoration before destruction
       document.body.style.pointerEvents = 'auto';
       setConfirmUser(null);
       toggleFollowUser(user.username);
@@ -346,7 +348,7 @@ function FriendsPageContent() {
                               )}
                             </div>
                           </Link>
-                          <div className="mt-2 flex flex-wrap gap-1">
+                          <div className="mt-2 flex wrap gap-1">
                             {user.category.split(',').map(cat => (
                               <span key={cat} className="text-[9px] font-black uppercase bg-primary/5 text-primary/70 px-2 py-0.5 rounded-md">{cat.trim()}</span>
                             ))}
