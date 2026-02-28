@@ -33,51 +33,57 @@ interface NativeAdNodeProps {
 
 export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
   const { triggerHaptic, triggerDownloadWithAd } = useMusic();
-  const containerRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !containerRef.current) return;
+    if (typeof window === "undefined" || !iframeRef.current) return;
 
-    // Clear existing content to prevent duplication on re-renders
-    containerRef.current.innerHTML = "";
+    const iframe = iframeRef.current;
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) return;
 
+    // 1. ISOLATION HANDSHAKE: Clear and open a new document inside the sandbox
+    doc.open();
+    
+    // 2. NODE CALIBRATION: Inject specific ad script based on type
     if (type === "standard") {
-      // Standard 728x90 for Music/Library - Clean Raw Implementation
-      const scriptOptions = document.createElement("script");
-      scriptOptions.type = "text/javascript";
-      scriptOptions.innerHTML = `
-        atOptions = {
-          'key' : '3eba8b91263527bd1a02399ff4d2ee8e',
-          'format' : 'iframe',
-          'height' : 90,
-          'width' : 728,
-          'params' : {}
-        };
-      `;
-      containerRef.current.appendChild(scriptOptions);
-
-      const scriptInvoke = document.createElement("script");
-      scriptInvoke.type = "text/javascript";
-      scriptInvoke.src = "//www.highperformanceformat.com/3eba8b91263527bd1a02399ff4d2ee8e/invoke.js";
-      containerRef.current.appendChild(scriptInvoke);
+      // Standard 728x90 Banner Logic
+      doc.write(`
+        <html>
+          <body style="margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; overflow: hidden;">
+            <script type="text/javascript">
+              atOptions = {
+                'key' : '3eba8b91263527bd1a02399ff4d2ee8e',
+                'format' : 'iframe',
+                'height' : 90,
+                'width' : 728,
+                'params' : {}
+              };
+            </script>
+            <script type="text/javascript" src="//www.highperformanceformat.com/3eba8b91263527bd1a02399ff4d2ee8e/invoke.js"></script>
+          </body>
+        </html>
+      `);
     } else {
-      // Native script for Home/Reels (da434b4b)
-      containerRef.current.id = "container-da434b4b9d70fa28431080d1f00b7b40";
-      
-      const script = document.createElement("script");
-      script.src = "https://pl28803356.effectivegatecpm.com/da434b4b9d70fa28431080d1f00b7b40/invoke.js";
-      script.async = true;
-      script.setAttribute("data-cfasync", "false");
-      containerRef.current.appendChild(script);
+      // Native Ad Logic (Banner/Reel)
+      doc.write(`
+        <html>
+          <body style="margin: 0; padding: 0; background: transparent; overflow: hidden; display: flex; justify-content: center;">
+            <div id="container-da434b4b9d70fa28431080d1f00b7b40"></div>
+            <script async="async" data-cfasync="false" src="https://pl28803356.effectivegatecpm.com/da434b4b9d70fa28431080d1f00b7b40/invoke.js"></script>
+          </body>
+        </html>
+      `);
     }
-
+    
+    doc.close();
     setIsLoaded(true);
 
     return () => {
-      if (containerRef.current) {
-        containerRef.current.innerHTML = "";
-        containerRef.current.id = "";
+      // PURGE: Ensure the iframe is decommissioned on unmount
+      if (iframe) {
+        iframe.src = "about:blank";
       }
     };
   }, [type]);
@@ -89,17 +95,21 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
     });
   };
 
-  // 1. RAW Standard 728x90 (Entire application)
-  // This removes the ShadCN Card, Header, and Footer for standard banners globally.
+  // 1. Isolated Standard Banner (728x90)
   if (type === "standard") {
     return (
       <div className="w-full flex justify-center py-4 animate-in fade-in duration-700 overflow-hidden">
-        <div ref={containerRef} className="w-full flex justify-center max-w-full" />
+        <iframe 
+          ref={iframeRef}
+          className="w-full max-w-[728px] h-[90px] border-none bg-transparent overflow-hidden"
+          title="ViMore Ad Node"
+          scrolling="no"
+        />
       </div>
     );
   }
 
-  // 2. Immersive Reel Ad
+  // 2. Immersive Reel Ad Node
   if (type === "reel") {
     return (
       <div className="relative h-[100dvh] w-full flex items-center justify-center bg-black overflow-hidden group select-none">
@@ -110,7 +120,14 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
           </div>
           
           <div className="relative z-10 w-full px-8 flex flex-col items-center gap-8">
-            <div ref={containerRef} className="w-full min-h-[250px] flex items-center justify-center rounded-3xl overflow-hidden bg-white/5 border border-white/10" />
+            <div className="w-full min-h-[250px] flex items-center justify-center rounded-3xl overflow-hidden bg-white/5 border border-white/10">
+              <iframe 
+                ref={iframeRef}
+                className="w-full h-[250px] border-none bg-transparent"
+                title="ViMore Reel Ad"
+                scrolling="no"
+              />
+            </div>
             <div className="text-center space-y-4">
               <Badge className="bg-primary/20 text-primary border-primary/20 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full">Sponsored Node</Badge>
               <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Explore New Horizons</h3>
@@ -156,7 +173,7 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
     );
   }
 
-  // 3. Native Banner (Retains Surrounding Card)
+  // 3. Isolated Banner Node (In-Feed)
   return (
     <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-card mb-4 ring-1 ring-black/5 dark:ring-white/5 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
@@ -183,7 +200,12 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
 
       <CardContent className="px-3 pb-3 space-y-4">
         <div className="relative group rounded-2xl overflow-hidden bg-secondary/20 min-h-[120px] flex items-center justify-center border border-primary/5">
-          <div ref={containerRef} className="w-full flex justify-center max-w-full overflow-hidden" />
+          <iframe 
+            ref={iframeRef}
+            className="w-full min-h-[120px] border-none bg-transparent"
+            title="ViMore In-Feed Ad"
+            scrolling="no"
+          />
           <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
             <div className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30 text-white">
               <ExternalLink className="h-6 w-6" />
