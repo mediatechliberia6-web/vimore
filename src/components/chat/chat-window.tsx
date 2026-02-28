@@ -37,7 +37,10 @@ import {
   Video as VideoIcon,
   LogOut,
   Shield,
-  Trash2
+  Trash2,
+  UserPlus,
+  ChevronRight,
+  Plus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Connection, Cluster, usePosts } from "@/context/PostContext";
@@ -59,6 +62,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 interface Message {
   id: string;
@@ -105,13 +116,16 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
-  const { currentUser, triggerHaptic, initiateCall, leaveCluster } = usePosts();
+  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections, addMemberToCluster } = usePosts();
   const { toast } = useToast();
   const router = useRouter();
   
   const isCluster = 'isGroup' in contact;
+  const isAdmin = isCluster && contact.adminUsername === currentUser.username;
   const [showVault, setShowVault] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+  const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
+  const [addNodeSearch, setAddNodeSearch] = useState("");
 
   const [messages, setMessages] = useState<Message[]>([
     { 
@@ -137,6 +151,14 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const vaultLinks = useMemo(() => {
     return messages.filter(m => m.type === 'link' && m.linkData);
   }, [messages]);
+
+  const nonClusterMembers = useMemo(() => {
+    if (!isCluster) return [];
+    return connections.filter(c => 
+      !contact.members.some(m => m.username === c.username) &&
+      (c.name.toLowerCase().includes(addNodeSearch.toLowerCase()) || c.username.toLowerCase().includes(addNodeSearch.toLowerCase()))
+    );
+  }, [isCluster, contact, connections, addNodeSearch]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -188,6 +210,15 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       leaveCluster(contact.id);
       toast({ title: "Node Disconnected", description: `You have left the cluster: ${contact.name}` });
       onBack();
+    }
+  };
+
+  const handleAddNode = (member: Connection) => {
+    if (isCluster) {
+      triggerHaptic(30);
+      addMemberToCluster(contact.id, member);
+      toast({ title: "Node Synced", description: `@${member.username} is now part of the cluster.` });
+      setAddNodeSearch("");
     }
   };
 
@@ -282,7 +313,56 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
               <section className="space-y-4">
                 <div className="flex items-center justify-between px-1">
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Members Pulse</span>
-                  <Badge variant="outline" className="bg-primary/5 text-primary border-primary/10 text-[8px] font-black h-4 px-2 uppercase">{contact.members.length} ACTIVE</Badge>
+                  <div className="flex items-center gap-2">
+                    {isAdmin && (
+                      <Dialog open={isAddNodeOpen} onOpenChange={setIsAddNodeOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg bg-primary/10 text-primary hover:bg-primary/20">
+                            <UserPlus className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="rounded-[2rem] p-0 overflow-hidden border-primary/10">
+                          <DialogHeader className="p-6 bg-primary/5 border-b border-primary/10">
+                            <DialogTitle className="text-xl font-black italic uppercase tracking-widest text-primary">Add Node to Cluster</DialogTitle>
+                          </DialogHeader>
+                          <div className="p-4 space-y-4">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input 
+                                placeholder="Search connections..." 
+                                className="h-12 pl-10 rounded-2xl bg-secondary/20 border-none"
+                                value={addNodeSearch}
+                                onChange={(e) => setAddNodeSearch(e.target.value)}
+                              />
+                            </div>
+                            <ScrollArea className="h-[300px]">
+                              <div className="space-y-2 pr-4">
+                                {nonClusterMembers.length > 0 ? nonClusterMembers.map((c) => (
+                                  <button 
+                                    key={c.username}
+                                    onClick={() => handleAddNode(c)}
+                                    className="w-full flex items-center justify-between p-3 rounded-2xl transition-all hover:bg-secondary/40"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={c.avatar} /></Avatar>
+                                      <div className="text-left">
+                                        <p className="font-bold text-sm leading-none">{c.name}</p>
+                                        <p className="text-[10px] text-muted-foreground font-black uppercase mt-1">@{c.username}</p>
+                                      </div>
+                                    </div>
+                                    <Plus className="h-4 w-4 text-primary" />
+                                  </button>
+                                )) : (
+                                  <div className="py-12 text-center text-muted-foreground italic text-sm">No available nodes found.</div>
+                                )}
+                              </div>
+                            </ScrollArea>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                    <Badge variant="outline" className="bg-primary/5 text-primary border-primary/10 text-[8px] font-black h-4 px-2 uppercase">{contact.members.length} ACTIVE</Badge>
+                  </div>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
                   {contact.members.map(m => (
@@ -300,7 +380,19 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                           </div>
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"><ChevronDown className="h-4 w-4" /></Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-xl">
+                          <DropdownMenuItem className="gap-2 font-bold" onClick={() => router.push(`/profile/${m.username}`)}><ChevronRight className="h-4 w-4" /> View Profile</DropdownMenuItem>
+                          {isAdmin && m.username !== currentUser.username && (
+                            <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive font-bold"><Trash2 className="h-4 w-4" /> Remove Node</DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   ))}
                 </div>
@@ -320,7 +412,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                       className="relative aspect-square rounded-xl overflow-hidden group/thumb cursor-pointer shadow-md"
                       onClick={() => m.mediaUrl && triggerHaptic(10)}
                     >
-                      <Image src={m.mediaUrl!} alt="Media" fill className="object-cover transition-transform group-hover/thumb:scale-110" />
+                      <Image src={m.mediaUrl!} alt="Media" fill className="object-cover transition-transform group/thumb:scale-110" />
                       {m.type === 'video' && <div className="absolute inset-0 bg-black/20 flex items-center justify-center"><Play className="h-4 w-4 text-white fill-current" /></div>}
                     </div>
                   ))}
@@ -381,7 +473,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                     onClick={() => { triggerHaptic(15); setIsLeaveDialogOpen(true); }}
                   >
                     <LogOut className="h-5 w-5" />
-                    <span className="font-bold text-sm">Leave Cluster</span>
+                    <span className="font-bold text-sm">{isAdmin ? "Dissolve Cluster" : "Leave Cluster"}</span>
                   </Button>
                 )}
               </div>
@@ -396,9 +488,11 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             <div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4">
               <LogOut className="h-8 w-8" />
             </div>
-            <AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">Leave Cluster?</AlertDialogTitle>
+            <AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">{isAdmin ? "Dissolve Cluster?" : "Leave Cluster?"}</AlertDialogTitle>
             <AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">
-              You will lose access to this collective workspace and its vault nodes. You must be re-invited to synchronize again.
+              {isAdmin 
+                ? "As the materializer, dissolving this cluster will purge the collective workspace for all nodes. This action cannot be reversed."
+                : "You will lose access to this collective workspace and its vault nodes. You must be re-invited to synchronize again."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6">
@@ -407,7 +501,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
               onClick={handleConfirmLeave}
               className="rounded-2xl h-14 font-black italic uppercase tracking-widest text-[10px] bg-destructive hover:bg-destructive/90 text-white shadow-xl shadow-destructive/20"
             >
-              Leave Node
+              {isAdmin ? "Confirm Dissolve" : "Leave Node"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

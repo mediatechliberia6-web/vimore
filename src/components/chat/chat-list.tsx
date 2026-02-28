@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -54,23 +53,19 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
 
     let list = allItems;
 
+    if (activeFilter === "clusters") {
+      list = list.filter(item => item.isGroup);
+    } else if (activeFilter === "unread") {
+      list = list.filter(item => (MOCK_MESSAGES[(item as any).username || (item as any).id]?.unread || 0) > 0);
+    } else if (activeFilter === "broadcasts") {
+      return []; // To be implemented in next sync
+    }
+
     if (searchQuery) {
       list = list.filter(item => 
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
         (item as any).username?.toLowerCase().includes(searchQuery.toLowerCase())
       );
-    }
-
-    if (activeFilter === "unread") {
-      list = list.filter(item => (MOCK_MESSAGES[(item as any).username || (item as any).id]?.unread || 0) > 0);
-    }
-
-    if (activeFilter === "clusters") {
-      list = list.filter(item => item.isGroup);
-    }
-
-    if (activeFilter === "broadcasts") {
-      return [];
     }
 
     return list.sort((a, b) => {
@@ -91,12 +86,12 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
         </div>
         <div className="flex items-center gap-1">
           <CreateClusterModal>
-            <Button 
-              variant="ghost" size="icon" className="rounded-full h-9 w-9 bg-primary/5 text-primary hover:bg-primary/10"
+            <button 
+              className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-all active:scale-90"
               title="Materialize Cluster"
             >
               <Layers className="h-4 w-4" />
-            </Button>
+            </button>
           </CreateClusterModal>
           <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
             <Edit2 className="h-4 w-4" />

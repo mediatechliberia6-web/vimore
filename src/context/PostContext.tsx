@@ -237,6 +237,7 @@ interface PostContextType {
   incrementShareCount: (postId: string) => void;
   triggerHaptic: (intensity?: number) => void;
   createCluster: (name: string, members: Connection[]) => void;
+  addMemberToCluster: (clusterId: string, member: Connection) => void;
   leaveCluster: (clusterId: string) => void;
   
   // Call Handshakes
@@ -921,6 +922,22 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setClusters(prev => [newCluster, ...prev]);
   };
 
+  const addMemberToCluster = (clusterId: string, member: Connection) => {
+    triggerHaptic(20);
+    setClusters(prev => prev.map(c => {
+      if (c.id === clusterId) {
+        if (c.members.some(m => m.username === member.username)) return c;
+        return {
+          ...c,
+          members: [...c.members, member],
+          lastMessage: `@${member.username} joined the cluster.`,
+          lastTime: "Just now"
+        };
+      }
+      return c;
+    }));
+  };
+
   const leaveCluster = (clusterId: string) => {
     triggerHaptic(30);
     setClusters(prev => prev.filter(c => c.id !== clusterId));
@@ -1025,6 +1042,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       isFollowing,
       triggerHaptic,
       createCluster,
+      addMemberToCluster,
       leaveCluster,
       initiateCall,
       receiveCall,
