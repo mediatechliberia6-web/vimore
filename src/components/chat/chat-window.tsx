@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { 
   ArrowLeft, 
   Phone, 
@@ -239,7 +240,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
           </div>
         </header>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-8 scroll-smooth" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(153,64,229,0.03) 1px, transparent 0)', backgroundSize: '24px 24px' }}>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-8 scroll-smooth" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(153, 64, 229, 0.03) 1px, transparent 0)', backgroundSize: '24px 24px' }}>
           {messages.map((msg) => (
             <div key={msg.id} id={`msg-${msg.id}`} className="flex flex-col gap-1">
               {isCluster && !msg.isMe && msg.senderName && (
@@ -390,7 +391,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       </aside>
 
       <AlertDialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
-        <AlertDialogContent className="rounded-[2.5rem] sm:max-w-[400px] z-[400] bg-white/90 dark:bg-[#0A0A0A]/90 backdrop-blur-2xl border-primary/10 shadow-2xl">
+        <AlertDialogContent className="rounded-[2.5rem] sm:max-w-[420px] z-[400] bg-white/90 dark:bg-[#0A0A0A]/90 backdrop-blur-2xl border-primary/10 shadow-2xl">
           <AlertDialogHeader>
             <div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4">
               <LogOut className="h-8 w-8" />
