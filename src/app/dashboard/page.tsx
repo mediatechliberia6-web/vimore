@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -10,8 +11,6 @@ import {
   TrendingDown, 
   Plus, 
   Users, 
-  FileText, 
-  DollarSign, 
   BarChart3,
   Sparkles,
   Zap,
@@ -21,7 +20,8 @@ import {
   ShieldCheck,
   Globe,
   LayoutDashboard,
-  Clock
+  Clock,
+  Activity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -31,6 +31,22 @@ import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { 
+  Area, 
+  AreaChart, 
+  Bar, 
+  BarChart, 
+  CartesianGrid, 
+  ResponsiveContainer, 
+  XAxis, 
+  YAxis,
+  Tooltip
+} from "recharts";
+import { 
+  ChartContainer, 
+  ChartTooltip, 
+  ChartTooltipContent 
+} from "@/components/ui/chart";
 
 const CATEGORIES = [
   { id: "analytics", label: "Analytics" },
@@ -39,11 +55,28 @@ const CATEGORIES = [
   { id: "monetization", label: "Monetization" },
 ];
 
+const GROWTH_DATA_7D = [
+  { date: "Mon", followers: 8200, engagement: 400 },
+  { date: "Tue", followers: 8250, engagement: 600 },
+  { date: "Wed", followers: 8310, engagement: 550 },
+  { date: "Thu", followers: 8340, engagement: 800 },
+  { date: "Fri", followers: 8390, engagement: 700 },
+  { date: "Sat", followers: 8420, engagement: 950 },
+  { date: "Sun", followers: 8450, engagement: 1100 },
+];
+
+const GROWTH_DATA_28D = [
+  { date: "W1", followers: 7800, engagement: 2400 },
+  { date: "W2", followers: 8000, engagement: 3100 },
+  { date: "W3", followers: 8250, engagement: 2800 },
+  { date: "W4", followers: 8450, engagement: 4200 },
+];
+
 export default function ProfessionalDashboard() {
   const { currentUser, triggerHaptic } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const [activeCategory, setActiveCategory] = useState("analytics");
-  const [activeRange, setActiveRange] = useState("28 days");
+  const [activeRange, setActiveRange] = useState<"7D" | "28D">("7D");
 
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -51,6 +84,10 @@ export default function ProfessionalDashboard() {
     triggerHaptic(5);
     setActiveCategory(id);
   };
+
+  const chartData = useMemo(() => {
+    return activeRange === "7D" ? GROWTH_DATA_7D : GROWTH_DATA_28D;
+  }, [activeRange]);
 
   const verificationStatus = useMemo(() => {
     if (!currentUser.isVerified) {
@@ -108,7 +145,7 @@ export default function ProfessionalDashboard() {
       </header>
 
       <main className={cn(
-        "max-w-2xl mx-auto w-full p-4 sm:p-8 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700",
+        "max-w-4xl mx-auto w-full p-4 sm:p-8 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700",
         isPlayerActive ? "pt-[80px]" : "pt-4"
       )}>
         
@@ -140,7 +177,7 @@ export default function ProfessionalDashboard() {
                 </div>
               </div>
               <div className="hidden sm:flex flex-col items-end">
-                <span className="text-4xl font-black italic text-primary leading-none">0%</span>
+                <span className="text-4xl font-black italic text-primary leading-none">12%</span>
                 <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mt-1">Growth Pulse</span>
               </div>
             </div>
@@ -182,6 +219,121 @@ export default function ProfessionalDashboard() {
           <ScrollBar orientation="horizontal" className="opacity-0" />
         </ScrollArea>
 
+        {/* Analytics Intelligence Phase 1 */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                <BarChart3 className="h-5 w-5" />
+              </div>
+              <h3 className="text-2xl font-black italic uppercase tracking-tighter">Analytics Intelligence</h3>
+            </div>
+            
+            <div className="flex items-center gap-1 bg-secondary/40 p-1 rounded-xl">
+              {["7D", "28D"].map((range) => (
+                <button 
+                  key={range}
+                  onClick={() => { triggerHaptic(5); setActiveRange(range as any); }}
+                  className={cn(
+                    "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                    activeRange === range 
+                      ? "bg-white dark:bg-card text-primary shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {range}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Network Growth Chart */}
+            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-6 shadow-xl space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Network Growth</span>
+                  <p className="text-2xl font-black italic tracking-tighter">+{activeRange === '7D' ? '250' : '650'} Followers</p>
+                </div>
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+              </div>
+              
+              <div className="h-[200px] w-full">
+                <ChartContainer config={{ 
+                  followers: { label: "Followers", color: "hsl(var(--primary))" } 
+                }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData}>
+                      <defs>
+                        <linearGradient id="colorFollowers" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                      <XAxis 
+                        dataKey="date" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: 'rgba(153, 64, 229, 0.5)', fontSize: 10, fontWeight: 'bold' }} 
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Area 
+                        type="monotone" 
+                        dataKey="followers" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={3}
+                        fillOpacity={1} 
+                        fill="url(#colorFollowers)" 
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
+            </div>
+
+            {/* Engagement Pulse Chart */}
+            <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-6 shadow-xl space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Engagement Pulse</span>
+                  <p className="text-2xl font-black italic tracking-tighter">{activeRange === '7D' ? '4.2K' : '15.8K'} Interactions</p>
+                </div>
+                <div className="h-10 w-10 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+                  <Activity className="h-5 w-5" />
+                </div>
+              </div>
+              
+              <div className="h-[200px] w-full">
+                <ChartContainer config={{ 
+                  engagement: { label: "Interactions", color: "hsl(var(--accent))" } 
+                }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                      <XAxis 
+                        dataKey="date" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: 'rgba(110, 150, 255, 0.5)', fontSize: 10, fontWeight: 'bold' }} 
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar 
+                        dataKey="engagement" 
+                        fill="hsl(var(--accent))" 
+                        radius={[6, 6, 0, 0]} 
+                        barSize={activeRange === '7D' ? 30 : 60}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Dynamic Handshake Protocol Card */}
         <Link href="/verification" className="relative group cursor-pointer block">
           <div className="absolute -inset-1 bg-gradient-to-r from-primary/40 to-accent/40 blur-xl opacity-20 group-hover:opacity-40 transition-opacity" />
@@ -211,24 +363,7 @@ export default function ProfessionalDashboard() {
               <div className="h-8 w-8 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
                 <TrendingUp className="h-5 w-5" />
               </div>
-              <h3 className="text-2xl font-black italic uppercase tracking-tighter">Performance Pulse</h3>
-            </div>
-            
-            <div className="flex items-center gap-1 bg-secondary/40 p-1 rounded-xl">
-              {["28D", "7D", "Now"].map((range) => (
-                <button 
-                  key={range}
-                  onClick={() => { triggerHaptic(5); setActiveRange(range === "28D" ? "28 days" : range); }}
-                  className={cn(
-                    "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                    activeRange.includes(range.toLowerCase()) || (range === "28D" && activeRange === "28 days")
-                      ? "bg-white dark:bg-card text-primary shadow-sm" 
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {range}
-                </button>
-              ))}
+              <h3 className="text-2xl font-black italic uppercase tracking-tighter">Quick Performance</h3>
             </div>
           </div>
 

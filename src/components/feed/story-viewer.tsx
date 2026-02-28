@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -100,8 +101,10 @@ export function StoryViewer() {
     }
 
     if (!isPaused) {
-      const elapsed = time - startTime.current;
+      const elapsed = time - (startTime.current || 0);
       const newProgress = Math.min((elapsed / STORY_DURATION) * 100, 100);
+      
+      // Update progress state without triggering heavy re-renders if possible
       setProgress(newProgress);
 
       if (newProgress >= 100) {
@@ -110,13 +113,15 @@ export function StoryViewer() {
       }
       requestRef.current = requestAnimationFrame(animate);
     } else {
+      // Calculate how much time passed before pausing
       pausedTime.current = time - (startTime.current || 0);
     }
   }, [isPaused, nextSegment]);
 
   useEffect(() => {
     if (activeStoryIndex !== null && !isPaused) {
-      startTime.current = performance.now() - pausedTime.current;
+      // If we were paused, resume from where we were
+      startTime.current = performance.now() - (progress / 100 * STORY_DURATION);
       requestRef.current = requestAnimationFrame(animate);
     } else {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
