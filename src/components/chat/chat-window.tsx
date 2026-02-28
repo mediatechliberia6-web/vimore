@@ -149,15 +149,21 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Interaction Recovery Handshake Fail-safe
+  // INTERACTION RECOVERY HANDSHAKE
+  // Fail-safe monitor to ensure the document body always recovers from modal interaction locks
   useEffect(() => {
-    if (!isLeaveDialogOpen && !isAddNodeOpen) {
-      document.body.style.pointerEvents = 'auto';
-    }
-    return () => {
-      document.body.style.pointerEvents = 'auto';
+    const unlockBody = () => {
+      if (typeof document !== 'undefined') {
+        document.body.style.pointerEvents = 'auto';
+      }
     };
-  }, [isLeaveDialogOpen, isAddNodeOpen]);
+
+    if (!isLeaveDialogOpen && !isAddNodeOpen) {
+      unlockBody();
+    }
+    
+    return unlockBody;
+  }, [isLeaveDialogOpen, isAddNodeOpen, messages.length]);
 
   // Dynamic Vault Intelligence
   const vaultMedia = useMemo(() => {
@@ -200,7 +206,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     if (options?.mediaUrl) newMessage.type = options.mediaType || 'photo';
     if (options?.isWorkspace) newMessage.workspaceData = { title: "John's Workspace", metrics: "8.4k Followers", image: "https://picsum.photos/seed/my_cover/1200/400" };
     
-    // Auto-detect links for vault
     if (text.includes("http") && !options?.isWorkspace && !options?.mediaUrl) {
       newMessage.linkData = { 
         title: "Shared Resource", 
@@ -223,8 +228,10 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const handleConfirmLeave = () => {
     if (isCluster) {
       triggerHaptic(50);
-      // Restore Interaction before destruction
-      document.body.style.pointerEvents = 'auto';
+      // FORCE Restore Interaction before destruction
+      if (typeof document !== 'undefined') {
+        document.body.style.pointerEvents = 'auto';
+      }
       setIsLeaveDialogOpen(false);
       leaveCluster(contact.id);
       toast({ title: "Node Disconnected", description: `You have left the cluster: ${contact.name}` });
@@ -290,7 +297,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
           </div>
         </header>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-8 scroll-smooth" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(153, 64, 229, 0.03) 1px, transparent 0)', backgroundSize: '24px 24px' }}>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-8 scroll-smooth" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(153, 64, 22, 0.03) 1px, transparent 0)', backgroundSize: '24px 24px' }}>
           {messages.map((msg) => (
             <div key={msg.id} id={`msg-${msg.id}`} className="flex flex-col gap-1">
               {isCluster && !msg.isMe && msg.senderName && (
@@ -311,7 +318,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
         <ChatInput onSend={handleSend} />
       </div>
 
-      {/* Cluster Vault Sidebar */}
       <aside className={cn(
         "h-full bg-white dark:bg-card border-l border-primary/5 transition-all duration-500 overflow-hidden flex flex-col shrink-0 relative z-30", 
         showVault ? "w-full sm:w-[360px] opacity-100 translate-x-0" : "w-0 opacity-0 translate-x-full"

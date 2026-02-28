@@ -126,15 +126,19 @@ export function ChatBubble({
         audioRef.current = null;
       }
       if (timerRef.current) clearInterval(timerRef.current);
-      // Interaction Recovery Fail-safe on Unmount
-      document.body.style.pointerEvents = 'auto';
+      // Interaction Recovery Handshake Fail-safe on Unmount
+      if (typeof document !== 'undefined') {
+        document.body.style.pointerEvents = 'auto';
+      }
     };
   }, [type]);
 
   // Ensure pointer events are restored when dialog closes
   useEffect(() => {
     if (!isDeleteDialogOpen) {
-      document.body.style.pointerEvents = 'auto';
+      if (typeof document !== 'undefined') {
+        document.body.style.pointerEvents = 'auto';
+      }
     }
   }, [isDeleteDialogOpen]);
 
@@ -175,10 +179,17 @@ export function ChatBubble({
 
   const handleDelete = () => {
     triggerHaptic(50);
-    // FORCE Interaction Recovery before unmounting component
-    document.body.style.pointerEvents = 'auto';
+    // 1. Close the dialog locally first
     setIsDeleteDialogOpen(false);
-    onDelete?.(id);
+    
+    // 2. Perform Staggered Deletion Pulse
+    // This allows the dialog to trigger its cleanup before the component is unmounted
+    setTimeout(() => {
+      if (typeof document !== 'undefined') {
+        document.body.style.pointerEvents = 'auto';
+      }
+      onDelete?.(id);
+    }, 100);
   };
 
   const toggleVideo = (e: React.MouseEvent) => {
