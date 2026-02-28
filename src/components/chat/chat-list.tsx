@@ -34,7 +34,7 @@ const MOCK_MESSAGES: Record<string, { text: string; time: string; unread: number
   "schen_dev": { text: "Check out the API docs I sent.", time: "Yesterday", unread: 0 },
   "mstone": { text: "That shoot was incredible.", time: "2:15 PM", unread: 0 },
   "jmoore": { text: "Let's sync up later today.", time: "9:00 AM", unread: 1 },
-  "techex": { text: "I've optimized the capture studio.", time: "Mon", unread: 0 },
+  "techex": { text: "I've optimized the x studio.", time: "Mon", unread: 0 },
 };
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
@@ -68,12 +68,25 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
       );
     }
 
+    // High-Velocity Sorting Logic
+    // 1. Priority: Pinned Nodes
+    // 2. Recency: lastInteraction timestamp descending
     return list.sort((a, b) => {
-      const aPinned = pinnedUsernames.has((a as any).username || (a as any).id);
-      const bPinned = pinnedUsernames.has((b as any).username || (b as any).id);
+      const aId = (a as any).username || (a as any).id;
+      const bId = (b as any).username || (b as any).id;
+      
+      const aPinned = pinnedUsernames.has(aId);
+      const bPinned = pinnedUsernames.has(bId);
+
+      // Handle Pinned Status First
       if (aPinned && !bPinned) return -1;
       if (!aPinned && bPinned) return 1;
-      return 0;
+
+      // Tier 2: Recency based on lastInteraction pulse
+      const aTime = (a as any).lastInteraction || 0;
+      const bTime = (b as any).lastInteraction || 0;
+      
+      return bTime - aTime;
     });
   }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames]);
 

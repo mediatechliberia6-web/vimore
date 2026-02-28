@@ -70,6 +70,7 @@ export interface Connection {
   connectionDate?: string;
   mutualFriends?: string[]; 
   followers?: string | number;
+  lastInteraction?: number;
 }
 
 export interface Cluster {
@@ -81,6 +82,7 @@ export interface Cluster {
   lastMessage?: string;
   lastTime?: string;
   isGroup: true;
+  lastInteraction?: number;
 }
 
 export interface Mention {
@@ -305,7 +307,8 @@ const MOCK_CONNECTIONS: Connection[] = [
     isOnline: true,
     connectionDate: "Feb 2024",
     mutualFriends: ["https://picsum.photos/seed/1/50/50", "https://picsum.photos/seed/2/50/50"],
-    followers: "1.5k"
+    followers: "1.5k",
+    lastInteraction: Date.now() - 1000 * 60 * 60 * 2 // 2 hours ago
   },
   { 
     name: "Tech Explorer", 
@@ -316,7 +319,8 @@ const MOCK_CONNECTIONS: Connection[] = [
     isOnline: false,
     connectionDate: "Jan 2024",
     mutualFriends: ["https://picsum.photos/seed/3/50/50"],
-    followers: "12k"
+    followers: "12k",
+    lastInteraction: Date.now() - 1000 * 60 * 60 * 24 // Yesterday
   },
   { 
     name: "Alex Rivera", 
@@ -327,7 +331,8 @@ const MOCK_CONNECTIONS: Connection[] = [
     isOnline: true,
     connectionDate: "Mar 2024",
     mutualFriends: ["https://picsum.photos/seed/4/50/50", "https://picsum.photos/seed/5/50/50", "https://picsum.photos/seed/6/50/50"],
-    followers: "12.2k"
+    followers: "12.2k",
+    lastInteraction: Date.now() - 1000 * 60 * 10 // 10 mins ago
   },
   { 
     name: "Sarah Chen", 
@@ -338,7 +343,8 @@ const MOCK_CONNECTIONS: Connection[] = [
     isOnline: true,
     connectionDate: "Nov 2023",
     mutualFriends: ["https://picsum.photos/seed/7/50/50"],
-    followers: "4.2k"
+    followers: "4.2k",
+    lastInteraction: Date.now() - 1000 * 60 * 5 // 5 mins ago
   },
   { 
     name: "Marcus Stone", 
@@ -349,7 +355,8 @@ const MOCK_CONNECTIONS: Connection[] = [
     isOnline: false,
     connectionDate: "Dec 2023",
     mutualFriends: ["https://picsum.photos/seed/8/50/50", "https://picsum.photos/seed/9/50/50"],
-    followers: "25.1k"
+    followers: "25.1k",
+    lastInteraction: Date.now() - 1000 * 60 * 60 * 5 // 5 hours ago
   },
   {
     name: "Paul Node",
@@ -359,7 +366,8 @@ const MOCK_CONNECTIONS: Connection[] = [
     followsYou: true,
     isOnline: true,
     connectionDate: "May 2024",
-    followers: "156"
+    followers: "156",
+    lastInteraction: Date.now() - 1000 * 60 * 2 // 2 mins ago
   }
 ];
 
@@ -917,7 +925,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       adminUsername: currentUser.username,
       isGroup: true,
       lastMessage: "Cluster materialized.",
-      lastTime: "Just now"
+      lastTime: "Just now",
+      lastInteraction: Date.now()
     };
     setClusters(prev => [newCluster, ...prev]);
   };
@@ -931,7 +940,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
           ...c,
           members: [...c.members, member],
           lastMessage: `@${member.username} joined the cluster.`,
-          lastTime: "Just now"
+          lastTime: "Just now",
+          lastInteraction: Date.now()
         };
       }
       return c;
