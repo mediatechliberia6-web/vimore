@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
@@ -30,9 +29,14 @@ export interface User {
   posts?: string | number;
   bio?: string;
   category?: string;
+  profession?: string;
+  school?: string;
+  relationshipStatus?: string;
+  dateOfBirth?: string;
+  lastModifiedName?: number; // Timestamp
+  lastModifiedDob?: number; // Timestamp
   pronouns?: string;
   joinDate?: string;
-  relationshipStatus?: string;
   introUrl?: string; 
   language?: string;
   goldBalance?: number;
@@ -208,9 +212,12 @@ const INITIAL_USER: User = {
   cover: "https://picsum.photos/seed/my_cover/1200/400",
   bio: "Digital creator specializing in UI/UX and mobile photography. Building ViMore community. 🎨 ✨",
   category: "Digital Creator",
+  profession: "Lead Product Architect at ViMore Labs",
+  school: "University of Digital Arts",
+  relationshipStatus: "Single",
+  dateOfBirth: "1995-10-24",
   pronouns: "His",
   joinDate: "January 2024",
-  relationshipStatus: "Single",
   followers: "8.4k",
   following: "1.2k",
   posts: "142",
@@ -222,7 +229,9 @@ const INITIAL_USER: User = {
   introUrl: "",
   isOnline: true,
   isVerified: false,
-  hasEverBeenVerified: false
+  hasEverBeenVerified: false,
+  lastModifiedName: 0,
+  lastModifiedDob: 0
 };
 
 const INITIAL_SETTINGS: AppSettings = {

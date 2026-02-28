@@ -35,7 +35,14 @@ import {
   Loader2,
   Clapperboard,
   Image as ImageIcon,
-  CheckCircle2
+  CheckCircle2,
+  Briefcase,
+  GraduationCap,
+  Heart,
+  Cake,
+  Calendar,
+  Lock,
+  Clock
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
@@ -67,6 +74,45 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+
+const USER_CATEGORIES = [
+  "Digital Creator",
+  "Product Architect",
+  "Visual Storyteller",
+  "Fullstack Developer",
+  "Sonic Producer"
+];
+
+const RELATIONSHIP_STATUSES = [
+  "Single",
+  "In a Handshake",
+  "Synchronized",
+  "Exploring"
+];
+
+export function InfoNode({ icon: Icon, label, value, colorClass }: { icon: any, label: string, value: string, colorClass: string }) {
+  return (
+    <div className="flex items-center gap-3 group/node">
+      <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center transition-transform group-hover/node:scale-110", colorClass)}>
+        <Icon className="h-4.5 w-4.5" />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 leading-none mb-1">{label}</span>
+        <span className="text-sm font-bold text-foreground leading-none">{value}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function MyProfilePage() {
   const { currentUser, posts, updateCurrentUser, isPostSaved, addPost, connections, followingUsernames, toggleFollowUser, isFollowing } = usePosts();
@@ -123,9 +169,13 @@ export default function MyProfilePage() {
 
   const [editData, setEditData] = useState({
     name: currentUser.name,
-    category: currentUser.category,
-    bio: currentUser.bio,
-    pronouns: currentUser.pronouns
+    category: currentUser.category || USER_CATEGORIES[0],
+    bio: currentUser.bio || "",
+    pronouns: currentUser.pronouns || "",
+    profession: currentUser.profession || "",
+    school: currentUser.school || "",
+    relationshipStatus: currentUser.relationshipStatus || RELATIONSHIP_STATUSES[0],
+    dateOfBirth: currentUser.dateOfBirth || ""
   });
 
   const triggerHaptic = (intensity = 10) => {
@@ -206,12 +256,9 @@ export default function MyProfilePage() {
     triggerHaptic(50);
     const mode = visualToDelete;
     
-    // 1. Force interaction restoration
     document.body.style.pointerEvents = 'auto';
-    // 2. Clear dialog state
     setVisualToDelete(null);
     
-    // 3. Purge visual
     if (mode === 'avatar') {
       updateCurrentUser({ avatar: "https://picsum.photos/seed/default/400/400" });
       toast({ title: "Avatar Purged", description: "Profile visual reset to default." });
@@ -295,7 +342,21 @@ export default function MyProfilePage() {
 
   const handleSaveProfile = () => {
     triggerHaptic(25);
-    updateCurrentUser(editData);
+    
+    const updates: Partial<any> = { ...editData };
+    const now = Date.now();
+
+    // Temporal Lock check logic for name
+    if (editData.name !== currentUser.name) {
+      updates.lastModifiedName = now;
+    }
+
+    // Temporal Lock check logic for DOB
+    if (editData.dateOfBirth !== currentUser.dateOfBirth) {
+      updates.lastModifiedDob = now;
+    }
+
+    updateCurrentUser(updates);
     setIsEditModalOpen(false);
     toast({ title: "Changes Applied", description: "Your workspace identity has been updated." });
   };
@@ -309,17 +370,29 @@ export default function MyProfilePage() {
     if (confirmUser) {
       triggerHaptic(30);
       const user = { ...confirmUser };
-      // 1. Force interaction restoration
       document.body.style.pointerEvents = 'auto';
-      // 2. Clear dialog state
       setConfirmUser(null);
-      // 3. Purge relationship
       toggleFollowUser(user.username);
       toast({ 
         title: "Network Adjusted", 
         description: `You no longer follow ${user.name}` 
       });
     }
+  };
+
+  const isNameLocked = currentUser.lastModifiedName ? (Date.now() - currentUser.lastModifiedName < NINETY_DAYS_MS) : false;
+  const isDobLocked = currentUser.lastModifiedDob ? (Date.now() - currentUser.lastModifiedDob < NINETY_DAYS_MS) : false;
+
+  const getNameLockRemaining = () => {
+    if (!currentUser.lastModifiedName) return 0;
+    const remaining = NINETY_DAYS_MS - (Date.now() - currentUser.lastModifiedName);
+    return Math.ceil(remaining / (1000 * 60 * 60 * 24));
+  };
+
+  const getDobLockRemaining = () => {
+    if (!currentUser.lastModifiedDob) return 0;
+    const remaining = NINETY_DAYS_MS - (Date.now() - currentUser.lastModifiedDob);
+    return Math.ceil(remaining / (1000 * 60 * 60 * 24));
   };
 
   const myPosts = useMemo(() => posts.filter(p => p.user.username === currentUser.username), [posts, currentUser.username]);
@@ -331,6 +404,12 @@ export default function MyProfilePage() {
     if (!deviceLanguage || !currentUser.language) return false;
     return deviceLanguage !== currentUser.language && (currentUser.bio?.length || 0) > 5;
   }, [deviceLanguage, currentUser]);
+
+  const formattedDob = useMemo(() => {
+    if (!currentUser.dateOfBirth) return null;
+    const date = new Date(currentUser.dateOfBirth);
+    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  }, [currentUser.dateOfBirth]);
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-background flex justify-center">
@@ -359,29 +438,97 @@ export default function MyProfilePage() {
             </div>
             <div className="flex items-center gap-1">
               <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-                <Button variant="ghost" size="icon" className="rounded-full" onClick={() => { triggerHaptic(5); setIsEditModalOpen(true); setEditData({ name: currentUser.name, category: currentUser.category, bio: currentUser.bio, pronouns: currentUser.pronouns }); }}>
+                <Button variant="ghost" size="icon" className="rounded-full" onClick={() => { triggerHaptic(5); setIsEditModalOpen(true); setEditData({ name: currentUser.name, category: currentUser.category || USER_CATEGORIES[0], bio: currentUser.bio || "", pronouns: currentUser.pronouns || "", profession: currentUser.profession || "", school: currentUser.school || "", relationshipStatus: currentUser.relationshipStatus || RELATIONSHIP_STATUSES[0], dateOfBirth: currentUser.dateOfBirth || "" }); }}>
                   <Edit2 className="h-5 w-5" />
                 </Button>
-                <DialogContent className="sm:max-w-[425px] rounded-[2rem]">
-                  <DialogHeader>
-                    <DialogTitle className="font-black italic uppercase tracking-tighter text-2xl">Refine Presence</DialogTitle>
+                <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-0 overflow-hidden border-primary/10">
+                  <DialogHeader className="p-6 bg-primary/5 border-b border-primary/10">
+                    <DialogTitle className="font-black italic uppercase tracking-widest text-2xl">Calibration Hub</DialogTitle>
                   </DialogHeader>
-                  <div className="grid gap-6 py-4">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Identity Label</Label>
-                      <Input value={editData.name} onChange={(e) => setEditData({ ...editData, name: e.target.value })} className="rounded-xl bg-secondary/20 border-none h-12" />
+                  <ScrollArea className="max-h-[70vh]">
+                    <div className="p-6 space-y-8">
+                      {/* Identity Cluster */}
+                      <div className="space-y-6">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Identity Lock</h3>
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Legal Label (Name)</Label>
+                              {isNameLocked && <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[8px] font-black h-4 px-2 uppercase"><Clock className="h-2.5 w-2.5 mr-1" /> SYNC IN {getNameLockRemaining()}D</Badge>}
+                            </div>
+                            <div className="relative group">
+                              <Input disabled={isNameLocked} value={editData.name} onChange={(e) => setEditData({ ...editData, name: e.target.value })} className={cn("rounded-xl bg-secondary/20 border-none h-12 transition-all", isNameLocked && "opacity-50 cursor-not-allowed")} />
+                              {isNameLocked && <Lock className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Arrival Date (DOB)</Label>
+                              {isDobLocked && <Badge variant="secondary" className="bg-primary/5 text-primary border-none text-[8px] font-black h-4 px-2 uppercase"><Clock className="h-2.5 w-2.5 mr-1" /> SYNC IN {getDobLockRemaining()}D</Badge>}
+                            </div>
+                            <div className="relative group">
+                              <Input type="date" disabled={isDobLocked} value={editData.dateOfBirth} onChange={(e) => setEditData({ ...editData, dateOfBirth: e.target.value })} className={cn("rounded-xl bg-secondary/20 border-none h-12 transition-all", isDobLocked && "opacity-50 cursor-not-allowed")} />
+                              {isDobLocked && <Lock className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Signature Cluster */}
+                      <div className="space-y-6">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Digital Signature</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Professional Niche</Label>
+                            <Select value={editData.category} onValueChange={(val) => setEditData({ ...editData, category: val })}>
+                              <SelectTrigger className="h-12 rounded-xl bg-secondary/20 border-none px-4">
+                                <SelectValue placeholder="Select Category" />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl">
+                                {USER_CATEGORIES.map(cat => <SelectItem key={cat} value={cat} className="font-bold">{cat}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Identity Tokens (Pronouns)</Label>
+                            <Input value={editData.pronouns} onChange={(e) => setEditData({ ...editData, pronouns: e.target.value })} className="rounded-xl bg-secondary/20 border-none h-12" placeholder="e.g. He/Him" />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Vibe Manifesto (Bio)</Label>
+                          <Textarea value={editData.bio} onChange={(e) => setEditData({ ...editData, bio: e.target.value })} className="rounded-xl bg-secondary/20 border-none min-h-[100px] resize-none" placeholder="Share your network logic..." />
+                        </div>
+                      </div>
+
+                      {/* Social Graph Cluster */}
+                      <div className="space-y-6">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Network Graph</h3>
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Current Node (Profession)</Label>
+                            <Input value={editData.profession} onChange={(e) => setEditData({ ...editData, profession: e.target.value })} className="rounded-xl bg-secondary/20 border-none h-12" placeholder="e.g. Designer at ViMore" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Academic Node (School)</Label>
+                            <Input value={editData.school} onChange={(e) => setEditData({ ...editData, school: e.target.value })} className="rounded-xl bg-secondary/20 border-none h-12" placeholder="e.g. University of Digital Arts" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Handshake Status</Label>
+                            <Select value={editData.relationshipStatus} onValueChange={(val) => setEditData({ ...editData, relationshipStatus: val })}>
+                              <SelectTrigger className="h-12 rounded-xl bg-secondary/20 border-none px-4">
+                                <SelectValue placeholder="Select Status" />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl">
+                                {RELATIONSHIP_STATUSES.map(status => <SelectItem key={status} value={status} className="font-bold">{status}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Professional Niche</Label>
-                      <Input value={editData.category} onChange={(e) => setEditData({ ...editData, category: e.target.value })} className="rounded-xl bg-secondary/20 border-none h-12" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Digital Signature (Bio)</Label>
-                      <Textarea value={editData.bio} onChange={(e) => setEditData({ ...editData, bio: e.target.value })} className="rounded-xl bg-secondary/20 border-none min-h-[100px]" />
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button onClick={handleSaveProfile} className="w-full bg-primary hover:bg-primary/90 text-white font-black uppercase italic tracking-widest h-12 rounded-xl shadow-lg shadow-primary/20">Sync Identity</Button>
+                  </ScrollArea>
+                  <div className="p-6 bg-secondary/10 border-t border-primary/10">
+                    <Button onClick={handleSaveProfile} className="w-full bg-primary hover:bg-primary/90 text-white font-black uppercase italic tracking-widest h-14 rounded-2xl shadow-xl shadow-primary/20">Sync Identity Pulse</Button>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -506,6 +653,42 @@ export default function MyProfilePage() {
                   <div className="flex flex-col"><span className="font-bold text-lg leading-none">{myPosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
                 </div>
 
+                {/* Identity Nodes Display */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 py-6 my-4 border-y border-primary/5 bg-primary/[0.02] px-4 rounded-[2rem]">
+                  {currentUser.profession && (
+                    <InfoNode 
+                      icon={Briefcase} 
+                      label="Current Node" 
+                      value={currentUser.profession} 
+                      colorClass="bg-blue-500/10 text-blue-500" 
+                    />
+                  )}
+                  {currentUser.school && (
+                    <InfoNode 
+                      icon={GraduationCap} 
+                      label="Academic Node" 
+                      value={currentUser.school} 
+                      colorClass="bg-purple-500/10 text-purple-500" 
+                    />
+                  )}
+                  {currentUser.relationshipStatus && (
+                    <InfoNode 
+                      icon={Heart} 
+                      label="Handshake Status" 
+                      value={currentUser.relationshipStatus} 
+                      colorClass="bg-rose-500/10 text-rose-500" 
+                    />
+                  )}
+                  {formattedDob && (
+                    <InfoNode 
+                      icon={Cake} 
+                      label="Arrival Date" 
+                      value={formattedDob} 
+                      colorClass="bg-amber-500/10 text-amber-500" 
+                    />
+                  )}
+                </div>
+
                 <div className="mt-3 relative group max-w-2xl">
                    <div className="flex items-start gap-4">
                     <p className="text-[15px] leading-relaxed text-foreground flex-1">{translatedBio || currentUser.bio}</p>
@@ -628,6 +811,9 @@ export default function MyProfilePage() {
       <AlertDialog open={!!confirmUser} onOpenChange={(open) => !open && setConfirmUser(null)}>
         <AlertDialogContent className="rounded-[2rem] sm:max-w-[400px] z-[200]">
           <AlertDialogHeader>
+            <div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4">
+              <UserMinus className="h-8 w-8" />
+            </div>
             <AlertDialogTitle className="font-black italic uppercase tracking-tighter text-2xl">
               {confirmType === "unfriend" ? "Unfriend Creator?" : "Unfollow Creator?"}
             </AlertDialogTitle>
