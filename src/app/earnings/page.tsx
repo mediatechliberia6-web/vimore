@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { 
   ArrowLeft, 
   Coins, 
@@ -19,14 +20,25 @@ import {
   Star,
   CheckCircle2,
   Lock,
-  History
+  History,
+  Building2,
+  Smartphone,
+  Check,
+  X,
+  Loader2,
+  Clock,
+  ShieldAlert,
+  Mail
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
+import { useNotifications } from "@/context/NotificationContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { 
@@ -41,6 +53,8 @@ import {
   ChartTooltip, 
   ChartTooltipContent 
 } from "@/components/ui/chart";
+import { useToast } from "@/hooks/use-toast";
+import { aiGenerateVerificationCode } from "@/app/actions/ai";
 
 const REVENUE_DATA = [
   { name: "Locked Posts", value: 65, color: "hsl(var(--primary))" },
@@ -74,9 +88,13 @@ const QUALIFICATIONS = [
 export default function EarningsPage() {
   const { currentUser, triggerHaptic } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
+  const { addSignal } = useNotifications();
+  const { toast } = useToast();
+  
+  const [isPortalOpen, setIsPortalOpen] = useState(false);
   const isPlayerActive = currentTrack && !isExpanded;
 
-  // Real-time conversion logic
+  // Real-time conversion logic for the header
   const estimates = useMemo(() => {
     const gold = currentUser.goldBalance || 0;
     const diamond = currentUser.diamondBalance || 0;
@@ -86,6 +104,121 @@ export default function EarningsPage() {
       totalLD: (gold * 1.9) + (diamond * 47)
     };
   }, [currentUser.goldBalance, currentUser.diamondBalance]);
+
+  // PORTAL STATE
+  const [step, setStep] = useState<"form" | "verify">("form");
+  const [payoutMethod, setPayoutMethod] = useState<"ORANGE" | "MTN" | null>(null);
+  const [accountName, setAccountName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [withdrawCurrency, setWithdrawCurrency] = useState<"GOLD" | "DIAMOND">("GOLD");
+  const [amount, setAmount] = useState("");
+  const [payoutCurrency, setPayoutCurrency] = useState<"USD" | "LD">("USD");
+  
+  const [verificationCode, setVerificationCode] = useState("");
+  const [generatedCode, setGeneratedCode] = useState("");
+  const [timeLeft, setTimeLeft] = useState(120);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
+
+  // LOGIC CALCULATIONS
+  const feeMultiplier = currentUser.isVerified ? 1 : 0.85;
+  const rawAmount = parseFloat(amount) || 0;
+  
+  const calculation = useMemo(() => {
+    let baseUSD = 0;
+    if (withdrawCurrency === 'GOLD') baseUSD = rawAmount * 0.01;
+    else baseUSD = rawAmount * 0.25;
+
+    const payoutValue = payoutCurrency === 'USD' 
+      ? baseUSD 
+      : (withdrawCurrency === 'GOLD' ? rawAmount * 1.9 : rawAmount * 47);
+    
+    const feeAmount = payoutValue * (1 - feeMultiplier);
+    const finalPayout = payoutValue * feeMultiplier;
+
+    return {
+      payoutValue,
+      feeAmount,
+      finalPayout
+    };
+  }, [withdrawCurrency, amount, payoutCurrency, feeMultiplier, rawAmount]);
+
+  const hasEnoughBalance = useMemo(() => {
+    const balance = withdrawCurrency === 'GOLD' ? (currentUser.goldBalance || 0) : (currentUser.diamondBalance || 0);
+    return rawAmount > 0 && rawAmount <= balance;
+  }, [withdrawCurrency, rawAmount, currentUser]);
+
+  const canProceedToVerify = payoutMethod && accountName && accountNumber && amount && hasEnoughBalance;
+
+  // HANDLERS
+  const handleInitiateVerify = async () => {
+    if (!canProceedToVerify) return;
+    triggerHaptic(20);
+    setIsGeneratingCode(true);
+    
+    try {
+      const { code } = await aiGenerateVerificationCode({ packageName: "WITHDRAWAL_AUTH" });
+      setGeneratedCode(code);
+      setStep("verify");
+      setTimeLeft(120);
+      toast({ title: "Security Node Active", description: "Verification pulse sent to your registered email." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Sync Error", description: "Could not materialize security code." });
+    } finally {
+      setIsGeneratingCode(false);
+    }
+  };
+
+  const handleSubmitFinal = () => {
+    if (verificationCode.toUpperCase() !== generatedCode.toUpperCase()) {
+      triggerHaptic(50);
+      toast({ variant: "destructive", title: "Handshake Failed", description: "Invalid security code node." });
+      return;
+    }
+
+    setIsSubmitting(true);
+    triggerHaptic(100);
+
+    setTimeout(() => {
+      addSignal({
+        type: 'SYSTEM',
+        title: 'Withdrawal Pending',
+        content: `Your request for **${payoutCurrency} ${calculation.finalPayout.toFixed(2)}** has been received and is being audited.`,
+        image: "https://picsum.photos/seed/money/100/100"
+      });
+
+      toast({
+        title: "Submission Synced",
+        description: "Your withdrawal node is now in the review cluster."
+      });
+
+      setIsSubmitting(false);
+      setIsPortalOpen(false);
+      resetPortal();
+    }, 3000);
+  };
+
+  const resetPortal = () => {
+    setStep("form");
+    setPayoutMethod(null);
+    setAccountName("");
+    setAccountNumber("");
+    setAmount("");
+    setVerificationCode("");
+    setGeneratedCode("");
+  };
+
+  // TIMER LOGIC
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (step === 'verify' && timeLeft > 0) {
+      interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
+    } else if (timeLeft === 0) {
+      setStep("form");
+      toast({ variant: "destructive", title: "Temporal Expiry", description: "Security code has expired. Please re-initiate." });
+    }
+    return () => clearInterval(interval);
+  }, [step, timeLeft]);
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300 relative overflow-x-hidden">
@@ -161,7 +294,7 @@ export default function EarningsPage() {
                 </div>
                 <Button 
                   className="w-full sm:w-auto h-14 px-10 rounded-2xl bg-primary text-white font-black italic uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all gap-3"
-                  onClick={() => { triggerHaptic(20); toast({ title: "Portal Opening", description: "Materializing withdrawal handshake..." }); }}
+                  onClick={() => { triggerHaptic(20); setIsPortalOpen(true); }}
                 >
                   <ArrowDownToLine className="h-5 w-5" />
                   Withdraw Earnings
@@ -173,7 +306,6 @@ export default function EarningsPage() {
 
         {/* 2. Earnings Analytics & Exchange Rates */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Revenue Breakdown */}
           <Card className="bg-white dark:bg-card border-border shadow-xl rounded-[2rem]">
             <CardHeader className="pb-0">
               <div className="flex items-center gap-3">
@@ -209,7 +341,6 @@ export default function EarningsPage() {
             </CardContent>
           </Card>
 
-          {/* Exchange Rate Registry */}
           <Card className="bg-white dark:bg-card border-border shadow-xl rounded-[2rem]">
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -299,6 +430,236 @@ export default function EarningsPage() {
         </footer>
 
       </main>
+
+      {/* WITHDRAWAL PORTAL */}
+      {isPortalOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-500 overflow-hidden">
+          <header className="h-20 px-6 flex items-center justify-between shrink-0 bg-black/40 border-b border-white/5">
+            <Button variant="ghost" size="icon" className="text-white bg-white/5 rounded-full" onClick={() => { setIsPortalOpen(false); resetPortal(); }}>
+              <X className="h-6 w-6" />
+            </Button>
+            <div className="flex flex-col items-center">
+              <h2 className="text-sm font-black italic uppercase tracking-widest text-white">Withdrawal Portal</h2>
+              <span className="text-[10px] font-bold text-primary uppercase">Financial Handshake</span>
+            </div>
+            <div className="w-10" />
+          </header>
+
+          <main className="flex-1 overflow-y-auto p-6 sm:p-12">
+            <div className="max-w-xl mx-auto space-y-10">
+              
+              {step === 'form' ? (
+                <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500">
+                  <section className="space-y-6">
+                    <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 text-center">Select Payout Node</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button 
+                        onClick={() => { triggerHaptic(10); setPayoutMethod("ORANGE"); }}
+                        className={cn(
+                          "h-24 rounded-3xl border-2 flex flex-col items-center justify-center gap-2 transition-all group",
+                          payoutMethod === "ORANGE" ? "bg-orange-500 border-orange-400 text-white shadow-xl shadow-orange-500/20" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
+                        )}
+                      >
+                        <Smartphone className="h-6 w-6" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Orange Money</span>
+                      </button>
+                      <button 
+                        onClick={() => { triggerHaptic(10); setPayoutMethod("MTN"); }}
+                        className={cn(
+                          "h-24 rounded-3xl border-2 flex flex-col items-center justify-center gap-2 transition-all group",
+                          payoutMethod === "MTN" ? "bg-yellow-500 border-yellow-400 text-black shadow-xl shadow-yellow-500/20" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
+                        )}
+                      >
+                        <Building2 className="h-6 w-6" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">MTN Momo</span>
+                      </button>
+                    </div>
+                  </section>
+
+                  <section className="space-y-6 bg-white/5 border border-white/10 p-8 rounded-[2.5rem]">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Account Identity (Name)</Label>
+                        <Input 
+                          placeholder="Registered account holder name" 
+                          className="h-14 bg-white/5 border-none rounded-2xl text-white font-bold"
+                          value={accountName}
+                          onChange={(e) => setAccountName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Node Number (Phone)</Label>
+                        <Input 
+                          placeholder="+231 77/88..." 
+                          className="h-14 bg-white/5 border-none rounded-2xl text-white font-bold"
+                          value={accountNumber}
+                          onChange={(e) => setAccountNumber(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-white/5" />
+
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Source Energy</Label>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => setWithdrawCurrency("GOLD")}
+                            className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", withdrawCurrency === 'GOLD' ? "bg-amber-500 text-white" : "bg-white/5 text-white/40")}
+                          >GOLD</button>
+                          <button 
+                            onClick={() => setWithdrawCurrency("DIAMOND")}
+                            className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", withdrawCurrency === 'DIAMOND' ? "bg-cyan-500 text-white" : "bg-white/5 text-white/40")}
+                          >DIAMOND</button>
+                        </div>
+                      </div>
+                      <div className="relative">
+                        <Input 
+                          type="number"
+                          placeholder="Amount to withdraw..." 
+                          className={cn(
+                            "h-20 bg-white/5 border-none rounded-[1.5rem] text-3xl font-black italic uppercase tracking-tighter text-white px-8",
+                            !hasEnoughBalance && rawAmount > 0 && "text-red-500"
+                          )}
+                          value={amount}
+                          onChange={(e) => setAmount(e.target.value)}
+                        />
+                        <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                          {withdrawCurrency === 'GOLD' ? <Coins className="h-6 w-6 text-amber-500" /> : <Gem className="h-6 w-6 text-cyan-500" />}
+                        </div>
+                      </div>
+                      {!hasEnoughBalance && rawAmount > 0 && (
+                        <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest text-center animate-pulse">Insufficient Vault Energy</p>
+                      )}
+                    </div>
+
+                    <div className="h-px bg-white/5" />
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Payout Asset</Label>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => setPayoutCurrency("USD")}
+                            className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", payoutCurrency === 'USD' ? "bg-white text-black" : "bg-white/5 text-white/40")}
+                          >USD ($)</button>
+                          <button 
+                            onClick={() => setPayoutCurrency("LD")}
+                            className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", payoutCurrency === 'LD' ? "bg-white text-black" : "bg-white/5 text-white/40")}
+                          >LD (L$)</button>
+                        </div>
+                      </div>
+
+                      <div className="bg-black/40 rounded-3xl p-6 space-y-4 border border-white/5">
+                        <div className="flex items-center justify-between text-[10px] font-black uppercase text-white/40 tracking-widest">
+                          <span>Raw Value</span>
+                          <span className="text-white">{payoutCurrency === 'USD' ? '$' : 'L$'} {calculation.payoutValue.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+                          <span className={currentUser.isVerified ? "text-green-500" : "text-amber-500"}>
+                            {currentUser.isVerified ? "Verified Discount" : "Network Maintenance Fee (15%)"}
+                          </span>
+                          <span className={currentUser.isVerified ? "text-green-500" : "text-red-500"}>
+                            {currentUser.isVerified ? "FREE" : `- ${payoutCurrency === 'USD' ? '$' : 'L$'} ${calculation.feeAmount.toFixed(2)}`}
+                          </span>
+                        </div>
+                        <div className="h-px bg-white/5" />
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black uppercase text-white tracking-[0.2em]">Materialized Amount</span>
+                          <span className="text-2xl font-black italic text-primary">{payoutCurrency === 'USD' ? '$' : 'L$'} {calculation.finalPayout.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  {!currentUser.isVerified && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex gap-4">
+                      <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+                      <p className="text-[9px] font-black text-amber-500 uppercase leading-relaxed tracking-tighter">
+                        MATERIALIZE YOUR VERIFICATION SIGNATURE TO PURGE ALL WITHDRAWAL FEES. UNVERIFIED NODES INCUR A 15% MAINTENANCE PULSE.
+                      </p>
+                    </div>
+                  )}
+
+                  <Button 
+                    className={cn(
+                      "w-full h-20 rounded-[2rem] font-black italic uppercase tracking-[0.3em] text-xl shadow-2xl transition-all active:scale-95",
+                      canProceedToVerify && !isGeneratingCode ? "bg-primary text-white shadow-primary/20" : "bg-white/5 text-white/20 cursor-not-allowed"
+                    )}
+                    onClick={handleInitiateVerify}
+                    disabled={!canProceedToVerify || isGeneratingCode}
+                  >
+                    {isGeneratingCode ? <><Loader2 className="mr-3 h-6 w-6 animate-spin" /> SYNCING AI...</> : "Submit for Review"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-10 animate-in zoom-in-95 duration-500 text-center">
+                  <div className="relative inline-block">
+                    <div className="absolute -inset-4 bg-primary/20 blur-2xl rounded-full animate-pulse" />
+                    <div className="h-24 w-24 bg-primary rounded-[2.5rem] flex items-center justify-center text-white shadow-2xl relative z-10">
+                      <Mail className="h-10 w-10" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-3xl font-black italic uppercase tracking-tighter text-white">Identity Check</h3>
+                    <p className="text-sm text-white/40 font-medium uppercase tracking-widest max-w-xs mx-auto">
+                      A high-velocity verification pulse has been sent to your registered email node.
+                    </p>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-10 space-y-8">
+                    <div className="space-y-4">
+                      <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Spatial Verification Code</Label>
+                      <Input 
+                        placeholder="XXXXXX" 
+                        className="h-20 bg-black/40 border-primary/20 rounded-2xl text-center text-4xl font-black tracking-[0.5em] text-white focus-visible:ring-primary/40 uppercase"
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value.slice(0, 6))}
+                        maxLength={6}
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="flex flex-col items-center gap-4 pt-4 border-t border-white/5">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-primary animate-pulse" />
+                        <span className={cn("text-lg font-black tabular-nums tracking-widest", timeLeft < 30 ? "text-red-500" : "text-white")}>
+                          {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                        </span>
+                      </div>
+                      <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Temporal Validity</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <Button 
+                      className="w-full h-16 rounded-[1.75rem] bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl transition-all active:scale-95"
+                      onClick={handleSubmitFinal}
+                      disabled={verificationCode.length < 6 || isSubmitting}
+                    >
+                      {isSubmitting ? <><Loader2 className="mr-3 h-6 w-6 animate-spin" /> AUDITING...</> : "Finalize Handshake"}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full text-white/40 font-black uppercase text-[10px] tracking-widest"
+                      onClick={() => { triggerHaptic(10); setStep('form'); }}
+                    >
+                      Resend Protocol
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 text-white/20 font-bold text-[9px] uppercase tracking-widest pt-10">
+                    <ShieldCheck className="h-3 w-3" /> Groq AI Financial Auditor v1.5
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </main>
+        </div>
+      )}
     </div>
   );
 }
