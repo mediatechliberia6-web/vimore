@@ -67,6 +67,9 @@ const MOCK_SIGNALS: NotificationNode[] = [
   }
 ];
 
+// Maximum nodes to keep in local storage to prevent QuotaExceededError
+const SIGNAL_STORAGE_LIMIT = 30;
+
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<NotificationNode[]>([]);
   const [categoryPulses, setCategoryPulses] = useState<Record<PulseCategory, number>>({
@@ -99,12 +102,22 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Safe Persistence Protocol
   useEffect(() => {
-    localStorage.setItem('vimore_signals', JSON.stringify(notifications));
+    try {
+      // Buffer Check: Keep only latest nodes
+      const bufferedNotifications = notifications.slice(0, SIGNAL_STORAGE_LIMIT);
+      localStorage.setItem('vimore_signals', JSON.stringify(bufferedNotifications));
+    } catch (e) {
+      console.warn("Signal buffer failed to sync. Clearing cache to restore handshake.");
+      localStorage.removeItem('vimore_signals');
+    }
   }, [notifications]);
 
   useEffect(() => {
-    localStorage.setItem('vimore_pulses', JSON.stringify(categoryPulses));
+    try {
+      localStorage.setItem('vimore_pulses', JSON.stringify(categoryPulses));
+    } catch (e) {}
   }, [categoryPulses]);
 
   // Synthetic Signal Simulator
@@ -150,7 +163,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       isRead: false
     };
 
-    setNotifications(prev => [newNode, ...prev]);
+    setNotifications(prev => [newNode, ...prev].slice(0, SIGNAL_STORAGE_LIMIT + 10)); // Local state buffer
     triggerSound();
 
     if (typeof window !== 'undefined' && "Notification" in window && Notification.permission === "granted") {

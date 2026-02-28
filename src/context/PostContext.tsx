@@ -577,9 +577,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const safePersist = (key: string, value: any) => {
     try {
-      localStorage.setItem(key, JSON.stringify(value));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(key, JSON.stringify(value));
+      }
     } catch (e) {
-      console.warn(`Storage quota exceeded for key: ${key}.`);
+      console.warn(`Storage quota exceeded for key: ${key}. Calibrating cache...`);
+      // If we hit a quota limit, try to clear non-essential cache
+      if (key === 'vimore_local_posts') {
+        // Keep only top 5 if quota hit
+        try {
+          localStorage.setItem(key, JSON.stringify(value.slice(0, 5)));
+        } catch (innerE) {}
+      }
     }
   };
 
@@ -633,7 +642,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (pendingTransaction) {
-      localStorage.setItem('vimore_pending_transaction', JSON.stringify(pendingTransaction));
+      safePersist('vimore_pending_transaction', pendingTransaction);
     } else {
       localStorage.removeItem('vimore_pending_transaction');
     }
@@ -687,10 +696,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const updated = { ...prev, ...data };
       
       if (data.avatar && data.avatar !== prev.avatar) {
-        updated.profilePictureHistory = [...(prev.profilePictureHistory || []), data.avatar];
+        updated.profilePictureHistory = [...(prev.profilePictureHistory || []), data.avatar].slice(-10);
       }
       if (data.cover && data.cover !== prev.cover) {
-        updated.coverPhotoHistory = [...(prev.coverPhotoHistory || []), data.cover];
+        updated.coverPhotoHistory = [...(prev.coverPhotoHistory || []), data.cover].slice(-10);
       }
 
       safePersist('vimore_user', updated);
@@ -883,7 +892,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         const updated = [...prev];
         updated[userStoryIndex] = {
           ...updated[userStoryIndex],
-          segments: [newSegment, ...updated[userStoryIndex].segments],
+          segments: [newSegment, ...updated[userStoryIndex].segments].slice(0, 10), // Limit segments
           viewCount: updated[userStoryIndex].viewCount || 0
         };
         return updated;
@@ -1017,7 +1026,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       lastTime: "Just now",
       lastInteraction: Date.now()
     };
-    setClusters(prev => [newCluster, ...prev]);
+    setClusters(prev => [newCluster, ...prev].slice(0, 20)); // Limit clusters
   };
 
   const addMemberToCluster = (clusterId: string, member: Connection) => {
