@@ -512,7 +512,7 @@ export function PostCard(props: PostCardProps) {
             <div className="px-1 pt-2 pb-1 flex items-center justify-between w-full text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground/50 border-t border-primary/5">
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  {isEligibleForGift && (
+                  {isEligibleForGift && !isOwner && (
                     <button 
                       onClick={handleGiftClick}
                       className="absolute -top-6 left-1/2 -translate-x-1/2 p-1.5 bg-primary rounded-full text-white shadow-lg animate-shake-vibe z-20"

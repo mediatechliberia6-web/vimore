@@ -811,6 +811,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const openGiftHub = (user: User) => {
+    if (user.username === currentUser.username) return;
     triggerHaptic(15);
     setTargetUserForGift(user);
     setIsGiftHubOpen(true);

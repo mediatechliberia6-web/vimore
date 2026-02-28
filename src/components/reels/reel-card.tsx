@@ -254,7 +254,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         )}>
           <div className="flex flex-col gap-1.5 pointer-events-auto">
             <div className="flex items-center gap-2 relative">
-              {isEligibleForGift && (
+              {isEligibleForGift && !isMe && (
                 <button 
                   onClick={handleGiftClick}
                   className="absolute -top-8 left-0 p-1.5 bg-primary rounded-full text-white shadow-lg animate-shake-vibe z-50 border border-white/20"

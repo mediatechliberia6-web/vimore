@@ -50,7 +50,7 @@ export function MusicPlayer() {
     togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, simulateDownload, isTrackDownloaded, triggerDownloadWithAd, triggerHaptic
   } = useMusic();
 
-  const { addSignal } = useNotifications();
+  const { addSignal, currentUser } = useNotifications();
 
   const [commentInput, setCommentInput] = useState("");
   const [isMuted, setIsMuted] = useState(false);
@@ -124,6 +124,7 @@ export function MusicPlayer() {
   const isUnliked = isTrackUnliked(currentTrack.id);
   const isDownloaded = isTrackDownloaded(currentTrack.id);
   const isEligibleForGift = parseFollowerCount(currentTrack.artistFollowers) > 1000;
+  const isOwner = currentTrack.artistUsername === currentUser.username;
 
   if (!isExpanded) {
     const isHome = pathname === "/";
@@ -251,7 +252,7 @@ export function MusicPlayer() {
               <div className="space-y-1 sm:space-y-2">
                 <h2 className="text-3xl sm:text-5xl font-black italic uppercase tracking-tighter leading-tight sm:leading-none">{currentTrack.title}</h2>
                 <div className="flex items-center gap-3 relative">
-                  {isEligibleForGift && (
+                  {isEligibleForGift && !isOwner && (
                     <button 
                       onClick={handleGiftClick}
                       className="absolute -top-8 left-0 p-1.5 bg-primary rounded-full text-white shadow-lg animate-shake-vibe z-50 border border-white/20"
