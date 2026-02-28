@@ -125,7 +125,10 @@ export function GiftHub() {
 
   return (
     <Sheet open={isGiftHubOpen} onOpenChange={(open) => !open && closeGiftHub()}>
-      <SheetContent side="bottom" className="rounded-t-[3rem] p-0 border-primary/10 bg-white/80 dark:bg-[#050505]/80 backdrop-blur-3xl h-[65vh] flex flex-col transition-all duration-500 overflow-hidden">
+      <SheetContent 
+        side="bottom" 
+        className="rounded-t-[3rem] p-0 border-primary/10 bg-white/80 dark:bg-[#050505]/80 backdrop-blur-3xl h-[85vh] flex flex-col transition-all duration-500 overflow-hidden"
+      >
         <div className="mx-auto w-12 h-1.5 bg-primary/20 rounded-full mt-4 mb-2 shrink-0" />
         
         <SheetHeader className="px-6 py-4 border-b border-primary/5 shrink-0">
@@ -155,7 +158,7 @@ export function GiftHub() {
           </div>
         </SheetHeader>
 
-        <div className="flex-1 flex flex-col min-h-0 relative">
+        <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
           {isSuccess ? (
             <div className="flex-1 flex flex-col items-center justify-center space-y-6 animate-in zoom-in-95 duration-500">
               <div className="h-24 w-24 bg-green-500 rounded-[2rem] flex items-center justify-center text-white shadow-2xl shadow-green-500/20">
@@ -167,8 +170,8 @@ export function GiftHub() {
               </div>
             </div>
           ) : (
-            <Tabs defaultValue="gold" className="flex-1 flex flex-col" onValueChange={setActiveTab}>
-              <div className="px-6 py-4 flex items-center justify-between bg-white/20 dark:bg-black/20">
+            <Tabs defaultValue="gold" className="flex-1 flex flex-col overflow-hidden" onValueChange={setActiveTab}>
+              <div className="px-6 py-4 flex items-center justify-between bg-white/20 dark:bg-black/20 shrink-0">
                 <TabsList className="bg-secondary/40 rounded-xl h-10 p-1">
                   <TabsTrigger value="gold" className="rounded-lg text-[10px] font-black uppercase px-6">Gold Gifts</TabsTrigger>
                   <TabsTrigger value="diamond" className="rounded-lg text-[10px] font-black uppercase px-6">Diamond Gifts</TabsTrigger>
@@ -178,9 +181,9 @@ export function GiftHub() {
                 </div>
               </div>
 
-              <div className="flex-1 min-h-0">
-                <TabsContent value="gold" className="h-full m-0 p-0">
-                  <ScrollArea className="h-full px-6 py-4">
+              <div className="flex-1 min-h-0 relative">
+                <TabsContent value="gold" className="h-full m-0 p-0 data-[state=active]:flex data-[state=active]:flex-col">
+                  <ScrollArea className="flex-1 px-6 py-4">
                     <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 pb-32">
                       {GOLD_GIFTS.map((gift) => (
                         <button
@@ -210,8 +213,8 @@ export function GiftHub() {
                   </ScrollArea>
                 </TabsContent>
 
-                <TabsContent value="diamond" className="h-full m-0 p-0">
-                  <ScrollArea className="h-full px-6 py-4">
+                <TabsContent value="diamond" className="h-full m-0 p-0 data-[state=active]:flex data-[state=active]:flex-col">
+                  <ScrollArea className="flex-1 px-6 py-4">
                     <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 pb-32">
                       {DIAMOND_GIFTS.map((gift) => (
                         <button
