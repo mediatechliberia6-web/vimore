@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const MOCK_USERS: Record<string, any> = {
   "arivera": { name: "Alex Rivera", avatar: "https://picsum.photos/seed/1/400/400", isVerified: true },
@@ -43,7 +44,7 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
   const username = resolvedParams.username;
   const router = useRouter();
   const { triggerHaptic } = useMusic();
-  const { currentUser } = usePosts();
+  const { currentUser, callState, endCall } = usePosts();
 
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
@@ -109,6 +110,7 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
 
   const handleEndCall = () => {
     triggerHaptic(100);
+    endCall();
     router.back();
   };
 
@@ -257,7 +259,7 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
 
             <Button 
               variant="ghost" size="icon" 
-              className={cn("h-14 w-14 rounded-full transition-all", !isSpeakerOn ? "bg-white/20 text-white" : "bg-white/5 text-white hover:bg-white/10")}
+              className={cn("h-14 w-14 rounded-full transition-all", !isSpeakerOn ? "bg-white/20 text-white" : "bg-white/5 text-white/40")}
               onClick={() => { triggerHaptic(5); setIsSpeakerOn(!isSpeakerOn); }}
             >
               {isSpeakerOn ? <Volume2 className="h-6 w-6" /> : <VolumeX className="h-6 w-6" />}
@@ -266,7 +268,7 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
             <Button 
               variant="ghost" size="icon" 
               className="h-14 w-14 rounded-full bg-white/5 text-white hover:bg-white/10"
-              onClick={() => { triggerHaptic(10); toast({ title: "Vibe Share", description: "Real-time content sync coming in next handshake." }); }}
+              onClick={() => { triggerHaptic(10); }}
             >
               <Plus className="h-6 w-6" />
             </Button>
@@ -277,26 +279,20 @@ export default function VideoCallPage({ params }: { params: Promise<{ username: 
       {/* Permission Warning */}
       {!(hasCameraPermission) && !isConnecting && !isVideoOff && (
         <div className="absolute inset-0 z-[100] flex items-center justify-center p-12 bg-black/80 backdrop-blur-sm">
-          <Alert variant="destructive" className="max-w-md bg-zinc-900 border-destructive/20 rounded-3xl">
-            <ShieldCheck className="h-5 w-5" />
-            <AlertTitle className="font-black italic uppercase tracking-widest text-lg">Hardware Lock</AlertTitle>
-            <AlertDescription className="text-zinc-400 font-medium leading-relaxed">
-              Camera access is restricted. To initiate a full Video Handshake, please calibrate your browser settings.
-            </AlertDescription>
-            <div className="mt-6 flex justify-end">
-              <Button variant="outline" className="rounded-xl font-bold uppercase tracking-widest text-[10px]" onClick={handleEndCall}>CLOSE NODE</Button>
+          <div className="max-w-md bg-zinc-900 border border-destructive/20 rounded-3xl p-8 space-y-6">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="h-6 w-6 text-destructive" />
+              <h3 className="font-black italic uppercase tracking-widest text-lg text-white">Hardware Lock</h3>
             </div>
-          </Alert>
+            <p className="text-zinc-400 font-medium leading-relaxed">
+              Camera access is restricted. To initiate a full Video Handshake, please calibrate your browser settings.
+            </p>
+            <div className="flex justify-end">
+              <Button variant="outline" className="rounded-xl font-bold uppercase tracking-widest text-[10px] text-white border-white/10" onClick={handleEndCall}>CLOSE NODE</Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
-}
-
-// Dummy imports for build stability if not global
-import { useToast as useToastHook } from "@/hooks/use-toast";
-import { TooltipProvider } from "@/components/ui/tooltip";
-
-function toast(arg0: { title: string; description: string; }) {
-  console.log(arg0);
 }

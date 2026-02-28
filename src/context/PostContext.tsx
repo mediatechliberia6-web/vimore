@@ -156,6 +156,16 @@ export interface Post {
   sharedPost?: any;
 }
 
+export type CallType = 'video' | 'audio';
+export type CallStatus = 'idle' | 'incoming' | 'outgoing' | 'active';
+
+export interface CallState {
+  type: CallType;
+  status: CallStatus;
+  contact: Connection | null;
+  startTime?: number;
+}
+
 interface PostContextType {
   currentUser: User;
   posts: Post[];
@@ -177,6 +187,7 @@ interface PostContextType {
   pendingTransaction: PendingTransaction | null;
   referralLink: string;
   settings: AppSettings;
+  callState: CallState;
   setSearchOpen: (open: boolean) => void;
   setSelectedPostId: (id: string | null) => void;
   setSelectedImageUrl: (url: string | null) => void;
@@ -211,6 +222,12 @@ interface PostContextType {
   isFollowing: (username: string) => boolean;
   incrementShareCount: (postId: string) => void;
   triggerHaptic: (intensity?: number) => void;
+  
+  // Call Handshakes
+  initiateCall: (contact: Connection, type: CallType) => void;
+  receiveCall: (contact: Connection, type: CallType) => void;
+  acceptCall: () => void;
+  endCall: () => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -463,6 +480,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [isGiftHubOpen, setIsGiftHubOpen] = useState(false);
   const [targetUserForGift, setTargetUserForGift] = useState<User | null>(null);
 
+  const [callState, setCallState] = useState<CallState>({
+    type: 'video',
+    status: 'idle',
+    contact: null
+  });
+
   const referralLink = useMemo(() => {
     return `http://vimore.appwrite.network/join?ref=${currentUser.username}`;
   }, [currentUser.username]);
@@ -616,8 +639,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       safePersist('vimore_user', updated);
       return updated;
     });
-    // In a real app, we would update the creator's balance here. 
-    // Since creators are mock data, we just finish the user's side.
   };
 
   const updateSettings = (data: Partial<AppSettings>) => {
@@ -859,6 +880,43 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setIsSearchOpen(open);
   };
 
+  // CALL HANDSHAKES
+  const initiateCall = (contact: Connection, type: CallType) => {
+    triggerHaptic(30);
+    setCallState({
+      type,
+      status: 'outgoing',
+      contact
+    });
+  };
+
+  const receiveCall = (contact: Connection, type: CallType) => {
+    triggerHaptic(50);
+    setCallState({
+      type,
+      status: 'incoming',
+      contact
+    });
+  };
+
+  const acceptCall = () => {
+    triggerHaptic(20);
+    setCallState(prev => ({
+      ...prev,
+      status: 'active',
+      startTime: Date.now()
+    }));
+  };
+
+  const endCall = () => {
+    triggerHaptic(100);
+    setCallState({
+      type: 'video',
+      status: 'idle',
+      contact: null
+    });
+  };
+
   return (
     <PostContext.Provider value={{ 
       currentUser: finalCurrentUser,
@@ -881,6 +939,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       pendingTransaction,
       referralLink,
       settings,
+      callState,
       setSearchOpen,
       setSelectedPostId,
       setSelectedImageUrl,
@@ -914,7 +973,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
       isPostUnliked,
       isPostSaved,
       isFollowing,
-      triggerHaptic
+      triggerHaptic,
+      initiateCall,
+      receiveCall,
+      acceptCall,
+      endCall
     }}>
       {children}
     </PostContext.Provider>

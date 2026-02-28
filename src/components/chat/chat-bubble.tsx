@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -21,7 +22,10 @@ import {
   Video as VideoIcon,
   Link as LinkIcon,
   Trash2,
-  MoreVertical
+  MoreVertical,
+  Phone,
+  Video,
+  PhoneMissed
 } from "lucide-react";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -57,7 +61,7 @@ interface ChatBubbleProps {
   text?: string;
   time: string;
   status?: "sent" | "delivered" | "read";
-  type?: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace";
+  type?: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace" | "call";
   mediaUrl?: string;
   voiceDuration?: string;
   linkData?: LinkPreview;
@@ -65,6 +69,11 @@ interface ChatBubbleProps {
   isViewOnce?: boolean;
   isViewed?: boolean;
   isDownloaded?: boolean;
+  callData?: {
+    type: 'audio' | 'video';
+    status: 'started' | 'missed' | 'ended';
+    duration?: string;
+  };
   taggedUser?: {
     name: string;
     username: string;
@@ -85,7 +94,7 @@ interface ChatBubbleProps {
 }
 
 export function ChatBubble({ 
-  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete 
+  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, callData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete 
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
@@ -264,9 +273,10 @@ export function ChatBubble({
           isMe 
             ? "bg-primary text-white rounded-2xl rounded-tr-none" 
             : "bg-white dark:bg-card text-foreground rounded-2xl rounded-tl-none border border-primary/5",
-          (type === "photo" || type === "video" || type === "workspace") && "p-1 pb-0"
+          (type === "photo" || type === "video" || type === "workspace") && "p-1 pb-0",
+          type === "call" && "bg-secondary/20 dark:bg-zinc-900 border-none px-6 py-4 rounded-3xl"
         )}>
-          {isMe && (
+          {isMe && type !== "call" && (
             <div className="absolute top-1 right-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -283,14 +293,50 @@ export function ChatBubble({
             </div>
           )}
 
-          <div className={cn(
-            "absolute top-0 w-4 h-4 z-10",
-            isMe 
-              ? "-right-2 bg-primary [clip-path:polygon(0_0,0_100%,100%_0)]" 
-              : "-left-2 bg-white dark:bg-card [clip-path:polygon(100%_0,100%_100%,0_0)]"
-          )} />
+          {type !== "call" && (
+            <div className={cn(
+              "absolute top-0 w-4 h-4 z-10",
+              isMe 
+                ? "-right-2 bg-primary [clip-path:polygon(0_0,0_100%,100%_0)]" 
+                : "-left-2 bg-white dark:bg-card [clip-path:polygon(100%_0,100%_100%,0_0)]"
+            )} />
+          )}
 
           <div className="flex flex-col">
+            {type === "call" && callData && (
+              <div className="flex items-center gap-4">
+                <div className={cn(
+                  "h-12 w-12 rounded-2xl flex items-center justify-center",
+                  callData.status === 'missed' ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
+                )}>
+                  {callData.status === 'missed' ? (
+                    <PhoneMissed className="h-6 w-6" />
+                  ) : callData.type === 'video' ? (
+                    <Video className="h-6 w-6" />
+                  ) : (
+                    <Phone className="h-6 w-6" />
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold uppercase tracking-tight">
+                    {callData.status === 'started' ? (isMe ? 'Outgoing call' : 'Incoming call') : 
+                     callData.status === 'missed' ? 'Missed call' : 'Call ended'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                      {callData.type.toUpperCase()} HANDSHAKE
+                    </span>
+                    {callData.duration && (
+                      <>
+                        <div className="h-1 w-1 rounded-full bg-muted-foreground/30" />
+                        <span className="text-[10px] font-black text-primary uppercase tracking-widest">{callData.duration}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {isViewOnce && (type === "photo" || type === "video") && (
               <div className="p-3 min-w-[200px]">
                 {isViewed ? (
@@ -508,7 +554,8 @@ export function ChatBubble({
             <div className={cn(
               "flex items-center justify-end gap-1.5 px-3 pb-2",
               isMe ? "text-white/60" : "text-muted-foreground",
-              (type === "photo" || type === "video") && !text && "absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-md text-white/80"
+              (type === "photo" || type === "video") && !text && "absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-md text-white/80",
+              type === "call" && "mt-2"
             )}>
               <span className="text-[9px] font-bold uppercase tracking-wider">{time}</span>
               {isMe && (

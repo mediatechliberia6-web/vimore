@@ -42,6 +42,7 @@ import { useMusic } from "@/context/MusicContext";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface Message {
   id: string;
@@ -49,13 +50,18 @@ interface Message {
   text?: string;
   time: string;
   status: "sent" | "delivered" | "read";
-  type: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace";
+  type: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace" | "call";
   mediaUrl?: string;
   voiceDuration?: string;
   isViewOnce?: boolean;
   isViewed?: boolean;
   isDownloaded?: boolean;
   reactions?: string[];
+  callData?: {
+    type: 'audio' | 'video';
+    status: 'started' | 'missed' | 'ended';
+    duration?: string;
+  };
   linkData?: {
     title: string;
     description: string;
@@ -83,9 +89,9 @@ interface ChatWindowProps {
 const QUICK_REACTIONS = ["🔥", "❤️", "🙌", "💯", "🤯", "🚀"];
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
-  const { triggerHaptic } = useMusic();
-  const { toggleSavePost } = usePosts();
+  const { triggerHaptic, initiateCall } = usePosts();
   const { toast } = useToast();
+  const router = useRouter();
   
   const [showVault, setShowVault] = useState(false);
   const [viewingMedia, setViewingMedia] = useState<Message | null>(null);
@@ -262,6 +268,29 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     toast({ title: "Note Synced", description: "Asset migrated to your identity notes." });
   };
 
+  const handleStartCall = (type: 'video' | 'audio') => {
+    triggerHaptic(25);
+    initiateCall(contact, type);
+    
+    // Add call log to messages
+    const callLog: Message = {
+      id: `call-${Date.now()}`,
+      sender: "me",
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      status: "sent",
+      type: "call",
+      callData: {
+        type,
+        status: 'started'
+      }
+    };
+    setMessages(prev => [...prev, callLog]);
+    
+    if (type === 'video') {
+      router.push(`/messages/call/${contact.username}`);
+    }
+  };
+
   return (
     <div className="flex flex-1 min-h-0 bg-[#F0F2F5] dark:bg-[#080808] relative overflow-hidden">
       {viewingMedia && (
@@ -409,12 +438,20 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <Link href={`/messages/call/${contact.username}`}>
-              <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary" title="Initiate Video Call">
-                <Video className="h-5 w-5" />
-              </Button>
-            </Link>
-            <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary" title="Voice Call"><Phone className="h-5 w-5" /></Button>
+            <Button 
+              variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary" 
+              title="Initiate Video Call"
+              onClick={() => handleStartCall('video')}
+            >
+              <Video className="h-5 w-5" />
+            </Button>
+            <Button 
+              variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary" 
+              title="Voice Call"
+              onClick={() => handleStartCall('audio')}
+            >
+              <Phone className="h-5 w-5" />
+            </Button>
             <Button variant="ghost" size="icon" className={cn("rounded-full transition-all", showVault ? "bg-primary text-white" : "text-muted-foreground")} title="Shared Notes" onClick={() => { triggerHaptic(5); setShowVault(!showVault); }}><Bookmark className="h-5 w-5" /></Button>
           </div>
         </header>
@@ -426,7 +463,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                 id={msg.id} isMe={msg.sender === "me"} text={msg.text} time={msg.time} status={msg.status} 
                 type={msg.type} mediaUrl={msg.mediaUrl} voiceDuration={msg.voiceDuration} isViewOnce={msg.isViewOnce} 
                 isViewed={msg.isViewed} isDownloaded={msg.isDownloaded} linkData={msg.linkData} reactions={msg.reactions} taggedUser={msg.taggedUser} 
-                workspaceData={msg.workspaceData} onReact={(emoji) => handleReact(msg.id, emoji)} onViewOnceOpen={openViewOnce}
+                workspaceData={msg.workspaceData} callData={msg.callData} onReact={(emoji) => handleReact(msg.id, emoji)} onViewOnceOpen={openViewOnce}
                 onMediaOpen={openFullScreen}
                 onDownload={handleDownloadMessage}
                 onExternalLink={setExternalPortalUrl}

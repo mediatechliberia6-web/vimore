@@ -16,6 +16,7 @@ import { SearchPortal } from "@/components/layout/search-portal";
 import { FontScaleWrapper } from "@/components/layout/font-scale-wrapper";
 import { CommentHub } from "@/components/post/comment-hub";
 import { GiftHub } from "@/components/post/gift-hub";
+import { IncomingCallOverlay } from "@/components/layout/incoming-call-overlay";
 
 export const metadata: Metadata = {
   title: 'ViMore',
@@ -64,6 +65,7 @@ export default function RootLayout({
                 <SearchPortal />
                 <CommentHub />
                 <GiftHub />
+                <IncomingCallOverlay />
                 <Toaster />
               </FontScaleWrapper>
             </MusicProvider>
