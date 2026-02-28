@@ -369,6 +369,17 @@ const MOCK_CONNECTIONS: Connection[] = [
     lastInteraction: Date.now() - 1000 * 60 * 60 * 5 // 5 hours ago
   },
   {
+    name: "Neon Architect",
+    username: "neon_arch",
+    avatar: "https://picsum.photos/seed/leader1/100/100",
+    category: "Elite Creator",
+    followsYou: false,
+    isOnline: true,
+    connectionDate: "Apr 2024",
+    followers: "142k",
+    lastInteraction: Date.now() - 1000 * 60 * 15 // 15 mins ago
+  },
+  {
     name: "Paul Node",
     username: "paul",
     avatar: "https://picsum.photos/seed/paul/100/100",
@@ -422,6 +433,26 @@ const initialHighlights: Highlight[] = [
 
 const initialMockPosts: Post[] = [
   {
+    id: "locked-1",
+    user: { 
+      name: "Marcus Stone", 
+      username: "mstone", 
+      avatar: "https://picsum.photos/seed/3/100/100",
+      isVerified: false,
+      followers: 25100
+    },
+    content: "Exclusive look behind the scenes of my latest project in the desert. 🌵 Locked for my core community.",
+    time: "2m",
+    likes: 42,
+    unlikes: 0,
+    comments: 12,
+    shares: 5,
+    isLocked: true,
+    unlockPrice: 50,
+    image: "https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxkZXNlcnR8ZW58MHx8fHwxNzcxOTIxNDkzfDA&ixlib=rb-4.1.0&q=80&w=1080",
+    commentNodes: []
+  },
+  {
     id: "1",
     user: { 
       name: "Julianne Moore", 
@@ -454,6 +485,26 @@ const initialMockPosts: Post[] = [
     ]
   },
   {
+    id: "locked-2",
+    user: { 
+      name: "Neon Architect", 
+      username: "neon_arch", 
+      avatar: "https://picsum.photos/seed/leader1/100/100",
+      isVerified: true,
+      followers: 142000
+    },
+    content: "Materializing the next evolution of spatial design. Full 4K reel unlocked for Gold contributors only. ⚡️",
+    time: "15m",
+    likes: 856,
+    unlikes: 2,
+    comments: 42,
+    shares: 120,
+    isLocked: true,
+    unlockPrice: 150,
+    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-man-dancing-in-a-dark-room-with-neon-lights-40028-preview.mp4",
+    commentNodes: []
+  },
+  {
     id: "2",
     user: { 
       name: "Tech Explorer", 
@@ -477,24 +528,6 @@ const initialMockPosts: Post[] = [
       totalVotes: 134,
       duration: "24 Hours"
     },
-    commentNodes: []
-  },
-  {
-    id: "3",
-    user: { 
-      name: "Alex Rivera", 
-      username: "arivera", 
-      avatar: "https://picsum.photos/seed/1/100/100",
-      followers: 12200
-    },
-    content: "¡Hola a todos! Estoy emocionado de probar la new función de traducción automática en ViMore. ¿Qué les parece?",
-    time: "45m",
-    likes: 88,
-    unlikes: 1,
-    comments: 0,
-    shares: 3,
-    language: "es",
-    hashtags: ["Hola", "ViMore", "Diseño"],
     commentNodes: []
   }
 ];

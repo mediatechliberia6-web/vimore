@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef, useState, useEffect, useMemo } from "react";
@@ -11,6 +12,30 @@ import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 
 const MOCK_REELS_DATA = [
+  {
+    id: "r-locked",
+    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-man-dancing-in-a-dark-room-with-neon-lights-40028-preview.mp4",
+    user: {
+      name: "Alex Rivera",
+      username: "arivera",
+      avatar: "https://picsum.photos/seed/1/100/100",
+      role: "Product Designer",
+      isVerified: true,
+      followers: "12.2k"
+    },
+    caption: "Exclusive studio session node. ⚡️ Locked for contributors. #ViMore #Studio #LockedVibe",
+    likes: 4200,
+    comments: 88,
+    shares: 12,
+    isLocked: true,
+    unlockPrice: 100,
+    music: {
+      id: 1,
+      title: "Essence",
+      artist: "Wizkid",
+      cover: "https://picsum.photos/seed/song1/100/100"
+    }
+  },
   {
     id: "r1",
     videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-lit-city-at-night-11411-preview.mp4",
@@ -106,6 +131,8 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
         likes: p.likes,
         comments: p.comments,
         shares: p.shares || 0,
+        isLocked: p.isLocked,
+        unlockPrice: p.unlockPrice,
         music: {
           id: 'custom',
           title: "Original Audio",
