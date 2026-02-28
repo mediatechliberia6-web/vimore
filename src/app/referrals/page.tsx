@@ -53,6 +53,17 @@ const MOCK_HISTORY = [
   { id: "h2", name: "Paul Node", username: "paul", time: "Yesterday", avatar: "https://picsum.photos/seed/paul/100/100" },
 ];
 
+interface StarParticle {
+  id: number;
+  width: string;
+  height: string;
+  top: string;
+  left: string;
+  opacity: number;
+  duration: string;
+  delay: string;
+}
+
 export default function ReferralHub() {
   const { currentUser, referralLink, triggerHaptic, triggerReferralPulse } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
@@ -64,8 +75,24 @@ export default function ReferralHub() {
   const [customMessage, setCustomMessage] = useState("Join me on ViMore! Sync your digital signature and let's build the cluster together. 🚀");
   const [displayedReferrals, setDisplayedReferrals] = useState(0);
   const [displayedStars, setDisplayedStars] = useState(0);
+  const [stars, setStars] = useState<StarParticle[]>([]);
 
   const isPlayerActive = currentTrack && !isExpanded;
+
+  // Star Particles Generator (Client Side Only)
+  useEffect(() => {
+    const generatedStars = [...Array(20)].map((_, i) => ({
+      id: i,
+      width: Math.random() * 3 + 'px',
+      height: Math.random() * 3 + 'px',
+      top: Math.random() * 100 + '%',
+      left: Math.random() * 100 + '%',
+      opacity: Math.random() * 0.5,
+      duration: (Math.random() * 3 + 2) + 's',
+      delay: (Math.random() * 5) + 's'
+    }));
+    setStars(generatedStars);
+  }, []);
 
   // Star Ting Sound Effect
   const playStarSound = () => {
@@ -145,18 +172,18 @@ export default function ReferralHub() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-accent/20 blur-[120px] rounded-full animate-pulse delay-700" />
         
         {/* CSS Star Particles */}
-        {[...Array(20)].map((_, i) => (
+        {stars.map((star) => (
           <div 
-            key={i}
+            key={star.id}
             className="absolute bg-white rounded-full animate-pulse"
             style={{
-              width: Math.random() * 3 + 'px',
-              height: Math.random() * 3 + 'px',
-              top: Math.random() * 100 + '%',
-              left: Math.random() * 100 + '%',
-              opacity: Math.random() * 0.5,
-              animationDuration: (Math.random() * 3 + 2) + 's',
-              animationDelay: (Math.random() * 5) + 's'
+              width: star.width,
+              height: star.height,
+              top: star.top,
+              left: star.left,
+              opacity: star.opacity,
+              animationDuration: star.duration,
+              animationDelay: star.delay
             }}
           />
         ))}

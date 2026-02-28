@@ -93,6 +93,7 @@ export function ChatBubble({
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [voiceWaveHeights, setVoiceWaveHeights] = useState<number[]>([]);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -107,6 +108,10 @@ export function ChatBubble({
   };
 
   useEffect(() => {
+    if (type === 'voice') {
+      setVoiceWaveHeights([...Array(12)].map(() => 20 + Math.random() * 80));
+    }
+
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -115,7 +120,7 @@ export function ChatBubble({
       if (timerRef.current) clearInterval(timerRef.current);
       document.body.style.pointerEvents = 'auto';
     };
-  }, []);
+  }, [type]);
 
   useEffect(() => {
     if (!isDeleteDialogOpen) {
@@ -447,7 +452,7 @@ export function ChatBubble({
                   {isPlayingVoice ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
                 </button>
                 <div className="flex-1 flex items-center gap-1 h-6">
-                  {[...Array(12)].map((_, i) => (
+                  {voiceWaveHeights.map((height, i) => (
                     <div 
                       key={i} 
                       className={cn(
@@ -455,7 +460,7 @@ export function ChatBubble({
                         isMe ? "bg-white/40" : "bg-primary/30",
                         isPlayingVoice && "animate-pulse"
                       )}
-                      style={{ height: `${20 + Math.random() * 80}%`, animationDelay: `${i * 100}ms` }}
+                      style={{ height: `${height}%`, animationDelay: `${i * 100}ms` }}
                     />
                   ))}
                 </div>

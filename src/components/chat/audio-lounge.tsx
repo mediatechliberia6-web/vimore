@@ -29,11 +29,16 @@ export function AudioLounge({ contact, onLeave }: AudioLoungeProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [waveHeights, setWaveHeights] = useState<number[]>([]);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setElapsedTime(prev => prev + 1);
     }, 1000);
+    
+    // Generate static wave heights on client mount to avoid hydration mismatch
+    setWaveHeights([...Array(24)].map(() => 20 + Math.random() * 80));
+    
     return () => clearInterval(timer);
   }, []);
 
@@ -130,7 +135,7 @@ export function AudioLounge({ contact, onLeave }: AudioLoungeProps) {
 
           {/* Dynamic Waveform Simulation */}
           <div className="w-full flex items-end justify-center gap-1 h-12 px-12">
-            {[...Array(24)].map((_, i) => (
+            {waveHeights.map((height, i) => (
               <div 
                 key={i} 
                 className={cn(
@@ -138,7 +143,7 @@ export function AudioLounge({ contact, onLeave }: AudioLoungeProps) {
                   !isMuted ? "bg-primary/40 animate-pulse" : "bg-white/5 h-1"
                 )}
                 style={{ 
-                  height: !isMuted ? `${20 + Math.random() * 80}%` : '4px',
+                  height: !isMuted ? `${height}%` : '4px',
                   animationDelay: `${i * 100}ms`
                 }}
               />
