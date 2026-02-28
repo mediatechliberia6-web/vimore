@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useMemo, useEffect, Suspense } from "react";
+import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
 import { MainNav } from "@/components/layout/main-nav";
 import { Header } from "@/components/layout/header";
 import { MusicGrid } from "@/components/music/music-grid";
@@ -9,7 +10,6 @@ import { MusicCharts } from "@/components/music/music-charts";
 import { MusicUpload } from "@/components/music/music-upload";
 import { CreatePlaylistModal } from "@/components/music/create-playlist-modal";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
-import { InterstitialPortal } from "@/components/music/interstitial-portal";
 import { useMusic, Album, Track, Playlist, ALL_SONGS } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -88,45 +88,63 @@ const MOCK_ARTISTS = [
   { id: 'ar4', name: "Olamide", username: "mstone", role: "Rapper", avatar: "https://picsum.photos/seed/art4/200/200" },
 ];
 
-const INITIAL_AD_DELAY = 60; // 1 minute in seconds
-const RECURRING_AD_INTERVAL = 5 * 60; // 5 minutes in seconds
-
 function MusicPageContent() {
   const searchParams = useSearchParams();
-  const { currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, userSongs, userAlbums, openCreatePlaylist, downloadedSongIds, queue, deleteUserTrack, deleteUserAlbum, triggerHaptic } = useMusic();
+  const { currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, userSongs, userAlbums, openCreatePlaylist, downloadedSongIds, deleteUserTrack, deleteUserAlbum, triggerHaptic } = useMusic();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("discover");
   const [libraryTab, setLibraryTab] = useState("playlists");
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteItem, setDeleteItem] = useState<{ id: string | number, type: 'track' | 'album' } | null>(null);
   
-  // Interstitial State
+  // Ad Pulse State
   const [timeSpent, setTimeSpent] = useState(0);
-  const [isInterstitialOpen, setIsInterstitialOpen] = useState(false);
   const [hasHadFirstAd, setHasHadFirstAd] = useState(false);
   
   const isPlayerActive = currentTrack && !isExpanded;
 
+  const materializePopunder = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    triggerHaptic(20);
+    
+    // Handshake Logic: Inject the high-performance popunder node
+    const script = document.createElement('script');
+    script.src = "https://pl28803340.effectivegatecpm.com/ea/33/17/ea33174cb87fd4e73ca39402fe522836.js";
+    script.async = true;
+    document.body.appendChild(script);
+
+    toast({
+      title: "Network Pulse Active",
+      description: "Community vibes are synchronizing in the background.",
+    });
+
+    setHasHadFirstAd(true);
+
+    // Purge node after handshake to maintain performance
+    setTimeout(() => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    }, 30000);
+  }, [triggerHaptic, toast]);
+
   // High-Velocity Temporal Sync Logic
   useEffect(() => {
-    const timer = setInterval(() => {
-      if (!isInterstitialOpen) {
-        setTimeSpent(prev => {
-          const next = prev + 1;
-          const currentThreshold = hasHadFirstAd ? RECURRING_AD_INTERVAL : INITIAL_AD_DELAY;
-          
-          if (next >= currentThreshold) {
-            setIsInterstitialOpen(true);
-            setHasHadFirstAd(true);
-            return 0; // Reset count for next interval
-          }
-          return next;
-        });
-      }
+    const pulseTimer = setInterval(() => {
+      setTimeSpent(prev => prev + 1);
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [isInterstitialOpen, hasHadFirstAd]);
+    return () => clearInterval(pulseTimer);
+  }, []);
+
+  // Dedicated Effect for Ad Handshake to avoid state conflicts during render
+  useEffect(() => {
+    const currentThreshold = hasHadFirstAd ? 300 : 60; // 5 mins vs 1 min
+    if (timeSpent >= currentThreshold) {
+      materializePopunder();
+      setTimeSpent(0);
+    }
+  }, [timeSpent, hasHadFirstAd, materializePopunder]);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -205,7 +223,7 @@ function MusicPageContent() {
   return (
     <div className={cn(
       "min-h-screen bg-[#F0F2F5] dark:bg-background transition-colors duration-300",
-      (isExpanded || selectedAlbum || selectedPlaylist || isInterstitialOpen) && "h-screen overflow-hidden"
+      (isExpanded || selectedAlbum || selectedPlaylist) && "h-screen overflow-hidden"
     )}>
       <Header />
       
@@ -461,7 +479,6 @@ function MusicPageContent() {
 
       <MusicNav activeTab={activeTab} onTabChange={setActiveTab} />
       <CreatePlaylistModal />
-      <InterstitialPortal isOpen={isInterstitialOpen} onClose={() => setIsInterstitialOpen(false)} />
 
       <AlertDialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}>
         <AlertDialogContent className="rounded-[2.5rem] sm:max-w-[400px]">

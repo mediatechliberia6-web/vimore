@@ -22,7 +22,11 @@ import {
   Archive,
   GalleryVerticalEnd,
   Link as LinkIcon,
-  Trash2
+  Trash2,
+  Download,
+  PlusSquare,
+  Play,
+  Video
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -41,8 +45,10 @@ import {
 import { aiTranslatePost } from "@/app/actions/ai";
 import { useToast } from "@/hooks/use-toast";
 import { usePosts } from "@/context/PostContext";
+import { useMusic } from "@/context/MusicContext";
 import { useNotifications } from "@/context/NotificationContext";
 import { ShareHub } from "./share-hub";
+import { useRouter } from "next/navigation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -120,10 +126,12 @@ export function PostCard(props: PostCardProps) {
   } = props;
 
   const { 
-    currentUser, isPostLiked, isPostUnliked, isPostSaved, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub 
+    currentUser, isPostLiked, isPostUnliked, isPostSaved, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedImageUrl 
   } = usePosts();
 
   const { addSignal } = useNotifications();
+  const { triggerHaptic } = useMusic();
+  const router = useRouter();
 
   const isLiked = isPostLiked(id);
   const isUnliked = isPostUnliked(id);
@@ -178,12 +186,6 @@ export function PostCard(props: PostCardProps) {
     if (content.length < 5) return false;
     return true;
   }, [language, viewerLanguage, content, isShared]);
-
-  const triggerHaptic = (intensity = 10) => {
-    if (typeof window !== 'undefined' && window.navigator?.vibrate) {
-      window.navigator.vibrate(intensity);
-    }
-  };
 
   const handleLike = () => { 
     triggerHaptic(20); 
@@ -249,6 +251,12 @@ export function PostCard(props: PostCardProps) {
       .map((option, idx) => ({ ...option, originalIndex: idx }))
       .sort((a, b) => b.votes - a.votes);
   }, [localPollOptions, poll]);
+
+  const handleReelClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    triggerHaptic(15);
+    router.push(`/reels?id=${id}`);
+  };
 
   const renderContent = (text: string) => {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -445,8 +453,16 @@ export function PostCard(props: PostCardProps) {
                 <CarouselContent>
                   {allImages.map((img, i) => (
                     <CarouselItem key={i}>
-                      <div className={cn("relative aspect-video overflow-hidden rounded-lg")}>
-                        <Image src={img} alt="Post" fill className={cn("object-cover", imageFilter)} />
+                      <div 
+                        className={cn("relative aspect-video overflow-hidden rounded-lg cursor-pointer group/img")}
+                        onClick={() => { triggerHaptic(15); setSelectedImageUrl(img); }}
+                      >
+                        <Image src={img} alt="Post" fill className={cn("object-cover transition-transform group-hover/img:scale-105", imageFilter)} />
+                        <div className="absolute inset-0 bg-black/10 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="p-3 bg-white/20 backdrop-blur-md rounded-full border border-white/30 text-white">
+                            <PlusSquare className="h-6 w-6" />
+                          </div>
+                        </div>
                       </div>
                     </CarouselItem>
                   ))}
@@ -456,11 +472,23 @@ export function PostCard(props: PostCardProps) {
           )}
           
           {videoUrl && (
-            <div className={cn(
-              "relative mt-2 rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center",
-              isShared ? "-mx-1" : "-mx-3 sm:mx-0"
-            )}>
-              <video src={videoUrl} className="w-full h-full object-cover" controls={!isShared} playsInline muted={isShared} autoPlay={isShared} loop={isShared} />
+            <div 
+              className={cn(
+                "relative mt-2 rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center cursor-pointer group/vid",
+                isShared ? "-mx-1" : "-mx-3 sm:mx-0"
+              )}
+              onClick={handleReelClick}
+            >
+              <video src={videoUrl} className="w-full h-full object-cover" controls={false} playsInline muted={isShared} autoPlay={isShared} loop={isShared} />
+              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/vid:opacity-100 transition-opacity flex items-center justify-center">
+                <div className="p-4 bg-primary/20 backdrop-blur-md rounded-full border border-primary/30 text-white shadow-2xl">
+                  <Play className="h-8 w-8 fill-current" />
+                </div>
+              </div>
+              <div className="absolute bottom-3 left-3 bg-black/40 backdrop-blur-md px-2 py-1 rounded-md flex items-center gap-1.5 border border-white/10">
+                <Video className="h-3 w-3 text-white" />
+                <span className="text-[10px] font-black text-white uppercase tracking-widest">Open Reel</span>
+              </div>
             </div>
           )}
 
@@ -485,11 +513,11 @@ export function PostCard(props: PostCardProps) {
                 </span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5 cursor-pointer hover:text-primary transition-colors" onClick={() => openCommentHub(id)}>
                   <MessageCircle className="h-3 w-3" />
                   {(comments ?? 0).toLocaleString()}
                 </span>
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5 cursor-pointer hover:text-primary transition-colors" onClick={() => setIsShareHubOpen(true)}>
                   <Share2 className="h-3 w-3" />
                   {(shares ?? 0).toLocaleString()}
                 </span>

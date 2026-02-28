@@ -46,6 +46,8 @@ export interface User {
   verificationExpiry?: number; // Timestamp
   hasEverBeenVerified?: boolean;
   links?: Array<{ label: string; url: string; icon: any }>;
+  profilePictureHistory?: string[];
+  coverPhotoHistory?: string[];
 }
 
 export interface PendingTransaction {
@@ -167,12 +169,14 @@ interface PostContextType {
   connections: Connection[];
   selectedPostId: string | null;
   activeCommentPostId: string | null;
+  selectedImageUrl: string | null;
   isSearchOpen: boolean;
   pendingTransaction: PendingTransaction | null;
   referralLink: string;
   settings: AppSettings;
   setSearchOpen: (open: boolean) => void;
   setSelectedPostId: (id: string | null) => void;
+  setSelectedImageUrl: (url: string | null) => void;
   openCommentHub: (postId: string) => void;
   closeCommentHub: () => void;
   setActiveStoryIndex: (index: number | null) => void;
@@ -231,7 +235,9 @@ const INITIAL_USER: User = {
   isVerified: false,
   hasEverBeenVerified: false,
   lastModifiedName: 0,
-  lastModifiedDob: 0
+  lastModifiedDob: 0,
+  profilePictureHistory: ["https://picsum.photos/seed/me/400/400"],
+  coverPhotoHistory: ["https://picsum.photos/seed/my_cover/1200/400"]
 };
 
 const INITIAL_SETTINGS: AppSettings = {
@@ -446,6 +452,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [connections, setConnections] = useState<Connection[]>(MOCK_CONNECTIONS);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const referralLink = useMemo(() => {
@@ -560,6 +567,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const updateCurrentUser = (data: Partial<User>) => {
     setCurrentUser(prev => {
       const updated = { ...prev, ...data };
+      
+      // Track visuals history
+      if (data.avatar && data.avatar !== prev.avatar) {
+        updated.profilePictureHistory = [...(prev.profilePictureHistory || []), data.avatar];
+      }
+      if (data.cover && data.cover !== prev.cover) {
+        updated.coverPhotoHistory = [...(prev.coverPhotoHistory || []), data.cover];
+      }
+
       safePersist('vimore_user', updated);
       return updated;
     });
@@ -823,12 +839,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
       connections,
       selectedPostId,
       activeCommentPostId,
+      selectedImageUrl,
       isSearchOpen,
       pendingTransaction,
       referralLink,
       settings,
       setSearchOpen,
       setSelectedPostId,
+      setSelectedImageUrl,
       openCommentHub,
       closeCommentHub,
       setActiveStoryIndex, 

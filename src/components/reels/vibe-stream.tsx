@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRef, useState, useEffect, useMemo } from "react";
@@ -9,6 +8,7 @@ import { usePosts, Post } from "@/context/PostContext";
 import { ReelTab } from "@/app/reels/page";
 import { Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSearchParams } from "next/navigation";
 
 const MOCK_REELS_DATA = [
   {
@@ -77,9 +77,10 @@ const MOCK_REELS_DATA = [
 ];
 
 export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
-  const { posts, followingUsernames } = usePosts();
-  const { triggerHaptic } = useMusic();
+  const { posts, followingUsernames, triggerHaptic } = usePosts();
+  const searchParams = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
+  const [activeReelId, setActiveReelId] = useState<string | null>(null);
 
   // Ad Injection Logic: 
   // 2nd position (index 1), then every 4 organic reels thereafter.
@@ -119,9 +120,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
       result.push({ type: 'reel', data: reel });
       organicCount++;
 
-      // Condition 1: 2nd position (index 1)
-      // Condition 2: Every 4 organic reels after that
-      if (organicCount === 1) { // Will insert at index 1
+      if (organicCount === 1) { 
         result.push({ type: 'ad', id: `ad-reel-init-${index}` });
       } else if (organicCount > 1 && (organicCount - 1) % 4 === 0) {
         result.push({ type: 'ad', id: `ad-reel-seq-${index}` });
@@ -131,14 +130,20 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
     return result;
   }, [activeTab, followingUsernames, posts]);
 
-  const [activeReelId, setActiveReelId] = useState<string | null>(null);
-
+  // Deep Link Handling: Scroll to specific reel if provided in URL
   useEffect(() => {
-    if (reelsWithAds.length > 0 && !activeReelId) {
+    const targetId = searchParams.get('id');
+    if (targetId && containerRef.current) {
+      const element = containerRef.current.querySelector(`[data-node-id="${targetId}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'auto' });
+        setActiveReelId(targetId);
+      }
+    } else if (reelsWithAds.length > 0 && !activeReelId) {
       const first = reelsWithAds[0];
       setActiveReelId(first.type === 'ad' ? first.id : first.data.id);
     }
-  }, [reelsWithAds, activeReelId]);
+  }, [searchParams, reelsWithAds, activeReelId]);
 
   useEffect(() => {
     const options = {
