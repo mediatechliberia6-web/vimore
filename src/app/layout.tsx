@@ -18,6 +18,7 @@ import { FontScaleWrapper } from "@/components/layout/font-scale-wrapper";
 import { CommentHub } from "@/components/post/comment-hub";
 import { GiftHub } from "@/components/post/gift-hub";
 import { IncomingCallOverlay } from "@/components/layout/incoming-call-overlay";
+import { AuthModal } from "@/components/auth/auth-modal";
 import NextTopLoader from 'nextjs-toploader';
 
 export const metadata: Metadata = {
@@ -80,6 +81,7 @@ export default function RootLayout({
                   <CommentHub />
                   <GiftHub />
                   <IncomingCallOverlay />
+                  <AuthModal />
                   <Toaster />
                 </FontScaleWrapper>
               </MusicProvider>
