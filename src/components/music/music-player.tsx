@@ -33,6 +33,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMusic } from "@/context/MusicContext";
 import { useNotifications } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { BoostPortal } from "@/components/post/boost-portal";
 import { cn, parseFollowerCount } from "@/lib/utils";
 import Image from "next/image";
@@ -45,13 +46,15 @@ const QUICK_REACTIONS = ["🔥", "❤️", "🙌", "💯", "🤯", "🚀"];
 export function MusicPlayer() {
   const pathname = usePathname();
   const { toast } = useToast();
-  const { openGiftHub } = usePosts();
+  
   const { 
     currentTrack, isPlaying, isExpanded, progress, volume, reactions, trackStats,
     togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, simulateDownload, isTrackDownloaded, triggerDownloadWithAd, triggerHaptic
   } = useMusic();
 
-  const { addSignal, currentUser, t } = useNotifications();
+  const { addSignal } = useNotifications();
+  const { currentUser, openGiftHub } = usePosts();
+  const { t } = useTranslation();
 
   const [commentInput, setCommentInput] = useState("");
   const [isMuted, setIsMuted] = useState(false);
@@ -417,7 +420,11 @@ export function MusicPlayer() {
                 />
                 <Button 
                   size="icon" 
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-primary text-white shadow-lg hover:scale-105 active:scale-95 transition-all"
+                  className={cn(
+                    "absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-primary text-white shadow-lg hover:scale-105 active:scale-95 transition-all",
+                    commentInput.trim() ? "bg-primary text-white shadow-lg" : "bg-white/10 text-muted-foreground opacity-20"
+                  )}
+                  disabled={!commentInput.trim()}
                   onClick={handleSendComment}
                 >
                   <Send className="h-4 w-4" />

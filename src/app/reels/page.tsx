@@ -1,10 +1,10 @@
 "use client";
 
 import { VibeStream } from "@/components/reels/vibe-stream";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/context/LanguageContext";
 
@@ -60,8 +60,15 @@ export default function ReelsPage() {
         </div>
       </div>
 
-      {/* Main Stream */}
-      <VibeStream activeTab={activeTab} />
+      {/* Main Stream wrapped in Suspense for useSearchParams handshake */}
+      <Suspense fallback={
+        <div className="flex-1 w-full bg-black flex flex-col items-center justify-center gap-4">
+          <Loader2 className="h-10 w-10 text-primary animate-spin" />
+          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Synchronizing Stream...</p>
+        </div>
+      }>
+        <VibeStream activeTab={activeTab} />
+      </Suspense>
     </div>
   );
 }
