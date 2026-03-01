@@ -1,4 +1,3 @@
-
 "use client";
 
 import { VibeStream } from "@/components/reels/vibe-stream";
@@ -7,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/context/LanguageContext";
 
 export type ReelTab = "following" | "foryou";
 
 export default function ReelsPage() {
   const [activeTab, setActiveTab] = useState<ReelTab>("foryou");
+  const { t } = useTranslation();
 
   return (
     <div className="h-[100dvh] w-full bg-black overflow-hidden relative flex flex-col">
@@ -33,7 +34,7 @@ export default function ReelsPage() {
               activeTab === "following" ? "text-white" : "text-white/40 hover:text-white/60"
             )}
           >
-            Following
+            {t('reels_following')}
             {activeTab === "following" && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary shadow-[0_0_10px_rgba(153,64,229,0.8)] rounded-full animate-in zoom-in duration-300" />
             )}
@@ -45,7 +46,7 @@ export default function ReelsPage() {
               activeTab === "foryou" ? "text-white" : "text-white/40 hover:text-white/60"
             )}
           >
-            For You
+            {t('reels_foryou')}
             {activeTab === "foryou" && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary shadow-[0_0_10px_rgba(153,64,229,0.8)] rounded-full animate-in zoom-in duration-300" />
             )}
@@ -53,7 +54,7 @@ export default function ReelsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-9 w-9">
+          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-9 w-9" title={t('reels_search')}>
             <Search className="h-4 w-4" />
           </Button>
         </div>

@@ -1,8 +1,8 @@
-
 "use client";
 
 import { Compass, Plus, BarChart3, ListMusic } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/context/LanguageContext";
 
 interface MusicNavProps {
   activeTab: string;
@@ -10,11 +10,12 @@ interface MusicNavProps {
 }
 
 export function MusicNav({ activeTab, onTabChange }: MusicNavProps) {
+  const { t } = useTranslation();
   const items = [
-    { id: "discover", icon: Compass, label: "Discover" },
-    { id: "chart", icon: BarChart3, label: "Chart" },
-    { id: "upload", icon: Plus, label: "Upload", isSpecial: true },
-    { id: "library", icon: ListMusic, label: "Library" },
+    { id: "discover", icon: Compass, label: t('music_discover') },
+    { id: "chart", icon: BarChart3, label: t('music_charts') },
+    { id: "upload", icon: Plus, label: t('music_upload'), isSpecial: true },
+    { id: "library", icon: ListMusic, label: t('music_library') },
   ];
 
   return (

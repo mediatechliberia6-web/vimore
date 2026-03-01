@@ -1,4 +1,3 @@
-
 "use client";
 
 import { MainNav } from "@/components/layout/main-nav";
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useMusic } from "@/context/MusicContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { 
   Search, 
   TrendingUp, 
@@ -44,6 +44,7 @@ const hubs = [
 
 export default function ExplorePage() {
   const { currentTrack, isExpanded } = useMusic();
+  const { t } = useTranslation();
   const isPlayerActive = currentTrack && !isExpanded;
 
   return (
@@ -70,7 +71,7 @@ export default function ExplorePage() {
           <div className="relative group max-w-2xl mx-auto w-full lg:hidden">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input 
-              placeholder="Search for creators, series, or tags..." 
+              placeholder={t('explore_search')} 
               className="pl-12 h-14 rounded-2xl bg-white dark:bg-card border-none shadow-sm focus-visible:ring-2 ring-primary/20 text-lg"
             />
           </div>
@@ -88,7 +89,7 @@ export default function ExplorePage() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
               <div className="absolute top-6 left-6">
                 <Badge className="bg-primary hover:bg-primary/90 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border-none shadow-lg">
-                  Series of the Week
+                  {t('explore_hero_badge')}
                 </Badge>
               </div>
               <div className="absolute bottom-8 left-8 right-8 space-y-2">
@@ -100,7 +101,7 @@ export default function ExplorePage() {
                 </p>
                 <Link href="/">
                   <Button className="mt-4 rounded-xl gap-2 bg-white text-black hover:bg-zinc-200 font-bold px-6">
-                    Watch Now <ChevronRight className="h-4 w-4" />
+                    {t('explore_watch_now')} <ChevronRight className="h-4 w-4" />
                   </Button>
                 </Link>
               </div>
@@ -112,11 +113,11 @@ export default function ExplorePage() {
                 <div className="bg-white/20 backdrop-blur-md p-2 rounded-xl">
                   <Radio className="h-6 w-6 animate-pulse" />
                 </div>
-                <Badge variant="secondary" className="bg-white/20 border-none text-[10px] font-bold">LIVE NOW</Badge>
+                <Badge variant="secondary" className="bg-white/20 border-none text-[10px] font-bold uppercase">LIVE</Badge>
               </div>
               <div>
-                <h3 className="text-xl font-black italic uppercase tracking-tighter">Go Live</h3>
-                <p className="text-white/70 text-xs font-medium">Broadcast to your fans instantly</p>
+                <h3 className="text-xl font-black italic uppercase tracking-tighter">{t('explore_go_live')}</h3>
+                <p className="text-white/70 text-xs font-medium">{t('explore_go_live_desc')}</p>
               </div>
             </div>
 
@@ -124,7 +125,7 @@ export default function ExplorePage() {
             <div className="md:col-span-1 md:row-span-2 bg-white dark:bg-card border border-primary/10 rounded-3xl p-6 flex flex-col shadow-lg backdrop-blur-xl">
               <div className="flex items-center gap-2 mb-6">
                 <Flame className="h-5 w-5 text-orange-500" />
-                <h3 className="font-black italic uppercase tracking-tighter text-lg">Trending</h3>
+                <h3 className="font-black italic uppercase tracking-tighter text-lg">{t('explore_trending')}</h3>
               </div>
               <div className="flex-1 flex flex-col gap-4">
                 {["#DesignSF", "#ViMoreVibes", "#BuildingInPublic", "#CreativeCoding"].map((tag) => (
@@ -134,7 +135,7 @@ export default function ExplorePage() {
                   </div>
                 ))}
               </div>
-              <Button variant="ghost" className="w-full mt-4 text-primary font-bold text-xs uppercase tracking-widest">See all tags</Button>
+              <Button variant="ghost" className="w-full mt-4 text-primary font-bold text-xs uppercase tracking-widest">{t('explore_see_all_tags')}</Button>
             </div>
 
             {/* 4. Creator Spotlight (Wide) */}
@@ -142,9 +143,9 @@ export default function ExplorePage() {
                <div className="space-y-1">
                  <div className="flex items-center gap-2">
                    <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                   <h3 className="font-black italic uppercase tracking-tighter">Rising Stars</h3>
+                   <h3 className="font-black italic uppercase tracking-tighter">{t('explore_rising_stars')}</h3>
                  </div>
-                 <p className="text-xs text-muted-foreground font-medium">Creators blowing up this week</p>
+                 <p className="text-xs text-muted-foreground font-medium">{t('explore_rising_stars_desc')}</p>
                </div>
                <div className="flex -space-x-3">
                  {trendingCreators.slice(0, 3).map((c, i) => (
@@ -162,21 +163,21 @@ export default function ExplorePage() {
                 <div className="bg-white/20 backdrop-blur-md p-2 rounded-xl">
                   <Rocket className="h-6 w-6" />
                 </div>
-                <Badge variant="secondary" className="bg-white/20 border-none text-[10px] font-black uppercase">Earn ⭐</Badge>
+                <Badge variant="secondary" className="bg-white/20 border-none text-[10px] font-black uppercase">{t('explore_earn_stars')}</Badge>
               </div>
               <div>
-                <h3 className="text-xl font-black italic uppercase tracking-tighter">Growth Hub</h3>
-                <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest">Invite friends & earn</p>
+                <h3 className="text-xl font-black italic uppercase tracking-tighter">{t('explore_growth_hub')}</h3>
+                <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest">{t('explore_growth_hub_desc')}</p>
               </div>
             </Link>
 
             {/* 6. Create Series Tile (Medium) */}
             <div className="md:col-span-2 md:row-span-1 bg-gradient-to-br from-primary to-accent rounded-3xl p-8 flex items-center justify-between text-white shadow-xl group cursor-pointer relative overflow-hidden">
                <div className="relative z-10">
-                 <h3 className="text-2xl font-black italic uppercase tracking-tighter">Start a Series</h3>
-                 <p className="text-white/80 text-sm font-medium mt-1">Curate your best content into chapters</p>
+                 <h3 className="text-2xl font-black italic uppercase tracking-tighter">{t('explore_start_series')}</h3>
+                 <p className="text-white/80 text-sm font-medium mt-1">{t('explore_start_series_desc')}</p>
                  <Button className="mt-4 bg-white text-primary hover:bg-zinc-100 font-bold rounded-xl h-11 px-6">
-                   Get Started
+                   {t('explore_get_started')}
                  </Button>
                </div>
                <div className="relative z-10 bg-white/20 backdrop-blur-md p-6 rounded-3xl">
@@ -192,7 +193,7 @@ export default function ExplorePage() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-primary" />
-                  <h3 className="font-black italic uppercase tracking-tighter text-lg">Active Hubs</h3>
+                  <h3 className="font-black italic uppercase tracking-tighter text-lg">{t('explore_active_hubs')}</h3>
                 </div>
                 <Button variant="ghost" size="sm" className="text-primary font-bold text-xs uppercase">Join more</Button>
               </div>
@@ -214,7 +215,7 @@ export default function ExplorePage() {
           {/* Recommended Horizontal Scroll */}
           <section className="space-y-4">
             <div className="flex items-center justify-between px-2">
-              <h3 className="font-black italic uppercase tracking-tighter text-xl">People You Should Know</h3>
+              <h3 className="font-black italic uppercase tracking-tighter text-xl">{t('explore_people_know')}</h3>
               <Button variant="ghost" size="sm" className="text-primary font-bold text-xs uppercase tracking-widest">See all</Button>
             </div>
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide px-2">

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
@@ -11,6 +10,7 @@ import { MusicUpload } from "@/components/music/music-upload";
 import { CreatePlaylistModal } from "@/components/music/create-playlist-modal";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
 import { useMusic, Album, Track, Playlist, ALL_SONGS } from "@/context/MusicContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,6 +91,7 @@ const MOCK_ARTISTS = [
 function MusicPageContent() {
   const searchParams = useSearchParams();
   const { currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, userSongs, userAlbums, openCreatePlaylist, downloadedSongIds, deleteUserTrack, deleteUserAlbum, triggerHaptic } = useMusic();
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("discover");
   const [libraryTab, setLibraryTab] = useState("playlists");
@@ -251,13 +252,13 @@ function MusicPageContent() {
                   <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
                 </Button>
               </Link>
-              <h1 className="text-lg sm:text-2xl font-black italic uppercase tracking-tighter hidden xs:block">Music Hub</h1>
+              <h1 className="text-lg sm:text-2xl font-black italic uppercase tracking-tighter hidden xs:block">{t('music_title')}</h1>
             </div>
 
             <div className="relative group flex-1 max-w-md ml-2 sm:ml-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <Input 
-                placeholder="Search songs, albums, artists..." 
+                placeholder={t('music_search')} 
                 className="pl-10 pr-10 h-10 bg-white/50 dark:bg-card/50 border-primary/10 rounded-xl focus-visible:ring-primary/20 text-sm"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -291,15 +292,15 @@ function MusicPageContent() {
                   <>
                     {!searchQuery && <MusicGrid type="hero" items={[MOCK_SONGS[0]]} />}
                     {!searchQuery && <NativeAdNode type="standard" /> }
-                    {filteredSongs.length > 0 && <MusicGrid type="song" title={searchQuery ? "Matching Songs" : "Trending Songs"} items={filteredSongs} />}
+                    {filteredSongs.length > 0 && <MusicGrid type="song" title={searchQuery ? t('ui_all') : t('music_trending_songs')} items={filteredSongs} />}
                     {!searchQuery && <NativeAdNode type="standard" /> }
-                    {filteredAlbums.length > 0 && <MusicGrid type="album" title={searchQuery ? "Matching Albums" : "Trending Albums"} items={filteredAlbums} />}
+                    {filteredAlbums.length > 0 && <MusicGrid type="album" title={searchQuery ? t('music_my_albums') : t('music_trending_albums')} items={filteredAlbums} />}
                     {!searchQuery && <NativeAdNode type="standard" /> }
-                    {!searchQuery && <MusicGrid type="song" title="New Releases" items={[...MOCK_SONGS].reverse()} />}
+                    {!searchQuery && <MusicGrid type="song" title={t('music_new_releases')} items={[...MOCK_SONGS].reverse()} />}
                     {!searchQuery && <NativeAdNode type="standard" /> }
-                    {filteredPlaylists.length > 0 && <MusicGrid type="playlist" title={searchQuery ? "Matching Playlists" : "Top Playlists"} items={filteredPlaylists} />}
+                    {filteredPlaylists.length > 0 && <MusicGrid type="playlist" title={searchQuery ? t('music_playlists') : t('music_top_playlists')} items={filteredPlaylists} />}
                     {!searchQuery && <NativeAdNode type="standard" /> }
-                    {filteredArtists.length > 0 && <MusicGrid type="artist" title={searchQuery ? "Matching Artists" : "Trending Artists"} items={filteredArtists} />}
+                    {filteredArtists.length > 0 && <MusicGrid type="artist" title={searchQuery ? t('ui_all') : t('music_trending_artists')} items={filteredArtists} />}
                   </>
                 )}
               </div>
@@ -315,13 +316,13 @@ function MusicPageContent() {
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <h2 className="text-3xl font-black italic uppercase tracking-tighter">My Library</h2>
+                    <h2 className="text-3xl font-black italic uppercase tracking-tighter">{t('music_my_library')}</h2>
                     <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
                       {[
-                        { id: "playlists", label: "Playlists", count: userPlaylists.length },
-                        { id: "songs", label: "My Songs", count: userSongs.length },
-                        { id: "albums", label: "My Albums", count: userAlbums.length },
-                        { id: "downloaded", label: "Music Notes", count: downloadedTracks.length }
+                        { id: "playlists", label: t('music_playlists'), count: userPlaylists.length },
+                        { id: "songs", label: t('music_my_songs'), count: userSongs.length },
+                        { id: "albums", label: t('music_my_albums'), count: userAlbums.length },
+                        { id: "downloaded", label: t('music_notes'), count: downloadedTracks.length }
                       ].map((tab) => (
                         <button
                           key={tab.id}
@@ -353,7 +354,7 @@ function MusicPageContent() {
                           className="rounded-full bg-primary text-white font-bold gap-2 text-xs h-9 px-5" 
                           onClick={() => openCreatePlaylist()}
                         >
-                          <Plus className="h-4 w-4" /> Create Playlist
+                          <Plus className="h-4 w-4" /> {t('music_create_playlist')}
                         </Button>
                       </div>
 
@@ -454,7 +455,7 @@ function MusicPageContent() {
                     <div className="space-y-8">
                       <div className="flex items-center gap-2 border-b border-border/50 pb-4">
                         <Download className="h-5 w-5 text-green-500" />
-                        <h3 className="font-bold text-sm uppercase tracking-widest">Music Notes</h3>
+                        <h3 className="font-bold text-sm uppercase tracking-widest">{t('music_notes')}</h3>
                       </div>
                       {downloadedTracks.length === 0 ? (
                         <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2rem] border border-border/50">

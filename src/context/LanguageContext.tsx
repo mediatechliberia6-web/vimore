@@ -28,6 +28,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Spatial Logic: Handle document direction for RTL clusters
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const isRtl = language === 'ar';
+      document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+      document.documentElement.lang = language;
+    }
+  }, [language]);
+
   const setLanguage = useCallback((lang: LanguageCode) => {
     if (dictionary[lang]) {
       setLanguageState(lang);
