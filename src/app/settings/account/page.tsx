@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -26,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
@@ -50,6 +50,7 @@ import {
 export default function AccountCenter() {
   const { currentUser, updateCurrentUser, triggerHaptic, settings, updateSettings } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
+  const { t } = useTranslation();
   const { toast } = useToast();
   
   const [formData, setFormData] = useState({
@@ -83,7 +84,7 @@ export default function AccountCenter() {
   const handleSave = () => {
     triggerHaptic(25);
     updateCurrentUser({ name: formData.name });
-    toast({ title: "Identity Updated", description: "Your account credentials have been synchronized." });
+    toast({ title: t('ui_linguistic_sync'), description: "Your account credentials have been synchronized." });
   };
 
   const handleRotatePassword = () => {
@@ -135,14 +136,14 @@ export default function AccountCenter() {
             </Button>
           </Link>
           <div className="flex flex-col">
-            <h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground leading-tight">Account Center</h1>
+            <h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground leading-tight">{t('account_center')}</h1>
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-3 w-3 text-primary" />
-              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Identity Vault</span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{t('ui_identity_vault')}</span>
             </div>
           </div>
         </div>
-        <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase text-primary hover:bg-primary/5 rounded-xl h-9 px-4" onClick={handleSave}>Save Hub</Button>
+        <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase text-primary hover:bg-primary/5 rounded-xl h-9 px-4" onClick={handleSave}>{t('ui_save_hub')}</Button>
       </header>
 
       <main className={cn(
@@ -199,7 +200,7 @@ export default function AccountCenter() {
         </section>
 
         <section className="space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Security Vault</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_security')}</h3>
           <div className="grid grid-cols-1 gap-3">
             <Button 
               variant="outline" 

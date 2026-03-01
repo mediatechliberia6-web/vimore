@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -76,6 +75,7 @@ import {
 } from "@/components/ui/dialog";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
@@ -84,6 +84,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 export default function SettingsPage() {
   const { settings, updateSettings, triggerHaptic, currentUser, connections, posts, savedPostIds, activeSubscriptions, cancelSubscription } = usePosts();
   const { currentTrack, isExpanded, downloadedSongIds, userSongs } = useMusic();
+  const { t } = useTranslation();
   const { toast } = useToast();
   
   const [isSyncing, setIsSyncing] = useState(false);
@@ -99,7 +100,7 @@ export default function SettingsPage() {
     triggerHaptic(50);
     setTimeout(() => {
       setIsSyncing(false);
-      toast({ title: "System Balanced", description: "All digital nodes and identity pulses are now synchronized." });
+      toast({ title: t('ui_linguistic_sync'), description: "All digital nodes and identity pulses are now synchronized." });
     }, 2500);
   };
 
@@ -204,8 +205,8 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300">
       <header className="sticky top-0 z-50 bg-white/80 dark:bg-card/80 backdrop-blur-md border-b border-border h-16 px-4 flex items-center justify-between">
-        <div className="flex items-center gap-4"><Link href="/menu"><Button variant="ghost" size="icon" className="rounded-full hover:bg-secondary/80 active:scale-90 transition-all"><ArrowLeft className="h-6 w-6" /></Button></Link><div className="flex flex-col"><h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground">System Core</h1><div className="flex items-center gap-1.5"><div className={cn("h-1.5 w-1.5 rounded-full", isSyncing ? "bg-primary animate-ping" : "bg-green-500")} /><span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{isSyncing ? "Syncing Nodes..." : "Status: Optimal"}</span></div></div></div>
-        <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest text-primary gap-2 transition-all active:scale-95" onClick={handleSync} disabled={isSyncing}>{isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />} Manual Sync</Button>
+        <div className="flex items-center gap-4"><Link href="/menu"><Button variant="ghost" size="icon" className="rounded-full hover:bg-secondary/80 active:scale-90 transition-all"><ArrowLeft className="h-6 w-6" /></Button></Link><div className="flex flex-col"><h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground">{t('settings_title')}</h1><div className="flex items-center gap-1.5"><div className={cn("h-1.5 w-1.5 rounded-full", isSyncing ? "bg-primary animate-ping" : "bg-green-500")} /><span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{isSyncing ? t('ui_syncing') : t('ui_status_optimal')}</span></div></div></div>
+        <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest text-primary gap-2 transition-all active:scale-95" onClick={handleSync} disabled={isSyncing}>{isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />} {t('ui_manual_sync')}</Button>
       </header>
 
       <main className={cn("max-w-2xl mx-auto p-4 sm:p-8 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32", isPlayerActive ? "pt-[80px]" : "pt-4")}>
@@ -220,7 +221,7 @@ export default function SettingsPage() {
               <div className="relative z-10 space-y-4">
                 <Badge className="bg-white/20 text-[10px] font-black uppercase tracking-widest px-4 h-6 border-none">Handshake Audit</Badge>
                 <div className="space-y-1">
-                  <h3 className="text-3xl font-black italic uppercase tracking-tighter leading-tight">Privacy Checkup</h3>
+                  <h3 className="text-3xl font-black italic uppercase tracking-tighter leading-tight">{t('privacy_checkup')}</h3>
                   <p className="text-sm text-white/70 font-medium max-w-[240px]">Materialize your network integrity by auditing your digital signature protocols.</p>
                 </div>
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest pt-2">
@@ -234,12 +235,12 @@ export default function SettingsPage() {
 
         {/* PHASE 1: AESTHETICS & ENVIRONMENT */}
         <section className="space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Appearance Node</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_appearance')}</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
             <div className="flex flex-col gap-4">
               <div className="space-y-0.5">
-                <p className="font-bold text-sm">Universal Theme</p>
-                <p className="text-[10px] text-muted-foreground uppercase font-black">Flip the platform environment</p>
+                <p className="font-bold text-sm">{t('settings_theme')}</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">{t('settings_theme_desc')}</p>
               </div>
               <div className="grid grid-cols-2 gap-2 bg-secondary/40 p-1.5 rounded-2xl">
                 <button
@@ -249,7 +250,7 @@ export default function SettingsPage() {
                     settings.theme === 'light' ? "bg-white dark:bg-zinc-800 text-primary shadow-md" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Sun className="h-3.5 w-3.5" /> Ivory
+                  <Sun className="h-3.5 w-3.5" /> {t('settings_theme_ivory')}
                 </button>
                 <button
                   onClick={() => handleUpdate({ theme: 'dark' })}
@@ -258,7 +259,7 @@ export default function SettingsPage() {
                     settings.theme === 'dark' ? "bg-white dark:bg-zinc-800 text-primary shadow-md" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Moon className="h-3.5 w-3.5" /> Space
+                  <Moon className="h-3.5 w-3.5" /> {t('settings_theme_space')}
                 </button>
                 <button
                   onClick={() => handleUpdate({ theme: 'system' })}
@@ -267,7 +268,7 @@ export default function SettingsPage() {
                     settings.theme === 'system' ? "bg-white dark:bg-zinc-800 text-primary shadow-md" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Monitor className="h-3.5 w-3.5" /> Sync with Hardware
+                  <Monitor className="h-3.5 w-3.5" /> {t('settings_theme_sync')}
                 </button>
               </div>
             </div>
@@ -279,7 +280,7 @@ export default function SettingsPage() {
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <Type className="h-4 w-4 text-primary" />
-                    <p className="font-bold text-sm">Font Scale Engine</p>
+                    <p className="font-bold text-sm">{t('settings_font_scale')}</p>
                   </div>
                   <p className="text-[10px] text-muted-foreground uppercase font-black">Calibrate global text size</p>
                 </div>
@@ -301,7 +302,7 @@ export default function SettingsPage() {
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4 text-amber-500" />
-                    <p className="font-bold text-sm">Haptic Calibration</p>
+                    <p className="font-bold text-sm">{t('settings_haptic')}</p>
                   </div>
                   <p className="text-[10px] text-muted-foreground uppercase font-black">Vibration handshake intensity</p>
                 </div>
@@ -321,13 +322,13 @@ export default function SettingsPage() {
 
         {/* PHASE 4: PERFORMANCE & USER EXPERIENCE */}
         <section className="space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">User Experience</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_ux')}</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
                   <HardDrive className="h-4 w-4 text-primary" />
-                  <p className="font-bold text-sm">Playback Quality</p>
+                  <p className="font-bold text-sm">{t('settings_playback')}</p>
                 </div>
                 <p className="text-[10px] text-muted-foreground uppercase font-black">Manage data and visual fidelity</p>
               </div>
@@ -348,7 +349,7 @@ export default function SettingsPage() {
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
                   <Rocket className="h-4 w-4 text-accent" />
-                  <p className="font-bold text-sm">Default Stream Hub</p>
+                  <p className="font-bold text-sm">{t('settings_stream')}</p>
                 </div>
                 <p className="text-[10px] text-muted-foreground uppercase font-black">Landing node on entry</p>
               </div>
@@ -390,7 +391,7 @@ export default function SettingsPage() {
         {/* PHASE 4: TEMPORAL PULSE (QUIET HOURS) */}
         <section className="space-y-4">
           <div className="flex items-center justify-between px-2">
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Temporal Pulse</h3>
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">{t('settings_quiet_hours')}</h3>
             <Badge className="bg-indigo-500/10 text-indigo-500 border-none text-[8px] font-black h-5 px-3 uppercase tracking-widest">Quiet Hours</Badge>
           </div>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
@@ -446,13 +447,13 @@ export default function SettingsPage() {
         {/* PHASE 2: PRIVACY & VISIBILITY */}
         <section className="space-y-4">
           <div className="flex items-center justify-between px-2">
-            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Privacy & Signature</h3>
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">{t('settings_privacy')}</h3>
             <Badge variant="outline" className="text-[8px] font-black border-primary/20 text-primary uppercase">Ghost Node Capable</Badge>
           </div>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <p className="font-bold text-sm">Ghost Node Mode</p>
+                <p className="font-bold text-sm">{t('settings_ghost')}</p>
                 <p className="text-[10px] text-muted-foreground uppercase font-black">Hide your online pulse from other nodes</p>
               </div>
               <Switch checked={settings.isGhostMode} onCheckedChange={(val) => handleUpdate({ isGhostMode: val })} className="data-[state=checked]:bg-primary" />
@@ -561,7 +562,7 @@ export default function SettingsPage() {
 
         {/* PHASE 3: SECURITY & PASSWORD (INTEGRATED) */}
         <section className="space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Security Handshake</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_security')}</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-6">
             <button className="w-full flex items-center justify-between p-4 bg-secondary/20 rounded-2xl hover:bg-secondary/40 transition-all group">
               <div className="flex items-center gap-4">
@@ -582,7 +583,7 @@ export default function SettingsPage() {
                   <Fingerprint className="h-5 w-5" />
                 </div>
                 <div className="text-left">
-                  <p className="font-bold text-sm">Biometric Vault</p>
+                  <p className="font-bold text-sm">{t('settings_biometric')}</p>
                   <p className="text-[9px] text-muted-foreground uppercase font-black">Fingerprint lock for hubs</p>
                 </div>
               </div>
@@ -592,7 +593,7 @@ export default function SettingsPage() {
         </section>
 
         <section className="space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Subscription Vault</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_subs')}</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -634,7 +635,7 @@ export default function SettingsPage() {
 
         {/* PHASE 5: DATA & ARCHIVAL */}
         <section className="space-y-4">
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Data & Archival</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_data')}</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
             
             <div className="space-y-6">
@@ -688,7 +689,7 @@ export default function SettingsPage() {
                 disabled={isArchiving}
               >
                 {isArchiving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                Archive Identity Node
+                {t('settings_archive')}
               </Button>
               <Button 
                 variant="outline" 
@@ -697,7 +698,7 @@ export default function SettingsPage() {
                 disabled={isPurgingCache}
               >
                 {isPurgingCache ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-                Purge Vibe Cache
+                {t('settings_purge')}
               </Button>
             </div>
           </div>
@@ -712,7 +713,7 @@ export default function SettingsPage() {
 
         <section className="space-y-4"><h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Growth & Handshakes</h3><div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8"><div className="bg-primary/5 rounded-[1.75rem] p-6 border border-primary/10 relative overflow-hidden group"><div className="relative z-10 space-y-4"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><Trophy className="h-5 w-5 text-amber-500" /><span className="text-xs font-black uppercase tracking-widest">Ambassador Status</span></div><Badge variant="outline" className="bg-primary text-white text-[8px] font-black uppercase tracking-widest border-none">Level {currentLevel} {currentLevel === 3 && "MAX"}</Badge></div><div className="space-y-2"><div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter"><span className="text-muted-foreground">{currentLevel === 3 ? "Maximum Tier Reached" : `Progress to Level ${currentLevel + 1}`}</span><span className="text-primary">{referrals} / {nextMilestone} Nodes</span></div><Progress value={growthProgress} className="h-2" /></div></div><Rocket className="absolute -right-4 -bottom-4 h-24 w-24 opacity-5 rotate-[-15deg] group-hover:scale-110 transition-transform duration-700" /></div><div className="flex items-center justify-between"><div className="space-y-0.5"><div className="flex items-center gap-2"><UserPlus className="h-4 w-4 text-primary" /><p className="font-bold text-sm">Auto-Follow Protocol</p></div><p className="text-[10px] text-muted-foreground uppercase font-black">Automatically follow nodes that join via your link</p></div><Switch checked={settings.isAutoFollowEnabled} onCheckedChange={(val) => handleUpdate({ isAutoFollowEnabled: val })} className="data-[state=checked]:bg-primary" /></div></div></section>
 
-        <section className="pt-10 pb-20"><Button variant="outline" className="w-full h-14 rounded-2xl border-destructive/20 text-destructive font-black italic uppercase tracking-widest text-[10px] hover:bg-destructive/5 transition-all active:scale-95 shadow-lg shadow-destructive/5" onClick={handleTotalPurge}>Purge Local Cache & Sign Out</Button><p className="text-center text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em] mt-6">ViMore Node v1.5.0-HighVelocity</p></section>
+        <section className="pt-10 pb-20"><Button variant="outline" className="w-full h-14 rounded-2xl border-destructive/20 text-destructive font-black italic uppercase tracking-widest text-[10px] hover:bg-destructive/5 transition-all active:scale-95 shadow-lg shadow-destructive/5" onClick={handleTotalPurge}>{t('logout')}</Button><p className="text-center text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em] mt-6">ViMore Node v1.5.0-HighVelocity</p></section>
       </main>
     </div>
   );

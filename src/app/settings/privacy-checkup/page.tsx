@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -42,6 +41,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { usePosts } from "@/context/PostContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -51,6 +51,7 @@ type CheckupStep = "origin" | "rules" | "usage" | "calibration" | "complete";
 export default function PrivacyCheckup() {
   const router = useRouter();
   const { settings, updateSettings, triggerHaptic } = usePosts();
+  const { t } = useTranslation();
   const [currentStep, setCurrentStep] = useState<CheckupStep>("origin");
   
   const steps: CheckupStep[] = ["origin", "rules", "usage", "calibration", "complete"];
@@ -114,7 +115,7 @@ export default function PrivacyCheckup() {
                 </div>
                 <div className="space-y-2">
                   <h2 className="text-4xl font-black italic uppercase tracking-tighter">The Origin Node</h2>
-                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Media Tech Liberia</p>
+                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">{t('branding_mtl')}</p>
                 </div>
               </div>
 
@@ -127,14 +128,14 @@ export default function PrivacyCheckup() {
                   <div className="flex items-start gap-4">
                     <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0"><Zap className="h-5 w-5" /></div>
                     <div className="space-y-1">
-                      <p className="text-sm font-black italic uppercase tracking-widest text-primary">Amos B. Kortu</p>
+                      <p className="text-sm font-black italic uppercase tracking-widest text-primary">{t('branding_amos')}</p>
                       <p className="text-xs font-bold text-muted-foreground uppercase">Founder & CEO — The visionary architect behind the ViMore logic.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
                     <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0"><Shield className="h-5 w-5" /></div>
                     <div className="space-y-1">
-                      <p className="text-sm font-black italic uppercase tracking-widest text-accent">Aaron M. Tulay</p>
+                      <p className="text-sm font-black italic uppercase tracking-widest text-accent">{t('branding_aaron')}</p>
                       <p className="text-xs font-bold text-muted-foreground uppercase">Co-founder & President — The strategic pulse of global expansion.</p>
                     </div>
                   </div>
@@ -226,7 +227,7 @@ export default function PrivacyCheckup() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <EyeOff className="h-4 w-4 text-primary" />
-                      <p className="font-bold text-base">Ghost Node</p>
+                      <p className="font-bold text-base">{t('settings_ghost')}</p>
                     </div>
                     <p className="text-[10px] text-muted-foreground uppercase font-black">Hide your pulse from the network</p>
                   </div>
