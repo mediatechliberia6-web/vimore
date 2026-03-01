@@ -34,6 +34,16 @@ export interface AuditLogNode {
   details: string;
 }
 
+export interface DisputeNode {
+  id: string;
+  username: string;
+  type: 'PAYMENT' | 'WITHDRAWAL';
+  reason: string;
+  status: 'OPEN' | 'RESOLVED' | 'SEVERED';
+  timestamp: number;
+  originalTxId: string;
+}
+
 export interface GatewaySettings {
   orangeName: string;
   orangeNumber: string;
@@ -264,6 +274,7 @@ interface PostContextType {
   connections: Connection[];
   clusters: Cluster[];
   auditLogs: AuditLogNode[];
+  disputes: DisputeNode[];
   adStats: AdStats;
   intelligenceMetrics: IntelligenceMetrics;
   selectedChatId: string | null;
@@ -333,6 +344,7 @@ interface PostContextType {
   createCluster: (name: string, members: Connection[]) => void;
   addMemberToCluster: (clusterId: string, member: Connection) => void;
   leaveCluster: (clusterId: string) => void;
+  resolveDispute: (id: string, action: 'RESTORE' | 'SEVER') => void;
   
   // Call Handshakes
   initiateCall: (contact: Connection, type: CallType) => void;
@@ -621,6 +633,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalNode[]>([]);
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogNode[]>([]);
+  const [disputes, setDisputes] = useState<DisputeNode[]>([]);
   
   const [adStats, setAdStats] = useState<AdStats>({ materializations: 842, handshakes: 124, revenue: 12.40 });
   const [intelligenceMetrics, setIntelligenceMetrics] = useState<IntelligenceMetrics>({
@@ -697,6 +710,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const savedPayments = localStorage.getItem('vimore_payment_requests');
     const savedClusters = localStorage.getItem('vimore_clusters');
     const savedLogs = localStorage.getItem('vimore_audit_logs');
+    const savedDisputes = localStorage.getItem('vimore_disputes');
     const savedAdStats = localStorage.getItem('vimore_ad_stats');
 
     if (savedUser) try { setCurrentUser(JSON.parse(savedUser)); } catch (e) {}
@@ -713,6 +727,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (savedPayments) setPaymentRequests(JSON.parse(savedPayments));
     if (savedClusters) setClusters(JSON.parse(savedClusters));
     if (savedLogs) setAuditLogs(JSON.parse(savedLogs));
+    if (savedDisputes) setDisputes(JSON.parse(savedDisputes));
     if (savedAdStats) try { setAdStats(JSON.parse(savedAdStats)); } catch (e) {}
     
     if (savedLocalPosts) {
@@ -734,6 +749,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => { safePersist('vimore_payment_requests', paymentRequests); }, [paymentRequests]);
   useEffect(() => { safePersist('vimore_clusters', clusters); }, [clusters]);
   useEffect(() => { safePersist('vimore_audit_logs', auditLogs); }, [auditLogs]);
+  useEffect(() => { safePersist('vimore_disputes', disputes); }, [disputes]);
   useEffect(() => { safePersist('vimore_ad_stats', adStats); }, [adStats]);
 
   const recordAdMaterialization = useCallback(() => {
@@ -1089,7 +1105,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
     triggerHaptic(50);
     setPaymentRequests(prev => prev.map(req => {
       if (req.id === id) {
-        addAuditLog("PAYMENT_REJECTED", `Purged payment handshake for @${req.username}`);
+        // Create a dispute node automatically for the user to appeal
+        const dispute: DisputeNode = {
+          id: `DISP-${Date.now()}`,
+          username: req.username,
+          type: 'PAYMENT',
+          reason: "Administrative purge during initial handshake. Please verify receipt details.",
+          status: 'OPEN',
+          timestamp: Date.now(),
+          originalTxId: req.id
+        };
+        setDisputes(prev => [dispute, ...prev]);
+        addAuditLog("PAYMENT_REJECTED", `Purged payment handshake for @${req.username}. Dispute node opened.`);
         return { ...req, status: 'REJECTED' };
       }
       return req;
@@ -1104,10 +1131,33 @@ export function PostProvider({ children }: { children: ReactNode }) {
     triggerHaptic(status === 'APPROVED' ? 50 : 100);
     setWithdrawalHistory(prev => prev.map(node => {
       if (node.id === id) {
+        if (status === 'REJECTED') {
+          const dispute: DisputeNode = {
+            id: `DISP-${Date.now()}`,
+            username: node.username,
+            type: 'WITHDRAWAL',
+            reason: "Withdrawal handshake severed by Auditor. Potential risk mismatch detected.",
+            status: 'OPEN',
+            timestamp: Date.now(),
+            originalTxId: node.id
+          };
+          setDisputes(prev => [dispute, ...prev]);
+        }
         addAuditLog(status === 'APPROVED' ? "WITHDRAWAL_AUTHORIZED" : "WITHDRAWAL_PURGED", `${status} payout of ${node.payoutCurrency} ${node.payoutAmount} to @${node.username}`);
         return { ...node, status };
       }
       return node;
+    }));
+  };
+
+  const resolveDispute = (id: string, action: 'RESTORE' | 'SEVER') => {
+    triggerHaptic(action === 'RESTORE' ? 50 : 100);
+    setDisputes(prev => prev.map(d => {
+      if (d.id === id) {
+        addAuditLog("DISPUTE_RESOLVED", `${action} action taken on dispute node ${id} for @${d.username}`);
+        return { ...d, status: action === 'RESTORE' ? 'RESOLVED' : 'SEVERED' };
+      }
+      return d;
     }));
   };
 
@@ -1165,7 +1215,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   return (
     <PostContext.Provider value={{ 
-      currentUser, posts, stories, highlights, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, auditLogs, adStats, intelligenceMetrics, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, gatewaySettings, callState, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, initiateCall, receiveCall, acceptCall, endCall
+      currentUser, posts, stories, highlights, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, auditLogs, disputes, adStats, intelligenceMetrics, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, gatewaySettings, callState, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute, initiateCall, receiveCall, acceptCall, endCall
     }}>
       {children}
     </PostContext.Provider>

@@ -57,7 +57,11 @@ import {
   Trophy,
   ArrowRight,
   Mic2,
-  ListMusic
+  ListMusic,
+  Database,
+  Hammer,
+  RotateCcw,
+  Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -94,7 +98,7 @@ import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { aiAnalyzeGlobalSentiment } from "@/app/actions/ai";
 
-type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "gateway" | "logs";
+type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "gateway" | "infrastructure" | "resolution" | "logs";
 type EconomySubTab = "outbound" | "inbound";
 
 const MOCK_DAILY_PULSE = [
@@ -132,14 +136,16 @@ const MOCK_REPORTS = [
 ];
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections } = usePosts();
+  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections, disputes, resolveDispute } = usePosts();
   const { addSignal } = useNotifications();
+  const { downloadedSongIds } = useMusic();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<AdminTab>("pulse");
   const [economySubTab, setEconomySubTab] = useState<EconomySubTab>("outbound");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
   const [isAnalyzingVibe, setIsAnalyzingVibe] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   // Governance States
   const [broadcastText, setBroadcastText] = useState("");
@@ -165,6 +171,20 @@ export default function AdminDashboard() {
     activeClusters: 142
   }), [posts]);
 
+  // Infrastructure Logic
+  const storageData = useMemo(() => {
+    const sonicSize = downloadedSongIds.size * 10.5;
+    const vibeSize = posts.filter(p => p.videoUrl).length * 15.2;
+    const metaSize = (posts.length * 0.5) + (connections.length * 0.2) + 1.2;
+    return [
+      { label: "Sonic Notes", size: `${sonicSize.toFixed(1)}MB`, value: Math.min((sonicSize / 2000) * 100, 100), icon: Music2, color: "bg-primary" },
+      { label: "Vibe Cache", size: `${vibeSize.toFixed(1)}MB`, value: Math.min((vibeSize / 2500) * 100, 100), icon: Clapperboard, color: "bg-accent" },
+      { label: "Core Meta", size: `${metaSize.toFixed(1)}MB`, value: Math.min((metaSize / 500) * 100, 100), icon: Database, color: "bg-amber-500" },
+    ];
+  }, [downloadedSongIds, posts, connections]);
+
+  const totalUsedMB = useMemo(() => storageData.reduce((acc, curr) => acc + parseFloat(curr.size), 0), [storageData]);
+
   const handleAnalyzeVibe = async () => {
     setIsAnalyzingVibe(true);
     triggerHaptic(25);
@@ -184,7 +204,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleAction = (id: string, status: 'APPROVED' | 'REJECTED', type: 'withdrawal' | 'payment' | 'verification' | 'report' | 'bot') => {
+  const handleAction = (id: string, status: 'APPROVED' | 'REJECTED', type: 'withdrawal' | 'payment' | 'verification' | 'report' | 'bot' | 'dispute') => {
     triggerHaptic(status === 'APPROVED' ? 50 : 100);
     
     if (type === 'withdrawal') {
@@ -200,10 +220,37 @@ export default function AdminDashboard() {
     } else if (type === 'bot') {
       addAuditLog("BOT_PURGE", `Severed node connection for ${id}`);
       toast({ title: "Node Severed", description: `Suspicious node ${id} removed from network.` });
+    } else if (type === 'dispute') {
+      resolveDispute(id, status === 'APPROVED' ? 'RESTORE' : 'SEVER');
+      toast({ title: "Resolution Synced", description: `Dispute ${id} resolved via ${status.toLowerCase()} pulse.` });
     } else {
       addAuditLog("SAFETY_ACTION", `Report ${id} closed via ${status.toLowerCase()} handshake.`);
       toast({ title: "Safety Action", description: `Report ${id} closed via ${status.toLowerCase()} handshake.` });
     }
+  };
+
+  const handleGenerateReport = () => {
+    setIsGeneratingReport(true);
+    triggerHaptic(50);
+    
+    setTimeout(() => {
+      const data = {
+        meta: { title: "ViMore Velocity Report", timestamp: new Date().toISOString() },
+        revenue: { totalInbound: paymentRequests.length * 15, totalOutbound: withdrawalHistory.length * 50 },
+        nodes: { active: stats.totalNodes, verified: stats.totalSignatures }
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `vimore_velocity_report_${Date.now()}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setIsGeneratingReport(false);
+      toast({ title: "Report Materialized", description: "High-velocity data node saved to hardware." });
+    }, 2000);
   };
 
   const handleSaveGateway = () => {
@@ -263,9 +310,9 @@ export default function AdminDashboard() {
         </div>
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-hide">
-          {(["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "gateway", "logs"] as AdminTab[]).map((tab) => {
-            const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, velocity: TrendingUp, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, logs: FileText };
-            const labels = { pulse: "Global Pulse", economy: "Economy Auditor", intelligence: "Intelligence Node", velocity: "Velocity Hub", identity: "Identity Forge", safety: "Safety Node", governance: "Governance", gateway: "Gateway Logic", logs: "Audit Logs" };
+          {(["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "gateway", "infrastructure", "resolution", "logs"] as AdminTab[]).map((tab) => {
+            const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, velocity: TrendingUp, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, infrastructure: Database, resolution: Hammer, logs: FileText };
+            const labels = { pulse: "Global Pulse", economy: "Economy Auditor", intelligence: "Intelligence Node", velocity: "Velocity Hub", identity: "Identity Forge", safety: "Safety Node", governance: "Governance", gateway: "Gateway Logic", infrastructure: "Infrastructure", resolution: "Resolution Hub", logs: "Audit Logs" };
             const Icon = icons[tab];
             const isActive = activeTab === tab;
 
@@ -374,23 +421,38 @@ export default function AdminDashboard() {
                   </div>
                 </Card>
 
-                <Card className="bg-white/5 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <h3 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter">AI Node Load</h3>
-                      <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Groq High-Velocity Inference (%)</p>
-                    </div>
-                    <div className="h-9 w-9 sm:h-10 sm:w-10 bg-accent/10 rounded-xl flex items-center justify-center text-accent"><Zap className="h-5 w-5" /></div>
+                {/* Real-Time Handshake Map Visualization */}
+                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6 overflow-hidden relative group">
+                  <div className="absolute inset-0 opacity-10 pointer-events-none">
+                    <Globe className="absolute -right-20 -bottom-20 h-[400px] w-[400px] text-primary animate-[spin_20s_linear_infinite]" />
                   </div>
-                  <div className="h-[250px] sm:h-[300px] w-full">
-                    <ChartContainer config={{ load: { label: "Load %", color: "hsl(var(--accent))" } }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={MOCK_DAILY_PULSE}>
-                          <ChartTooltip content={<ChartTooltipContent />} />
-                          <Bar dataKey="load" fill="hsl(var(--accent))" radius={[10, 10, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </ChartContainer>
+                  <div className="flex items-center justify-between relative z-10">
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-black italic uppercase tracking-tighter">Spatial Clusters</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Handshake Activity Map</p>
+                    </div>
+                    <Badge className="bg-green-500/20 text-green-500 border-none font-black h-5 px-3 uppercase tracking-tighter">LIVE FEED</Badge>
+                  </div>
+                  <div className="h-[250px] sm:h-[300px] w-full flex items-center justify-center bg-black/20 rounded-[2rem] border border-dashed border-white/10 relative">
+                    {/* Abstract Dot Network */}
+                    <div className="grid grid-cols-8 gap-4 opacity-40">
+                      {[...Array(24)].map((_, i) => (
+                        <div key={i} className={cn(
+                          "h-1.5 w-1.5 rounded-full transition-all duration-1000",
+                          Math.random() > 0.7 ? "bg-primary animate-ping" : "bg-white/10"
+                        )} />
+                      ))}
+                    </div>
+                    <div className="absolute bottom-6 left-6 flex items-center gap-4">
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-white/40 uppercase">Active Cluster</span>
+                        <span className="text-xs font-bold text-white italic">Lagos-Node-01</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-white/40 uppercase">Sync Delay</span>
+                        <span className="text-xs font-bold text-green-500 italic">42ms</span>
+                      </div>
+                    </div>
                   </div>
                 </Card>
               </div>
@@ -587,31 +649,183 @@ export default function AdminDashboard() {
                   </div>
                 </Card>
               </div>
+            </div>
+          )}
 
-              {/* Node Relationship Visualizer (Simulated) */}
-              <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-8 mx-2">
-                <div className="flex items-center justify-between">
+          {activeTab === 'infrastructure' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-2 gap-6">
+                <div className="space-y-1">
+                  <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Infrastructure Node</h3>
+                  <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Resource Monitoring & Velocity Reporting</p>
+                </div>
+                <Button 
+                  className="rounded-xl h-12 px-6 bg-primary text-white font-black uppercase tracking-widest text-[10px] gap-2 shadow-lg shadow-primary/20"
+                  onClick={handleGenerateReport}
+                  disabled={isGeneratingReport}
+                >
+                  {isGeneratingReport ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  Generate Velocity Report
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 px-2">
+                {/* Database Pulse Meter */}
+                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-8 lg:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500">
+                        <Database className="h-5 w-5" />
+                      </div>
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter">Archival Pulse</h4>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest block">Total Utilization</span>
+                      <span className="text-2xl font-black text-white italic">{totalUsedMB.toFixed(1)} MB</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-10">
+                    {storageData.map((node) => (
+                      <div key={node.label} className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <node.icon className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-xs font-black uppercase tracking-widest text-white/80">{node.label}</span>
+                          </div>
+                          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{node.size} / 2.5 GB</span>
+                        </div>
+                        <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden">
+                          <div className={cn("h-full transition-all duration-1000 ease-out", node.color)} style={{ width: `${node.value}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-6 border-t border-white/5 flex gap-4">
+                    <Button variant="ghost" className="rounded-xl h-10 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest gap-2">
+                      <RotateCcw className="h-3.5 w-3.5" /> Recalibrate Nodes
+                    </Button>
+                    <Button variant="ghost" className="rounded-xl h-10 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest gap-2">
+                      <Unplug className="h-3.5 w-3.5" /> Maintenance Mode
+                    </Button>
+                  </div>
+                </Card>
+
+                {/* Cluster Efficiency Node */}
+                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6 flex flex-col justify-between">
                   <div className="space-y-1">
-                    <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Star Network Expansion</h4>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Cluster Branching & Referral Handshakes</p>
+                    <h4 className="text-lg font-black italic uppercase tracking-widest">Node Efficiency</h4>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Temporal Request Handshakes</p>
                   </div>
-                  <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-                    <Rocket className="h-6 w-6" />
+                  
+                  <div className="space-y-6">
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-5xl font-black italic text-primary">99.8%</span>
+                      <Badge className="bg-green-500/20 text-green-500 border-none h-5 font-black uppercase px-3">OPTIMAL</Badge>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {[
+                        { label: "Sync Latency", value: "12ms" },
+                        { label: "AI Inference", value: "0.4s" },
+                        { label: "Asset Delivery", value: "1.2MB/s" }
+                      ].map(m => (
+                        <div key={m.label} className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
+                          <span className="text-[9px] font-black text-white/40 uppercase">{m.label}</span>
+                          <span className="text-[10px] font-bold text-white italic">{m.value}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <div className="h-[200px] w-full flex items-center justify-center bg-black/20 rounded-[2rem] border border-dashed border-white/10 relative overflow-hidden group">
-                  {/* Abstract Graph Pulse Animation */}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-40">
-                    <div className="w-32 h-32 border-4 border-primary/20 rounded-full animate-ping" />
-                    <div className="absolute w-16 h-16 border-2 border-accent/20 rounded-full animate-ping delay-300" />
-                  </div>
-                  <div className="relative z-10 flex flex-col items-center gap-4">
-                    <Badge className="bg-primary text-white font-black px-4 h-6">1.4 VIRAL COEFFICIENT</Badge>
-                    <p className="text-xs font-bold text-white/60 uppercase tracking-widest group-hover:text-white transition-colors cursor-default">Rendering High-Fidelity Cluster Map...</p>
-                  </div>
+                  <Button className="w-full h-12 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest">
+                    Infrastructure Audit
+                  </Button>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'resolution' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="flex items-center justify-between px-2">
+                <div className="space-y-1">
+                  <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Resolution Hub</h3>
+                  <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Managing Severed Handshakes & Disputes</p>
                 </div>
-              </Card>
+                <div className="h-11 w-11 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                  <Hammer className="h-6 w-6" />
+                </div>
+              </div>
+
+              <div className="space-y-4 px-2">
+                {disputes.length > 0 ? disputes.map((dispute) => (
+                  <Card key={dispute.id} className="bg-white/5 border-white/10 rounded-[2.5rem] overflow-hidden group hover:border-primary/30 transition-all">
+                    <div className="p-8 flex flex-col md:flex-row gap-8">
+                      <div className="flex-1 space-y-6">
+                        <div className="flex items-center gap-4">
+                          <Badge className={cn(
+                            "font-black uppercase tracking-widest h-6 px-3 border-none",
+                            dispute.status === 'OPEN' ? "bg-amber-500 text-white" : 
+                            dispute.status === 'RESOLVED' ? "bg-green-500 text-white" : "bg-red-500 text-white"
+                          )}>
+                            {dispute.status} APPEAL
+                          </Badge>
+                          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">DISPUTE: {dispute.id}</span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8">
+                          <div className="space-y-1">
+                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Identity Node</span>
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-6 w-6 border border-white/10"><AvatarFallback>{dispute.username[0]}</AvatarFallback></Avatar>
+                              <p className="font-bold text-sm text-white">@{dispute.username}</p>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Original Pulse</span>
+                            <p className="font-bold text-sm text-primary uppercase">{dispute.type} Handshake</p>
+                          </div>
+                        </div>
+
+                        <div className="p-5 bg-black/40 rounded-2xl border border-white/5 space-y-2">
+                          <span className="text-[9px] font-black text-white/40 uppercase tracking-widest flex items-center gap-2">
+                            <History className="h-3 w-3" /> User Justification
+                          </span>
+                          <p className="text-sm font-medium text-white/80 leading-relaxed italic">"{dispute.reason}"</p>
+                        </div>
+                      </div>
+
+                      {dispute.status === 'OPEN' && (
+                        <div className="flex flex-col gap-3 justify-center">
+                          <Button 
+                            className="rounded-xl h-14 w-full md:w-48 bg-green-500 text-white font-black italic uppercase tracking-widest text-[10px] gap-2 shadow-lg shadow-green-500/20"
+                            onClick={() => handleAction(dispute.id, 'APPROVED', 'dispute')}
+                          >
+                            <Check className="h-4 w-4" /> Restore Handshake
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            className="rounded-xl h-14 w-full md:w-48 bg-white/5 text-muted-foreground hover:bg-red-500 hover:text-white font-black italic uppercase tracking-widest text-[10px] gap-2"
+                            onClick={() => handleAction(dispute.id, 'REJECTED', 'dispute')}
+                          >
+                            <X className="h-4 w-4" /> Sever Permanently
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                )) : (
+                  <div className="py-32 text-center space-y-6 bg-white/5 rounded-[3rem] border border-dashed border-white/10">
+                    <Hammer className="h-16 w-16 mx-auto text-muted-foreground opacity-20" />
+                    <div className="space-y-1">
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Cluster Harmony</h4>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">No active disputes detected in the network.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -797,8 +1011,8 @@ export default function AdminDashboard() {
       {/* Mobile Admin Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[200] px-4 pb-6 flex justify-center pointer-events-none">
         <nav className="flex items-center gap-2 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-2.5 shadow-2xl pointer-events-auto overflow-x-auto scrollbar-hide max-w-full">
-          {(["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "gateway", "logs"] as AdminTab[]).map((tab) => {
-            const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, velocity: TrendingUp, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, logs: FileText };
+          {(["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "gateway", "infrastructure", "resolution", "logs"] as AdminTab[]).map((tab) => {
+            const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, velocity: TrendingUp, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, infrastructure: Database, resolution: Hammer, logs: FileText };
             const Icon = icons[tab];
             const isActive = activeTab === tab;
             return <button key={tab} onClick={() => { triggerHaptic(5); setActiveTab(tab); }} className={cn("p-3 rounded-2xl transition-all shrink-0", isActive ? "bg-primary text-white scale-110 shadow-lg" : "text-muted-foreground")}><Icon className="h-5 w-5" /></button>;
