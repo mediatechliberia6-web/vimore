@@ -163,6 +163,22 @@ export default function MyProfilePage() {
     gender: currentUser.gender || 'Male'
   });
 
+  // Sync editData if currentUser updates externally
+  useEffect(() => {
+    setEditData({
+      name: currentUser.name,
+      category: currentUser.category || USER_CATEGORIES[0],
+      bio: currentUser.bio || "",
+      pronouns: currentUser.pronouns || "",
+      profession: currentUser.profession || "",
+      school: currentUser.school || "",
+      relationshipStatus: currentUser.relationshipStatus || RELATIONSHIP_STATUSES[0],
+      dateOfBirth: currentUser.dateOfBirth || "",
+      nationality: currentUser.nationality || NATIONALITIES[0],
+      gender: currentUser.gender || 'Male'
+    });
+  }, [currentUser]);
+
   const handleSaveProfile = () => {
     triggerHaptic(25);
     const updates: Partial<any> = { ...editData };
@@ -227,7 +243,7 @@ export default function MyProfilePage() {
             <div className="flex items-center gap-1">
               <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
                 <Button variant="ghost" size="icon" className="rounded-full" onClick={() => { triggerHaptic(5); setIsEditModalOpen(true); }}><Edit2 className="h-5 w-5" /></Button>
-                <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-0 overflow-hidden border-primary/10">
+                <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-0 overflow-hidden border-primary/10 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-3xl">
                   <DialogHeader className="p-6 bg-primary/5 border-b border-primary/10"><DialogTitle className="font-black italic uppercase tracking-widest text-2xl">Identity Calibration</DialogTitle></DialogHeader>
                   <ScrollArea className="max-h-[70vh]">
                     <div className="p-6 space-y-8">
@@ -255,6 +271,17 @@ export default function MyProfilePage() {
                             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Gender Signature</Label>
                             <Select value={editData.gender} onValueChange={(val: any) => setEditData({ ...editData, gender: val })}><SelectTrigger className="h-12 rounded-xl bg-secondary/20 border-none px-4"><SelectValue /></SelectTrigger><SelectContent className="rounded-xl"><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent></Select>
                           </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Role Node</Label>
+                          <Select value={editData.category} onValueChange={(val) => setEditData({ ...editData, category: val })}>
+                            <SelectTrigger className="h-12 rounded-xl bg-secondary/20 border-none px-4 font-bold">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                              {USER_CATEGORIES.map(cat => <SelectItem key={cat} value={cat} className="font-bold">{cat}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Vibe Manifesto (Bio)</Label><Textarea value={editData.bio} onChange={(e) => setEditData({ ...editData, bio: e.target.value })} className="rounded-xl bg-secondary/20 border-none min-h-[100px] resize-none" placeholder="Share your network logic..." /></div>
                       </div>
@@ -302,7 +329,6 @@ export default function MyProfilePage() {
                   <div className="flex flex-col"><span className="font-bold text-lg leading-none">{myPosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
                 </div>
 
-                {/* Identity Nodes Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 py-6 my-4 border-y border-primary/5 bg-primary/[0.02] px-4 rounded-[2rem]">
                   <InfoNode icon={Globe} label="Spatial Origin" value={currentUser.nationality || NATIONALITIES[0]} colorClass="bg-blue-500/10 text-blue-500" />
                   <InfoNode icon={Users} label="Gender Signature" value={currentUser.gender || 'Male'} colorClass="bg-purple-500/10 text-purple-500" />

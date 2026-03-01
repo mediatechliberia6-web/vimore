@@ -16,7 +16,7 @@ import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search, X, Heart, ListMusic, Plus, Music, Disc3, Download, Trash2, MoreVertical } from "lucide-react";
+import { ArrowLeft, Search, X, Heart, ListMusic, Plus, Music, Disc3, Download, Trash2, MoreVertical, Zap } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -156,7 +156,16 @@ function MusicPageContent() {
             {activeTab === "discover" && (
               <div className="space-y-10 sm:space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-1000">
                 {!hasResults ? (
-                  <div className="py-20 text-center space-y-4"><div className="h-20 w-20 bg-secondary/30 rounded-full flex items-center justify-center mx-auto"><Search className="h-10 w-10 text-muted-foreground" /></div><div className="space-y-1"><h3 className="text-xl font-black italic uppercase tracking-tighter">No results for "{searchQuery}"</h3><p className="text-muted-foreground text-sm">Try searching for a different artist or genre</p></div><Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase text-[10px]" onClick={() => setSearchQuery("")}>Clear Search</Button></div>
+                  <div className="py-20 text-center space-y-6 bg-white/40 dark:bg-card/40 rounded-[2.5rem] border border-dashed border-primary/10 animate-in zoom-in duration-500">
+                    <div className="h-20 w-20 bg-secondary/30 rounded-full flex items-center justify-center mx-auto">
+                      <Music className="h-10 w-10 text-muted-foreground opacity-20" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-black italic uppercase tracking-tighter">Sonic Vault Silent</h3>
+                      <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest">No tracks matched your query node. Explore new frequencies.</p>
+                    </div>
+                    <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase text-[10px] h-10 px-8" onClick={() => setSearchQuery("")}>Reset Discovery</Button>
+                  </div>
                 ) : (
                   <>
                     {!searchQuery && filteredSongs.length > 0 && <MusicGrid type="hero" items={[filteredSongs[0]]} />}
@@ -199,7 +208,14 @@ function MusicPageContent() {
                     <div className="space-y-8">
                       <div className="flex items-center justify-between border-b border-border/50 pb-4"><div className="flex items-center gap-2"><ListMusic className="h-5 w-5 text-primary" /><h3 className="font-bold text-sm uppercase tracking-widest">My Created Vibes</h3></div><Button className="rounded-full bg-primary text-white font-bold gap-2 text-xs h-9 px-5" onClick={() => openCreatePlaylist()}><Plus className="h-4 w-4" /> {t('music_create_playlist')}</Button></div>
                       {userPlaylists.length === 0 ? (
-                        <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2rem] border border-border/50"><ListMusic className="h-12 w-12 mx-auto text-muted-foreground opacity-20" /><div className="space-y-1"><h3 className="text-xl font-bold">No playlists yet</h3><p className="text-muted-foreground text-sm">Start curating your unique sonic signature.</p></div><Button variant="outline" className="rounded-full border-primary text-primary" onClick={() => openCreatePlaylist()}>Create First Playlist</Button></div>
+                        <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2.5rem] border border-border/50 shadow-sm animate-in zoom-in">
+                          <ListMusic className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
+                          <div className="space-y-1">
+                            <h3 className="text-xl font-black italic uppercase tracking-tighter">No Playlists Materialized</h3>
+                            <p className="text-muted-foreground text-sm uppercase font-bold tracking-widest">Start curating your unique sonic signature.</p>
+                          </div>
+                          <Button className="rounded-full bg-primary text-white font-black italic uppercase tracking-widest h-10 px-8 shadow-lg shadow-primary/20" onClick={() => openCreatePlaylist()}>Create First Vibe</Button>
+                        </div>
                       ) : <MusicGrid type="playlist" items={userPlaylists} />}
                     </div>
                   )}
@@ -207,13 +223,20 @@ function MusicPageContent() {
                     <div className="space-y-8">
                       <div className="flex items-center gap-2 border-b border-border/50 pb-4"><Music className="h-5 w-5 text-primary" /><h3 className="font-bold text-sm uppercase tracking-widest">Published Tracks</h3></div>
                       {userSongs.length === 0 ? (
-                        <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2rem] border border-border/50"><Music className="h-12 w-12 mx-auto text-muted-foreground opacity-20" /><div className="space-y-1"><h3 className="text-xl font-bold">Your Catalog is Empty</h3><p className="text-muted-foreground text-sm">Upload your first single in the Studio.</p></div><Button variant="outline" className="rounded-full border-primary text-primary" onClick={() => setActiveTab("upload")}>Go to Studio</Button></div>
+                        <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2.5rem] border border-border/50 shadow-sm animate-in zoom-in">
+                          <Zap className="h-12 w-12 mx-auto text-primary opacity-20" />
+                          <div className="space-y-1">
+                            <h3 className="text-xl font-black italic uppercase tracking-tighter">Your Catalog is Empty</h3>
+                            <p className="text-muted-foreground text-sm uppercase font-bold tracking-widest">Launch your first single in the high-velocity studio.</p>
+                          </div>
+                          <Button className="rounded-full bg-primary text-white font-black italic uppercase tracking-widest h-10 px-8 shadow-lg shadow-primary/20" onClick={() => setActiveTab("upload")}>Enter Studio</Button>
+                        </div>
                       ) : (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
                           {userSongs.map(song => (
                             <div key={song.id} className="group relative">
                               <MusicGrid type="song" items={[song]} />
-                              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-black/40 text-white"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem className="text-destructive gap-2" onSelect={() => setDeleteItem({ id: song.id, type: 'track' })}><Trash2 className="h-4 w-4" /> Withdraw Track</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
+                              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-black/40 text-white"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem className="text-destructive gap-2 font-bold" onSelect={() => setDeleteItem({ id: song.id, type: 'track' })}><Trash2 className="h-4 w-4" /> Withdraw Track</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
                             </div>
                           ))}
                         </div>
@@ -224,7 +247,16 @@ function MusicPageContent() {
                     <div className="space-y-8">
                       <div className="flex items-center gap-2 border-b border-border/50 pb-4"><Download className="h-5 w-5 text-green-500" /><h3 className="font-bold text-sm uppercase tracking-widest">{t('music_notes')}</h3></div>
                       {downloadedTracks.length === 0 ? (
-                        <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2rem] border border-border/50"><Download className="h-12 w-12 mx-auto text-muted-foreground opacity-20" /><div className="space-y-1"><h3 className="text-xl font-bold">Your Music Notes are empty</h3><p className="text-muted-foreground text-sm">Note tracks to listen even when you're off-grid.</p></div><Button variant="outline" className="rounded-full border-primary text-primary" onClick={() => setActiveTab("discover")}>Discover Music</Button></div>
+                        <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2.5rem] border border-border/50 shadow-sm animate-in zoom-in">
+                          <div className="h-16 w-16 bg-green-500/10 rounded-2xl flex items-center justify-center mx-auto text-green-500">
+                            <Download className="h-8 w-8" />
+                          </div>
+                          <div className="space-y-1">
+                            <h3 className="text-xl font-black italic uppercase tracking-tighter">Notes Vault Empty</h3>
+                            <p className="text-muted-foreground text-sm uppercase font-bold tracking-widest">Archive tracks to listen even when you're off-grid.</p>
+                          </div>
+                          <Button variant="outline" className="rounded-full border-green-500 text-green-500 font-black italic uppercase tracking-widest h-10 px-8" onClick={() => setActiveTab("discover")}>Archive Tracks</Button>
+                        </div>
                       ) : <MusicGrid type="song" items={downloadedTracks} />}
                     </div>
                   )}
@@ -235,14 +267,14 @@ function MusicPageContent() {
         </main>
       </div>
       <MusicNav activeTab={activeTab} onTabChange={setActiveTab} /><CreatePlaylistModal />
-      <AlertDialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}><AlertDialogContent className="rounded-[2.5rem] sm:max-w-[400px]"><AlertDialogHeader><div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4"><Trash2 className="h-8 w-8" /></div><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">Purge Content?</AlertDialogTitle><AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">This will permanently remove your signature from the ViMore music network.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6"><AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50 border-none">Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className="rounded-xl h-12 font-black italic uppercase tracking-widest bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20">Confirm Purge</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+      <AlertDialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}><AlertDialogContent className="rounded-[2.5rem] sm:max-w-[400px] bg-white/95 dark:bg-[#050505]/95 backdrop-blur-3xl border-destructive/10 shadow-2xl"><AlertDialogHeader><div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4"><Trash2 className="h-8 w-8" /></div><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">Purge Content?</AlertDialogTitle><AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">This will permanently remove your signature from the ViMore music network. All local notes will be severed.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6 px-4 pb-2"><AlertDialogCancel className="rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] bg-secondary/50 border-none hover:bg-secondary transition-all">Abort</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className="rounded-2xl h-14 font-black italic uppercase tracking-widest text-[10px] bg-destructive hover:bg-destructive/90 text-white shadow-xl shadow-destructive/20 transition-all active:scale-95">Confirm Purge</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>
   );
 }
 
 export default function MusicPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#F0F2F5] dark:bg-background flex items-center justify-center"><Music className="h-10 w-10 text-primary animate-pulse" /></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#F0F2F5] dark:bg-background flex items-center justify-center"><Music className="h-10 w-10 text-primary animate-spin" /></div>}>
       <MusicPageContent />
     </Suspense>
   );
