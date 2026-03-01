@@ -7,6 +7,7 @@ import { Home, User, MessageCircle, PlusSquare, Compass, Menu, Music2, Clapperbo
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useNotifications, PulseCategory } from "@/context/NotificationContext";
+import { usePosts } from "@/context/PostContext";
 
 const PulseBadge = ({ count }: { count: number }) => {
   if (count <= 0) return null;
@@ -20,12 +21,13 @@ const PulseBadge = ({ count }: { count: number }) => {
 export function MainNav() {
   const pathname = usePathname();
   const { unreadCount, categoryPulses, clearPulse } = useNotifications();
+  const { settings } = usePosts();
 
-  const navItems: { icon: any; label: string; href: string; badge?: number; category?: PulseCategory }[] = [
+  const navItems: { icon: any; label: string; href: string; badge?: number; category?: PulseCategory; isHidden?: boolean }[] = [
     { icon: Home, label: "Home", href: "/", category: "HOME" },
     { icon: Compass, label: "Explore", href: "/explore" },
-    { icon: Clapperboard, label: "Reels", href: "/reels", category: "REELS" },
-    { icon: Music2, label: "Music", href: "/music", category: "MUSIC" },
+    { icon: Clapperboard, label: "Reels", href: "/reels", category: "REELS", isHidden: !settings.isReelsEnabled },
+    { icon: Music2, label: "Music", href: "/music", category: "MUSIC", isHidden: !settings.isMusicEnabled },
     { icon: Bell, label: "Notifications", href: "/notifications", badge: unreadCount },
     { icon: MessageCircle, label: "Messages", href: "/messages", category: "MESSAGES" },
     { icon: User, label: "Profile", href: "/profile" },
@@ -48,7 +50,7 @@ export function MainNav() {
       </div>
 
       <nav className="flex-1 space-y-2">
-        {navItems.map((item) => {
+        {navItems.filter(item => !item.isHidden).map((item) => {
           const isActive = pathname === item.href;
           const displayBadge = item.category ? categoryPulses[item.category] : item.badge;
 

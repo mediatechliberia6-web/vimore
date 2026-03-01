@@ -133,7 +133,7 @@ export function PostCard(props: PostCardProps) {
   } = props;
 
   const { 
-    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedImageUrl, openGiftHub, unlockPost
+    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedImageUrl, openGiftHub, unlockPost, settings
   } = usePosts();
 
   const { addSignal } = useNotifications();
@@ -147,7 +147,7 @@ export function PostCard(props: PostCardProps) {
   const isOwner = user.username === currentUser.username;
   
   const effectiveIsVerified = isOwner ? currentUser.isVerified : user.isVerified;
-  const isEligibleForGift = parseFollowerCount(user.followers) > 1000;
+  const isEligibleForGift = parseFollowerCount(user.followers) > 1000 && settings.isGiftingEnabled;
   const isHiddenByLock = isLocked && !isUnlocked && !isOwner && !isShared;
 
   const [isExpanded, setIsExpanded] = useState(false);
@@ -444,7 +444,7 @@ export function PostCard(props: PostCardProps) {
                             className={cn("relative aspect-video overflow-hidden rounded-lg cursor-pointer group/img")} 
                             onClick={() => { triggerHaptic(15); setSelectedImageUrl(img); }}
                           >
-                            <Image src={img} alt="Post" fill className={cn("object-cover transition-transform group-hover/img:scale-105", imageFilter)} />
+                            <Image src={img} alt="Post" fill className={cn("object-cover transition-transform group/img:scale-105", imageFilter)} />
                             <div className="absolute inset-0 bg-black/10 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
                               <div className="p-3 bg-white/20 backdrop-blur-md rounded-full border border-white/30 text-white">
                                 <PlusSquare className="h-6 w-6" />

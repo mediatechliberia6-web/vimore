@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -40,7 +41,15 @@ import {
   X,
   Smartphone,
   Building2,
-  Check
+  Check,
+  Send,
+  Loader2,
+  Sliders,
+  FileText,
+  Lock,
+  Music2,
+  Clapperboard,
+  LayoutDashboard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -48,7 +57,11 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
 import { usePosts } from "@/context/PostContext";
+import { useNotifications } from "@/context/NotificationContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -69,7 +82,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 
-type AdminTab = "pulse" | "economy" | "identity" | "safety" | "gateway";
+type AdminTab = "pulse" | "economy" | "identity" | "safety" | "governance" | "gateway" | "logs";
 type EconomySubTab = "outbound" | "inbound";
 
 const MOCK_DAILY_PULSE = [
@@ -94,13 +107,18 @@ const MOCK_REPORTS = [
 ];
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings } = usePosts();
+  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog } = usePosts();
+  const { addSignal } = useNotifications();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<AdminTab>("pulse");
   const [economySubTab, setEconomySubTab] = useState<EconomySubTab>("outbound");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
+
+  // Phase 1: Governance States
+  const [broadcastText, setBroadcastText] = useState("");
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
 
   // Gateway form state
   const [gatewayForm, setGatewayForm] = useState(gatewaySettings);
@@ -133,8 +151,10 @@ export default function AdminDashboard() {
       else rejectPaymentRequest(id);
       toast({ title: status === 'APPROVED' ? "Pulse Authorized" : "Handshake Purged", description: `Payment request ${id} ${status.toLowerCase()}.` });
     } else if (type === 'verification') {
+      addAuditLog("VERIFICATION_AUDIT", `${status} verification for request ${id}`);
       toast({ title: "Identity Updated", description: `Verification pulse ${status.toLowerCase()} for request ${id}.` });
     } else {
+      addAuditLog("SAFETY_ACTION", `Report ${id} closed via ${status.toLowerCase()} handshake.`);
       toast({ title: "Safety Action", description: `Report ${id} closed via ${status.toLowerCase()} handshake.` });
     }
   };
@@ -142,7 +162,32 @@ export default function AdminDashboard() {
   const handleSaveGateway = () => {
     triggerHaptic(50);
     updateGatewaySettings(gatewayForm);
+    addAuditLog("GATEWAY_SYNC", "Updated platform financial nodes (Orange/MTN)");
     toast({ title: "Gateway Synchronized", description: "Financial nodes updated platform-wide." });
+  };
+
+  const handleBroadcast = () => {
+    if (!broadcastText.trim()) return;
+    setIsBroadcasting(true);
+    triggerHaptic(100);
+    
+    setTimeout(() => {
+      addSignal({
+        type: 'SYSTEM',
+        title: 'Platform Pulse',
+        content: `**SYSTEM BROADCAST:** ${broadcastText}`,
+      });
+      addAuditLog("GLOBAL_BROADCAST", `Pulse sent: ${broadcastText.slice(0, 30)}...`);
+      setBroadcastText("");
+      setIsBroadcasting(false);
+      toast({ title: "Broadcast Launched", description: "All nodes have received the platform pulse." });
+    }, 1500);
+  };
+
+  const handleToggleSwitch = (key: keyof typeof settings, value: boolean) => {
+    triggerHaptic(10);
+    updateSettings({ [key]: value });
+    addAuditLog("FEATURE_TOGGLE", `Switched ${key} to ${value ? 'ACTIVE' : 'STASIS'}`);
   };
 
   return (
@@ -171,9 +216,9 @@ export default function AdminDashboard() {
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
-          {(["pulse", "economy", "identity", "safety", "gateway"] as AdminTab[]).map((tab) => {
-            const icons = { pulse: Activity, economy: Coins, identity: UserPlus, safety: ShieldAlert, gateway: Settings };
-            const labels = { pulse: "Global Pulse", economy: "Economy Auditor", identity: "Identity Forge", safety: "Safety Node", gateway: "Gateway Logic" };
+          {(["pulse", "economy", "identity", "safety", "governance", "gateway", "logs"] as AdminTab[]).map((tab) => {
+            const icons = { pulse: Activity, economy: Coins, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, logs: FileText };
+            const labels = { pulse: "Global Pulse", economy: "Economy Auditor", identity: "Identity Forge", safety: "Safety Node", governance: "Governance", gateway: "Gateway Logic", logs: "Audit Logs" };
             const Icon = icons[tab];
             const isActive = activeTab === tab;
 
@@ -328,6 +373,56 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 </div>
+              </div>
+
+              {/* Economic Controls (Phase 1) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-2">
+                <Card className="bg-white/5 border-white/10 rounded-[2rem] p-6 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <Sliders className="h-5 w-5 text-amber-500" />
+                    <h4 className="font-black italic uppercase tracking-widest text-sm">Exchange Rate Hub</h4>
+                  </div>
+                  <div className="space-y-8">
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Gold per 1 USD ($)</Label>
+                        <Badge className="bg-amber-500/20 text-amber-500 border-none font-black h-5">{settings.goldRate} Rate</Badge>
+                      </div>
+                      <Slider 
+                        value={[settings.goldRate * 100]} 
+                        min={1} 
+                        max={10} 
+                        step={1} 
+                        onValueChange={(val) => updateSettings({ goldRate: val[0] / 100 })}
+                        className="[&_[role=slider]]:bg-amber-500"
+                      />
+                    </div>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Diamond per 1 USD ($)</Label>
+                        <Badge className="bg-cyan-500/20 text-cyan-500 border-none font-black h-5">{settings.diamondRate} Rate</Badge>
+                      </div>
+                      <Slider 
+                        value={[settings.diamondRate * 100]} 
+                        min={5} 
+                        max={100} 
+                        step={5} 
+                        onValueChange={(val) => updateSettings({ diamondRate: val[0] / 100 })}
+                        className="[&_[role=slider]]:bg-cyan-500"
+                      />
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="bg-white/5 border-white/10 rounded-[2rem] p-6 flex flex-col justify-center items-center text-center space-y-4">
+                  <div className="h-16 w-16 bg-primary/10 rounded-[2rem] flex items-center justify-center text-primary">
+                    <Globe className="h-8 w-8 animate-pulse" />
+                  </div>
+                  <div>
+                    <h4 className="font-black italic uppercase tracking-tighter text-xl">Dynamic Economy</h4>
+                    <p className="text-xs text-muted-foreground font-medium max-w-xs mx-auto">Adjust rates platform-wide based on network liquidity. All user portals update instantly.</p>
+                  </div>
+                </Card>
               </div>
 
               {economySubTab === 'outbound' ? (
@@ -509,6 +604,82 @@ export default function AdminDashboard() {
                   </div>
                 </Card>
               )}
+            </div>
+          )}
+
+          {activeTab === 'governance' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="space-y-1 px-2">
+                <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Governance Node</h3>
+                <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">System Broadcasts & Feature Governance</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Global Broadcast Hub */}
+                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                      <Send className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Global Broadcast</h4>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pulse System Signal to All Nodes</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <Textarea 
+                      placeholder="Enter system announcement..." 
+                      className="min-h-[120px] bg-black/40 border-white/10 rounded-2xl text-sm font-medium focus-visible:ring-primary/20"
+                      value={broadcastText}
+                      onChange={(e) => setBroadcastText(e.target.value)}
+                    />
+                    <Button 
+                      className="w-full h-14 bg-primary text-white font-black italic uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/20 gap-3"
+                      disabled={isBroadcasting || !broadcastText.trim()}
+                      onClick={handleBroadcast}
+                    >
+                      {isBroadcasting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5 fill-current" />}
+                      Launch Broadcast Pulse
+                    </Button>
+                  </div>
+                </Card>
+
+                {/* Feature Kill-Switches */}
+                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-8">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive">
+                      <ShieldAlert className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Feature Access</h4>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Governance Overrides</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    {[
+                      { id: 'isReelsEnabled' as keyof typeof settings, label: "Reels Stream", icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-500/10" },
+                      { id: 'isMusicEnabled' as keyof typeof settings, label: "Music Hub", icon: Music2, color: "text-purple-500", bg: "bg-purple-500/10" },
+                      { id: 'isGiftingEnabled' as keyof typeof settings, label: "Gift Exchange", icon: Gem, color: "text-cyan-500", bg: "bg-cyan-500/10" }
+                    ].map((f) => (
+                      <div key={f.id} className="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/5">
+                        <div className="flex items-center gap-4">
+                          <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", f.bg, f.color)}>
+                            <f.icon className="h-5 w-5" />
+                          </div>
+                          <span className="font-bold text-sm text-white/80">{f.label}</span>
+                        </div>
+                        <Switch 
+                          checked={settings[f.id] as boolean} 
+                          onCheckedChange={(val) => handleToggleSwitch(f.id, val)}
+                          className="data-[state=checked]:bg-primary"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
             </div>
           )}
 
@@ -733,14 +904,55 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+
+          {activeTab === 'logs' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="space-y-1 px-2">
+                <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Audit Trail</h3>
+                <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Administrative Identity Logging</p>
+              </div>
+
+              <Card className="bg-white/5 border-white/10 rounded-[2rem] overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left min-w-[800px]">
+                    <thead>
+                      <tr className="border-b border-white/5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-black/20">
+                        <th className="px-8 py-6">TIMESTAMP</th>
+                        <th className="px-8 py-6">ADMIN</th>
+                        <th className="px-8 py-6">ACTION</th>
+                        <th className="px-8 py-6">DETAILS</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {auditLogs.length > 0 ? auditLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-white/[0.02]">
+                          <td className="px-8 py-6 font-mono text-[10px] text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</td>
+                          <td className="px-8 py-6"><Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[9px] font-black">{log.admin}</Badge></td>
+                          <td className="px-8 py-6 font-black italic uppercase tracking-widest text-xs text-white">{log.action}</td>
+                          <td className="px-8 py-6 text-xs text-muted-foreground font-medium">{log.details}</td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan={4} className="px-8 py-32 text-center opacity-40">
+                            <Activity className="h-12 w-12 mx-auto mb-4" />
+                            <p className="font-black uppercase tracking-widest text-xs">Logs silent — No pulses recorded</p>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          )}
         </div>
       </main>
 
       {/* Mobile Admin Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[200] px-4 pb-6 flex justify-center pointer-events-none">
-        <nav className="flex items-center gap-2 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-2.5 shadow-2xl pointer-events-auto">
-          {(["pulse", "economy", "identity", "safety", "gateway"] as AdminTab[]).map((tab) => {
-            const icons = { pulse: Activity, economy: Coins, identity: UserPlus, safety: ShieldAlert, gateway: Settings };
+        <nav className="flex items-center gap-2 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-2.5 shadow-2xl pointer-events-auto overflow-x-auto scrollbar-hide max-w-full">
+          {(["pulse", "economy", "identity", "safety", "governance", "gateway", "logs"] as AdminTab[]).map((tab) => {
+            const icons = { pulse: Activity, economy: Coins, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, logs: FileText };
             const Icon = icons[tab];
             const isActive = activeTab === tab;
 
@@ -749,7 +961,7 @@ export default function AdminDashboard() {
                 key={tab}
                 onClick={() => { triggerHaptic(5); setActiveTab(tab); }}
                 className={cn(
-                  "p-3 rounded-2xl transition-all",
+                  "p-3 rounded-2xl transition-all shrink-0",
                   isActive ? "bg-primary text-white scale-110 shadow-lg" : "text-muted-foreground"
                 )}
               >

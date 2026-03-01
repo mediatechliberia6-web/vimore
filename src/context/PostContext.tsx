@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
@@ -15,6 +16,21 @@ export interface AppSettings {
   isSilenceActive: boolean;
   silenceStart: string;
   silenceEnd: string;
+  // Phase 1 Additions
+  goldRate: number; // USD per 1 Gold
+  diamondRate: number; // USD per 1 Diamond
+  ldMultiplier: number; // LD per 1 USD
+  isReelsEnabled: boolean;
+  isMusicEnabled: boolean;
+  isGiftingEnabled: boolean;
+}
+
+export interface AuditLogNode {
+  id: string;
+  action: string;
+  admin: string;
+  timestamp: number;
+  details: string;
 }
 
 export interface GatewaySettings {
@@ -232,6 +248,7 @@ interface PostContextType {
   activeStoryIndex: number | null;
   connections: Connection[];
   clusters: Cluster[];
+  auditLogs: AuditLogNode[];
   selectedChatId: string | null;
   selectedPostId: string | null;
   activeCommentPostId: string | null;
@@ -267,6 +284,7 @@ interface PostContextType {
   updateCurrentUser: (data: Partial<User>) => void;
   updateSettings: (data: Partial<AppSettings>) => void;
   updateGatewaySettings: (data: Partial<GatewaySettings>) => void;
+  addAuditLog: (action: string, details: string) => void;
   toggleLikePost: (postId: string) => void;
   toggleUnlikePost: (postId: string) => void;
   toggleSavePost: (postId: string) => void;
@@ -348,7 +366,14 @@ const INITIAL_SETTINGS: AppSettings = {
   legacyContact: null,
   isSilenceActive: false,
   silenceStart: "22:00",
-  silenceEnd: "07:00"
+  silenceEnd: "07:00",
+  // Phase 1
+  goldRate: 0.01,
+  diamondRate: 0.25,
+  ldMultiplier: 190, // Calculated as 1 USD = 190 LD (so 1 Gold = 1.9 LD)
+  isReelsEnabled: true,
+  isMusicEnabled: true,
+  isGiftingEnabled: true
 };
 
 const INITIAL_GATEWAY_SETTINGS: GatewaySettings = {
@@ -599,6 +624,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [pendingTransaction, setPendingTransaction] = useState<PendingTransaction | null>(null);
   const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalNode[]>([]);
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogNode[]>([]);
   
   const [followingUsernames, setFollowingUsernames] = useState<Set<string>>(new Set(["jmoore", "arivera", "schen_dev", "paul"]));
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
@@ -642,6 +668,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const addAuditLog = useCallback((action: string, details: string) => {
+    const newNode: AuditLogNode = {
+      id: `LOG-${Date.now()}`,
+      action,
+      admin: "PLATFORM_CORE",
+      timestamp: Date.now(),
+      details
+    };
+    setAuditLogs(prev => [newNode, ...prev].slice(0, 100));
+  }, []);
+
   useEffect(() => {
     const savedUser = localStorage.getItem('vimore_user');
     const savedSettings = localStorage.getItem('vimore_settings');
@@ -657,6 +694,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const savedWithdrawals = localStorage.getItem('vimore_withdrawal_history');
     const savedPayments = localStorage.getItem('vimore_payment_requests');
     const savedClusters = localStorage.getItem('vimore_clusters');
+    const savedLogs = localStorage.getItem('vimore_audit_logs');
 
     if (savedUser) try { setCurrentUser(JSON.parse(savedUser)); } catch (e) {}
     if (savedSettings) try { setSettings({ ...INITIAL_SETTINGS, ...JSON.parse(savedSettings) }); } catch (e) {}
@@ -671,6 +709,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (savedWithdrawals) setWithdrawalHistory(JSON.parse(savedWithdrawals));
     if (savedPayments) setPaymentRequests(JSON.parse(savedPayments));
     if (savedClusters) setClusters(JSON.parse(savedClusters));
+    if (savedLogs) setAuditLogs(JSON.parse(savedLogs));
     
     if (savedLocalPosts) {
       try {
@@ -698,6 +737,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => { safePersist('vimore_withdrawal_history', withdrawalHistory); }, [withdrawalHistory]);
   useEffect(() => { safePersist('vimore_payment_requests', paymentRequests); }, [paymentRequests]);
   useEffect(() => { safePersist('vimore_clusters', clusters); }, [clusters]);
+  useEffect(() => { safePersist('vimore_audit_logs', auditLogs); }, [auditLogs]);
 
   useEffect(() => {
     if (pendingTransaction) {
@@ -1041,6 +1081,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           diamondBalance: req.type === 'Diamond' ? (user.diamondBalance || 0) + amountNum : user.diamondBalance
         }));
 
+        addAuditLog("PAYMENT_APPROVED", `Authorized ${amountNum} ${req.type} for @${req.username}`);
         return { ...req, status: 'APPROVED' };
       }
       return req;
@@ -1049,7 +1090,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const rejectPaymentRequest = (id: string) => {
     triggerHaptic(50);
-    setPaymentRequests(prev => prev.map(req => req.id === id ? { ...req, status: 'REJECTED' } : req));
+    setPaymentRequests(prev => prev.map(req => {
+      if (req.id === id) {
+        addAuditLog("PAYMENT_REJECTED", `Purged payment handshake for @${req.username}`);
+        return { ...req, status: 'REJECTED' };
+      }
+      return req;
+    }));
   };
 
   const recordWithdrawal = (node: WithdrawalNode) => {
@@ -1058,12 +1105,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const processWithdrawal = (id: string, status: 'APPROVED' | 'REJECTED') => {
     triggerHaptic(status === 'APPROVED' ? 50 : 100);
-    setWithdrawalHistory(prev => prev.map(node => node.id === id ? { ...node, status } : node));
+    setWithdrawalHistory(prev => prev.map(node => {
+      if (node.id === id) {
+        addAuditLog(status === 'APPROVED' ? "WITHDRAWAL_AUTHORIZED" : "WITHDRAWAL_PURGED", `${status} payout of ${node.payoutCurrency} ${node.payoutAmount} to @${node.username}`);
+        return { ...node, status };
+      }
+      return node;
+    }));
   };
 
   const openCommentHub = (postId: string) => { triggerHaptic(5); setActiveCommentPostId(postId); };
   const closeCommentHub = () => { setActiveCommentPostId(null); };
-  const openGiftHub = (user: User) => { if (user.username === currentUser.username) return; triggerHaptic(15); setTargetUserForGift(user); setIsGiftHubOpen(true); };
+  const openGiftHub = (user: User) => { if (user.username === currentUser.username || !settings.isGiftingEnabled) return; triggerHaptic(15); setTargetUserForGift(user); setIsGiftHubOpen(true); };
   const closeGiftHub = () => { setIsGiftHubOpen(false); setTargetUserForGift(null); };
 
   const isPostLiked = (postId: string) => likedPostIds.has(postId);
@@ -1115,7 +1168,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   return (
     <PostContext.Provider value={{ 
-      currentUser: finalCurrentUser, posts, stories, highlights, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, gatewaySettings, callState, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, initiateCall, receiveCall, acceptCall, endCall
+      currentUser: finalCurrentUser, posts, stories, highlights, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, auditLogs, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, gatewaySettings, callState, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, initiateCall, receiveCall, acceptCall, endCall
     }}>
       {children}
     </PostContext.Provider>

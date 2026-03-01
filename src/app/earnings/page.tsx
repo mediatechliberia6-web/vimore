@@ -30,7 +30,8 @@ import {
   ShieldAlert,
   Mail,
   AlertTriangle,
-  FileText
+  FileText,
+  CircleDashed
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,11 +64,6 @@ const REVENUE_DATA = [
   { name: "Subscriptions", value: 35, color: "hsl(var(--accent))" },
 ];
 
-const CONVERSION_RATES = [
-  { currency: "Gold (GD)", per: "1 Unit", usd: "$0.01", ld: "L$ 1.9" },
-  { currency: "Diamond (D)", per: "1 Unit", usd: "$0.25", ld: "L$ 47.0" },
-];
-
 const QUALIFICATIONS = [
   { 
     title: "Locked Vibe Protocol", 
@@ -88,7 +84,7 @@ const QUALIFICATIONS = [
 ];
 
 export default function EarningsPage() {
-  const { currentUser, triggerHaptic, withdrawalHistory, recordWithdrawal, processGiftTransaction } = usePosts();
+  const { currentUser, triggerHaptic, withdrawalHistory, recordWithdrawal, processGiftTransaction, settings } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
   const { toast } = useToast();
@@ -96,16 +92,22 @@ export default function EarningsPage() {
   const [isPortalOpen, setIsPortalOpen] = useState(false);
   const isPlayerActive = currentTrack && !isExpanded;
 
-  // Real-time conversion logic for the header
+  // Real-time conversion logic using DYNAMIC rates from context (Phase 1)
   const estimates = useMemo(() => {
     const gold = currentUser.goldBalance || 0;
     const diamond = currentUser.diamondBalance || 0;
     
+    const totalUSD = (gold * settings.goldRate) + (diamond * settings.diamondRate);
     return {
-      totalUSD: (gold * 0.01) + (diamond * 0.25),
-      totalLD: (gold * 1.9) + (diamond * 47)
+      totalUSD,
+      totalLD: totalUSD * settings.ldMultiplier
     };
-  }, [currentUser.goldBalance, currentUser.diamondBalance]);
+  }, [currentUser.goldBalance, currentUser.diamondBalance, settings.goldRate, settings.diamondRate, settings.ldMultiplier]);
+
+  const conversionRates = useMemo(() => [
+    { currency: "Gold (GD)", per: "1 Unit", usd: `$${settings.goldRate}`, ld: `L$ ${(settings.goldRate * settings.ldMultiplier).toFixed(1)}` },
+    { currency: "Diamond (D)", per: "1 Unit", usd: `$${settings.diamondRate}`, ld: `L$ ${(settings.diamondRate * settings.ldMultiplier).toFixed(1)}` },
+  ], [settings]);
 
   // PORTAL STATE
   const [step, setStep] = useState<"form" | "verify">("form");
@@ -128,12 +130,12 @@ export default function EarningsPage() {
   
   const calculation = useMemo(() => {
     let baseUSD = 0;
-    if (withdrawCurrency === 'GOLD') baseUSD = rawAmount * 0.01;
-    else baseUSD = rawAmount * 0.25;
+    if (withdrawCurrency === 'GOLD') baseUSD = rawAmount * settings.goldRate;
+    else baseUSD = rawAmount * settings.diamondRate;
 
     const payoutValue = payoutCurrency === 'USD' 
       ? baseUSD 
-      : (withdrawCurrency === 'GOLD' ? rawAmount * 1.9 : rawAmount * 47);
+      : baseUSD * settings.ldMultiplier;
     
     const feeAmount = payoutValue * (1 - feeMultiplier);
     const finalPayout = payoutValue * feeMultiplier;
@@ -143,7 +145,7 @@ export default function EarningsPage() {
       feeAmount,
       finalPayout
     };
-  }, [withdrawCurrency, amount, payoutCurrency, feeMultiplier, rawAmount]);
+  }, [withdrawCurrency, amount, payoutCurrency, feeMultiplier, rawAmount, settings]);
 
   const hasEnoughBalance = useMemo(() => {
     const balance = withdrawCurrency === 'GOLD' ? (currentUser.goldBalance || 0) : (currentUser.diamondBalance || 0);
@@ -187,6 +189,7 @@ export default function EarningsPage() {
 
       const historyNode = {
         id: `TX-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+        username: currentUser.username,
         method: payoutMethod!,
         amount: rawAmount,
         currency: withdrawCurrency,
@@ -291,7 +294,7 @@ export default function EarningsPage() {
                     <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Gold Pulse</span>
                   </div>
                   <p className="text-3xl font-black italic tabular-nums">{currentUser.goldBalance || 0}</p>
-                  <p className="text-[10px] font-bold text-amber-600/60 uppercase tracking-tighter">≈ ${((currentUser.goldBalance || 0) * 0.01).toFixed(2)} USD</p>
+                  <p className="text-[10px] font-bold text-amber-600/60 uppercase tracking-tighter">≈ ${((currentUser.goldBalance || 0) * settings.goldRate).toFixed(2)} USD</p>
                 </div>
                 <div className="bg-cyan-500/5 border border-cyan-500/10 rounded-3xl p-6 space-y-2">
                   <div className="flex items-center gap-2">
@@ -299,7 +302,7 @@ export default function EarningsPage() {
                     <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Diamond Pulse</span>
                   </div>
                   <p className="text-3xl font-black italic tabular-nums">{currentUser.diamondBalance || 0}</p>
-                  <p className="text-[10px] font-bold text-cyan-600/60 uppercase tracking-tighter">≈ ${((currentUser.diamondBalance || 0) * 0.25).toFixed(2)} USD</p>
+                  <p className="text-[10px] font-bold text-cyan-600/60 uppercase tracking-tighter">≈ ${((currentUser.diamondBalance || 0) * settings.diamondRate).toFixed(2)} USD</p>
                 </div>
               </div>
 
@@ -370,7 +373,7 @@ export default function EarningsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {CONVERSION_RATES.map((rate) => (
+                {conversionRates.map((rate) => (
                   <div key={rate.currency} className="p-4 rounded-2xl bg-secondary/30 border border-white/5 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-sm">{rate.currency}</span>
@@ -389,7 +392,7 @@ export default function EarningsPage() {
                   </div>
                 ))}
                 <p className="text-[9px] text-muted-foreground text-center font-medium uppercase tracking-tight italic mt-2">
-                  * Rates are updated every 24 hours based on global network liquidity.
+                  * Rates are updated live by the ViMore Central Economy Auditor.
                 </p>
               </div>
             </CardContent>
