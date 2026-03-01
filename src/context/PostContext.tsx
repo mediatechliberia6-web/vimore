@@ -311,7 +311,6 @@ interface PostContextType {
   intelligenceMetrics: IntelligenceMetrics;
   selectedChatId: string | null;
   selectedPostId: string | null;
-  activeCommentPostId: string | null;
   selectedImageUrl: string | null;
   isSearchOpen: boolean;
   isGiftHubOpen: boolean;
@@ -772,9 +771,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const togglePinPost = (postId: string) => { setPosts(prev => prev.map(p => p.id === postId ? { ...p, isPinned: !p.isPinned } : p)); };
   const archivePost = (postId: string) => { setPosts(prev => prev.filter(p => p.id !== postId)); };
   const setSearchOpen = (open: boolean) => { triggerHaptic(5); setIsSearchOpen(open); };
-  const setSelectedChatId = (id: string | null) => { setSelectedChatId(id); };
-  const setSelectedPostId = (id: string | null) => { setSelectedPostId(id); };
-  const setSelectedImageUrl = (url: string | null) => { setSelectedImageUrl(url); };
   const openCommentHub = (postId: string) => { triggerHaptic(5); setActiveCommentPostId(postId); };
   const closeCommentHub = () => { setActiveCommentPostId(null); };
   const openGiftHub = (user: User) => { triggerHaptic(15); setTargetUserForGift(user); setIsGiftHubOpen(true); };
