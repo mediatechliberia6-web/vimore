@@ -21,6 +21,8 @@ export const storage = new Storage(client);
 export const APPWRITE_DATABASE_ID = '69a2cffd00320dcd64bc';
 export const APPWRITE_BUCKET_ID = 'all_media'; 
 export const POSTS_COLLECTION_ID = 'posts';
+export const LIKES_COLLECTION_ID = 'likes';
+export const COMMENTS_COLLECTION_ID = 'comments';
 
 export { ID };
 

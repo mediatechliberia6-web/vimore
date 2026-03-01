@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
-import client, { account, ID, databases, storage, APPWRITE_BUCKET_ID, APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID } from '@/lib/appwrite';
+import client, { account, ID, databases, storage, APPWRITE_BUCKET_ID, APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, LIKES_COLLECTION_ID, COMMENTS_COLLECTION_ID } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 
 export interface AppSettings {
@@ -66,6 +66,15 @@ export interface User {
   coverPhotoHistory?: string[];
 }
 
+export interface PostComment {
+  id: string;
+  user: User;
+  text: string;
+  time: string;
+  likes: number;
+  replies: PostComment[];
+}
+
 export interface Post {
   id: string;
   user: User;
@@ -90,7 +99,7 @@ export interface Post {
   isLocked?: boolean;
   unlockPrice?: number;
   poll?: any;
-  commentNodes?: any[];
+  commentNodes?: PostComment[];
   sharedPost?: any;
   isCampaign?: boolean;
   actionUrl?: string;
@@ -147,7 +156,7 @@ interface PostContextType {
   uploadMedia: (file: File) => Promise<string>;
   addPost: (post: any) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
-  toggleLikePost: (postId: string) => void;
+  toggleLikePost: (postId: string) => Promise<void>;
   toggleUnlikePost: (postId: string) => void;
   toggleSavePost: (postId: string) => void;
   toggleFollowUser: (username: string) => void;
@@ -168,8 +177,7 @@ interface PostContextType {
   isPostSaved: (postId: string) => boolean;
   isPostUnlocked: (postId: string) => boolean;
   isFollowing: (username: string) => boolean;
-  // Simplified placeholders for remaining methods
-  addComment: (postId: string, text: string) => void;
+  addComment: (postId: string, text: string) => Promise<void>;
   addReply: (postId: string, commentId: string, text: string) => void;
   addStory: (segment: any) => void;
   voteOnStoryPoll: (storyId: string, segmentId: string, optionIndex: number) => void;
@@ -274,7 +282,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const [callState, setCallState] = useState<CallState>({ type: 'video', status: 'idle', contact: null });
 
-  // Phase 4: Fetch Posts Handshake
   const refreshFeed = useCallback(async () => {
     try {
       const response = await databases.listDocuments(
@@ -302,6 +309,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }));
       
       setPosts(livePosts as Post[]);
+
+      // Fetch user's likes to sync hearts
+      try {
+        const user = await account.get();
+        const likeResponse = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          LIKES_COLLECTION_ID,
+          [Query.equal('userId', user.$id)]
+        );
+        const likedIds = new Set(likeResponse.documents.map(d => d.postId));
+        setLikedPostIds(likedIds);
+      } catch (e) {}
+
     } catch (error) {
       console.error("Feed Synchronization Failed:", error);
     }
@@ -363,7 +383,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         shares: 0
       };
 
-      const response = await databases.createDocument(
+      await databases.createDocument(
         APPWRITE_DATABASE_ID,
         POSTS_COLLECTION_ID,
         ID.unique(),
@@ -386,26 +406,83 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const toggleLikePost = async (postId: string) => {
+    const isCurrentlyLiked = likedPostIds.has(postId);
+    const user = await account.get();
+    
+    // Optimistic UI Handshake
+    setLikedPostIds(prev => {
+      const next = new Set(prev);
+      if (isCurrentlyLiked) next.delete(postId);
+      else next.add(postId);
+      return next;
+    });
+
+    try {
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+
+      if (isCurrentlyLiked) {
+        // Find the like document to delete
+        const response = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          LIKES_COLLECTION_ID,
+          [Query.equal('postId', postId), Query.equal('userId', user.$id)]
+        );
+        if (response.documents.length > 0) {
+          await databases.deleteDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, response.documents[0].$id);
+        }
+        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, {
+          likes: Math.max(0, post.likes - 1)
+        });
+      } else {
+        await databases.createDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, ID.unique(), {
+          postId,
+          userId: user.$id
+        });
+        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, {
+          likes: post.likes + 1
+        });
+      }
+      refreshFeed();
+    } catch (e) {
+      console.error("Like handshake failed:", e);
+    }
+  };
+
+  const addComment = async (postId: string, text: string) => {
+    const user = await account.get();
+    try {
+      await databases.createDocument(APPWRITE_DATABASE_ID, COMMENTS_COLLECTION_ID, ID.unique(), {
+        postId,
+        userId: user.$id,
+        userName: currentUser.name,
+        userAvatar: currentUser.avatar,
+        text,
+        time: "Just now"
+      });
+
+      const post = posts.find(p => p.id === postId);
+      if (post) {
+        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, {
+          comments: post.comments + 1
+        });
+      }
+      refreshFeed();
+    } catch (e) {
+      console.error("Comment sync failed:", e);
+    }
+  };
+
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
       window.navigator.vibrate(intensity);
     }
   }, []);
 
-  // Setters
   const updateCurrentUser = (data: Partial<User>) => setCurrentUser(prev => ({ ...prev, ...data }));
   const updateSettings = (data: Partial<AppSettings>) => setSettings(prev => ({ ...prev, ...data }));
-  const setSearchOpen = (open: boolean) => setIsSearchOpen(open);
   
-  const toggleLikePost = (postId: string) => {
-    setLikedPostIds(prev => {
-      const next = new Set(prev);
-      if (next.has(postId)) next.delete(postId);
-      else { next.add(postId); unlikedPostIds.delete(postId); }
-      return next;
-    });
-  };
-
   const toggleUnlikePost = (postId: string) => {
     setUnlikedPostIds(prev => {
       const next = new Set(prev);
@@ -439,13 +516,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const isPostUnlocked = (postId: string) => unlockedPostIds.has(postId);
   const isFollowing = (username: string) => followingUsernames.has(username);
 
-  // Simplified Placeholders for migration phases
   const openCommentHub = (postId: string) => setActiveCommentPostId(postId);
   const closeCommentHub = () => setActiveCommentPostId(null);
   const openGiftHub = (user: User) => { setTargetUserForGift(user); setIsGiftHubOpen(true); };
   const closeGiftHub = () => { setIsGiftHubOpen(false); setTargetUserForGift(null); };
 
-  const addComment = () => {};
   const addReply = () => {};
   const addStory = () => {};
   const voteOnStoryPoll = () => {};
@@ -490,7 +565,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   return (
     <PostContext.Provider value={{ 
       currentUser, posts, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, settings, gatewaySettings: {}, callState, stories: [], campaigns: [], mutedUserNames: [], connections: [], clusters: [], auditLogs: [], disputes: [], staff: [], adStats: {}, intelligenceMetrics: {}, withdrawalHistory: [], paymentRequests: [], referralLink: "",
-      login, signup, uploadMedia, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount: () => {}, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed: () => false, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, boostNode, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall
+      login, signup, uploadMedia, setSearchOpen: (open) => setIsSearchOpen(open), setSelectedChatId: (id) => setSelectedChatId(id), setSelectedPostId: (id) => setSelectedPostId(id), setSelectedImageUrl: (url) => setSelectedImageUrl(url), openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex: (idx) => setActiveStoryIndex(idx), addPost, deletePost, addStory, addComment, addReply, incrementShareCount: () => {}, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed: () => false, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, boostNode, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall
     }}>
       {children}
     </PostContext.Provider>
