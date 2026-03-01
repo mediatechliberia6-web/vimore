@@ -16,7 +16,8 @@ import client, {
   CLUSTERS_COLLECTION_ID,
   PROFILES_COLLECTION_ID,
   WITHDRAWALS_COLLECTION_ID,
-  PAYMENTS_COLLECTION_ID
+  PAYMENTS_COLLECTION_ID,
+  AUDIT_LOGS_COLLECTION_ID
 } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 
@@ -220,7 +221,7 @@ interface PostContextType {
   togglePinPost: (postId: string) => void;
   archivePost: (postId: string) => void;
   updateGatewaySettings: (data: any) => void;
-  addAuditLog: (action: string, details: string) => void;
+  addAuditLog: (action: string, details: string) => Promise<void>;
   initiateTransaction: (data: any) => void;
   cancelTransaction: () => void;
   createPaymentRequest: (screenshot: string) => Promise<void>;
@@ -229,8 +230,8 @@ interface PostContextType {
   recordWithdrawal: (node: any) => Promise<void>;
   processWithdrawal: (id: string, status: 'APPROVED' | 'REJECTED') => Promise<void>;
   triggerReferralPulse: (referralCode?: string) => void;
-  verifyUser: (cost: number, currency: any) => void;
-  processGiftTransaction: (cost: number, currency: any) => Promise<void>;
+  verifyUser: (cost: number, currency: 'DIAMOND' | 'STAR') => Promise<void>;
+  processGiftTransaction: (cost: number, currency: 'GOLD' | 'DIAMOND') => Promise<void>;
   unlockPost: (postId: string, cost: number) => void;
   subscribeToCreator: (username: string, cost: number) => void;
   cancelSubscription: (username: string) => void;
@@ -248,7 +249,7 @@ interface PostContextType {
   deleteCampaign: (id: string) => void;
   toggleCampaignStatus: (id: string) => void;
   recordCampaignClick: (id: string) => void;
-  boostNode: (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: any) => void;
+  boostNode: (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR') => void;
   initiateCall: (contact: any, type: CallType) => void;
   receiveCall: (contact: any, type: CallType) => void;
   acceptCall: () => void;
@@ -307,6 +308,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
   
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
   const [unlikedPostIds, setUnlikedPostIds] = useState<Set<string>>(new Set());
@@ -333,6 +335,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
       window.navigator.vibrate(intensity);
     }
   }, []);
+
+  const addAuditLog = async (action: string, details: string) => {
+    try {
+      await databases.createDocument(APPWRITE_DATABASE_ID, AUDIT_LOGS_COLLECTION_ID, ID.unique(), {
+        admin: currentUser.username,
+        action,
+        details,
+        timestamp: Date.now()
+      });
+    } catch (e) {
+      console.error("Audit log failed to materialize:", e);
+    }
+  };
 
   const refreshFeed = useCallback(async () => {
     try {
@@ -429,15 +444,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const refreshAdminData = useCallback(async () => {
     if (!currentUser.role || currentUser.role === 'USER') return;
     try {
-      const [withdraws, payments, profiles] = await Promise.all([
+      const [withdraws, payments, profiles, logs] = await Promise.all([
         databases.listDocuments(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, [Query.orderDesc('$createdAt'), Query.limit(100)]),
         databases.listDocuments(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, [Query.orderDesc('$createdAt'), Query.limit(100)]),
-        databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(100)])
+        databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(100)]),
+        databases.listDocuments(APPWRITE_DATABASE_ID, AUDIT_LOGS_COLLECTION_ID, [Query.orderDesc('timestamp'), Query.limit(100)])
       ]);
       setWithdrawalHistory(withdraws.documents);
       setPaymentRequests(payments.documents);
       setStaff(profiles.documents.filter(p => p.role && p.role !== 'USER'));
       setConnections(profiles.documents.map(p => ({ ...p, isGroup: false })));
+      setAuditLogs(logs.documents);
     } catch (e) {
       console.error("Command Core Admin sync failure:", e);
     }
@@ -473,11 +490,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
         goldBalance: profile.goldBalance || 0,
         diamondBalance: profile.diamondBalance || 0,
         starBalance: profile.starBalance || 0,
-        referralCount: profile.referralCount || 0
+        referralCount: profile.referralCount || 0,
+        hasEverBeenVerified: profile.hasEverBeenVerified || false
       });
 
       await Promise.all([refreshFeed(), refreshSocialGraph(), refreshClusters(), refreshEconomy(user.$id)]);
-      if (profile.role !== 'USER') await refreshAdminData();
+      if (profile.role && profile.role !== 'USER') await refreshAdminData();
     } catch (error) {
       console.log("No active signature node.");
     } finally {
@@ -609,6 +627,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         updates.diamondBalance = (profile.diamondBalance || 0) + request.amount;
       }
       await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, request.userId, updates);
+      await addAuditLog("PAYMENT_APPROVED", `Authorized ${request.amount} for @${request.username}`);
       await refreshAdminData();
     } catch (e) {
       console.error("Payment approval handshake failed:", e);
@@ -617,7 +636,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const rejectPaymentRequest = async (id: string) => {
     try {
+      const request = paymentRequests.find(p => p.$id === id);
       await databases.updateDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, id, { status: 'REJECTED' });
+      await addAuditLog("PAYMENT_REJECTED", `Denied request from @${request?.username}`);
       await refreshAdminData();
     } catch (e) {
       console.error("Payment rejection handshake failed:", e);
@@ -626,7 +647,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const processWithdrawal = async (id: string, status: 'APPROVED' | 'REJECTED') => {
     try {
+      const request = withdrawalHistory.find(w => w.$id === id);
       await databases.updateDocument(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, id, { status });
+      await addAuditLog(`WITHDRAWAL_${status}`, `Handshake for ${request?.payoutAmount} ${request?.payoutCurrency} by @${request?.username}`);
       await refreshAdminData();
     } catch (e) {
       console.error("Withdrawal audit failure:", e);
@@ -638,6 +661,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const profileResponse = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', username)]);
       if (profileResponse.documents.length === 0) return;
       await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, profileResponse.documents[0].$id, { role });
+      await addAuditLog("USER_PROMOTED", `Identity @${username} materialized as ${role}`);
       await refreshAdminData();
     } catch (e) {
       console.error("Authority materialization failure:", e);
@@ -649,30 +673,26 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const profileResponse = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', username)]);
       if (profileResponse.documents.length === 0) return;
       await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, profileResponse.documents[0].$id, { role: 'USER' });
+      await addAuditLog("USER_DEMOTED", `Node @${username} role detached.`);
       await refreshAdminData();
     } catch (e) {
       console.error("Node role detachment failure:", e);
     }
   };
 
-  const toggleUnlikePost = (postId: string) => {
-    triggerHaptic(10);
-    setUnlikedPostIds(prev => {
-      const next = new Set(prev);
-      if (next.has(postId)) next.delete(postId);
-      else next.add(postId);
-      return next;
+  const verifyUser = async (cost: number, currency: 'DIAMOND' | 'STAR') => {
+    if (!currentUser.id) return;
+    const balanceKey = currency === 'DIAMOND' ? 'diamondBalance' : 'starBalance';
+    const currentBalance = (currentUser as any)[balanceKey] || 0;
+    
+    await syncUserBalance({ 
+      [balanceKey]: Math.max(0, currentBalance - cost),
+      isVerified: true,
+      hasEverBeenVerified: true,
+      verificationExpiry: Date.now() + (30 * 24 * 60 * 60 * 1000)
     });
-  };
-
-  const toggleSavePost = (postId: string) => {
-    triggerHaptic(5);
-    setSavedPostIds(prev => {
-      const next = new Set(prev);
-      if (next.has(postId)) next.delete(postId);
-      else next.add(postId);
-      return next;
-    });
+    
+    await addAuditLog("AI_VERIFICATION", `Identity @${currentUser.username} verified via ${currency} pulse.`);
   };
 
   const toggleFollowUser = async (username: string) => {
@@ -736,24 +756,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const createPaymentRequest = async (screenshot: string) => {
-    if (!currentUser.id || !pendingTransaction) return;
-    try {
-      await databases.createDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, ID.unique(), {
-        userId: currentUser.id,
-        username: currentUser.username,
-        packageName: pendingTransaction.packageName,
-        amount: parseFloat(pendingTransaction.amount),
-        currency: pendingTransaction.currency,
-        screenshot,
-        status: 'PENDING'
-      });
-      await refreshEconomy(currentUser.id);
-    } catch (e) {
-      console.error("Payment request materialization failed:", e);
-    }
-  };
-
   const recordWithdrawal = async (node: any) => {
     if (!currentUser.id) return;
     try {
@@ -769,6 +771,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         accountName: node.accountName,
         accountNumber: node.accountNumber
       });
+      await addAuditLog("WITHDRAWAL_REQUEST", `New energy exit pulse from @${node.username}`);
       await refreshEconomy(currentUser.id);
     } catch (e) {
       console.error("Withdrawal archival failed:", e);
@@ -780,51 +783,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const balanceKey = currency === 'GOLD' ? 'goldBalance' : 'diamondBalance';
     const currentBalance = (currentUser as any)[balanceKey] || 0;
     await syncUserBalance({ [balanceKey]: Math.max(0, currentBalance - cost) });
+    await addAuditLog("GIFT_SENT", `Creator support pulse from @${currentUser.username} (${cost} ${currency})`);
   };
 
-  const createCluster = async (name: string, members: any[]) => {
-    try {
-      await databases.createDocument(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID, ID.unique(), {
-        name,
-        adminUsername: currentUser.username,
-        members: JSON.stringify(members)
-      });
-      await refreshClusters();
-    } catch (e) {
-      console.error("Cluster materialization failed:", e);
-    }
-  };
-
-  const addMemberToCluster = async (clusterId: string, member: any) => {
-    try {
-      const cluster = clusters.find(c => c.id === clusterId);
-      if (!cluster) return;
-      const updatedMembers = [...cluster.members, member];
-      await databases.updateDocument(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID, clusterId, {
-        members: JSON.stringify(updatedMembers)
-      });
-      await refreshClusters();
-    } catch (e) {
-      console.error("Member addition failed:", e);
-    }
-  };
-
-  const leaveCluster = async (clusterId: string) => {
-    try {
-      const cluster = clusters.find(c => c.id === clusterId);
-      if (!cluster) return;
-      const updatedMembers = cluster.members.filter(m => m.username !== currentUser.username);
-      if (updatedMembers.length === 0 || cluster.adminUsername === currentUser.username) {
-        await databases.deleteDocument(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID, clusterId);
-      } else {
-        await databases.updateDocument(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID, clusterId, {
-          members: JSON.stringify(updatedMembers)
-        });
-      }
-      await refreshClusters();
-    } catch (e) {
-      console.error("Cluster departure failure:", e);
-    }
+  const boostNode = (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR') => {
+    const balanceKey = currency === 'DIAMOND' ? 'diamondBalance' : 'starBalance';
+    const currentBalance = (currentUser as any)[balanceKey] || 0;
+    syncUserBalance({ [balanceKey]: Math.max(0, currentBalance - cost) });
+    addAuditLog("NODE_BOOSTED", `Node ${nodeId} amplified for ${durationDays} days (@${currentUser.username})`);
   };
 
   const updateCurrentUser = (data: Partial<User>) => setCurrentUser(prev => ({ ...prev, ...data }));
@@ -836,11 +802,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const isPostUnlocked = (postId: string) => unlockedPostIds.has(postId);
   const isFollowing = (username: string) => followingUsernames.has(username);
 
+  const contextValue = useMemo(() => ({ 
+    currentUser, posts, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, settings, gatewaySettings: {}, callState, stories: [], campaigns: [], mutedUserNames: [], connections, clusters, auditLogs, disputes: [], staff, adStats: { revenue: 0, handshakes: 0 }, intelligenceMetrics: { sentimentScore: 75, sentimentVibe: 'POSITIVE', sentimentSummary: "System optimal.", botRisk: 5, latency: 45 }, withdrawalHistory, paymentRequests, referralLink: "", pendingTransaction,
+    login, signup, uploadMedia, setSearchOpen: (open: boolean) => { triggerHaptic(5); setIsSearchOpen(open); }, setSelectedChatId: (id: string | null) => setSelectedChatId(id), setSelectedPostId: (id: string | null) => setSelectedPostId(id), setSelectedImageUrl: (url: string | null) => setSelectedImageUrl(url), openCommentHub: (id: string) => { triggerHaptic(5); setActiveCommentPostId(id); }, closeCommentHub: () => { triggerHaptic(5); setActiveCommentPostId(null); }, openGiftHub: (u: User) => { setTargetUserForGift(u); setIsGiftHubOpen(true); }, closeGiftHub: () => { setTargetUserForGift(null); setIsGiftHubOpen(false); }, setActiveStoryIndex: (idx: number | null) => setActiveStoryIndex(idx), addPost, deletePost, addStory: () => {}, addComment, addReply: () => {}, incrementShareCount: () => {}, voteOnStoryPoll: () => {}, toggleMuteUser: () => {}, togglePinPost: () => {}, archivePost: () => {}, updateCurrentUser, updateSettings, updateGatewaySettings: () => {}, addAuditLog, toggleLikePost, toggleUnlikePost: () => {}, toggleSavePost: () => {}, toggleFollowUser, initiateTransaction: (d: any) => setPendingTransaction(d), cancelTransaction: () => setPendingTransaction(null), createPaymentRequest: (s: string) => Promise.resolve(), approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse: () => {}, verifyUser, processGiftTransaction, unlockPost: (id: string) => setUnlockedPostIds(prev => new Set(prev).add(id)), subscribeToCreator: () => {}, cancelSubscription: (u: string) => {}, recordAdMaterialization: () => {}, recordAdHandshake: () => {}, updateIntelligence: (data: any) => {}, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed: () => false, triggerHaptic, createCluster: (n: string, m: any[]) => Promise.resolve(), addMemberToCluster: (c: string, m: any) => Promise.resolve(), leaveCluster: (c: string) => Promise.resolve(), resolveDispute: () => {}, addCampaign: () => {}, deleteCampaign: () => {}, toggleCampaignStatus: () => {}, recordCampaignClick: () => {}, boostNode, promoteUser, demoteUser, initiateCall: () => {}, receiveCall: () => {}, acceptCall: () => {}, endCall: () => {}, refreshAdminData
+  }), [currentUser, posts, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, settings, callState, auditLogs, withdrawalHistory, paymentRequests, pendingTransaction, triggerHaptic, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, promoteUser, demoteUser, verifyUser, processGiftTransaction, boostNode, refreshAdminData]);
+
   return (
-    <PostContext.Provider value={{ 
-      currentUser, posts, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, settings, gatewaySettings: {}, callState, stories: [], campaigns: [], mutedUserNames: [], connections, clusters, auditLogs: [], disputes: [], staff, adStats: { revenue: 0, handshakes: 0 }, intelligenceMetrics: { sentimentScore: 75, sentimentVibe: 'POSITIVE', sentimentSummary: "System optimal.", botRisk: 5, latency: 45 }, withdrawalHistory, paymentRequests, referralLink: "", pendingTransaction,
-      login, signup, uploadMedia, setSearchOpen: (open) => setIsSearchOpen(open), setSelectedChatId: (id) => setSelectedChatId(id), setSelectedPostId: (id) => setSelectedPostId(id), setSelectedImageUrl: (url) => setSelectedImageUrl(url), openCommentHub: (id) => setActiveCommentPostId(id), closeCommentHub: () => setActiveCommentPostId(null), openGiftHub: (u) => { setTargetUserForGift(u); setIsGiftHubOpen(true); }, closeGiftHub: () => { setTargetUserForGift(null); setIsGiftHubOpen(false); }, setActiveStoryIndex: (idx) => setActiveStoryIndex(idx), addPost, deletePost, addStory: () => {}, addComment, addReply: () => {}, incrementShareCount: () => {}, voteOnStoryPoll: () => {}, toggleMuteUser: () => {}, togglePinPost: () => {}, archivePost: () => {}, updateCurrentUser, updateSettings, updateGatewaySettings: () => {}, addAuditLog: () => {}, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction: (d) => setPendingTransaction(d), cancelTransaction: () => setPendingTransaction(null), createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse: () => {}, verifyUser: () => {}, processGiftTransaction, unlockPost: (id) => setUnlockedPostIds(prev => new Set(prev).add(id)), subscribeToCreator: () => {}, cancelSubscription: (u) => {}, recordAdMaterialization: () => {}, recordAdHandshake: () => {}, updateIntelligence: (data) => {}, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed: () => false, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute: () => {}, addCampaign: () => {}, deleteCampaign: () => {}, toggleCampaignStatus: () => {}, recordCampaignClick: () => {}, boostNode: () => {}, promoteUser, demoteUser, initiateCall: () => {}, receiveCall: () => {}, acceptCall: () => {}, endCall: () => {}, refreshAdminData
-    }}>
+    <PostContext.Provider value={contextValue}>
       {children}
     </PostContext.Provider>
   );
