@@ -47,7 +47,9 @@ import {
   X,
   ShieldAlert,
   KeyRound,
-  Timer
+  Timer,
+  Eye,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -85,6 +87,7 @@ export default function SettingsPage() {
   
   const [isSyncing, setIsSyncing] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+  const [isPurgingCache, setIsPurgingCache] = useState(false);
   const [isLegacySelectorOpen, setIsLegacySelectorOpen] = useState(false);
   const [legacySearch, setLegacySearch] = useState("");
 
@@ -99,6 +102,20 @@ export default function SettingsPage() {
     }, 2500);
   };
 
+  const handleClearCache = () => {
+    setIsPurgingCache(true);
+    triggerHaptic(30);
+    
+    setTimeout(() => {
+      // Rule: Selectively clear only heavy transient data nodes
+      const purgeKeys = ['vimore_local_posts', 'vimore_signals', 'vimore_recent_searches'];
+      purgeKeys.forEach(k => localStorage.removeItem(k));
+      
+      setIsPurgingCache(false);
+      toast({ title: "Cache Purged", description: "Transient vibe data has been cleared from hardware." });
+    }, 1500);
+  };
+
   const handleArchive = () => {
     setIsArchiving(true);
     triggerHaptic(100);
@@ -106,7 +123,22 @@ export default function SettingsPage() {
     
     setTimeout(() => {
       setIsArchiving(false);
-      const data = { meta: { version: "1.5.0-HighVelocity", timestamp: new Date().toISOString(), cluster: "ViMore-Node-Spatial" }, identity: currentUser, handshakes: connections.map(c => ({ username: c.username, followsYou: c.followsYou })), preferences: settings, vault: { savedPosts: Array.from(savedPostIds), downloadedSongs: Array.from(downloadedSongIds) }, discography: userSongs.map(s => ({ title: s.title, artist: s.artist })) };
+      const data = { 
+        meta: { 
+          version: "1.5.0-HighVelocity", 
+          timestamp: new Date().toISOString(), 
+          cluster: "ViMore-Node-Spatial" 
+        }, 
+        identity: currentUser, 
+        handshakes: connections.map(c => ({ username: c.username, followsYou: c.followsYou })), 
+        preferences: settings, 
+        vault: { 
+          savedPosts: Array.from(savedPostIds), 
+          downloadedSongs: Array.from(downloadedSongIds) 
+        }, 
+        discography: userSongs.map(s => ({ title: s.title, artist: s.artist })) 
+      };
+      
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -125,7 +157,11 @@ export default function SettingsPage() {
     triggerHaptic(150);
     if (confirm("CRITICAL: Initiate Total System Purge? This will permanently delete all local identity nodes, balances, and history. This action cannot be reversed.")) {
       toast({ title: "Purge Initiated", description: "Shutting down identity nodes..." });
-      setTimeout(() => { localStorage.clear(); sessionStorage.clear(); window.location.href = "/"; }, 1500);
+      setTimeout(() => { 
+        localStorage.clear(); 
+        sessionStorage.clear(); 
+        window.location.href = "/"; 
+      }, 1500);
     }
   };
 
@@ -571,6 +607,77 @@ export default function SettingsPage() {
                 <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">No premium nodes linked</p>
               </div>
             )}
+          </div>
+        </section>
+
+        {/* PHASE 5: DATA & ARCHIVAL */}
+        <section className="space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Data & Archival</h3>
+          <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
+            
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert className="h-4 w-4 text-primary" />
+                    <p className="font-bold text-sm">AI Sensitivity Filter</p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-black">Obscure high-intensity content</p>
+                </div>
+                <Switch checked={settings.isSensitivityFilterActive} onCheckedChange={(val) => handleUpdate({ isSensitivityFilterActive: val })} className="data-[state=checked]:bg-primary" />
+              </div>
+              <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                <p className="text-[10px] font-bold text-primary/60 uppercase leading-relaxed tracking-tighter">
+                  When active, potential high-intensity visual nodes will materialized with a blur handshake until revealed manually.
+                </p>
+              </div>
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <p className="font-bold text-sm">Storage Pulse Meter</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-black">Physical Archival Handshake: {totalUsedMB.toFixed(1)} MB used</p>
+                </div>
+                <Badge className="bg-amber-500/10 text-amber-500 border-none h-5 font-black">{(totalUsedMB / 2500 * 100).toFixed(1)}%</Badge>
+              </div>
+              <div className="space-y-4">
+                {storageData.map((node) => (
+                  <div key={node.label} className="space-y-2">
+                    <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                      <span className="flex items-center gap-2"><node.icon className="h-3 w-3" /> {node.label}</span>
+                      <span>{node.size}</span>
+                    </div>
+                    <Progress value={node.value} className="h-1.5" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Button 
+                variant="outline" 
+                className="h-14 rounded-2xl border-primary/20 text-primary font-black uppercase italic text-[10px] tracking-widest gap-3 hover:bg-primary/5"
+                onClick={handleArchive}
+                disabled={isArchiving}
+              >
+                {isArchiving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                Archive Identity Node
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-14 rounded-2xl border-border text-muted-foreground font-black uppercase italic text-[10px] tracking-widest gap-3 hover:bg-secondary/50"
+                onClick={handleClearCache}
+                disabled={isPurgingCache}
+              >
+                {isPurgingCache ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+                Purge Vibe Cache
+              </Button>
+            </div>
           </div>
         </section>
 

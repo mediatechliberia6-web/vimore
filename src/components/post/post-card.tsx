@@ -32,7 +32,8 @@ import {
   ShieldCheck,
   Coins,
   ChevronRight,
-  ExternalLink
+  ExternalLink,
+  Eye
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -156,6 +157,7 @@ export function PostCard(props: PostCardProps) {
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
+  const [isRevealedManually, setIsRevealedManually] = useState(false);
   const [viewerLanguage, setViewerLanguage] = useState<string | null>(null);
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
@@ -202,6 +204,8 @@ export function PostCard(props: PostCardProps) {
     if (content.length < 5) return false;
     return true;
   }, [language, viewerLanguage, content, isShared, isHiddenByLock, isCampaign]);
+
+  const isSensitiveNode = settings.isSensitivityFilterActive && !isRevealedManually && !isOwner && !isCampaign && (allImages.length > 0 || !!videoUrl);
 
   const handleLike = () => { 
     triggerHaptic(20); 
@@ -318,6 +322,7 @@ export function PostCard(props: PostCardProps) {
   }, [localPollOptions, poll]);
 
   const handleReelClick = (e: React.MouseEvent) => {
+    if (isSensitiveNode) { setIsRevealedManually(true); return; }
     if (isHiddenByLock) { handleUnlock(); return; }
     e.stopPropagation();
     triggerHaptic(15);
@@ -343,7 +348,6 @@ export function PostCard(props: PostCardProps) {
       const parts = segment.split(urlRegex);
       return parts.map((part, j) => {
         if (part.match(urlRegex)) {
-          // Rule: Link clicks are permitted, but no preview box if media exists
           return (
             <button 
               key={`${i}-${j}`} 
@@ -371,8 +375,6 @@ export function PostCard(props: PostCardProps) {
   const VerificationBadge = ({ size = "h-3 w-3" }: { size?: string }) => (
     <CheckCircle2 className={cn(size, "text-primary fill-primary text-white shrink-0")} />
   );
-
-  const hasMedia = allImages.length > 0 || !!videoUrl;
 
   return (
     <>
@@ -484,10 +486,20 @@ export function PostCard(props: PostCardProps) {
                         <CarouselItem key={i}>
                           <div 
                             className={cn("relative aspect-video overflow-hidden rounded-lg cursor-pointer group/img")} 
-                            onClick={() => { triggerHaptic(15); if(isCampaign) handleCampaignAction(); else setSelectedImageUrl(img); }}
+                            onClick={() => { triggerHaptic(15); if(isSensitiveNode){ setIsRevealedManually(true); return; } if(isCampaign) handleCampaignAction(); else setSelectedImageUrl(img); }}
                           >
-                            <Image src={img} alt="Post" fill className={cn("object-cover transition-transform group/img:scale-105", imageFilter)} />
-                            {isCampaign && (
+                            <Image src={img} alt="Post" fill className={cn("object-cover transition-transform group/img:scale-105", imageFilter, isSensitiveNode && "blur-3xl saturate-50")} />
+                            {isSensitiveNode && (
+                              <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center p-6 text-center space-y-3">
+                                <div className="h-12 w-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white"><EyeOff className="h-6 w-6" /></div>
+                                <div className="space-y-1">
+                                  <p className="text-sm font-black italic uppercase tracking-widest text-white">Sensitive Vibe</p>
+                                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-tighter">AI Filter Handshake Active</p>
+                                </div>
+                                <Button className="h-9 px-6 bg-white text-black font-black uppercase text-[10px] rounded-xl hover:bg-white/90">Reveal Node</Button>
+                              </div>
+                            )}
+                            {isCampaign && !isSensitiveNode && (
                               <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
                                 <div className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30 text-white">
                                   <ExternalLink className="h-6 w-6" />
@@ -502,9 +514,46 @@ export function PostCard(props: PostCardProps) {
                 </div>
               )}
               
-              {videoUrl && <div className={cn("relative mt-2 rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center cursor-pointer group/vid", isShared ? "-mx-1" : "-mx-3 sm:mx-0")} onClick={handleReelClick}><video src={videoUrl} className="w-full h-full object-cover" controls={false} playsInline muted={isShared} autoPlay={isShared} loop={isShared} /><div className="absolute inset-0 bg-black/20 opacity-0 group-hover/vid:opacity-100 transition-opacity flex items-center justify-center"><div className="p-4 bg-primary/20 backdrop-blur-md rounded-full border border-primary/30 text-white shadow-2xl"><Play className="h-8 w-8 fill-current" /></div></div><div className="absolute bottom-3 left-3 bg-black/40 backdrop-blur-md px-2 py-1 rounded-md flex items-center gap-1.5 border border-white/10"><Video className="h-3 w-3 text-white" /><span className="text-[10px] font-black text-white uppercase tracking-widest">{isCampaign ? "Sync Vibe" : "Open Reel"}</span></div></div>}
+              {videoUrl && (
+                <div 
+                  className={cn("relative mt-2 rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center cursor-pointer group/vid", isShared ? "-mx-1" : "-mx-3 sm:mx-0")} 
+                  onClick={handleReelClick}
+                >
+                  <video 
+                    src={videoUrl} 
+                    className={cn("w-full h-full object-cover", isSensitiveNode && "blur-3xl opacity-40")} 
+                    controls={false} 
+                    playsInline 
+                    muted={isShared} 
+                    autoPlay={isShared} 
+                    loop={isShared} 
+                  />
+                  {isSensitiveNode ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-3">
+                      <div className="h-14 w-14 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white"><EyeOff className="h-7 w-7" /></div>
+                      <div className="space-y-1">
+                        <p className="text-base font-black italic uppercase tracking-widest text-white">Sensitive Reel</p>
+                        <p className="text-[10px] font-bold text-white/60 uppercase tracking-tighter">Handshake required to reveal</p>
+                      </div>
+                      <Button className="h-10 px-8 bg-white text-black font-black uppercase text-[10px] rounded-2xl">Sync Visual</Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/vid:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="p-4 bg-primary/20 backdrop-blur-md rounded-full border border-primary/30 text-white shadow-2xl">
+                          <Play className="h-8 w-8 fill-current" />
+                        </div>
+                      </div>
+                      <div className="absolute bottom-3 left-3 bg-black/40 backdrop-blur-md px-2 py-1 rounded-md flex items-center gap-1.5 border border-white/10">
+                        <Video className="h-3 w-3 text-white" />
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">{isCampaign ? "Sync Vibe" : "Open Reel"}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
-              {isCampaign && actionUrl && (
+              {isCampaign && actionUrl && !isSensitiveNode && (
                 <div className="mt-4">
                   <Button 
                     className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black italic uppercase tracking-[0.2em] text-xs shadow-xl shadow-primary/20 transition-all active:scale-95 gap-3"

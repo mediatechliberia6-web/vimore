@@ -28,6 +28,8 @@ export interface AppSettings {
   isGiftingEnabled: boolean;
   // Phase 3
   isAiVerificationActive: boolean;
+  // Phase 5
+  isSensitivityFilterActive: boolean;
 }
 
 export interface AuditLogNode {
@@ -437,7 +439,9 @@ const INITIAL_SETTINGS: AppSettings = {
   isMusicEnabled: true,
   isGiftingEnabled: true,
   // Phase 3
-  isAiVerificationActive: true
+  isAiVerificationActive: true,
+  // Phase 5
+  isSensitivityFilterActive: false
 };
 
 const INITIAL_GATEWAY_SETTINGS: GatewaySettings = {
