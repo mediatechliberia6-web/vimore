@@ -14,7 +14,9 @@ import {
   VolumeX,
   Download,
   Loader2,
-  Gift
+  Gift,
+  Rocket,
+  Zap
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn, parseFollowerCount, saveFileToDevice } from "@/lib/utils";
@@ -23,6 +25,7 @@ import Link from "next/link";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
 import { ShareHub } from "@/components/post/share-hub";
+import { BoostPortal } from "@/components/post/boost-portal";
 import { useToast } from "@/hooks/use-toast";
 
 interface ReelCardProps {
@@ -47,12 +50,15 @@ interface ReelCardProps {
     cover: string;
   };
   isActive: boolean;
+  isBoosted?: boolean;
+  boostTargetViews?: number;
+  boostCurrentViews?: number;
 }
 
-export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares, music, isActive }: ReelCardProps) {
+export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares, music, isActive, isBoosted, boostTargetViews, boostCurrentViews }: ReelCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { triggerHaptic, openCaptureStudio, triggerDownloadWithAd } = useMusic();
-  const { currentUser, openCommentHub, openGiftHub } = usePosts();
+  const { currentUser, openCommentHub, openGiftHub, t } = usePosts();
   const { toast } = useToast();
   
   const [isMuted, setIsMuted] = useState(false);
@@ -166,6 +172,13 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         onDoubleClick={handleDoubleClick}
       />
 
+      {isBoosted && (
+        <div className="absolute top-20 left-6 z-[60] flex items-center gap-2 bg-gradient-to-r from-primary/80 to-accent/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 shadow-xl animate-in fade-in slide-in-from-left-4">
+          <Zap className="h-3.5 w-3.5 text-white animate-pulse" />
+          <span className="text-[10px] font-black text-white uppercase tracking-widest">Sponsored Reach Node</span>
+        </div>
+      )}
+
       <div className={cn(
         "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/40 backdrop-blur-md p-4 rounded-full transition-all duration-300 pointer-events-none z-[60]",
         showMuteIndicator ? "opacity-100 scale-100" : "opacity-0 scale-50"
@@ -183,6 +196,17 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         "absolute right-3 bottom-20 z-50 flex flex-col items-center gap-4 transition-all duration-700 delay-300",
         isActive ? "translate-x-0 opacity-100" : "translate-x-12 opacity-0"
       )}>
+        {isMe && (
+          <BoostPortal nodeId={id} type="REEL">
+            <button className={cn(
+              "p-2.5 rounded-full backdrop-blur-xl border border-white/10 transition-all active:scale-75 shadow-lg mb-2 group",
+              isBoosted ? "bg-primary text-white border-primary/40" : "bg-black/20 text-white hover:bg-black/40"
+            )}>
+              <Rocket className={cn("h-5 w-5", isBoosted && "animate-bounce")} />
+            </button>
+          </BoostPortal>
+        )}
+
         <div className="relative group/avatar">
           <Link href={profileHref}>
             <div className="relative">

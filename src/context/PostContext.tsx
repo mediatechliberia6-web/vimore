@@ -253,6 +253,11 @@ export interface Post {
   isCampaign?: boolean;
   actionUrl?: string;
   actionLabel?: string;
+  // Boost Metadata
+  isBoosted?: boolean;
+  boostTargetViews?: number;
+  boostCurrentViews?: number;
+  boostExpiry?: number;
 }
 
 export type CallType = 'video' | 'audio';
@@ -373,6 +378,9 @@ interface PostContextType {
   deleteCampaign: (id: string) => void;
   toggleCampaignStatus: (id: string) => void;
   recordCampaignClick: (id: string) => void;
+
+  // Boost Logic
+  boostNode: (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'STAR' | 'DIAMOND') => void;
 
   // Call Handshakes
   initiateCall: (contact: Connection, type: CallType) => void;
@@ -918,6 +926,33 @@ export function PostProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const boostNode = (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'STAR' | 'DIAMOND') => {
+    triggerHaptic(150);
+    
+    // 1. Vault Deduction
+    setCurrentUser(prev => ({
+      ...prev,
+      starBalance: currency === 'STAR' ? (prev.starBalance || 0) - cost : prev.starBalance,
+      diamondBalance: currency === 'DIAMOND' ? (prev.diamondBalance || 0) - cost : prev.diamondBalance,
+    }));
+
+    // 2. Node Metadata Sync (Posts/Reels)
+    setPosts(prev => prev.map(p => {
+      if (p.id === nodeId) {
+        return {
+          ...p,
+          isBoosted: true,
+          boostTargetViews: targetViews,
+          boostCurrentViews: 0,
+          boostExpiry: Date.now() + (durationDays * 24 * 60 * 60 * 1000)
+        };
+      }
+      return p;
+    }));
+
+    addAuditLog("BOOST_LAUNCHED", `Amplified node ${nodeId} for ${durationDays} days. Target: ${targetViews} views.`);
+  };
+
   const unlockPost = (postId: string, cost: number) => {
     triggerHaptic(100);
     setUnlockedPostIds(prev => {
@@ -1306,7 +1341,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   return (
     <PostContext.Provider value={{ 
-      currentUser, posts, stories, highlights, campaigns, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, auditLogs, disputes, adStats, intelligenceMetrics, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, gatewaySettings, callState, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, initiateCall, receiveCall, acceptCall, endCall
+      currentUser, posts, stories, highlights, campaigns, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, auditLogs, disputes, adStats, intelligenceMetrics, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, gatewaySettings, callState, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, boostNode, initiateCall, receiveCall, acceptCall, endCall
     }}>
       {children}
     </PostContext.Provider>

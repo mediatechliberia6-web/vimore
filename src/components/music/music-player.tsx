@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -22,7 +21,8 @@ import {
   MessageCircle,
   Loader2,
   CheckCircle2,
-  Gift
+  Gift,
+  Rocket
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -33,6 +33,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMusic } from "@/context/MusicContext";
 import { useNotifications } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
+import { BoostPortal } from "@/components/post/boost-portal";
 import { cn, parseFollowerCount } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
@@ -50,7 +51,7 @@ export function MusicPlayer() {
     togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, simulateDownload, isTrackDownloaded, triggerDownloadWithAd, triggerHaptic
   } = useMusic();
 
-  const { addSignal, currentUser } = useNotifications();
+  const { addSignal, currentUser, t } = useNotifications();
 
   const [commentInput, setCommentInput] = useState("");
   const [isMuted, setIsMuted] = useState(false);
@@ -149,10 +150,7 @@ export function MusicPlayer() {
             <div className="flex items-center gap-2">
               <p className="text-xs font-bold truncate text-foreground">{currentTrack.title}</p>
               {isDownloaded && <CheckCircle2 className="h-2.5 w-2.5 text-green-500" />}
-              <div className="flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full">
-                <AudioLines className="h-2 w-2 text-primary animate-pulse" />
-                <span className="text-[8px] font-black text-primary uppercase">Live</span>
-              </div>
+              {currentTrack.isBoosted && <Badge className="bg-primary/10 text-primary border-none text-[7px] font-black h-3 px-1 uppercase tracking-tighter">BOOSTED</Badge>}
             </div>
             <Link href={`/profile/${currentTrack.artistUsername || 'arivera'}`} onClick={(e) => e.stopPropagation()}>
               <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest truncate hover:text-primary hover:underline">
@@ -208,6 +206,13 @@ export function MusicPlayer() {
           </div>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
+          {isOwner && (
+            <BoostPortal nodeId={currentTrack.id.toString()} type="SONIC">
+              <Button variant="ghost" size="icon" className={cn("rounded-full bg-secondary/20", currentTrack.isBoosted && "text-primary bg-primary/10 shadow-lg")} title={t('boost_title')}>
+                <Rocket className={cn("h-4 w-4 sm:h-5 sm:w-5", currentTrack.isBoosted && "animate-bounce")} />
+              </Button>
+            </BoostPortal>
+          )}
           <Button 
             variant="ghost" size="icon" 
             className={cn("rounded-full bg-secondary/20", isDownloaded && "text-green-500")} 
@@ -264,6 +269,7 @@ export function MusicPlayer() {
                     <p className="text-xl sm:text-2xl text-primary font-bold hover:underline">{currentTrack.artist}</p>
                   </Link>
                   {isDownloaded && <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-[10px] font-black tracking-widest uppercase">Music Note</Badge>}
+                  {currentTrack.isBoosted && <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-black tracking-widest uppercase">Promoted Node</Badge>}
                 </div>
               </div>
               <div className="flex flex-col gap-3 items-center">
@@ -298,6 +304,18 @@ export function MusicPlayer() {
                 </Button>
               </div>
             </div>
+
+            {currentTrack.isBoosted && (
+              <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 space-y-2 animate-in fade-in">
+                <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-primary">
+                  <span>{t('boost_active')}</span>
+                  <span>{currentTrack.boostCurrentViews || 0} / {currentTrack.boostTargetViews} Views</span>
+                </div>
+                <div className="h-1 w-full bg-primary/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-primary" style={{ width: `${((currentTrack.boostCurrentViews || 0) / (currentTrack.boostTargetViews || 1)) * 100}%` }} />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3 sm:space-y-4">
               <Slider value={[progress]} max={100} step={0.1} onValueChange={(val) => setProgress(val[0])} />

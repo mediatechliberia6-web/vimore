@@ -23,6 +23,11 @@ export interface Track {
   likes?: number;
   unlikes?: number;
   comments?: Comment[];
+  // Boost Metadata
+  isBoosted?: boolean;
+  boostTargetViews?: number;
+  boostCurrentViews?: number;
+  boostExpiry?: number;
 }
 
 export interface Album {
@@ -123,6 +128,9 @@ interface MusicContextType {
   confirmCreatePlaylist: (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => void;
   addTrackToPlaylist: (playlistId: string | number, track: Track) => void;
   
+  // Boost Track
+  boostTrack: (trackId: string | number, targetViews: number, durationDays: number) => void;
+
   triggerHaptic: (intensity?: number) => void;
 }
 
@@ -387,6 +395,21 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const deleteUserTrack = (trackId: string | number) => { setUserSongs(prev => prev.filter(t => t.id !== trackId)); setTrackStats(prev => { const next = { ...prev }; delete next[trackId]; return next; }); };
   const deleteUserAlbum = (albumId: string | number) => { setUserAlbums(prev => prev.filter(a => a.id !== albumId)); };
 
+  const boostTrack = (trackId: string | number, targetViews: number, durationDays: number) => {
+    setUserSongs(prev => prev.map(t => {
+      if (t.id === trackId) {
+        return {
+          ...t,
+          isBoosted: true,
+          boostTargetViews: targetViews,
+          boostCurrentViews: 0,
+          boostExpiry: Date.now() + (durationDays * 24 * 60 * 60 * 1000)
+        };
+      }
+      return t;
+    }));
+  };
+
   const openCreatePlaylist = (track?: Track) => { triggerHaptic(10); setTrackForNewPlaylist(track || null); setIsCreatePlaylistOpen(true); };
   const closeCreatePlaylist = () => { setIsCreatePlaylistOpen(false); setTrackForNewPlaylist(null); };
   const confirmCreatePlaylist = (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => {
@@ -426,7 +449,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       isCaptureStudioOpen, captureTrack, openCaptureStudio, closeCaptureStudio, setCaptureTrack,
       setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, 
       toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked,
-      playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum,
+      playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack,
       openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic
     }}>
       {children}

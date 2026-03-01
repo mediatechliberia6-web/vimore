@@ -219,7 +219,17 @@ export const dictionary = {
     how_economy_title: "The Economy Auditor",
     how_economy_desc: "We operate on a creator-first model. Earn energy and materialize it into real assets.",
     how_integrity_title: "Network Integrity",
-    how_integrity_desc: "Safety is hardcoded into the ViMore logic. Learn about Ghost nodes and AI filtering."
+    how_integrity_desc: "Safety is hardcoded into the ViMore logic. Learn about Ghost nodes and AI filtering.",
+    // Boost Protocol
+    boost_title: "Boost Node",
+    boost_desc: "Amplify your vibe across the network clusters.",
+    boost_promised_views: "Promised Reach",
+    boost_duration: "Duration",
+    boost_days: "Days",
+    boost_launch: "Launch Campaign",
+    boost_active: "Boosting Active",
+    boost_views_reached: "Views Materialized",
+    boost_owner_only: "Creator Only Node"
   },
   es: {
     nav_home: "Inicio",
@@ -386,7 +396,7 @@ export const dictionary = {
     comm_sync_reaction: "Sincroniza tu reacción...",
     // Earnings & Currency
     earn_portal: "Portal de Ganancias",
-    earn_financial_intel: "Inteligencia Financiera",
+    earn_financial_intel: "Inteligência Financiera",
     earn_vault_balance: "Saldo de Bóveda",
     earn_available_energy: "Energía Disponible",
     earn_gold_pulse: "Pulso de Oro",
@@ -434,7 +444,17 @@ export const dictionary = {
     how_economy_title: "El Auditor de Economía",
     how_economy_desc: "Operamos en un modelo centrado en el creador. Gane energía y materialícela.",
     how_integrity_title: "Integridad de la Red",
-    how_integrity_desc: "La seguridad está codificada en la lógica de ViMore. Nodos Fantasma y filtrado de IA."
+    how_integrity_desc: "La seguridad está codificada en la lógica de ViMore. Nodos Fantasma y filtrado de IA.",
+    // Boost Protocol
+    boost_title: "Nodo de Impulso",
+    boost_desc: "Amplifica tu vibra a través de los clústeres de la red.",
+    boost_promised_views: "Alcance Prometido",
+    boost_duration: "Duración",
+    boost_days: "Días",
+    boost_launch: "Lanzar Campaña",
+    boost_active: "Impulso Activo",
+    boost_views_reached: "Vistas Materializadas",
+    boost_owner_only: "Nodo Solo para Creador"
   },
   fr: {
     nav_home: "Accueil",
@@ -649,7 +669,17 @@ export const dictionary = {
     how_economy_title: "L'Auditeur Économique",
     how_economy_desc: "Nous opérons sur un modèle axé sur les créateurs. Gagnez de l'énergie et matérialisez-la.",
     how_integrity_title: "Intégrité du Réseau",
-    how_integrity_desc: "La sécurité est codée dans la logique ViMore. Nœuds Fantôme et filtrage IA."
+    how_integrity_desc: "La sécurité est codée dans la logique ViMore. Nœuds Fantôme et filtrage IA.",
+    // Boost Protocol
+    boost_title: "Nœud de Boost",
+    boost_desc: "Amplifiez votre vibe à travers les clusters du réseau.",
+    boost_promised_views: "Portée Promise",
+    boost_duration: "Durée",
+    boost_days: "Jours",
+    boost_launch: "Lancer la Campagne",
+    boost_active: "Boost Actif",
+    boost_views_reached: "Vues Matérialisées",
+    boost_owner_only: "Nœud Réservé au Créateur"
   },
   pt: {
     nav_home: "Início",
@@ -778,7 +808,7 @@ export const dictionary = {
     music_playlists: "Playlists",
     music_my_songs: "Minhas Músicas",
     music_my_albums: "Meus Álbuns",
-    music_notes: "Notas Musicais",
+    music_notes: "Notas Musicales",
     music_create_playlist: "Criar Playlist",
     reels_title: "Reels",
     reels_following: "Seguindo",
@@ -832,7 +862,7 @@ export const dictionary = {
     // Star Network
     star_network: "Rede Estrela",
     star_ambassador: "Embaixador Global",
-    star_nodes_referred: "Nós Referenciados",
+    star_nodes_referred: "Nœuds Référés",
     star_earned: "Estrelas Ganhas",
     star_achievements: "Conquistas de Embaixador",
     star_invite_launch: "Lançar Convite",
@@ -864,7 +894,17 @@ export const dictionary = {
     how_economy_title: "O Auditor da Economia",
     how_economy_desc: "Operamos em um modelo focado no criador. Ganhe energia e materialize-a.",
     how_integrity_title: "Integridade da Rede",
-    how_integrity_desc: "A segurança está codificada na lógica do ViMore. Nodos Fantasma e filtragem de IA."
+    how_integrity_desc: "A segurança está codificada na lógica do ViMore. Nodos Fantasma e filtragem de IA.",
+    // Boost Protocol
+    boost_title: "Nó de Impulso",
+    boost_desc: "Amplie seu vibe através dos clústeres da rede.",
+    boost_promised_views: "Alcance Prometido",
+    boost_duration: "Duração",
+    boost_days: "Dias",
+    boost_launch: "Lançar Campanha",
+    boost_active: "Impulso Ativo",
+    boost_views_reached: "Visualizações Materializadas",
+    boost_owner_only: "Nó Apenas para Criador"
   },
   ar: {
     nav_home: "الرئيسية",
@@ -1079,7 +1119,17 @@ export const dictionary = {
     how_economy_title: "مدقق الاقتصاد",
     how_economy_desc: "نحن نعمل على نموذج يركز على منشئي المحتوى. اكسب طاقة وجسدها.",
     how_integrity_title: "نزاهة الشبكة",
-    how_integrity_desc: "الأمان مدمج في منطق ViMore. عقد الشبح وفلترة الذكاء الاصطناعي."
+    how_integrity_desc: "الأمان مدمج في منطق ViMore. عقد الشبح وفلترة الذكاء الاصطناعي.",
+    // Boost Protocol
+    boost_title: "عقدة التعزيز",
+    boost_desc: "قم بتضخيم مشاعرك عبر مجموعات الشبكة.",
+    boost_promised_views: "الوصول الموعود",
+    boost_duration: "المدة",
+    boost_days: "أيام",
+    boost_launch: "إطلاق الحملة",
+    boost_active: "التعزيز نشط",
+    boost_views_reached: "المشاهدات المتحققة",
+    boost_owner_only: "عقدة خاصة بمنشئ المحتوى"
   },
   zh: {
     nav_home: "首页",
@@ -1294,7 +1344,17 @@ export const dictionary = {
     how_economy_title: "经济审计",
     how_economy_desc: "我们以创作者为中心。赚取能量并将其变现。",
     how_integrity_title: "网络完整性",
-    how_integrity_desc: "安全已硬编码到 ViMore 逻辑中。隐身节点和 AI 过滤。"
+    how_integrity_desc: "安全已硬编码到 ViMore 逻辑中。隐身节点和 AI 过滤。",
+    // Boost Protocol
+    boost_title: "推广节点",
+    boost_desc: "在网络集群中放大您的动态。",
+    boost_promised_views: "预估曝光",
+    boost_duration: "时长",
+    boost_days: "天",
+    boost_launch: "发起推广",
+    boost_active: "推广进行中",
+    boost_views_reached: "已达成曝光",
+    boost_owner_only: "仅限创作者节点"
   }
 };
 

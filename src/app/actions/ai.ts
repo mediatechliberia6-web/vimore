@@ -10,6 +10,27 @@ import { aiSummarizeComments as commentsFlow } from '@/ai/flows/ai-summarize-com
 import { aiAuditGiftHandshake as auditFlow } from '@/ai/flows/ai-audit-gift-flow';
 import { aiAuditMonetizationHandshake as monetizationFlow } from '@/ai/flows/ai-audit-monetization-flow';
 import { aiAnalyzeGlobalSentiment as sentimentFlow } from '@/ai/flows/ai-analyze-sentiment-flow';
+import { aiAuditBoostHandshake as boostFlow } from '@/ai/flows/ai-audit-boost-flow';
+
+/**
+ * Audits a boost campaign request using Groq AI.
+ */
+export async function aiAuditBoostHandshake(input: { userBalance: number, boostCost: number, currencyType: 'STAR' | 'DIAMOND', durationDays: number }) {
+  try {
+    const result = await boostFlow(input);
+    return result;
+  } catch (error) {
+    console.error("Boost Audit Error:", error);
+    const approved = input.userBalance >= input.boostCost;
+    return {
+      approved,
+      promisedViews: Math.round((input.boostCost / (input.currencyType === 'DIAMOND' ? 25 : 30000)) * 10000),
+      strategy: "Heuristic fallback active. Direct node prioritization.",
+      message: approved ? "Boost handshake authorized via fallback protocol." : "Insufficient energy for boost. Top up in Currency Hub.",
+      auditToken: approved ? "BST-FB-" + Math.random().toString(36).substring(2, 10).toUpperCase() : ""
+    };
+  }
+}
 
 /**
  * Analyzes the collective vibe of the network using Groq.

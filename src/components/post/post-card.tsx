@@ -33,7 +33,8 @@ import {
   Coins,
   ChevronRight,
   ExternalLink,
-  Eye
+  Eye,
+  Rocket
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ import { useMusic } from "@/context/MusicContext";
 import { useNotifications } from "@/context/NotificationContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { ShareHub } from "./share-hub";
+import { BoostPortal } from "./boost-portal";
 import { useRouter } from "next/navigation";
 import {
   AlertDialog,
@@ -129,13 +131,18 @@ interface PostCardProps {
   isCampaign?: boolean;
   actionUrl?: string;
   actionLabel?: string;
+  // Boost Metadata
+  isBoosted?: boolean;
+  boostTargetViews?: number;
+  boostCurrentViews?: number;
 }
 
 export function PostCard(props: PostCardProps) {
   const { 
     id, user, collaborator, content, image, images = [], imageFilter, theme, language,
     likes = 0, unlikes = 0, comments = 0, shares = 0, time, hashtags, feeling, location, commentsDisabled, isPinned, 
-    isSeries, seriesTitle, poll, isShared = false, videoUrl, sharedPost, isLocked, unlockPrice, isCampaign, actionUrl, actionLabel
+    isSeries, seriesTitle, poll, isShared = false, videoUrl, sharedPost, isLocked, unlockPrice, isCampaign, actionUrl, actionLabel,
+    isBoosted, boostTargetViews, boostCurrentViews
   } = props;
 
   const { 
@@ -282,7 +289,8 @@ export function PostCard(props: PostCardProps) {
     if (translatedText) { setTranslatedText(null); return; }
     setIsTranslating(true);
     try {
-      const result = await aiTranslatePost({ postContent: content, targetLanguage: viewerLanguage || "English" });
+      const target = viewerLanguage || "English";
+      const result = await aiTranslatePost({ postContent: content, targetLanguage: target });
       setTranslatedText(result.translation);
       toast({ description: "Vibe translated ✨" });
     } catch (error) { toast({ description: "Translation failed", variant: "destructive" }); }
@@ -383,10 +391,18 @@ export function PostCard(props: PostCardProps) {
       <Card className={cn(
         "border-none shadow-sm overflow-hidden mb-4 transition-colors relative ring-1 ring-black/5 dark:ring-white/5",
         isShared ? "bg-secondary/20 shadow-none ring-0 border border-primary/10 rounded-2xl" : "bg-white dark:bg-card",
-        isCampaign && "border-2 border-primary/20 shadow-xl shadow-primary/5"
+        isCampaign && "border-2 border-primary/20 shadow-xl shadow-primary/5",
+        isBoosted && !isShared && "ring-2 ring-primary/20 shadow-lg shadow-primary/5"
       )}>
         {isPinned && !isShared && <div className="absolute top-0 right-0 z-10 p-1 px-2 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-bl-lg flex items-center gap-1 shadow-md"><Pin className="h-2 w-2 fill-current" /> {t('post_pin').split(' ')[0]}</div>}
         
+        {isBoosted && !isShared && (
+          <div className="absolute top-0 left-0 z-10 p-1 px-3 bg-gradient-to-r from-primary to-accent text-white text-[8px] font-black uppercase tracking-widest rounded-br-lg flex items-center gap-1.5 shadow-md">
+            <Zap className="h-2.5 w-2.5 fill-current animate-pulse" />
+            {t('boost_active')}
+          </div>
+        )}
+
         <CardHeader className={cn("flex flex-row items-center justify-between space-y-0 p-3", isShared ? "pb-1" : "bg-white dark:bg-card")}>
           <div className="flex items-center gap-2">
             <Link href={isCampaign ? "#" : `/profile/${user.username}`}><Avatar className={cn("border border-primary/10 hover:opacity-80 transition-opacity", isShared ? "h-7 w-7" : "h-10 w-10")}><AvatarImage src={isCampaign ? "/icon.svg" : user.avatar} /><AvatarFallback>{user.name[0]}</AvatarFallback></Avatar></Link>
@@ -575,6 +591,31 @@ export function PostCard(props: PostCardProps) {
 
         {!isShared && !isCampaign && (
           <CardFooter className="p-1 px-3 flex flex-col gap-1 relative bg-white dark:bg-card">
+            {isOwner && (
+              <div className="w-full mb-2">
+                {isBoosted ? (
+                  <div className="bg-primary/10 rounded-xl p-3 flex flex-col gap-2 border border-primary/20 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black text-primary uppercase tracking-widest">{t('boost_active')}</span>
+                      <span className="text-[9px] font-black text-primary/60 uppercase tracking-widest">
+                        {boostCurrentViews?.toLocaleString() || 0} / {boostTargetViews?.toLocaleString()} {t('boost_views_reached').split(' ')[0]}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-primary/10 rounded-full overflow-hidden">
+                      <div className="h-full bg-primary animate-pulse" style={{ width: `${Math.min(((boostCurrentViews || 0) / (boostTargetViews || 1)) * 100, 100)}%` }} />
+                    </div>
+                  </div>
+                ) : (
+                  <BoostPortal nodeId={id} type={videoUrl ? 'REEL' : 'POST'}>
+                    <Button variant="outline" className="w-full h-9 rounded-xl border-dashed border-primary/20 text-primary font-black uppercase text-[10px] tracking-widest hover:bg-primary/5 transition-all gap-2 group">
+                      <Rocket className="h-3 w-3 group-hover:animate-bounce" />
+                      {t('boost_title')}
+                    </Button>
+                  </BoostPortal>
+                )}
+              </div>
+            )}
+
             <div className="px-1 pt-2 pb-1 flex items-center justify-between w-full text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground/50 border-t border-primary/5">
               <div className="flex items-center gap-3">
                 <div className="relative">
