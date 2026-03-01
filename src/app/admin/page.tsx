@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -124,9 +123,9 @@ export default function AdminDashboard() {
         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-indigo-500/5 blur-[120px] rounded-full animate-pulse delay-700" />
       </div>
 
-      {/* Admin Sidebar */}
+      {/* Admin Sidebar - Hidden on mobile, Flex on desktop */}
       <aside className={cn(
-        "h-screen bg-black/40 backdrop-blur-3xl border-r border-white/5 transition-all duration-500 flex flex-col shrink-0 z-[100]",
+        "h-screen bg-black/40 backdrop-blur-3xl border-r border-white/5 transition-all duration-500 hidden md:flex flex-col shrink-0 z-[100]",
         isSidebarOpen ? "w-72" : "w-20"
       )}>
         <div className="p-6 flex items-center gap-4 border-b border-white/5">
@@ -177,14 +176,14 @@ export default function AdminDashboard() {
 
       {/* Main Command Workspace */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto scrollbar-hide">
-        <header className="h-20 px-8 flex items-center justify-between bg-black/20 border-b border-white/5 backdrop-blur-md sticky top-0 z-50">
-          <div className="flex items-center gap-6">
-            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-muted-foreground hover:text-white">
+        <header className="h-20 px-6 sm:px-8 flex items-center justify-between bg-black/20 border-b border-white/5 backdrop-blur-md sticky top-0 z-50">
+          <div className="flex items-center gap-4 sm:gap-6">
+            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-muted-foreground hover:text-white hidden md:flex">
               <Menu className="h-6 w-6" />
             </Button>
-            <div className="hidden sm:flex flex-col">
-              <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Spatial Node</h2>
-              <span className="text-lg font-black italic uppercase tracking-tighter text-white">Cluster: ViMore-Main-Alpha</span>
+            <div className="flex flex-col">
+              <h2 className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-muted-foreground">Spatial Node</h2>
+              <span className="text-sm sm:text-lg font-black italic uppercase tracking-tighter text-white truncate max-w-[150px] sm:max-w-none">Cluster: ViMore-Main-Alpha</span>
             </div>
           </div>
 
@@ -200,11 +199,11 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <div className="p-6 sm:p-10 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32">
+        <div className="p-4 sm:p-10 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32">
           
           {activeTab === 'pulse' && (
             <div className="space-y-10">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 {[
                   { label: "Active Nodes", value: stats.totalNodes.toLocaleString(), icon: Users, color: "text-blue-400", bg: "bg-blue-400/10" },
                   { label: "Digital Signatures", value: stats.totalSignatures.toLocaleString(), icon: Rocket, color: "text-primary", bg: "bg-primary/10" },
@@ -213,12 +212,12 @@ export default function AdminDashboard() {
                 ].map((m) => (
                   <Card key={m.label} className="bg-white/5 border-white/10 rounded-[2rem] overflow-hidden group hover:border-primary/30 transition-all">
                     <CardContent className="p-6 flex items-center gap-5">
-                      <div className={cn("h-14 w-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110", m.bg, m.color)}>
-                        <m.icon className="h-7 w-7" />
+                      <div className={cn("h-12 w-12 sm:h-14 sm:w-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110", m.bg, m.color)}>
+                        <m.icon className="h-6 w-6 sm:h-7 sm:w-7" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{m.label}</span>
-                        <span className="text-2xl font-black italic uppercase tracking-tighter text-white">{m.value}</span>
+                        <span className="text-[9px] sm:text-[10px] font-black uppercase text-muted-foreground tracking-widest">{m.label}</span>
+                        <span className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter text-white">{m.value}</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -226,15 +225,15 @@ export default function AdminDashboard() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6">
+                <Card className="bg-white/5 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 space-y-6">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                      <h3 className="text-xl font-black italic uppercase tracking-tighter">System Velocity</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Node Concurrency (24H)</p>
+                      <h3 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter">System Velocity</h3>
+                      <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Node Concurrency (24H)</p>
                     </div>
-                    <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary"><TrendingUp className="h-5 w-5" /></div>
+                    <div className="h-9 w-9 sm:h-10 sm:w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary"><TrendingUp className="h-5 w-5" /></div>
                   </div>
-                  <div className="h-[300px] w-full">
+                  <div className="h-[250px] sm:h-[300px] w-full">
                     <ChartContainer config={{ active: { label: "Nodes", color: "hsl(var(--primary))" } }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={MOCK_DAILY_PULSE}>
@@ -253,15 +252,15 @@ export default function AdminDashboard() {
                   </div>
                 </Card>
 
-                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6">
+                <Card className="bg-white/5 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 space-y-6">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                      <h3 className="text-xl font-black italic uppercase tracking-tighter">AI Node Load</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Groq High-Velocity Inference (%)</p>
+                      <h3 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter">AI Node Load</h3>
+                      <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Groq High-Velocity Inference (%)</p>
                     </div>
-                    <div className="h-10 w-10 bg-accent/10 rounded-xl flex items-center justify-center text-accent"><Zap className="h-5 w-5" /></div>
+                    <div className="h-9 w-9 sm:h-10 sm:w-10 bg-accent/10 rounded-xl flex items-center justify-center text-accent"><Zap className="h-5 w-5" /></div>
                   </div>
-                  <div className="h-[300px] w-full">
+                  <div className="h-[250px] sm:h-[300px] w-full">
                     <ChartContainer config={{ load: { label: "Load %", color: "hsl(var(--accent))" } }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={MOCK_DAILY_PULSE}>
@@ -278,30 +277,30 @@ export default function AdminDashboard() {
 
           {activeTab === 'economy' && (
             <div className="space-y-10 animate-in fade-in duration-500">
-              <div className="flex items-center justify-between px-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-2 gap-6">
                 <div className="space-y-1">
-                  <h3 className="text-3xl font-black italic uppercase tracking-tighter">Economy Auditor</h3>
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Authorizing Global Financial Handshakes</p>
+                  <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Economy Auditor</h3>
+                  <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Authorizing Global Financial Handshakes</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="relative group">
+                  <div className="relative group flex-1 sm:flex-none">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <Input 
-                      placeholder="Query transactions..." 
-                      className="h-11 w-64 bg-white/5 border-white/10 rounded-xl pl-10 text-xs font-bold"
+                      placeholder="Query..." 
+                      className="h-11 w-full sm:w-64 bg-white/5 border-white/10 rounded-xl pl-10 text-xs font-bold"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
-                  <Badge className="bg-amber-500 text-white font-black h-11 px-6 rounded-xl uppercase tracking-widest">
+                  <Badge className="bg-amber-500 text-white font-black h-11 px-4 sm:px-6 rounded-xl uppercase tracking-widest shrink-0">
                     {pendingWithdrawals.length} PENDING
                   </Badge>
                 </div>
               </div>
 
-              <Card className="bg-white/5 border-white/10 rounded-[2.5rem] overflow-hidden">
+              <Card className="bg-white/5 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left">
+                  <table className="w-full text-left min-w-[800px]">
                     <thead>
                       <tr className="border-b border-white/5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-black/20">
                         <th className="px-8 py-6">ID / NODE</th>
@@ -357,7 +356,7 @@ export default function AdminDashboard() {
                               </div>
                             </td>
                             <td className="px-8 py-6">
-                              <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex items-center justify-end gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Button 
                                   variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white"
                                   onClick={() => handleAction(node.id, 'APPROVED', 'withdrawal')}
@@ -393,25 +392,25 @@ export default function AdminDashboard() {
 
           {activeTab === 'identity' && (
             <div className="space-y-10 animate-in fade-in duration-500">
-              <div className="flex items-center justify-between px-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-2 gap-4">
                 <div className="space-y-1">
-                  <h3 className="text-3xl font-black italic uppercase tracking-tighter">Identity Forge</h3>
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Managing Spatial Verification Signatures</p>
+                  <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Identity Forge</h3>
+                  <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Managing Spatial Verification Signatures</p>
                 </div>
-                <Badge className="bg-primary text-white font-black h-11 px-6 rounded-xl uppercase tracking-widest">
+                <Badge className="bg-primary text-white font-black h-11 px-6 rounded-xl uppercase tracking-widest w-fit">
                   {MOCK_VERIFICATION_REQUESTS.length} REQUESTS
                 </Badge>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {MOCK_VERIFICATION_REQUESTS.map((req) => (
-                  <Card key={req.id} className="bg-white/5 border-white/10 rounded-[2.5rem] p-6 space-y-6 group hover:border-primary/40 transition-all">
+                  <Card key={req.id} className="bg-white/5 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 space-y-6 group hover:border-primary/40 transition-all">
                     <div className="flex items-center justify-between">
-                      <Avatar className="h-16 w-16 border-2 border-primary/20">
+                      <Avatar className="h-14 w-14 sm:h-16 sm:w-16 border-2 border-primary/20">
                         <AvatarImage src={req.avatar} />
                       </Avatar>
                       <div className="text-right">
-                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1">Method</span>
+                        <span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1">Method</span>
                         <div className="flex items-center gap-2 justify-end">
                           {req.currency === 'DIAMOND' ? <Gem className="h-4 w-4 text-cyan-500" /> : <Star className="h-4 w-4 text-yellow-500 fill-current" />}
                           <span className="font-black text-white">{req.cost.toLocaleString()}</span>
@@ -420,16 +419,16 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="space-y-1">
-                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">{req.name}</h4>
-                      <p className="text-xs font-bold text-primary uppercase tracking-widest">@{req.username}</p>
+                      <h4 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter text-white">{req.name}</h4>
+                      <p className="text-[10px] sm:text-xs font-bold text-primary uppercase tracking-widest">@{req.username}</p>
                     </div>
 
                     <div className="bg-black/20 rounded-2xl p-4 flex items-center justify-between border border-white/5">
                       <div className="flex items-center gap-2">
                         <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{req.time}</span>
+                        <span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest">{req.time}</span>
                       </div>
-                      <span className="text-[10px] font-black text-primary uppercase tracking-widest">ID: {req.id}</span>
+                      <span className="text-[9px] sm:text-[10px] font-black text-primary uppercase tracking-widest">ID: {req.id}</span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -457,11 +456,11 @@ export default function AdminDashboard() {
             <div className="space-y-10 animate-in fade-in duration-500">
               <div className="flex items-center justify-between px-2">
                 <div className="space-y-1">
-                  <h3 className="text-3xl font-black italic uppercase tracking-tighter">Safety Node</h3>
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Network Integrity & Moderation Feed</p>
+                  <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Safety Node</h3>
+                  <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Network Integrity & Moderation Feed</p>
                 </div>
-                <div className="h-11 w-11 bg-destructive/10 rounded-xl flex items-center justify-center text-destructive">
-                  <ShieldAlert className="h-6 w-6 animate-pulse" />
+                <div className="h-10 w-10 sm:h-11 sm:w-11 bg-destructive/10 rounded-xl flex items-center justify-center text-destructive">
+                  <ShieldAlert className="h-5 w-5 sm:h-6 sm:w-6 animate-pulse" />
                 </div>
               </div>
 
@@ -472,12 +471,12 @@ export default function AdminDashboard() {
                       <div className="flex-1 space-y-4">
                         <div className="flex items-center gap-3">
                           <Badge className={cn(
-                            "font-black text-[9px] uppercase tracking-widest px-3 h-6 border-none",
+                            "font-black text-[8px] sm:text-[9px] uppercase tracking-widest px-3 h-6 border-none",
                             report.risk === 'HIGH' ? "bg-red-500 text-white" : "bg-amber-500 text-white"
                           )}>
                             {report.risk} RISK
                           </Badge>
-                          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Report {report.id} • {report.time}</span>
+                          <span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest">Report {report.id} • {report.time}</span>
                         </div>
 
                         <div className="grid grid-cols-2 gap-8 py-2">
@@ -494,7 +493,7 @@ export default function AdminDashboard() {
                         <div className="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-2">
                           <div className="flex items-center gap-2">
                             <Flag className="h-3.5 w-3.5 text-primary" />
-                            <span className="text-[10px] font-black text-primary uppercase tracking-widest">AI Content Audit</span>
+                            <span className="text-[9px] sm:text-[10px] font-black text-primary uppercase tracking-widest">AI Content Audit</span>
                           </div>
                           <p className="text-sm font-medium text-white/80 leading-relaxed italic">"{report.content}"</p>
                           <div className="pt-2">
@@ -532,7 +531,7 @@ export default function AdminDashboard() {
         </div>
       </main>
 
-      {/* Mobile Admin Navigation */}
+      {/* Mobile Admin Navigation - Primary for small screens */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[200] px-4 pb-6 flex justify-center pointer-events-none">
         <nav className="flex items-center gap-2 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-2.5 shadow-2xl pointer-events-auto">
           {(["pulse", "economy", "identity", "safety"] as AdminTab[]).map((tab) => {
