@@ -63,6 +63,7 @@ export interface PendingTransaction {
 
 export interface WithdrawalNode {
   id: string;
+  username: string;
   method: string;
   amount: number;
   currency: string;
@@ -72,6 +73,7 @@ export interface WithdrawalNode {
   timestamp: number;
   accountName: string;
   accountNumber: string;
+  riskScore?: number; // 0-100
 }
 
 export interface Connection {
@@ -249,6 +251,7 @@ interface PostContextType {
   initiateTransaction: (data: Omit<PendingTransaction, 'timestamp'>) => void;
   cancelTransaction: () => void;
   recordWithdrawal: (node: WithdrawalNode) => void;
+  processWithdrawal: (id: string, status: 'APPROVED' | 'REJECTED') => void;
   triggerReferralPulse: (referralCode?: string) => void;
   verifyUser: (cost: number, currency: 'DIAMOND' | 'STAR') => void;
   processGiftTransaction: (cost: number, currency: 'GOLD' | 'DIAMOND') => void;
@@ -974,7 +977,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const recordWithdrawal = (node: WithdrawalNode) => {
-    setWithdrawalHistory(prev => [node, ...prev].slice(0, 20));
+    setWithdrawalHistory(prev => [node, ...prev].slice(0, 50));
+  };
+
+  const processWithdrawal = (id: string, status: 'APPROVED' | 'REJECTED') => {
+    triggerHaptic(status === 'APPROVED' ? 50 : 100);
+    setWithdrawalHistory(prev => prev.map(node => node.id === id ? { ...node, status } : node));
   };
 
   const openCommentHub = (postId: string) => {
@@ -1167,6 +1175,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       initiateTransaction,
       cancelTransaction,
       recordWithdrawal,
+      processWithdrawal,
       triggerReferralPulse,
       verifyUser,
       processGiftTransaction,

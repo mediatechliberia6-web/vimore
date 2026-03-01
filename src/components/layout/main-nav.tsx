@@ -1,8 +1,9 @@
+
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, MessageCircle, PlusSquare, Compass, Menu, Music2, Clapperboard, Bell } from "lucide-react";
+import { Home, User, MessageCircle, PlusSquare, Compass, Menu, Music2, Clapperboard, Bell, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useNotifications, PulseCategory } from "@/context/NotificationContext";
@@ -28,6 +29,7 @@ export function MainNav() {
     { icon: Bell, label: "Notifications", href: "/notifications", badge: unreadCount },
     { icon: MessageCircle, label: "Messages", href: "/messages", category: "MESSAGES" },
     { icon: User, label: "Profile", href: "/profile" },
+    { icon: Activity, label: "Admin", href: "/admin" },
     { icon: Menu, label: "Menu", href: "/menu" },
   ];
 

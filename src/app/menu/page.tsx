@@ -1,3 +1,4 @@
+
 "use client";
 
 import { 
@@ -18,7 +19,8 @@ import {
   Users,
   Star,
   Gem,
-  TrendingUp
+  TrendingUp,
+  Activity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -50,6 +52,7 @@ export default function MenuPage() {
     { label: "Community", icon: Users, color: "text-emerald-500", bg: "bg-emerald-50", href: "/friends", category: "FRIENDS" },
     { label: "Messages", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages", category: "MESSAGES" },
     { label: "Reels", icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-50", href: "/reels", category: "REELS" },
+    { label: "Command Core", icon: Activity, color: "text-indigo-500", bg: "bg-indigo-50", href: "/admin" },
   ];
 
   return (
@@ -161,6 +164,10 @@ export default function MenuPage() {
                 <Link href="/settings" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-secondary/50 transition-colors font-semibold text-[15px] text-left">
                   <Settings className="h-4 w-4 text-slate-500" />
                   Global Command Center
+                </Link>
+                <Link href="/admin" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-indigo-500/10 transition-colors font-semibold text-[15px] text-left text-indigo-600">
+                  <ShieldCheck className="h-4 w-4" />
+                  Command Core Access
                 </Link>
                 {[
                   { label: "Privacy Checkup", icon: ShieldCheck, color: "text-green-500" },
