@@ -23,7 +23,8 @@ import {
   ShieldAlert,
   LogOut,
   Languages,
-  UserCog
+  UserCog,
+  BookOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -67,6 +68,7 @@ export default function MenuPage() {
     { label: t('menu_community'), icon: Users, color: "text-emerald-500", bg: "bg-emerald-50", href: "/friends", category: "FRIENDS" },
     { label: t('menu_messages'), icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages", category: "MESSAGES" },
     { label: t('menu_reels'), icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-50", href: "/reels", category: "REELS" },
+    { label: t('menu_how_it_works'), icon: BookOpen, color: "text-rose-500", bg: "bg-rose-50", href: "/how-it-works" },
     { label: t('menu_command_core'), icon: Activity, color: "text-indigo-500", bg: "bg-indigo-50", href: "/admin" },
   ];
 
