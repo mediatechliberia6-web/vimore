@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
@@ -74,6 +73,20 @@ export interface WithdrawalNode {
   accountName: string;
   accountNumber: string;
   riskScore?: number; // 0-100
+}
+
+export interface PaymentRequest {
+  id: string;
+  username: string;
+  name: string;
+  packageName: string;
+  amount: string;
+  currency: 'USD' | 'LD';
+  type: 'Gold' | 'Diamond';
+  code: string;
+  screenshot: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  timestamp: number;
 }
 
 export interface Connection {
@@ -221,6 +234,7 @@ interface PostContextType {
   targetUserForGift: User | null;
   pendingTransaction: PendingTransaction | null;
   withdrawalHistory: WithdrawalNode[];
+  paymentRequests: PaymentRequest[];
   referralLink: string;
   settings: AppSettings;
   callState: CallState;
@@ -250,6 +264,9 @@ interface PostContextType {
   toggleFollowUser: (username: string) => void;
   initiateTransaction: (data: Omit<PendingTransaction, 'timestamp'>) => void;
   cancelTransaction: () => void;
+  createPaymentRequest: (screenshot: string) => void;
+  approvePaymentRequest: (id: string) => void;
+  rejectPaymentRequest: (id: string) => void;
   recordWithdrawal: (node: WithdrawalNode) => void;
   processWithdrawal: (id: string, status: 'APPROVED' | 'REJECTED') => void;
   triggerReferralPulse: (referralCode?: string) => void;
@@ -564,6 +581,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [activeSubscriptions, setActiveSubscriptions] = useState<Set<string>>(new Set());
   const [pendingTransaction, setPendingTransaction] = useState<PendingTransaction | null>(null);
   const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalNode[]>([]);
+  const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
   
   const [followingUsernames, setFollowingUsernames] = useState<Set<string>>(new Set(["jmoore", "arivera", "schen_dev", "paul"]));
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
@@ -601,12 +619,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
     } catch (e) {
       console.warn(`Storage quota exceeded for key: ${key}. Calibrating cache...`);
-      // If we hit a quota limit, try to clear non-essential cache
       if (key === 'vimore_local_posts') {
-        // Keep only top 5 if quota hit
-        try {
-          localStorage.setItem(key, JSON.stringify(value.slice(0, 5)));
-        } catch (innerE) {}
+        try { localStorage.setItem(key, JSON.stringify(value.slice(0, 5))); } catch (innerE) {}
       }
     }
   };
@@ -623,6 +637,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const savedLocalPosts = localStorage.getItem('vimore_local_posts');
     const savedPending = localStorage.getItem('vimore_pending_transaction');
     const savedWithdrawals = localStorage.getItem('vimore_withdrawal_history');
+    const savedPayments = localStorage.getItem('vimore_payment_requests');
     const savedClusters = localStorage.getItem('vimore_clusters');
 
     if (savedUser) try { setCurrentUser(JSON.parse(savedUser)); } catch (e) {}
@@ -635,6 +650,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (savedFollowing) setFollowingUsernames(new Set(JSON.parse(savedFollowing)));
     if (savedPending) setPendingTransaction(JSON.parse(savedPending));
     if (savedWithdrawals) setWithdrawalHistory(JSON.parse(savedWithdrawals));
+    if (savedPayments) setPaymentRequests(JSON.parse(savedPayments));
     if (savedClusters) setClusters(JSON.parse(savedClusters));
     
     if (savedLocalPosts) {
@@ -660,6 +676,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => { safePersist('vimore_following', Array.from(followingUsernames)); }, [followingUsernames]);
   useEffect(() => { safePersist('vimore_settings', settings); }, [settings]);
   useEffect(() => { safePersist('vimore_withdrawal_history', withdrawalHistory); }, [withdrawalHistory]);
+  useEffect(() => { safePersist('vimore_payment_requests', paymentRequests); }, [paymentRequests]);
   useEffect(() => { safePersist('vimore_clusters', clusters); }, [clusters]);
 
   useEffect(() => {
@@ -716,14 +733,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const updateCurrentUser = (data: Partial<User>) => {
     setCurrentUser(prev => {
       const updated = { ...prev, ...data };
-      
       if (data.avatar && data.avatar !== prev.avatar) {
         updated.profilePictureHistory = [...(prev.profilePictureHistory || []), data.avatar].slice(-10);
       }
       if (data.cover && data.cover !== prev.cover) {
         updated.coverPhotoHistory = [...(prev.coverPhotoHistory || []), data.cover].slice(-10);
       }
-
       safePersist('vimore_user', updated);
       return updated;
     });
@@ -812,7 +827,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const addPost = (newPostData: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments' | 'shares'>) => {
     const detectedLanguage = newPostData.language || (typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en');
-    
     const newPost: Post = {
       ...newPostData,
       id: Date.now().toString(),
@@ -824,7 +838,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       language: detectedLanguage,
       commentNodes: []
     };
-    
     const updatedPosts = [newPost, ...posts];
     setPosts(updatedPosts);
     const userOnlyPosts = updatedPosts.filter(p => p.user.username === currentUser.username).slice(0, 10);
@@ -885,9 +898,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
                 };
                 return { ...c, replies: [...c.replies, newReply] };
               }
-              if (c.replies.length > 0) {
-                return { ...c, replies: findAndReply(c.replies) };
-              }
+              if (c.replies.length > 0) return { ...c, replies: findAndReply(c.replies) };
               return c;
             });
           };
@@ -908,13 +919,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const addStory = (segmentData: Omit<StorySegment, 'id'>) => {
     const userStoryIndex = stories.findIndex(s => s.user.username === currentUser.username);
     const newSegment: StorySegment = { ...segmentData, id: Date.now().toString() };
-
     if (userStoryIndex !== -1) {
       setStories(prev => {
         const updated = [...prev];
         updated[userStoryIndex] = {
           ...updated[userStoryIndex],
-          segments: [newSegment, ...updated[userStoryIndex].segments].slice(0, 10), // Limit segments
+          segments: [newSegment, ...updated[userStoryIndex].segments].slice(0, 10),
           viewCount: updated[userStoryIndex].viewCount || 0
         };
         return updated;
@@ -965,15 +975,53 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const initiateTransaction = (data: Omit<PendingTransaction, 'timestamp'>) => {
     triggerHaptic(20);
-    const tx: PendingTransaction = {
-      ...data,
-      timestamp: Date.now()
-    };
+    const tx: PendingTransaction = { ...data, timestamp: Date.now() };
     setPendingTransaction(tx);
   };
 
-  const cancelTransaction = () => {
-    setPendingTransaction(null);
+  const cancelTransaction = () => { setPendingTransaction(null); };
+
+  const createPaymentRequest = (screenshot: string) => {
+    if (!pendingTransaction) return;
+    triggerHaptic(50);
+    const request: PaymentRequest = {
+      id: `PAY-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+      username: currentUser.username,
+      name: currentUser.name,
+      packageName: pendingTransaction.packageName,
+      amount: pendingTransaction.amount,
+      currency: pendingTransaction.currency,
+      type: pendingTransaction.type,
+      code: pendingTransaction.code,
+      screenshot,
+      status: 'PENDING',
+      timestamp: Date.now()
+    };
+    setPaymentRequests(prev => [request, ...prev].slice(0, 50));
+  };
+
+  const approvePaymentRequest = (id: string) => {
+    triggerHaptic(100);
+    setPaymentRequests(prev => prev.map(req => {
+      if (req.id === id) {
+        // Logic: Materialize Currency Pulse
+        const amountNum = parseFloat(req.packageName.split(' ')[0]) || 0; // Rough extraction for prototype
+        
+        setCurrentUser(user => ({
+          ...user,
+          goldBalance: req.type === 'Gold' ? (user.goldBalance || 0) + amountNum : user.goldBalance,
+          diamondBalance: req.type === 'Diamond' ? (user.diamondBalance || 0) + amountNum : user.diamondBalance
+        }));
+
+        return { ...req, status: 'APPROVED' };
+      }
+      return req;
+    }));
+  };
+
+  const rejectPaymentRequest = (id: string) => {
+    triggerHaptic(50);
+    setPaymentRequests(prev => prev.map(req => req.id === id ? { ...req, status: 'REJECTED' } : req));
   };
 
   const recordWithdrawal = (node: WithdrawalNode) => {
@@ -985,26 +1033,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setWithdrawalHistory(prev => prev.map(node => node.id === id ? { ...node, status } : node));
   };
 
-  const openCommentHub = (postId: string) => {
-    triggerHaptic(5);
-    setActiveCommentPostId(postId);
-  };
-
-  const closeCommentHub = () => {
-    setActiveCommentPostId(null);
-  };
-
-  const openGiftHub = (user: User) => {
-    if (user.username === currentUser.username) return;
-    triggerHaptic(15);
-    setTargetUserForGift(user);
-    setIsGiftHubOpen(true);
-  };
-
-  const closeGiftHub = () => {
-    setIsGiftHubOpen(false);
-    setTargetUserForGift(null);
-  };
+  const openCommentHub = (postId: string) => { triggerHaptic(5); setActiveCommentPostId(postId); };
+  const closeCommentHub = () => { setActiveCommentPostId(null); };
+  const openGiftHub = (user: User) => { if (user.username === currentUser.username) return; triggerHaptic(15); setTargetUserForGift(user); setIsGiftHubOpen(true); };
+  const closeGiftHub = () => { setIsGiftHubOpen(false); setTargetUserForGift(null); };
 
   const isPostLiked = (postId: string) => likedPostIds.has(postId);
   const isPostUnliked = (postId: string) => unlikedPostIds.has(postId);
@@ -1016,48 +1048,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const voteOnStoryPoll = (storyId: string, segmentId: string, optionIndex: number) => {
     setStories(prev => prev.map(story => {
       if (story.id !== storyId) return story;
-      return {
-        ...story,
-        segments: story.segments.map(segment => {
-          if (segment.id !== segmentId || !segment.poll) return segment;
-          const newOptions = [...segment.poll.options];
-          newOptions[optionIndex] = { ...newOptions[optionIndex], votes: newOptions[optionIndex].votes + 1 };
-          return { ...segment, poll: { ...segment.poll, options: newOptions } };
-        })
-      };
+      return { ...story, segments: story.segments.map(segment => {
+        if (segment.id !== segmentId || !segment.poll) return segment;
+        const newOptions = [...segment.poll.options];
+        newOptions[optionIndex] = { ...newOptions[optionIndex], votes: newOptions[optionIndex].votes + 1 };
+        return { ...segment, poll: { ...segment.poll, options: newOptions } };
+      })};
     }));
   };
 
-  const toggleMuteUser = (username: string) => {
-    setMutedUserNames(prev => prev.includes(username) ? prev.filter(u => u !== username) : [...prev, username]);
-  };
-
-  const togglePinPost = (postId: string) => {
-    setPosts(prev => prev.map(p => p.id === postId ? { ...p, isPinned: !p.isPinned } : p));
-  };
-
-  const archivePost = (postId: string) => {
-    setPosts(prev => prev.filter(p => p.id !== postId));
-  };
-
-  const setSearchOpen = (open: boolean) => {
-    triggerHaptic(5);
-    setIsSearchOpen(open);
-  };
+  const toggleMuteUser = (username: string) => { setMutedUserNames(prev => prev.includes(username) ? prev.filter(u => u !== username) : [...prev, username]); };
+  const togglePinPost = (postId: string) => { setPosts(prev => prev.map(p => p.id === postId ? { ...p, isPinned: !p.isPinned } : p)); };
+  const archivePost = (postId: string) => { setPosts(prev => prev.filter(p => p.id !== postId)); };
+  const setSearchOpen = (open: boolean) => { triggerHaptic(5); setIsSearchOpen(open); };
 
   const createCluster = (name: string, members: Connection[]) => {
     triggerHaptic(50);
-    const newCluster: Cluster = {
-      id: `cluster-${Date.now()}`,
-      name,
-      members,
-      adminUsername: currentUser.username,
-      isGroup: true,
-      lastMessage: "Cluster materialized.",
-      lastTime: "Just now",
-      lastInteraction: Date.now()
-    };
-    setClusters(prev => [newCluster, ...prev].slice(0, 20)); // Limit clusters
+    const newCluster: Cluster = { id: `cluster-${Date.now()}`, name, members, adminUsername: currentUser.username, isGroup: true, lastMessage: "Cluster materialized.", lastTime: "Just now", lastInteraction: Date.now() };
+    setClusters(prev => [newCluster, ...prev].slice(0, 20));
   };
 
   const addMemberToCluster = (clusterId: string, member: Connection) => {
@@ -1065,137 +1073,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setClusters(prev => prev.map(c => {
       if (c.id === clusterId) {
         if (c.members.some(m => m.username === member.username)) return c;
-        return {
-          ...c,
-          members: [...c.members, member],
-          lastMessage: `@${member.username} joined the cluster.`,
-          lastTime: "Just now",
-          lastInteraction: Date.now()
-        };
+        return { ...c, members: [...c.members, member], lastMessage: `@${member.username} joined the cluster.`, lastTime: "Just now", lastInteraction: Date.now() };
       }
       return c;
     }));
   };
 
-  const leaveCluster = (clusterId: string) => {
-    triggerHaptic(30);
-    setClusters(prev => prev.filter(c => c.id !== clusterId));
-    if (selectedChatId === clusterId) setSelectedChatId(null);
-  };
-
-  const initiateCall = (contact: Connection, type: CallType) => {
-    triggerHaptic(30);
-    setCallState({
-      type,
-      status: 'outgoing',
-      contact
-    });
-  };
-
-  const receiveCall = (contact: Connection, type: CallType) => {
-    triggerHaptic(50);
-    setCallState({
-      type,
-      status: 'incoming',
-      contact
-    });
-  };
-
-  const acceptCall = () => {
-    triggerHaptic(20);
-    setCallState(prev => ({
-      ...prev,
-      status: 'active',
-      startTime: Date.now()
-    }));
-  };
-
-  const endCall = () => {
-    triggerHaptic(100);
-    setCallState({
-      type: 'video',
-      status: 'idle',
-      contact: null
-    });
-  };
+  const leaveCluster = (clusterId: string) => { triggerHaptic(30); setClusters(prev => prev.filter(c => c.id !== clusterId)); if (selectedChatId === clusterId) setSelectedChatId(null); };
+  const initiateCall = (contact: Connection, type: CallType) => { triggerHaptic(30); setCallState({ type, status: 'outgoing', contact }); };
+  const receiveCall = (contact: Connection, type: CallType) => { triggerHaptic(50); setCallState({ type, status: 'incoming', contact }); };
+  const acceptCall = () => { triggerHaptic(20); setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() })); };
+  const endCall = () => { triggerHaptic(100); setCallState({ type: 'video', status: 'idle', contact: null }); };
 
   return (
     <PostContext.Provider value={{ 
-      currentUser: finalCurrentUser,
-      posts, 
-      stories, 
-      highlights, 
-      mutedUserNames,
-      likedPostIds,
-      unlikedPostIds,
-      savedPostIds,
-      unlockedPostIds,
-      activeSubscriptions,
-      followingUsernames,
-      activeStoryIndex, 
-      connections,
-      clusters,
-      selectedChatId,
-      selectedPostId,
-      activeCommentPostId,
-      selectedImageUrl,
-      isSearchOpen,
-      isGiftHubOpen,
-      targetUserForGift,
-      pendingTransaction,
-      withdrawalHistory,
-      referralLink,
-      settings,
-      callState,
-      setSearchOpen,
-      setSelectedChatId,
-      setSelectedPostId,
-      setSelectedImageUrl,
-      openCommentHub,
-      closeCommentHub,
-      openGiftHub,
-      closeGiftHub,
-      setActiveStoryIndex, 
-      addPost, 
-      deletePost,
-      addStory, 
-      addComment,
-      addReply,
-      incrementShareCount,
-      voteOnStoryPoll,
-      toggleMuteUser,
-      togglePinPost,
-      archivePost,
-      updateCurrentUser,
-      updateSettings,
-      toggleLikePost,
-      toggleUnlikePost,
-      toggleSavePost,
-      toggleFollowUser,
-      initiateTransaction,
-      cancelTransaction,
-      recordWithdrawal,
-      processWithdrawal,
-      triggerReferralPulse,
-      verifyUser,
-      processGiftTransaction,
-      unlockPost,
-      subscribeToCreator,
-      cancelSubscription,
-      isPostLiked,
-      isPostUnliked,
-      isPostSaved,
-      isPostUnlocked,
-      isFollowing,
-      isSubscribed,
-      triggerHaptic,
-      createCluster,
-      addMemberToCluster,
-      leaveCluster,
-      initiateCall,
-      receiveCall,
-      acceptCall,
-      endCall
+      currentUser: finalCurrentUser, posts, stories, highlights, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, callState, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, initiateCall, receiveCall, acceptCall, endCall
     }}>
       {children}
     </PostContext.Provider>

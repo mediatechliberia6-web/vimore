@@ -33,7 +33,11 @@ import {
   Flag,
   Ban,
   MessageCircle,
-  Clock
+  Clock,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  ImageIcon,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -59,8 +63,10 @@ import {
 } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
 
 type AdminTab = "pulse" | "economy" | "identity" | "safety";
+type EconomySubTab = "outbound" | "inbound";
 
 const MOCK_DAILY_PULSE = [
   { time: "00:00", active: 1200, load: 15 },
@@ -84,15 +90,22 @@ const MOCK_REPORTS = [
 ];
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, processWithdrawal, triggerHaptic, posts } = usePosts();
+  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts } = usePosts();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<AdminTab>("pulse");
+  const [economySubTab, setEconomySubTab] = useState<EconomySubTab>("outbound");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
 
   const pendingWithdrawals = useMemo(() => 
     withdrawalHistory.filter(w => w.status === 'PENDING'), 
     [withdrawalHistory]
+  );
+
+  const pendingPayments = useMemo(() => 
+    paymentRequests.filter(p => p.status === 'PENDING'), 
+    [paymentRequests]
   );
 
   const stats = useMemo(() => ({
@@ -102,12 +115,16 @@ export default function AdminDashboard() {
     activeClusters: 142
   }), [posts]);
 
-  const handleAction = (id: string, status: 'APPROVED' | 'REJECTED', type: 'withdrawal' | 'verification' | 'report') => {
+  const handleAction = (id: string, status: 'APPROVED' | 'REJECTED', type: 'withdrawal' | 'payment' | 'verification' | 'report') => {
     triggerHaptic(status === 'APPROVED' ? 50 : 100);
     
     if (type === 'withdrawal') {
       processWithdrawal(id, status);
       toast({ title: status === 'APPROVED' ? "Node Materialized" : "Handshake Denied", description: `Transaction ${id} processed.` });
+    } else if (type === 'payment') {
+      if (status === 'APPROVED') approvePaymentRequest(id);
+      else rejectPaymentRequest(id);
+      toast({ title: status === 'APPROVED' ? "Pulse Authorized" : "Handshake Purged", description: `Payment request ${id} ${status.toLowerCase()}.` });
     } else if (type === 'verification') {
       toast({ title: "Identity Updated", description: `Verification pulse ${status.toLowerCase()} for request ${id}.` });
     } else {
@@ -123,7 +140,7 @@ export default function AdminDashboard() {
         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-indigo-500/5 blur-[120px] rounded-full animate-pulse delay-700" />
       </div>
 
-      {/* Admin Sidebar - Hidden on mobile, Flex on desktop */}
+      {/* Admin Sidebar */}
       <aside className={cn(
         "h-screen bg-black/40 backdrop-blur-3xl border-r border-white/5 transition-all duration-500 hidden md:flex flex-col shrink-0 z-[100]",
         isSidebarOpen ? "w-72" : "w-20"
@@ -280,113 +297,205 @@ export default function AdminDashboard() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between px-2 gap-6">
                 <div className="space-y-1">
                   <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Economy Auditor</h3>
-                  <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Authorizing Global Financial Handshakes</p>
+                  <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Global Revenue & Disbursement Control</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="relative group flex-1 sm:flex-none">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                    <Input 
-                      placeholder="Query..." 
-                      className="h-11 w-full sm:w-64 bg-white/5 border-white/10 rounded-xl pl-10 text-xs font-bold"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                  <div className="bg-white/5 p-1 rounded-xl flex items-center gap-1">
+                    <button 
+                      onClick={() => setEconomySubTab("outbound")}
+                      className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", economySubTab === 'outbound' ? "bg-primary text-white" : "text-muted-foreground")}
+                    >
+                      Outbound
+                    </button>
+                    <button 
+                      onClick={() => setEconomySubTab("inbound")}
+                      className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", economySubTab === 'inbound' ? "bg-primary text-white" : "text-muted-foreground")}
+                    >
+                      Inbound
+                    </button>
                   </div>
-                  <Badge className="bg-amber-500 text-white font-black h-11 px-4 sm:px-6 rounded-xl uppercase tracking-widest shrink-0">
-                    {pendingWithdrawals.length} PENDING
-                  </Badge>
                 </div>
               </div>
 
-              <Card className="bg-white/5 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left min-w-[800px]">
-                    <thead>
-                      <tr className="border-b border-white/5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-black/20">
-                        <th className="px-8 py-6">ID / NODE</th>
-                        <th className="px-8 py-6">IDENTITY</th>
-                        <th className="px-8 py-6">METHOD</th>
-                        <th className="px-8 py-6">AMOUNT (CONVERTED)</th>
-                        <th className="px-8 py-6">AI RISK</th>
-                        <th className="px-8 py-6 text-right">HANDSHAKE</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {pendingWithdrawals.length > 0 ? pendingWithdrawals.map((node) => {
-                        const risk = Math.floor(Math.random() * 30);
-                        return (
-                          <tr key={node.id} className="group hover:bg-white/[0.02] transition-colors">
-                            <td className="px-8 py-6">
-                              <div className="flex flex-col">
-                                <span className="text-sm font-black text-white font-mono">{node.id}</span>
-                                <span className="text-[9px] font-bold text-muted-foreground uppercase mt-1">{new Date(node.timestamp).toLocaleString()}</span>
-                              </div>
-                            </td>
-                            <td className="px-8 py-6">
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-10 w-10 border border-white/10">
-                                  <AvatarImage src={`https://picsum.photos/seed/${node.accountName}/100/100`} />
-                                </Avatar>
+              {economySubTab === 'outbound' ? (
+                <Card className="bg-white/5 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left min-w-[800px]">
+                      <thead>
+                        <tr className="border-b border-white/5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-black/20">
+                          <th className="px-8 py-6">ID / NODE</th>
+                          <th className="px-8 py-6">IDENTITY</th>
+                          <th className="px-8 py-6">METHOD</th>
+                          <th className="px-8 py-6">AMOUNT (CONVERTED)</th>
+                          <th className="px-8 py-6">AI RISK</th>
+                          <th className="px-8 py-6 text-right">HANDSHAKE</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {pendingWithdrawals.length > 0 ? pendingWithdrawals.map((node) => {
+                          const risk = Math.floor(Math.random() * 30);
+                          return (
+                            <tr key={node.id} className="group hover:bg-white/[0.02] transition-colors">
+                              <td className="px-8 py-6">
                                 <div className="flex flex-col">
-                                  <span className="text-sm font-bold text-white">{node.accountName}</span>
-                                  <span className="text-[9px] font-black text-primary uppercase">@{node.username || 'unknown_node'}</span>
+                                  <span className="text-sm font-black text-white font-mono">{node.id}</span>
+                                  <span className="text-[9px] font-bold text-muted-foreground uppercase mt-1">{new Date(node.timestamp).toLocaleString()}</span>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="px-8 py-6">
-                              <Badge className={cn(
-                                "text-[9px] font-black uppercase px-3 h-6 border-none",
-                                node.method === 'ORANGE' ? "bg-orange-500/20 text-orange-500" : "bg-yellow-500/20 text-yellow-500"
-                              )}>
-                                {node.method} Node
-                              </Badge>
-                            </td>
-                            <td className="px-8 py-6">
-                              <div className="flex flex-col">
-                                <span className="text-sm font-black text-white">{node.payoutCurrency} {node.payoutAmount.toFixed(2)}</span>
-                                <span className="text-[9px] font-bold text-muted-foreground uppercase">From {node.amount} {node.currency}</span>
-                              </div>
-                            </td>
-                            <td className="px-8 py-6">
-                              <div className="flex items-center gap-3">
-                                <div className="flex-1 h-1.5 w-24 bg-white/5 rounded-full overflow-hidden">
-                                  <div className="h-full bg-green-500" style={{ width: `${100 - risk}%` }} />
+                              </td>
+                              <td className="px-8 py-6">
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-10 w-10 border border-white/10">
+                                    <AvatarImage src={`https://picsum.photos/seed/${node.accountName}/100/100`} />
+                                  </Avatar>
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-bold text-white">{node.accountName}</span>
+                                    <span className="text-[9px] font-black text-primary uppercase">@{node.username || 'unknown_node'}</span>
+                                  </div>
                                 </div>
-                                <span className="text-[10px] font-black text-green-500">TRUSTED</span>
-                              </div>
-                            </td>
-                            <td className="px-8 py-6">
-                              <div className="flex items-center justify-end gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button 
-                                  variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white"
-                                  onClick={() => handleAction(node.id, 'APPROVED', 'withdrawal')}
-                                >
-                                  <CheckCircle2 className="h-5 w-5" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white"
-                                  onClick={() => handleAction(node.id, 'REJECTED', 'withdrawal')}
-                                >
-                                  <XCircle className="h-5 w-5" />
-                                </Button>
+                              </td>
+                              <td className="px-8 py-6">
+                                <Badge className={cn(
+                                  "text-[9px] font-black uppercase px-3 h-6 border-none",
+                                  node.method === 'ORANGE' ? "bg-orange-500/20 text-orange-500" : "bg-yellow-500/20 text-yellow-500"
+                                )}>
+                                  {node.method} Node
+                                </Badge>
+                              </td>
+                              <td className="px-8 py-6">
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-black text-white">{node.payoutCurrency} {node.payoutAmount.toFixed(2)}</span>
+                                  <span className="text-[9px] font-bold text-muted-foreground uppercase">From {node.amount} {node.currency}</span>
+                                </div>
+                              </td>
+                              <td className="px-8 py-6">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex-1 h-1.5 w-24 bg-white/5 rounded-full overflow-hidden">
+                                    <div className="h-full bg-green-500" style={{ width: `${100 - risk}%` }} />
+                                  </div>
+                                  <span className="text-[10px] font-black text-green-500">TRUSTED</span>
+                                </div>
+                              </td>
+                              <td className="px-8 py-6">
+                                <div className="flex items-center justify-end gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button 
+                                    variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white"
+                                    onClick={() => handleAction(node.id, 'APPROVED', 'withdrawal')}
+                                  >
+                                    <CheckCircle2 className="h-5 w-5" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white"
+                                    onClick={() => handleAction(node.id, 'REJECTED', 'withdrawal')}
+                                  >
+                                    <XCircle className="h-5 w-5" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }) : (
+                          <tr>
+                            <td colSpan={6} className="px-8 py-32 text-center">
+                              <div className="flex flex-col items-center gap-4 opacity-20">
+                                <CircleDashed className="h-12 w-12 animate-spin" />
+                                <p className="text-sm font-black uppercase tracking-[0.2em]">Queue Silent — No Pending Withdrawals</p>
                               </div>
                             </td>
                           </tr>
-                        );
-                      }) : (
-                        <tr>
-                          <td colSpan={6} className="px-8 py-32 text-center">
-                            <div className="flex flex-col items-center gap-4 opacity-20">
-                              <CircleDashed className="h-12 w-12 animate-spin" />
-                              <p className="text-sm font-black uppercase tracking-[0.2em]">Queue Silent — No Pending Handshakes</p>
-                            </div>
-                          </td>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              ) : (
+                <Card className="bg-white/5 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left min-w-[800px]">
+                      <thead>
+                        <tr className="border-b border-white/5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-black/20">
+                          <th className="px-8 py-6">ID / PULSE</th>
+                          <th className="px-8 py-6">SENDER</th>
+                          <th className="px-8 py-6">PACKAGE / CODE</th>
+                          <th className="px-8 py-6">RECEIPT</th>
+                          <th className="px-8 py-6">AI OCR</th>
+                          <th className="px-8 py-6 text-right">AUTHORIZE</th>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {pendingPayments.length > 0 ? pendingPayments.map((req) => {
+                          return (
+                            <tr key={req.id} className="group hover:bg-white/[0.02] transition-colors">
+                              <td className="px-8 py-6">
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-black text-white font-mono">{req.id}</span>
+                                  <span className="text-[9px] font-bold text-muted-foreground uppercase mt-1">{new Date(req.timestamp).toLocaleString()}</span>
+                                </div>
+                              </td>
+                              <td className="px-8 py-6">
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-10 w-10 border border-white/10">
+                                    <AvatarImage src={`https://picsum.photos/seed/${req.username}/100/100`} />
+                                  </Avatar>
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-bold text-white">{req.name}</span>
+                                    <span className="text-[9px] font-black text-primary uppercase">@{req.username}</span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-8 py-6">
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-black text-white">{req.packageName}</span>
+                                  <span className="text-[10px] font-black text-primary tracking-widest">{req.code}</span>
+                                </div>
+                              </td>
+                              <td className="px-8 py-6">
+                                <Button 
+                                  variant="ghost" 
+                                  className="bg-white/5 border border-white/10 rounded-xl h-10 px-4 gap-2 text-[10px] font-black uppercase"
+                                  onClick={() => setSelectedReceipt(req.screenshot)}
+                                >
+                                  <ImageIcon className="h-4 w-4" /> View Receipt
+                                </Button>
+                              </td>
+                              <td className="px-8 py-6">
+                                <div className="flex items-center gap-2">
+                                  <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                                  <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">CODE MATCH: 98%</span>
+                                </div>
+                              </td>
+                              <td className="px-8 py-6">
+                                <div className="flex items-center justify-end gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button 
+                                    variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white"
+                                    onClick={() => handleAction(req.id, 'APPROVED', 'payment')}
+                                  >
+                                    <CheckCircle2 className="h-5 w-5" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white"
+                                    onClick={() => handleAction(req.id, 'REJECTED', 'payment')}
+                                  >
+                                    <XCircle className="h-5 w-5" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }) : (
+                          <tr>
+                            <td colSpan={6} className="px-8 py-32 text-center">
+                              <div className="flex flex-col items-center gap-4 opacity-20">
+                                <CircleDashed className="h-12 w-12 animate-spin" />
+                                <p className="text-sm font-black uppercase tracking-[0.2em]">Queue Silent — No Inbound Payments</p>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              )}
             </div>
           )}
 
@@ -531,7 +640,7 @@ export default function AdminDashboard() {
         </div>
       </main>
 
-      {/* Mobile Admin Navigation - Primary for small screens */}
+      {/* Mobile Admin Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[200] px-4 pb-6 flex justify-center pointer-events-none">
         <nav className="flex items-center gap-2 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-2.5 shadow-2xl pointer-events-auto">
           {(["pulse", "economy", "identity", "safety"] as AdminTab[]).map((tab) => {
@@ -554,6 +663,23 @@ export default function AdminDashboard() {
           })}
         </nav>
       </div>
+
+      {/* Receipt Lightbox */}
+      {selectedReceipt && (
+        <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-6 animate-in fade-in duration-300">
+          <Button 
+            variant="ghost" size="icon" 
+            className="absolute top-6 right-6 text-white bg-white/10 rounded-full" 
+            onClick={() => setSelectedReceipt(null)}
+          >
+            <X className="h-6 w-6" />
+          </Button>
+          <div className="relative w-full max-w-2xl aspect-[3/4] sm:aspect-video rounded-[2rem] overflow-hidden shadow-2xl border border-white/10">
+            <Image src={selectedReceipt} alt="Receipt Proof" fill className="object-contain" />
+          </div>
+          <p className="mt-6 text-[10px] font-black text-white/40 uppercase tracking-[0.4em]">Audit Trail Inspector</p>
+        </div>
+      )}
     </div>
   );
 }

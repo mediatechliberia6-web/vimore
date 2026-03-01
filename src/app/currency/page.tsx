@@ -50,7 +50,7 @@ const DIAMOND_PACKAGES = [
 ];
 
 export default function CurrencyHub() {
-  const { currentUser, initiateTransaction, pendingTransaction, cancelTransaction, triggerHaptic } = usePosts();
+  const { currentUser, initiateTransaction, pendingTransaction, cancelTransaction, triggerHaptic, createPaymentRequest } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
   const { toast } = useToast();
@@ -116,10 +116,14 @@ export default function CurrencyHub() {
   };
 
   const handleSubmitForReview = () => {
+    if (!uploadedScreenshot) return;
     setIsUploading(true);
     triggerHaptic(50);
     
     setTimeout(() => {
+      // Logic: Materialize Payment Node in Review Cluster
+      createPaymentRequest(uploadedScreenshot);
+      
       setIsUploading(false);
       
       // Global Notification Sync
