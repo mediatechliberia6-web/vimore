@@ -18,9 +18,11 @@ import client, {
   WITHDRAWALS_COLLECTION_ID,
   PAYMENTS_COLLECTION_ID,
   AUDIT_LOGS_COLLECTION_ID,
-  STORIES_COLLECTION_ID
+  STORIES_COLLECTION_ID,
+  CALLS_COLLECTION_ID
 } from '@/lib/appwrite';
 import { Query } from 'appwrite';
+import { generateAgoraToken } from '@/app/actions/call';
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
@@ -162,7 +164,10 @@ export interface CallState {
   type: CallType;
   status: CallStatus;
   contact: any | null;
+  channelName?: string;
+  token?: string;
   startTime?: number;
+  callId?: string;
 }
 
 interface PostContextType {
@@ -261,10 +266,10 @@ interface PostContextType {
   toggleCampaignStatus: (id: string) => void;
   recordCampaignClick: (id: string) => void;
   boostNode: (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR') => void;
-  initiateCall: (contact: any, type: CallType) => void;
-  receiveCall: (contact: any, type: CallType) => void;
-  acceptCall: () => void;
-  endCall: () => void;
+  initiateCall: (contact: any, type: CallType) => Promise<void>;
+  receiveCall: (contact: any, type: CallType, channelName: string, token: string, callId: string) => void;
+  acceptCall: () => Promise<void>;
+  endCall: () => Promise<void>;
   refreshAdminData: () => Promise<void>;
 }
 
@@ -530,6 +535,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
 
       await Promise.all([refreshFeed(), refreshStories(), refreshSocialGraph(), refreshClusters(), refreshEconomy(user.$id)]);
+      
+      // Signaling Pulse: Listen for incoming calls
+      client.subscribe(`databases.${APPWRITE_DATABASE_ID}.collections.${CALLS_COLLECTION_ID}.documents`, response => {
+        const payload = response.payload as any;
+        if (payload.calleeId === user.$id && payload.status === 'ringing') {
+          receiveCall(payload.caller, payload.type, payload.channelName, payload.token, payload.$id);
+        } else if (payload.status === 'ended' && payload.$id === callState.callId) {
+          endCall();
+        }
+      });
+
       if (profile.role && profile.role !== 'USER') await refreshAdminData();
     } catch (error) {
       console.log("No active signature node.");
@@ -869,6 +885,55 @@ export function PostProvider({ children }: { children: ReactNode }) {
     addAuditLog("NODE_BOOSTED", `Node ${nodeId} amplified for ${durationDays} days (@${currentUser.username})`);
   };
 
+  const initiateCall = async (contact: any, type: CallType) => {
+    if (!currentUser.id) return;
+    const channelName = `vimore_${currentUser.id}_${contact.id}`;
+    
+    try {
+      const token = await generateAgoraToken(channelName, currentUser.id);
+      const callDoc = await databases.createDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, ID.unique(), {
+        caller: currentUser,
+        callerId: currentUser.id,
+        calleeId: contact.id,
+        channelName,
+        token,
+        type,
+        status: 'ringing'
+      });
+
+      setCallState({ type, status: 'outgoing', contact, channelName, token, callId: callDoc.$id });
+    } catch (e) {
+      console.error("Call initiation pulse failed:", e);
+    }
+  };
+
+  const receiveCall = (contact: any, type: CallType, channelName: string, token: string, callId: string) => {
+    setCallState({ type, status: 'incoming', contact, channelName, token, callId });
+  };
+
+  const acceptCall = async () => {
+    if (!callState.callId) return;
+    try {
+      await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, callState.callId, {
+        status: 'active'
+      });
+      setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() }));
+    } catch (e) {
+      console.error("Call acceptance failed:", e);
+    }
+  };
+
+  const endCall = async () => {
+    if (callState.callId) {
+      try {
+        await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, callState.callId, {
+          status: 'ended'
+        });
+      } catch (e) {}
+    }
+    setCallState({ type: 'audio', status: 'idle', contact: null });
+  };
+
   const updateCurrentUser = (data: Partial<User>) => setCurrentUser(prev => ({ ...prev, ...data }));
   const updateSettings = (data: Partial<AppSettings>) => setSettings(prev => ({ ...prev, ...data }));
   
@@ -880,7 +945,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const contextValue = useMemo(() => ({ 
     currentUser, posts, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, settings, gatewaySettings: {}, callState, stories, campaigns: [], mutedUserNames: [], connections, clusters, auditLogs, disputes: [], staff, adStats: { revenue: 0, handshakes: 0 }, intelligenceMetrics: { sentimentScore: 75, sentimentVibe: 'POSITIVE', sentimentSummary: "System optimal.", botRisk: 5, latency: 45 }, withdrawalHistory, paymentRequests, referralLink: "", pendingTransaction,
-    login, signup, uploadMedia, setSearchOpen: (open: boolean) => { triggerHaptic(5); setIsSearchOpen(open); }, setSelectedChatId: (id: string | null) => setSelectedChatId(id), setSelectedPostId: (id: string | null) => setSelectedPostId(id), setSelectedImageUrl: (url: string | null) => setSelectedImageUrl(url), openCommentHub: (id: string) => { triggerHaptic(5); setActiveCommentPostId(id); }, closeCommentHub: () => { triggerHaptic(5); setActiveCommentPostId(null); }, openGiftHub: (u: User) => { setTargetUserForGift(u); setIsGiftHubOpen(true); }, closeGiftHub: () => { setTargetUserForGift(null); setIsGiftHubOpen(false); }, setActiveStoryIndex: (idx: number | null) => setActiveStoryIndex(idx), addPost, deletePost, addStory, addComment, addReply: () => {}, incrementShareCount: () => {}, voteOnStoryPoll, toggleMuteUser: () => {}, togglePinPost: () => {}, archivePost: () => {}, updateCurrentUser, updateSettings, updateGatewaySettings: () => {}, addAuditLog, toggleLikePost, toggleUnlikePost: () => {}, toggleSavePost: () => {}, toggleFollowUser, initiateTransaction: (d: any) => setPendingTransaction(d), cancelTransaction: () => setPendingTransaction(null), createPaymentRequest: (s: string) => Promise.resolve(), approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse: () => {}, verifyUser, processGiftTransaction, unlockPost: (id: string) => setUnlockedPostIds(prev => new Set(prev).add(id)), subscribeToCreator: () => {}, cancelSubscription: (u: string) => {}, recordAdMaterialization: () => {}, recordAdHandshake: () => {}, updateIntelligence: (data: any) => {}, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed: () => false, triggerHaptic, createCluster: (n: string, m: any[]) => Promise.resolve(), addMemberToCluster: (c: string, m: any) => Promise.resolve(), leaveCluster: (c: string) => Promise.resolve(), resolveDispute: () => {}, addCampaign: () => {}, deleteCampaign: () => {}, toggleCampaignStatus: () => {}, recordCampaignClick: () => {}, boostNode, promoteUser, demoteUser, initiateCall: () => {}, receiveCall: () => {}, acceptCall: () => {}, endCall: () => {}, refreshAdminData
+    login, signup, uploadMedia, setSearchOpen: (open: boolean) => { triggerHaptic(5); setIsSearchOpen(open); }, setSelectedChatId: (id: string | null) => setSelectedChatId(id), setSelectedPostId: (id: string | null) => setSelectedPostId(id), setSelectedImageUrl: (url: string | null) => setSelectedImageUrl(url), openCommentHub: (id: string) => { triggerHaptic(5); setActiveCommentPostId(id); }, closeCommentHub: () => { triggerHaptic(5); setActiveCommentPostId(null); }, openGiftHub: (u: User) => { setTargetUserForGift(u); setIsGiftHubOpen(true); }, closeGiftHub: () => { setTargetUserForGift(null); setIsGiftHubOpen(false); }, setActiveStoryIndex: (idx: number | null) => setActiveStoryIndex(idx), addPost, deletePost, addStory, addComment, addReply: () => {}, incrementShareCount: () => {}, voteOnStoryPoll, toggleMuteUser: () => {}, togglePinPost: () => {}, archivePost: () => {}, updateCurrentUser, updateSettings, updateGatewaySettings: () => {}, addAuditLog, toggleLikePost, toggleUnlikePost: () => {}, toggleSavePost: () => {}, toggleFollowUser, initiateTransaction: (d: any) => setPendingTransaction(d), cancelTransaction: () => setPendingTransaction(null), createPaymentRequest: (s: string) => Promise.resolve(), approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse: () => {}, verifyUser, processGiftTransaction, unlockPost: (id: string) => setUnlockedPostIds(prev => new Set(prev).add(id)), subscribeToCreator: () => {}, cancelSubscription: (u: string) => {}, recordAdMaterialization: () => {}, recordAdHandshake: () => {}, updateIntelligence: (data: any) => {}, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed: () => false, triggerHaptic, createCluster: (n: string, m: any[]) => Promise.resolve(), addMemberToCluster: (c: string, m: any) => Promise.resolve(), leaveCluster: (c: string) => Promise.resolve(), resolveDispute: () => {}, addCampaign: () => {}, deleteCampaign: () => {}, toggleCampaignStatus: () => {}, recordCampaignClick: () => {}, boostNode, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall, refreshAdminData
   }), [currentUser, posts, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, settings, callState, stories, auditLogs, withdrawalHistory, paymentRequests, pendingTransaction, triggerHaptic, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, promoteUser, demoteUser, verifyUser, processGiftTransaction, boostNode, refreshAdminData]);
 
   return (
