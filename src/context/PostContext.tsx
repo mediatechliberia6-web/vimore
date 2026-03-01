@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
 
 export interface AppSettings {
+  theme: 'light' | 'dark' | 'system';
   hapticIntensity: number;
   isGhostMode: boolean;
   playbackQuality: 'standard' | 'pro-hd';
@@ -409,6 +410,7 @@ const INITIAL_USER: User = {
 };
 
 const INITIAL_SETTINGS: AppSettings = {
+  theme: 'system',
   hapticIntensity: 50,
   isGhostMode: false,
   playbackQuality: 'standard',
@@ -776,6 +778,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Update root class for Dark/Light mode support
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const root = document.documentElement;
+      const isDark = settings.theme === 'dark' || (settings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (isDark) root.classList.add('dark');
+      else root.classList.remove('dark');
+    }
+  }, [settings.theme]);
+
   useEffect(() => { safePersist('vimore_liked_posts', Array.from(likedPostIds)); }, [likedPostIds]);
   useEffect(() => { safePersist('vimore_unliked_posts', Array.from(unlikedPostIds)); }, [unlikedPostIds]);
   useEffect(() => { safePersist('vimore_saved_posts', Array.from(savedPostIds)); }, [savedPostIds]);
@@ -812,7 +824,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setFollowingUsernames(prev => {
       const next = new Set(prev);
       if (next.has(username)) next.delete(username);
-      else next.add(username);
+      else {
+        next.add(username);
+      }
       return next;
     });
   };

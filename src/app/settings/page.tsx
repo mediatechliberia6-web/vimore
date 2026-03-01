@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -46,7 +45,8 @@ import {
   CheckCircle2,
   Gem,
   X,
-  ShieldAlert
+  ShieldAlert,
+  KeyRound
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -173,6 +173,114 @@ export default function SettingsPage() {
 
       <main className={cn("max-w-2xl mx-auto p-4 sm:p-8 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32", isPlayerActive ? "pt-[80px]" : "pt-4")}>
         
+        {/* PHASE 1: AESTHETICS & ENVIRONMENT */}
+        <section className="space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Appearance Node</h3>
+          <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="font-bold text-sm">Universal Theme</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Flip the platform environment</p>
+              </div>
+              <div className="flex bg-secondary/40 p-1 rounded-xl">
+                {[
+                  { id: 'light', icon: Sun, label: 'Ivory' },
+                  { id: 'dark', icon: Moon, label: 'Space' },
+                  { id: 'system', icon: Monitor, label: 'Sync' }
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => handleUpdate({ theme: t.id })}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                      settings.theme === t.id ? "bg-white dark:bg-zinc-800 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <t.icon className="h-3 w-3" /> {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Type className="h-4 w-4 text-primary" />
+                    <p className="font-bold text-sm">Font Scale Engine</p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-black">Calibrate global text size</p>
+                </div>
+                <Badge className="bg-primary/5 text-primary border-primary/10 text-[10px] font-black">{Math.round(settings.fontScale * 100)}%</Badge>
+              </div>
+              <Slider 
+                value={[settings.fontScale]} 
+                min={0.8} 
+                max={1.4} 
+                step={0.05} 
+                onValueChange={(val) => handleUpdate({ fontScale: val[0] })}
+              />
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-amber-500" />
+                    <p className="font-bold text-sm">Haptic Calibration</p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-black">Vibration handshake intensity</p>
+                </div>
+                <Badge className="bg-amber-500/5 text-amber-500 border-amber-500/10 text-[10px] font-black">{settings.hapticIntensity}%</Badge>
+              </div>
+              <Slider 
+                value={[settings.hapticIntensity]} 
+                min={0} 
+                max={100} 
+                step={5} 
+                onValueChange={(val) => handleUpdate({ hapticIntensity: val[0] })}
+                className="[&_[role=slider]]:bg-amber-500"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* PHASE 3: SECURITY & PASSWORD (INTEGRATED) */}
+        <section className="space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Security Handshake</h3>
+          <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-6">
+            <button className="w-full flex items-center justify-between p-4 bg-secondary/20 rounded-2xl hover:bg-secondary/40 transition-all group">
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
+                  <KeyRound className="h-5 w-5" />
+                </div>
+                <div className="text-left">
+                  <p className="font-bold text-sm">Change Network Password</p>
+                  <p className="text-[9px] text-muted-foreground uppercase font-black">Rotate your security node credentials</p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground opacity-40" />
+            </button>
+
+            <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-2xl">
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500">
+                  <Fingerprint className="h-5 w-5" />
+                </div>
+                <div className="text-left">
+                  <p className="font-bold text-sm">Biometric Vault</p>
+                  <p className="text-[9px] text-muted-foreground uppercase font-black">Fingerprint lock for hubs</p>
+                </div>
+              </div>
+              <Switch checked={settings.isBiometricActive} onCheckedChange={(val) => handleUpdate({ isBiometricActive: val })} />
+            </div>
+          </div>
+        </section>
+
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Subscription Vault</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-6">
@@ -211,9 +319,6 @@ export default function SettingsPage() {
                 <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40">No premium nodes linked</p>
               </div>
             )}
-            <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-tight leading-relaxed">
-              * Payments are synced on the 1st of every month. Insufficient premium energy (Diamonds) will result in node stasis.
-            </p>
           </div>
         </section>
 
