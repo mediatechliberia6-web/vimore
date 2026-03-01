@@ -14,23 +14,30 @@ import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 
 export default function Home() {
-  const { posts } = usePosts();
+  const { posts, campaigns } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const isPlayerActive = currentTrack && !isExpanded;
 
-  // Ad & Discovery Injection Logic: 
-  // 3rd position: First Ad
-  // 4th position: Suggested Follows
-  // Then every 5 organic posts thereafter: sequence Ads
+  // Injection Logic: 
+  // 2nd organic post: Official Campaign (if any)
+  // 3rd organic post: First Ad
+  // 4th organic post: Suggested Follows
+  // Every 5 posts thereafter: Ad
   const feedItems = useMemo(() => {
     const result: (any)[] = [];
     let organicCount = 0;
+    const activeCampaigns = campaigns.filter(c => c.isActive);
 
     posts.forEach((post, index) => {
       result.push({ type: 'post', data: post });
       organicCount++;
 
-      // Injections
+      // Campaign Injection
+      if (organicCount === 1 && activeCampaigns.length > 0) {
+        result.push({ type: 'campaign', data: activeCampaigns[0] });
+      }
+
+      // Ad & Suggestion Injections
       if (organicCount === 2) {
         result.push({ type: 'ad', id: `ad-init-${index}` });
       } else if (organicCount === 3) {
@@ -41,7 +48,7 @@ export default function Home() {
     });
 
     return result;
-  }, [posts]);
+  }, [posts, campaigns]);
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#080808] flex flex-col items-center transition-colors duration-300">
@@ -71,6 +78,30 @@ export default function Home() {
               }
               if (item.type === 'suggestions') {
                 return <SuggestedFollows key={item.id} />;
+              }
+              if (item.type === 'campaign') {
+                return (
+                  <PostCard 
+                    key={item.data.id}
+                    id={item.data.id}
+                    isCampaign={true}
+                    user={{
+                      name: "ViMore Official",
+                      username: "vimore",
+                      avatar: "/icon.svg",
+                      isVerified: true
+                    }}
+                    content={item.data.content}
+                    image={item.data.type === 'photo' ? item.data.mediaUrl : undefined}
+                    videoUrl={item.data.type === 'video' ? item.data.mediaUrl : undefined}
+                    actionUrl={item.data.actionUrl}
+                    actionLabel={item.data.actionLabel}
+                    likes={1420}
+                    unlikes={0}
+                    comments={0}
+                    time="Now"
+                  />
+                );
               }
               return <PostCard key={item.data.id} {...item.data} />;
             })}

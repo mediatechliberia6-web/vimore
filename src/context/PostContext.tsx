@@ -44,6 +44,18 @@ export interface DisputeNode {
   originalTxId: string;
 }
 
+export interface Campaign {
+  id: string;
+  type: 'photo' | 'video' | 'link';
+  content: string;
+  mediaUrl?: string;
+  actionUrl: string;
+  actionLabel: string;
+  isActive: boolean;
+  clicks: number;
+  timestamp: number;
+}
+
 export interface GatewaySettings {
   orangeName: string;
   orangeNumber: string;
@@ -143,7 +155,7 @@ export interface Cluster {
   adminUsername: string;
   members: Connection[];
   lastMessage?: string;
-  lastTime?: string;
+  lastMessageTime?: string;
   isGroup: true;
   lastInteraction?: number;
 }
@@ -232,6 +244,9 @@ export interface Post {
   };
   commentNodes?: PostComment[];
   sharedPost?: any;
+  isCampaign?: boolean;
+  actionUrl?: string;
+  actionLabel?: string;
 }
 
 export type CallType = 'video' | 'audio';
@@ -263,6 +278,7 @@ interface PostContextType {
   posts: Post[];
   stories: Story[];
   highlights: Highlight[];
+  campaigns: Campaign[];
   mutedUserNames: string[];
   likedPostIds: Set<string>;
   unlikedPostIds: Set<string>;
@@ -346,6 +362,12 @@ interface PostContextType {
   leaveCluster: (clusterId: string) => void;
   resolveDispute: (id: string, action: 'RESTORE' | 'SEVER') => void;
   
+  // Campaigns
+  addCampaign: (campaign: Omit<Campaign, 'id' | 'timestamp' | 'clicks'>) => void;
+  deleteCampaign: (id: string) => void;
+  toggleCampaignStatus: (id: string) => void;
+  recordCampaignClick: (id: string) => void;
+
   // Call Handshakes
   initiateCall: (contact: Connection, type: CallType) => void;
   receiveCall: (contact: Connection, type: CallType) => void;
@@ -616,6 +638,20 @@ const initialMockPosts: Post[] = [
   }
 ];
 
+const INITIAL_CAMPAIGNS: Campaign[] = [
+  {
+    id: "camp-init",
+    type: "photo",
+    content: "Materialize your verified signature today and join the elite creator loop. 🚀",
+    mediaUrl: "https://picsum.photos/seed/verify_campaign/800/400",
+    actionUrl: "/verification",
+    actionLabel: "GET VERIFIED",
+    isActive: true,
+    clicks: 142,
+    timestamp: Date.now()
+  }
+];
+
 export function PostProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User>(INITIAL_USER);
   const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
@@ -623,6 +659,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [posts, setPosts] = useState<Post[]>(initialMockPosts);
   const [stories, setStories] = useState<Story[]>(initialMockStories);
   const [highlights] = useState<Highlight[]>(initialHighlights);
+  const [campaigns, setCampaigns] = useState<Campaign[]>(INITIAL_CAMPAIGNS);
   const [mutedUserNames, setMutedUserNames] = useState<string[]>([]);
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
   const [unlikedPostIds, setUnlikedPostIds] = useState<Set<string>>(new Set());
@@ -712,6 +749,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const savedLogs = localStorage.getItem('vimore_audit_logs');
     const savedDisputes = localStorage.getItem('vimore_disputes');
     const savedAdStats = localStorage.getItem('vimore_ad_stats');
+    const savedCampaigns = localStorage.getItem('vimore_campaigns');
 
     if (savedUser) try { setCurrentUser(JSON.parse(savedUser)); } catch (e) {}
     if (savedSettings) try { setSettings({ ...INITIAL_SETTINGS, ...JSON.parse(savedSettings) }); } catch (e) {}
@@ -729,6 +767,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (savedLogs) setAuditLogs(JSON.parse(savedLogs));
     if (savedDisputes) setDisputes(JSON.parse(savedDisputes));
     if (savedAdStats) try { setAdStats(JSON.parse(savedAdStats)); } catch (e) {}
+    if (savedCampaigns) try { setCampaigns(JSON.parse(savedCampaigns)); } catch (e) {}
     
     if (savedLocalPosts) {
       try {
@@ -751,6 +790,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => { safePersist('vimore_audit_logs', auditLogs); }, [auditLogs]);
   useEffect(() => { safePersist('vimore_disputes', disputes); }, [disputes]);
   useEffect(() => { safePersist('vimore_ad_stats', adStats); }, [adStats]);
+  useEffect(() => { safePersist('vimore_campaigns', campaigns); }, [campaigns]);
 
   const recordAdMaterialization = useCallback(() => {
     setAdStats(prev => ({ ...prev, materializations: prev.materializations + 1 }));
@@ -1161,6 +1201,33 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const addCampaign = (data: Omit<Campaign, 'id' | 'timestamp' | 'clicks'>) => {
+    triggerHaptic(50);
+    const newCamp: Campaign = {
+      ...data,
+      id: `camp-${Date.now()}`,
+      timestamp: Date.now(),
+      clicks: 0
+    };
+    setCampaigns(prev => [newCamp, ...prev]);
+    addAuditLog("CAMPAIGN_MATERIALIZED", `Launched ${data.type} campaign: ${data.content.slice(0, 30)}...`);
+  };
+
+  const deleteCampaign = (id: string) => {
+    triggerHaptic(20);
+    setCampaigns(prev => prev.filter(c => c.id !== id));
+    addAuditLog("CAMPAIGN_PURGED", `Removed campaign node ${id}`);
+  };
+
+  const toggleCampaignStatus = (id: string) => {
+    triggerHaptic(10);
+    setCampaigns(prev => prev.map(c => c.id === id ? { ...c, isActive: !c.isActive } : c));
+  };
+
+  const recordCampaignClick = (id: string) => {
+    setCampaigns(prev => prev.map(c => c.id === id ? { ...c, clicks: c.clicks + 1 } : c));
+  };
+
   const openCommentHub = (postId: string) => { triggerHaptic(5); setActiveCommentPostId(postId); };
   const closeCommentHub = () => { setActiveCommentPostId(null); };
   const openGiftHub = (user: User) => { if (user.username === currentUser.username || !settings.isGiftingEnabled) return; triggerHaptic(15); setTargetUserForGift(user); setIsGiftHubOpen(true); };
@@ -1192,7 +1259,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const createCluster = (name: string, members: Connection[]) => {
     triggerHaptic(50);
-    const newCluster: Cluster = { id: `cluster-${Date.now()}`, name, members, adminUsername: currentUser.username, isGroup: true, lastMessage: "Cluster materialized.", lastTime: "Just now", lastInteraction: Date.now() };
+    const newCluster: Cluster = { id: `cluster-${Date.now()}`, name, members, adminUsername: currentUser.username, isGroup: true, lastMessage: "Cluster materialized.", lastMessageTime: "Just now", lastInteraction: Date.now() };
     setClusters(prev => [newCluster, ...prev].slice(0, 20));
   };
 
@@ -1201,7 +1268,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setClusters(prev => prev.map(c => {
       if (c.id === clusterId) {
         if (c.members.some(m => m.username === member.username)) return c;
-        return { ...c, members: [...c.members, member], lastMessage: `@${member.username} joined the cluster.`, lastTime: "Just now", lastInteraction: Date.now() };
+        return { ...c, members: [...c.members, member], lastMessage: `@${member.username} joined the cluster.`, lastMessageTime: "Just now", lastInteraction: Date.now() };
       }
       return c;
     }));
@@ -1215,7 +1282,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   return (
     <PostContext.Provider value={{ 
-      currentUser, posts, stories, highlights, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, auditLogs, disputes, adStats, intelligenceMetrics, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, gatewaySettings, callState, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute, initiateCall, receiveCall, acceptCall, endCall
+      currentUser, posts, stories, highlights, campaigns, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, auditLogs, disputes, adStats, intelligenceMetrics, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, gatewaySettings, callState, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, initiateCall, receiveCall, acceptCall, endCall
     }}>
       {children}
     </PostContext.Provider>

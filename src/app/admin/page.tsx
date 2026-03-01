@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { 
   ShieldCheck, 
   Zap, 
@@ -61,7 +61,12 @@ import {
   Database,
   Hammer,
   RotateCcw,
-  Download
+  Download,
+  Megaphone,
+  Palette,
+  Video,
+  ExternalLink,
+  Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -98,7 +103,7 @@ import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { aiAnalyzeGlobalSentiment } from "@/app/actions/ai";
 
-type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "gateway" | "infrastructure" | "resolution" | "logs";
+type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "gateway" | "campaigns" | "infrastructure" | "resolution" | "logs";
 type EconomySubTab = "outbound" | "inbound";
 
 const MOCK_DAILY_PULSE = [
@@ -136,7 +141,7 @@ const MOCK_REPORTS = [
 ];
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections, disputes, resolveDispute } = usePosts();
+  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections, disputes, resolveDispute, campaigns, addCampaign, deleteCampaign, toggleCampaignStatus } = usePosts();
   const { addSignal } = useNotifications();
   const { downloadedSongIds } = useMusic();
   const { toast } = useToast();
@@ -146,6 +151,14 @@ export default function AdminDashboard() {
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
   const [isAnalyzingVibe, setIsAnalyzingVibe] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
+  // Campaign States
+  const [campType, setCampType] = useState<'photo' | 'video' | 'link'>('photo');
+  const [campContent, setCampContent] = useState("");
+  const [campMediaUrl, setCampMediaUrl] = useState("");
+  const [campActionUrl, setCampActionUrl] = useState("");
+  const [campActionLabel, setCampActionLabel] = useState("LAUNCH PULSE");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Governance States
   const [broadcastText, setBroadcastText] = useState("");
@@ -260,6 +273,33 @@ export default function AdminDashboard() {
     toast({ title: "Gateway Synchronized", description: "Financial nodes updated platform-wide." });
   };
 
+  const handleLaunchCampaign = () => {
+    if (!campContent.trim() || !campActionUrl.trim()) return;
+    addCampaign({
+      type: campType,
+      content: campContent,
+      mediaUrl: campMediaUrl || undefined,
+      actionUrl: campActionUrl,
+      actionLabel: campActionLabel,
+      isActive: true
+    });
+    toast({ title: "Campaign Materialized", description: "Official node launched to the stream." });
+    setCampContent("");
+    setCampMediaUrl("");
+    setCampActionUrl("");
+    setCampActionLabel("LAUNCH PULSE");
+  };
+
+  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      triggerHaptic(10);
+      const reader = new FileReader();
+      reader.onloadend = () => setCampMediaUrl(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleBroadcast = () => {
     if (!broadcastText.trim()) return;
     setIsBroadcasting(true);
@@ -310,9 +350,9 @@ export default function AdminDashboard() {
         </div>
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-hide">
-          {(["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "gateway", "infrastructure", "resolution", "logs"] as AdminTab[]).map((tab) => {
-            const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, velocity: TrendingUp, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, infrastructure: Database, resolution: Hammer, logs: FileText };
-            const labels = { pulse: "Global Pulse", economy: "Economy Auditor", intelligence: "Intelligence Node", velocity: "Velocity Hub", identity: "Identity Forge", safety: "Safety Node", governance: "Governance", gateway: "Gateway Logic", infrastructure: "Infrastructure", resolution: "Resolution Hub", logs: "Audit Logs" };
+          {(["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "gateway", "campaigns", "infrastructure", "resolution", "logs"] as AdminTab[]).map((tab) => {
+            const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, velocity: TrendingUp, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, campaigns: Megaphone, infrastructure: Database, resolution: Hammer, logs: FileText };
+            const labels = { pulse: "Global Pulse", economy: "Economy Auditor", intelligence: "Intelligence Node", velocity: "Velocity Hub", identity: "Identity Forge", safety: "Safety Node", governance: "Governance", gateway: "Gateway Logic", campaigns: "Campaign Hub", infrastructure: "Infrastructure", resolution: "Resolution Hub", logs: "Audit Logs" };
             const Icon = icons[tab];
             const isActive = activeTab === tab;
 
@@ -421,7 +461,6 @@ export default function AdminDashboard() {
                   </div>
                 </Card>
 
-                {/* Real-Time Handshake Map Visualization */}
                 <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6 overflow-hidden relative group">
                   <div className="absolute inset-0 opacity-10 pointer-events-none">
                     <Globe className="absolute -right-20 -bottom-20 h-[400px] w-[400px] text-primary animate-[spin_20s_linear_infinite]" />
@@ -434,7 +473,6 @@ export default function AdminDashboard() {
                     <Badge className="bg-green-500/20 text-green-500 border-none font-black h-5 px-3 uppercase tracking-tighter">LIVE FEED</Badge>
                   </div>
                   <div className="h-[250px] sm:h-[300px] w-full flex items-center justify-center bg-black/20 rounded-[2rem] border border-dashed border-white/10 relative">
-                    {/* Abstract Dot Network */}
                     <div className="grid grid-cols-8 gap-4 opacity-40">
                       {[...Array(24)].map((_, i) => (
                         <div key={i} className={cn(
@@ -581,7 +619,6 @@ export default function AdminDashboard() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2">
-                {/* Elite Creator Registry */}
                 <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -614,7 +651,6 @@ export default function AdminDashboard() {
                   </div>
                 </Card>
 
-                {/* Sonic Stream Monitor */}
                 <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -648,6 +684,153 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 </Card>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'campaigns' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-2 gap-6">
+                <div className="space-y-1">
+                  <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Campaign Hub</h3>
+                  <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Official Platform Materializations</p>
+                </div>
+                <div className="h-11 w-11 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                  <Megaphone className="h-6 w-6" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 px-2">
+                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-8 lg:col-span-2">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                      <Plus className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Create Pulse</h4>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Materialize New Official Node</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="space-y-3">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Node Format</Label>
+                      <div className="flex gap-2">
+                        {(['photo', 'video', 'link'] as const).map(type => (
+                          <button 
+                            key={type}
+                            onClick={() => { triggerHaptic(5); setCampType(type); if(type === 'link') setCampMediaUrl(""); }}
+                            className={cn(
+                              "flex-1 h-12 rounded-xl border font-black text-[10px] uppercase tracking-widest transition-all",
+                              campType === type ? "bg-primary border-primary text-white" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
+                            )}
+                          >
+                            {type}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Vibe Content (Caption)</Label>
+                      <Textarea 
+                        placeholder="What's the official pulse? Use **bold** for impact..." 
+                        className="min-h-[100px] bg-black/40 border-white/10 rounded-2xl text-sm font-medium focus-visible:ring-primary/20"
+                        value={campContent}
+                        onChange={(e) => setCampContent(e.target.value)}
+                      />
+                    </div>
+
+                    {campType !== 'link' && (
+                      <div className="space-y-3">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Media Visual</Label>
+                        <div 
+                          className="relative aspect-video rounded-2xl bg-black/40 border-2 border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer group hover:border-primary/40 transition-all overflow-hidden"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          {campMediaUrl ? (
+                            <>
+                              {campType === 'video' ? (
+                                <video src={campMediaUrl} className="w-full h-full object-cover" autoPlay muted loop />
+                              ) : (
+                                <Image src={campMediaUrl} alt="Campaign Preview" fill className="object-cover" />
+                              )}
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <RotateCcw className="h-8 w-8 text-white" />
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex flex-col items-center gap-3 opacity-40 group-hover:opacity-100 transition-all">
+                              {campType === 'video' ? <Video className="h-10 w-10" /> : <ImageIcon className="h-10 w-10" />}
+                              <p className="text-[10px] font-black uppercase tracking-widest">Upload High-Velocity {campType}</p>
+                            </div>
+                          )}
+                          <input type="file" ref={fileInputRef} className="hidden" accept={campType === 'video' ? "video/*" : "image/*"} onChange={handleMediaUpload} />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Action Handshake (URL)</Label>
+                        <Input 
+                          placeholder="https://..." 
+                          className="h-14 bg-black/40 border-white/10 rounded-2xl text-sm font-bold text-primary"
+                          value={campActionUrl}
+                          onChange={(e) => setCampActionUrl(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Action Label (Button)</Label>
+                        <Input 
+                          placeholder="SYNC NOW, JOIN HUB..." 
+                          className="h-14 bg-black/40 border-white/10 rounded-2xl text-sm font-bold"
+                          value={campActionLabel}
+                          onChange={(e) => setCampActionLabel(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <Button 
+                      className="w-full h-16 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl shadow-primary/20 transition-all active:scale-95 gap-3"
+                      onClick={handleLaunchCampaign}
+                      disabled={!campContent.trim() || !campActionUrl.trim()}
+                    >
+                      <Zap className="h-6 w-6 fill-current" />
+                      Materialize Campaign
+                    </Button>
+                  </div>
+                </Card>
+
+                <div className="space-y-6">
+                  <h4 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Active Nodes</h4>
+                  {campaigns.length > 0 ? campaigns.map(camp => (
+                    <Card key={camp.id} className="bg-white/5 border-white/10 rounded-[2rem] overflow-hidden group hover:border-primary/30 transition-all">
+                      <div className="p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase px-2 h-4">{camp.type} Node</Badge>
+                          <div className="flex items-center gap-2">
+                            <Switch checked={camp.isActive} onCheckedChange={() => toggleCampaignStatus(camp.id)} className="scale-75 data-[state=checked]:bg-primary" />
+                            <button onClick={() => deleteCampaign(camp.id)} className="text-white/20 hover:text-red-500 transition-colors"><Trash2 className="h-4 w-4" /></button>
+                          </div>
+                        </div>
+                        <p className="text-xs font-bold line-clamp-2 italic text-white/80">"{camp.content}"</p>
+                        <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                          <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-white/40 uppercase">Sync Pulses</span>
+                            <span className="text-sm font-black text-primary">{camp.clicks}</span>
+                          </div>
+                          <Badge variant="outline" className="border-white/10 text-white/40 text-[8px] font-black uppercase">{new Date(camp.timestamp).toLocaleDateString()}</Badge>
+                        </div>
+                      </div>
+                    </Card>
+                  )) : (
+                    <div className="py-20 text-center opacity-20 border-2 border-dashed border-white/10 rounded-[2rem]">
+                      <Megaphone className="h-10 w-10 mx-auto mb-2" />
+                      <p className="text-[10px] font-black uppercase">No campaigns active</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -1011,8 +1194,8 @@ export default function AdminDashboard() {
       {/* Mobile Admin Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[200] px-4 pb-6 flex justify-center pointer-events-none">
         <nav className="flex items-center gap-2 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-2.5 shadow-2xl pointer-events-auto overflow-x-auto scrollbar-hide max-w-full">
-          {(["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "gateway", "infrastructure", "resolution", "logs"] as AdminTab[]).map((tab) => {
-            const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, velocity: TrendingUp, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, infrastructure: Database, resolution: Hammer, logs: FileText };
+          {(["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "gateway", "campaigns", "infrastructure", "resolution", "logs"] as AdminTab[]).map((tab) => {
+            const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, velocity: TrendingUp, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, campaigns: Megaphone, infrastructure: Database, resolution: Hammer, logs: FileText };
             const Icon = icons[tab];
             const isActive = activeTab === tab;
             return <button key={tab} onClick={() => { triggerHaptic(5); setActiveTab(tab); }} className={cn("p-3 rounded-2xl transition-all shrink-0", isActive ? "bg-primary text-white scale-110 shadow-lg" : "text-muted-foreground")}><Icon className="h-5 w-5" /></button>;

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -31,7 +30,9 @@ import {
   Lock,
   Zap,
   ShieldCheck,
-  Coins
+  Coins,
+  ChevronRight,
+  ExternalLink
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -123,17 +124,20 @@ interface PostCardProps {
   isShared?: boolean;
   sharedPost?: PostCardProps;
   videoUrl?: string;
+  isCampaign?: boolean;
+  actionUrl?: string;
+  actionLabel?: string;
 }
 
 export function PostCard(props: PostCardProps) {
   const { 
     id, user, collaborator, content, image, images = [], imageFilter, theme, language,
     likes = 0, unlikes = 0, comments = 0, shares = 0, time, hashtags, feeling, location, commentsDisabled, isPinned, 
-    isSeries, seriesTitle, poll, isShared = false, videoUrl, sharedPost, isLocked, unlockPrice
+    isSeries, seriesTitle, poll, isShared = false, videoUrl, sharedPost, isLocked, unlockPrice, isCampaign, actionUrl, actionLabel
   } = props;
 
   const { 
-    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedImageUrl, openGiftHub, unlockPost, settings
+    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, settings, recordCampaignClick
   } = usePosts();
 
   const { addSignal } = useNotifications();
@@ -193,17 +197,17 @@ export function PostCard(props: PostCardProps) {
   const isLongContent = useMemo(() => content.length > TRUNCATE_LIMIT && !isLimitedType, [content.length, isLimitedType]);
 
   const showTranslateButton = useMemo(() => {
-    if (!language || !viewerLanguage || isShared || isHiddenByLock) return false;
+    if (!language || !viewerLanguage || isShared || isHiddenByLock || isCampaign) return false;
     if (language === viewerLanguage) return false;
     if (content.length < 5) return false;
     return true;
-  }, [language, viewerLanguage, content, isShared, isHiddenByLock]);
+  }, [language, viewerLanguage, content, isShared, isHiddenByLock, isCampaign]);
 
   const handleLike = () => { 
     triggerHaptic(20); 
     const wasLiked = isLiked;
     toggleLikePost(id); 
-    if (!wasLiked && !isOwner && !isShared) {
+    if (!wasLiked && !isOwner && !isShared && !isCampaign) {
       addSignal({
         type: 'SOCIAL',
         title: 'New Vibe Pulse',
@@ -249,6 +253,17 @@ export function PostCard(props: PostCardProps) {
       toast({ variant: "destructive", title: "Protocol Error", description: "Audit node unreachable." });
     } finally {
       setIsUnlocking(false);
+    }
+  };
+
+  const handleCampaignAction = () => {
+    if (!actionUrl) return;
+    triggerHaptic(25);
+    recordCampaignClick(id);
+    if (actionUrl.startsWith('/')) {
+      router.push(actionUrl);
+    } else {
+      window.open(actionUrl, '_blank');
     }
   };
 
@@ -306,7 +321,11 @@ export function PostCard(props: PostCardProps) {
     if (isHiddenByLock) { handleUnlock(); return; }
     e.stopPropagation();
     triggerHaptic(15);
-    router.push(`/reels?id=${id}`);
+    if (isCampaign) {
+      handleCampaignAction();
+    } else {
+      router.push(`/reels?id=${id}`);
+    }
   };
 
   const handleGiftClick = (e: React.MouseEvent) => {
@@ -323,7 +342,23 @@ export function PostCard(props: PostCardProps) {
       if (segment.startsWith('**') && segment.endsWith('**')) return <strong key={i}>{segment.slice(2, -2)}</strong>;
       const parts = segment.split(urlRegex);
       return parts.map((part, j) => {
-        if (part.match(urlRegex)) return <a key={`${i}-${j}`} href={part} target="_blank" rel="noopener noreferrer" className="text-[#6E96FF] font-bold underline decoration-2 underline-offset-2 hover:opacity-80 transition-opacity inline-flex items-center gap-1" onClick={(e) => { e.stopPropagation(); triggerHaptic(5); }}><LinkIcon className="h-3 w-3" />{part}</a>;
+        if (part.match(urlRegex)) {
+          // Rule: Link clicks are permitted, but no preview box if media exists
+          return (
+            <button 
+              key={`${i}-${j}`} 
+              className="text-[#6E96FF] font-bold underline decoration-2 underline-offset-2 hover:opacity-80 transition-opacity inline-flex items-center gap-1" 
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                triggerHaptic(5); 
+                window.open(part, '_blank'); 
+              }}
+            >
+              <LinkIcon className="h-3 w-3" />
+              {part}
+            </button>
+          );
+        }
         return part;
       });
     });
@@ -337,29 +372,36 @@ export function PostCard(props: PostCardProps) {
     <CheckCircle2 className={cn(size, "text-primary fill-primary text-white shrink-0")} />
   );
 
+  const hasMedia = allImages.length > 0 || !!videoUrl;
+
   return (
     <>
       <Card className={cn(
         "border-none shadow-sm overflow-hidden mb-4 transition-colors relative ring-1 ring-black/5 dark:ring-white/5",
-        isShared ? "bg-secondary/20 shadow-none ring-0 border border-primary/10 rounded-2xl" : "bg-white dark:bg-card"
+        isShared ? "bg-secondary/20 shadow-none ring-0 border border-primary/10 rounded-2xl" : "bg-white dark:bg-card",
+        isCampaign && "border-2 border-primary/20 shadow-xl shadow-primary/5"
       )}>
         {isPinned && !isShared && <div className="absolute top-0 right-0 z-10 p-1 px-2 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-bl-lg flex items-center gap-1 shadow-md"><Pin className="h-2 w-2 fill-current" /> Pinned</div>}
         
         <CardHeader className={cn("flex flex-row items-center justify-between space-y-0 p-3", isShared ? "pb-1" : "bg-white dark:bg-card")}>
           <div className="flex items-center gap-2">
-            <Link href={`/profile/${user.username}`}><Avatar className={cn("border border-primary/10 hover:opacity-80 transition-opacity", isShared ? "h-7 w-7" : "h-10 w-10")}><AvatarImage src={user.avatar} /><AvatarFallback>{user.name[0]}</AvatarFallback></Avatar></Link>
+            <Link href={isCampaign ? "#" : `/profile/${user.username}`}><Avatar className={cn("border border-primary/10 hover:opacity-80 transition-opacity", isShared ? "h-7 w-7" : "h-10 w-10")}><AvatarImage src={isCampaign ? "/icon.svg" : user.avatar} /><AvatarFallback>{user.name[0]}</AvatarFallback></Avatar></Link>
             <div className="flex flex-col">
               <div className="flex flex-wrap items-center gap-1.5">
-                <div className="flex items-center gap-1"><Link href={`/profile/${user.username}`} className={cn("font-bold text-foreground hover:underline", isShared ? "text-xs" : "text-sm")}>{user.name}</Link>{effectiveIsVerified && <VerificationBadge size={isShared ? "h-2.5 w-2.5" : "h-3 w-3"} />}</div>
+                <div className="flex items-center gap-1">
+                  <Link href={isCampaign ? "#" : `/profile/${user.username}`} className={cn("font-bold text-foreground hover:underline", isShared ? "text-xs" : "text-sm")}>{user.name}</Link>
+                  {effectiveIsVerified && <VerificationBadge size={isShared ? "h-2.5 w-2.5" : "h-3 w-3"} />}
+                  {isCampaign && <Badge className="bg-primary text-white border-none text-[8px] font-black h-4 px-1.5 rounded ml-1 uppercase">Official</Badge>}
+                </div>
                 {!isShared && collaborator && <div className="flex items-center gap-1"><span className="text-xs text-muted-foreground">and</span><Link href={`/profile/${collaborator.username}`} className="font-bold text-sm text-foreground hover:underline">{collaborator.name}</Link>{collaborator.isVerified && <VerificationBadge />}</div>}
                 {!isShared && feeling && <span className="text-xs text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
                 {!isShared && location && <span className="text-xs text-muted-foreground">— in <span className="font-bold text-foreground">{location}</span></span>}
               </div>
-              {!isShared && <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><span>{time}</span><span>•</span><Badge variant="ghost" className="p-0 h-auto font-normal text-[10px]">Public</Badge></div>}
+              {!isShared && <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><span>{time}</span><span>•</span><Badge variant="ghost" className="p-0 h-auto font-normal text-[10px] uppercase">{isCampaign ? "Global Node" : "Public"}</Badge></div>}
             </div>
           </div>
           
-          {!isShared && (
+          {!isShared && !isCampaign && (
             <div className="flex items-center gap-0.5">
               <Button variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isBookmarked && "text-primary")} onClick={handleSave}><Bookmark className={cn("h-4 w-4", isBookmarked && "fill-current")} /></Button>
               <DropdownMenu>
@@ -407,7 +449,7 @@ export function PostCard(props: PostCardProps) {
                 {renderContent(translatedText || displayedContent)}
               </div>
               
-              {!isShared && (
+              {!isShared && !isCampaign && (
                 <div className="flex flex-wrap items-center gap-3 mt-1">
                   {content.length > TRUNCATE_LIMIT && !isLimitedType && <button onClick={() => setIsExpanded(!isExpanded)} className="text-[13px] font-bold text-primary hover:underline">{isExpanded ? "Show less" : "See more"}</button>}
                   {showTranslateButton && <button onClick={handleTranslate} disabled={isTranslating} className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-primary/60 hover:text-primary transition-colors disabled:opacity-50">{isTranslating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}{translatedText ? "See Original" : "Translate Vibe"}</button>}
@@ -442,14 +484,16 @@ export function PostCard(props: PostCardProps) {
                         <CarouselItem key={i}>
                           <div 
                             className={cn("relative aspect-video overflow-hidden rounded-lg cursor-pointer group/img")} 
-                            onClick={() => { triggerHaptic(15); setSelectedImageUrl(img); }}
+                            onClick={() => { triggerHaptic(15); if(isCampaign) handleCampaignAction(); else setSelectedImageUrl(img); }}
                           >
                             <Image src={img} alt="Post" fill className={cn("object-cover transition-transform group/img:scale-105", imageFilter)} />
-                            <div className="absolute inset-0 bg-black/10 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                              <div className="p-3 bg-white/20 backdrop-blur-md rounded-full border border-white/30 text-white">
-                                <PlusSquare className="h-6 w-6" />
+                            {isCampaign && (
+                              <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+                                <div className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30 text-white">
+                                  <ExternalLink className="h-6 w-6" />
+                                </div>
                               </div>
-                            </div>
+                            )}
                           </div>
                         </CarouselItem>
                       ))}
@@ -458,14 +502,27 @@ export function PostCard(props: PostCardProps) {
                 </div>
               )}
               
-              {videoUrl && <div className={cn("relative mt-2 rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center cursor-pointer group/vid", isShared ? "-mx-1" : "-mx-3 sm:mx-0")} onClick={handleReelClick}><video src={videoUrl} className="w-full h-full object-cover" controls={false} playsInline muted={isShared} autoPlay={isShared} loop={isShared} /><div className="absolute inset-0 bg-black/20 opacity-0 group-hover/vid:opacity-100 transition-opacity flex items-center justify-center"><div className="p-4 bg-primary/20 backdrop-blur-md rounded-full border border-primary/30 text-white shadow-2xl"><Play className="h-8 w-8 fill-current" /></div></div><div className="absolute bottom-3 left-3 bg-black/40 backdrop-blur-md px-2 py-1 rounded-md flex items-center gap-1.5 border border-white/10"><Video className="h-3 w-3 text-white" /><span className="text-[10px] font-black text-white uppercase tracking-widest">Open Reel</span></div></div>}
+              {videoUrl && <div className={cn("relative mt-2 rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center cursor-pointer group/vid", isShared ? "-mx-1" : "-mx-3 sm:mx-0")} onClick={handleReelClick}><video src={videoUrl} className="w-full h-full object-cover" controls={false} playsInline muted={isShared} autoPlay={isShared} loop={isShared} /><div className="absolute inset-0 bg-black/20 opacity-0 group-hover/vid:opacity-100 transition-opacity flex items-center justify-center"><div className="p-4 bg-primary/20 backdrop-blur-md rounded-full border border-primary/30 text-white shadow-2xl"><Play className="h-8 w-8 fill-current" /></div></div><div className="absolute bottom-3 left-3 bg-black/40 backdrop-blur-md px-2 py-1 rounded-md flex items-center gap-1.5 border border-white/10"><Video className="h-3 w-3 text-white" /><span className="text-[10px] font-black text-white uppercase tracking-widest">{isCampaign ? "Sync Vibe" : "Open Reel"}</span></div></div>}
+
+              {isCampaign && actionUrl && (
+                <div className="mt-4">
+                  <Button 
+                    className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black italic uppercase tracking-[0.2em] text-xs shadow-xl shadow-primary/20 transition-all active:scale-95 gap-3"
+                    onClick={handleCampaignAction}
+                  >
+                    <Zap className="h-4 w-4 fill-current" />
+                    {actionLabel || "LAUNCH PULSE"}
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
 
               {sharedPost && !isShared && <div className="mt-4"><PostCard {...sharedPost} isShared={true} /></div>}
             </>
           )}
         </CardContent>
 
-        {!isShared && (
+        {!isShared && !isCampaign && (
           <CardFooter className="p-1 px-3 flex flex-col gap-1 relative bg-white dark:bg-card">
             <div className="px-1 pt-2 pb-1 flex items-center justify-between w-full text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground/50 border-t border-primary/5">
               <div className="flex items-center gap-3">
@@ -489,13 +546,18 @@ export function PostCard(props: PostCardProps) {
             </div>
           </CardFooter>
         )}
+
+        {isCampaign && (
+          <CardFooter className="p-3 bg-primary/5 flex items-center justify-center">
+            <p className="text-[9px] font-black text-primary/40 uppercase tracking-[0.4em]">Official ViMore Pulse • Trusted Node</p>
+          </CardFooter>
+        )}
       </Card>
 
       <ShareHub isOpen={isShareHubOpen} onClose={() => setIsShareHubOpen(false)} post={props} />
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="rounded-[2rem] sm:max-w-[400px]"><AlertDialogHeader><div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4"><Trash2 className="h-8 w-8" /></div><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">Purge Node?</AlertDialogTitle><AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">This action is permanent and will remove this signature from the ViMore network.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6"><AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50 border-none">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="rounded-xl h-12 font-black italic uppercase tracking-widest bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20">Confirm Purge</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
-      </AlertDialog>
+        <AlertDialogContent className="rounded-[2rem] sm:max-w-[400px]"><AlertDialogHeader><div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4"><Trash2 className="h-8 w-8" /></div><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">Purge Node?</AlertDialogTitle><AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">This action is permanent and will remove this signature from the ViMore network.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6"><AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50 border-none">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="rounded-xl h-12 font-black italic uppercase tracking-widest bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20">Confirm Purge</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </>
   );
 }
