@@ -177,28 +177,39 @@ export default function SettingsPage() {
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Appearance Node</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-0.5">
                 <p className="font-bold text-sm">Universal Theme</p>
                 <p className="text-[10px] text-muted-foreground uppercase font-black">Flip the platform environment</p>
               </div>
-              <div className="flex bg-secondary/40 p-1 rounded-xl">
-                {[
-                  { id: 'light', icon: Sun, label: 'Ivory' },
-                  { id: 'dark', icon: Moon, label: 'Space' },
-                  { id: 'system', icon: Monitor, label: 'Sync' }
-                ].map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => handleUpdate({ theme: t.id })}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                      settings.theme === t.id ? "bg-white dark:bg-zinc-800 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <t.icon className="h-3 w-3" /> {t.label}
-                  </button>
-                ))}
+              <div className="grid grid-cols-2 gap-1 bg-secondary/40 p-1 rounded-xl sm:flex sm:gap-1 w-full sm:w-auto">
+                <button
+                  onClick={() => handleUpdate({ theme: 'light' })}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all order-1 sm:order-none",
+                    settings.theme === 'light' ? "bg-white dark:bg-zinc-800 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Sun className="h-3 w-3" /> Ivory
+                </button>
+                <button
+                  onClick={() => handleUpdate({ theme: 'dark' })}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all order-2 sm:order-none",
+                    settings.theme === 'dark' ? "bg-white dark:bg-zinc-800 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Moon className="h-3 w-3" /> Space
+                </button>
+                <button
+                  onClick={() => handleUpdate({ theme: 'system' })}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all order-3 sm:order-none col-span-1",
+                    settings.theme === 'system' ? "bg-white dark:bg-zinc-800 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Monitor className="h-3 w-3" /> Sync
+                </button>
               </div>
             </div>
 

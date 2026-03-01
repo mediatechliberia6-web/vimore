@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { MainNav } from "@/components/layout/main-nav";
 import { ChatList } from "@/components/chat/chat-list";
 import { ChatWindow } from "@/components/chat/chat-window";
@@ -63,7 +62,7 @@ export default function MessagesPage() {
                 !showMobileChat ? "hidden lg:flex" : "flex"
               )}>
                 {selectedContact ? (
-                  <div className="relative h-full flex flex-col min-h-0">
+                  <div className="relative h-full flex flex-col min-0">
                     <ChatWindow 
                       contact={selectedContact} 
                       onBack={() => setSelectedChatId(null)} 
@@ -96,5 +95,3 @@ export default function MessagesPage() {
     </BiometricGate>
   );
 }
-
-import { useMemo } from "react";

@@ -134,7 +134,7 @@ export interface PaymentRequest {
   type: 'Gold' | 'Diamond';
   code: string;
   screenshot: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'PENDING';
   timestamp: number;
 }
 
@@ -1239,7 +1239,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const toggleCampaignStatus = (id: string) => {
     triggerHaptic(10);
-    setCampaigns(prev => prev.map(c => c.id === id ? { ...c, isActive: !c.isActive } : c));
+    setCampaigns(prev => prev.map(c => i === id ? { ...c, isActive: !c.isActive } : c));
   };
 
   const recordCampaignClick = (id: string) => {
