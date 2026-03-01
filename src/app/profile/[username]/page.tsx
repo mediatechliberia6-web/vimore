@@ -34,7 +34,7 @@ import {
   Share2
 } from "lucide-react";
 import Link from "next/link";
-import { usePosts } from "@/context/PostContext";
+import { usePosts, User } from "@/context/PostContext";
 import { useNotifications } from "@/context/NotificationContext";
 import { aiTranslatePost, aiAuditMonetizationHandshake } from "@/app/actions/ai";
 import Image from "next/image";
@@ -63,20 +63,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-const MOCK_USERS: Record<string, any> = {
-  "arivera": { name: "Alex Rivera", username: "arivera", bio: "Diseñador de Productos y entusiasta del café. Viviendo la vida píxel a píxel. ☕️🎨", avatar: "https://picsum.photos/seed/1/400/400", cover: "https://picsum.photos/seed/cover_arivera/1200/400", followers: "12.2k", following: "890", posts: "342", category: "Product Designer", isVerified: true, language: "es", introUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
-  "schen_dev": { name: "Sarah Chen", username: "schen_dev", bio: "Fullstack Dev | Building the future of social. Loves React and SF vibes. 💻🌉", avatar: "https://picsum.photos/seed/2/400/400", cover: "https://picsum.photos/seed/cover_schen/1200/400", followers: "4.2k", following: "450", posts: "128", category: "Fullstack Developer", isVerified: true, language: "en" },
-  "mstone": { name: "Marcus Stone", username: "mstone", bio: "Photography & Travel. Capturing the world through a wide lens. 📸✈️", avatar: "https://picsum.photos/seed/3/400/400", cover: "https://picsum.photos/seed/cover_mstone/1200/400", followers: "25.1k", following: "1.1k", posts: "892", category: "Photographer", isVerified: false, language: "en" },
-  "neon_arch": { name: "Neon Architect", username: "neon_arch", bio: "Elite Creator | Materializing spatial realities through code and light. ⚡️🌌", avatar: "https://picsum.photos/seed/leader1/100/100", cover: "https://picsum.photos/seed/neon_cover/1200/400", followers: "142k", following: "15", posts: "1.2k", category: "Elite Creator", isVerified: true, language: "en" }
-};
-
 export default function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const resolvedParams = use(params);
   const username = resolvedParams.username;
-  const { currentUser, posts, connections, isFollowing, isSubscribed, toggleFollowUser, subscribeToCreator, cancelSubscription } = usePosts();
+  const { currentUser, posts, connections, isFollowing, isSubscribed, toggleFollowUser, subscribeToCreator, cancelSubscription, fetchProfileByUsername } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { addSignal } = useNotifications();
   const router = useRouter();
+  
+  const [displayUser, setDisplayUser] = useState<User | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  
   const isMe = username === currentUser.username;
   const isPlayerActive = currentTrack && !isExpanded;
   
@@ -98,19 +95,35 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     if (typeof window !== 'undefined') setDeviceLanguage(window.navigator.language.split('-')[0]);
   }, []);
 
+  useEffect(() => {
+    const syncProfile = async () => {
+      setIsLoadingProfile(true);
+      const profile = await fetchProfileByUsername(username);
+      if (profile) setDisplayUser(profile);
+      else {
+        // Spatial node not found fallback
+        setDisplayUser(null);
+      }
+      setIsLoadingProfile(false);
+    };
+    syncProfile();
+  }, [username, fetchProfileByUsername]);
+
   useEffect(() => { if (isMe) router.replace('/profile'); }, [isMe, router]);
 
-  const displayUser = MOCK_USERS[username] || { name: username.charAt(0).toUpperCase() + username.slice(1), username: username, bio: "Digital creator and explorer of the ViMore community. 🎨 ✨", avatar: `https://picsum.photos/seed/${username}/400/400`, cover: `https://picsum.photos/seed/cover_${username}/1200/400`, followers: "1.2k", following: "400", posts: "12", category: "ViMore Member", isVerified: false, language: "en", followsYou: connections.find(c => c.username === username)?.followsYou || false };
-
-  const isEliteCreator = parseFollowerCount(displayUser.followers) >= 50000;
+  const isEliteCreator = useMemo(() => {
+    if (!displayUser) return false;
+    return parseFollowerCount(displayUser.followers) >= 10000;
+  }, [displayUser]);
 
   const handleFollowAction = () => {
-    if (amIFollowing) { triggerHaptic(15); setConfirmType(displayUser.followsYou ? "unfriend" : "unfollow"); setConfirmUser(displayUser); }
-    else { triggerHaptic(20); toggleFollowUser(username); toast({ title: displayUser.followsYou ? "Mutual Connected!" : "Connected!", description: `You are now following ${displayUser.name} ✨` }); }
+    if (!displayUser) return;
+    if (amIFollowing) { triggerHaptic(15); setConfirmType("unfollow"); setConfirmUser(displayUser); }
+    else { triggerHaptic(20); toggleFollowUser(username); toast({ title: "Connected!", description: `You are now following ${displayUser.name} ✨` }); }
   };
 
   const handleSubscribeHandshake = async () => {
-    if (isSubscribing || amISubscribed) return;
+    if (isSubscribing || amISubscribed || !displayUser) return;
     setIsSubscribing(true);
     triggerHaptic(50);
 
@@ -149,6 +162,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   };
 
   const handleTranslateBio = async () => {
+    if (!displayUser?.bio) return;
     if (translatedBio) { setTranslatedBio(null); return; }
     triggerHaptic(); setIsTranslating(true);
     try { const res = await aiTranslatePost({ postContent: displayUser.bio, targetLanguage: deviceLanguage || "en" }); setTranslatedBio(res.translation); }
@@ -157,9 +171,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   };
 
   const togglePlayIntro = () => {
+    if (!displayUser?.introUrl) { toast({ title: "No Intro", description: `${displayUser?.name || 'User'} hasn't uploaded a sonic signature yet.` }); return; }
     triggerHaptic(15);
     if (isPlayingIntro) { audioRef.current?.pause(); setIsPlayingIntro(false); return; }
-    if (!displayUser.introUrl) { toast({ title: "No Intro", description: `${displayUser.name} hasn't uploaded a sonic signature yet.` }); return; }
     if (!audioRef.current) { audioRef.current = new Audio(displayUser.introUrl); audioRef.current.onended = () => setIsPlayingIntro(false); }
     audioRef.current.play().catch(e => { toast({ variant: "destructive", description: "Failed to stream sonic signature." }); });
     setIsPlayingIntro(true);
@@ -173,9 +187,16 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const userReels = useMemo(() => userPosts.filter(p => p.videoUrl), [userPosts]);
   const mediaPosts = useMemo(() => userPosts.filter(p => p.image || p.images?.length), [userPosts]);
 
+  if (isLoadingProfile) {
+    return <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4"><Loader2 className="h-10 w-10 animate-spin text-primary" /><p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fetching Node Vault...</p></div>;
+  }
+
+  if (!displayUser) {
+    return <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-center space-y-6"><div className="h-20 w-20 bg-secondary/30 rounded-2xl flex items-center justify-center opacity-20"><Zap className="h-10 w-10" /></div><div className="space-y-2"><h2 className="text-2xl font-black italic uppercase tracking-tighter">Node Not Materialized</h2><p className="text-muted-foreground text-sm max-w-xs uppercase font-bold">This identity signature does not exist within the ViMore network clusters.</p></div><Link href="/"><Button className="bg-primary rounded-xl font-black uppercase text-[10px] h-12 px-8">Return to Hub</Button></Link></div>;
+  }
+
   let mainLabel = "Connect"; let mainHoverLabel = "Connect";
-  if (amIFollowing) { mainLabel = displayUser.followsYou ? "Friend" : "Following"; mainHoverLabel = displayUser.followsYou ? "Unfriend" : "Unfollow"; }
-  else if (displayUser.followsYou) { mainLabel = "Follow Back"; mainHoverLabel = "Follow Back"; }
+  if (amIFollowing) { mainLabel = "Following"; mainHoverLabel = "Unfollow"; }
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-background flex justify-center">
@@ -196,7 +217,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                 <div className="flex items-center flex-wrap justify-between gap-4">
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2"><h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{displayUser.name}</h1><Button variant="ghost" size="sm" className={cn("h-7 px-2 rounded-full gap-1.5 font-bold text-[11px] transition-all", isPlayingIntro ? "bg-primary text-white scale-105 shadow-lg" : "bg-secondary/40")} onClick={togglePlayIntro}>{isPlayingIntro ? <Volume2 className="h-3.5 w-3.5 animate-pulse" /> : <Play className="h-3.5 w-3.5" />} Intro</Button></div>
-                    <div className="flex items-center gap-6 py-2"><div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{displayUser.followers}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div><div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{displayUser.following}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div><div className="flex flex-col"><span className="font-bold text-lg leading-none">{userPosts.length || displayUser.posts}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div></div>
+                    <div className="flex items-center gap-6 py-2"><div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{displayUser.followers || 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div><div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{displayUser.following || 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div><div className="flex flex-col"><span className="font-bold text-lg leading-none">{userPosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div></div>
                   </div>
                   {isEliteCreator && !isMe && (
                     <Dialog>
