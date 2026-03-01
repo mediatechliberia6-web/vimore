@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { AGORA_APP_ID } from "@/lib/agora";
-import type { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IRemoteUser } from "agora-rtc-sdk-ng";
+import type { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IRemoteUser, IRemoteVideoTrack } from "agora-rtc-sdk-ng";
 
 export default function CallPage({ params }: { params: Promise<{ username: string }> }) {
   const resolvedParams = use(params);
@@ -47,7 +47,7 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
   const [isConnecting, setIsConnecting] = useState(true);
   const [callDuration, setCallDuration] = useState(0);
   const [remoteUserJoined, setRemoteUserJoined] = useState(false);
-  const [remoteVideoTrack, setRemoteVideoTrack] = useState<any>(null);
+  const [remoteVideoTrack, setRemoteVideoTrack] = useState<IRemoteVideoTrack | null>(null);
 
   const agoraClientRef = useRef<IAgoraRTCClient | null>(null);
   const localTracksRef = useRef<{ video: ICameraVideoTrack | null; audio: IMicrophoneAudioTrack | null }>({ video: null, audio: null });
@@ -70,6 +70,13 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
     return () => clearInterval(interval);
   }, [callState.status]);
 
+  // Phase 7: Materialize Remote Track once element is ready
+  useEffect(() => {
+    if (remoteUserJoined && remoteVideoTrack && remoteVideoRef.current) {
+      remoteVideoTrack.play(remoteVideoRef.current);
+    }
+  }, [remoteUserJoined, remoteVideoTrack]);
+
   useEffect(() => {
     const initAgora = async () => {
       const AgoraRTC = (await import("agora-rtc-sdk-ng")).default;
@@ -79,30 +86,38 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
       // Signaling Handshake
       client.on("user-published", async (user: IRemoteUser, mediaType: "video" | "audio") => {
         await client.subscribe(user, mediaType);
+        
         if (mediaType === "video") {
-          setRemoteVideoTrack(user.videoTrack);
+          setRemoteVideoTrack(user.videoTrack || null);
           setRemoteUserJoined(true);
-          user.videoTrack?.play(remoteVideoRef.current!);
         }
         if (mediaType === "audio") {
           user.audioTrack?.play();
         }
       });
 
-      client.on("user-unpublished", (user) => {
-        if (!user.videoTrack) setRemoteUserJoined(false);
+      client.on("user-left", (user) => {
+        setRemoteUserJoined(false);
+        setRemoteVideoTrack(null);
+      });
+
+      client.on("user-unpublished", (user, mediaType) => {
+        if (mediaType === "video") {
+          setRemoteUserJoined(false);
+          setRemoteVideoTrack(null);
+        }
       });
 
       try {
-        // Use wildcard UID null to allow SDK to assign a compatible numeric UID for wildcard tokens
-        const uid = await client.join(
+        // Spatial Handshake: Join Channel
+        await client.join(
           AGORA_APP_ID, 
           callState.channelName || "", 
           callState.token || null, 
           null
         );
 
-        // Create hardware tracks
+        // Hardware Handshake: Create Tracks
         const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
         localTracksRef.current = { audio: audioTrack, video: videoTrack };
 
@@ -124,11 +139,13 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
     }
 
     return () => {
+      localTracksRef.current.audio?.stop();
       localTracksRef.current.audio?.close();
+      localTracksRef.current.video?.stop();
       localTracksRef.current.video?.close();
       agoraClientRef.current?.leave();
     };
-  }, [callState.token, callState.channelName, callState.status]);
+  }, [callState.token, callState.channelName, callState.status, isAudioCall, triggerHaptic]);
 
   const handleEndCall = () => {
     triggerHaptic(100);
@@ -152,8 +169,8 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
 
   return (
     <div className="fixed inset-0 z-[500] bg-black flex flex-col overflow-hidden select-none touch-none">
-      {/* Remote Video Container */}
-      <div className="absolute inset-0 z-0 bg-zinc-900">
+      {/* Remote Canvas Node */}
+      <div className="absolute inset-0 z-0 bg-zinc-950">
         {isConnecting ? (
           <div className="w-full h-full flex flex-col items-center justify-center space-y-8">
             <div className="relative">
@@ -174,7 +191,7 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
         ) : (
           <div className="relative w-full h-full">
             {remoteUserJoined && !isAudioCall ? (
-              <div ref={remoteVideoRef} className="w-full h-full animate-in fade-in duration-1000" />
+              <div ref={remoteVideoRef} className="w-full h-full animate-in fade-in duration-1000 bg-black" />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center space-y-12">
                 <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
@@ -192,7 +209,7 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
                   </Avatar>
                 </div>
 
-                <div className="text-center space-y-2 z-10">
+                <div className="text-center space-y-2 z-10 px-6">
                   <h3 className="text-3xl font-black italic uppercase tracking-tighter text-white">{callState.contact?.name}</h3>
                   <div className="flex items-center justify-center gap-2 text-primary font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">
                     {isOutgoing ? (
@@ -208,24 +225,24 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
         )}
       </div>
 
-      {/* Local Video PiP */}
+      {/* Local PiP Handshake */}
       {!isAudioCall && !isConnecting && (
         <div className={cn(
-          "absolute top-20 right-6 z-50 w-32 sm:w-44 aspect-[9/16] rounded-[2.5rem] overflow-hidden shadow-2xl ring-2 ring-white/10 transition-all",
+          "absolute top-24 right-6 z-50 w-32 sm:w-44 aspect-[9/16] rounded-[2.5rem] overflow-hidden shadow-2xl ring-2 ring-white/10 transition-all",
           isVideoOff && "opacity-0 scale-90"
         )}>
-          <div ref={localVideoRef} className="w-full h-full bg-zinc-800" />
+          <div ref={localVideoRef} className="w-full h-full bg-zinc-900 scale-x-[-1]" />
         </div>
       )}
 
-      {/* Header Controls */}
-      <header className="absolute top-0 left-0 right-0 z-50 px-6 py-8 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
+      {/* Control Overlay */}
+      <header className="absolute top-0 left-0 right-0 z-50 px-6 py-8 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/20 to-transparent">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" className="rounded-full bg-black/20 backdrop-blur-md text-white border border-white/10" onClick={handleEndCall}>
             <ChevronLeft className="h-6 w-6" />
           </Button>
           <div className="flex flex-col">
-            <h1 className="text-lg font-black italic uppercase tracking-tighter text-white">{callState.contact?.name}</h1>
+            <h1 className="text-lg font-black italic uppercase tracking-tighter text-white truncate max-w-[120px]">{callState.contact?.name}</h1>
             <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em] animate-pulse">
               {callState.status === 'active' ? `SYNCED: ${formatDuration(callDuration)}` : 'Handshaking...'}
             </span>
@@ -237,7 +254,6 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
         </div>
       </header>
 
-      {/* Command Dock */}
       <footer className="absolute bottom-12 left-0 right-0 z-50 flex justify-center px-6">
         <div className="bg-black/40 backdrop-blur-2xl border border-white/10 p-3 rounded-[3rem] flex items-center gap-4 shadow-2xl">
           <Button 
