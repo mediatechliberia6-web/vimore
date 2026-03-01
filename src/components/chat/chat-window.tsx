@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
@@ -51,8 +52,10 @@ import { useTranslation } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import client, { databases, APPWRITE_DATABASE_ID, MESSAGES_COLLECTION_ID, ID } from "@/lib/appwrite";
+import { Query } from "appwrite";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -83,6 +86,7 @@ interface Message {
   sender: "me" | "them";
   senderName?: string;
   senderAvatar?: string;
+  senderId: string;
   text?: string;
   time: string;
   status: "sent" | "delivered" | "read";
@@ -134,55 +138,88 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
   const [addNodeSearch, setAddNodeSearch] = useState("");
-
-  const [messages, setMessages] = useState<Message[]>([
-    { 
-      id: "1", 
-      sender: "them", 
-      senderName: isCluster ? contact.members[0].name : undefined,
-      senderAvatar: isCluster ? contact.members[0].avatar : undefined,
-      text: isCluster ? "Team, welcome to the cluster node! 🚀" : "Yo! Did you check out the new design system I pushed to the hub?", 
-      time: "10:40 AM", 
-      status: "read", 
-      type: "text",
-      reactions: ["🔥"]
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // INTERACTION RECOVERY HANDSHAKE
-  // Fail-safe monitor to ensure the document body always recovers from modal interaction locks
-  useEffect(() => {
-    const unlockBody = () => {
-      if (typeof document !== 'undefined') {
-        document.body.style.pointerEvents = 'auto';
-      }
-    };
+  const conversationId = useMemo(() => {
+    if (isCluster) return contact.id;
+    return [currentUser.username, (contact as Connection).username].sort().join('_');
+  }, [isCluster, contact, currentUser.username]);
 
-    if (!isLeaveDialogOpen && !isAddNodeOpen) {
-      unlockBody();
+  // Fetch Message History
+  const fetchHistory = useCallback(async () => {
+    setIsLoadingMessages(true);
+    try {
+      const response = await databases.listDocuments(
+        APPWRITE_DATABASE_ID,
+        MESSAGES_COLLECTION_ID,
+        [
+          Query.equal('conversationId', conversationId),
+          Query.orderAsc('$createdAt'),
+          Query.limit(100)
+        ]
+      );
+      
+      const mapped = response.documents.map(doc => ({
+        id: doc.$id,
+        sender: doc.senderId === currentUser.username ? "me" as const : "them" as const,
+        senderId: doc.senderId,
+        senderName: doc.senderName,
+        senderAvatar: doc.senderAvatar,
+        text: doc.text,
+        time: new Date(doc.$createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        status: doc.status || 'sent',
+        type: doc.type || 'text',
+        mediaUrl: doc.mediaUrl,
+        isViewOnce: doc.isViewOnce,
+        isViewed: doc.isViewed,
+        isDownloaded: true,
+        reactions: doc.reactions ? JSON.parse(doc.reactions) : []
+      }));
+      
+      setMessages(mapped);
+    } catch (e) {
+      console.error("Vault history fetch failed:", e);
+    } finally {
+      setIsLoadingMessages(false);
     }
-    
-    return unlockBody;
-  }, [isLeaveDialogOpen, isAddNodeOpen, messages.length]);
+  }, [conversationId, currentUser.username]);
 
-  // Dynamic Vault Intelligence
-  const vaultMedia = useMemo(() => {
-    return messages.filter(m => (m.type === 'photo' || m.type === 'video') && !m.isViewOnce && m.mediaUrl);
-  }, [messages]);
+  useEffect(() => {
+    fetchHistory();
 
-  const vaultLinks = useMemo(() => {
-    return messages.filter(m => m.type === 'link' && m.linkData);
-  }, [messages]);
-
-  const nonClusterMembers = useMemo(() => {
-    if (!isCluster) return [];
-    return connections.filter(c => 
-      !contact.members.some(m => m.username === c.username) &&
-      (c.name.toLowerCase().includes(addNodeSearch.toLowerCase()) || c.username.toLowerCase().includes(addNodeSearch.toLowerCase()))
+    // REAL-TIME HANDSHAKE
+    const unsubscribe = client.subscribe(
+      `databases.${APPWRITE_DATABASE_ID}.collections.${MESSAGES_COLLECTION_ID}.documents`,
+      (response) => {
+        const payload = response.payload as any;
+        if (payload.conversationId === conversationId && payload.senderId !== currentUser.username) {
+          const incoming: Message = {
+            id: payload.$id,
+            sender: "them",
+            senderId: payload.senderId,
+            senderName: payload.senderName,
+            senderAvatar: payload.senderAvatar,
+            text: payload.text,
+            time: new Date(payload.$createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            status: payload.status,
+            type: payload.type,
+            mediaUrl: payload.mediaUrl,
+            isViewOnce: payload.isViewOnce,
+            isViewed: payload.isViewed,
+            isDownloaded: false,
+            reactions: payload.reactions ? JSON.parse(payload.reactions) : []
+          };
+          setMessages(prev => [...prev, incoming]);
+          triggerHaptic(10);
+        }
+      }
     );
-  }, [isCluster, contact, connections, addNodeSearch]);
+
+    return () => unsubscribe();
+  }, [conversationId, fetchHistory, currentUser.username, triggerHaptic]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -190,34 +227,48 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     }
   }, [messages, showVault]);
 
-  const handleSend = (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string }) => {
-    const newMessage: Message = {
-      id: Date.now().toString(),
+  const handleSend = async (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string }) => {
+    const type = options?.isWorkspace ? "workspace" : (options?.mediaType || (text.includes("http") ? "link" : "text"));
+    
+    const docData = {
+      conversationId,
+      senderId: currentUser.username,
+      senderName: currentUser.name,
+      senderAvatar: currentUser.avatar,
+      text: text || "",
+      type,
+      mediaUrl: options?.mediaUrl || "",
+      status: "sent",
+      isViewOnce: options?.isViewOnce || false,
+      isViewed: false,
+      reactions: JSON.stringify([])
+    };
+
+    // Optimistic UI Handshake
+    const optimistic: Message = {
+      id: `temp-${Date.now()}`,
       sender: "me",
+      senderId: currentUser.username,
       text: text || undefined,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       status: "sent",
-      type: options?.isWorkspace ? "workspace" : (text.includes("http") ? "link" : "text"),
+      type: type as any,
       isViewOnce: options?.isViewOnce,
-      isViewed: false,
-      isDownloaded: true, 
-      mediaUrl: options?.mediaUrl,
-      voiceDuration: options?.duration
+      isDownloaded: true,
+      mediaUrl: options?.mediaUrl
     };
+    setMessages(prev => [...prev, optimistic]);
 
-    if (options?.mediaUrl) newMessage.type = options.mediaType || 'photo';
-    if (options?.isWorkspace) newMessage.workspaceData = { title: "John's Workspace", metrics: "8.4k Followers", image: "https://picsum.photos/seed/my_cover/1200/400" };
-    
-    if (text.includes("http") && !options?.isWorkspace && !options?.mediaUrl) {
-      newMessage.linkData = { 
-        title: "Shared Resource", 
-        description: "Shared in collective cluster...", 
-        image: "https://picsum.photos/seed/vault-link/800/400", 
-        url: text.match(/(https?:\/\/[^\s]+)/)?.[0] || text 
-      };
+    try {
+      await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        MESSAGES_COLLECTION_ID,
+        ID.unique(),
+        docData
+      );
+    } catch (e) {
+      toast({ variant: "destructive", title: "Sync Error", description: "Node transmission failed." });
     }
-
-    setMessages(prev => [...prev, newMessage]);
   };
 
   const handleStartCall = (type: 'video' | 'audio') => {
@@ -230,13 +281,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const handleConfirmLeave = () => {
     if (isCluster) {
       triggerHaptic(50);
-      // FORCE Restore Interaction before destruction
-      if (typeof document !== 'undefined') {
-        document.body.style.pointerEvents = 'auto';
-      }
-      setIsLeaveDialogOpen(false);
       leaveCluster(contact.id);
-      toast({ title: "Node Disconnected", description: `You have left the cluster: ${contact.name}` });
       onBack();
     }
   };
@@ -245,7 +290,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     if (isCluster) {
       triggerHaptic(30);
       addMemberToCluster(contact.id, member);
-      toast({ title: "Node Synced", description: `@${member.username} is now part of the cluster.` });
+      toast({ title: "Node Synced", description: `@${member.username} joined cluster.` });
       setAddNodeSearch("");
     }
   };
@@ -261,11 +306,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             <div className="relative shrink-0">
               {isCluster ? (
                 <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-[1rem] bg-primary/10 flex items-center justify-center relative overflow-hidden border border-primary/5">
-                  {contact.avatar ? (
-                    <img src={contact.avatar} alt="Cluster" className="w-full h-full object-cover" />
-                  ) : (
-                    <Layers className="h-5 w-5 text-primary" />
-                  )}
+                  {contact.avatar ? <img src={contact.avatar} alt="Cluster" className="w-full h-full object-cover" /> : <Layers className="h-5 w-5 text-primary" />}
                 </div>
               ) : (
                 <Avatar className="h-10 w-10 sm:h-11 sm:w-11 border-2 border-primary/10">
@@ -286,7 +327,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
           <div className="flex items-center gap-1">
             {!isCluster && (
               <>
-                <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary transition-colors" onClick={() => handleStartCall('video')}><Video className="h-5 w-5" /></Button>
+                <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary transition-colors" onClick={() => handleStartCall('video')}><VideoIcon className="h-5 w-5" /></Button>
                 <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary transition-colors" onClick={() => handleStartCall('audio')}><Phone className="h-5 w-5" /></Button>
               </>
             )}
@@ -302,23 +343,30 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
         </header>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-8 scroll-smooth" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(153, 64, 22, 0.03) 1px, transparent 0)', backgroundSize: '24px 24px' }}>
-          {messages.map((msg) => (
-            <div key={msg.id} id={`msg-${msg.id}`} className="flex flex-col gap-1">
-              {isCluster && !msg.isMe && msg.senderName && (
-                <div className="flex items-center gap-2 ml-2 mb-1">
-                  <Avatar className="h-5 w-5 border border-primary/10 shadow-sm"><AvatarImage src={msg.senderAvatar} /></Avatar>
-                  <span className="text-[10px] font-black uppercase text-primary/60 tracking-widest">{msg.senderName}</span>
-                </div>
-              )}
-              <ChatBubble 
-                {...msg} 
-                isMe={msg.sender === "me"} 
-                status={settings.showReadReceipts ? msg.status : 'sent'}
-                onDelete={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
-                onDownload={(id) => setMessages(prev => prev.map(m => m.id === id ? { ...m, isDownloaded: true } : m))}
-              />
+          {isLoadingMessages ? (
+            <div className="h-full flex flex-col items-center justify-center gap-4 opacity-40">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <p className="text-[10px] font-black uppercase tracking-widest">Vault Syncing...</p>
             </div>
-          ))}
+          ) : (
+            messages.map((msg) => (
+              <div key={msg.id} id={`msg-${msg.id}`} className="flex flex-col gap-1">
+                {isCluster && !msg.isMe && msg.senderName && (
+                  <div className="flex items-center gap-2 ml-2 mb-1">
+                    <Avatar className="h-5 w-5 border border-primary/10 shadow-sm"><AvatarImage src={msg.senderAvatar} /></Avatar>
+                    <span className="text-[10px] font-black uppercase text-primary/60 tracking-widest">{msg.senderName}</span>
+                  </div>
+                )}
+                <ChatBubble 
+                  {...msg} 
+                  isMe={msg.sender === "me"} 
+                  status={settings.showReadReceipts ? msg.status : 'sent'}
+                  onDelete={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
+                  onDownload={(id) => setMessages(prev => prev.map(m => m.id === id ? { ...m, isDownloaded: true } : m))}
+                />
+              </div>
+            ))
+          )}
         </div>
         <ChatInput onSend={handleSend} />
       </div>
@@ -347,44 +395,26 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                     {isAdmin && (
                       <Dialog open={isAddNodeOpen} onOpenChange={setIsAddNodeOpen}>
                         <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg bg-primary/10 text-primary hover:bg-primary/20">
-                            <UserPlus className="h-4 w-4" />
-                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg bg-primary/10 text-primary hover:bg-primary/20"><UserPlus className="h-4 w-4" /></Button>
                         </DialogTrigger>
                         <DialogContent className="rounded-[2rem] p-0 overflow-hidden border-primary/10">
-                          <DialogHeader className="p-6 bg-primary/5 border-b border-primary/10">
-                            <DialogTitle className="text-xl font-black italic uppercase tracking-widest text-primary">Add Node to Cluster</DialogTitle>
-                          </DialogHeader>
+                          <DialogHeader className="p-6 bg-primary/5 border-b border-primary/10"><DialogTitle className="text-xl font-black italic uppercase tracking-widest text-primary">Add Node to Cluster</DialogTitle></DialogHeader>
                           <div className="p-4 space-y-4">
                             <div className="relative">
                               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <Input 
-                                placeholder="Search connections..." 
-                                className="h-12 pl-10 rounded-2xl bg-secondary/20 border-none"
-                                value={addNodeSearch}
-                                onChange={(e) => setAddNodeSearch(e.target.value)}
-                              />
+                              <Input placeholder="Search connections..." className="h-12 pl-10 rounded-2xl bg-secondary/20 border-none" value={addNodeSearch} onChange={(e) => setAddNodeSearch(e.target.value)} />
                             </div>
                             <ScrollArea className="h-[300px]">
                               <div className="space-y-2 pr-4">
-                                {nonClusterMembers.length > 0 ? nonClusterMembers.map((c) => (
-                                  <button 
-                                    key={c.username}
-                                    onClick={() => handleAddNode(c)}
-                                    className="w-full flex items-center justify-between p-3 rounded-2xl transition-all hover:bg-secondary/40"
-                                  >
+                                {nonClusterMembers.map((c) => (
+                                  <button key={c.username} onClick={() => handleAddNode(c)} className="w-full flex items-center justify-between p-3 rounded-2xl transition-all hover:bg-secondary/40">
                                     <div className="flex items-center gap-3">
                                       <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={c.avatar} /></Avatar>
-                                      <div className="text-left">
-                                        <p className="font-bold text-sm leading-none">{c.name}</p>
-                                        <p className="text-[10px] text-muted-foreground font-black uppercase mt-1">@{c.username}</p>
-                                      </div>
+                                      <div className="text-left"><p className="font-bold text-sm leading-none">{c.name}</p><p className="text-[10px] text-muted-foreground font-black uppercase mt-1">@{c.username}</p></div>
                                     </div>
                                     <Plus className="h-4 w-4 text-primary" />
                                   </button>
-                                )) : (
-                                  <div className="py-12 text-center text-muted-foreground italic text-sm">No available nodes found.</div>
-                                )}
+                                ))}
                               </div>
                             </ScrollArea>
                           </div>
@@ -398,110 +428,21 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                   {contact.members.map(m => (
                     <div key={m.username} className="flex items-center justify-between p-3 rounded-2xl bg-secondary/20 hover:bg-secondary/40 transition-all group">
                       <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <Avatar className="h-10 w-10 border border-primary/5 shadow-sm group-hover:scale-105 transition-transform"><AvatarImage src={m.avatar} /></Avatar>
-                          {m.isOnline && !settings.isGhostMode && <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold truncate max-w-[120px]">{m.name}</span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">@{m.username}</span>
-                            {m.username === contact.adminUsername && <Badge className="bg-primary text-white border-none text-[7px] h-3 px-1">ADMIN</Badge>}
-                          </div>
-                        </div>
+                        <Avatar className="h-10 w-10 border border-primary/5 shadow-sm group-hover:scale-105 transition-transform"><AvatarImage src={m.avatar} /></Avatar>
+                        <div className="flex flex-col"><span className="text-sm font-bold truncate max-w-[120px]">{m.name}</span><span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">@{m.username}</span></div>
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-xl">
-                          <DropdownMenuItem className="gap-2 font-bold" onClick={() => router.push(`/profile/${m.username}`)}><ChevronRight className="h-4 w-4" /> View Profile</DropdownMenuItem>
-                          {isAdmin && m.username !== currentUser.username && (
-                            <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive font-bold"><Trash2 className="h-4 w-4" /> Remove Node</DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </div>
                   ))}
                 </div>
               </section>
             )}
 
-            <section className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{t('chat_visual_history')}</span>
-                <span className="text-[10px] font-black text-primary uppercase">{vaultMedia.length} NODES</span>
-              </div>
-              {vaultMedia.length > 0 ? (
-                <div className="grid grid-cols-3 gap-2">
-                  {vaultMedia.map((m, i) => (
-                    <div 
-                      key={i} 
-                      className="relative aspect-square rounded-xl overflow-hidden group/thumb cursor-pointer shadow-md"
-                      onClick={() => m.mediaUrl && triggerHaptic(10)}
-                    >
-                      <Image src={m.mediaUrl!} alt="Media" fill className="object-cover transition-transform group/thumb:scale-110" />
-                      {m.type === 'video' && <div className="absolute inset-0 bg-black/20 flex items-center justify-center"><Play className="h-4 w-4 text-white fill-current" /></div>}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-10 text-center bg-secondary/10 rounded-2xl border-2 border-dashed border-primary/5">
-                  <ImageIcon className="h-8 w-8 mx-auto text-muted-foreground/20 mb-2" />
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">No visuals indexed</p>
-                </div>
-              )}
-            </section>
-
-            <section className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{t('chat_spatial_links')}</span>
-                <span className="text-[10px] font-black text-primary uppercase">{vaultLinks.length} NODES</span>
-              </div>
-              {vaultLinks.length > 0 ? (
-                <div className="space-y-2">
-                  {vaultLinks.map((m, i) => (
-                    <button 
-                      key={i} 
-                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-secondary/20 hover:bg-secondary/40 transition-all text-left group/link"
-                      onClick={() => m.linkData && window.open(m.linkData.url, '_blank')}
-                    >
-                      <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0 shadow-sm relative">
-                        <Image src={m.linkData!.image} alt="Link" fill className="object-cover" />
-                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/link:opacity-100 transition-opacity flex items-center justify-center">
-                          <ExternalLink className="h-4 w-4 text-white" />
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold truncate uppercase tracking-tighter">{m.linkData!.title}</p>
-                        <p className="text-[9px] font-black text-primary uppercase tracking-widest">{new URL(m.linkData!.url).hostname}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-10 text-center bg-secondary/10 rounded-2xl border-2 border-dashed border-primary/5">
-                  <LinkIcon className="h-8 w-8 mx-auto text-muted-foreground/20 mb-2" />
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">No links indexed</p>
-                </div>
-              )}
-            </section>
-
             <div className="pt-6 border-t border-primary/5 space-y-4">
               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">System Controls</h4>
               <div className="space-y-2">
-                <Button variant="ghost" className="w-full justify-start gap-3 h-12 rounded-2xl text-muted-foreground hover:bg-primary/5 hover:text-primary transition-all">
-                  <ShieldCheck className="h-5 w-5" />
-                  <span className="font-bold text-sm">Security Handshake</span>
-                </Button>
+                <Button variant="ghost" className="w-full justify-start gap-3 h-12 rounded-2xl text-muted-foreground hover:bg-primary/5 hover:text-primary transition-all"><ShieldCheck className="h-5 w-5" /><span className="font-bold text-sm">Security Handshake</span></Button>
                 {isCluster && (
-                  <Button 
-                    variant="ghost" 
-                    className="w-full justify-start gap-3 h-12 rounded-2xl text-destructive hover:bg-destructive/5 transition-all"
-                    onClick={() => { triggerHaptic(15); setIsLeaveDialogOpen(true); }}
-                  >
+                  <Button variant="ghost" className="w-full justify-start gap-3 h-12 rounded-2xl text-destructive hover:bg-destructive/5 transition-all" onClick={() => { triggerHaptic(15); setIsLeaveDialogOpen(true); }}>
                     <LogOut className="h-5 w-5" />
                     <span className="font-bold text-sm">{isAdmin ? "Dissolve Cluster" : "Leave Cluster"}</span>
                   </Button>
@@ -515,25 +456,11 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       <AlertDialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
         <AlertDialogContent className="rounded-[2.5rem] sm:max-w-[420px] z-[400] bg-white/90 dark:bg-[#0A0A0A]/90 backdrop-blur-2xl border-primary/10 shadow-2xl">
           <AlertDialogHeader>
-            <div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4">
-              <LogOut className="h-8 w-8" />
-            </div>
+            <div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4"><LogOut className="h-8 w-8" /></div>
             <AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">{isAdmin ? "Dissolve Cluster?" : "Leave Cluster?"}</AlertDialogTitle>
-            <AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">
-              {isAdmin 
-                ? "As the materializer, dissolving this cluster will purge the collective workspace for all nodes. This action cannot be reversed."
-                : "You will lose access to this collective workspace and its vault nodes. You must be re-invited to synchronize again."}
-            </AlertDialogDescription>
+            <AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">This action is terminal. You will lose access to this collective workspace node.</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6">
-            <AlertDialogCancel className="rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] bg-secondary/50 border-none">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleConfirmLeave}
-              className="rounded-2xl h-14 font-black italic uppercase tracking-widest text-[10px] bg-destructive hover:bg-destructive/90 text-white shadow-xl shadow-destructive/20"
-            >
-              {isAdmin ? "Confirm Dissolve" : "Leave Node"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6"><AlertDialogCancel className="rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] bg-secondary/50 border-none">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleConfirmLeave} className="rounded-2xl h-14 font-black italic uppercase tracking-widest text-[10px] bg-destructive hover:bg-destructive/90 text-white shadow-xl">Confirm</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

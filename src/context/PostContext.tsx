@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
-import client, { account, ID, databases, storage, APPWRITE_BUCKET_ID, APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, LIKES_COLLECTION_ID, COMMENTS_COLLECTION_ID, FOLLOWS_COLLECTION_ID } from '@/lib/appwrite';
+import client, { account, ID, databases, storage, APPWRITE_BUCKET_ID, APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, LIKES_COLLECTION_ID, COMMENTS_COLLECTION_ID, FOLLOWS_COLLECTION_ID, CLUSTERS_COLLECTION_ID } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 
 export interface AppSettings {
@@ -109,6 +109,24 @@ export interface Post {
   boostCurrentViews?: number;
 }
 
+export interface Cluster {
+  id: string;
+  name: string;
+  adminUsername: string;
+  avatar?: string;
+  members: User[];
+  isGroup: true;
+  lastMessage?: string;
+  lastTime?: string;
+}
+
+export interface Connection extends User {
+  followsYou?: boolean;
+  isGroup: false;
+  lastMessage?: string;
+  lastTime?: string;
+}
+
 export type CallType = 'video' | 'audio';
 export type CallStatus = 'idle' | 'incoming' | 'outgoing' | 'active';
 
@@ -141,8 +159,8 @@ interface PostContextType {
   stories: any[];
   campaigns: any[];
   mutedUserNames: string[];
-  connections: any[];
-  clusters: any[];
+  connections: Connection[];
+  clusters: Cluster[];
   auditLogs: any[];
   disputes: any[];
   staff: any[];
@@ -203,9 +221,9 @@ interface PostContextType {
   recordAdHandshake: (revenue: number) => void;
   updateIntelligence: (data: any) => void;
   incrementShareCount: (postId: string) => void;
-  createCluster: (name: string, members: any[]) => void;
-  addMemberToCluster: (clusterId: string, member: any) => void;
-  leaveCluster: (clusterId: string) => void;
+  createCluster: (name: string, members: any[]) => Promise<void>;
+  addMemberToCluster: (clusterId: string, member: any) => Promise<void>;
+  leaveCluster: (clusterId: string) => Promise<void>;
   resolveDispute: (id: string, action: any) => void;
   promoteUser: (username: string, role: any) => void;
   demoteUser: (username: string) => void;
@@ -259,11 +277,20 @@ const INITIAL_SETTINGS: AppSettings = {
   isSensitivityFilterActive: false
 };
 
+const MOCK_CONNECTIONS: Connection[] = [
+  { name: "Alex Rivera", username: "arivera", avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop", category: "Product Designer", followers: "12.2k", followsYou: true, isGroup: false },
+  { name: "Sarah Chen", username: "schen_dev", avatar: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=100&h=100&fit=crop", category: "Fullstack Architect", followers: "4.2k", followsYou: true, isGroup: false },
+  { name: "Marcus Stone", username: "mstone", avatar: "https://images.unsplash.com/photo-1607031542107-f6f46b5d54e9?w=100&h=100&fit=crop", category: "Visual Storyteller", followers: "25.1k", followsYou: false, isGroup: false },
+  { name: "Joy Moore", username: "jmoore", avatar: "https://picsum.photos/seed/joy/100/100", category: "Vocalist", followers: "1.5k", followsYou: true, isGroup: false },
+  { name: "Tech Insider", username: "techex", avatar: "https://picsum.photos/seed/51/100/100", category: "Tech Node", followers: "800", followsYou: false, isGroup: false },
+];
+
 export function PostProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User>(INITIAL_USER);
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
+  const [clusters, setClusters] = useState<Cluster[]>([]);
   
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
   const [unlikedPostIds, setUnlikedPostIds] = useState<Set<string>>(new Set());
@@ -310,7 +337,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       
       setPosts(livePosts as Post[]);
 
-      // Fetch user's likes to sync hearts
       try {
         const user = await account.get();
         const likeResponse = await databases.listDocuments(
@@ -342,6 +368,26 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshClusters = useCallback(async () => {
+    try {
+      const response = await databases.listDocuments(
+        APPWRITE_DATABASE_ID,
+        CLUSTERS_COLLECTION_ID
+      );
+      const liveClusters = response.documents.map(doc => ({
+        id: doc.$id,
+        name: doc.name,
+        adminUsername: doc.adminUsername,
+        avatar: doc.avatar,
+        members: JSON.parse(doc.members || '[]'),
+        isGroup: true as const
+      }));
+      setClusters(liveClusters);
+    } catch (e) {
+      console.error("Cluster Sync Failed:", e);
+    }
+  }, []);
+
   const checkSession = useCallback(async () => {
     try {
       const user = await account.get();
@@ -352,13 +398,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
         isOnline: true,
         role: 'USER'
       }));
-      await Promise.all([refreshFeed(), refreshSocialGraph()]);
+      await Promise.all([refreshFeed(), refreshSocialGraph(), refreshClusters()]);
     } catch (error) {
       console.log("No active signature node.");
     } finally {
       setIsLoading(false);
     }
-  }, [refreshFeed, refreshSocialGraph]);
+  }, [refreshFeed, refreshSocialGraph, refreshClusters]);
 
   useEffect(() => {
     checkSession();
@@ -425,7 +471,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const isCurrentlyLiked = likedPostIds.has(postId);
     const user = await account.get();
     
-    // Optimistic UI Handshake
     setLikedPostIds(prev => {
       const next = new Set(prev);
       if (isCurrentlyLiked) next.delete(postId);
@@ -438,7 +483,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (!post) return;
 
       if (isCurrentlyLiked) {
-        // Find the like document to delete
         const response = await databases.listDocuments(
           APPWRITE_DATABASE_ID,
           LIKES_COLLECTION_ID,
@@ -493,7 +537,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const isCurrentlyFollowing = followingUsernames.has(username);
     const user = await account.get();
 
-    // Optimistic Handshake
     setFollowingUsernames(prev => {
       const next = new Set(prev);
       if (isCurrentlyFollowing) next.delete(username);
@@ -515,7 +558,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         await databases.createDocument(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, ID.unique(), {
           followerId: user.$id,
           followingUsername: username,
-          followingId: 'unknown' // In a real app, you'd look up the target user's ID
+          followingId: 'unknown'
         });
       }
       refreshSocialGraph();
@@ -524,8 +567,66 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const createCluster = async (name: string, members: any[]) => {
+    try {
+      const allMembers = [currentUser, ...members];
+      await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        CLUSTERS_COLLECTION_ID,
+        ID.unique(),
+        {
+          name,
+          adminUsername: currentUser.username,
+          members: JSON.stringify(allMembers),
+          avatar: `https://picsum.photos/seed/${name}/400/400`
+        }
+      );
+      await refreshClusters();
+    } catch (e) {
+      console.error("Cluster creation failed:", e);
+    }
+  };
+
+  const addMemberToCluster = async (clusterId: string, member: any) => {
+    try {
+      const cluster = clusters.find(c => c.id === clusterId);
+      if (!cluster) return;
+      const updatedMembers = [...cluster.members, member];
+      await databases.updateDocument(
+        APPWRITE_DATABASE_ID,
+        CLUSTERS_COLLECTION_ID,
+        clusterId,
+        { members: JSON.stringify(updatedMembers) }
+      );
+      await refreshClusters();
+    } catch (e) {
+      console.error("Member sync failed:", e);
+    }
+  };
+
+  const leaveCluster = async (clusterId: string) => {
+    try {
+      const cluster = clusters.find(c => c.id === clusterId);
+      if (!cluster) return;
+      const updatedMembers = cluster.members.filter(m => m.username !== currentUser.username);
+      if (updatedMembers.length === 0) {
+        await databases.deleteDocument(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID, clusterId);
+      } else {
+        await databases.updateDocument(
+          APPWRITE_DATABASE_ID,
+          CLUSTERS_COLLECTION_ID,
+          clusterId,
+          { members: JSON.stringify(updatedMembers) }
+        );
+      }
+      await refreshClusters();
+    } catch (e) {
+      console.error("Cluster detachment failed:", e);
+    }
+  };
+
   const triggerHaptic = useCallback((intensity: number = 10) => {
-    if (typeof window !== 'undefined' && window.navigator?.vibrate) {
+    if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
       window.navigator.vibrate(intensity);
     }
   }, []);
@@ -562,51 +663,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const openGiftHub = (user: User) => { setTargetUserForGift(user); setIsGiftHubOpen(true); };
   const closeGiftHub = () => { setIsGiftHubOpen(false); setTargetUserForGift(null); };
 
-  const addReply = () => {};
-  const addStory = () => {};
-  const voteOnStoryPoll = () => {};
-  const toggleMuteUser = () => {};
-  const togglePinPost = () => {};
-  const archivePost = () => {};
-  const updateGatewaySettings = () => {};
-  const addAuditLog = () => {};
-  const initiateTransaction = () => {};
-  const cancelTransaction = () => {};
-  const createPaymentRequest = () => {};
-  const approvePaymentRequest = () => {};
-  const rejectPaymentRequest = () => {};
-  const recordWithdrawal = () => {};
-  const processWithdrawal = () => {};
-  const triggerReferralPulse = () => {};
-  const verifyUser = () => {};
-  const processGiftTransaction = () => {};
-  const unlockPost = (id: string) => setUnlockedPostIds(prev => new Set(prev).add(id));
-  const subscribeToCreator = () => {};
-  const cancelSubscription = () => {};
-  const recordAdMaterialization = () => {};
-  const recordAdHandshake = () => {};
-  const updateIntelligence = () => {};
-  const incrementShareCount = () => {};
-  const createCluster = () => {};
-  const addMemberToCluster = () => {};
-  const leaveCluster = () => {};
-  const resolveDispute = () => {};
-  const promoteUser = () => {};
-  const demoteUser = () => {};
-  const addCampaign = () => {};
-  const deleteCampaign = () => {};
-  const toggleCampaignStatus = () => {};
-  const recordCampaignClick = () => {};
-  const boostNode = () => {};
-  const initiateCall = () => {};
-  const receiveCall = () => {};
-  const acceptCall = () => {};
-  const endCall = () => {};
-
   return (
     <PostContext.Provider value={{ 
-      currentUser, posts, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, settings, gatewaySettings: {}, callState, stories: [], campaigns: [], mutedUserNames: [], connections: [], clusters: [], auditLogs: [], disputes: [], staff: [], adStats: {}, intelligenceMetrics: {}, withdrawalHistory: [], paymentRequests: [], referralLink: "",
-      login, signup, uploadMedia, setSearchOpen: (open) => setIsSearchOpen(open), setSelectedChatId: (id) => setSelectedChatId(id), setSelectedPostId: (id) => setSelectedPostId(id), setSelectedImageUrl: (url) => setSelectedImageUrl(url), openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex: (idx) => setActiveStoryIndex(idx), addPost, deletePost, addStory, addComment, addReply, incrementShareCount: () => {}, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed: () => false, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, boostNode, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall
+      currentUser, posts, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, settings, gatewaySettings: {}, callState, stories: [], campaigns: [], mutedUserNames: [], connections: MOCK_CONNECTIONS, clusters, auditLogs: [], disputes: [], staff: [], adStats: {}, intelligenceMetrics: {}, withdrawalHistory: [], paymentRequests: [], referralLink: "",
+      login, signup, uploadMedia, setSearchOpen: (open) => setIsSearchOpen(open), setSelectedChatId: (id) => setSelectedChatId(id), setSelectedPostId: (id) => setSelectedPostId(id), setSelectedImageUrl: (url) => setSelectedImageUrl(url), openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex: (idx) => setActiveStoryIndex(idx), addPost, deletePost, addStory: () => {}, addComment, addReply: () => {}, incrementShareCount: () => {}, voteOnStoryPoll: () => {}, toggleMuteUser: () => {}, togglePinPost: () => {}, archivePost: () => {}, updateCurrentUser, updateSettings, updateGatewaySettings: () => {}, addAuditLog: () => {}, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction: () => {}, cancelTransaction: () => {}, createPaymentRequest: () => {}, approvePaymentRequest: () => {}, rejectPaymentRequest: () => {}, recordWithdrawal: () => {}, processWithdrawal: () => {}, triggerReferralPulse: () => {}, verifyUser: () => {}, processGiftTransaction: () => {}, unlockPost: (id) => setUnlockedPostIds(prev => new Set(prev).add(id)), subscribeToCreator: () => {}, cancelSubscription: () => {}, recordAdMaterialization: () => {}, recordAdHandshake: () => {}, updateIntelligence: () => {}, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed: () => false, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute: () => {}, addCampaign: () => {}, deleteCampaign: () => {}, toggleCampaignStatus: () => {}, recordCampaignClick: () => {}, boostNode: () => {}, promoteUser: () => {}, demoteUser: () => {}, initiateCall: () => {}, receiveCall: () => {}, acceptCall: () => {}, endCall: () => {}
     }}>
       {children}
     </PostContext.Provider>

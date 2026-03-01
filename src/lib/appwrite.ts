@@ -24,6 +24,8 @@ export const POSTS_COLLECTION_ID = 'posts';
 export const LIKES_COLLECTION_ID = 'likes';
 export const COMMENTS_COLLECTION_ID = 'comments';
 export const FOLLOWS_COLLECTION_ID = 'follows';
+export const MESSAGES_COLLECTION_ID = 'messages';
+export const CLUSTERS_COLLECTION_ID = 'clusters';
 
 export { ID };
 
