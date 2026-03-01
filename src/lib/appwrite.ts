@@ -23,6 +23,7 @@ export const APPWRITE_BUCKET_ID = 'all_media';
 export const POSTS_COLLECTION_ID = 'posts';
 export const LIKES_COLLECTION_ID = 'likes';
 export const COMMENTS_COLLECTION_ID = 'comments';
+export const FOLLOWS_COLLECTION_ID = 'follows';
 
 export { ID };
 

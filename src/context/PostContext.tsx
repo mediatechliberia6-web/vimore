@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
-import client, { account, ID, databases, storage, APPWRITE_BUCKET_ID, APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, LIKES_COLLECTION_ID, COMMENTS_COLLECTION_ID } from '@/lib/appwrite';
+import client, { account, ID, databases, storage, APPWRITE_BUCKET_ID, APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, LIKES_COLLECTION_ID, COMMENTS_COLLECTION_ID, FOLLOWS_COLLECTION_ID } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 
 export interface AppSettings {
@@ -159,7 +159,7 @@ interface PostContextType {
   toggleLikePost: (postId: string) => Promise<void>;
   toggleUnlikePost: (postId: string) => void;
   toggleSavePost: (postId: string) => void;
-  toggleFollowUser: (username: string) => void;
+  toggleFollowUser: (username: string) => Promise<void>;
   updateCurrentUser: (data: Partial<User>) => void;
   updateSettings: (data: Partial<AppSettings>) => void;
   setSearchOpen: (open: boolean) => void;
@@ -327,6 +327,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshSocialGraph = useCallback(async () => {
+    try {
+      const user = await account.get();
+      const followResponse = await databases.listDocuments(
+        APPWRITE_DATABASE_ID,
+        FOLLOWS_COLLECTION_ID,
+        [Query.equal('followerId', user.$id)]
+      );
+      const following = new Set(followResponse.documents.map(d => d.followingUsername));
+      setFollowingUsernames(following);
+    } catch (e) {
+      console.error("Social Graph Sync Failed:", e);
+    }
+  }, []);
+
   const checkSession = useCallback(async () => {
     try {
       const user = await account.get();
@@ -337,13 +352,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
         isOnline: true,
         role: 'USER'
       }));
-      await refreshFeed();
+      await Promise.all([refreshFeed(), refreshSocialGraph()]);
     } catch (error) {
       console.log("No active signature node.");
     } finally {
       setIsLoading(false);
     }
-  }, [refreshFeed]);
+  }, [refreshFeed, refreshSocialGraph]);
 
   useEffect(() => {
     checkSession();
@@ -474,6 +489,41 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const toggleFollowUser = async (username: string) => {
+    const isCurrentlyFollowing = followingUsernames.has(username);
+    const user = await account.get();
+
+    // Optimistic Handshake
+    setFollowingUsernames(prev => {
+      const next = new Set(prev);
+      if (isCurrentlyFollowing) next.delete(username);
+      else next.add(username);
+      return next;
+    });
+
+    try {
+      if (isCurrentlyFollowing) {
+        const response = await databases.listDocuments(
+          APPWRITE_DATABASE_ID,
+          FOLLOWS_COLLECTION_ID,
+          [Query.equal('followerId', user.$id), Query.equal('followingUsername', username)]
+        );
+        if (response.documents.length > 0) {
+          await databases.deleteDocument(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, response.documents[0].$id);
+        }
+      } else {
+        await databases.createDocument(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, ID.unique(), {
+          followerId: user.$id,
+          followingUsername: username,
+          followingId: 'unknown' // In a real app, you'd look up the target user's ID
+        });
+      }
+      refreshSocialGraph();
+    } catch (e) {
+      console.error("Social handshake failure:", e);
+    }
+  };
+
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
       window.navigator.vibrate(intensity);
@@ -497,15 +547,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const next = new Set(prev);
       if (next.has(postId)) next.delete(postId);
       else next.add(postId);
-      return next;
-    });
-  };
-
-  const toggleFollowUser = (username: string) => {
-    setFollowingUsernames(prev => {
-      const next = new Set(prev);
-      if (next.has(username)) next.delete(username);
-      else next.add(username);
       return next;
     });
   };
