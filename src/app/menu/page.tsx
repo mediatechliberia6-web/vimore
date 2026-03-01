@@ -21,7 +21,10 @@ import {
   Gem,
   TrendingUp,
   Activity,
-  ShieldAlert
+  ShieldAlert,
+  LogOut,
+  Languages,
+  UserCog
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -36,12 +39,22 @@ import { useNotifications, PulseCategory } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export default function MenuPage() {
   const { currentTrack, isExpanded } = useMusic();
   const { unreadCount, categoryPulses, clearPulse } = useNotifications();
   const { currentUser, triggerHaptic } = usePosts();
+  const { toast } = useToast();
   const isPlayerActive = currentTrack && !isExpanded;
+
+  const handleLogout = () => {
+    triggerHaptic(100);
+    if (confirm("Initiate Log Out Protocol? Your local session cache will be purged.")) {
+      localStorage.clear();
+      window.location.href = "/";
+    }
+  };
 
   const menuGrid: { label: string; icon: any; color: string; bg: string; href: string; badge?: number; category?: PulseCategory }[] = [
     { label: "Home feed", icon: Home, color: "text-primary", bg: "bg-primary/10", href: "/", category: "HOME" },
@@ -174,17 +187,33 @@ export default function MenuPage() {
                   <ShieldCheck className="h-4 w-4" />
                   Privacy Checkup
                 </Link>
-                <button className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-blue-500/10 transition-colors font-semibold text-[15px] text-left text-blue-600">
-                  <Smartphone className="h-4 w-4" />
+                <Link href="/settings/account" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-blue-500/10 transition-colors font-semibold text-[15px] text-left text-blue-600">
+                  <UserCog className="h-4 w-4" />
                   Account Center
-                </button>
-                <button className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-orange-500/10 transition-colors font-semibold text-[15px] text-left text-orange-600">
-                  <Info className="h-4 w-4" />
+                </Link>
+                <Link href="/settings/language" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-orange-500/10 transition-colors font-semibold text-[15px] text-left text-orange-600">
+                  <Languages className="h-4 w-4" />
                   Language Hub
-                </button>
+                </Link>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+        </div>
+
+        <div className="pt-6 space-y-6">
+          <Button 
+            variant="ghost" 
+            className="w-full h-14 rounded-2xl bg-white dark:bg-card border border-border/50 text-destructive font-bold flex items-center justify-center gap-3 shadow-lg shadow-black/5 hover:bg-destructive hover:text-white transition-all active:scale-95"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-5 w-5" />
+            Log out
+          </Button>
+
+          <div className="flex flex-col items-center gap-2 py-8 opacity-40">
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-foreground">ViMore Network</p>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-primary italic">From Media Tech Liberia</p>
+          </div>
         </div>
       </main>
       <div className="h-20 lg:hidden" />
