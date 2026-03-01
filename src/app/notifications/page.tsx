@@ -7,7 +7,7 @@ import { MainNav } from "@/components/layout/main-nav";
 import { RightSidebar } from "@/components/layout/right-sidebar";
 import { useNotifications, NotificationNode } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
-import { useMusic, ALL_SONGS } from "@/context/MusicContext";
+import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ export default function NotificationsPage() {
   const { toast } = useToast();
   const { notifications, markAsRead, markAllAsRead, purgeSignal } = useNotifications();
   const { setSelectedPostId, isFollowing, toggleFollowUser, currentUser } = usePosts();
-  const { setTrack, currentTrack, isExpanded, triggerHaptic } = useMusic();
+  const { setTrack, currentTrack, isExpanded, triggerHaptic, globalSongs } = useMusic();
   
   const [activeFilter, setActiveFilter] = useState("all");
 
@@ -77,7 +77,7 @@ export default function NotificationsPage() {
       toast({ title: "Opening Pulse", description: "Navigating to high-velocity content node." });
     } else if (node.trackId) {
       // Sonic Pulse: Navigate to Music and play track
-      const track = ALL_SONGS.find(s => String(s.id) === String(node.trackId));
+      const track = globalSongs.find(s => String(s.id) === String(node.trackId));
       if (track) {
         setTrack(track);
         router.push('/music');
@@ -98,7 +98,7 @@ export default function NotificationsPage() {
       // Social handshakes always navigate to the profile
       router.push(`/profile/${node.targetUsername}`);
     } else if (node.trackId) {
-      const track = ALL_SONGS.find(s => String(s.id) === String(node.trackId));
+      const track = globalSongs.find(s => String(s.id) === String(node.trackId));
       if (track) {
         setTrack(track);
         router.push('/music');

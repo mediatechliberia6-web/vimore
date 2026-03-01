@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { usePosts } from "@/context/PostContext";
-import { useMusic, ALL_SONGS } from "@/context/MusicContext";
+import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -34,7 +34,7 @@ type SearchTab = "all" | "people" | "audio" | "nodes";
 export function SearchPortal() {
   const router = useRouter();
   const { isSearchOpen, setSearchOpen, connections, posts, setSelectedPostId, triggerHaptic } = usePosts();
-  const { setTrack } = useMusic();
+  const { setTrack, globalSongs } = useMusic();
   
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<SearchTab>("all");
@@ -84,7 +84,7 @@ export function SearchPortal() {
       c.name.toLowerCase().includes(q) || c.username.toLowerCase().includes(q)
     );
 
-    const audio = ALL_SONGS.filter(s => 
+    const audio = globalSongs.filter(s => 
       s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)
     );
 
@@ -93,7 +93,7 @@ export function SearchPortal() {
     );
 
     return { people, audio, nodes };
-  }, [query, connections, posts]);
+  }, [query, connections, posts, globalSongs]);
 
   const handleDeepLink = (type: 'profile' | 'track' | 'post', id: string | number) => {
     triggerHaptic?.(15);
@@ -103,7 +103,7 @@ export function SearchPortal() {
     if (type === 'profile') {
       router.push(`/profile/${id}`);
     } else if (type === 'track') {
-      const track = ALL_SONGS.find(s => s.id === id);
+      const track = globalSongs.find(s => s.id === id);
       if (track) setTrack(track);
     } else if (type === 'post') {
       setSelectedPostId(id as string);

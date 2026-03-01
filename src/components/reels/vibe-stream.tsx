@@ -11,109 +11,14 @@ import { Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 
-const MOCK_REELS_DATA = [
-  {
-    id: "r-locked",
-    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-man-dancing-in-a-dark-room-with-neon-lights-40028-preview.mp4",
-    user: {
-      name: "Alex Rivera",
-      username: "arivera",
-      avatar: "https://picsum.photos/seed/1/100/100",
-      role: "Product Designer",
-      isVerified: true,
-      followers: "12.2k"
-    },
-    caption: "Exclusive studio session node. ⚡️ Locked for contributors. #ViMore #Studio #LockedVibe",
-    likes: 4200,
-    comments: 88,
-    shares: 12,
-    isLocked: true,
-    unlockPrice: 100,
-    music: {
-      id: 1,
-      title: "Essence",
-      artist: "Wizkid",
-      cover: "https://picsum.photos/seed/song1/100/100"
-    }
-  },
-  {
-    id: "r1",
-    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-lit-city-at-night-11411-preview.mp4",
-    user: {
-      name: "Alex Rivera",
-      username: "arivera",
-      avatar: "https://picsum.photos/seed/1/100/100",
-      role: "Product Designer",
-      isVerified: true,
-      followers: "12.2k"
-    },
-    caption: "Designing the future of **ViMore**... 🎨✨ Building edge-to-edge experiences for the high-velocity creator. #Design #ViMore #Future #Creativity",
-    likes: 124500,
-    comments: 856,
-    shares: 420,
-    music: {
-      id: 1,
-      title: "Essence",
-      artist: "Wizkid",
-      cover: "https://picsum.photos/seed/song1/100/100"
-    }
-  },
-  {
-    id: "r2",
-    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-vertical-video-of-a-woman-in-a-field-of-flowers-40030-preview.mp4",
-    user: {
-      name: "Sarah Chen",
-      username: "schen_dev",
-      avatar: "https://picsum.photos/seed/2/100/100",
-      role: "Fullstack Architect",
-      isVerified: true,
-      followers: "4.2k"
-    },
-    caption: "Sunset sessions at the HQ. 🌅 The lighting here is just literal chills. #Studio #Vibes #DevLife #Web3",
-    likes: 89200,
-    comments: 432,
-    shares: 128,
-    music: {
-      id: 2,
-      title: "Last Last",
-      artist: "Burna Boy",
-      cover: "https://picsum.photos/seed/song2/100/100"
-    }
-  },
-  {
-    id: "r3",
-    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-man-dancing-in-a-dark-room-with-neon-lights-40028-preview.mp4",
-    user: {
-      name: "Marcus Stone",
-      username: "mstone",
-      avatar: "https://picsum.photos/seed/3/100/100",
-      role: "Visual Storyteller",
-      isVerified: false,
-      followers: "25.1k"
-    },
-    caption: "Late night energy. ⚡️ Exploring motion and light in the new studio setup. #Movement #Neon #Creative #Vibes",
-    likes: 156000,
-    comments: 1204,
-    shares: 890,
-    music: {
-      id: 3,
-      title: "Unavailable",
-      artist: "Davido",
-      cover: "https://picsum.photos/seed/song3/100/100"
-    }
-  }
-];
-
 export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
   const { posts, followingUsernames, triggerHaptic } = usePosts();
   const searchParams = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
 
-  // Ad Injection Logic: 
-  // 2nd position (index 1), then every 4 organic reels thereafter.
+  // Organic Vibe Logic: Only use real nodes from the vault. Mock purged.
   const reelsWithAds = useMemo(() => {
-    // Convert posts with videoUrl to Reel format
     const userReels = posts
       .filter(p => p.videoUrl)
       .map(p => ({
@@ -141,8 +46,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
         }
       }));
 
-    const combined = [...userReels, ...MOCK_REELS_DATA];
-    const source = activeTab === "foryou" ? combined : combined.filter(reel => followingUsernames.has(reel.user.username));
+    const source = activeTab === "foryou" ? userReels : userReels.filter(reel => followingUsernames.has(reel.user.username));
     
     const result: (any)[] = [];
     let organicCount = 0;
@@ -161,7 +65,6 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
     return result;
   }, [activeTab, followingUsernames, posts]);
 
-  // Deep Link Handling: Scroll to specific reel if provided in URL
   useEffect(() => {
     const targetId = searchParams.get('id');
     if (targetId && containerRef.current) {

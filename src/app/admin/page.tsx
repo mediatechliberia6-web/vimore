@@ -134,7 +134,6 @@ const MOCK_DAILY_PULSE = [
 
 export default function AdminDashboard() {
   const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections, disputes, resolveDispute, campaigns, addCampaign, deleteCampaign, toggleCampaignStatus, currentUser, staff, promoteUser, demoteUser, refreshAdminData } = usePosts();
-  const { addSignal } = useNotifications();
   const { t } = useTranslation();
   const { toast } = useToast();
   
@@ -177,12 +176,13 @@ export default function AdminDashboard() {
     return tabs;
   }, [isSuper, isFinancial, isModerator]);
 
+  // LIVE STATS MATERIALIZATION
   const stats = useMemo(() => ({
     totalNodes: connections.length,
     totalSignatures: posts.length,
-    totalEnergy: `GD ${connections.reduce((acc, c) => acc + (c.goldBalance || 0), 0)}`,
-    activeClusters: 14
-  }), [posts, connections]);
+    totalEnergy: connections.reduce((acc, c) => acc + (c.goldBalance || 0), 0),
+    auditEntries: auditLogs.length
+  }), [posts, connections, auditLogs]);
 
   const filteredUsersForGov = useMemo(() => {
     if (!govSearch.trim()) return [];
@@ -344,8 +344,8 @@ export default function AdminDashboard() {
                 {[
                   { label: "Active Nodes", value: stats.totalNodes.toLocaleString(), icon: Users, color: "text-blue-400", bg: "bg-blue-400/10" },
                   { label: "Digital Signatures", value: stats.totalSignatures.toLocaleString(), icon: Rocket, color: "text-primary", bg: "bg-primary/10" },
-                  { label: "Sonic Pulses", value: "842k", icon: BarChart3, color: "text-accent", bg: "bg-accent/10" },
-                  { label: "Network Energy", value: stats.totalEnergy, icon: Coins, color: "text-amber-400", bg: "bg-amber-400/10" }
+                  { label: "Audit Handshakes", value: stats.auditEntries.toLocaleString(), icon: BarChart3, color: "text-accent", bg: "bg-accent/10" },
+                  { label: "Network Energy", value: `GD ${stats.totalEnergy.toLocaleString()}`, icon: Coins, color: "text-amber-400", bg: "bg-amber-400/10" }
                 ].map((m) => (
                   <Card key={m.label} className="bg-card/40 border-border rounded-[2rem] overflow-hidden group hover:border-primary/30 transition-all shadow-sm">
                     <CardContent className="p-6 flex items-center gap-5">
@@ -553,7 +553,7 @@ export default function AdminDashboard() {
                     <tbody className="divide-y divide-border">
                       {auditLogs.map((log) => (
                         <tr key={log.$id} className="hover:bg-secondary/20 transition-colors">
-                          <td className="px-8 py-6 font-mono text-[10px] text-muted-foreground">{new Date(log.$createdAt).toLocaleString()}</td>
+                          <td className="px-8 py-6 font-mono text-[10px] text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</td>
                           <td className="px-8 py-6"><Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[9px] font-black shadow-sm">{log.admin}</Badge></td>
                           <td className="px-8 py-6 font-black italic uppercase tracking-widest text-xs">{log.action}</td>
                           <td className="px-8 py-6 text-xs text-muted-foreground font-medium">{log.details}</td>

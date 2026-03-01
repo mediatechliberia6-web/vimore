@@ -1,5 +1,5 @@
 
-import { Client, Account, Databases, Storage, ID } from 'appwrite';
+import { Client, Account, Databases, Storage, ID, Query } from 'appwrite';
 
 /**
  * @fileOverview ViMore Appwrite Handshake
@@ -32,7 +32,10 @@ export const PAYMENTS_COLLECTION_ID = 'payments';
 export const AUDIT_LOGS_COLLECTION_ID = 'audit_logs';
 export const STORIES_COLLECTION_ID = 'stories';
 export const CALLS_COLLECTION_ID = 'calls';
+export const SONGS_COLLECTION_ID = 'songs';
+export const ALBUMS_COLLECTION_ID = 'albums';
+export const PLAYLISTS_COLLECTION_ID = 'playlists';
 
-export { ID };
+export { ID, Query };
 
 export default client;
