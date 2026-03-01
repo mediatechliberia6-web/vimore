@@ -41,6 +41,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { BannerAdNode } from "@/components/ad/banner-ad-node";
 
 const FILTERS = [
   { id: "all", label: "All Signals" },
@@ -194,6 +195,9 @@ export default function NotificationsPage() {
                 </button>
               ))}
             </div>
+
+            {/* Banner Ad Integration */}
+            <BannerAdNode />
 
             <div className="space-y-3">
               {filteredNotifications.length > 0 ? filteredNotifications.map((node, i) => {

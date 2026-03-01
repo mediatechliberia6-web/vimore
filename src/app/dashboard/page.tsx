@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -85,6 +84,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { BannerAdNode } from "@/components/ad/banner-ad-node";
 
 const CATEGORIES = [
   { id: "analytics", label: "Analytics" },
@@ -174,6 +174,9 @@ export default function ProfessionalDashboard() {
             </div>
           </section>
         )}
+
+        {/* Banner Ad Node Integration */}
+        <BannerAdNode />
 
         {activeCategory === 'monetization' && (
           <section className="space-y-8 animate-in fade-in duration-500">

@@ -27,6 +27,7 @@ import { useMusic, ALL_SONGS } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { BannerAdNode } from "@/components/ad/banner-ad-node";
 
 type SearchTab = "all" | "people" | "audio" | "nodes";
 
@@ -319,6 +320,9 @@ export function SearchPortal() {
               )}
             </div>
           )}
+
+          {/* Banner Ad Node Integration */}
+          <BannerAdNode />
         </div>
       </main>
 

@@ -35,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
 import { aiGenerateVerificationCode } from "@/app/actions/ai";
 import { BiometricGate } from "@/components/layout/biometric-gate";
+import { BannerAdNode } from "@/components/ad/banner-ad-node";
 
 const GOLD_PACKAGES = [
   { id: "g1", gd: 200, priceLD: 500, priceUSD: 2.50, label: "Starter Pulse" },
@@ -355,7 +356,7 @@ export default function CurrencyHub() {
 
                   <div className="bg-amber-500/5 border border-amber-500/10 rounded-[2rem] p-6 flex gap-4">
                     <AlertTriangle className="h-6 w-6 text-amber-500 shrink-0" />
-                    <p className="text-xs font-bold text-amber-600 leading-relaxed uppercase tracking-tighter">
+                    <p className="text-xs font-bold text-amber-600/80 leading-relaxed uppercase tracking-tighter">
                       THIS TAKE UP A LITTLE LONG TO REVIEW AND APPROVE PLEASE GO BACK ON THE HOME FEED WE WILL NOTIFY YOU WHEN DONE WITH A NOTIFICATION
                     </p>
                   </div>
@@ -374,6 +375,9 @@ export default function CurrencyHub() {
               )}
             </TabsContent>
           </Tabs>
+
+          {/* Banner Ad Integration */}
+          <BannerAdNode />
 
           {selectedPackage && (
             <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-500 overflow-hidden">
@@ -407,20 +411,22 @@ export default function CurrencyHub() {
                       <button 
                         onClick={() => { triggerHaptic(10); setPaymentMethod("ORANGE"); }}
                         className={cn(
-                          "h-20 rounded-3xl border flex items-center justify-center transition-all group",
+                          "h-24 rounded-3xl border flex flex-col items-center justify-center gap-2 transition-all group",
                           paymentMethod === "ORANGE" ? "bg-orange-500 border-orange-400 text-white shadow-xl shadow-orange-500/20" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
                         )}
                       >
-                        <span className="text-xs font-black uppercase tracking-widest">Orange Money</span>
+                        <Building2 className="h-6 w-6" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Orange Money</span>
                       </button>
                       <button 
                         onClick={() => { triggerHaptic(10); setPaymentMethod("MTN"); }}
                         className={cn(
-                          "h-20 rounded-3xl border flex items-center justify-center transition-all group",
+                          "h-24 rounded-3xl border flex flex-col items-center justify-center gap-2 transition-all group",
                           paymentMethod === "MTN" ? "bg-yellow-500 border-yellow-400 text-black shadow-xl shadow-yellow-500/20" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
                         )}
                       >
-                        <span className="text-xs font-black uppercase tracking-widest">MTN Momo</span>
+                        <Building2 className="h-6 w-6" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">MTN Momo</span>
                       </button>
                     </div>
                   </div>

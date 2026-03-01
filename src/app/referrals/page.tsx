@@ -36,6 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
+import { BannerAdNode } from "@/components/ad/banner-ad-node";
 
 const LEADERBOARD = [
   { rank: 1, name: "Neon Architect", username: "neon_arch", referrals: 142, avatar: "https://picsum.photos/seed/leader1/100/100", isVip: true },
@@ -220,7 +221,7 @@ export default function ReferralHub() {
           </Link>
           <div className="flex items-center gap-2 group">
             <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-white transition-transform group-hover:scale-105">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-6 h-6">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-2/3 h-2/3">
                 <path d="M3 7L10 19L17 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M13 15L17 7L21 15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -376,6 +377,9 @@ export default function ReferralHub() {
             </div>
           </div>
         </section>
+
+        {/* Banner Ad Protocol Integration */}
+        <BannerAdNode />
 
         {/* Global Leaderboard Hub */}
         <section className="space-y-4">

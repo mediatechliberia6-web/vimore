@@ -80,6 +80,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { BannerAdNode } from "@/components/ad/banner-ad-node";
 
 export default function SettingsPage() {
   const { settings, updateSettings, triggerHaptic, currentUser, connections, posts, savedPostIds, activeSubscriptions, cancelSubscription } = usePosts();
@@ -712,6 +713,9 @@ export default function SettingsPage() {
         </section>
 
         <section className="space-y-4"><h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Growth & Handshakes</h3><div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8"><div className="bg-primary/5 rounded-[1.75rem] p-6 border border-primary/10 relative overflow-hidden group"><div className="relative z-10 space-y-4"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><Trophy className="h-5 w-5 text-amber-500" /><span className="text-xs font-black uppercase tracking-widest">Ambassador Status</span></div><Badge variant="outline" className="bg-primary text-white text-[8px] font-black uppercase tracking-widest border-none">Level {currentLevel} {currentLevel === 3 && "MAX"}</Badge></div><div className="space-y-2"><div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter"><span className="text-muted-foreground">{currentLevel === 3 ? "Maximum Tier Reached" : `Progress to Level ${currentLevel + 1}`}</span><span className="text-primary">{referrals} / {nextMilestone} Nodes</span></div><Progress value={growthProgress} className="h-2" /></div></div><Rocket className="absolute -right-4 -bottom-4 h-24 w-24 opacity-5 rotate-[-15deg] group-hover:scale-110 transition-transform duration-700" /></div><div className="flex items-center justify-between"><div className="space-y-0.5"><div className="flex items-center gap-2"><UserPlus className="h-4 w-4 text-primary" /><p className="font-bold text-sm">Auto-Follow Protocol</p></div><p className="text-[10px] text-muted-foreground uppercase font-black">Automatically follow nodes that join via your link</p></div><Switch checked={settings.isAutoFollowEnabled} onCheckedChange={(val) => handleUpdate({ isAutoFollowEnabled: val })} className="data-[state=checked]:bg-primary" /></div></div></section>
+
+        {/* Banner Ad Protocol Integration */}
+        <BannerAdNode />
 
         <section className="pt-10 pb-20"><Button variant="outline" className="w-full h-14 rounded-2xl border-destructive/20 text-destructive font-black italic uppercase tracking-widest text-[10px] hover:bg-destructive/5 transition-all active:scale-95 shadow-lg shadow-destructive/5" onClick={handleTotalPurge}>{t('logout')}</Button><p className="text-center text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em] mt-6">ViMore Node v1.5.0-HighVelocity</p></section>
       </main>

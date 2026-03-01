@@ -32,6 +32,7 @@ import { useTranslation } from "@/context/LanguageContext";
 import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { BannerAdNode } from "@/components/ad/banner-ad-node";
 
 interface ProtocolCardProps {
   id: string;
@@ -224,6 +225,9 @@ export default function HowItWorks() {
           </div>
         </section>
 
+        {/* Banner Ad Integration */}
+        <BannerAdNode />
+
         <section className="space-y-6">
           {protocols.map((p) => (
             <ProtocolCard key={p.id} {...p} />
@@ -260,7 +264,7 @@ export default function HowItWorks() {
             </div>
             <div className="w-px h-6 bg-primary/20" />
             <div className="flex flex-col items-center">
-              <span className="text-[10px] font-black uppercase text-primary tracking-widest leading-none mb-1">{t('branding_aaron')}</span>
+              <span className="text-[10px] font-black uppercase text-primary tracking-widest checkbox-none leading-none mb-1">{t('branding_aaron')}</span>
               <span className="text-[8px] font-bold uppercase tracking-tighter text-muted-foreground">Co-founder & President</span>
             </div>
           </div>

@@ -59,6 +59,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { aiGenerateVerificationCode } from "@/app/actions/ai";
 import { BiometricGate } from "@/components/layout/biometric-gate";
+import { BannerAdNode } from "@/components/ad/banner-ad-node";
 
 const REVENUE_DATA = [
   { name: "Locked Posts", value: 65, color: "hsl(var(--primary))" },
@@ -330,6 +331,9 @@ export default function EarningsPage() {
             </Card>
           </section>
 
+          {/* Banner Ad Protocol Integration */}
+          <BannerAdNode />
+
           {/* 2. Earnings Analytics & Exchange Rates */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="bg-white dark:bg-card border-border shadow-xl rounded-[2rem]">
@@ -383,6 +387,7 @@ export default function EarningsPage() {
                         <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase tracking-tighter">{rate.per}</Badge>
                       </div>
                       <div className="flex items-center justify-between border-t border-black/5 pt-2">
+                        <div className="flex items-center justify-between border-t border-black/5 pt-2">
                         <div className="flex flex-col">
                           <span className="text-[8px] font-black text-muted-foreground uppercase">USD</span>
                           <span className="text-sm font-black">{rate.usd}</span>
