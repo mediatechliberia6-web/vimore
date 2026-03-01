@@ -17,6 +17,13 @@ export interface AppSettings {
   silenceEnd: string;
 }
 
+export interface GatewaySettings {
+  orangeName: string;
+  orangeNumber: string;
+  mtnName: string;
+  mtnNumber: string;
+}
+
 export interface User {
   name: string;
   username: string;
@@ -237,6 +244,7 @@ interface PostContextType {
   paymentRequests: PaymentRequest[];
   referralLink: string;
   settings: AppSettings;
+  gatewaySettings: GatewaySettings;
   callState: CallState;
   setSearchOpen: (open: boolean) => void;
   setSelectedChatId: (id: string | null) => void;
@@ -258,6 +266,7 @@ interface PostContextType {
   archivePost: (postId: string) => void;
   updateCurrentUser: (data: Partial<User>) => void;
   updateSettings: (data: Partial<AppSettings>) => void;
+  updateGatewaySettings: (data: Partial<GatewaySettings>) => void;
   toggleLikePost: (postId: string) => void;
   toggleUnlikePost: (postId: string) => void;
   toggleSavePost: (postId: string) => void;
@@ -340,6 +349,13 @@ const INITIAL_SETTINGS: AppSettings = {
   isSilenceActive: false,
   silenceStart: "22:00",
   silenceEnd: "07:00"
+};
+
+const INITIAL_GATEWAY_SETTINGS: GatewaySettings = {
+  orangeName: "Amos Kortu",
+  orangeNumber: "+231778451835",
+  mtnName: "Amos Kortu",
+  mtnNumber: "+231889322188"
 };
 
 const MOCK_CONNECTIONS: Connection[] = [
@@ -570,6 +586,7 @@ const initialMockPosts: Post[] = [
 export function PostProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User>(INITIAL_USER);
   const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
+  const [gatewaySettings, setGatewaySettings] = useState<GatewaySettings>(INITIAL_GATEWAY_SETTINGS);
   const [posts, setPosts] = useState<Post[]>(initialMockPosts);
   const [stories, setStories] = useState<Story[]>(initialMockStories);
   const [highlights] = useState<Highlight[]>(initialHighlights);
@@ -628,6 +645,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const savedUser = localStorage.getItem('vimore_user');
     const savedSettings = localStorage.getItem('vimore_settings');
+    const savedGateway = localStorage.getItem('vimore_gateway');
     const savedLikes = localStorage.getItem('vimore_liked_posts');
     const savedUnlikes = localStorage.getItem('vimore_unliked_posts');
     const savedSaves = localStorage.getItem('vimore_saved_posts');
@@ -642,6 +660,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
     if (savedUser) try { setCurrentUser(JSON.parse(savedUser)); } catch (e) {}
     if (savedSettings) try { setSettings({ ...INITIAL_SETTINGS, ...JSON.parse(savedSettings) }); } catch (e) {}
+    if (savedGateway) try { setGatewaySettings({ ...INITIAL_GATEWAY_SETTINGS, ...JSON.parse(savedGateway) }); } catch (e) {}
     if (savedLikes) setLikedPostIds(new Set(JSON.parse(savedLikes)));
     if (savedUnlikes) setUnlikedPostIds(new Set(JSON.parse(savedUnlikes)));
     if (savedSaves) setSavedPostIds(new Set(JSON.parse(savedSaves)));
@@ -675,6 +694,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => { safePersist('vimore_subscriptions', Array.from(activeSubscriptions)); }, [activeSubscriptions]);
   useEffect(() => { safePersist('vimore_following', Array.from(followingUsernames)); }, [followingUsernames]);
   useEffect(() => { safePersist('vimore_settings', settings); }, [settings]);
+  useEffect(() => { safePersist('vimore_gateway', gatewaySettings); }, [gatewaySettings]);
   useEffect(() => { safePersist('vimore_withdrawal_history', withdrawalHistory); }, [withdrawalHistory]);
   useEffect(() => { safePersist('vimore_payment_requests', paymentRequests); }, [paymentRequests]);
   useEffect(() => { safePersist('vimore_clusters', clusters); }, [clusters]);
@@ -814,6 +834,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setSettings(prev => {
       const updated = { ...prev, ...data };
       safePersist('vimore_settings', updated);
+      return updated;
+    });
+  };
+
+  const updateGatewaySettings = (data: Partial<GatewaySettings>) => {
+    setGatewaySettings(prev => {
+      const updated = { ...prev, ...data };
+      safePersist('vimore_gateway', updated);
       return updated;
     });
   };
@@ -1087,7 +1115,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   return (
     <PostContext.Provider value={{ 
-      currentUser: finalCurrentUser, posts, stories, highlights, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, callState, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, initiateCall, receiveCall, acceptCall, endCall
+      currentUser: finalCurrentUser, posts, stories, highlights, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, gatewaySettings, callState, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, initiateCall, receiveCall, acceptCall, endCall
     }}>
       {children}
     </PostContext.Provider>

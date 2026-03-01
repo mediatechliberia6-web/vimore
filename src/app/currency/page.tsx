@@ -50,7 +50,7 @@ const DIAMOND_PACKAGES = [
 ];
 
 export default function CurrencyHub() {
-  const { currentUser, initiateTransaction, pendingTransaction, cancelTransaction, triggerHaptic, createPaymentRequest } = usePosts();
+  const { currentUser, initiateTransaction, pendingTransaction, cancelTransaction, triggerHaptic, createPaymentRequest, gatewaySettings } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
   const { toast } = useToast();
@@ -432,15 +432,17 @@ export default function CurrencyHub() {
                           <div className="group relative">
                             <span className="text-[10px] font-black uppercase text-white/30 block mb-1 ml-1">ACCOUNT NAME</span>
                             <div className="bg-white/5 h-14 rounded-2xl flex items-center justify-between px-6 border border-white/5">
-                              <span className="text-lg font-black text-white">Amos Kortu</span>
-                              <button onClick={() => handleCopy("Amos Kortu", "Name")} className="text-primary hover:text-white transition-colors"><Copy className="h-4 w-4" /></button>
+                              <span className="text-lg font-black text-white">
+                                {paymentMethod === 'ORANGE' ? gatewaySettings.orangeName : gatewaySettings.mtnName}
+                              </span>
+                              <button onClick={() => handleCopy(paymentMethod === 'ORANGE' ? gatewaySettings.orangeName : gatewaySettings.mtnName, "Name")} className="text-primary hover:text-white transition-colors"><Copy className="h-4 w-4" /></button>
                             </div>
                           </div>
                           <div className="group relative">
                             <span className="text-[10px] font-black uppercase text-white/30 block mb-1 ml-1">ACCOUNT NUMBER</span>
                             <div className="bg-white/5 h-14 rounded-2xl flex items-center justify-between px-6 border border-white/5">
-                              <span className="text-lg font-black text-white">{paymentMethod === 'ORANGE' ? '+231778451835' : '+231889322188'}</span>
-                              <button onClick={() => handleCopy(paymentMethod === 'ORANGE' ? '+231778451835' : '+231889322188', "Number")} className="text-primary hover:text-white transition-colors"><Copy className="h-4 w-4" /></button>
+                              <span className="text-lg font-black text-white">{paymentMethod === 'ORANGE' ? gatewaySettings.orangeNumber : gatewaySettings.mtnNumber}</span>
+                              <button onClick={() => handleCopy(paymentMethod === 'ORANGE' ? gatewaySettings.orangeNumber : gatewaySettings.mtnNumber, "Number")} className="text-primary hover:text-white transition-colors"><Copy className="h-4 w-4" /></button>
                             </div>
                           </div>
                         </div>

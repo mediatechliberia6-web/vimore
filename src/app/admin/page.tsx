@@ -37,13 +37,17 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   ImageIcon,
-  X
+  X,
+  Smartphone,
+  Building2,
+  Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
@@ -65,7 +69,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 
-type AdminTab = "pulse" | "economy" | "identity" | "safety";
+type AdminTab = "pulse" | "economy" | "identity" | "safety" | "gateway";
 type EconomySubTab = "outbound" | "inbound";
 
 const MOCK_DAILY_PULSE = [
@@ -90,13 +94,16 @@ const MOCK_REPORTS = [
 ];
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts } = usePosts();
+  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings } = usePosts();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<AdminTab>("pulse");
   const [economySubTab, setEconomySubTab] = useState<EconomySubTab>("outbound");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
+
+  // Gateway form state
+  const [gatewayForm, setGatewayForm] = useState(gatewaySettings);
 
   const pendingWithdrawals = useMemo(() => 
     withdrawalHistory.filter(w => w.status === 'PENDING'), 
@@ -132,6 +139,12 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSaveGateway = () => {
+    triggerHaptic(50);
+    updateGatewaySettings(gatewayForm);
+    toast({ title: "Gateway Synchronized", description: "Financial nodes updated platform-wide." });
+  };
+
   return (
     <div className="min-h-screen bg-[#020202] text-foreground flex overflow-hidden selection:bg-primary/30">
       {/* Background Ambience */}
@@ -158,9 +171,9 @@ export default function AdminDashboard() {
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
-          {(["pulse", "economy", "identity", "safety"] as AdminTab[]).map((tab) => {
-            const icons = { pulse: Activity, economy: Coins, identity: UserPlus, safety: ShieldAlert };
-            const labels = { pulse: "Global Pulse", economy: "Economy Auditor", identity: "Identity Forge", safety: "Safety Node" };
+          {(["pulse", "economy", "identity", "safety", "gateway"] as AdminTab[]).map((tab) => {
+            const icons = { pulse: Activity, economy: Coins, identity: UserPlus, safety: ShieldAlert, gateway: Settings };
+            const labels = { pulse: "Global Pulse", economy: "Economy Auditor", identity: "Identity Forge", safety: "Safety Node", gateway: "Gateway Logic" };
             const Icon = icons[tab];
             const isActive = activeTab === tab;
 
@@ -637,14 +650,97 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+
+          {activeTab === 'gateway' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="space-y-1 px-2">
+                <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Gateway Logic</h3>
+                <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Configure Financial Inbound Nodes</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-8">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-500">
+                      <Smartphone className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Orange Money</h4>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Primary Inbound Pulse</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Account Label</Label>
+                      <Input 
+                        value={gatewayForm.orangeName}
+                        onChange={(e) => setGatewayForm({ ...gatewayForm, orangeName: e.target.value })}
+                        className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Node Number</Label>
+                      <Input 
+                        value={gatewayForm.orangeNumber}
+                        onChange={(e) => setGatewayForm({ ...gatewayForm, orangeNumber: e.target.value })}
+                        className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold"
+                      />
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-8">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 bg-yellow-500/10 rounded-2xl flex items-center justify-center text-yellow-500">
+                      <Building2 className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">MTN Momo</h4>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Secondary Inbound Pulse</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Account Label</Label>
+                      <Input 
+                        value={gatewayForm.mtnName}
+                        onChange={(e) => setGatewayForm({ ...gatewayForm, mtnName: e.target.value })}
+                        className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Node Number</Label>
+                      <Input 
+                        value={gatewayForm.mtnNumber}
+                        onChange={(e) => setGatewayForm({ ...gatewayForm, mtnNumber: e.target.value })}
+                        className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold"
+                      />
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
+              <div className="flex justify-center pt-6">
+                <Button 
+                  className="h-16 px-12 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl shadow-primary/20 transition-all active:scale-95 gap-3"
+                  onClick={handleSaveGateway}
+                >
+                  <Check className="h-6 w-6" />
+                  Sync Gateway logic
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
       {/* Mobile Admin Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[200] px-4 pb-6 flex justify-center pointer-events-none">
         <nav className="flex items-center gap-2 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-2.5 shadow-2xl pointer-events-auto">
-          {(["pulse", "economy", "identity", "safety"] as AdminTab[]).map((tab) => {
-            const icons = { pulse: Activity, economy: Coins, identity: UserPlus, safety: ShieldAlert };
+          {(["pulse", "economy", "identity", "safety", "gateway"] as AdminTab[]).map((tab) => {
+            const icons = { pulse: Activity, economy: Coins, identity: UserPlus, safety: ShieldAlert, gateway: Settings };
             const Icon = icons[tab];
             const isActive = activeTab === tab;
 
