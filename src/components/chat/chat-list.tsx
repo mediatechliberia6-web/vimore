@@ -38,7 +38,7 @@ const MOCK_MESSAGES: Record<string, { text: string; time: string; unread: number
 };
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
-  const { connections, clusters, triggerHaptic } = usePosts();
+  const { connections, clusters, triggerHaptic, settings } = usePosts();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "unread" | "broadcasts" | "clusters">("all");
 
@@ -161,6 +161,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
             const isSelected = selectedId === id;
             const meta = MOCK_MESSAGES[id] || { text: (item as any).lastMessage || "No messages yet.", time: (item as any).lastTime || "", unread: 0 };
             const isPinned = pinnedUsernames.has(id);
+            const isOnlineVisible = (item as any).isOnline && !settings.isGhostMode;
 
             return (
               <div 
@@ -192,7 +193,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                       <AvatarFallback>{item.name[0]}</AvatarFallback>
                     </Avatar>
                   )}
-                  {(item as any).isOnline && (
+                  {isOnlineVisible && (
                     <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-card rounded-full animate-pulse" />
                   )}
                 </div>

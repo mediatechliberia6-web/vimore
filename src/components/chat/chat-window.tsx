@@ -122,7 +122,7 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
-  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections, addMemberToCluster } = usePosts();
+  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections, addMemberToCluster, settings } = usePosts();
   const { toast } = useToast();
   const router = useRouter();
   
@@ -248,6 +248,8 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     }
   };
 
+  const isContactOnline = !isCluster && (contact as Connection).isOnline && !settings.isGhostMode;
+
   return (
     <div className="flex flex-1 min-h-0 bg-[#F0F2F5] dark:bg-[#080808] relative overflow-hidden">
       <div className="flex flex-col flex-1 min-h-0 relative overflow-hidden">
@@ -269,12 +271,12 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                   <AvatarFallback>{contact.name[0]}</AvatarFallback>
                 </Avatar>
               )}
-              {(!isCluster && (contact as Connection).isOnline) && <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full animate-pulse" />}
+              {isContactOnline && <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full animate-pulse" />}
             </div>
             <div className="flex flex-col min-w-0 ml-1">
               <h3 className="font-bold text-sm sm:text-base truncate">{contact.name}</h3>
-              <span className={cn("text-[10px] font-black uppercase tracking-widest", isCluster ? "text-primary" : (contact as Connection).isOnline ? "text-green-500" : "text-muted-foreground")}>
-                {isCluster ? `${contact.members.length} Nodes in Cluster` : (contact as Connection).isOnline ? "Active Pulse" : "Away"}
+              <span className={cn("text-[10px] font-black uppercase tracking-widest", isCluster ? "text-primary" : isContactOnline ? "text-green-500" : "text-muted-foreground")}>
+                {isCluster ? `${contact.members.length} Nodes in Cluster` : isContactOnline ? "Active Pulse" : "Away"}
               </span>
             </div>
           </div>
@@ -309,6 +311,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
               <ChatBubble 
                 {...msg} 
                 isMe={msg.sender === "me"} 
+                status={settings.showReadReceipts ? msg.status : 'sent'}
                 onDelete={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
                 onDownload={(id) => setMessages(prev => prev.map(m => m.id === id ? { ...m, isDownloaded: true } : m))}
               />
@@ -395,7 +398,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                       <div className="flex items-center gap-3">
                         <div className="relative">
                           <Avatar className="h-10 w-10 border border-primary/5 shadow-sm group-hover:scale-105 transition-transform"><AvatarImage src={m.avatar} /></Avatar>
-                          {m.isOnline && <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />}
+                          {m.isOnline && !settings.isGhostMode && <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />}
                         </div>
                         <div className="flex flex-col">
                           <span className="text-sm font-bold truncate max-w-[120px]">{m.name}</span>

@@ -249,6 +249,122 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* PHASE 2: PRIVACY & VISIBILITY */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Privacy & Signature</h3>
+            <Badge variant="outline" className="text-[8px] font-black border-primary/20 text-primary uppercase">Ghost Node Capable</Badge>
+          </div>
+          <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="font-bold text-sm">Ghost Node Mode</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Hide your online pulse from other nodes</p>
+              </div>
+              <Switch checked={settings.isGhostMode} onCheckedChange={(val) => handleUpdate({ isGhostMode: val })} className="data-[state=checked]:bg-primary" />
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="font-bold text-sm">Discovery Visibility</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Control who can find your identity node</p>
+              </div>
+              <Select value={settings.discoveryVisibility} onValueChange={(val) => handleUpdate({ discoveryVisibility: val })}>
+                <SelectTrigger className="w-[140px] h-10 rounded-xl bg-secondary/20 border-none font-bold text-xs uppercase">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="everyone" className="text-xs font-bold uppercase">Everyone</SelectItem>
+                  <SelectItem value="mutual" className="text-xs font-bold uppercase">Mutual Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="font-bold text-sm">Read Handshake</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Toggle receipts in conversation clusters</p>
+              </div>
+              <Switch checked={settings.showReadReceipts} onCheckedChange={(val) => handleUpdate({ showReadReceipts: val })} className="data-[state=checked]:bg-primary" />
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <p className="font-bold text-sm">Legacy Handshake</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-black">Designate a node to manage your signature</p>
+                </div>
+                <Dialog open={isLegacySelectorOpen} onOpenChange={setIsLegacySelectorOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="rounded-xl h-10 border-primary/20 text-primary font-black uppercase text-[10px]">
+                      {selectedLegacyNode ? "Switch Node" : "Designate"}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-primary/10 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-3xl">
+                    <DialogHeader className="p-6 bg-primary/5 border-b border-primary/10">
+                      <DialogTitle className="text-xl font-black italic uppercase tracking-widest text-primary">Select Legacy Node</DialogTitle>
+                    </DialogHeader>
+                    <div className="p-4 space-y-4">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                          placeholder="Query mutual connections..." 
+                          className="h-12 pl-10 rounded-2xl bg-secondary/20 border-none"
+                          value={legacySearch}
+                          onChange={(e) => setLegacySearch(e.target.value)}
+                        />
+                      </div>
+                      <ScrollArea className="h-[300px]">
+                        <div className="space-y-2 pr-4">
+                          {filteredConnections.length > 0 ? filteredConnections.map((c) => (
+                            <button 
+                              key={c.username}
+                              onClick={() => { handleUpdate({ legacyContact: c.username }); setIsLegacySelectorOpen(false); toast({ title: "Protocol Established", description: `@${c.username} is now your legacy node.` }); }}
+                              className={cn(
+                                "w-full flex items-center justify-between p-3 rounded-2xl transition-all",
+                                settings.legacyContact === c.username ? "bg-primary/10 ring-1 ring-primary/20" : "hover:bg-secondary/40"
+                              )}
+                            >
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={c.avatar} /></Avatar>
+                                <div className="text-left">
+                                  <p className="font-bold text-sm leading-none">{c.name}</p>
+                                  <p className="text-[10px] text-muted-foreground font-black uppercase mt-1">@{c.username}</p>
+                                </div>
+                              </div>
+                              {settings.legacyContact === c.username && <CheckCircle2 className="h-5 w-5 text-primary" />}
+                            </button>
+                          )) : (
+                            <div className="py-12 text-center text-muted-foreground italic text-sm">No mutual nodes found.</div>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+              {selectedLegacyNode && (
+                <div className="flex items-center gap-3 p-3 rounded-2xl bg-primary/5 border border-primary/10 animate-in slide-in-from-top-2">
+                  <Avatar className="h-8 w-8"><AvatarImage src={selectedLegacyNode.avatar} /></Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold truncate">{selectedLegacyNode.name}</p>
+                    <p className="text-[9px] font-black uppercase text-primary tracking-widest">Digital Proxy Node</p>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleUpdate({ legacyContact: null })}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
         {/* PHASE 3: SECURITY & PASSWORD (INTEGRATED) */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Security Handshake</h3>
@@ -323,10 +439,10 @@ export default function SettingsPage() {
         </section>
 
         <section className="space-y-4">
-          <div className="flex items-center justify-between px-2"><h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Identity & Signature</h3><Badge variant="outline" className="text-[8px] font-black border-primary/20 text-primary">SYNCED</Badge></div>
+          <div className="flex items-center justify-between px-2"><h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Identity & Profile</h3><Badge variant="outline" className="text-[8px] font-black border-primary/20 text-primary">SYNCED</Badge></div>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 overflow-hidden">
             <Link href="/profile" className="flex items-center justify-between p-6 hover:bg-secondary/20 transition-colors group"><div className="flex items-center gap-4"><div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform"><User className="h-6 w-6" /></div><div><p className="font-black italic uppercase tracking-tighter text-lg">{currentUser.name}</p><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Edit Public Digital Workspace</p></div></div><ChevronRight className="h-5 w-5 text-muted-foreground opacity-40" /></Link>
-            <div className="p-6 space-y-8"><div className="flex items-center justify-between"><div className="space-y-0.5"><p className="font-bold text-sm">Ghost Node Mode</p><p className="text-[10px] text-muted-foreground uppercase font-black">Hide your online pulse and browsing footprint</p></div><Switch checked={settings.isGhostMode} onCheckedChange={(val) => handleUpdate({ isGhostMode: val })} className="data-[state=checked]:bg-primary" /></div><div className="h-px bg-border -mx-6" /><div className="space-y-4"><div className="flex items-center justify-between"><div className="space-y-0.5"><p className="font-bold text-sm">Legacy Handshake</p><p className="text-[10px] text-muted-foreground uppercase font-black">Designate a node to manage your signature</p></div><Dialog open={isLegacySelectorOpen} onOpenChange={setIsLegacySelectorOpen}><DialogTrigger asChild><Button variant="outline" className="rounded-xl h-10 border-primary/20 text-primary font-black uppercase text-[10px]">{selectedLegacyNode ? "Switch Node" : "Designate"}</Button></DialogTrigger><DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-primary/10"><DialogHeader className="p-6 bg-primary/5 border-b border-primary/10"><DialogTitle className="text-xl font-black italic uppercase tracking-widest text-primary">Select Legacy Node</DialogTitle></DialogHeader><div className="p-4 space-y-4"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Query mutual connections..." className="h-12 pl-10 rounded-2xl bg-secondary/20 border-none" value={legacySearch} onChange={(e) => setLegacySearch(e.target.value)} /></div><ScrollArea className="h-[300px]"><div className="space-y-2 pr-4">{filteredConnections.length > 0 ? filteredConnections.map((c) => (<button key={c.username} onClick={() => { handleUpdate({ legacyContact: c.username }); setIsLegacySelectorOpen(false); toast({ title: "Protocol Established", description: `@${c.username} is now your legacy node.` }); }} className={cn("w-full flex items-center justify-between p-3 rounded-2xl transition-all", settings.legacyContact === c.username ? "bg-primary/10 ring-1 ring-primary/20" : "hover:bg-secondary/40")}><div className="flex items-center gap-3"><Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={c.avatar} /></Avatar><div className="text-left"><p className="font-bold text-sm leading-none">{c.name}</p><p className="text-[10px] text-muted-foreground font-black uppercase mt-1">@{c.username}</p></div></div>{settings.legacyContact === c.username && <CheckCircle2 className="h-5 w-5 text-primary" />}</button>)) : (<div className="py-12 text-center text-muted-foreground italic text-sm">No mutual nodes found.</div>)}</div></ScrollArea></div></DialogContent></Dialog></div>{selectedLegacyNode && (<div className="flex items-center gap-3 p-3 rounded-2xl bg-primary/5 border border-primary/10 animate-in slide-in-from-top-2"><Avatar className="h-8 w-8"><AvatarImage src={selectedLegacyNode.avatar} /></Avatar><div className="flex-1 min-w-0"><p className="text-xs font-bold truncate">{selectedLegacyNode.name}</p><p className="text-[9px] font-black uppercase text-primary tracking-widest">Digital Proxy Node</p></div><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleUpdate({ legacyContact: null })}><Trash2 className="h-4 w-4" /></Button></div>)}</div></div></div>
+          </div>
         </section>
 
         <section className="space-y-4"><h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Growth & Handshakes</h3><div className="bg-white dark:bg-card rounded-[2rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8"><div className="bg-primary/5 rounded-[1.75rem] p-6 border border-primary/10 relative overflow-hidden group"><div className="relative z-10 space-y-4"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><Trophy className="h-5 w-5 text-amber-500" /><span className="text-xs font-black uppercase tracking-widest">Ambassador Status</span></div><Badge variant="outline" className="bg-primary text-white text-[8px] font-black uppercase tracking-widest border-none">Level {currentLevel} {currentLevel === 3 && "MAX"}</Badge></div><div className="space-y-2"><div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter"><span className="text-muted-foreground">{currentLevel === 3 ? "Maximum Tier Reached" : `Progress to Level ${currentLevel + 1}`}</span><span className="text-primary">{referrals} / {nextMilestone} Nodes</span></div><Progress value={growthProgress} className="h-2" /></div></div><Rocket className="absolute -right-4 -bottom-4 h-24 w-24 opacity-5 rotate-[-15deg] group-hover:scale-110 transition-transform duration-700" /></div><div className="flex items-center justify-between"><div className="space-y-0.5"><div className="flex items-center gap-2"><UserPlus className="h-4 w-4 text-primary" /><p className="font-bold text-sm">Auto-Follow Protocol</p></div><p className="text-[10px] text-muted-foreground uppercase font-black">Automatically follow nodes that join via your link</p></div><Switch checked={settings.isAutoFollowEnabled} onCheckedChange={(val) => handleUpdate({ isAutoFollowEnabled: val })} className="data-[state=checked]:bg-primary" /></div></div></section>

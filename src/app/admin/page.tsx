@@ -325,7 +325,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#020202] text-foreground flex overflow-hidden selection:bg-primary/30">
+    <div className="min-h-screen bg-background text-foreground flex overflow-hidden selection:bg-primary/30 transition-colors duration-500">
       {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none -z-10">
         <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/5 blur-[150px] rounded-full animate-pulse" />
@@ -334,10 +334,10 @@ export default function AdminDashboard() {
 
       {/* Admin Sidebar */}
       <aside className={cn(
-        "h-screen bg-black/40 backdrop-blur-3xl border-r border-white/5 transition-all duration-500 hidden md:flex flex-col shrink-0 z-[100]",
+        "h-screen bg-card/40 backdrop-blur-3xl border-r border-border transition-all duration-500 hidden md:flex flex-col shrink-0 z-[100]",
         isSidebarOpen ? "w-72" : "w-20"
       )}>
-        <div className="p-6 flex items-center gap-4 border-b border-white/5">
+        <div className="p-6 flex items-center gap-4 border-b border-border">
           <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-primary/20">
             <ShieldCheck className="h-6 w-6" />
           </div>
@@ -362,7 +362,7 @@ export default function AdminDashboard() {
                 onClick={() => { triggerHaptic(5); setActiveTab(tab); }}
                 className={cn(
                   "w-full flex items-center gap-4 p-4 rounded-2xl transition-all group relative overflow-hidden",
-                  isActive ? "bg-primary text-white shadow-xl shadow-primary/10" : "text-muted-foreground hover:bg-white/5 hover:text-white"
+                  isActive ? "bg-primary text-white shadow-xl shadow-primary/10" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                 )}
               >
                 <Icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", isActive && "animate-pulse")} />
@@ -373,9 +373,9 @@ export default function AdminDashboard() {
           })}
         </nav>
 
-        <div className="p-4 border-t border-white/5">
+        <div className="p-4 border-t border-border">
           <Link href="/">
-            <Button variant="ghost" className="w-full justify-start gap-4 h-12 rounded-xl text-muted-foreground hover:text-white hover:bg-white/5">
+            <Button variant="ghost" className="w-full justify-start gap-4 h-12 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50">
               <Rocket className="h-5 w-5" />
               {isSidebarOpen && <span className="font-bold text-xs uppercase tracking-widest">Back to Feed</span>}
             </Button>
@@ -385,21 +385,21 @@ export default function AdminDashboard() {
 
       {/* Main Command Workspace */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto scrollbar-hide">
-        <header className="h-20 px-6 sm:px-8 flex items-center justify-between bg-black/20 border-b border-white/5 backdrop-blur-md sticky top-0 z-50">
+        <header className="h-20 px-6 sm:px-8 flex items-center justify-between bg-card/20 border-b border-border backdrop-blur-md sticky top-0 z-50 transition-colors">
           <div className="flex items-center gap-4 sm:gap-6">
-            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-muted-foreground hover:text-white hidden md:flex">
+            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-muted-foreground hover:text-foreground hidden md:flex">
               <Menu className="h-6 w-6" />
             </Button>
             <div className="flex flex-col">
               <h2 className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-muted-foreground">Spatial Node</h2>
-              <span className="text-sm sm:text-lg font-black italic uppercase tracking-tighter text-white truncate max-w-[150px] sm:max-w-none">Cluster: ViMore-Main-Alpha</span>
+              <span className="text-sm sm:text-lg font-black italic uppercase tracking-tighter text-foreground truncate max-w-[150px] sm:max-w-none">Cluster: ViMore-Main-Alpha</span>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-2 bg-white/5 rounded-full px-4 py-1.5 border border-white/10">
+            <div className="hidden md:flex items-center gap-2 bg-secondary/50 rounded-full px-4 py-1.5 border border-border">
               <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Groq AI Handshake: Active</span>
+              <span className="text-[10px] font-black text-foreground/60 uppercase tracking-widest">Groq AI Handshake: Active</span>
             </div>
             <Avatar className="h-10 w-10 border-2 border-primary/20">
               <AvatarImage src="https://picsum.photos/seed/admin/100/100" />
@@ -419,14 +419,14 @@ export default function AdminDashboard() {
                   { label: "Sonic Pulses", value: "842k", icon: BarChart3, color: "text-accent", bg: "bg-accent/10" },
                   { label: "Network Energy", value: stats.totalEnergy, icon: Coins, color: "text-amber-400", bg: "bg-amber-400/10" }
                 ].map((m) => (
-                  <Card key={m.label} className="bg-white/5 border-white/10 rounded-[2rem] overflow-hidden group hover:border-primary/30 transition-all">
+                  <Card key={m.label} className="bg-card/40 border-border rounded-[2rem] overflow-hidden group hover:border-primary/30 transition-all shadow-sm">
                     <CardContent className="p-6 flex items-center gap-5">
                       <div className={cn("h-12 w-12 sm:h-14 sm:w-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110", m.bg, m.color)}>
                         <m.icon className="h-6 w-6 sm:h-7 sm:w-7" />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[9px] sm:text-[10px] font-black uppercase text-muted-foreground tracking-widest">{m.label}</span>
-                        <span className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter text-white">{m.value}</span>
+                        <span className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter text-foreground">{m.value}</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -434,7 +434,7 @@ export default function AdminDashboard() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card className="bg-white/5 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 space-y-6">
+                <Card className="bg-card/40 border-border rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 space-y-6 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
                       <h3 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter">System Velocity</h3>
@@ -461,7 +461,7 @@ export default function AdminDashboard() {
                   </div>
                 </Card>
 
-                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6 overflow-hidden relative group">
+                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 overflow-hidden relative group shadow-sm">
                   <div className="absolute inset-0 opacity-10 pointer-events-none">
                     <Globe className="absolute -right-20 -bottom-20 h-[400px] w-[400px] text-primary animate-[spin_20s_linear_infinite]" />
                   </div>
@@ -472,22 +472,22 @@ export default function AdminDashboard() {
                     </div>
                     <Badge className="bg-green-500/20 text-green-500 border-none font-black h-5 px-3 uppercase tracking-tighter">LIVE FEED</Badge>
                   </div>
-                  <div className="h-[250px] sm:h-[300px] w-full flex items-center justify-center bg-black/20 rounded-[2rem] border border-dashed border-white/10 relative">
+                  <div className="h-[250px] sm:h-[300px] w-full flex items-center justify-center bg-background/40 rounded-[2rem] border border-dashed border-border relative">
                     <div className="grid grid-cols-8 gap-4 opacity-40">
                       {[...Array(24)].map((_, i) => (
                         <div key={i} className={cn(
                           "h-1.5 w-1.5 rounded-full transition-all duration-1000",
-                          Math.random() > 0.7 ? "bg-primary animate-ping" : "bg-white/10"
+                          Math.random() > 0.7 ? "bg-primary animate-ping" : "bg-muted"
                         )} />
                       ))}
                     </div>
                     <div className="absolute bottom-6 left-6 flex items-center gap-4">
                       <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-white/40 uppercase">Active Cluster</span>
-                        <span className="text-xs font-bold text-white italic">Lagos-Node-01</span>
+                        <span className="text-[8px] font-black text-muted-foreground uppercase">Active Cluster</span>
+                        <span className="text-xs font-bold italic">Lagos-Node-01</span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-white/40 uppercase">Sync Delay</span>
+                        <span className="text-[8px] font-black text-muted-foreground uppercase">Sync Delay</span>
                         <span className="text-xs font-bold text-green-500 italic">42ms</span>
                       </div>
                     </div>
@@ -505,7 +505,7 @@ export default function AdminDashboard() {
                   <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">AI Analytics & Security Integrity</p>
                 </div>
                 <Button 
-                  className="rounded-xl h-12 px-6 bg-primary text-white font-black uppercase tracking-widest text-[10px] gap-2"
+                  className="rounded-xl h-12 px-6 bg-primary text-white font-black uppercase tracking-widest text-[10px] gap-2 shadow-lg shadow-primary/20"
                   onClick={handleAnalyzeVibe}
                   disabled={isAnalyzingVibe}
                 >
@@ -515,7 +515,7 @@ export default function AdminDashboard() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-2">
-                <Card className="bg-white/5 border-white/10 rounded-[2rem] p-6 space-y-6 lg:col-span-2">
+                <Card className="bg-card/40 border-border rounded-[2rem] p-6 space-y-6 lg:col-span-2 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
@@ -535,34 +535,34 @@ export default function AdminDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                     <div className="space-y-4">
                       <div className="flex justify-between items-baseline">
-                        <span className="text-4xl font-black italic text-white">{intelligenceMetrics.sentimentScore}%</span>
+                        <span className="text-4xl font-black italic">{intelligenceMetrics.sentimentScore}%</span>
                         <span className="text-[10px] font-bold text-muted-foreground uppercase">Alignment Score</span>
                       </div>
-                      <Progress value={intelligenceMetrics.sentimentScore} className="h-3 bg-white/5" />
+                      <Progress value={intelligenceMetrics.sentimentScore} className="h-3" />
                       <p className="text-xs text-muted-foreground font-medium leading-relaxed italic">
                         "{intelligenceMetrics.sentimentSummary}"
                       </p>
                     </div>
-                    <div className="bg-black/40 rounded-2xl p-6 border border-white/5 space-y-4">
+                    <div className="bg-secondary/20 rounded-2xl p-6 border border-border space-y-4 shadow-inner">
                       <h5 className="text-[10px] font-black uppercase text-primary tracking-widest">Sponsored Conversion Pulse</h5>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <span className="text-[8px] font-black text-white/40 uppercase">Materialized</span>
-                          <p className="text-lg font-black text-white">{adStats.materializations.toLocaleString()}</p>
+                          <span className="text-[8px] font-black text-muted-foreground uppercase">Materialized</span>
+                          <p className="text-lg font-black">{adStats.materializations.toLocaleString()}</p>
                         </div>
                         <div className="space-y-1">
-                          <span className="text-[8px] font-black text-white/40 uppercase">Handshakes</span>
+                          <span className="text-[8px] font-black text-muted-foreground uppercase">Handshakes</span>
                           <p className="text-lg font-black text-primary">{adStats.handshakes.toLocaleString()}</p>
                         </div>
                       </div>
-                      <div className="pt-2 border-t border-white/5">
+                      <div className="pt-2 border-t border-border">
                         <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">Revenue Hub: ${adStats.revenue.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
                 </Card>
 
-                <Card className="bg-white/5 border-white/10 rounded-[2rem] p-6 space-y-6">
+                <Card className="bg-card/40 border-border rounded-[2rem] p-6 space-y-6 shadow-sm">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500">
                       <ShieldAlert className="h-5 w-5" />
@@ -575,12 +575,12 @@ export default function AdminDashboard() {
                       { username: "spam_node_42", reason: "Rapid Post Pulse", risk: "CRITICAL" },
                       { username: "fake_creator", reason: "Zero Interaction Pattern", risk: "MEDIUM" }
                     ].map(bot => (
-                      <div key={bot.username} className="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-3 group hover:border-red-500/30 transition-all">
+                      <div key={bot.username} className="p-4 bg-background/40 rounded-2xl border border-border space-y-3 group hover:border-red-500/30 transition-all">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">{bot.risk} RISK</span>
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-white">@{bot.username}</p>
+                          <p className="text-sm font-bold">@{bot.username}</p>
                           <p className="text-[10px] text-muted-foreground uppercase">{bot.reason}</p>
                         </div>
                         <Button 
@@ -605,10 +605,10 @@ export default function AdminDashboard() {
                   <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Velocity Hub</h3>
                   <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Creator Growth & Content Synchronicity</p>
                 </div>
-                <div className="flex items-center gap-4 bg-white/5 p-2 rounded-2xl border border-white/10">
+                <div className="flex items-center gap-4 bg-secondary/40 p-2 rounded-2xl border border-border">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className={cn("h-4 w-4", settings.isAiVerificationActive ? "text-primary" : "text-muted-foreground")} />
-                    <span className="text-[10px] font-black uppercase text-white/60">AI Verification Auto-Pilot</span>
+                    <span className="text-[10px] font-black uppercase text-foreground/60">AI Verification Auto-Pilot</span>
                   </div>
                   <Switch 
                     checked={settings.isAiVerificationActive} 
@@ -619,7 +619,7 @@ export default function AdminDashboard() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2">
-                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6">
+                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500">
@@ -632,26 +632,26 @@ export default function AdminDashboard() {
 
                   <div className="space-y-4">
                     {MOCK_CREATOR_VELOCITY.map(creator => (
-                      <div key={creator.username} className="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/5 hover:border-primary/30 transition-all group">
+                      <div key={creator.username} className="flex items-center justify-between p-4 bg-background/40 rounded-2xl border border-border hover:border-primary/30 transition-all group shadow-sm">
                         <div className="flex items-center gap-4">
-                          <Avatar className="h-12 w-12 border border-white/10 shadow-lg">
+                          <Avatar className="h-12 w-12 border border-border shadow-lg">
                             <AvatarImage src={`https://picsum.photos/seed/${creator.username}/100/100`} />
                           </Avatar>
                           <div>
-                            <p className="font-bold text-sm text-white">{creator.name}</p>
+                            <p className="font-bold text-sm">{creator.name}</p>
                             <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">@{creator.username}</p>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-black text-primary italic">{creator.growth}</p>
-                          <Badge variant="outline" className="border-white/10 text-white/40 text-[8px] font-black uppercase px-2 h-4">{creator.status}</Badge>
+                          <Badge variant="outline" className="border-border text-muted-foreground text-[8px] font-black uppercase px-2 h-4">{creator.status}</Badge>
                         </div>
                       </div>
                     ))}
                   </div>
                 </Card>
 
-                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6">
+                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 bg-purple-500/10 rounded-xl flex items-center justify-center text-purple-500">
@@ -667,10 +667,10 @@ export default function AdminDashboard() {
 
                   <div className="space-y-4">
                     {MOCK_SONIC_TRENDS.map(song => (
-                      <div key={song.title} className="flex items-center gap-4 p-4 bg-black/40 rounded-2xl border border-white/5 hover:bg-white/5 transition-all">
+                      <div key={song.title} className="flex items-center gap-4 p-4 bg-background/40 rounded-2xl border border-border hover:bg-secondary/50 transition-all shadow-sm">
                         <div className="h-10 w-10 bg-secondary/40 rounded-lg flex items-center justify-center font-black italic text-muted-foreground">{song.rank}</div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-sm text-white truncate">{song.title}</p>
+                          <p className="font-bold text-sm truncate">{song.title}</p>
                           <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{song.artist}</p>
                         </div>
                         <div className="flex flex-col items-end">
@@ -695,34 +695,34 @@ export default function AdminDashboard() {
                   <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Campaign Hub</h3>
                   <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Official Platform Materializations</p>
                 </div>
-                <div className="h-11 w-11 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                <div className="h-11 w-11 bg-primary/10 rounded-xl flex items-center justify-center text-primary shadow-lg shadow-primary/10">
                   <Megaphone className="h-6 w-6" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 px-2">
-                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-8 lg:col-span-2">
+                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-8 lg:col-span-2 shadow-sm">
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                    <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-sm">
                       <Plus className="h-6 w-6" />
                     </div>
                     <div>
-                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Create Pulse</h4>
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter">Create Pulse</h4>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Materialize New Official Node</p>
                     </div>
                   </div>
 
                   <div className="space-y-6">
                     <div className="space-y-3">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Node Format</Label>
-                      <div className="flex gap-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Node Format</Label>
+                      <div className="flex gap-2 p-1 bg-secondary/40 rounded-2xl border border-border">
                         {(['photo', 'video', 'link'] as const).map(type => (
                           <button 
                             key={type}
                             onClick={() => { triggerHaptic(5); setCampType(type); if(type === 'link') setCampMediaUrl(""); }}
                             className={cn(
                               "flex-1 h-12 rounded-xl border font-black text-[10px] uppercase tracking-widest transition-all",
-                              campType === type ? "bg-primary border-primary text-white" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
+                              campType === type ? "bg-primary border-primary text-white shadow-md" : "bg-transparent border-transparent text-muted-foreground hover:bg-secondary/50"
                             )}
                           >
                             {type}
@@ -732,10 +732,10 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="space-y-3">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Vibe Content (Caption)</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Vibe Content (Caption)</Label>
                       <Textarea 
                         placeholder="What's the official pulse? Use **bold** for impact..." 
-                        className="min-h-[100px] bg-black/40 border-white/10 rounded-2xl text-sm font-medium focus-visible:ring-primary/20"
+                        className="min-h-[100px] bg-background/40 border-border rounded-2xl text-sm font-medium focus-visible:ring-primary/20 shadow-inner"
                         value={campContent}
                         onChange={(e) => setCampContent(e.target.value)}
                       />
@@ -743,9 +743,9 @@ export default function AdminDashboard() {
 
                     {campType !== 'link' && (
                       <div className="space-y-3">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Media Visual</Label>
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Media Visual</Label>
                         <div 
-                          className="relative aspect-video rounded-2xl bg-black/40 border-2 border-dashed border-white/10 flex flex-col items-center justify-center cursor-pointer group hover:border-primary/40 transition-all overflow-hidden"
+                          className="relative aspect-video rounded-2xl bg-background/40 border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer group hover:border-primary/40 transition-all overflow-hidden shadow-inner"
                           onClick={() => fileInputRef.current?.click()}
                         >
                           {campMediaUrl ? (
@@ -772,19 +772,19 @@ export default function AdminDashboard() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Action Handshake (URL)</Label>
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Action Handshake (URL)</Label>
                         <Input 
                           placeholder="https://..." 
-                          className="h-14 bg-black/40 border-white/10 rounded-2xl text-sm font-bold text-primary"
+                          className="h-14 bg-background/40 border-border rounded-2xl text-sm font-bold text-primary shadow-inner"
                           value={campActionUrl}
                           onChange={(e) => setCampActionUrl(e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Action Label (Button)</Label>
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Action Label (Button)</Label>
                         <Input 
                           placeholder="SYNC NOW, JOIN HUB..." 
-                          className="h-14 bg-black/40 border-white/10 rounded-2xl text-sm font-bold"
+                          className="h-14 bg-background/40 border-border rounded-2xl text-sm font-bold shadow-inner"
                           value={campActionLabel}
                           onChange={(e) => setCampActionLabel(e.target.value)}
                         />
@@ -805,27 +805,27 @@ export default function AdminDashboard() {
                 <div className="space-y-6">
                   <h4 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Active Nodes</h4>
                   {campaigns.length > 0 ? campaigns.map(camp => (
-                    <Card key={camp.id} className="bg-white/5 border-white/10 rounded-[2rem] overflow-hidden group hover:border-primary/30 transition-all">
+                    <Card key={camp.id} className="bg-card/40 border-border rounded-[2rem] overflow-hidden group hover:border-primary/30 transition-all shadow-sm">
                       <div className="p-6 space-y-4">
                         <div className="flex items-center justify-between">
                           <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase px-2 h-4">{camp.type} Node</Badge>
                           <div className="flex items-center gap-2">
                             <Switch checked={camp.isActive} onCheckedChange={() => toggleCampaignStatus(camp.id)} className="scale-75 data-[state=checked]:bg-primary" />
-                            <button onClick={() => deleteCampaign(camp.id)} className="text-white/20 hover:text-red-500 transition-colors"><Trash2 className="h-4 w-4" /></button>
+                            <button onClick={() => deleteCampaign(camp.id)} className="text-muted-foreground hover:text-red-500 transition-colors"><Trash2 className="h-4 w-4" /></button>
                           </div>
                         </div>
-                        <p className="text-xs font-bold line-clamp-2 italic text-white/80">"{camp.content}"</p>
-                        <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                        <p className="text-xs font-bold line-clamp-2 italic">"{camp.content}"</p>
+                        <div className="flex items-center justify-between pt-4 border-t border-border">
                           <div className="flex flex-col">
-                            <span className="text-[8px] font-black text-white/40 uppercase">Sync Pulses</span>
+                            <span className="text-[8px] font-black text-muted-foreground uppercase">Sync Pulses</span>
                             <span className="text-sm font-black text-primary">{camp.clicks}</span>
                           </div>
-                          <Badge variant="outline" className="border-white/10 text-white/40 text-[8px] font-black uppercase">{new Date(camp.timestamp).toLocaleDateString()}</Badge>
+                          <Badge variant="outline" className="border-border text-muted-foreground text-[8px] font-black uppercase">{new Date(camp.timestamp).toLocaleDateString()}</Badge>
                         </div>
                       </div>
                     </Card>
                   )) : (
-                    <div className="py-20 text-center opacity-20 border-2 border-dashed border-white/10 rounded-[2rem]">
+                    <div className="py-20 text-center opacity-20 border-2 border-dashed border-border rounded-[2rem]">
                       <Megaphone className="h-10 w-10 mx-auto mb-2" />
                       <p className="text-[10px] font-black uppercase">No campaigns active</p>
                     </div>
@@ -854,7 +854,7 @@ export default function AdminDashboard() {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 px-2">
                 {/* Database Pulse Meter */}
-                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-8 lg:col-span-2">
+                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-8 lg:col-span-2 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500">
@@ -863,8 +863,8 @@ export default function AdminDashboard() {
                       <h4 className="text-xl font-black italic uppercase tracking-tighter">Archival Pulse</h4>
                     </div>
                     <div className="text-right">
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest block">Total Utilization</span>
-                      <span className="text-2xl font-black text-white italic">{totalUsedMB.toFixed(1)} MB</span>
+                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Total Utilization</span>
+                      <span className="text-2xl font-black italic">{totalUsedMB.toFixed(1)} MB</span>
                     </div>
                   </div>
 
@@ -874,19 +874,19 @@ export default function AdminDashboard() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <node.icon className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-xs font-black uppercase tracking-widest text-white/80">{node.label}</span>
+                            <span className="text-xs font-black uppercase tracking-widest">{node.label}</span>
                           </div>
                           <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{node.size} / 2.5 GB</span>
                         </div>
-                        <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden">
+                        <div className="h-3 w-full bg-secondary rounded-full overflow-hidden">
                           <div className={cn("h-full transition-all duration-1000 ease-out", node.color)} style={{ width: `${node.value}%` }} />
                         </div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="pt-6 border-t border-white/5 flex gap-4">
-                    <Button variant="ghost" className="rounded-xl h-10 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest gap-2">
+                  <div className="pt-6 border-t border-border flex gap-4">
+                    <Button variant="ghost" className="rounded-xl h-10 bg-secondary/50 hover:bg-secondary text-[10px] font-black uppercase tracking-widest gap-2">
                       <RotateCcw className="h-3.5 w-3.5" /> Recalibrate Nodes
                     </Button>
                     <Button variant="ghost" className="rounded-xl h-10 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest gap-2">
@@ -896,7 +896,7 @@ export default function AdminDashboard() {
                 </Card>
 
                 {/* Cluster Efficiency Node */}
-                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6 flex flex-col justify-between">
+                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 flex flex-col justify-between shadow-sm">
                   <div className="space-y-1">
                     <h4 className="text-lg font-black italic uppercase tracking-widest">Node Efficiency</h4>
                     <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Temporal Request Handshakes</p>
@@ -914,15 +914,15 @@ export default function AdminDashboard() {
                         { label: "AI Inference", value: "0.4s" },
                         { label: "Asset Delivery", value: "1.2MB/s" }
                       ].map(m => (
-                        <div key={m.label} className="flex items-center justify-between p-3 bg-black/40 rounded-xl border border-white/5">
-                          <span className="text-[9px] font-black text-white/40 uppercase">{m.label}</span>
-                          <span className="text-[10px] font-bold text-white italic">{m.value}</span>
+                        <div key={m.label} className="flex items-center justify-between p-3 bg-background/40 rounded-xl border border-border shadow-inner">
+                          <span className="text-[9px] font-black text-muted-foreground uppercase">{m.label}</span>
+                          <span className="text-[10px] font-bold italic">{m.value}</span>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <Button className="w-full h-12 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest">
+                  <Button className="w-full h-12 rounded-xl bg-secondary/50 hover:bg-secondary border border-border text-[10px] font-black uppercase tracking-widest transition-all">
                     Infrastructure Audit
                   </Button>
                 </Card>
@@ -937,14 +937,14 @@ export default function AdminDashboard() {
                   <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Resolution Hub</h3>
                   <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Managing Severed Handshakes & Disputes</p>
                 </div>
-                <div className="h-11 w-11 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                <div className="h-11 w-11 bg-primary/10 rounded-xl flex items-center justify-center text-primary shadow-lg shadow-primary/10">
                   <Hammer className="h-6 w-6" />
                 </div>
               </div>
 
               <div className="space-y-4 px-2">
                 {disputes.length > 0 ? disputes.map((dispute) => (
-                  <Card key={dispute.id} className="bg-white/5 border-white/10 rounded-[2.5rem] overflow-hidden group hover:border-primary/30 transition-all">
+                  <Card key={dispute.id} className="bg-card/40 border-border rounded-[2.5rem] overflow-hidden group hover:border-primary/30 transition-all shadow-sm">
                     <div className="p-8 flex flex-col md:flex-row gap-8">
                       <div className="flex-1 space-y-6">
                         <div className="flex items-center gap-4">
@@ -962,8 +962,8 @@ export default function AdminDashboard() {
                           <div className="space-y-1">
                             <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Identity Node</span>
                             <div className="flex items-center gap-2">
-                              <Avatar className="h-6 w-6 border border-white/10"><AvatarFallback>{dispute.username[0]}</AvatarFallback></Avatar>
-                              <p className="font-bold text-sm text-white">@{dispute.username}</p>
+                              <Avatar className="h-6 w-6 border border-border shadow-sm"><AvatarFallback>{dispute.username[0]}</AvatarFallback></Avatar>
+                              <p className="font-bold text-sm">@{dispute.username}</p>
                             </div>
                           </div>
                           <div className="space-y-1">
@@ -972,25 +972,25 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
-                        <div className="p-5 bg-black/40 rounded-2xl border border-white/5 space-y-2">
-                          <span className="text-[9px] font-black text-white/40 uppercase tracking-widest flex items-center gap-2">
+                        <div className="p-5 bg-background/40 rounded-2xl border border-border space-y-2 shadow-inner">
+                          <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
                             <History className="h-3 w-3" /> User Justification
                           </span>
-                          <p className="text-sm font-medium text-white/80 leading-relaxed italic">"{dispute.reason}"</p>
+                          <p className="text-sm font-medium leading-relaxed italic">"{dispute.reason}"</p>
                         </div>
                       </div>
 
                       {dispute.status === 'OPEN' && (
                         <div className="flex flex-col gap-3 justify-center">
                           <Button 
-                            className="rounded-xl h-14 w-full md:w-48 bg-green-500 text-white font-black italic uppercase tracking-widest text-[10px] gap-2 shadow-lg shadow-green-500/20"
+                            className="rounded-xl h-14 w-full md:w-48 bg-green-500 text-white font-black italic uppercase tracking-widest text-[10px] gap-2 shadow-lg shadow-green-500/20 transition-all active:scale-95"
                             onClick={() => handleAction(dispute.id, 'APPROVED', 'dispute')}
                           >
                             <Check className="h-4 w-4" /> Restore Handshake
                           </Button>
                           <Button 
                             variant="ghost" 
-                            className="rounded-xl h-14 w-full md:w-48 bg-white/5 text-muted-foreground hover:bg-red-500 hover:text-white font-black italic uppercase tracking-widest text-[10px] gap-2"
+                            className="rounded-xl h-14 w-full md:w-48 bg-secondary/50 text-muted-foreground hover:bg-red-500 hover:text-white font-black italic uppercase tracking-widest text-[10px] gap-2 transition-all active:scale-95"
                             onClick={() => handleAction(dispute.id, 'REJECTED', 'dispute')}
                           >
                             <X className="h-4 w-4" /> Sever Permanently
@@ -1000,10 +1000,10 @@ export default function AdminDashboard() {
                     </div>
                   </Card>
                 )) : (
-                  <div className="py-32 text-center space-y-6 bg-white/5 rounded-[3rem] border border-dashed border-white/10">
+                  <div className="py-32 text-center space-y-6 bg-card/20 rounded-[3rem] border border-dashed border-border">
                     <Hammer className="h-16 w-16 mx-auto text-muted-foreground opacity-20" />
                     <div className="space-y-1">
-                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Cluster Harmony</h4>
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter">Cluster Harmony</h4>
                       <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">No active disputes detected in the network.</p>
                     </div>
                   </div>
@@ -1019,14 +1019,14 @@ export default function AdminDashboard() {
                   <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Economy Auditor</h3>
                   <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Global Revenue & Disbursement Control</p>
                 </div>
-                <div className="bg-white/5 p-1 rounded-xl flex items-center gap-1">
-                  <button onClick={() => setEconomySubTab("outbound")} className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", economySubTab === 'outbound' ? "bg-primary text-white" : "text-muted-foreground")}>Outbound</button>
-                  <button onClick={() => setEconomySubTab("inbound")} className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", economySubTab === 'inbound' ? "bg-primary text-white" : "text-muted-foreground")}>Inbound</button>
+                <div className="bg-secondary/40 p-1 rounded-xl flex items-center gap-1 border border-border">
+                  <button onClick={() => setEconomySubTab("outbound")} className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", economySubTab === 'outbound' ? "bg-primary text-white shadow-md" : "text-muted-foreground")}>Outbound</button>
+                  <button onClick={() => setEconomySubTab("inbound")} className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", economySubTab === 'inbound' ? "bg-primary text-white shadow-md" : "text-muted-foreground")}>Inbound</button>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-2">
-                <Card className="bg-white/5 border-white/10 rounded-[2rem] p-6 space-y-6">
+                <Card className="bg-card/40 border-border rounded-[2rem] p-6 space-y-6 shadow-sm">
                   <div className="flex items-center gap-3">
                     <Sliders className="h-5 w-5 text-amber-500" />
                     <h4 className="font-black italic uppercase tracking-widest text-sm">Exchange Rate Hub</h4>
@@ -1043,33 +1043,33 @@ export default function AdminDashboard() {
                   </div>
                 </Card>
 
-                <Card className="bg-white/5 border-white/10 rounded-[2rem] p-6 flex flex-col justify-center items-center text-center space-y-4">
-                  <div className="h-16 w-16 bg-primary/10 rounded-[2rem] flex items-center justify-center text-primary"><Globe className="h-8 w-8 animate-pulse" /></div>
+                <Card className="bg-card/40 border-border rounded-[2rem] p-6 flex flex-col justify-center items-center text-center space-y-4 shadow-sm">
+                  <div className="h-16 w-16 bg-primary/10 rounded-[2rem] flex items-center justify-center text-primary shadow-inner"><Globe className="h-8 w-8 animate-pulse" /></div>
                   <div><h4 className="font-black italic uppercase tracking-tighter text-xl">Dynamic Economy</h4><p className="text-xs text-muted-foreground font-medium max-w-xs mx-auto">Adjust rates platform-wide based on network liquidity. All user portals update instantly.</p></div>
                 </Card>
               </div>
 
               {economySubTab === 'outbound' ? (
-                <Card className="bg-white/5 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden">
+                <Card className="bg-card/40 border-border rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-sm">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left min-w-[800px]">
-                      <thead><tr className="border-b border-white/5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-black/20"><th className="px-8 py-6">ID / NODE</th><th className="px-8 py-6">IDENTITY</th><th className="px-8 py-6">METHOD</th><th className="px-8 py-6">AMOUNT (CONVERTED)</th><th className="px-8 py-6">AI RISK</th><th className="px-8 py-6 text-right">HANDSHAKE</th></tr></thead>
-                      <tbody className="divide-y divide-white/5">
+                      <thead><tr className="border-b border-border text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-secondary/30"><th className="px-8 py-6">ID / NODE</th><th className="px-8 py-6">IDENTITY</th><th className="px-8 py-6">METHOD</th><th className="px-8 py-6">AMOUNT (CONVERTED)</th><th className="px-8 py-6">AI RISK</th><th className="px-8 py-6 text-right">HANDSHAKE</th></tr></thead>
+                      <tbody className="divide-y divide-border">
                         {pendingWithdrawals.length > 0 ? pendingWithdrawals.map((node) => (
-                          <tr key={node.id} className="group hover:bg-white/[0.02] transition-colors"><td className="px-8 py-6"><div className="flex flex-col"><span className="text-sm font-black text-white font-mono">{node.id}</span><span className="text-[9px] font-bold text-muted-foreground uppercase mt-1">{new Date(node.timestamp).toLocaleString()}</span></div></td><td className="px-8 py-6"><div className="flex items-center gap-3"><Avatar className="h-10 w-10 border border-white/10"><AvatarImage src={`https://picsum.photos/seed/${node.accountName}/100/100`} /></Avatar><div className="flex flex-col"><span className="text-sm font-bold text-white">{node.accountName}</span><span className="text-[9px] font-black text-primary uppercase">@{node.username || 'unknown_node'}</span></div></div></td><td className="px-8 py-6"><Badge className={cn("text-[9px] font-black uppercase px-3 h-6 border-none", node.method === 'ORANGE' ? "bg-orange-500/20 text-orange-500" : "bg-yellow-500/20 text-yellow-500")}>{node.method} Node</Badge></td><td className="px-8 py-6"><div className="flex flex-col"><span className="text-sm font-black text-white">{node.payoutCurrency} {node.payoutAmount.toFixed(2)}</span><span className="text-[9px] font-bold text-muted-foreground uppercase">From {node.amount} {node.currency}</span></div></td><td className="px-8 py-6"><div className="flex items-center gap-3"><div className="flex-1 h-1.5 w-24 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-green-500" style={{ width: '85%' }} /></div><span className="text-[10px] font-black text-green-500">TRUSTED</span></div></td><td className="px-8 py-6"><div className="flex items-center justify-end gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white" onClick={() => handleAction(node.id, 'APPROVED', 'withdrawal')}><CheckCircle2 className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white" onClick={() => handleAction(node.id, 'REJECTED', 'withdrawal')}><XCircle className="h-5 w-5" /></Button></div></td></tr>
+                          <tr key={node.id} className="group hover:bg-secondary/20 transition-colors"><td className="px-8 py-6"><div className="flex flex-col"><span className="text-sm font-black font-mono">{node.id}</span><span className="text-[9px] font-bold text-muted-foreground uppercase mt-1">{new Date(node.timestamp).toLocaleString()}</span></div></td><td className="px-8 py-6"><div className="flex items-center gap-3"><Avatar className="h-10 w-10 border border-border shadow-sm"><AvatarImage src={`https://picsum.photos/seed/${node.accountName}/100/100`} /></Avatar><div className="flex flex-col"><span className="text-sm font-bold">{node.accountName}</span><span className="text-[9px] font-black text-primary uppercase">@{node.username || 'unknown_node'}</span></div></div></td><td className="px-8 py-6"><Badge className={cn("text-[9px] font-black uppercase px-3 h-6 border-none", node.method === 'ORANGE' ? "bg-orange-500/20 text-orange-500" : "bg-yellow-500/20 text-yellow-500")}>{node.method} Node</Badge></td><td className="px-8 py-6"><div className="flex flex-col"><span className="text-sm font-black">{node.payoutCurrency} {node.payoutAmount.toFixed(2)}</span><span className="text-[9px] font-bold text-muted-foreground uppercase">From {node.amount} {node.currency}</span></div></td><td className="px-8 py-6"><div className="flex items-center gap-3"><div className="flex-1 h-1.5 w-24 bg-secondary rounded-full overflow-hidden shadow-inner"><div className="h-full bg-green-500" style={{ width: '85%' }} /></div><span className="text-[10px] font-black text-green-500">TRUSTED</span></div></td><td className="px-8 py-6"><div className="flex items-center justify-end gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all" onClick={() => handleAction(node.id, 'APPROVED', 'withdrawal')}><CheckCircle2 className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-all" onClick={() => handleAction(node.id, 'REJECTED', 'withdrawal')}><XCircle className="h-5 w-5" /></Button></div></td></tr>
                         )) : (<tr><td colSpan={6} className="px-8 py-32 text-center"><div className="flex flex-col items-center gap-4 opacity-20"><CircleDashed className="h-12 w-12 animate-spin" /><p className="text-sm font-black uppercase tracking-[0.2em]">Queue Silent — No Pending Withdrawals</p></div></td></tr>)}
                       </tbody>
                     </table>
                   </div>
                 </Card>
               ) : (
-                <Card className="bg-white/5 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden">
+                <Card className="bg-card/40 border-border rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden shadow-sm">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left min-w-[800px]">
-                      <thead><tr className="border-b border-white/5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-black/20"><th className="px-8 py-6">ID / PULSE</th><th className="px-8 py-6">SENDER</th><th className="px-8 py-6">PACKAGE / CODE</th><th className="px-8 py-6">RECEIPT</th><th className="px-8 py-6">AI OCR</th><th className="px-8 py-6 text-right">AUTHORIZE</th></tr></thead>
-                      <tbody className="divide-y divide-white/5">
+                      <thead><tr className="border-b border-border text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-secondary/30"><th className="px-8 py-6">ID / PULSE</th><th className="px-8 py-6">SENDER</th><th className="px-8 py-6">PACKAGE / CODE</th><th className="px-8 py-6">RECEIPT</th><th className="px-8 py-6">AI OCR</th><th className="px-8 py-6 text-right">AUTHORIZE</th></tr></thead>
+                      <tbody className="divide-y divide-border">
                         {pendingPayments.length > 0 ? pendingPayments.map((req) => (
-                          <tr key={req.id} className="group hover:bg-white/[0.02] transition-colors"><td className="px-8 py-6"><div className="flex flex-col"><span className="text-sm font-black text-white font-mono">{req.id}</span><span className="text-[9px] font-bold text-muted-foreground uppercase mt-1">{new Date(req.timestamp).toLocaleString()}</span></div></td><td className="px-8 py-6"><div className="flex items-center gap-3"><Avatar className="h-10 w-10 border border-white/10"><AvatarImage src={`https://picsum.photos/seed/${req.username}/100/100`} /></Avatar><div className="flex flex-col"><span className="text-sm font-bold text-white">{req.name}</span><span className="text-[9px] font-black text-primary uppercase">@{req.username}</span></div></div></td><td className="px-8 py-6"><div className="flex flex-col"><span className="text-sm font-black text-white">{req.packageName}</span><span className="text-[10px] font-black text-primary tracking-widest">{req.code}</span></div></td><td className="px-8 py-6"><button className="bg-white/5 border border-white/10 rounded-xl h-10 px-4 gap-2 text-[10px] font-black uppercase flex items-center hover:bg-white/10 transition-all" onClick={() => setSelectedReceipt(req.screenshot)}><ImageIcon className="h-4 w-4" /> View Receipt</button></td><td className="px-8 py-6"><div className="flex items-center gap-2"><div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" /><span className="text-[10px] font-black text-green-500 uppercase tracking-widest">CODE MATCH: 98%</span></div></td><td className="px-8 py-6"><div className="flex items-center justify-end gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white" onClick={() => handleAction(req.id, 'APPROVED', 'payment')}><CheckCircle2 className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white" onClick={() => handleAction(req.id, 'REJECTED', 'payment')}><XCircle className="h-5 w-5" /></Button></div></td></tr>
+                          <tr key={req.id} className="group hover:bg-secondary/20 transition-colors"><td className="px-8 py-6"><div className="flex flex-col"><span className="text-sm font-black font-mono">{req.id}</span><span className="text-[9px] font-bold text-muted-foreground uppercase mt-1">{new Date(req.timestamp).toLocaleString()}</span></div></td><td className="px-8 py-6"><div className="flex items-center gap-3"><Avatar className="h-10 w-10 border border-border shadow-sm"><AvatarImage src={`https://picsum.photos/seed/${req.username}/100/100`} /></Avatar><div className="flex flex-col"><span className="text-sm font-bold">{req.name}</span><span className="text-[9px] font-black text-primary uppercase">@{req.username}</span></div></div></td><td className="px-8 py-6"><div className="flex flex-col"><span className="text-sm font-black">{req.packageName}</span><span className="text-[10px] font-black text-primary tracking-widest">{req.code}</span></div></td><td className="px-8 py-6"><button className="bg-secondary/50 border border-border rounded-xl h-10 px-4 gap-2 text-[10px] font-black uppercase flex items-center hover:bg-secondary transition-all shadow-sm" onClick={() => setSelectedReceipt(req.screenshot)}><ImageIcon className="h-4 w-4" /> View Receipt</button></td><td className="px-8 py-6"><div className="flex items-center gap-2"><div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" /><span className="text-[10px] font-black text-green-500 uppercase tracking-widest">CODE MATCH: 98%</span></div></td><td className="px-8 py-6"><div className="flex items-center justify-end gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all" onClick={() => handleAction(req.id, 'APPROVED', 'payment')}><CheckCircle2 className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-all" onClick={() => handleAction(req.id, 'REJECTED', 'payment')}><XCircle className="h-5 w-5" /></Button></div></td></tr>
                         )) : (<tr><td colSpan={6} className="px-8 py-32 text-center"><div className="flex flex-col items-center gap-4 opacity-20"><CircleDashed className="h-12 w-12 animate-spin" /><p className="text-sm font-black uppercase tracking-[0.2em]">Queue Silent — No Inbound Payments</p></div></td></tr>)}
                       </tbody>
                     </table>
@@ -1087,24 +1087,24 @@ export default function AdminDashboard() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6">
-                  <div className="flex items-center gap-4"><div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary"><Send className="h-6 w-6" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Global Broadcast</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pulse System Signal to All Nodes</p></div></div>
+                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-sm">
+                  <div className="flex items-center gap-4"><div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-sm"><Send className="h-6 w-6" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter">Global Broadcast</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pulse System Signal to All Nodes</p></div></div>
                   <div className="space-y-4">
-                    <Textarea placeholder="Enter system announcement..." className="min-h-[120px] bg-black/40 border-white/10 rounded-2xl text-sm font-medium focus-visible:ring-primary/20" value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} />
-                    <Button className="w-full h-14 bg-primary text-white font-black italic uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/20 gap-3" disabled={isBroadcasting || !broadcastText.trim()} onClick={handleBroadcast}>{isBroadcasting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5 fill-current" />}Launch Broadcast Pulse</Button>
+                    <Textarea placeholder="Enter system announcement..." className="min-h-[120px] bg-background/40 border-border rounded-2xl text-sm font-medium focus-visible:ring-primary/20 shadow-inner" value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} />
+                    <Button className="w-full h-14 bg-primary text-white font-black italic uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/20 gap-3 transition-all active:scale-95" disabled={isBroadcasting || !broadcastText.trim()} onClick={handleBroadcast}>{isBroadcasting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5 fill-current" />}Launch Broadcast Pulse</Button>
                   </div>
                 </Card>
 
-                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-8">
-                  <div className="flex items-center gap-4"><div className="h-12 w-12 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive"><ShieldAlert className="h-6 w-6" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Feature Access</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Governance Overrides</p></div></div>
+                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-8 shadow-sm">
+                  <div className="flex items-center gap-4"><div className="h-12 w-12 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive shadow-sm"><ShieldAlert className="h-6 w-6" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter">Feature Access</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Governance Overrides</p></div></div>
                   <div className="space-y-6">
                     {[
                       { id: 'isReelsEnabled' as keyof typeof settings, label: "Reels Stream", icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-500/10" },
                       { id: 'isMusicEnabled' as keyof typeof settings, label: "Music Hub", icon: Music2, color: "text-purple-500", bg: "bg-purple-500/10" },
                       { id: 'isGiftingEnabled' as keyof typeof settings, label: "Gift Exchange", icon: Gem, color: "text-cyan-500", bg: "bg-cyan-500/10" }
                     ].map((f) => (
-                      <div key={f.id} className="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/5">
-                        <div className="flex items-center gap-4"><div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", f.bg, f.color)}><f.icon className="h-5 w-5" /></div><span className="font-bold text-sm text-white/80">{f.label}</span></div>
+                      <div key={f.id} className="flex items-center justify-between p-4 bg-background/40 rounded-2xl border border-border shadow-inner">
+                        <div className="flex items-center gap-4"><div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", f.bg, f.color)}><f.icon className="h-5 w-5" /></div><span className="font-bold text-sm">{f.label}</span></div>
                         <Switch checked={settings[f.id] as boolean} onCheckedChange={(val) => handleToggleSwitch(f.id, val)} className="data-[state=checked]:bg-primary" />
                       </div>
                     ))}
@@ -1121,15 +1121,15 @@ export default function AdminDashboard() {
                   <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Identity Forge</h3>
                   <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Managing Spatial Verification Signatures</p>
                 </div>
-                <Badge className="bg-primary text-white font-black h-11 px-6 rounded-xl uppercase tracking-widest w-fit">{MOCK_VERIFICATION_REQUESTS.length} REQUESTS</Badge>
+                <Badge className="bg-primary text-white font-black h-11 px-6 rounded-xl uppercase tracking-widest w-fit shadow-lg shadow-primary/20">{MOCK_VERIFICATION_REQUESTS.length} REQUESTS</Badge>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {MOCK_VERIFICATION_REQUESTS.map((req) => (
-                  <Card key={req.id} className="bg-white/5 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 space-y-6 group hover:border-primary/40 transition-all">
-                    <div className="flex items-center justify-between"><Avatar className="h-14 w-14 sm:h-16 sm:w-16 border-2 border-primary/20"><AvatarImage src={req.avatar} /></Avatar><div className="text-right"><span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1">Method</span><div className="flex items-center gap-2 justify-end">{req.currency === 'DIAMOND' ? <Gem className="h-4 w-4 text-cyan-500" /> : <Star className="h-4 w-4 text-yellow-500 fill-current" />}<span className="font-black text-white">{req.cost.toLocaleString()}</span></div></div></div>
-                    <div className="space-y-1"><h4 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter text-white">{req.name}</h4><p className="text-[10px] sm:text-xs font-bold text-primary uppercase tracking-widest">@{req.username}</p></div>
-                    <div className="bg-black/20 rounded-2xl p-4 flex items-center justify-between border border-white/5"><div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest">{req.time}</span></div><span className="text-[9px] sm:text-[10px] font-black text-primary uppercase tracking-widest">ID: {req.id}</span></div>
-                    <div className="grid grid-cols-2 gap-3"><Button className="rounded-xl h-12 bg-primary text-white font-black uppercase tracking-widest text-[10px]" onClick={() => handleAction(req.id, 'APPROVED', 'verification')}>Authorize</Button><Button variant="ghost" className="rounded-xl h-12 bg-white/5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive font-black uppercase tracking-widest text-[10px]" onClick={() => handleAction(req.id, 'REJECTED', 'verification')}>Purge</Button></div>
+                  <Card key={req.id} className="bg-card/40 border-border rounded-[2rem] sm:rounded-[2.5rem] p-6 space-y-6 group hover:border-primary/40 transition-all shadow-sm">
+                    <div className="flex items-center justify-between"><Avatar className="h-14 w-14 sm:h-16 sm:w-16 border-2 border-primary/20 shadow-md"><AvatarImage src={req.avatar} /></Avatar><div className="text-right"><span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1">Method</span><div className="flex items-center gap-2 justify-end">{req.currency === 'DIAMOND' ? <Gem className="h-4 w-4 text-cyan-500" /> : <Star className="h-4 w-4 text-yellow-500 fill-current" />}<span className="font-black">{req.cost.toLocaleString()}</span></div></div></div>
+                    <div className="space-y-1"><h4 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter">{req.name}</h4><p className="text-[10px] sm:text-xs font-bold text-primary uppercase tracking-widest">@{req.username}</p></div>
+                    <div className="bg-background/20 rounded-2xl p-4 flex items-center justify-between border border-border shadow-inner"><div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest">{req.time}</span></div><span className="text-[9px] sm:text-[10px] font-black text-primary uppercase tracking-widest">ID: {req.id}</span></div>
+                    <div className="grid grid-cols-2 gap-3"><Button className="rounded-xl h-12 bg-primary text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/10 transition-all active:scale-95" onClick={() => handleAction(req.id, 'APPROVED', 'verification')}>Authorize</Button><Button variant="ghost" className="rounded-xl h-12 bg-secondary/50 text-muted-foreground hover:bg-destructive/10 hover:text-destructive font-black uppercase tracking-widest text-[10px] transition-all" onClick={() => handleAction(req.id, 'REJECTED', 'verification')}>Purge</Button></div>
                   </Card>
                 ))}
               </div>
@@ -1143,14 +1143,14 @@ export default function AdminDashboard() {
                   <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Safety Node</h3>
                   <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Network Integrity & Moderation Feed</p>
                 </div>
-                <div className="h-10 w-10 sm:h-11 sm:w-11 bg-destructive/10 rounded-xl flex items-center justify-center text-destructive"><ShieldAlert className="h-5 w-5 sm:h-6 sm:w-6 animate-pulse" /></div>
+                <div className="h-10 w-10 sm:h-11 sm:w-11 bg-destructive/10 rounded-xl flex items-center justify-center text-destructive shadow-lg shadow-destructive/10"><ShieldAlert className="h-5 w-5 sm:h-6 sm:w-6 animate-pulse" /></div>
               </div>
               <div className="space-y-4">
                 {MOCK_REPORTS.map((report) => (
-                  <Card key={report.id} className="bg-white/5 border-white/10 rounded-[2rem] overflow-hidden group hover:border-destructive/30 transition-all">
+                  <Card key={report.id} className="bg-card/40 border-border rounded-[2rem] overflow-hidden group hover:border-destructive/30 transition-all shadow-sm">
                     <div className="p-6 flex flex-col md:flex-row gap-6">
-                      <div className="flex-1 space-y-4"><div className="flex items-center gap-3"><Badge className={cn("font-black text-[8px] sm:text-[9px] uppercase tracking-widest px-3 h-6 border-none", report.risk === 'HIGH' ? "bg-red-500 text-white" : "bg-amber-500 text-white")}>{report.risk} RISK</Badge><span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest">Report {report.id} • {report.time}</span></div><div className="grid grid-cols-2 gap-8 py-2"><div className="space-y-1"><span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Reporter</span><p className="font-bold text-sm text-white">@{report.reporter}</p></div><div className="space-y-1"><span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Target Node</span><p className="font-bold text-sm text-destructive">@{report.target}</p></div></div><div className="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-2"><div className="flex items-center gap-2"><Flag className="h-3.5 w-3.5 text-primary" /><span className="text-[9px] sm:text-[10px] font-black text-primary uppercase tracking-widest">AI Content Audit</span></div><p className="text-sm font-medium text-white/80 leading-relaxed italic">"{report.content}"</p></div></div>
-                      <div className="flex flex-row md:flex-col gap-2 justify-end"><Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl bg-white/5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all" onClick={() => handleAction(report.id, 'APPROVED', 'report')}><Eye className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl bg-white/5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all" onClick={() => handleAction(report.id, 'REJECTED', 'report')}><Trash2 className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl bg-white/5 text-muted-foreground hover:bg-red-500 hover:text-white transition-all" onClick={() => handleAction(report.id, 'REJECTED', 'report')}><Ban className="h-5 w-5" /></Button></div>
+                      <div className="flex-1 space-y-4"><div className="flex items-center gap-3"><Badge className={cn("font-black text-[8px] sm:text-[9px] uppercase tracking-widest px-3 h-6 border-none shadow-sm", report.risk === 'HIGH' ? "bg-red-500 text-white" : "bg-amber-500 text-white")}>{report.risk} RISK</Badge><span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest">Report {report.id} • {report.time}</span></div><div className="grid grid-cols-2 gap-8 py-2"><div className="space-y-1"><span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Reporter</span><p className="font-bold text-sm">@{report.reporter}</p></div><div className="space-y-1"><span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Target Node</span><p className="font-bold text-sm text-destructive">@{report.target}</p></div></div><div className="p-4 bg-background/40 rounded-2xl border border-border space-y-2 shadow-inner"><div className="flex items-center gap-2"><Flag className="h-3.5 w-3.5 text-primary" /><span className="text-[9px] sm:text-[10px] font-black text-primary uppercase tracking-widest">AI Content Audit</span></div><p className="text-sm font-medium leading-relaxed italic">"{report.content}"</p></div></div>
+                      <div className="flex flex-row md:flex-col gap-2 justify-end"><Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl bg-secondary/50 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all shadow-sm" onClick={() => handleAction(report.id, 'APPROVED', 'report')}><Eye className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl bg-secondary/50 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all shadow-sm" onClick={() => handleAction(report.id, 'REJECTED', 'report')}><Trash2 className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl bg-secondary/50 text-muted-foreground hover:bg-red-500 hover:text-white transition-all shadow-sm" onClick={() => handleAction(report.id, 'REJECTED', 'report')}><Ban className="h-5 w-5" /></Button></div>
                     </div>
                   </Card>
                 ))}
@@ -1165,13 +1165,13 @@ export default function AdminDashboard() {
                 <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Configure Financial Inbound Nodes</p>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-8">
-                  <div className="flex items-center gap-4"><div className="h-12 w-12 bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-500"><Smartphone className="h-6 w-6" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Orange Money</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Primary Inbound Pulse</p></div></div>
-                  <div className="space-y-6"><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Account Label</Label><Input value={gatewayForm.orangeName} onChange={(e) => setGatewayForm({ ...gatewayForm, orangeName: e.target.value })} className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold" /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Node Number</Label><Input value={gatewayForm.orangeNumber} onChange={(e) => setGatewayForm({ ...gatewayForm, orangeNumber: e.target.value })} className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold" /></div></div>
+                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-8 shadow-sm">
+                  <div className="flex items-center gap-4"><div className="h-12 w-12 bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-500 shadow-sm"><Smartphone className="h-6 w-6" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter">Orange Money</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Primary Inbound Pulse</p></div></div>
+                  <div className="space-y-6"><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Account Label</Label><Input value={gatewayForm.orangeName} onChange={(e) => setGatewayForm({ ...gatewayForm, orangeName: e.target.value })} className="h-14 bg-background/40 border-border rounded-2xl font-bold shadow-inner" /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Node Number</Label><Input value={gatewayForm.orangeNumber} onChange={(e) => setGatewayForm({ ...gatewayForm, orangeNumber: e.target.value })} className="h-14 bg-background/40 border-border rounded-2xl font-bold shadow-inner" /></div></div>
                 </Card>
-                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-8">
-                  <div className="flex items-center gap-4"><div className="h-12 w-12 bg-yellow-500/10 rounded-2xl flex items-center justify-center text-yellow-500"><Building2 className="h-6 w-6" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter text-white">MTN Momo</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Secondary Inbound Pulse</p></div></div>
-                  <div className="space-y-6"><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Account Label</Label><Input value={gatewayForm.mtnName} onChange={(e) => setGatewayForm({ ...gatewayForm, mtnName: e.target.value })} className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold" /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Node Number</Label><Input value={gatewayForm.mtnNumber} onChange={(e) => setGatewayForm({ ...gatewayForm, mtnNumber: e.target.value })} className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold" /></div></div>
+                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-8 shadow-sm">
+                  <div className="flex items-center gap-4"><div className="h-12 w-12 bg-yellow-500/10 rounded-2xl flex items-center justify-center text-yellow-500 shadow-sm"><Building2 className="h-6 w-6" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter">MTN Momo</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Secondary Inbound Pulse</p></div></div>
+                  <div className="space-y-6"><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Account Label</Label><Input value={gatewayForm.mtnName} onChange={(e) => setGatewayForm({ ...gatewayForm, mtnName: e.target.value })} className="h-14 bg-background/40 border-border rounded-2xl font-bold shadow-inner" /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Node Number</Label><Input value={gatewayForm.mtnNumber} onChange={(e) => setGatewayForm({ ...gatewayForm, mtnNumber: e.target.value })} className="h-14 bg-background/40 border-border rounded-2xl font-bold shadow-inner" /></div></div>
                 </Card>
               </div>
               <div className="flex justify-center pt-6"><Button className="h-16 px-12 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl shadow-primary/20 transition-all active:scale-95 gap-3" onClick={handleSaveGateway}><Check className="h-6 w-6" />Sync Gateway logic</Button></div>
@@ -1181,9 +1181,9 @@ export default function AdminDashboard() {
           {activeTab === 'logs' && (
             <div className="space-y-10 animate-in fade-in duration-500">
               <div className="space-y-1 px-2"><h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Audit Trail</h3><p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Administrative Identity Logging</p></div>
-              <Card className="bg-white/5 border-white/10 rounded-[2rem] overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-left min-w-[800px]"><thead><tr className="border-b border-white/5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-black/20"><th className="px-8 py-6">TIMESTAMP</th><th className="px-8 py-6">ADMIN</th><th className="px-8 py-6">ACTION</th><th className="px-8 py-6">DETAILS</th></tr></thead><tbody className="divide-y divide-white/5">
+              <Card className="bg-card/40 border-border rounded-[2rem] overflow-hidden shadow-sm"><div className="overflow-x-auto"><table className="w-full text-left min-w-[800px]"><thead><tr className="border-b border-border text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-secondary/30"><th className="px-8 py-6">TIMESTAMP</th><th className="px-8 py-6">ADMIN</th><th className="px-8 py-6">ACTION</th><th className="px-8 py-6">DETAILS</th></tr></thead><tbody className="divide-y divide-border">
                 {auditLogs.length > 0 ? auditLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-white/[0.02]"><td className="px-8 py-6 font-mono text-[10px] text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</td><td className="px-8 py-6"><Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[9px] font-black">{log.admin}</Badge></td><td className="px-8 py-6 font-black italic uppercase tracking-widest text-xs text-white">{log.action}</td><td className="px-8 py-6 text-xs text-muted-foreground font-medium">{log.details}</td></tr>
+                  <tr key={log.id} className="hover:bg-secondary/20 transition-colors"><td className="px-8 py-6 font-mono text-[10px] text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</td><td className="px-8 py-6"><Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[9px] font-black shadow-sm">{log.admin}</Badge></td><td className="px-8 py-6 font-black italic uppercase tracking-widest text-xs">{log.action}</td><td className="px-8 py-6 text-xs text-muted-foreground font-medium">{log.details}</td></tr>
                 )) : (<tr><td colSpan={4} className="px-8 py-32 text-center opacity-40"><Activity className="h-12 w-12 mx-auto mb-4" /><p className="font-black uppercase tracking-widest text-xs">Logs silent — No pulses recorded</p></td></tr>)}
               </tbody></table></div></Card>
             </div>
@@ -1193,12 +1193,12 @@ export default function AdminDashboard() {
 
       {/* Mobile Admin Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[200] px-4 pb-6 flex justify-center pointer-events-none">
-        <nav className="flex items-center gap-2 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-2.5 shadow-2xl pointer-events-auto overflow-x-auto scrollbar-hide max-w-full">
+        <nav className="flex items-center gap-2 bg-background/80 backdrop-blur-2xl border border-border rounded-full px-6 py-2.5 shadow-2xl pointer-events-auto overflow-x-auto scrollbar-hide max-w-full">
           {(["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "gateway", "campaigns", "infrastructure", "resolution", "logs"] as AdminTab[]).map((tab) => {
             const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, velocity: TrendingUp, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, campaigns: Megaphone, infrastructure: Database, resolution: Hammer, logs: FileText };
             const Icon = icons[tab];
             const isActive = activeTab === tab;
-            return <button key={tab} onClick={() => { triggerHaptic(5); setActiveTab(tab); }} className={cn("p-3 rounded-2xl transition-all shrink-0", isActive ? "bg-primary text-white scale-110 shadow-lg" : "text-muted-foreground")}><Icon className="h-5 w-5" /></button>;
+            return <button key={tab} onClick={() => { triggerHaptic(5); setActiveTab(tab); }} className={cn("p-3 rounded-2xl transition-all shrink-0", isActive ? "bg-primary text-white scale-110 shadow-lg" : "text-muted-foreground hover:text-foreground")}><Icon className="h-5 w-5" /></button>;
           })}
         </nav>
       </div>

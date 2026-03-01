@@ -12,6 +12,8 @@ export interface AppSettings {
   activeSoundSet: 'cyberpunk' | 'lofi';
   isBiometricActive: boolean;
   taggingPrivacy: 'everyone' | 'friends';
+  discoveryVisibility: 'everyone' | 'mutual';
+  showReadReceipts: boolean;
   legacyContact: string | null;
   isSilenceActive: boolean;
   silenceStart: string;
@@ -419,6 +421,8 @@ const INITIAL_SETTINGS: AppSettings = {
   activeSoundSet: 'cyberpunk',
   isBiometricActive: false,
   taggingPrivacy: 'everyone',
+  discoveryVisibility: 'everyone',
+  showReadReceipts: true,
   legacyContact: null,
   isSilenceActive: false,
   silenceStart: "22:00",
