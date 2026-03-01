@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
-import { account, ID, databases } from '@/lib/appwrite';
+import client, { account, ID, databases, storage, APPWRITE_BUCKET_ID } from '@/lib/appwrite';
 import { Models } from 'appwrite';
 
 export interface AppSettings {
@@ -325,6 +325,7 @@ interface PostContextType {
   isLoading: boolean;
   login: (email: string, pass: string) => Promise<void>;
   signup: (email: string, pass: string, name: string, username: string) => Promise<void>;
+  uploadMedia: (file: File) => Promise<string>;
   setSearchOpen: (open: boolean) => void;
   setSelectedChatId: (id: string | null) => void;
   setSelectedPostId: (id: string | null) => void;
@@ -614,12 +615,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const checkSession = useCallback(async () => {
     try {
       const user = await account.get();
-      // In Phase 2, we would fetch the user document from the "Users" collection for balances etc.
-      // For now, we map the account data to the context User object.
       setCurrentUser(prev => ({
         ...prev,
         name: user.name,
-        username: user.email.split('@')[0], // Simulated username from email
+        username: user.email.split('@')[0], 
         isOnline: true,
         joinDate: new Date(user.$createdAt).toLocaleDateString(),
         role: 'USER'
@@ -639,8 +638,20 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const signup = async (email: string, pass: string, name: string, username: string) => {
     await account.create(ID.unique(), email, pass, name);
     await account.createEmailPasswordSession(email, pass);
-    // In Phase 4, we would create a document in the "Users" collection here.
     await checkSession();
+  };
+
+  const uploadMedia = async (file: File): Promise<string> => {
+    try {
+      const response = await storage.createFile(APPWRITE_BUCKET_ID, ID.unique(), file);
+      const fileId = response.$id;
+      // Construction: Construct spatial URL for global playback
+      const url = `${client.config.endpoint}/storage/buckets/${APPWRITE_BUCKET_ID}/files/${fileId}/view?project=${client.config.project}`;
+      return url;
+    } catch (error) {
+      console.error("Storage Handshake Error:", error);
+      throw error;
+    }
   };
 
   useEffect(() => {
@@ -693,7 +704,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const addReply = (postId: string, commentId: string, text: string) => {
     triggerHaptic(15);
-    // Simulated nested logic
   };
 
   const addStory = (segmentData: Omit<StorySegment, 'id'>) => {
@@ -794,7 +804,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   return (
     <PostContext.Provider value={{ 
-      currentUser, posts, stories, highlights, campaigns, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, auditLogs, disputes, staff, adStats, intelligenceMetrics, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, gatewaySettings, callState, isLoading, login, signup, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, boostNode, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall
+      currentUser, posts, stories, highlights, campaigns, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, auditLogs, disputes, staff, adStats, intelligenceMetrics, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, gatewaySettings, callState, isLoading, login, signup, uploadMedia, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, boostNode, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall
     }}>
       {children}
     </PostContext.Provider>

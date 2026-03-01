@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -26,11 +27,12 @@ const GRADIENTS = [
 ];
 
 export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { addStory } = usePosts();
+  const { addStory, uploadMedia, triggerHaptic } = usePosts();
   const { toast } = useToast();
   const [step, setStep] = useState<'choice' | 'edit' | 'text'>('choice');
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
-  const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] = useState(FILTERS[0]);
   const [selectedGradient, setSelectedGradient] = useState(GRADIENTS[0]);
   const [storyText, setStoryStory] = useState("");
@@ -42,70 +44,51 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
   const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (type === 'video') {
-      const video = document.createElement('video');
-      video.preload = 'metadata';
-      const tempUrl = URL.createObjectURL(file);
-      video.onloadedmetadata = () => {
-        URL.revokeObjectURL(tempUrl);
-        if (video.duration > 60) {
-          toast({ 
-            variant: "destructive", 
-            title: "Video Too Long", 
-            description: "Please select a video under 1 minute." 
-          });
-          return;
-        }
-        processFile(file, type);
-      };
-      video.src = tempUrl;
-    } else {
-      processFile(file, type);
-    }
-  };
-
-  const processFile = (file: File, type: 'image' | 'video') => {
-    setIsProcessing(true);
-    // Use Blob URL for both images and video to prevent freezing
-    const url = URL.createObjectURL(file);
-    setSelectedMedia(url);
+    triggerHaptic(10);
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
     setMediaType(type);
     setStep('edit');
-    setIsProcessing(false);
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     if (step === 'text' && !storyText.trim()) return;
-    if (step === 'edit' && !selectedMedia) return;
+    if (step === 'edit' && !selectedFile) return;
 
-    addStory({
-      image: selectedMedia || "", // Empty for text stories
-      type: mediaType || 'image',
-      filter: selectedFilter.class,
-      textOverlays: step === 'text' ? [{
-        text: storyText,
-        x: 50,
-        y: 50,
-        color: "#FFFFFF"
-      }] : [],
-      background: step === 'text' ? selectedGradient.class : undefined
-    });
+    setIsProcessing(true);
+    triggerHaptic(30);
 
-    toast({ title: "Story Shared!", description: "Your vibe is now live." });
-    onClose();
-    resetState();
+    try {
+      let finalImageUrl = "";
+      if (selectedFile) {
+        finalImageUrl = await uploadMedia(selectedFile);
+      }
+
+      addStory({
+        image: finalImageUrl, 
+        type: mediaType || 'image',
+        filter: selectedFilter.class,
+        textOverlays: step === 'text' ? [{ text: storyText, x: 50, y: 50, color: "#FFFFFF" }] : [],
+        background: step === 'text' ? selectedGradient.class : undefined
+      });
+
+      toast({ title: "Story Synchronized", description: "Node materialized in the cluster rail." });
+      onClose();
+      resetState();
+    } catch (e) {
+      toast({ variant: "destructive", title: "Vault Sync Error" });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const resetState = () => {
-    if (selectedMedia && selectedMedia.startsWith('blob:')) {
-      URL.revokeObjectURL(selectedMedia);
-    }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setStep('choice');
-    setSelectedMedia(null);
+    setSelectedFile(null);
+    setPreviewUrl(null);
     setMediaType(null);
     setStoryStory("");
-    setSelectedFilter(FILTERS[0]);
     setIsProcessing(false);
   };
 
@@ -114,155 +97,27 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
   return (
     <div className="fixed inset-0 z-[110] bg-black flex items-center justify-center">
       <div className="relative w-full max-w-[500px] h-full sm:h-[90vh] bg-zinc-950 sm:rounded-3xl overflow-hidden flex flex-col shadow-2xl">
-        
-        {/* Header */}
         <div className="absolute top-6 left-0 right-0 z-50 px-6 flex items-center justify-between">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="text-white bg-black/20 backdrop-blur-md rounded-full" 
-            onClick={step === 'choice' ? onClose : resetState}
-          >
-            {step === 'choice' ? <X className="h-6 w-6" /> : <ArrowLeft className="h-6 w-6" />}
-          </Button>
-          
-          {step !== 'choice' && (
-            <Button 
-              className="bg-primary hover:bg-primary/90 text-white font-bold rounded-full px-6 h-9 gap-2"
-              onClick={handleShare}
-            >
-              Share <Send className="h-3.5 w-3.5" />
-            </Button>
-          )}
+          <Button variant="ghost" size="icon" className="text-white bg-black/20 backdrop-blur-md rounded-full" onClick={step === 'choice' ? onClose : resetState}><ArrowLeft className="h-6 w-6" /></Button>
+          {step !== 'choice' && <Button className="bg-primary text-white font-bold rounded-full px-6 h-9 gap-2" onClick={handleShare} disabled={isProcessing}>{isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Sync"}</Button>}
         </div>
 
-        {/* Studio Content */}
         <div className="flex-1 flex flex-col">
           {step === 'choice' ? (
             <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-8 animate-in fade-in duration-500">
-              <div className="text-center space-y-2">
-                <h2 className="text-3xl font-black italic uppercase tracking-tighter text-white">Share a Vibe</h2>
-                <p className="text-zinc-400 text-sm font-medium">Select your story format</p>
-              </div>
-
+              <h2 className="text-3xl font-black italic uppercase tracking-tighter text-white">Share a Vibe</h2>
               <div className="grid grid-cols-1 w-full gap-4">
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-6 p-6 bg-zinc-900 border border-white/5 rounded-[2rem] hover:bg-zinc-800 transition-all group"
-                >
-                  <div className="h-14 w-14 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-500 group-hover:scale-110 transition-transform">
-                    <ImageIcon className="h-7 w-7" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-lg font-bold text-white">Upload Photo</p>
-                    <p className="text-xs text-zinc-500">Share your best moments</p>
-                  </div>
-                </button>
-
-                <button 
-                  onClick={() => videoInputRef.current?.click()}
-                  className="flex items-center gap-6 p-6 bg-zinc-900 border border-white/5 rounded-[2rem] hover:bg-zinc-800 transition-all group"
-                >
-                  <div className="h-14 w-14 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform">
-                    <Clapperboard className="h-7 w-7" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-lg font-bold text-white">Upload Video</p>
-                    <p className="text-xs text-zinc-500">Max 1 minute clip</p>
-                  </div>
-                </button>
-
-                <button 
-                  onClick={() => setStep('text')}
-                  className="flex items-center gap-6 p-6 bg-zinc-900 border border-white/5 rounded-[2rem] hover:bg-zinc-800 transition-all group"
-                >
-                  <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                    <Type className="h-7 w-7" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-lg font-bold text-white">Text Story</p>
-                    <p className="text-xs text-zinc-500">Type what's on your mind</p>
-                  </div>
-                </button>
+                <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-6 p-6 bg-zinc-900 border border-white/5 rounded-[2rem] hover:bg-zinc-800 transition-all group"><div className="h-14 w-14 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-500 group-hover:scale-110 transition-transform"><ImageIcon className="h-7 w-7" /></div><div className="text-left"><p className="text-lg font-bold text-white">Photo</p><p className="text-xs text-zinc-500">Share your best moments</p></div></button>
+                <button onClick={() => videoInputRef.current?.click()} className="flex items-center gap-6 p-6 bg-zinc-900 border border-white/5 rounded-[2rem] hover:bg-zinc-800 transition-all group"><div className="h-14 w-14 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform"><Clapperboard className="h-7 w-7" /></div><div className="text-left"><p className="text-lg font-bold text-white">Video</p><p className="text-xs text-zinc-500">Max 1 minute clip</p></div></button>
+                <button onClick={() => setStep('text')} className="flex items-center gap-6 p-6 bg-zinc-900 border border-white/5 rounded-[2rem] hover:bg-zinc-800 transition-all group"><div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform"><Type className="h-7 w-7" /></div><div className="text-left"><p className="text-lg font-bold text-white">Text Story</p><p className="text-xs text-zinc-500">Type what's on your mind</p></div></button>
               </div>
-
               <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleMediaUpload(e, 'image')} />
               <input type="file" ref={videoInputRef} className="hidden" accept="video/*" onChange={(e) => handleMediaUpload(e, 'video')} />
             </div>
           ) : step === 'text' ? (
-            <div className={cn("flex-1 flex-col flex items-center justify-center relative p-8 transition-all duration-500", selectedGradient.class)}>
-              <textarea 
-                autoFocus
-                placeholder="Start typing..."
-                className="w-full bg-transparent border-none focus:ring-0 text-4xl text-center font-black italic uppercase text-white placeholder:text-white/30 resize-none"
-                value={storyText}
-                onChange={(e) => setStoryStory(e.target.value)}
-              />
-              
-              <div className="absolute bottom-12 left-0 right-0 flex justify-center gap-3">
-                {GRADIENTS.map((g) => (
-                  <button 
-                    key={g.id}
-                    onClick={() => setSelectedGradient(g)}
-                    className={cn(
-                      "h-10 w-10 rounded-full border-2 transition-all",
-                      selectedGradient.id === g.id ? "border-white scale-110 shadow-lg" : "border-transparent opacity-60"
-                    )}
-                  >
-                    <div className={cn("w-full h-full rounded-full", g.class)} />
-                  </button>
-                ))}
-              </div>
-            </div>
+            <div className={cn("flex-1 flex-col flex items-center justify-center relative p-8 transition-all duration-500", selectedGradient.class)}><textarea autoFocus placeholder="Start typing..." className="w-full bg-transparent border-none focus:ring-0 text-4xl text-center font-black italic uppercase text-white placeholder:text-white/30 resize-none" value={storyText} onChange={(e) => setStoryStory(e.target.value)} /></div>
           ) : (
-            <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
-              {isProcessing ? (
-                <div className="flex flex-col items-center gap-4 text-white">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                  <p className="font-bold text-sm uppercase tracking-widest">Processing Vibe...</p>
-                </div>
-              ) : (
-                <>
-                  {mediaType === 'video' ? (
-                    <video 
-                      src={selectedMedia!} 
-                      className="w-full h-full object-cover" 
-                      autoPlay 
-                      muted 
-                      loop 
-                      playsInline 
-                    />
-                  ) : (
-                    <Image 
-                      src={selectedMedia!} 
-                      alt="Story Media" 
-                      fill 
-                      className={cn("object-cover", selectedFilter.class)} 
-                    />
-                  )}
-
-                  {mediaType === 'image' && (
-                    <div className="absolute bottom-8 left-0 right-0 z-50 flex gap-4 overflow-x-auto px-6 pb-4 scrollbar-hide">
-                      {FILTERS.map(f => (
-                        <button
-                          key={f.id}
-                          className={cn(
-                            "flex flex-col items-center gap-2 shrink-0 group",
-                            selectedFilter.id === f.id ? "text-white" : "text-white/40"
-                          )}
-                          onClick={() => setSelectedFilter(f)}
-                        >
-                          <div className={cn("h-14 w-14 rounded-2xl border-2 overflow-hidden bg-zinc-800 transition-all", selectedFilter.id === f.id ? "border-primary scale-110" : "border-transparent")}>
-                            <div className={cn("w-full h-full bg-zinc-700", f.class)} />
-                          </div>
-                          <span className="text-[10px] font-bold uppercase tracking-wider">{f.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+            <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">{isProcessing ? <Loader2 className="h-10 w-10 animate-spin text-primary" /> : (mediaType === 'video' ? <video src={previewUrl!} className="w-full h-full object-cover" autoPlay muted loop playsInline /> : <Image src={previewUrl!} alt="Story" fill className={cn("object-cover", selectedFilter.class)} />)}</div>
           )}
         </div>
       </div>

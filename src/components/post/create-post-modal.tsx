@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -120,12 +121,13 @@ const imageFilters = [
 const VIDEO_SIZE_LIMIT = 50 * 1024 * 1024; // 50MB in bytes
 
 export function CreatePostModal({ children }: CreatePostModalProps) {
-  const { addPost, currentUser, connections, settings, isFollowing, triggerHaptic } = usePosts();
+  const { addPost, currentUser, connections, settings, isFollowing, triggerHaptic, uploadMedia } = usePosts();
   const { openCaptureStudio } = useMusic();
   const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState("");
   const [privacy, setPrivacy] = useState<PrivacySetting>(privacySettings[0]);
   const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
   
   const [isPollOpen, setIsPollOpen] = useState(false);
@@ -192,18 +194,13 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     if (isVideo) {
       const file = fileArray[0];
       if (file.size > VIDEO_SIZE_LIMIT) {
-        // TRIGGER COMPRESSION PROTOCOL
         triggerHaptic(25);
         setIsCompressing(true);
         setCompressionProgress(0);
         
-        toast({ 
-          title: "Optimizing Reel", 
-          description: `Node size (${formatBytes(file.size)}) exceeds 50MB cluster limit. Throttling bitrate...` 
-        });
+        toast({ title: "Optimizing Reel", description: `Node size (${formatBytes(file.size)}) exceeds 50MB. Throttling...` });
 
-        // Simulate high-velocity processing pulse
-        const duration = 3000;
+        const duration = 2000;
         const interval = 50;
         const steps = duration / interval;
         let currentStep = 0;
@@ -215,22 +212,20 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             clearInterval(timer);
             setIsCompressing(false);
             setMediaType('video');
-            const url = URL.createObjectURL(file);
-            setSelectedMedia([url]);
-            toast({ title: "Vibe Optimized", description: "Node compressed to 50MB for high-velocity sync." });
+            setStagedFiles([file]);
+            setSelectedMedia([URL.createObjectURL(file)]);
           }
         }, interval);
       } else {
         setMediaType('video');
-        const url = URL.createObjectURL(file);
-        setSelectedMedia([url]);
-        toast({ title: "Reel Selected", description: "Your video node is staged for sync." });
+        setStagedFiles([file]);
+        setSelectedMedia([URL.createObjectURL(file)]);
       }
     } else {
       setMediaType('image');
+      setStagedFiles(prev => [...prev, ...fileArray].slice(0, 10));
       const urls = fileArray.map(file => URL.createObjectURL(file));
-      setSelectedMedia(prev => [...prev, ...urls].slice(0, 10)); // Limit to 10 photos
-      toast({ title: "Photos Staged", description: `${fileArray.length} visuals added to draft.` });
+      setSelectedMedia(prev => [...prev, ...urls].slice(0, 10));
     }
     setSelectedTheme(backgroundThemes[0]);
     setShowThemeSelector(false);
@@ -238,6 +233,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
   const removeMedia = (index: number) => {
     triggerHaptic(5);
+    setStagedFiles(prev => prev.filter((_, i) => i !== index));
     setSelectedMedia(prev => {
       const updated = prev.filter((_, i) => i !== index);
       if (updated.length === 0) setMediaType(null);
@@ -245,57 +241,57 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     });
   };
 
-  const handleAiEnhance = async () => {
-    if (!content.trim()) return;
-    setIsAiLoading(true);
+  const handlePost = async () => {
+    setIsAiLoading(true); // Reusing loader for upload pulse
     triggerHaptic(30);
+    
     try {
-      const hashtagsRes = await aiSuggestHashtags({ postContent: content });
-      const tags = hashtagsRes.hashtags.join(" ");
-      setContent(prev => `${prev}\n\n${tags}`);
-      toast({ title: "AI Enhanced!", description: "Suggested hashtags added to your post." });
-    } catch (error) {
-      toast({ variant: "destructive", title: "AI Error", description: "Failed to enhance post. Try again." });
+      const uploadedUrls = [];
+      for (const file of stagedFiles) {
+        const url = await uploadMedia(file);
+        uploadedUrls.push(url);
+      }
+
+      const creationLanguage = typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en';
+
+      addPost({
+        user: currentUser,
+        collaborator: collaborator || undefined,
+        content,
+        language: creationLanguage,
+        theme: selectedTheme.id !== "none" ? selectedTheme.class : undefined,
+        images: mediaType === 'image' ? uploadedUrls : undefined,
+        image: mediaType === 'video' ? undefined : (uploadedUrls[0] || undefined),
+        videoUrl: mediaType === 'video' ? uploadedUrls[0] : undefined,
+        imageFilter: selectedFilter.id !== "none" ? selectedFilter.class : undefined,
+        feeling: feeling || undefined,
+        location: location || undefined,
+        commentsDisabled,
+        isLocked,
+        unlockPrice: isLocked ? unlockPrice : undefined,
+        poll: isPollOpen && pollQuestion ? {
+          question: pollQuestion,
+          options: pollOptions.filter(o => o.trim()).map(text => ({ text, votes: 0 })),
+          totalVotes: 0,
+          duration: pollDuration
+        } : undefined
+      });
+
+      toast({ title: "Handshake Synchronized", description: "Node materialized in the global vault." });
+      localStorage.removeItem('vimore_post_draft');
+      resetForm();
+      setIsOpen(false);
+    } catch (e) {
+      toast({ variant: "destructive", title: "Vault Sync Error", description: "Could not materialize node in storage." });
     } finally {
       setIsAiLoading(false);
     }
   };
 
-  const handlePost = () => {
-    const creationLanguage = typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en';
-
-    addPost({
-      user: currentUser,
-      collaborator: collaborator || undefined,
-      content,
-      language: creationLanguage,
-      theme: selectedTheme.id !== "none" ? selectedTheme.class : undefined,
-      images: mediaType === 'image' ? selectedMedia : undefined,
-      image: mediaType === 'video' ? undefined : (selectedMedia[0] || undefined),
-      videoUrl: mediaType === 'video' ? selectedMedia[0] : undefined,
-      imageFilter: selectedFilter.id !== "none" ? selectedFilter.class : undefined,
-      feeling: feeling || undefined,
-      location: location || undefined,
-      commentsDisabled,
-      isLocked,
-      unlockPrice: isLocked ? unlockPrice : undefined,
-      poll: isPollOpen && pollQuestion ? {
-        question: pollQuestion,
-        options: pollOptions.filter(o => o.trim()).map(text => ({ text, votes: 0 })),
-        totalVotes: 0,
-        duration: pollDuration
-      } : undefined
-    });
-
-    toast({ title: "Vibe Shared!", description: isLocked ? "Monetized node is now live." : "Your post has been shared." });
-    localStorage.removeItem('vimore_post_draft');
-    resetForm();
-    setIsOpen(false);
-  };
-
   const resetForm = () => {
     setContent("");
     setSelectedMedia([]);
+    setStagedFiles([]);
     setMediaType(null);
     setIsPollOpen(false);
     setFeeling(null);
@@ -347,24 +343,28 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             <DialogTitle className="font-bold text-lg">Create post</DialogTitle>
           </div>
           <div className="flex items-center gap-2">
-             <Button variant="ghost" size="icon" className="text-primary h-9 w-9" onClick={handleAiEnhance} disabled={isAiLoading || !content.trim()}>{isAiLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}</Button>
-            <Button variant="ghost" className={cn("font-bold text-primary text-base", ((!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing) && "opacity-50")} disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing} onClick={handlePost}>POST</Button>
+             <Button variant="ghost" size="icon" className="text-primary h-9 w-9" onClick={() => triggerHaptic()} disabled={isAiLoading || !content.trim()}>{isAiLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}</Button>
+            <Button variant="ghost" className={cn("font-bold text-primary text-base", ((!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing) && "opacity-50")} disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing || isAiLoading} onClick={handlePost}>
+              {isAiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "POST"}
+            </Button>
           </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto pb-safe">
-          {isCompressing && (
+          {(isCompressing || isAiLoading) && (
             <div className="p-6 bg-primary/5 border-b border-primary/10 animate-in slide-in-from-top-4 duration-500">
               <div className="max-w-md mx-auto space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4 text-primary animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">Synchronizing Vibe Integrity</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">{isAiLoading ? "Syncing with Vault..." : "Materializing Vibe..."}</span>
                   </div>
-                  <span className="text-[10px] font-black text-primary tabular-nums">{Math.round(compressionProgress)}%</span>
+                  {!isAiLoading && <span className="text-[10px] font-black text-primary tabular-nums">{Math.round(compressionProgress)}%</span>}
                 </div>
-                <Progress value={compressionProgress} className="h-1.5" />
-                <p className="text-[9px] font-bold text-primary/60 uppercase text-center tracking-tighter">Bitrate Throttling Active — Reducing spatial weight for high-velocity sync</p>
+                {!isAiLoading && <Progress value={compressionProgress} className="h-1.5" />}
+                <p className="text-[9px] font-bold text-primary/60 uppercase text-center tracking-tighter">
+                  {isAiLoading ? "Encrypting and transmitting spatial nodes to cluster storage" : "Reducing spatial weight for high-velocity sync"}
+                </p>
               </div>
             </div>
           )}
@@ -449,60 +449,20 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                   <span>20 GD</span>
                   <span>200 GD</span>
                 </div>
-                <p className="text-[9px] text-center text-white/40 uppercase font-bold leading-tight">70% of energy will be synced to your vault on unlock.</p>
               </div>
             )}
           </div>
 
-          {/* Media Preview Grid */}
           {selectedMedia.length > 0 && !isCompressing && (
             <div className="px-4 pb-6">
-              <div className={cn(
-                "grid gap-2",
-                selectedMedia.length === 1 ? "grid-cols-1" : "grid-cols-2"
-              )}>
+              <div className={cn("grid gap-2", selectedMedia.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
                 {selectedMedia.map((url, i) => (
                   <div key={i} className="relative aspect-video rounded-[1.5rem] overflow-hidden group/media shadow-lg border border-primary/5">
-                    {mediaType === 'video' ? (
-                      <video src={url} className="w-full h-full object-cover" autoPlay muted loop playsInline />
-                    ) : (
-                      <Image src={url} alt="Preview" fill className={cn("object-cover", selectedFilter.class)} />
-                    )}
-                    <button 
-                      onClick={() => removeMedia(i)}
-                      className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-black/80 transition-all active:scale-90"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
+                    {mediaType === 'video' ? <video src={url} className="w-full h-full object-cover" autoPlay muted loop playsInline /> : <Image src={url} alt="Preview" fill className={cn("object-cover", selectedFilter.class)} />}
+                    <button onClick={() => removeMedia(i)} className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-black/80"><X className="h-4 w-4" /></button>
                   </div>
                 ))}
               </div>
-              
-              {mediaType === 'image' && (
-                <ScrollArea className="w-full whitespace-nowrap mt-4">
-                  <div className="flex gap-3 pb-2">
-                    {imageFilters.map(f => (
-                      <button
-                        key={f.id}
-                        onClick={() => { triggerHaptic(5); setSelectedFilter(f); }}
-                        className={cn(
-                          "flex flex-col items-center gap-2 group",
-                          selectedFilter.id === f.id ? "text-primary" : "text-muted-foreground"
-                        )}
-                      >
-                        <div className={cn(
-                          "h-12 w-12 rounded-xl border-2 transition-all overflow-hidden bg-secondary",
-                          selectedFilter.id === f.id ? "border-primary scale-105" : "border-transparent"
-                        )}>
-                          <div className={cn("w-full h-full bg-zinc-400", f.class)} />
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest">{f.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <ScrollBar orientation="horizontal" className="opacity-0" />
-                </ScrollArea>
-              )}
             </div>
           )}
 
@@ -521,215 +481,29 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           )}
 
-          {/* Action Selectors */}
-          <div className="px-4 space-y-4 mb-4">
-            {showFeelingSelector && (
-              <div className="p-4 bg-secondary/20 rounded-2xl animate-in slide-in-from-bottom-2">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Feeling</span>
-                  <button onClick={() => setShowFeelingSelector(false)}><X className="h-3 w-3" /></button>
-                </div>
-                <ScrollArea className="w-full">
-                  <div className="flex gap-2 pb-2">
-                    {feelings.map((f) => (
-                      <button
-                        key={f.text}
-                        onClick={() => { triggerHaptic(5); setFeeling(f); setShowFeelingSelector(false); }}
-                        className={cn(
-                          "px-4 py-2 rounded-xl border flex items-center gap-2 transition-all whitespace-nowrap",
-                          feeling?.text === f.text ? "bg-primary border-primary text-white" : "bg-white dark:bg-card border-border hover:border-primary/40"
-                        )}
-                      >
-                        <span>{f.emoji}</span>
-                        <span className="text-xs font-bold">{f.text}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <ScrollBar orientation="horizontal" className="opacity-0" />
-                </ScrollArea>
-              </div>
-            )}
-
-            {showLocationSelector && (
-              <div className="p-4 bg-secondary/20 rounded-2xl animate-in slide-in-from-bottom-2 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Add Location</span>
-                  <button onClick={() => setShowLocationSelector(false)}><X className="h-3 w-3" /></button>
-                </div>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
-                  <Input 
-                    placeholder="Where are you? (e.g. Lagos, Nigeria)" 
-                    className="pl-10 h-12 bg-white dark:bg-card border-none rounded-xl"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    autoFocus
-                  />
-                </div>
-              </div>
-            )}
-
-            {showThemeSelector && (
-              <div className="p-4 bg-secondary/20 rounded-2xl animate-in slide-in-from-bottom-2">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Theme</span>
-                  <button onClick={() => setShowThemeSelector(false)}><X className="h-3 w-3" /></button>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {backgroundThemes.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => { triggerHaptic(5); setSelectedTheme(t); if(t.id !== 'none') setSelectedMedia([]); }}
-                      className={cn(
-                        "h-12 rounded-xl border-2 transition-all flex items-center justify-center relative overflow-hidden",
-                        selectedTheme.id === t.id ? "border-primary scale-105" : "border-transparent"
-                      )}
-                    >
-                      <div className={cn("absolute inset-0", t.class)} />
-                      <span className={cn("relative z-10 text-[9px] font-black uppercase tracking-tighter", t.id === 'none' ? "text-muted-foreground" : "text-white")}>{t.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
           <div className="border-t">
-            <button 
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isPollOpen || selectedTheme.id !== "none" || isCompressing}
-              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
-            >
-              <div className="flex items-center gap-4">
-                <ImageIcon className="h-6 w-6 text-green-500" />
-                <span className="text-base font-medium">Photo</span>
-              </div>
+            <button onClick={() => fileInputRef.current?.click()} disabled={isPollOpen || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
+              <div className="flex items-center gap-4"><ImageIcon className="h-6 w-6 text-green-500" /><span className="text-base font-medium">Photo</span></div>
             </button>
-            <button 
-              onClick={() => { triggerHaptic(15); setIsOpen(false); openCaptureStudio(); }}
-              disabled={isPollOpen || selectedTheme.id !== "none" || isCompressing}
-              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
-            >
-              <div className="flex items-center gap-4">
-                <Video className="h-6 w-6 text-red-500" />
-                <span className="text-base font-medium">Upload Reel</span>
-              </div>
+            <button onClick={() => { triggerHaptic(15); setIsOpen(false); openCaptureStudio(); }} disabled={isPollOpen || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
+              <div className="flex items-center gap-4"><Video className="h-6 w-6 text-red-500" /><span className="text-base font-medium">Upload Reel</span></div>
             </button>
-            <button 
-              onClick={() => toggleAction('poll')}
-              disabled={selectedMedia.length > 0 || selectedTheme.id !== "none" || isCompressing}
-              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
-            >
-              <div className="flex items-center gap-4">
-                <ListTodo className="h-6 w-6 text-purple-500" />
-                <span className="text-base font-medium">Create Poll</span>
-              </div>
+            <button onClick={() => toggleAction('poll')} disabled={selectedMedia.length > 0 || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
+              <div className="flex items-center gap-4"><ListTodo className="h-6 w-6 text-purple-500" /><span className="text-base font-medium">Create Poll</span></div>
             </button>
-            <button 
-              onClick={() => toggleAction('theme')}
-              disabled={selectedMedia.length > 0 || isPollOpen || isCompressing}
-              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
-            >
-              <div className="flex items-center gap-4">
-                <Palette className="h-6 w-6 text-pink-500" />
-                <span className="text-base font-medium">Theme</span>
-              </div>
-            </button>
-            <button 
-              onClick={() => toggleAction('feeling')}
-              disabled={isCompressing}
-              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
-            >
-              <div className="flex items-center gap-4">
-                <Smile className="h-6 w-6 text-yellow-500" />
-                <span className="text-base font-medium">Feeling</span>
-              </div>
-            </button>
-            <button 
-              onClick={() => setIsTaggingSelectorOpen(true)}
-              disabled={isCompressing}
-              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
-            >
-              <div className="flex items-center gap-4">
-                <UserPlus className="h-6 w-6 text-blue-500" />
-                <span className="text-base font-medium">Tag Node</span>
-              </div>
-            </button>
-            <button 
-              onClick={() => toggleAction('location')}
-              disabled={isCompressing}
-              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
-            >
-              <div className="flex items-center gap-4">
-                <MapPin className="h-6 w-6 text-red-500" />
-                <span className="text-base font-medium">Location</span>
-              </div>
+            <button onClick={() => toggleAction('theme')} disabled={selectedMedia.length > 0 || isPollOpen || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
+              <div className="flex items-center gap-4"><Palette className="h-6 w-6 text-pink-500" /><span className="text-base font-medium">Theme</span></div>
             </button>
           </div>
         </div>
-
-        <Dialog open={isTaggingSelectorOpen} onOpenChange={setIsTaggingSelectorOpen}>
-          <DialogContent className="rounded-t-[3rem] p-0 border-primary/10 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-2xl h-[80vh] flex flex-col top-auto bottom-0 translate-y-0 translate-x-[-50%]">
-            <div className="mx-auto w-12 h-1.5 bg-primary/20 rounded-full mt-4 mb-2 shrink-0" />
-            <DialogHeader className="px-6 py-4">
-              <div className="flex items-center justify-between">
-                <DialogTitle className="text-xl font-black italic uppercase tracking-widest">Tag Collaborator</DialogTitle>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-[8px] font-black border-primary/20 text-primary">{settings.taggingPrivacy.toUpperCase()} FILTER</Badge>
-                </div>
-              </div>
-            </DialogHeader>
-            <div className="px-6 pb-4">
-              <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Query connections..." className="pl-11 h-12 bg-secondary/30 border-none rounded-2xl" value={tagSearch} onChange={(e) => setTagSearch(e.target.value)} />
-              </div>
-            </div>
-            <ScrollArea className="flex-1 px-6">
-              <div className="space-y-3 pb-10">
-                {filteredTagResults.length > 0 ? filteredTagResults.map((person) => (
-                  <button 
-                    key={person.username}
-                    className={cn(
-                      "w-full flex items-center justify-between p-4 rounded-2xl transition-all border",
-                      collaborator?.username === person.username ? "bg-primary/10 border-primary/20" : "bg-secondary/20 border-transparent hover:bg-secondary/40"
-                    )}
-                    onClick={() => { triggerHaptic(10); setCollaborator(person); setIsTaggingSelectorOpen(false); }}
-                  >
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-12 w-12"><AvatarImage src={person.avatar} /></Avatar>
-                      <div className="text-left">
-                        <p className="font-bold text-sm">{person.name}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-black">@{person.username}</p>
-                      </div>
-                    </div>
-                    {collaborator?.username === person.username && <Check className="h-5 w-5 text-primary" />}
-                  </button>
-                )) : (
-                  <div className="py-20 text-center space-y-4 opacity-40">
-                    <Users2 className="h-12 w-12 mx-auto" />
-                    <p className="text-sm font-bold uppercase tracking-widest">No valid nodes found</p>
-                    {settings.taggingPrivacy === 'friends' && <p className="text-[10px] max-w-[200px] mx-auto">Collaboration Whitelist is active. You can only tag mutual connections.</p>}
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          </DialogContent>
-        </Dialog>
 
         <div className="p-4 bg-white dark:bg-card border-t shrink-0">
-          <Button className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing} onClick={handlePost}>POST</Button>
+          <Button className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing || isAiLoading} onClick={handlePost}>
+            {isAiLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "POST"}
+          </Button>
         </div>
 
-        {/* Hidden File Input */}
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          className="hidden" 
-          accept="image/*,video/*" 
-          multiple 
-          onChange={handleFileChange} 
-        />
+        <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*" multiple onChange={handleFileChange} />
       </DialogContent>
     </Dialog>
   );
