@@ -15,13 +15,15 @@ export interface AppSettings {
   isSilenceActive: boolean;
   silenceStart: string;
   silenceEnd: string;
-  // Phase 1 Additions
+  // Phase 1
   goldRate: number; // USD per 1 Gold
   diamondRate: number; // USD per 1 Diamond
   ldMultiplier: number; // LD per 1 USD
   isReelsEnabled: boolean;
   isMusicEnabled: boolean;
   isGiftingEnabled: boolean;
+  // Phase 3
+  isAiVerificationActive: boolean;
 }
 
 export interface AuditLogNode {
@@ -391,7 +393,9 @@ const INITIAL_SETTINGS: AppSettings = {
   ldMultiplier: 190, 
   isReelsEnabled: true,
   isMusicEnabled: true,
-  isGiftingEnabled: true
+  isGiftingEnabled: true,
+  // Phase 3
+  isAiVerificationActive: true
 };
 
 const INITIAL_GATEWAY_SETTINGS: GatewaySettings = {

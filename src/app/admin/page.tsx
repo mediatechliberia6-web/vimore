@@ -52,7 +52,12 @@ import {
   BrainCircuit,
   EyeOff,
   Cpu,
-  Unplug
+  Unplug,
+  Sparkles,
+  Trophy,
+  ArrowRight,
+  Mic2,
+  ListMusic
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -63,6 +68,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 import { usePosts } from "@/context/PostContext";
 import { useNotifications } from "@/context/NotificationContext";
 import { useMusic } from "@/context/MusicContext";
@@ -79,14 +85,16 @@ import {
   Bar,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  LineChart,
+  Line
 } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { aiAnalyzeGlobalSentiment } from "@/app/actions/ai";
 
-type AdminTab = "pulse" | "economy" | "intelligence" | "identity" | "safety" | "governance" | "gateway" | "logs";
+type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "gateway" | "logs";
 type EconomySubTab = "outbound" | "inbound";
 
 const MOCK_DAILY_PULSE = [
@@ -99,9 +107,17 @@ const MOCK_DAILY_PULSE = [
   { time: "23:59", active: 1500, load: 20, latency: 52 },
 ];
 
-const MOCK_BOT_REPORTS = [
-  { id: "BOT-1", username: "spam_node_42", reason: "Rapid Post Pulse", risk: "CRITICAL", confidence: "98%" },
-  { id: "BOT-2", username: "fake_creator", reason: "Zero Interaction Pattern", risk: "MEDIUM", confidence: "72%" },
+const MOCK_CREATOR_VELOCITY = [
+  { name: "Neon Architect", username: "neon_arch", followers: 142000, growth: "+12%", status: "ELITE" },
+  { name: "Sarah Chen", username: "schen_dev", followers: 4200, growth: "+45%", status: "RISING" },
+  { name: "Alex Rivera", username: "arivera", followers: 12200, growth: "+8%", status: "MONETIZED" },
+  { name: "Marcus Stone", username: "mstone", followers: 25100, growth: "+15%", status: "ELITE" },
+];
+
+const MOCK_SONIC_TRENDS = [
+  { title: "Essence", artist: "Wizkid", syncs: "12.4k", velocity: "+24%", rank: 1 },
+  { title: "Last Last", artist: "Burna Boy", syncs: "8.2k", velocity: "+12%", rank: 2 },
+  { title: "Unavailable", artist: "Davido", syncs: "15.6k", velocity: "+45%", rank: 3 },
 ];
 
 const MOCK_VERIFICATION_REQUESTS = [
@@ -116,13 +132,12 @@ const MOCK_REPORTS = [
 ];
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence } = usePosts();
+  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections } = usePosts();
   const { addSignal } = useNotifications();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<AdminTab>("pulse");
   const [economySubTab, setEconomySubTab] = useState<EconomySubTab>("outbound");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
   const [isAnalyzingVibe, setIsAnalyzingVibe] = useState(false);
 
@@ -248,9 +263,9 @@ export default function AdminDashboard() {
         </div>
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-hide">
-          {(["pulse", "economy", "intelligence", "identity", "safety", "governance", "gateway", "logs"] as AdminTab[]).map((tab) => {
-            const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, logs: FileText };
-            const labels = { pulse: "Global Pulse", economy: "Economy Auditor", intelligence: "Intelligence Node", identity: "Identity Forge", safety: "Safety Node", governance: "Governance", gateway: "Gateway Logic", logs: "Audit Logs" };
+          {(["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "gateway", "logs"] as AdminTab[]).map((tab) => {
+            const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, velocity: TrendingUp, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, logs: FileText };
+            const labels = { pulse: "Global Pulse", economy: "Economy Auditor", intelligence: "Intelligence Node", velocity: "Velocity Hub", identity: "Identity Forge", safety: "Safety Node", governance: "Governance", gateway: "Gateway Logic", logs: "Audit Logs" };
             const Icon = icons[tab];
             const isActive = activeTab === tab;
 
@@ -400,7 +415,6 @@ export default function AdminDashboard() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-2">
-                {/* Sentiment Hub */}
                 <Card className="bg-white/5 border-white/10 rounded-[2rem] p-6 space-y-6 lg:col-span-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -448,7 +462,6 @@ export default function AdminDashboard() {
                   </div>
                 </Card>
 
-                {/* Bot / Ghost recognition */}
                 <Card className="bg-white/5 border-white/10 rounded-[2rem] p-6 space-y-6">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500">
@@ -458,11 +471,13 @@ export default function AdminDashboard() {
                   </div>
                   
                   <div className="space-y-4">
-                    {MOCK_BOT_REPORTS.map(bot => (
-                      <div key={bot.id} className="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-3 group hover:border-red-500/30 transition-all">
+                    {[
+                      { username: "spam_node_42", reason: "Rapid Post Pulse", risk: "CRITICAL" },
+                      { username: "fake_creator", reason: "Zero Interaction Pattern", risk: "MEDIUM" }
+                    ].map(bot => (
+                      <div key={bot.username} className="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-3 group hover:border-red-500/30 transition-all">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">{bot.risk} RISK</span>
-                          <span className="text-[9px] font-bold text-white/40">{bot.confidence} Match</span>
                         </div>
                         <div>
                           <p className="text-sm font-bold text-white">@{bot.username}</p>
@@ -480,54 +495,123 @@ export default function AdminDashboard() {
                   </div>
                 </Card>
               </div>
+            </div>
+          )}
 
-              {/* Network Health charts */}
+          {activeTab === 'velocity' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-2 gap-6">
+                <div className="space-y-1">
+                  <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Velocity Hub</h3>
+                  <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Creator Growth & Content Synchronicity</p>
+                </div>
+                <div className="flex items-center gap-4 bg-white/5 p-2 rounded-2xl border border-white/10">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className={cn("h-4 w-4", settings.isAiVerificationActive ? "text-primary" : "text-muted-foreground")} />
+                    <span className="text-[10px] font-black uppercase text-white/60">AI Verification Auto-Pilot</span>
+                  </div>
+                  <Switch 
+                    checked={settings.isAiVerificationActive} 
+                    onCheckedChange={(val) => handleToggleSwitch('isAiVerificationActive', val)}
+                    className="data-[state=checked]:bg-primary"
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2">
+                {/* Elite Creator Registry */}
                 <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6">
                   <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <h3 className="text-xl font-black italic uppercase tracking-tighter">Network Latency</h3>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Sync Performance (ms)</p>
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-500">
+                        <Trophy className="h-5 w-5" />
+                      </div>
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter">Rising Stars</h4>
                     </div>
-                    <div className="h-10 w-10 bg-cyan-500/10 rounded-xl flex items-center justify-center text-cyan-500">
-                      <Cpu className="h-5 w-5" />
-                    </div>
+                    <Badge className="bg-primary text-white border-none font-black h-5 px-3">TOP NODES</Badge>
                   </div>
-                  <div className="h-[200px] w-full">
-                    <ChartContainer config={{ latency: { label: "MS", color: "hsl(var(--accent))" } }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={MOCK_DAILY_PULSE}>
-                          <XAxis dataKey="time" hide />
-                          <ChartTooltip content={<ChartTooltipContent />} />
-                          <Area type="monotone" dataKey="latency" stroke="#06B6D4" strokeWidth={3} fill="#06B6D4" fillOpacity={0.1} />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </ChartContainer>
+
+                  <div className="space-y-4">
+                    {MOCK_CREATOR_VELOCITY.map(creator => (
+                      <div key={creator.username} className="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/5 hover:border-primary/30 transition-all group">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-12 w-12 border border-white/10 shadow-lg">
+                            <AvatarImage src={`https://picsum.photos/seed/${creator.username}/100/100`} />
+                          </Avatar>
+                          <div>
+                            <p className="font-bold text-sm text-white">{creator.name}</p>
+                            <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">@{creator.username}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-black text-primary italic">{creator.growth}</p>
+                          <Badge variant="outline" className="border-white/10 text-white/40 text-[8px] font-black uppercase px-2 h-4">{creator.status}</Badge>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </Card>
 
-                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 flex flex-col justify-center space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-                      <Activity className="h-6 w-6 animate-pulse" />
+                {/* Sonic Stream Monitor */}
+                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 bg-purple-500/10 rounded-xl flex items-center justify-center text-purple-500">
+                        <Music2 className="h-5 w-5" />
+                      </div>
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter">Sonic Velocity</h4>
                     </div>
-                    <div>
-                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Cluster Integrity: Optimal</h4>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">High-Velocity Handshake Protocol Active</p>
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
+                      <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">LIVE PULSE</span>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5 text-center">
-                      <span className="text-[10px] font-black text-muted-foreground uppercase">Sync Success</span>
-                      <p className="text-2xl font-black text-green-500">99.9%</p>
-                    </div>
-                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5 text-center">
-                      <span className="text-[10px] font-black text-muted-foreground uppercase">Active Clusters</span>
-                      <p className="text-2xl font-black text-white">{stats.activeClusters}</p>
-                    </div>
+
+                  <div className="space-y-4">
+                    {MOCK_SONIC_TRENDS.map(song => (
+                      <div key={song.title} className="flex items-center gap-4 p-4 bg-black/40 rounded-2xl border border-white/5 hover:bg-white/5 transition-all">
+                        <div className="h-10 w-10 bg-secondary/40 rounded-lg flex items-center justify-center font-black italic text-muted-foreground">{song.rank}</div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm text-white truncate">{song.title}</p>
+                          <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{song.artist}</p>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <div className="flex items-center gap-1 text-primary">
+                            <Zap className="h-3 w-3 fill-current" />
+                            <span className="text-xs font-black">{song.syncs}</span>
+                          </div>
+                          <span className="text-[9px] font-black text-green-500 uppercase">{song.velocity} VELOCITY</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </Card>
               </div>
+
+              {/* Node Relationship Visualizer (Simulated) */}
+              <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-8 mx-2">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Star Network Expansion</h4>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Cluster Branching & Referral Handshakes</p>
+                  </div>
+                  <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                    <Rocket className="h-6 w-6" />
+                  </div>
+                </div>
+
+                <div className="h-[200px] w-full flex items-center justify-center bg-black/20 rounded-[2rem] border border-dashed border-white/10 relative overflow-hidden group">
+                  {/* Abstract Graph Pulse Animation */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-40">
+                    <div className="w-32 h-32 border-4 border-primary/20 rounded-full animate-ping" />
+                    <div className="absolute w-16 h-16 border-2 border-accent/20 rounded-full animate-ping delay-300" />
+                  </div>
+                  <div className="relative z-10 flex flex-col items-center gap-4">
+                    <Badge className="bg-primary text-white font-black px-4 h-6">1.4 VIRAL COEFFICIENT</Badge>
+                    <p className="text-xs font-bold text-white/60 uppercase tracking-widest group-hover:text-white transition-colors cursor-default">Rendering High-Fidelity Cluster Map...</p>
+                  </div>
+                </div>
+              </Card>
             </div>
           )}
 
@@ -538,25 +622,12 @@ export default function AdminDashboard() {
                   <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Economy Auditor</h3>
                   <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Global Revenue & Disbursement Control</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="bg-white/5 p-1 rounded-xl flex items-center gap-1">
-                    <button 
-                      onClick={() => setEconomySubTab("outbound")}
-                      className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", economySubTab === 'outbound' ? "bg-primary text-white" : "text-muted-foreground")}
-                    >
-                      Outbound
-                    </button>
-                    <button 
-                      onClick={() => setEconomySubTab("inbound")}
-                      className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", economySubTab === 'inbound' ? "bg-primary text-white" : "text-muted-foreground")}
-                    >
-                      Inbound
-                    </button>
-                  </div>
+                <div className="bg-white/5 p-1 rounded-xl flex items-center gap-1">
+                  <button onClick={() => setEconomySubTab("outbound")} className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", economySubTab === 'outbound' ? "bg-primary text-white" : "text-muted-foreground")}>Outbound</button>
+                  <button onClick={() => setEconomySubTab("inbound")} className={cn("px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", economySubTab === 'inbound' ? "bg-primary text-white" : "text-muted-foreground")}>Inbound</button>
                 </div>
               </div>
 
-              {/* Economic Controls (Phase 1) */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-2">
                 <Card className="bg-white/5 border-white/10 rounded-[2rem] p-6 space-y-6">
                   <div className="flex items-center gap-3">
@@ -565,44 +636,19 @@ export default function AdminDashboard() {
                   </div>
                   <div className="space-y-8">
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Gold per 1 USD ($)</Label>
-                        <Badge className="bg-amber-500/20 text-amber-500 border-none font-black h-5">{settings.goldRate} Rate</Badge>
-                      </div>
-                      <Slider 
-                        value={[settings.goldRate * 100]} 
-                        min={1} 
-                        max={10} 
-                        step={1} 
-                        onValueChange={(val) => updateSettings({ goldRate: val[0] / 100 })}
-                        className="[&_[role=slider]]:bg-amber-500"
-                      />
+                      <div className="flex justify-between items-center"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Gold per 1 USD ($)</Label><Badge className="bg-amber-500/20 text-amber-500 border-none font-black h-5">{settings.goldRate} Rate</Badge></div>
+                      <Slider value={[settings.goldRate * 100]} min={1} max={10} step={1} onValueChange={(val) => updateSettings({ goldRate: val[0] / 100 })} className="[&_[role=slider]]:bg-amber-500" />
                     </div>
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Diamond per 1 USD ($)</Label>
-                        <Badge className="bg-cyan-500/20 text-cyan-500 border-none font-black h-5">{settings.diamondRate} Rate</Badge>
-                      </div>
-                      <Slider 
-                        value={[settings.diamondRate * 100]} 
-                        min={5} 
-                        max={100} 
-                        step={5} 
-                        onValueChange={(val) => updateSettings({ diamondRate: val[0] / 100 })}
-                        className="[&_[role=slider]]:bg-cyan-500"
-                      />
+                      <div className="flex justify-between items-center"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Diamond per 1 USD ($)</Label><Badge className="bg-cyan-500/20 text-cyan-500 border-none font-black h-5">{settings.diamondRate} Rate</Badge></div>
+                      <Slider value={[settings.diamondRate * 100]} min={5} max={100} step={5} onValueChange={(val) => updateSettings({ diamondRate: val[0] / 100 })} className="[&_[role=slider]]:bg-cyan-500" />
                     </div>
                   </div>
                 </Card>
 
                 <Card className="bg-white/5 border-white/10 rounded-[2rem] p-6 flex flex-col justify-center items-center text-center space-y-4">
-                  <div className="h-16 w-16 bg-primary/10 rounded-[2rem] flex items-center justify-center text-primary">
-                    <Globe className="h-8 w-8 animate-pulse" />
-                  </div>
-                  <div>
-                    <h4 className="font-black italic uppercase tracking-tighter text-xl">Dynamic Economy</h4>
-                    <p className="text-xs text-muted-foreground font-medium max-w-xs mx-auto">Adjust rates platform-wide based on network liquidity. All user portals update instantly.</p>
-                  </div>
+                  <div className="h-16 w-16 bg-primary/10 rounded-[2rem] flex items-center justify-center text-primary"><Globe className="h-8 w-8 animate-pulse" /></div>
+                  <div><h4 className="font-black italic uppercase tracking-tighter text-xl">Dynamic Economy</h4><p className="text-xs text-muted-foreground font-medium max-w-xs mx-auto">Adjust rates platform-wide based on network liquidity. All user portals update instantly.</p></div>
                 </Card>
               </div>
 
@@ -610,88 +656,11 @@ export default function AdminDashboard() {
                 <Card className="bg-white/5 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left min-w-[800px]">
-                      <thead>
-                        <tr className="border-b border-white/5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-black/20">
-                          <th className="px-8 py-6">ID / NODE</th>
-                          <th className="px-8 py-6">IDENTITY</th>
-                          <th className="px-8 py-6">METHOD</th>
-                          <th className="px-8 py-6">AMOUNT (CONVERTED)</th>
-                          <th className="px-8 py-6">AI RISK</th>
-                          <th className="px-8 py-6 text-right">HANDSHAKE</th>
-                        </tr>
-                      </thead>
+                      <thead><tr className="border-b border-white/5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-black/20"><th className="px-8 py-6">ID / NODE</th><th className="px-8 py-6">IDENTITY</th><th className="px-8 py-6">METHOD</th><th className="px-8 py-6">AMOUNT (CONVERTED)</th><th className="px-8 py-6">AI RISK</th><th className="px-8 py-6 text-right">HANDSHAKE</th></tr></thead>
                       <tbody className="divide-y divide-white/5">
-                        {pendingWithdrawals.length > 0 ? pendingWithdrawals.map((node) => {
-                          const risk = Math.floor(Math.random() * 30);
-                          return (
-                            <tr key={node.id} className="group hover:bg-white/[0.02] transition-colors">
-                              <td className="px-8 py-6">
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-black text-white font-mono">{node.id}</span>
-                                  <span className="text-[9px] font-bold text-muted-foreground uppercase mt-1">{new Date(node.timestamp).toLocaleString()}</span>
-                                </div>
-                              </td>
-                              <td className="px-8 py-6">
-                                <div className="flex items-center gap-3">
-                                  <Avatar className="h-10 w-10 border border-white/10">
-                                    <AvatarImage src={`https://picsum.photos/seed/${node.accountName}/100/100`} />
-                                  </Avatar>
-                                  <div className="flex flex-col">
-                                    <span className="text-sm font-bold text-white">{node.accountName}</span>
-                                    <span className="text-[9px] font-black text-primary uppercase">@{node.username || 'unknown_node'}</span>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-8 py-6">
-                                <Badge className={cn(
-                                  "text-[9px] font-black uppercase px-3 h-6 border-none",
-                                  node.method === 'ORANGE' ? "bg-orange-500/20 text-orange-500" : "bg-yellow-500/20 text-yellow-500"
-                                )}>
-                                  {node.method} Node
-                                </Badge>
-                              </td>
-                              <td className="px-8 py-6">
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-black text-white">{node.payoutCurrency} {node.payoutAmount.toFixed(2)}</span>
-                                  <span className="text-[9px] font-bold text-muted-foreground uppercase">From {node.amount} {node.currency}</span>
-                                </div>
-                              </td>
-                              <td className="px-8 py-6">
-                                <div className="flex items-center gap-3">
-                                  <div className="flex-1 h-1.5 w-24 bg-white/5 rounded-full overflow-hidden">
-                                    <div className="h-full bg-green-500" style={{ width: `${100 - risk}%` }} />
-                                  </div>
-                                  <span className="text-[10px] font-black text-green-500">TRUSTED</span>
-                                </div>
-                              </td>
-                              <td className="px-8 py-6">
-                                <div className="flex items-center justify-end gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Button 
-                                    variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white"
-                                    onClick={() => handleAction(node.id, 'APPROVED', 'withdrawal')}
-                                  >
-                                    <CheckCircle2 className="h-5 w-5" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white"
-                                    onClick={() => handleAction(node.id, 'REJECTED', 'withdrawal')}
-                                  >
-                                    <XCircle className="h-5 w-5" />
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        }) : (
-                          <tr>
-                            <td colSpan={6} className="px-8 py-32 text-center">
-                              <div className="flex flex-col items-center gap-4 opacity-20">
-                                <CircleDashed className="h-12 w-12 animate-spin" />
-                                <p className="text-sm font-black uppercase tracking-[0.2em]">Queue Silent — No Pending Withdrawals</p>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
+                        {pendingWithdrawals.length > 0 ? pendingWithdrawals.map((node) => (
+                          <tr key={node.id} className="group hover:bg-white/[0.02] transition-colors"><td className="px-8 py-6"><div className="flex flex-col"><span className="text-sm font-black text-white font-mono">{node.id}</span><span className="text-[9px] font-bold text-muted-foreground uppercase mt-1">{new Date(node.timestamp).toLocaleString()}</span></div></td><td className="px-8 py-6"><div className="flex items-center gap-3"><Avatar className="h-10 w-10 border border-white/10"><AvatarImage src={`https://picsum.photos/seed/${node.accountName}/100/100`} /></Avatar><div className="flex flex-col"><span className="text-sm font-bold text-white">{node.accountName}</span><span className="text-[9px] font-black text-primary uppercase">@{node.username || 'unknown_node'}</span></div></div></td><td className="px-8 py-6"><Badge className={cn("text-[9px] font-black uppercase px-3 h-6 border-none", node.method === 'ORANGE' ? "bg-orange-500/20 text-orange-500" : "bg-yellow-500/20 text-yellow-500")}>{node.method} Node</Badge></td><td className="px-8 py-6"><div className="flex flex-col"><span className="text-sm font-black text-white">{node.payoutCurrency} {node.payoutAmount.toFixed(2)}</span><span className="text-[9px] font-bold text-muted-foreground uppercase">From {node.amount} {node.currency}</span></div></td><td className="px-8 py-6"><div className="flex items-center gap-3"><div className="flex-1 h-1.5 w-24 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-green-500" style={{ width: '85%' }} /></div><span className="text-[10px] font-black text-green-500">TRUSTED</span></div></td><td className="px-8 py-6"><div className="flex items-center justify-end gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white" onClick={() => handleAction(node.id, 'APPROVED', 'withdrawal')}><CheckCircle2 className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white" onClick={() => handleAction(node.id, 'REJECTED', 'withdrawal')}><XCircle className="h-5 w-5" /></Button></div></td></tr>
+                        )) : (<tr><td colSpan={6} className="px-8 py-32 text-center"><div className="flex flex-col items-center gap-4 opacity-20"><CircleDashed className="h-12 w-12 animate-spin" /><p className="text-sm font-black uppercase tracking-[0.2em]">Queue Silent — No Pending Withdrawals</p></div></td></tr>)}
                       </tbody>
                     </table>
                   </div>
@@ -700,85 +669,11 @@ export default function AdminDashboard() {
                 <Card className="bg-white/5 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left min-w-[800px]">
-                      <thead>
-                        <tr className="border-b border-white/5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-black/20">
-                          <th className="px-8 py-6">ID / PULSE</th>
-                          <th className="px-8 py-6">SENDER</th>
-                          <th className="px-8 py-6">PACKAGE / CODE</th>
-                          <th className="px-8 py-6">RECEIPT</th>
-                          <th className="px-8 py-6">AI OCR</th>
-                          <th className="px-8 py-6 text-right">AUTHORIZE</th>
-                        </tr>
-                      </thead>
+                      <thead><tr className="border-b border-white/5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-black/20"><th className="px-8 py-6">ID / PULSE</th><th className="px-8 py-6">SENDER</th><th className="px-8 py-6">PACKAGE / CODE</th><th className="px-8 py-6">RECEIPT</th><th className="px-8 py-6">AI OCR</th><th className="px-8 py-6 text-right">AUTHORIZE</th></tr></thead>
                       <tbody className="divide-y divide-white/5">
-                        {pendingPayments.length > 0 ? pendingPayments.map((req) => {
-                          return (
-                            <tr key={req.id} className="group hover:bg-white/[0.02] transition-colors">
-                              <td className="px-8 py-6">
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-black text-white font-mono">{req.id}</span>
-                                  <span className="text-[9px] font-bold text-muted-foreground uppercase mt-1">{new Date(req.timestamp).toLocaleString()}</span>
-                                </div>
-                              </td>
-                              <td className="px-8 py-6">
-                                <div className="flex items-center gap-3">
-                                  <Avatar className="h-10 w-10 border border-white/10">
-                                    <AvatarImage src={`https://picsum.photos/seed/${req.username}/100/100`} />
-                                  </Avatar>
-                                  <div className="flex flex-col">
-                                    <span className="text-sm font-bold text-white">{req.name}</span>
-                                    <span className="text-[9px] font-black text-primary uppercase">@{req.username}</span>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-8 py-6">
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-black text-white">{req.packageName}</span>
-                                  <span className="text-[10px] font-black text-primary tracking-widest">{req.code}</span>
-                                </div>
-                              </td>
-                              <td className="px-8 py-6">
-                                <button 
-                                  className="bg-white/5 border border-white/10 rounded-xl h-10 px-4 gap-2 text-[10px] font-black uppercase flex items-center hover:bg-white/10 transition-all"
-                                  onClick={() => setSelectedReceipt(req.screenshot)}
-                                >
-                                  <ImageIcon className="h-4 w-4" /> View Receipt
-                                </button>
-                              </td>
-                              <td className="px-8 py-6">
-                                <div className="flex items-center gap-2">
-                                  <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-                                  <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">CODE MATCH: 98%</span>
-                                </div>
-                              </td>
-                              <td className="px-8 py-6">
-                                <div className="flex items-center justify-end gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Button 
-                                    variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white"
-                                    onClick={() => handleAction(req.id, 'APPROVED', 'payment')}
-                                  >
-                                    <CheckCircle2 className="h-5 w-5" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white"
-                                    onClick={() => handleAction(req.id, 'REJECTED', 'payment')}
-                                  >
-                                    <XCircle className="h-5 w-5" />
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        }) : (
-                          <tr>
-                            <td colSpan={6} className="px-8 py-32 text-center">
-                              <div className="flex flex-col items-center gap-4 opacity-20">
-                                <CircleDashed className="h-12 w-12 animate-spin" />
-                                <p className="text-sm font-black uppercase tracking-[0.2em]">Queue Silent — No Inbound Payments</p>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
+                        {pendingPayments.length > 0 ? pendingPayments.map((req) => (
+                          <tr key={req.id} className="group hover:bg-white/[0.02] transition-colors"><td className="px-8 py-6"><div className="flex flex-col"><span className="text-sm font-black text-white font-mono">{req.id}</span><span className="text-[9px] font-bold text-muted-foreground uppercase mt-1">{new Date(req.timestamp).toLocaleString()}</span></div></td><td className="px-8 py-6"><div className="flex items-center gap-3"><Avatar className="h-10 w-10 border border-white/10"><AvatarImage src={`https://picsum.photos/seed/${req.username}/100/100`} /></Avatar><div className="flex flex-col"><span className="text-sm font-bold text-white">{req.name}</span><span className="text-[9px] font-black text-primary uppercase">@{req.username}</span></div></div></td><td className="px-8 py-6"><div className="flex flex-col"><span className="text-sm font-black text-white">{req.packageName}</span><span className="text-[10px] font-black text-primary tracking-widest">{req.code}</span></div></td><td className="px-8 py-6"><button className="bg-white/5 border border-white/10 rounded-xl h-10 px-4 gap-2 text-[10px] font-black uppercase flex items-center hover:bg-white/10 transition-all" onClick={() => setSelectedReceipt(req.screenshot)}><ImageIcon className="h-4 w-4" /> View Receipt</button></td><td className="px-8 py-6"><div className="flex items-center gap-2"><div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" /><span className="text-[10px] font-black text-green-500 uppercase tracking-widest">CODE MATCH: 98%</span></div></td><td className="px-8 py-6"><div className="flex items-center justify-end gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity"><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white" onClick={() => handleAction(req.id, 'APPROVED', 'payment')}><CheckCircle2 className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white" onClick={() => handleAction(req.id, 'REJECTED', 'payment')}><XCircle className="h-5 w-5" /></Button></div></td></tr>
+                        )) : (<tr><td colSpan={6} className="px-8 py-32 text-center"><div className="flex flex-col items-center gap-4 opacity-20"><CircleDashed className="h-12 w-12 animate-spin" /><p className="text-sm font-black uppercase tracking-[0.2em]">Queue Silent — No Inbound Payments</p></div></td></tr>)}
                       </tbody>
                     </table>
                   </div>
@@ -795,48 +690,16 @@ export default function AdminDashboard() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Global Broadcast Hub */}
                 <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-                      <Send className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Global Broadcast</h4>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pulse System Signal to All Nodes</p>
-                    </div>
-                  </div>
-
+                  <div className="flex items-center gap-4"><div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary"><Send className="h-6 w-6" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Global Broadcast</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pulse System Signal to All Nodes</p></div></div>
                   <div className="space-y-4">
-                    <Textarea 
-                      placeholder="Enter system announcement..." 
-                      className="min-h-[120px] bg-black/40 border-white/10 rounded-2xl text-sm font-medium focus-visible:ring-primary/20"
-                      value={broadcastText}
-                      onChange={(e) => setBroadcastText(e.target.value)}
-                    />
-                    <Button 
-                      className="w-full h-14 bg-primary text-white font-black italic uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/20 gap-3"
-                      disabled={isBroadcasting || !broadcastText.trim()}
-                      onClick={handleBroadcast}
-                    >
-                      {isBroadcasting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5 fill-current" />}
-                      Launch Broadcast Pulse
-                    </Button>
+                    <Textarea placeholder="Enter system announcement..." className="min-h-[120px] bg-black/40 border-white/10 rounded-2xl text-sm font-medium focus-visible:ring-primary/20" value={broadcastText} onChange={(e) => setBroadcastText(e.target.value)} />
+                    <Button className="w-full h-14 bg-primary text-white font-black italic uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/20 gap-3" disabled={isBroadcasting || !broadcastText.trim()} onClick={handleBroadcast}>{isBroadcasting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5 fill-current" />}Launch Broadcast Pulse</Button>
                   </div>
                 </Card>
 
-                {/* Feature Kill-Switches */}
                 <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-8">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive">
-                      <ShieldAlert className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Feature Access</h4>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Governance Overrides</p>
-                    </div>
-                  </div>
-
+                  <div className="flex items-center gap-4"><div className="h-12 w-12 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive"><ShieldAlert className="h-6 w-6" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Feature Access</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Governance Overrides</p></div></div>
                   <div className="space-y-6">
                     {[
                       { id: 'isReelsEnabled' as keyof typeof settings, label: "Reels Stream", icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-500/10" },
@@ -844,17 +707,8 @@ export default function AdminDashboard() {
                       { id: 'isGiftingEnabled' as keyof typeof settings, label: "Gift Exchange", icon: Gem, color: "text-cyan-500", bg: "bg-cyan-500/10" }
                     ].map((f) => (
                       <div key={f.id} className="flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-white/5">
-                        <div className="flex items-center gap-4">
-                          <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", f.bg, f.color)}>
-                            <f.icon className="h-5 w-5" />
-                          </div>
-                          <span className="font-bold text-sm text-white/80">{f.label}</span>
-                        </div>
-                        <Switch 
-                          checked={settings[f.id] as boolean} 
-                          onCheckedChange={(val) => handleToggleSwitch(f.id, val)}
-                          className="data-[state=checked]:bg-primary"
-                        />
+                        <div className="flex items-center gap-4"><div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", f.bg, f.color)}><f.icon className="h-5 w-5" /></div><span className="font-bold text-sm text-white/80">{f.label}</span></div>
+                        <Switch checked={settings[f.id] as boolean} onCheckedChange={(val) => handleToggleSwitch(f.id, val)} className="data-[state=checked]:bg-primary" />
                       </div>
                     ))}
                   </div>
@@ -870,55 +724,15 @@ export default function AdminDashboard() {
                   <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Identity Forge</h3>
                   <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Managing Spatial Verification Signatures</p>
                 </div>
-                <Badge className="bg-primary text-white font-black h-11 px-6 rounded-xl uppercase tracking-widest w-fit">
-                  {MOCK_VERIFICATION_REQUESTS.length} REQUESTS
-                </Badge>
+                <Badge className="bg-primary text-white font-black h-11 px-6 rounded-xl uppercase tracking-widest w-fit">{MOCK_VERIFICATION_REQUESTS.length} REQUESTS</Badge>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {MOCK_VERIFICATION_REQUESTS.map((req) => (
                   <Card key={req.id} className="bg-white/5 border-white/10 rounded-[2rem] sm:rounded-[2.5rem] p-6 space-y-6 group hover:border-primary/40 transition-all">
-                    <div className="flex items-center justify-between">
-                      <Avatar className="h-14 w-14 sm:h-16 sm:w-16 border-2 border-primary/20">
-                        <AvatarImage src={req.avatar} />
-                      </Avatar>
-                      <div className="text-right">
-                        <span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1">Method</span>
-                        <div className="flex items-center gap-2 justify-end">
-                          {req.currency === 'DIAMOND' ? <Gem className="h-4 w-4 text-cyan-500" /> : <Star className="h-4 w-4 text-yellow-500 fill-current" />}
-                          <span className="font-black text-white">{req.cost.toLocaleString()}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <h4 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter text-white">{req.name}</h4>
-                      <p className="text-[10px] sm:text-xs font-bold text-primary uppercase tracking-widest">@{req.username}</p>
-                    </div>
-
-                    <div className="bg-black/20 rounded-2xl p-4 flex items-center justify-between border border-white/5">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest">{req.time}</span>
-                      </div>
-                      <span className="text-[9px] sm:text-[10px] font-black text-primary uppercase tracking-widest">ID: {req.id}</span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button 
-                        className="rounded-xl h-12 bg-primary text-white font-black uppercase tracking-widest text-[10px]"
-                        onClick={() => handleAction(req.id, 'APPROVED', 'verification')}
-                      >
-                        Authorize
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        className="rounded-xl h-12 bg-white/5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive font-black uppercase tracking-widest text-[10px]"
-                        onClick={() => handleAction(req.id, 'REJECTED', 'verification')}
-                      >
-                        Purge
-                      </Button>
-                    </div>
+                    <div className="flex items-center justify-between"><Avatar className="h-14 w-14 sm:h-16 sm:w-16 border-2 border-primary/20"><AvatarImage src={req.avatar} /></Avatar><div className="text-right"><span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1">Method</span><div className="flex items-center gap-2 justify-end">{req.currency === 'DIAMOND' ? <Gem className="h-4 w-4 text-cyan-500" /> : <Star className="h-4 w-4 text-yellow-500 fill-current" />}<span className="font-black text-white">{req.cost.toLocaleString()}</span></div></div></div>
+                    <div className="space-y-1"><h4 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter text-white">{req.name}</h4><p className="text-[10px] sm:text-xs font-bold text-primary uppercase tracking-widest">@{req.username}</p></div>
+                    <div className="bg-black/20 rounded-2xl p-4 flex items-center justify-between border border-white/5"><div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest">{req.time}</span></div><span className="text-[9px] sm:text-[10px] font-black text-primary uppercase tracking-widest">ID: {req.id}</span></div>
+                    <div className="grid grid-cols-2 gap-3"><Button className="rounded-xl h-12 bg-primary text-white font-black uppercase tracking-widest text-[10px]" onClick={() => handleAction(req.id, 'APPROVED', 'verification')}>Authorize</Button><Button variant="ghost" className="rounded-xl h-12 bg-white/5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive font-black uppercase tracking-widest text-[10px]" onClick={() => handleAction(req.id, 'REJECTED', 'verification')}>Purge</Button></div>
                   </Card>
                 ))}
               </div>
@@ -932,69 +746,14 @@ export default function AdminDashboard() {
                   <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Safety Node</h3>
                   <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Network Integrity & Moderation Feed</p>
                 </div>
-                <div className="h-10 w-10 sm:h-11 sm:w-11 bg-destructive/10 rounded-xl flex items-center justify-center text-destructive">
-                  <ShieldAlert className="h-5 w-5 sm:h-6 sm:w-6 animate-pulse" />
-                </div>
+                <div className="h-10 w-10 sm:h-11 sm:w-11 bg-destructive/10 rounded-xl flex items-center justify-center text-destructive"><ShieldAlert className="h-5 w-5 sm:h-6 sm:w-6 animate-pulse" /></div>
               </div>
-
               <div className="space-y-4">
                 {MOCK_REPORTS.map((report) => (
                   <Card key={report.id} className="bg-white/5 border-white/10 rounded-[2rem] overflow-hidden group hover:border-destructive/30 transition-all">
                     <div className="p-6 flex flex-col md:flex-row gap-6">
-                      <div className="flex-1 space-y-4">
-                        <div className="flex items-center gap-3">
-                          <Badge className={cn(
-                            "font-black text-[8px] sm:text-[9px] uppercase tracking-widest px-3 h-6 border-none",
-                            report.risk === 'HIGH' ? "bg-red-500 text-white" : "bg-amber-500 text-white"
-                          )}>
-                            {report.risk} RISK
-                          </Badge>
-                          <span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest">Report {report.id} • {report.time}</span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-8 py-2">
-                          <div className="space-y-1">
-                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Reporter</span>
-                            <p className="font-bold text-sm text-white">@{report.reporter}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Target Node</span>
-                            <p className="font-bold text-sm text-destructive">@{report.target}</p>
-                          </div>
-                        </div>
-
-                        <div className="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Flag className="h-3.5 w-3.5 text-primary" />
-                            <span className="text-[9px] sm:text-[10px] font-black text-primary uppercase tracking-widest">AI Content Audit</span>
-                          </div>
-                          <p className="text-sm font-medium text-white/80 leading-relaxed italic">"{report.content}"</p>
-                          <div className="pt-2">
-                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Reason: {report.reason}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-row md:flex-col gap-2 justify-end">
-                        <Button 
-                          variant="ghost" size="icon" className="h-12 w-12 rounded-xl bg-white/5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
-                          onClick={() => handleAction(report.id, 'APPROVED', 'report')}
-                        >
-                          <Eye className="h-5 w-5" />
-                        </Button>
-                        <Button 
-                          variant="ghost" size="icon" className="h-12 w-12 rounded-xl bg-white/5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
-                          onClick={() => handleAction(report.id, 'REJECTED', 'report')}
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </Button>
-                        <Button 
-                          variant="ghost" size="icon" className="h-12 w-12 rounded-xl bg-white/5 text-muted-foreground hover:bg-red-500 hover:text-white transition-all"
-                          onClick={() => handleAction(report.id, 'REJECTED', 'report')}
-                        >
-                          <Ban className="h-5 w-5" />
-                        </Button>
-                      </div>
+                      <div className="flex-1 space-y-4"><div className="flex items-center gap-3"><Badge className={cn("font-black text-[8px] sm:text-[9px] uppercase tracking-widest px-3 h-6 border-none", report.risk === 'HIGH' ? "bg-red-500 text-white" : "bg-amber-500 text-white")}>{report.risk} RISK</Badge><span className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-widest">Report {report.id} • {report.time}</span></div><div className="grid grid-cols-2 gap-8 py-2"><div className="space-y-1"><span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Reporter</span><p className="font-bold text-sm text-white">@{report.reporter}</p></div><div className="space-y-1"><span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Target Node</span><p className="font-bold text-sm text-destructive">@{report.target}</p></div></div><div className="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-2"><div className="flex items-center gap-2"><Flag className="h-3.5 w-3.5 text-primary" /><span className="text-[9px] sm:text-[10px] font-black text-primary uppercase tracking-widest">AI Content Audit</span></div><p className="text-sm font-medium text-white/80 leading-relaxed italic">"{report.content}"</p></div></div>
+                      <div className="flex flex-row md:flex-col gap-2 justify-end"><Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl bg-white/5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all" onClick={() => handleAction(report.id, 'APPROVED', 'report')}><Eye className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl bg-white/5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all" onClick={() => handleAction(report.id, 'REJECTED', 'report')}><Trash2 className="h-5 w-5" /></Button><Button variant="ghost" size="icon" className="h-12 w-12 rounded-xl bg-white/5 text-muted-foreground hover:bg-red-500 hover:text-white transition-all" onClick={() => handleAction(report.id, 'REJECTED', 'report')}><Ban className="h-5 w-5" /></Button></div>
                     </div>
                   </Card>
                 ))}
@@ -1008,121 +767,28 @@ export default function AdminDashboard() {
                 <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Gateway Logic</h3>
                 <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Configure Financial Inbound Nodes</p>
               </div>
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-8">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-500">
-                      <Smartphone className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Orange Money</h4>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Primary Inbound Pulse</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Account Label</Label>
-                      <Input 
-                        value={gatewayForm.orangeName}
-                        onChange={(e) => setGatewayForm({ ...gatewayForm, orangeName: e.target.value })}
-                        className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Node Number</Label>
-                      <Input 
-                        value={gatewayForm.orangeNumber}
-                        onChange={(e) => setGatewayForm({ ...gatewayForm, orangeNumber: e.target.value })}
-                        className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold"
-                      />
-                    </div>
-                  </div>
+                  <div className="flex items-center gap-4"><div className="h-12 w-12 bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-500"><Smartphone className="h-6 w-6" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Orange Money</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Primary Inbound Pulse</p></div></div>
+                  <div className="space-y-6"><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Account Label</Label><Input value={gatewayForm.orangeName} onChange={(e) => setGatewayForm({ ...gatewayForm, orangeName: e.target.value })} className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold" /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Node Number</Label><Input value={gatewayForm.orangeNumber} onChange={(e) => setGatewayForm({ ...gatewayForm, orangeNumber: e.target.value })} className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold" /></div></div>
                 </Card>
-
                 <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-8">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 bg-yellow-500/10 rounded-2xl flex items-center justify-center text-yellow-500">
-                      <Building2 className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">MTN Momo</h4>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Secondary Inbound Pulse</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Account Label</Label>
-                      <Input 
-                        value={gatewayForm.mtnName}
-                        onChange={(e) => setGatewayForm({ ...gatewayForm, mtnName: e.target.value })}
-                        className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Node Number</Label>
-                      <Input 
-                        value={gatewayForm.mtnNumber}
-                        onChange={(e) => setGatewayForm({ ...gatewayForm, mtnNumber: e.target.value })}
-                        className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold"
-                      />
-                    </div>
-                  </div>
+                  <div className="flex items-center gap-4"><div className="h-12 w-12 bg-yellow-500/10 rounded-2xl flex items-center justify-center text-yellow-500"><Building2 className="h-6 w-6" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter text-white">MTN Momo</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Secondary Inbound Pulse</p></div></div>
+                  <div className="space-y-6"><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Account Label</Label><Input value={gatewayForm.mtnName} onChange={(e) => setGatewayForm({ ...gatewayForm, mtnName: e.target.value })} className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold" /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Node Number</Label><Input value={gatewayForm.mtnNumber} onChange={(e) => setGatewayForm({ ...gatewayForm, mtnNumber: e.target.value })} className="h-14 bg-black/40 border-white/10 rounded-2xl text-white font-bold" /></div></div>
                 </Card>
               </div>
-
-              <div className="flex justify-center pt-6">
-                <Button 
-                  className="h-16 px-12 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl shadow-primary/20 transition-all active:scale-95 gap-3"
-                  onClick={handleSaveGateway}
-                >
-                  <Check className="h-6 w-6" />
-                  Sync Gateway logic
-                </Button>
-              </div>
+              <div className="flex justify-center pt-6"><Button className="h-16 px-12 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl shadow-primary/20 transition-all active:scale-95 gap-3" onClick={handleSaveGateway}><Check className="h-6 w-6" />Sync Gateway logic</Button></div>
             </div>
           )}
 
           {activeTab === 'logs' && (
             <div className="space-y-10 animate-in fade-in duration-500">
-              <div className="space-y-1 px-2">
-                <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Audit Trail</h3>
-                <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Administrative Identity Logging</p>
-              </div>
-
-              <Card className="bg-white/5 border-white/10 rounded-[2rem] overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left min-w-[800px]">
-                    <thead>
-                      <tr className="border-b border-white/5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-black/20">
-                        <th className="px-8 py-6">TIMESTAMP</th>
-                        <th className="px-8 py-6">ADMIN</th>
-                        <th className="px-8 py-6">ACTION</th>
-                        <th className="px-8 py-6">DETAILS</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {auditLogs.length > 0 ? auditLogs.map((log) => (
-                        <tr key={log.id} className="hover:bg-white/[0.02]">
-                          <td className="px-8 py-6 font-mono text-[10px] text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</td>
-                          <td className="px-8 py-6"><Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[9px] font-black">{log.admin}</Badge></td>
-                          <td className="px-8 py-6 font-black italic uppercase tracking-widest text-xs text-white">{log.action}</td>
-                          <td className="px-8 py-6 text-xs text-muted-foreground font-medium">{log.details}</td>
-                        </tr>
-                      )) : (
-                        <tr>
-                          <td colSpan={4} className="px-8 py-32 text-center opacity-40">
-                            <Activity className="h-12 w-12 mx-auto mb-4" />
-                            <p className="font-black uppercase tracking-widest text-xs">Logs silent — No pulses recorded</p>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
+              <div className="space-y-1 px-2"><h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Audit Trail</h3><p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">Administrative Identity Logging</p></div>
+              <Card className="bg-white/5 border-white/10 rounded-[2rem] overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-left min-w-[800px]"><thead><tr className="border-b border-white/5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-black/20"><th className="px-8 py-6">TIMESTAMP</th><th className="px-8 py-6">ADMIN</th><th className="px-8 py-6">ACTION</th><th className="px-8 py-6">DETAILS</th></tr></thead><tbody className="divide-y divide-white/5">
+                {auditLogs.length > 0 ? auditLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-white/[0.02]"><td className="px-8 py-6 font-mono text-[10px] text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</td><td className="px-8 py-6"><Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[9px] font-black">{log.admin}</Badge></td><td className="px-8 py-6 font-black italic uppercase tracking-widest text-xs text-white">{log.action}</td><td className="px-8 py-6 text-xs text-muted-foreground font-medium">{log.details}</td></tr>
+                )) : (<tr><td colSpan={4} className="px-8 py-32 text-center opacity-40"><Activity className="h-12 w-12 mx-auto mb-4" /><p className="font-black uppercase tracking-widest text-xs">Logs silent — No pulses recorded</p></td></tr>)}
+              </tbody></table></div></Card>
             </div>
           )}
         </div>
@@ -1131,23 +797,11 @@ export default function AdminDashboard() {
       {/* Mobile Admin Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[200] px-4 pb-6 flex justify-center pointer-events-none">
         <nav className="flex items-center gap-2 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-2.5 shadow-2xl pointer-events-auto overflow-x-auto scrollbar-hide max-w-full">
-          {(["pulse", "economy", "intelligence", "identity", "safety", "governance", "gateway", "logs"] as AdminTab[]).map((tab) => {
-            const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, logs: FileText };
+          {(["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "gateway", "logs"] as AdminTab[]).map((tab) => {
+            const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, velocity: TrendingUp, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, logs: FileText };
             const Icon = icons[tab];
             const isActive = activeTab === tab;
-
-            return (
-              <button
-                key={tab}
-                onClick={() => { triggerHaptic(5); setActiveTab(tab); }}
-                className={cn(
-                  "p-3 rounded-2xl transition-all shrink-0",
-                  isActive ? "bg-primary text-white scale-110 shadow-lg" : "text-muted-foreground"
-                )}
-              >
-                <Icon className="h-5 w-5" />
-              </button>
-            );
+            return <button key={tab} onClick={() => { triggerHaptic(5); setActiveTab(tab); }} className={cn("p-3 rounded-2xl transition-all shrink-0", isActive ? "bg-primary text-white scale-110 shadow-lg" : "text-muted-foreground")}><Icon className="h-5 w-5" /></button>;
           })}
         </nav>
       </div>
@@ -1155,16 +809,8 @@ export default function AdminDashboard() {
       {/* Receipt Lightbox */}
       {selectedReceipt && (
         <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-6 animate-in fade-in duration-300">
-          <Button 
-            variant="ghost" size="icon" 
-            className="absolute top-6 right-6 text-white bg-white/10 rounded-full" 
-            onClick={() => setSelectedReceipt(null)}
-          >
-            <X className="h-6 w-6" />
-          </Button>
-          <div className="relative w-full max-w-2xl aspect-[3/4] sm:aspect-video rounded-[2rem] overflow-hidden shadow-2xl border border-white/10">
-            <Image src={selectedReceipt} alt="Receipt Proof" fill className="object-contain" />
-          </div>
+          <Button variant="ghost" size="icon" className="absolute top-6 right-6 text-white bg-white/10 rounded-full" onClick={() => setSelectedReceipt(null)}><X className="h-6 w-6" /></Button>
+          <div className="relative w-full max-w-2xl aspect-[3/4] sm:aspect-video rounded-[2rem] overflow-hidden shadow-2xl border border-white/10"><Image src={selectedReceipt} alt="Receipt Proof" fill className="object-contain" /></div>
           <p className="mt-6 text-[10px] font-black text-white/40 uppercase tracking-[0.4em]">Audit Trail Inspector</p>
         </div>
       )}
