@@ -909,7 +909,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const channelName = `vimore_${currentUser.id}_${contact.id || contact.username}`;
     
     try {
-      const token = await generateAgoraToken(channelName, currentUser.id);
+      // Use wildcard UID 0 for the prototype to simplify peer joining
+      const token = await generateAgoraToken(channelName, 0); 
       const callDoc = await databases.createDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, ID.unique(), {
         caller: JSON.stringify(currentUser),
         callerId: currentUser.id,

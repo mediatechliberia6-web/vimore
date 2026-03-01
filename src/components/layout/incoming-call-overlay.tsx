@@ -94,9 +94,9 @@ export function IncomingCallOverlay() {
 
   if (callState.status !== 'incoming' || !callState.contact) return null;
 
-  const handleAccept = () => {
+  const handleAccept = async () => {
     triggerHaptic(50);
-    acceptCall();
+    await acceptCall();
     router.push(`/messages/call/${callState.contact!.username}`);
   };
 

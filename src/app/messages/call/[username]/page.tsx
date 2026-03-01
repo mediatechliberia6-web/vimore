@@ -94,11 +94,12 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
       });
 
       try {
+        // Use wildcard UID null to allow SDK to assign a compatible numeric UID for wildcard tokens
         const uid = await client.join(
           AGORA_APP_ID, 
           callState.channelName || "", 
           callState.token || null, 
-          currentUser.id || null
+          null
         );
 
         // Create hardware tracks
