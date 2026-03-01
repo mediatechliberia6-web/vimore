@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
@@ -143,9 +142,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     if (settings.isSilenceActive) {
       const now = new Date();
       const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      
+      // Handle overnight window (e.g., 22:00 to 07:00)
       const isSilenced = settings.silenceStart < settings.silenceEnd 
         ? (currentTime >= settings.silenceStart && currentTime <= settings.silenceEnd)
         : (currentTime >= settings.silenceStart || currentTime <= settings.silenceEnd);
+        
       if (isSilenced) return;
     }
 

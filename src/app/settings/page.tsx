@@ -46,7 +46,8 @@ import {
   Gem,
   X,
   ShieldAlert,
-  KeyRound
+  KeyRound,
+  Timer
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -177,38 +178,38 @@ export default function SettingsPage() {
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Appearance Node</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col gap-4">
               <div className="space-y-0.5">
                 <p className="font-bold text-sm">Universal Theme</p>
                 <p className="text-[10px] text-muted-foreground uppercase font-black">Flip the platform environment</p>
               </div>
-              <div className="grid grid-cols-2 gap-1 bg-secondary/40 p-1 rounded-xl sm:flex sm:gap-1 w-full sm:w-auto">
+              <div className="grid grid-cols-2 gap-2 bg-secondary/40 p-1.5 rounded-2xl">
                 <button
                   onClick={() => handleUpdate({ theme: 'light' })}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all order-1 sm:order-none",
-                    settings.theme === 'light' ? "bg-white dark:bg-zinc-800 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    "flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    settings.theme === 'light' ? "bg-white dark:bg-zinc-800 text-primary shadow-md" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Sun className="h-3 w-3" /> Ivory
+                  <Sun className="h-3.5 w-3.5" /> Ivory
                 </button>
                 <button
                   onClick={() => handleUpdate({ theme: 'dark' })}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all order-2 sm:order-none",
-                    settings.theme === 'dark' ? "bg-white dark:bg-zinc-800 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    "flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    settings.theme === 'dark' ? "bg-white dark:bg-zinc-800 text-primary shadow-md" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Moon className="h-3 w-3" /> Space
+                  <Moon className="h-3.5 w-3.5" /> Space
                 </button>
                 <button
                   onClick={() => handleUpdate({ theme: 'system' })}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all order-3 sm:order-none col-span-1",
-                    settings.theme === 'system' ? "bg-white dark:bg-zinc-800 text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    "col-span-2 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    settings.theme === 'system' ? "bg-white dark:bg-zinc-800 text-primary shadow-md" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Monitor className="h-3 w-3" /> Sync
+                  <Monitor className="h-3.5 w-3.5" /> Sync with Hardware
                 </button>
               </div>
             </div>
@@ -257,6 +258,130 @@ export default function SettingsPage() {
                 className="[&_[role=slider]]:bg-amber-500"
               />
             </div>
+          </div>
+        </section>
+
+        {/* PHASE 4: PERFORMANCE & USER EXPERIENCE */}
+        <section className="space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">User Experience</h3>
+          <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <HardDrive className="h-4 w-4 text-primary" />
+                  <p className="font-bold text-sm">Playback Quality</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Manage data and visual fidelity</p>
+              </div>
+              <Select value={settings.playbackQuality} onValueChange={(val) => handleUpdate({ playbackQuality: val })}>
+                <SelectTrigger className="w-[140px] h-10 rounded-xl bg-secondary/20 border-none font-bold text-xs uppercase">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="standard" className="text-xs font-bold uppercase">Standard</SelectItem>
+                  <SelectItem value="pro-hd" className="text-xs font-bold uppercase text-primary">Pro-HD 4K</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <Rocket className="h-4 w-4 text-accent" />
+                  <p className="font-bold text-sm">Default Stream Hub</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Landing node on entry</p>
+              </div>
+              <Select value={settings.defaultStream} onValueChange={(val) => handleUpdate({ defaultStream: val })}>
+                <SelectTrigger className="w-[140px] h-10 rounded-xl bg-secondary/20 border-none font-bold text-xs uppercase">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="foryou" className="text-xs font-bold uppercase">For You</SelectItem>
+                  <SelectItem value="following" className="text-xs font-bold uppercase">Following</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <Radio className="h-4 w-4 text-purple-500" />
+                  <p className="font-bold text-sm">Acoustic Signature</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Notification sound set</p>
+              </div>
+              <div className="flex gap-1 bg-secondary/40 p-1 rounded-xl">
+                <button 
+                  onClick={() => handleUpdate({ activeSoundSet: 'cyberpunk' })}
+                  className={cn("px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all", settings.activeSoundSet === 'cyberpunk' ? "bg-white dark:bg-zinc-800 text-primary shadow-sm" : "text-muted-foreground")}
+                >Cyber</button>
+                <button 
+                  onClick={() => handleUpdate({ activeSoundSet: 'lofi' })}
+                  className={cn("px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all", settings.activeSoundSet === 'lofi' ? "bg-white dark:bg-zinc-800 text-primary shadow-sm" : "text-muted-foreground")}
+                >Lo-Fi</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* PHASE 4: TEMPORAL PULSE (QUIET HOURS) */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Temporal Pulse</h3>
+            <Badge className="bg-indigo-500/10 text-indigo-500 border-none text-[8px] font-black h-5 px-3 uppercase tracking-widest">Quiet Hours</Badge>
+          </div>
+          <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <BellOff className="h-4 w-4 text-indigo-500" />
+                  <p className="font-bold text-sm">Silence Node Mode</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Mute non-critical pulses</p>
+              </div>
+              <Switch checked={settings.isSilenceActive} onCheckedChange={(val) => handleUpdate({ isSilenceActive: val })} className="data-[state=checked]:bg-indigo-500" />
+            </div>
+
+            {settings.isSilenceActive && (
+              <div className="space-y-6 animate-in slide-in-from-top-4 duration-500">
+                <div className="h-px bg-border -mx-6" />
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      <Clock className="h-3 w-3" /> Silence Start
+                    </Label>
+                    <Input 
+                      type="time" 
+                      value={settings.silenceStart} 
+                      onChange={(e) => handleUpdate({ silenceStart: e.target.value })}
+                      className="bg-secondary/20 border-none h-12 rounded-xl font-bold"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      <Timer className="h-3 w-3" /> Wake Node
+                    </Label>
+                    <Input 
+                      type="time" 
+                      value={settings.silenceEnd} 
+                      onChange={(e) => handleUpdate({ silenceEnd: e.target.value })}
+                      className="bg-secondary/20 border-none h-12 rounded-xl font-bold"
+                    />
+                  </div>
+                </div>
+                <div className="p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10 flex gap-3">
+                  <Sparkles className="h-4 w-4 text-indigo-500 shrink-0" />
+                  <p className="text-[10px] font-bold text-indigo-600/60 uppercase leading-relaxed tracking-tighter">
+                    During this window, vibration handshakes and acoustic signals are suppressed. All content remains available in your feed pulse.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </section>
 

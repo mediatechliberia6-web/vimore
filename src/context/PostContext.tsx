@@ -18,6 +18,7 @@ export interface AppSettings {
   isSilenceActive: boolean;
   silenceStart: string;
   silenceEnd: string;
+  defaultStream: 'following' | 'foryou';
   // Phase 1
   goldRate: number; // USD per 1 Gold
   diamondRate: number; // USD per 1 Diamond
@@ -427,6 +428,7 @@ const INITIAL_SETTINGS: AppSettings = {
   isSilenceActive: false,
   silenceStart: "22:00",
   silenceEnd: "07:00",
+  defaultStream: 'foryou',
   // Phase 1
   goldRate: 0.01,
   diamondRate: 0.25,
@@ -1239,7 +1241,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const toggleCampaignStatus = (id: string) => {
     triggerHaptic(10);
-    setCampaigns(prev => prev.map(c => i === id ? { ...c, isActive: !c.isActive } : c));
+    setCampaigns(prev => prev.map(c => c.id === id ? { ...c, isActive: !c.isActive } : c));
   };
 
   const recordCampaignClick = (id: string) => {
