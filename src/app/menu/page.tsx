@@ -20,7 +20,8 @@ import {
   Star,
   Gem,
   TrendingUp,
-  Activity
+  Activity,
+  ShieldAlert
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -169,16 +170,18 @@ export default function MenuPage() {
                   <ShieldCheck className="h-4 w-4" />
                   Command Core Access
                 </Link>
-                {[
-                  { label: "Privacy Checkup", icon: ShieldCheck, color: "text-green-500" },
-                  { label: "Account Center", icon: Smartphone, color: "text-blue-500" },
-                  { label: "Language", icon: Info, color: "text-orange-500" }
-                ].map((sub) => (
-                  <button key={sub.label} className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-secondary/50 transition-colors font-semibold text-[15px] text-left">
-                    <sub.icon className={cn("h-4 w-4", sub.color)} />
-                    {sub.label}
-                  </button>
-                ))}
+                <Link href="/settings/privacy-checkup" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-green-500/10 transition-colors font-semibold text-[15px] text-left text-green-600">
+                  <ShieldCheck className="h-4 w-4" />
+                  Privacy Checkup
+                </Link>
+                <button className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-blue-500/10 transition-colors font-semibold text-[15px] text-left text-blue-600">
+                  <Smartphone className="h-4 w-4" />
+                  Account Center
+                </button>
+                <button className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-orange-500/10 transition-colors font-semibold text-[15px] text-left text-orange-600">
+                  <Info className="h-4 w-4" />
+                  Language Hub
+                </button>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
