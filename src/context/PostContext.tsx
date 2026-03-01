@@ -2,7 +2,22 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
-import client, { account, ID, databases, storage, APPWRITE_BUCKET_ID, APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, LIKES_COLLECTION_ID, COMMENTS_COLLECTION_ID, FOLLOWS_COLLECTION_ID, CLUSTERS_COLLECTION_ID } from '@/lib/appwrite';
+import client, { 
+  account, 
+  ID, 
+  databases, 
+  storage, 
+  APPWRITE_BUCKET_ID, 
+  APPWRITE_DATABASE_ID, 
+  POSTS_COLLECTION_ID, 
+  LIKES_COLLECTION_ID, 
+  COMMENTS_COLLECTION_ID, 
+  FOLLOWS_COLLECTION_ID, 
+  CLUSTERS_COLLECTION_ID,
+  PROFILES_COLLECTION_ID,
+  WITHDRAWALS_COLLECTION_ID,
+  PAYMENTS_COLLECTION_ID
+} from '@/lib/appwrite';
 import { Query } from 'appwrite';
 
 export interface AppSettings {
@@ -33,6 +48,7 @@ export interface AppSettings {
 }
 
 export interface User {
+  id?: string;
   name: string;
   username: string;
   avatar: string;
@@ -169,6 +185,7 @@ interface PostContextType {
   withdrawalHistory: any[];
   paymentRequests: any[];
   referralLink: string;
+  pendingTransaction: any;
   login: (email: string, pass: string) => Promise<void>;
   signup: (email: string, pass: string, name: string, username: string) => Promise<void>;
   uploadMedia: (file: File) => Promise<string>;
@@ -206,14 +223,14 @@ interface PostContextType {
   addAuditLog: (action: string, details: string) => void;
   initiateTransaction: (data: any) => void;
   cancelTransaction: () => void;
-  createPaymentRequest: (screenshot: string) => void;
+  createPaymentRequest: (screenshot: string) => Promise<void>;
   approvePaymentRequest: (id: string) => void;
   rejectPaymentRequest: (id: string) => void;
-  recordWithdrawal: (node: any) => void;
+  recordWithdrawal: (node: any) => Promise<void>;
   processWithdrawal: (id: string, status: any) => void;
   triggerReferralPulse: (referralCode?: string) => void;
   verifyUser: (cost: number, currency: any) => void;
-  processGiftTransaction: (cost: number, currency: any) => void;
+  processGiftTransaction: (cost: number, currency: any) => Promise<void>;
   unlockPost: (postId: string, cost: number) => void;
   subscribeToCreator: (username: string, cost: number) => void;
   cancelSubscription: (username: string) => void;
@@ -247,7 +264,11 @@ const INITIAL_USER: User = {
   bio: "Digital creator and explorer of the ViMore network. 🎨 ✨",
   isOnline: true,
   isVerified: false,
-  role: 'USER'
+  role: 'USER',
+  goldBalance: 0,
+  diamondBalance: 0,
+  starBalance: 0,
+  referralCount: 0
 };
 
 const INITIAL_SETTINGS: AppSettings = {
@@ -308,6 +329,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
 
   const [callState, setCallState] = useState<CallState>({ type: 'video', status: 'idle', contact: null });
+  const [withdrawalHistory, setWithdrawalHistory] = useState<any[]>([]);
+  const [paymentRequests, setPaymentRequests] = useState<any[]>([]);
+  const [pendingTransaction, setPendingTransaction] = useState<any>(null);
 
   const refreshFeed = useCallback(async () => {
     try {
@@ -388,27 +412,87 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshEconomy = useCallback(async (userId: string) => {
+    try {
+      const [withdraws, payments] = await Promise.all([
+        databases.listDocuments(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, [Query.equal('userId', userId)]),
+        databases.listDocuments(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, [Query.equal('userId', userId)])
+      ]);
+      setWithdrawalHistory(withdraws.documents);
+      setPaymentRequests(payments.documents);
+    } catch (e) {
+      console.error("Economy Archival Sync Failed:", e);
+    }
+  }, []);
+
   const checkSession = useCallback(async () => {
     try {
       const user = await account.get();
-      setCurrentUser(prev => ({
-        ...prev,
-        name: user.name,
-        username: user.email.split('@')[0], 
+      
+      // Materialize Profile Node
+      let profile;
+      try {
+        profile = await databases.getDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id);
+      } catch (e) {
+        // Create initial profile if missing
+        profile = await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id, {
+          userId: user.$id,
+          name: user.name,
+          username: user.email.split('@')[0],
+          avatar: INITIAL_USER.avatar,
+          goldBalance: 0,
+          diamondBalance: 0,
+          starBalance: 0,
+          role: 'USER'
+        });
+      }
+
+      setCurrentUser({
+        id: user.$id,
+        name: profile.name,
+        username: profile.username,
+        avatar: profile.avatar,
         isOnline: true,
-        role: 'USER'
-      }));
-      await Promise.all([refreshFeed(), refreshSocialGraph(), refreshClusters()]);
+        isVerified: profile.isVerified || false,
+        role: profile.role || 'USER',
+        goldBalance: profile.goldBalance || 0,
+        diamondBalance: profile.diamondBalance || 0,
+        starBalance: profile.starBalance || 0,
+        referralCount: profile.referralCount || 0
+      });
+
+      await Promise.all([refreshFeed(), refreshSocialGraph(), refreshClusters(), refreshEconomy(user.$id)]);
     } catch (error) {
       console.log("No active signature node.");
     } finally {
       setIsLoading(false);
     }
-  }, [refreshFeed, refreshSocialGraph, refreshClusters]);
+  }, [refreshFeed, refreshSocialGraph, refreshClusters, refreshEconomy]);
 
   useEffect(() => {
     checkSession();
   }, [checkSession]);
+
+  const syncUserBalance = async (updates: Partial<User>) => {
+    if (!currentUser.id) return;
+    try {
+      const updatedProfile = await databases.updateDocument(
+        APPWRITE_DATABASE_ID, 
+        PROFILES_COLLECTION_ID, 
+        currentUser.id, 
+        updates
+      );
+      setCurrentUser(prev => ({
+        ...prev,
+        goldBalance: updatedProfile.goldBalance,
+        diamondBalance: updatedProfile.diamondBalance,
+        starBalance: updatedProfile.starBalance,
+        referralCount: updatedProfile.referralCount
+      }));
+    } catch (e) {
+      console.error("Balance synchronization failed:", e);
+    }
+  };
 
   const login = async (email: string, pass: string) => {
     await account.createEmailPasswordSession(email, pass);
@@ -416,8 +500,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const signup = async (email: string, pass: string, name: string, username: string) => {
-    await account.create(ID.unique(), email, pass, name);
+    const user = await account.create(ID.unique(), email, pass, name);
     await account.createEmailPasswordSession(email, pass);
+    
+    // Materialize Profile document
+    await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id, {
+      userId: user.$id,
+      name,
+      username,
+      avatar: INITIAL_USER.avatar,
+      goldBalance: 0,
+      diamondBalance: 0,
+      starBalance: 0,
+      role: 'USER'
+    });
+
     await checkSession();
   };
 
@@ -625,6 +722,67 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const initiateTransaction = (data: any) => setPendingTransaction(data);
+  const cancelTransaction = () => setPendingTransaction(null);
+
+  const createPaymentRequest = async (screenshot: string) => {
+    if (!currentUser.id || !pendingTransaction) return;
+    try {
+      await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        PAYMENTS_COLLECTION_ID,
+        ID.unique(),
+        {
+          userId: currentUser.id,
+          username: currentUser.username,
+          packageName: pendingTransaction.packageName,
+          amount: parseFloat(pendingTransaction.amount),
+          currency: pendingTransaction.currency,
+          screenshot,
+          status: 'PENDING'
+        }
+      );
+      refreshEconomy(currentUser.id);
+    } catch (e) {
+      console.error("Payment handshake failed:", e);
+    }
+  };
+
+  const recordWithdrawal = async (node: any) => {
+    if (!currentUser.id) return;
+    try {
+      await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        WITHDRAWALS_COLLECTION_ID,
+        ID.unique(),
+        {
+          userId: currentUser.id,
+          username: node.username,
+          amount: node.amount,
+          currency: node.currency,
+          payoutAmount: node.payoutAmount,
+          payoutCurrency: node.payoutCurrency,
+          method: node.method,
+          status: 'PENDING',
+          accountName: node.accountName,
+          accountNumber: node.accountNumber
+        }
+      );
+      refreshEconomy(currentUser.id);
+    } catch (e) {
+      console.error("Withdrawal record failed:", e);
+    }
+  };
+
+  const processGiftTransaction = async (cost: number, currency: 'GOLD' | 'DIAMOND' | 'STAR') => {
+    const updates: Partial<User> = {};
+    if (currency === 'GOLD') updates.goldBalance = Math.max(0, (currentUser.goldBalance || 0) - cost);
+    else if (currency === 'DIAMOND') updates.diamondBalance = Math.max(0, (currentUser.diamondBalance || 0) - cost);
+    else updates.starBalance = Math.max(0, (currentUser.starBalance || 0) - cost);
+    
+    await syncUserBalance(updates);
+  };
+
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
       window.navigator.vibrate(intensity);
@@ -665,8 +823,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   return (
     <PostContext.Provider value={{ 
-      currentUser, posts, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, settings, gatewaySettings: {}, callState, stories: [], campaigns: [], mutedUserNames: [], connections: MOCK_CONNECTIONS, clusters, auditLogs: [], disputes: [], staff: [], adStats: {}, intelligenceMetrics: {}, withdrawalHistory: [], paymentRequests: [], referralLink: "",
-      login, signup, uploadMedia, setSearchOpen: (open) => setIsSearchOpen(open), setSelectedChatId: (id) => setSelectedChatId(id), setSelectedPostId: (id) => setSelectedPostId(id), setSelectedImageUrl: (url) => setSelectedImageUrl(url), openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex: (idx) => setActiveStoryIndex(idx), addPost, deletePost, addStory: () => {}, addComment, addReply: () => {}, incrementShareCount: () => {}, voteOnStoryPoll: () => {}, toggleMuteUser: () => {}, togglePinPost: () => {}, archivePost: () => {}, updateCurrentUser, updateSettings, updateGatewaySettings: () => {}, addAuditLog: () => {}, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction: () => {}, cancelTransaction: () => {}, createPaymentRequest: () => {}, approvePaymentRequest: () => {}, rejectPaymentRequest: () => {}, recordWithdrawal: () => {}, processWithdrawal: () => {}, triggerReferralPulse: () => {}, verifyUser: () => {}, processGiftTransaction: () => {}, unlockPost: (id) => setUnlockedPostIds(prev => new Set(prev).add(id)), subscribeToCreator: () => {}, cancelSubscription: () => {}, recordAdMaterialization: () => {}, recordAdHandshake: () => {}, updateIntelligence: () => {}, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed: () => false, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute: () => {}, addCampaign: () => {}, deleteCampaign: () => {}, toggleCampaignStatus: () => {}, recordCampaignClick: () => {}, boostNode: () => {}, promoteUser: () => {}, demoteUser: () => {}, initiateCall: () => {}, receiveCall: () => {}, acceptCall: () => {}, endCall: () => {}
+      currentUser, posts, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, settings, gatewaySettings: {}, callState, stories: [], campaigns: [], mutedUserNames: [], connections: MOCK_CONNECTIONS, clusters, auditLogs: [], disputes: [], staff: [], adStats: {}, intelligenceMetrics: {}, withdrawalHistory, paymentRequests, referralLink: "", pendingTransaction,
+      login, signup, uploadMedia, setSearchOpen: (open) => setIsSearchOpen(open), setSelectedChatId: (id) => setSelectedChatId(id), setSelectedPostId: (id) => setSelectedPostId(id), setSelectedImageUrl: (url) => setSelectedImageUrl(url), openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex: (idx) => setActiveStoryIndex(idx), addPost, deletePost, addStory: () => {}, addComment, addReply: () => {}, incrementShareCount: () => {}, voteOnStoryPoll: () => {}, toggleMuteUser: () => {}, togglePinPost: () => {}, archivePost: () => {}, updateCurrentUser, updateSettings, updateGatewaySettings: () => {}, addAuditLog: () => {}, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest: () => {}, rejectPaymentRequest: () => {}, recordWithdrawal, processWithdrawal: () => {}, triggerReferralPulse: () => {}, verifyUser: () => {}, processGiftTransaction, unlockPost: (id) => setUnlockedPostIds(prev => new Set(prev).add(id)), subscribeToCreator: () => {}, cancelSubscription: () => {}, recordAdMaterialization: () => {}, recordAdHandshake: () => {}, updateIntelligence: () => {}, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed: () => false, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute: () => {}, addCampaign: () => {}, deleteCampaign: () => {}, toggleCampaignStatus: () => {}, recordCampaignClick: () => {}, boostNode: () => {}, promoteUser: () => {}, demoteUser: () => {}, initiateCall: () => {}, receiveCall: () => {}, acceptCall: () => {}, endCall: () => {}
     }}>
       {children}
     </PostContext.Provider>

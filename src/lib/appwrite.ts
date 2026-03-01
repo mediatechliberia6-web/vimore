@@ -26,6 +26,9 @@ export const COMMENTS_COLLECTION_ID = 'comments';
 export const FOLLOWS_COLLECTION_ID = 'follows';
 export const MESSAGES_COLLECTION_ID = 'messages';
 export const CLUSTERS_COLLECTION_ID = 'clusters';
+export const PROFILES_COLLECTION_ID = 'profiles';
+export const WITHDRAWALS_COLLECTION_ID = 'withdrawals';
+export const PAYMENTS_COLLECTION_ID = 'payments';
 
 export { ID };
 
