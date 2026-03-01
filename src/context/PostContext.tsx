@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
@@ -428,7 +429,7 @@ const INITIAL_USER: User = {
 };
 
 const INITIAL_SETTINGS: AppSettings = {
-  theme: 'system',
+  theme: 'light', // CALIBRATED: Default to Ivory Mode
   hapticIntensity: 50,
   isGhostMode: false,
   playbackQuality: 'standard',

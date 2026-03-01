@@ -1,3 +1,4 @@
+
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
@@ -17,6 +18,7 @@ import { FontScaleWrapper } from "@/components/layout/font-scale-wrapper";
 import { CommentHub } from "@/components/post/comment-hub";
 import { GiftHub } from "@/components/post/gift-hub";
 import { IncomingCallOverlay } from "@/components/layout/incoming-call-overlay";
+import NextTopLoader from 'nextjs-toploader';
 
 export const metadata: Metadata = {
   title: 'ViMore',
@@ -50,6 +52,17 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased bg-background text-foreground">
+        <NextTopLoader 
+          color="#9940E5" 
+          initialPosition={0.08} 
+          crawlSpeed={200} 
+          height={3} 
+          crawl={true} 
+          showSpinner={false} 
+          easing="ease" 
+          speed={200} 
+          shadow="0 0 10px #9940E5,0 0 5px #9940E5"
+        />
         <PostProvider>
           <LanguageProvider>
             <NotificationProvider>
