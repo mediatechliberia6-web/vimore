@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   ChevronRight,
   Info,
-  Rocket
+  Rocket,
+  AlertTriangle
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,7 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
 
   useEffect(() => {
     setAmount(minPrice);
-  }, [currency]);
+  }, [currency, minPrice]);
 
   const promisedViews = useMemo(() => {
     const baseViews = 10000;
