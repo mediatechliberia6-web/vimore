@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { 
   ShieldCheck, 
   Zap, 
@@ -49,7 +48,11 @@ import {
   Lock,
   Music2,
   Clapperboard,
-  LayoutDashboard
+  LayoutDashboard,
+  BrainCircuit,
+  EyeOff,
+  Cpu,
+  Unplug
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -81,18 +84,24 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import { aiAnalyzeGlobalSentiment } from "@/app/actions/ai";
 
-type AdminTab = "pulse" | "economy" | "identity" | "safety" | "governance" | "gateway" | "logs";
+type AdminTab = "pulse" | "economy" | "intelligence" | "identity" | "safety" | "governance" | "gateway" | "logs";
 type EconomySubTab = "outbound" | "inbound";
 
 const MOCK_DAILY_PULSE = [
-  { time: "00:00", active: 1200, load: 15 },
-  { time: "04:00", active: 800, load: 8 },
-  { time: "08:00", active: 2400, load: 45 },
-  { time: "12:00", active: 4800, load: 82 },
-  { time: "16:00", active: 5200, load: 94 },
-  { time: "20:00", active: 3800, load: 60 },
-  { time: "23:59", active: 1500, load: 20 },
+  { time: "00:00", active: 1200, load: 15, latency: 45 },
+  { time: "04:00", active: 800, load: 8, latency: 38 },
+  { time: "08:00", active: 2400, load: 45, latency: 110 },
+  { time: "12:00", active: 4800, load: 82, latency: 156 },
+  { time: "16:00", active: 5200, load: 94, latency: 142 },
+  { time: "20:00", active: 3800, load: 60, latency: 88 },
+  { time: "23:59", active: 1500, load: 20, latency: 52 },
+];
+
+const MOCK_BOT_REPORTS = [
+  { id: "BOT-1", username: "spam_node_42", reason: "Rapid Post Pulse", risk: "CRITICAL", confidence: "98%" },
+  { id: "BOT-2", username: "fake_creator", reason: "Zero Interaction Pattern", risk: "MEDIUM", confidence: "72%" },
 ];
 
 const MOCK_VERIFICATION_REQUESTS = [
@@ -107,7 +116,7 @@ const MOCK_REPORTS = [
 ];
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog } = usePosts();
+  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence } = usePosts();
   const { addSignal } = useNotifications();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<AdminTab>("pulse");
@@ -115,8 +124,9 @@ export default function AdminDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
+  const [isAnalyzingVibe, setIsAnalyzingVibe] = useState(false);
 
-  // Phase 1: Governance States
+  // Governance States
   const [broadcastText, setBroadcastText] = useState("");
   const [isBroadcasting, setIsBroadcasting] = useState(false);
 
@@ -140,7 +150,26 @@ export default function AdminDashboard() {
     activeClusters: 142
   }), [posts]);
 
-  const handleAction = (id: string, status: 'APPROVED' | 'REJECTED', type: 'withdrawal' | 'payment' | 'verification' | 'report') => {
+  const handleAnalyzeVibe = async () => {
+    setIsAnalyzingVibe(true);
+    triggerHaptic(25);
+    try {
+      const messages = posts.slice(0, 10).map(p => p.content);
+      const res = await aiAnalyzeGlobalSentiment({ messages });
+      updateIntelligence({
+        sentimentScore: res.score,
+        sentimentVibe: res.vibe,
+        sentimentSummary: res.summary
+      });
+      toast({ title: "Intelligence Synced", description: "Global vibe analysis complete." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "AI Error", description: "Sentiment pulse failed." });
+    } finally {
+      setIsAnalyzingVibe(false);
+    }
+  };
+
+  const handleAction = (id: string, status: 'APPROVED' | 'REJECTED', type: 'withdrawal' | 'payment' | 'verification' | 'report' | 'bot') => {
     triggerHaptic(status === 'APPROVED' ? 50 : 100);
     
     if (type === 'withdrawal') {
@@ -153,6 +182,9 @@ export default function AdminDashboard() {
     } else if (type === 'verification') {
       addAuditLog("VERIFICATION_AUDIT", `${status} verification for request ${id}`);
       toast({ title: "Identity Updated", description: `Verification pulse ${status.toLowerCase()} for request ${id}.` });
+    } else if (type === 'bot') {
+      addAuditLog("BOT_PURGE", `Severed node connection for ${id}`);
+      toast({ title: "Node Severed", description: `Suspicious node ${id} removed from network.` });
     } else {
       addAuditLog("SAFETY_ACTION", `Report ${id} closed via ${status.toLowerCase()} handshake.`);
       toast({ title: "Safety Action", description: `Report ${id} closed via ${status.toLowerCase()} handshake.` });
@@ -215,10 +247,10 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
-          {(["pulse", "economy", "identity", "safety", "governance", "gateway", "logs"] as AdminTab[]).map((tab) => {
-            const icons = { pulse: Activity, economy: Coins, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, logs: FileText };
-            const labels = { pulse: "Global Pulse", economy: "Economy Auditor", identity: "Identity Forge", safety: "Safety Node", governance: "Governance", gateway: "Gateway Logic", logs: "Audit Logs" };
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-hide">
+          {(["pulse", "economy", "intelligence", "identity", "safety", "governance", "gateway", "logs"] as AdminTab[]).map((tab) => {
+            const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, logs: FileText };
+            const labels = { pulse: "Global Pulse", economy: "Economy Auditor", intelligence: "Intelligence Node", identity: "Identity Forge", safety: "Safety Node", governance: "Governance", gateway: "Gateway Logic", logs: "Audit Logs" };
             const Icon = icons[tab];
             const isActive = activeTab === tab;
 
@@ -344,6 +376,155 @@ export default function AdminDashboard() {
                         </BarChart>
                       </ResponsiveContainer>
                     </ChartContainer>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'intelligence' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-2 gap-6">
+                <div className="space-y-1">
+                  <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter">Intelligence Node</h3>
+                  <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">AI Analytics & Security Integrity</p>
+                </div>
+                <Button 
+                  className="rounded-xl h-12 px-6 bg-primary text-white font-black uppercase tracking-widest text-[10px] gap-2"
+                  onClick={handleAnalyzeVibe}
+                  disabled={isAnalyzingVibe}
+                >
+                  {isAnalyzingVibe ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4" />}
+                  Refresh Collective Vibe
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-2">
+                {/* Sentiment Hub */}
+                <Card className="bg-white/5 border-white/10 rounded-[2rem] p-6 space-y-6 lg:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                        <Sparkles className="h-5 w-5 animate-pulse" />
+                      </div>
+                      <h4 className="font-black italic uppercase tracking-widest text-sm">Community Vibe Analytics</h4>
+                    </div>
+                    <Badge className={cn(
+                      "font-black uppercase tracking-widest px-3 h-6 border-none",
+                      intelligenceMetrics.sentimentVibe === 'POSITIVE' ? "bg-green-500/20 text-green-500" :
+                      intelligenceMetrics.sentimentVibe === 'NEGATIVE' ? "bg-red-500/20 text-red-500" : "bg-blue-500/20 text-blue-500"
+                    )}>
+                      {intelligenceMetrics.sentimentVibe} PULSE
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-4xl font-black italic text-white">{intelligenceMetrics.sentimentScore}%</span>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Alignment Score</span>
+                      </div>
+                      <Progress value={intelligenceMetrics.sentimentScore} className="h-3 bg-white/5" />
+                      <p className="text-xs text-muted-foreground font-medium leading-relaxed italic">
+                        "{intelligenceMetrics.sentimentSummary}"
+                      </p>
+                    </div>
+                    <div className="bg-black/40 rounded-2xl p-6 border border-white/5 space-y-4">
+                      <h5 className="text-[10px] font-black uppercase text-primary tracking-widest">Sponsored Conversion Pulse</h5>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <span className="text-[8px] font-black text-white/40 uppercase">Materialized</span>
+                          <p className="text-lg font-black text-white">{adStats.materializations.toLocaleString()}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[8px] font-black text-white/40 uppercase">Handshakes</span>
+                          <p className="text-lg font-black text-primary">{adStats.handshakes.toLocaleString()}</p>
+                        </div>
+                      </div>
+                      <div className="pt-2 border-t border-white/5">
+                        <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">Revenue Hub: ${adStats.revenue.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Bot / Ghost recognition */}
+                <Card className="bg-white/5 border-white/10 rounded-[2rem] p-6 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500">
+                      <ShieldAlert className="h-5 w-5" />
+                    </div>
+                    <h4 className="font-black italic uppercase tracking-widest text-sm">Security Audit</h4>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {MOCK_BOT_REPORTS.map(bot => (
+                      <div key={bot.id} className="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-3 group hover:border-red-500/30 transition-all">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">{bot.risk} RISK</span>
+                          <span className="text-[9px] font-bold text-white/40">{bot.confidence} Match</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-white">@{bot.username}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase">{bot.reason}</p>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          className="w-full h-8 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-widest"
+                          onClick={() => handleAction(bot.username, 'REJECTED', 'bot')}
+                        >
+                          Sever Node Connection
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+
+              {/* Network Health charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2">
+                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-black italic uppercase tracking-tighter">Network Latency</h3>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Sync Performance (ms)</p>
+                    </div>
+                    <div className="h-10 w-10 bg-cyan-500/10 rounded-xl flex items-center justify-center text-cyan-500">
+                      <Cpu className="h-5 w-5" />
+                    </div>
+                  </div>
+                  <div className="h-[200px] w-full">
+                    <ChartContainer config={{ latency: { label: "MS", color: "hsl(var(--accent))" } }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={MOCK_DAILY_PULSE}>
+                          <XAxis dataKey="time" hide />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Area type="monotone" dataKey="latency" stroke="#06B6D4" strokeWidth={3} fill="#06B6D4" fillOpacity={0.1} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
+                  </div>
+                </Card>
+
+                <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 flex flex-col justify-center space-y-6">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                      <Activity className="h-6 w-6 animate-pulse" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">Cluster Integrity: Optimal</h4>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">High-Velocity Handshake Protocol Active</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5 text-center">
+                      <span className="text-[10px] font-black text-muted-foreground uppercase">Sync Success</span>
+                      <p className="text-2xl font-black text-green-500">99.9%</p>
+                    </div>
+                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5 text-center">
+                      <span className="text-[10px] font-black text-muted-foreground uppercase">Active Clusters</span>
+                      <p className="text-2xl font-black text-white">{stats.activeClusters}</p>
+                    </div>
                   </div>
                 </Card>
               </div>
@@ -557,13 +738,12 @@ export default function AdminDashboard() {
                                 </div>
                               </td>
                               <td className="px-8 py-6">
-                                <Button 
-                                  variant="ghost" 
-                                  className="bg-white/5 border border-white/10 rounded-xl h-10 px-4 gap-2 text-[10px] font-black uppercase"
+                                <button 
+                                  className="bg-white/5 border border-white/10 rounded-xl h-10 px-4 gap-2 text-[10px] font-black uppercase flex items-center hover:bg-white/10 transition-all"
                                   onClick={() => setSelectedReceipt(req.screenshot)}
                                 >
                                   <ImageIcon className="h-4 w-4" /> View Receipt
-                                </Button>
+                                </button>
                               </td>
                               <td className="px-8 py-6">
                                 <div className="flex items-center gap-2">
@@ -951,8 +1131,8 @@ export default function AdminDashboard() {
       {/* Mobile Admin Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[200] px-4 pb-6 flex justify-center pointer-events-none">
         <nav className="flex items-center gap-2 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-2.5 shadow-2xl pointer-events-auto overflow-x-auto scrollbar-hide max-w-full">
-          {(["pulse", "economy", "identity", "safety", "governance", "gateway", "logs"] as AdminTab[]).map((tab) => {
-            const icons = { pulse: Activity, economy: Coins, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, logs: FileText };
+          {(["pulse", "economy", "intelligence", "identity", "safety", "governance", "gateway", "logs"] as AdminTab[]).map((tab) => {
+            const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, logs: FileText };
             const Icon = icons[tab];
             const isActive = activeTab === tab;
 

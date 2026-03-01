@@ -1,4 +1,3 @@
-
 'use server';
 
 import { aiSummarizePost as summarizeFlow } from '@/ai/flows/ai-summarize-post-flow';
@@ -10,6 +9,24 @@ import { aiVerifySignature as verifyFlow } from '@/ai/flows/ai-verify-signature-
 import { aiSummarizeComments as commentsFlow } from '@/ai/flows/ai-summarize-comments-flow';
 import { aiAuditGiftHandshake as auditFlow } from '@/ai/flows/ai-audit-gift-flow';
 import { aiAuditMonetizationHandshake as monetizationFlow } from '@/ai/flows/ai-audit-monetization-flow';
+import { aiAnalyzeGlobalSentiment as sentimentFlow } from '@/ai/flows/ai-analyze-sentiment-flow';
+
+/**
+ * Analyzes the collective vibe of the network using Groq.
+ */
+export async function aiAnalyzeGlobalSentiment({ messages }: { messages: string[] }) {
+  try {
+    const result = await sentimentFlow({ messages });
+    return result;
+  } catch (error) {
+    console.error("Sentiment Analysis Error:", error);
+    return {
+      score: 75,
+      vibe: 'POSITIVE' as const,
+      summary: "Protocol fallback: Network vibe stable and synchronized."
+    };
+  }
+}
 
 /**
  * Audits a monetization transaction (Locked Post or Subscription).

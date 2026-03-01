@@ -7,3 +7,4 @@ import '@/ai/flows/ai-translate-post-flow.ts';
 import '@/ai/flows/ai-generate-mixes-flow.ts';
 import '@/ai/flows/ai-generate-verification-code-flow.ts';
 import '@/ai/flows/ai-summarize-comments-flow.ts';
+import '@/ai/flows/ai-analyze-sentiment-flow.ts';

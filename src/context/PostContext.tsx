@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
@@ -233,6 +232,20 @@ export interface CallState {
   startTime?: number;
 }
 
+export interface AdStats {
+  materializations: number;
+  handshakes: number;
+  revenue: number;
+}
+
+export interface IntelligenceMetrics {
+  sentimentScore: number;
+  sentimentVibe: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+  sentimentSummary: string;
+  botRisk: number;
+  latency: number;
+}
+
 interface PostContextType {
   currentUser: User;
   posts: Post[];
@@ -249,6 +262,8 @@ interface PostContextType {
   connections: Connection[];
   clusters: Cluster[];
   auditLogs: AuditLogNode[];
+  adStats: AdStats;
+  intelligenceMetrics: IntelligenceMetrics;
   selectedChatId: string | null;
   selectedPostId: string | null;
   activeCommentPostId: string | null;
@@ -302,6 +317,9 @@ interface PostContextType {
   unlockPost: (postId: string, cost: number) => void;
   subscribeToCreator: (username: string, cost: number) => void;
   cancelSubscription: (username: string) => void;
+  recordAdMaterialization: () => void;
+  recordAdHandshake: (revenue: number) => void;
+  updateIntelligence: (data: Partial<IntelligenceMetrics>) => void;
   isPostLiked: (postId: string) => boolean;
   isPostUnliked: (postId: string) => boolean;
   isPostSaved: (postId: string) => boolean;
@@ -370,7 +388,7 @@ const INITIAL_SETTINGS: AppSettings = {
   // Phase 1
   goldRate: 0.01,
   diamondRate: 0.25,
-  ldMultiplier: 190, // Calculated as 1 USD = 190 LD (so 1 Gold = 1.9 LD)
+  ldMultiplier: 190, 
   isReelsEnabled: true,
   isMusicEnabled: true,
   isGiftingEnabled: true
@@ -394,7 +412,7 @@ const MOCK_CONNECTIONS: Connection[] = [
     connectionDate: "Feb 2024",
     mutualFriends: ["https://picsum.photos/seed/1/50/50", "https://picsum.photos/seed/2/50/50"],
     followers: "1.5k",
-    lastInteraction: Date.now() - 1000 * 60 * 60 * 2 // 2 hours ago
+    lastInteraction: Date.now() - 1000 * 60 * 60 * 2 
   },
   { 
     name: "Tech Explorer", 
@@ -406,7 +424,7 @@ const MOCK_CONNECTIONS: Connection[] = [
     connectionDate: "Jan 2024",
     mutualFriends: ["https://picsum.photos/seed/3/50/50"],
     followers: "12k",
-    lastInteraction: Date.now() - 1000 * 60 * 60 * 24 // Yesterday
+    lastInteraction: Date.now() - 1000 * 60 * 60 * 24 
   },
   { 
     name: "Alex Rivera", 
@@ -418,7 +436,7 @@ const MOCK_CONNECTIONS: Connection[] = [
     connectionDate: "Mar 2024",
     mutualFriends: ["https://picsum.photos/seed/4/50/50", "https://picsum.photos/seed/5/50/50", "https://picsum.photos/seed/6/50/50"],
     followers: "12.2k",
-    lastInteraction: Date.now() - 1000 * 60 * 10 // 10 mins ago
+    lastInteraction: Date.now() - 1000 * 60 * 10 
   },
   { 
     name: "Sarah Chen", 
@@ -430,7 +448,7 @@ const MOCK_CONNECTIONS: Connection[] = [
     connectionDate: "Nov 2023",
     mutualFriends: ["https://picsum.photos/seed/7/50/50"],
     followers: "4.2k",
-    lastInteraction: Date.now() - 1000 * 60 * 5 // 5 mins ago
+    lastInteraction: Date.now() - 1000 * 60 * 5 
   },
   { 
     name: "Marcus Stone", 
@@ -442,7 +460,7 @@ const MOCK_CONNECTIONS: Connection[] = [
     connectionDate: "Dec 2023",
     mutualFriends: ["https://picsum.photos/seed/8/50/50", "https://picsum.photos/seed/9/50/50"],
     followers: "25.1k",
-    lastInteraction: Date.now() - 1000 * 60 * 60 * 5 // 5 hours ago
+    lastInteraction: Date.now() - 1000 * 60 * 60 * 5 
   },
   {
     name: "Neon Architect",
@@ -453,7 +471,7 @@ const MOCK_CONNECTIONS: Connection[] = [
     isOnline: true,
     connectionDate: "Apr 2024",
     followers: "142k",
-    lastInteraction: Date.now() - 1000 * 60 * 15 // 15 mins ago
+    lastInteraction: Date.now() - 1000 * 60 * 15 
   },
   {
     name: "Paul Node",
@@ -464,7 +482,7 @@ const MOCK_CONNECTIONS: Connection[] = [
     isOnline: true,
     connectionDate: "May 2024",
     followers: "156",
-    lastInteraction: Date.now() - 1000 * 60 * 2 // 2 mins ago
+    lastInteraction: Date.now() - 1000 * 60 * 2 
   }
 ];
 
@@ -579,32 +597,6 @@ const initialMockPosts: Post[] = [
     unlockPrice: 150,
     videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-man-dancing-in-a-dark-room-with-neon-lights-40028-preview.mp4",
     commentNodes: []
-  },
-  {
-    id: "2",
-    user: { 
-      name: "Tech Explorer", 
-      username: "techex", 
-      avatar: "https://picsum.photos/seed/51/200/200",
-      followers: 12000
-    },
-    content: "What should my next deep-dive tech video be about? Vote below! 🚀",
-    time: "22m",
-    likes: 156,
-    unlikes: 12,
-    comments: 0,
-    shares: 8,
-    language: "en",
-    poll: {
-      question: "Next Video Topic?",
-      options: [
-        { text: "Llama 3 Local Setup", votes: 45 },
-        { text: "Next.js 15 Server Actions", votes: 89 }
-      ],
-      totalVotes: 134,
-      duration: "24 Hours"
-    },
-    commentNodes: []
   }
 ];
 
@@ -626,6 +618,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogNode[]>([]);
   
+  const [adStats, setAdStats] = useState<AdStats>({ materializations: 842, handshakes: 124, revenue: 12.40 });
+  const [intelligenceMetrics, setIntelligenceMetrics] = useState<IntelligenceMetrics>({
+    sentimentScore: 82,
+    sentimentVibe: 'POSITIVE',
+    sentimentSummary: "Network vibe stable and synchronized. Strong community alignment detected in the latest content pulses.",
+    botRisk: 4,
+    latency: 142
+  });
+
   const [followingUsernames, setFollowingUsernames] = useState<Set<string>>(new Set(["jmoore", "arivera", "schen_dev", "paul"]));
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [connections, setConnections] = useState<Connection[]>(MOCK_CONNECTIONS);
@@ -662,9 +663,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
     } catch (e) {
       console.warn(`Storage quota exceeded for key: ${key}. Calibrating cache...`);
-      if (key === 'vimore_local_posts') {
-        try { localStorage.setItem(key, JSON.stringify(value.slice(0, 5))); } catch (innerE) {}
-      }
     }
   };
 
@@ -695,6 +693,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const savedPayments = localStorage.getItem('vimore_payment_requests');
     const savedClusters = localStorage.getItem('vimore_clusters');
     const savedLogs = localStorage.getItem('vimore_audit_logs');
+    const savedAdStats = localStorage.getItem('vimore_ad_stats');
 
     if (savedUser) try { setCurrentUser(JSON.parse(savedUser)); } catch (e) {}
     if (savedSettings) try { setSettings({ ...INITIAL_SETTINGS, ...JSON.parse(savedSettings) }); } catch (e) {}
@@ -710,19 +709,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (savedPayments) setPaymentRequests(JSON.parse(savedPayments));
     if (savedClusters) setClusters(JSON.parse(savedClusters));
     if (savedLogs) setAuditLogs(JSON.parse(savedLogs));
+    if (savedAdStats) try { setAdStats(JSON.parse(savedAdStats)); } catch (e) {}
     
     if (savedLocalPosts) {
       try {
         setPosts([...JSON.parse(savedLocalPosts), ...initialMockPosts]);
       } catch (e) {}
-    }
-  }, []);
-
-  useEffect(() => {
-    if (currentUser.isVerified && currentUser.verificationExpiry) {
-      if (Date.now() > currentUser.verificationExpiry) {
-        updateCurrentUser({ isVerified: false });
-      }
     }
   }, []);
 
@@ -738,14 +730,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => { safePersist('vimore_payment_requests', paymentRequests); }, [paymentRequests]);
   useEffect(() => { safePersist('vimore_clusters', clusters); }, [clusters]);
   useEffect(() => { safePersist('vimore_audit_logs', auditLogs); }, [auditLogs]);
+  useEffect(() => { safePersist('vimore_ad_stats', adStats); }, [adStats]);
 
-  useEffect(() => {
-    if (pendingTransaction) {
-      safePersist('vimore_pending_transaction', pendingTransaction);
-    } else {
-      localStorage.removeItem('vimore_pending_transaction');
-    }
-  }, [pendingTransaction]);
+  const recordAdMaterialization = useCallback(() => {
+    setAdStats(prev => ({ ...prev, materializations: prev.materializations + 1 }));
+  }, []);
+
+  const recordAdHandshake = useCallback((revenue: number) => {
+    setAdStats(prev => ({ 
+      ...prev, 
+      handshakes: prev.handshakes + 1,
+      revenue: prev.revenue + revenue
+    }));
+  }, []);
+
+  const updateIntelligence = (data: Partial<IntelligenceMetrics>) => {
+    setIntelligenceMetrics(prev => ({ ...prev, ...data }));
+  };
 
   const toggleFollowUser = (username: string) => {
     setFollowingUsernames(prev => {
@@ -813,7 +814,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         starBalance: currency === 'STAR' ? (prev.starBalance || 0) - cost : prev.starBalance,
         isVerified: true,
         hasEverBeenVerified: true,
-        verificationExpiry: Date.now() + (30 * 24 * 60 * 60 * 1000) // 30 Days
+        verificationExpiry: Date.now() + (30 * 24 * 60 * 60 * 1000) 
       };
       safePersist('vimore_user', updated);
       return updated;
@@ -885,13 +886,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       return updated;
     });
   };
-
-  const finalCurrentUser = useMemo(() => {
-    return {
-      ...currentUser,
-      isOnline: settings.isGhostMode ? false : currentUser.isOnline
-    };
-  }, [currentUser, settings.isGhostMode]);
 
   const addPost = (newPostData: Omit<Post, 'id' | 'time' | 'likes' | 'unlikes' | 'comments' | 'shares'>) => {
     const detectedLanguage = newPostData.language || (typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en');
@@ -1072,8 +1066,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     triggerHaptic(100);
     setPaymentRequests(prev => prev.map(req => {
       if (req.id === id) {
-        // Logic: Materialize Currency Pulse
-        const amountNum = parseFloat(req.packageName.split(' ')[0]) || 0; // Rough extraction for prototype
+        const amountNum = parseFloat(req.packageName.split(' ')[0]) || 0; 
         
         setCurrentUser(user => ({
           ...user,
@@ -1168,7 +1161,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   return (
     <PostContext.Provider value={{ 
-      currentUser: finalCurrentUser, posts, stories, highlights, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, auditLogs, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, gatewaySettings, callState, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, initiateCall, receiveCall, acceptCall, endCall
+      currentUser, posts, stories, highlights, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, auditLogs, adStats, intelligenceMetrics, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, gatewaySettings, callState, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, initiateCall, receiveCall, acceptCall, endCall
     }}>
       {children}
     </PostContext.Provider>
