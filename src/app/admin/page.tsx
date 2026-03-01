@@ -73,7 +73,8 @@ import {
   UserMinus,
   KeyRound,
   RefreshCcw,
-  Wand2
+  Wand2,
+  LayoutGrid
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -111,6 +112,13 @@ import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { aiAnalyzeGlobalSentiment } from "@/app/actions/ai";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "gateway" | "campaigns" | "infrastructure" | "resolution" | "logs";
 type EconomySubTab = "outbound" | "inbound";
@@ -142,6 +150,7 @@ export default function AdminDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
   const [isAnalyzingVibe, setIsAnalyzingVibe] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   const [govSearch, setGovSearch] = useState("");
   const [campType, setCampType] = useState<'photo' | 'video' | 'link'>('photo');
@@ -255,6 +264,30 @@ export default function AdminDashboard() {
     toast({ title: "Campaign Materialized" });
   };
 
+  const TABS_DATA = {
+    pulse: { label: "Pulse", icon: Activity },
+    economy: { label: "Economy", icon: Coins },
+    intelligence: { label: "Intelligence", icon: BrainCircuit },
+    velocity: { label: "Velocity", icon: TrendingUp },
+    identity: { label: "Identity", icon: UserPlus },
+    safety: { label: "Safety", icon: ShieldAlert },
+    governance: { label: "Governance", icon: Sliders },
+    gateway: { label: "Gateway", icon: Settings },
+    campaigns: { label: "Campaigns", icon: Megaphone },
+    infrastructure: { label: "Infras", icon: Database },
+    resolution: { label: "Resol", icon: Hammer },
+    logs: { label: "Logs", icon: FileText }
+  };
+
+  const mobilePrimaryTabs: AdminTab[] = useMemo(() => {
+    const list: AdminTab[] = ["pulse", "economy", "intelligence", "safety"];
+    return list.filter(t => availableTabs.includes(t));
+  }, [availableTabs]);
+
+  const mobileRemainingTabs: AdminTab[] = useMemo(() => {
+    return availableTabs.filter(t => !mobilePrimaryTabs.includes(t));
+  }, [availableTabs, mobilePrimaryTabs]);
+
   return (
     <div className="min-h-screen bg-background text-foreground flex overflow-hidden selection:bg-primary/30 transition-colors duration-500">
       <aside className={cn(
@@ -278,8 +311,7 @@ export default function AdminDashboard() {
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-hide">
           {(["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "gateway", "campaigns", "infrastructure", "resolution", "logs"] as AdminTab[]).map((tab) => {
             if (!availableTabs.includes(tab)) return null;
-            const icons = { pulse: Activity, economy: Coins, intelligence: BrainCircuit, velocity: TrendingUp, identity: UserPlus, safety: ShieldAlert, governance: Sliders, gateway: Settings, campaigns: Megaphone, infrastructure: Database, resolution: Hammer, logs: FileText };
-            const Icon = icons[tab];
+            const Icon = TABS_DATA[tab].icon;
             const isActive = activeTab === tab;
             return (
               <button key={tab} onClick={() => { triggerHaptic(5); setActiveTab(tab); }} className={cn("w-full flex items-center gap-4 p-4 rounded-2xl transition-all group relative", isActive ? "bg-primary text-white shadow-xl shadow-primary/10" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
@@ -626,6 +658,86 @@ export default function AdminDashboard() {
           )}
         </div>
       </main>
+
+      {/* MOBILE ADMIN DOCK */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[200] bg-card/80 backdrop-blur-2xl border-t border-border px-4 py-3 flex items-center justify-between safe-area-bottom shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+        {mobilePrimaryTabs.map((tab) => {
+          const Icon = TABS_DATA[tab].icon;
+          const isActive = activeTab === tab;
+          return (
+            <button 
+              key={tab} 
+              onClick={() => { triggerHaptic(10); setActiveTab(tab); }} 
+              className={cn(
+                "flex flex-col items-center gap-1 transition-all",
+                isActive ? "text-primary" : "text-muted-foreground"
+              )}
+            >
+              <div className={cn(
+                "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
+                isActive ? "bg-primary/10 scale-110 shadow-lg shadow-primary/5" : "hover:bg-secondary/50"
+              )}>
+                <Icon className={cn("h-5 w-5", isActive && "animate-pulse")} />
+              </div>
+              <span className="text-[8px] font-black uppercase tracking-widest">{TABS_DATA[tab].label}</span>
+            </button>
+          );
+        })}
+
+        <Sheet open={isMobileDrawerOpen} onOpenChange={setIsMobileDrawerOpen}>
+          <SheetTrigger asChild>
+            <button 
+              onClick={() => triggerHaptic(5)}
+              className="flex flex-col items-center gap-1 text-muted-foreground"
+            >
+              <div className="h-10 w-10 rounded-xl flex items-center justify-center hover:bg-secondary/50">
+                <LayoutGrid className="h-5 w-5" />
+              </div>
+              <span className="text-[8px] font-black uppercase tracking-widest">More</span>
+            </button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="rounded-t-[2.5rem] bg-card/95 backdrop-blur-3xl border-primary/10 p-0 h-[60vh] overflow-hidden flex flex-col">
+            <div className="mx-auto w-12 h-1.5 bg-primary/20 rounded-full mt-4 mb-2 shrink-0" />
+            <SheetHeader className="px-6 py-4 border-b border-border shrink-0">
+              <SheetTitle className="text-xl font-black italic uppercase tracking-tighter flex items-center gap-3">
+                <ShieldCheck className="h-5 w-5 text-primary" /> Command Hub
+              </SheetTitle>
+            </SheetHeader>
+            <ScrollArea className="flex-1 px-6 pt-6">
+              <div className="grid grid-cols-2 gap-3 pb-12">
+                {mobileRemainingTabs.map((tab) => {
+                  const Icon = TABS_DATA[tab].icon;
+                  const isActive = activeTab === tab;
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => { 
+                        triggerHaptic(15); 
+                        setActiveTab(tab); 
+                        setIsMobileDrawerOpen(false); 
+                      }}
+                      className={cn(
+                        "flex items-center gap-4 p-4 rounded-2xl transition-all border",
+                        isActive 
+                          ? "bg-primary text-white border-primary shadow-xl shadow-primary/20" 
+                          : "bg-secondary/30 border-transparent hover:border-primary/20"
+                      )}
+                    >
+                      <Icon className={cn("h-5 w-5", isActive && "animate-pulse")} />
+                      <span className="text-xs font-black uppercase tracking-widest">{TABS_DATA[tab].label}</span>
+                    </button>
+                  );
+                })}
+                <Link href="/" className="col-span-2">
+                  <Button variant="outline" className="w-full h-14 rounded-2xl border-destructive/20 text-destructive font-black uppercase italic text-[10px] tracking-[0.2em] gap-3">
+                    <Rocket className="h-4 w-4" /> Exit Command Core
+                  </Button>
+                </Link>
+              </div>
+            </ScrollArea>
+          </SheetContent>
+        </Sheet>
+      </nav>
 
       {selectedReceipt && (
         <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-6 animate-in fade-in duration-300">
