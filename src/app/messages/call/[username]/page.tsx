@@ -21,7 +21,8 @@ import {
   Camera,
   Heart,
   ChevronLeft,
-  Loader2
+  Loader2,
+  Radio
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -54,6 +55,7 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
   const remoteVideoRef = useRef<HTMLDivElement>(null);
 
   const isAudioCall = callState.type === 'audio';
+  const isOutgoing = callState.status === 'outgoing' || callState.status === 'ringing';
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -63,10 +65,10 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!isConnecting) setCallDuration(prev => prev + 1);
+      if (callState.status === 'active') setCallDuration(prev => prev + 1);
     }, 1000);
     return () => clearInterval(interval);
-  }, [isConnecting]);
+  }, [callState.status]);
 
   useEffect(() => {
     const initAgora = async () => {
@@ -116,7 +118,7 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
       }
     };
 
-    if (callState.token) {
+    if (callState.token && callState.status !== 'idle') {
       initAgora();
     }
 
@@ -125,7 +127,7 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
       localTracksRef.current.video?.close();
       agoraClientRef.current?.leave();
     };
-  }, [callState.token, callState.channelName]);
+  }, [callState.token, callState.channelName, callState.status]);
 
   const handleEndCall = () => {
     triggerHaptic(100);
@@ -171,21 +173,32 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
         ) : (
           <div className="relative w-full h-full">
             {remoteUserJoined && !isAudioCall ? (
-              <div ref={remoteVideoRef} className="w-full h-full" />
+              <div ref={remoteVideoRef} className="w-full h-full animate-in fade-in duration-1000" />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center space-y-12">
                 <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
                   <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
                   <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[120px] rounded-full animate-pulse delay-700" />
                 </div>
-                <Avatar className="h-48 w-48 border-4 border-white/10 shadow-2xl relative z-10">
-                  <AvatarImage src={callState.contact?.avatar} />
-                  <AvatarFallback>V</AvatarFallback>
-                </Avatar>
+                
+                <div className="relative">
+                  {isOutgoing && (
+                    <div className="absolute -inset-8 border-2 border-primary/40 rounded-full animate-ping" />
+                  )}
+                  <Avatar className="h-48 w-48 border-4 border-white/10 shadow-2xl relative z-10">
+                    <AvatarImage src={callState.contact?.avatar} />
+                    <AvatarFallback>V</AvatarFallback>
+                  </Avatar>
+                </div>
+
                 <div className="text-center space-y-2 z-10">
                   <h3 className="text-3xl font-black italic uppercase tracking-tighter text-white">{callState.contact?.name}</h3>
                   <div className="flex items-center justify-center gap-2 text-primary font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">
-                    <Volume2 className="h-3 w-3" /> Spatial Link Established
+                    {isOutgoing ? (
+                      <><Radio className="h-3 w-3" /> Calling Node...</>
+                    ) : (
+                      <><Volume2 className="h-3 w-3" /> Spatial Link Established</>
+                    )}
                   </div>
                 </div>
               </div>
@@ -213,7 +226,7 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
           <div className="flex flex-col">
             <h1 className="text-lg font-black italic uppercase tracking-tighter text-white">{callState.contact?.name}</h1>
             <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em] animate-pulse">
-              SYNCED: {formatDuration(callDuration)}
+              {callState.status === 'active' ? `SYNCED: ${formatDuration(callDuration)}` : 'Handshaking...'}
             </span>
           </div>
         </div>

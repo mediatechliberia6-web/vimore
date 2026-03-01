@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback, useRef } from 'react';
 import client, { 
   account, 
   ID, 
@@ -333,6 +333,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
 
   const [callState, setCallState] = useState<CallState>({ type: 'video', status: 'idle', contact: null });
+  const activeCallIdRef = useRef<string | null>(null);
+
   const [withdrawalHistory, setWithdrawalHistory] = useState<any[]>([]);
   const [paymentRequests, setPaymentRequests] = useState<any[]>([]);
   const [pendingTransaction, setPendingTransaction] = useState<any>(null);
@@ -491,18 +493,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [currentUser.role]);
 
   const receiveCall = useCallback((contact: any, type: CallType, channelName: string, token: string, callId: string) => {
+    activeCallIdRef.current = callId;
     setCallState({ type, status: 'incoming', contact, channelName, token, callId });
   }, []);
 
   const endCall = useCallback(async () => {
-    setCallState(prev => {
-      if (prev.callId) {
-        databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, prev.callId, {
+    const callId = activeCallIdRef.current;
+    if (callId) {
+      try {
+        await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, callId, {
           status: 'ended'
-        }).catch(() => {});
-      }
-      return { type: 'audio', status: 'idle', contact: null };
-    });
+        });
+      } catch (e) {}
+    }
+    activeCallIdRef.current = null;
+    setCallState({ type: 'audio', status: 'idle', contact: null });
   }, []);
 
   const checkSession = useCallback(async () => {
@@ -541,12 +546,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
       await Promise.all([refreshFeed(), refreshStories(), refreshSocialGraph(), refreshClusters(), refreshEconomy(user.$id)]);
       
-      // Signaling Pulse: Listen for incoming calls
+      // Signaling Pulse: Listen for spatial handshakes
       client.subscribe(`databases.${APPWRITE_DATABASE_ID}.collections.${CALLS_COLLECTION_ID}.documents`, response => {
         const payload = response.payload as any;
+        const currentId = activeCallIdRef.current;
+
+        // 1. Detect Incoming Ringing Pulse
         if (payload.calleeId === user.$id && payload.status === 'ringing') {
           receiveCall(payload.caller, payload.type, payload.channelName, payload.token, payload.$id);
-        } else if (payload.status === 'ended' && payload.$id === callState.callId) {
+        } 
+        // 2. Detect Acceptance (for Caller)
+        else if (payload.callerId === user.$id && payload.status === 'active' && payload.$id === currentId) {
+          setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() }));
+        }
+        // 3. Detect Terminal Pulse
+        else if (payload.status === 'ended' && payload.$id === currentId) {
           endCall();
         }
       });
@@ -557,7 +571,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [refreshFeed, refreshStories, refreshSocialGraph, refreshClusters, refreshEconomy, refreshAdminData, receiveCall, endCall, callState.callId]);
+  }, [refreshFeed, refreshStories, refreshSocialGraph, refreshClusters, refreshEconomy, refreshAdminData, receiveCall, endCall]);
 
   useEffect(() => {
     checkSession();
@@ -906,6 +920,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         status: 'ringing'
       });
 
+      activeCallIdRef.current = callDoc.$id;
       setCallState({ type, status: 'outgoing', contact, channelName, token, callId: callDoc.$id });
     } catch (e) {
       console.error("Call initiation pulse failed:", e);
@@ -913,9 +928,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const acceptCall = async () => {
-    if (!callState.callId) return;
+    const callId = activeCallIdRef.current;
+    if (!callId) return;
     try {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, callState.callId, {
+      await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, callId, {
         status: 'active'
       });
       setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() }));
