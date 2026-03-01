@@ -148,7 +148,6 @@ export const dictionary = {
     reels_following: "Following",
     reels_foryou: "For You",
     reels_search: "Search Reels",
-    // Feed & Post Hub
     post_now: "Now",
     post_public: "Public",
     post_global_node: "Global Node",
@@ -168,7 +167,6 @@ export const dictionary = {
     post_locked_node: "Locked Node",
     post_unlock_for: "UNLOCK FOR",
     post_poll_total_votes: "Total Votes",
-    // Comment Hub
     comm_pulse: "Community Pulse",
     comm_vibes: "Vibes",
     comm_sentiment: "Sentiment Summary",
@@ -178,7 +176,6 @@ export const dictionary = {
     comm_hide_activity: "Hide Activity",
     comm_view_replies: "View Replies",
     comm_sync_reaction: "Synchronize your reaction...",
-    // Earnings & Currency
     earn_portal: "Earnings Portal",
     earn_financial_intel: "Financial Intelligence",
     earn_vault_balance: "Vault Balance",
@@ -193,7 +190,6 @@ export const dictionary = {
     earn_recent_history: "Recent History",
     earn_requirements: "Creator Requirements",
     earn_protocol_eligibility: "Protocol Eligibility",
-    // Star Network
     star_network: "Star Network",
     star_ambassador: "Global Ambassador",
     star_nodes_referred: "Nodes Referred",
@@ -202,7 +198,6 @@ export const dictionary = {
     star_invite_launch: "Launch Invite",
     star_invite_msg: "Customize Invite",
     star_top_networkers: "Top Networkers",
-    // Chat & Clusters
     chat_nodes_online: "Active Nodes",
     chat_query_nodes: "Query nodes...",
     chat_materialize_cluster: "Materialize Cluster",
@@ -213,7 +208,6 @@ export const dictionary = {
     chat_members_pulse: "Members Pulse",
     chat_visual_history: "Visual History",
     chat_spatial_links: "Spatial Links",
-    // Documentation
     how_title: "How ViMore Works",
     how_subtitle: "The ViMore Manual",
     how_desc: "Understand the high-velocity protocols and economic logic behind the borderless network.",
@@ -229,7 +223,6 @@ export const dictionary = {
     how_economy_desc: "We operate on a creator-first model. Earn energy and materialize it into real assets.",
     how_integrity_title: "Network Integrity",
     how_integrity_desc: "Safety is hardcoded into the ViMore logic. Learn about Ghost nodes and AI filtering.",
-    // Boost Protocol
     boost_title: "Boost Node",
     boost_desc: "Amplify your vibe across the network clusters.",
     boost_promised_views: "Promised Reach",
@@ -382,7 +375,6 @@ export const dictionary = {
     reels_following: "Siguiendo",
     reels_foryou: "Para Ti",
     reels_search: "Buscar Reels",
-    // Feed & Post Hub
     post_now: "Ahora",
     post_public: "Público",
     post_global_node: "Nodo Global",
@@ -402,7 +394,6 @@ export const dictionary = {
     post_locked_node: "Nodo Bloqueado",
     post_unlock_for: "DESBLOQUEAR POR",
     post_poll_total_votes: "Votos Totales",
-    // Comment Hub
     comm_pulse: "Pulso de Comunidad",
     comm_vibes: "Vibras",
     comm_sentiment: "Resumen de Sentimiento",
@@ -412,7 +403,6 @@ export const dictionary = {
     comm_hide_activity: "Ocultar Actividad",
     comm_view_replies: "Ver Respuestas",
     comm_sync_reaction: "Sincroniza tu reacción...",
-    // Earnings & Currency
     earn_portal: "Portal de Ganancias",
     earn_financial_intel: "Inteligência Financiera",
     earn_vault_balance: "Saldo de Bóveda",
@@ -427,7 +417,6 @@ export const dictionary = {
     earn_recent_history: "Historial Reciente",
     earn_requirements: "Requisitos de Creador",
     earn_protocol_eligibility: "Elegibilidad de Protocolo",
-    // Star Network
     star_network: "Red de Estrellas",
     star_ambassador: "Embajador Global",
     star_nodes_referred: "Nodos Referidos",
@@ -436,7 +425,6 @@ export const dictionary = {
     star_invite_launch: "Lanzar Invitación",
     star_invite_msg: "Personalizar Invitación",
     star_top_networkers: "Top Networkers",
-    // Chat & Clusters
     chat_nodes_online: "Nodos Activos",
     chat_query_nodes: "Consultar nodos...",
     chat_materialize_cluster: "Materializar Clúster",
@@ -446,8 +434,7 @@ export const dictionary = {
     chat_node_details: "Detalles del Nodo",
     chat_members_pulse: "Pulso de Miembros",
     chat_visual_history: "Historial Visual",
-    chat_spatial_links: "Enlaces Espaciales",
-    // Documentation
+    chat_spatial_links: "Enlaces Espaciais",
     how_title: "Cómo funciona ViMore",
     how_subtitle: "El Manual de ViMore",
     how_desc: "Entienda los protocolos de alta velocidad y la lógica económica detrás de la red sin fronteras.",
@@ -463,7 +450,6 @@ export const dictionary = {
     how_economy_desc: "Operamos en un modelo centrado en el creador. Gane energía y materialícela.",
     how_integrity_title: "Integridad de la Red",
     how_integrity_desc: "La seguridad está codificada en la lógica de ViMore. Nodos Fantasma y filtrado de IA.",
-    // Boost Protocol
     boost_title: "Nodo de Impulso",
     boost_desc: "Amplifica tu vibra a través de los clústeres de la red.",
     boost_promised_views: "Alcance Prometido",
@@ -616,7 +602,6 @@ export const dictionary = {
     reels_following: "Abonnements",
     reels_foryou: "Pour Vous",
     reels_search: "Rechercher des Reels",
-    // Feed & Post Hub
     post_now: "Maintenant",
     post_public: "Public",
     post_global_node: "Nœud Global",
@@ -636,7 +621,6 @@ export const dictionary = {
     post_locked_node: "Nœud Verrouillé",
     post_unlock_for: "DÉVERROUILLER POUR",
     post_poll_total_votes: "Total des Votes",
-    // Comment Hub
     comm_pulse: "Impulsion Communautaire",
     comm_vibes: "Vibes",
     comm_sentiment: "Résumé du Sentiment",
@@ -646,7 +630,6 @@ export const dictionary = {
     comm_hide_activity: "Masquer l'Activité",
     comm_view_replies: "Voir les Réponses",
     comm_sync_reaction: "Synchronisez votre réaction...",
-    // Earnings & Currency
     earn_portal: "Portail des Revenus",
     earn_financial_intel: "Intelligence Financière",
     earn_vault_balance: "Solde du Coffre",
@@ -661,7 +644,6 @@ export const dictionary = {
     earn_recent_history: "Historique Récent",
     earn_requirements: "Requis pour Créateur",
     earn_protocol_eligibility: "Éligibilité au Protocole",
-    // Star Network
     star_network: "Réseau Star",
     star_ambassador: "Ambassadeur Global",
     star_nodes_referred: "Nœuds Référés",
@@ -670,7 +652,6 @@ export const dictionary = {
     star_invite_launch: "Lancer l'Invitation",
     star_invite_msg: "Personnaliser l'Invitation",
     star_top_networkers: "Meilleurs Réseauteurs",
-    // Chat & Clusters
     chat_nodes_online: "Nœuds Actifs",
     chat_query_nodes: "Rechercher des nœuds...",
     chat_materialize_cluster: "Materialiser le Cluster",
@@ -681,7 +662,6 @@ export const dictionary = {
     chat_members_pulse: "Impulsion des Membres",
     chat_visual_history: "Historique Visuel",
     chat_spatial_links: "Liens Spatiaux",
-    // Documentation
     how_title: "Comment fonctionne ViMore",
     how_subtitle: "Le Manuel de ViMore",
     how_desc: "Comprenez les protocoles à haute vitesse et la logique économique derrière le réseau sans frontières.",
@@ -697,7 +677,6 @@ export const dictionary = {
     how_economy_desc: "Nous opérons sur un modèle axé sur les créateurs. Gagnez de l'énergie et matérialisez-la.",
     how_integrity_title: "Intégrité du Réseau",
     how_integrity_desc: "La sécurité est codée dans la logique ViMore. Nœuds Fantôme et filtrage IA.",
-    // Boost Protocol
     boost_title: "Nœud de Boost",
     boost_desc: "Amplifiez votre vibe à travers les clusters du réseau.",
     boost_promised_views: "Portée Promise",
@@ -835,7 +814,7 @@ export const dictionary = {
     music_charts: "Listas",
     music_upload: "Enviar",
     music_library: "Biblioteca",
-    music_new_releases: "Novos Lançamentos",
+    music_new_releases: "Novos Lanzamentos",
     music_trending_songs: "Músicas em Tendência",
     music_trending_albums: "Álbuns em Tendência",
     music_top_playlists: "Melhores Playlists",
@@ -850,7 +829,6 @@ export const dictionary = {
     reels_following: "Seguindo",
     reels_foryou: "Para Você",
     reels_search: "Buscar Reels",
-    // Feed & Post Hub
     post_now: "Agora",
     post_public: "Público",
     post_global_node: "Nó Global",
@@ -870,7 +848,6 @@ export const dictionary = {
     post_locked_node: "Nó Bloqueado",
     post_unlock_for: "DESBLOQUEAR POR",
     post_poll_total_votes: "Total de Votos",
-    // Comment Hub
     comm_pulse: "Pulso da Comunidade",
     comm_vibes: "Vibes",
     comm_sentiment: "Resumo de Sentimento",
@@ -880,7 +857,6 @@ export const dictionary = {
     comm_hide_activity: "Ocultar Atividade",
     comm_view_replies: "Ver Respostas",
     comm_sync_reaction: "Sincronize sua reação...",
-    // Earnings & Currency
     earn_portal: "Portal de Ganhos",
     earn_financial_intel: "Inteligência Financeira",
     earn_vault_balance: "Saldo do Cofre",
@@ -895,7 +871,6 @@ export const dictionary = {
     earn_recent_history: "Histórico Recente",
     earn_requirements: "Requisitos do Criador",
     earn_protocol_eligibility: "Elegibilidade do Protocolo",
-    // Star Network
     star_network: "Rede Estrela",
     star_ambassador: "Embaixador Global",
     star_nodes_referred: "Nœuds Référés",
@@ -904,7 +879,6 @@ export const dictionary = {
     star_invite_launch: "Lançar Convite",
     star_invite_msg: "Personalizar Convite",
     star_top_networkers: "Principais Networkers",
-    // Chat & Clusters
     chat_nodes_online: "Nós Ativos",
     chat_query_nodes: "Consultar nós...",
     chat_materialize_cluster: "Materializar Cluster",
@@ -915,7 +889,6 @@ export const dictionary = {
     chat_members_pulse: "Pulso de Membros",
     chat_visual_history: "Histórico Visual",
     chat_spatial_links: "Links Espaciais",
-    // Documentation
     how_title: "Como o ViMore funciona",
     how_subtitle: "O Manual do ViMore",
     how_desc: "Entenda os protocolos de alta velocidade e a lógica econômica por trás da rede sem fronteiras.",
@@ -931,7 +904,6 @@ export const dictionary = {
     how_economy_desc: "Operamos em um modelo focado no criador. Ganhe energia e materialize-a.",
     how_integrity_title: "Integridade da Rede",
     how_integrity_desc: "A segurança está codificada na lógica do ViMore. Nodos Fantasma e filtragem de IA.",
-    // Boost Protocol
     boost_title: "Nó de Impulso",
     boost_desc: "Amplie seu vibe através dos clústeres da rede.",
     boost_promised_views: "Alcance Prometido",
@@ -1084,7 +1056,6 @@ export const dictionary = {
     reels_following: "المتابَعون",
     reels_foryou: "لك",
     reels_search: "بحث في ريلز",
-    // Feed & Post Hub
     post_now: "الآن",
     post_public: "عام",
     post_global_node: "عقدة عالمية",
@@ -1104,7 +1075,6 @@ export const dictionary = {
     post_locked_node: "عقدة مقفلة",
     post_unlock_for: "فتح مقابل",
     post_poll_total_votes: "إجمالي الأصوات",
-    // Comment Hub
     comm_pulse: "نبض المجتمع",
     comm_vibes: "مشاعر",
     comm_sentiment: "ملخص المشاعر",
@@ -1114,7 +1084,6 @@ export const dictionary = {
     comm_hide_activity: "إخفاء النشاط",
     comm_view_replies: "عرض الردود",
     comm_sync_reaction: "زامن رد فعلك...",
-    // Earnings & Currency
     earn_portal: "مركز الأرباح",
     earn_financial_intel: "الذكاء المالي",
     earn_vault_balance: "رصيد الخزنة",
@@ -1129,7 +1098,6 @@ export const dictionary = {
     earn_recent_history: "السجل الأخير",
     earn_requirements: "متطلبات منشئ المحتوى",
     earn_protocol_eligibility: "أهلية البروتوكول",
-    // Star Network
     star_network: "شبكة النجوم",
     star_ambassador: "سفير عالمي",
     star_nodes_referred: "العقد المحالة",
@@ -1138,7 +1106,6 @@ export const dictionary = {
     star_invite_launch: "إطلاق الدعوة",
     star_invite_msg: "تخصيص الدعوة",
     star_top_networkers: "أفضل المسوقين",
-    // Chat & Clusters
     chat_nodes_online: "العقد النشطة",
     chat_query_nodes: "البحث عن العقد...",
     chat_materialize_cluster: "تجسيد العنقود",
@@ -1149,7 +1116,6 @@ export const dictionary = {
     chat_members_pulse: "نبض الأعضاء",
     chat_visual_history: "السجل البصري",
     chat_spatial_links: "الروابط المكانية",
-    // Documentation
     how_title: "كيف يعمل ViMore",
     how_subtitle: "دليل ViMore",
     how_desc: "افهم البروتوكولات عالية السرعة والمنطق الاقتصادي وراء الشبكة العابرة للحدود.",
@@ -1165,7 +1131,6 @@ export const dictionary = {
     how_economy_desc: "نحن نعمل على نموذج يركز على منشئي المحتوى. اكسب طاقة وجسدها.",
     how_integrity_title: "نزاهة الشبكة",
     how_integrity_desc: "الأمان مدمج في منطق ViMore. عقد الشبح وفلترة الذكاء الاصطناعي.",
-    // Boost Protocol
     boost_title: "عقدة التعزيز",
     boost_desc: "قم بتضخيم مشاعرك عبر مجموعات الشبكة.",
     boost_promised_views: "الوصول الموعود",
@@ -1318,7 +1283,6 @@ export const dictionary = {
     reels_following: "关注",
     reels_foryou: "推荐",
     reels_search: "搜索短视频",
-    // Feed & Post Hub
     post_now: "刚刚",
     post_public: "公开",
     post_global_node: "全球节点",
@@ -1338,7 +1302,6 @@ export const dictionary = {
     post_locked_node: "锁定节点",
     post_unlock_for: "解锁价格",
     post_poll_total_votes: "总票数",
-    // Comment Hub
     comm_pulse: "社区脉冲",
     comm_vibes: "动态",
     comm_sentiment: "情感摘要",
@@ -1348,7 +1311,6 @@ export const dictionary = {
     comm_hide_activity: "隐藏动态",
     comm_view_replies: "查看回复",
     comm_sync_reaction: "同步您的反应...",
-    // Earnings & Currency
     earn_portal: "收益中心",
     earn_financial_intel: "财务情报",
     earn_vault_balance: "保险库余额",
@@ -1363,7 +1325,6 @@ export const dictionary = {
     earn_recent_history: "最近历史",
     earn_requirements: "创作者要求",
     earn_protocol_eligibility: "协议资格",
-    // Star Network
     star_network: "星级网络",
     star_ambassador: "全球大使",
     star_nodes_referred: "推荐节点",
@@ -1372,7 +1333,6 @@ export const dictionary = {
     star_invite_launch: "发起邀请",
     star_invite_msg: "自定义邀请",
     star_top_networkers: "顶尖网络人",
-    // Chat & Clusters
     chat_nodes_online: "活跃节点",
     chat_query_nodes: "查询节点...",
     chat_materialize_cluster: "实体化集群",
@@ -1383,7 +1343,6 @@ export const dictionary = {
     chat_members_pulse: "成员脉冲",
     chat_visual_history: "视觉历史",
     chat_spatial_links: "空间链接",
-    // Documentation
     how_title: "ViMore 运行机制",
     how_subtitle: "ViMore 指南",
     how_desc: "了解无边界网络背后的高速协议和经济逻辑。",
@@ -1399,7 +1358,6 @@ export const dictionary = {
     how_economy_desc: "我们以创作者为中心。赚取能量并将其变现。",
     how_integrity_title: "网络完整性",
     how_integrity_desc: "安全已硬编码到 ViMore 逻辑中。隐身节点和 AI 过滤。",
-    // Boost Protocol
     boost_title: "推广节点",
     boost_desc: "在网络集群中放大您的动态。",
     boost_promised_views: "预估曝光",
