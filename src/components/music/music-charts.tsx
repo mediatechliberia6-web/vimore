@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -26,18 +26,9 @@ import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 
 const CHART_CATEGORIES = [
-  { id: "global", label: "Top 50 Global", icon: Globe },
+  { id: "global", label: "Top Global", icon: Globe },
   { id: "rising", label: "Rising Stars", icon: Star },
   { id: "viral", label: "Viral Hubs", icon: Flame },
-  { id: "regional", label: "Top in Lagos", icon: MapPin },
-];
-
-const MOCK_CHART_DATA = [
-  { rank: 1, title: "Essence", artist: "Wizkid ft. Tems", artistUsername: "arivera", cover: "https://picsum.photos/seed/song1/200/200", trend: "up", gain: "+12.5%", peak: 1, trendData: [40, 45, 42, 50, 55, 58, 65] },
-  { rank: 2, title: "Last Last", artist: "Burna Boy", artistUsername: "schen_dev", cover: "https://picsum.photos/seed/song2/200/200", trend: "down", gain: "-2.1%", peak: 1, trendData: [60, 58, 55, 52, 50, 48, 45] },
-  { rank: 3, title: "Unavailable", artist: "Davido", artistUsername: "mstone", cover: "https://picsum.photos/seed/song3/200/200", trend: "new", gain: "New", peak: 3, trendData: [0, 10, 25, 30, 45, 55, 60] },
-  { rank: 4, title: "Calm Down", artist: "Rema", artistUsername: "techex", cover: "https://picsum.photos/seed/song4/200/200", trend: "up", gain: "+8.4%", peak: 2, trendData: [30, 32, 35, 38, 40, 42, 45] },
-  { rank: 5, title: "Soweto", artist: "Victony", artistUsername: "jmoore", cover: "https://picsum.photos/seed/song5/200/200", trend: "down", gain: "-0.5%", peak: 4, trendData: [50, 49, 48, 47, 46, 45, 44] },
 ];
 
 function Sparkline({ data, color }: { data: number[], color: string }) {
@@ -70,9 +61,26 @@ function Sparkline({ data, color }: { data: number[], color: string }) {
 
 export function MusicCharts() {
   const [activeCategory, setActiveCategory] = useState("global");
-  const { setTrack, currentTrack } = useMusic();
+  const { globalSongs, setTrack, currentTrack, trackStats } = useMusic();
 
-  const topSong = MOCK_CHART_DATA[0];
+  const rankedSongs = useMemo(() => {
+    return [...globalSongs].sort((a, b) => {
+      const aLikes = trackStats[a.id]?.likes || a.likes || 0;
+      const bLikes = trackStats[b.id]?.likes || b.likes || 0;
+      return bLikes - aLikes;
+    }).slice(0, 50);
+  }, [globalSongs, trackStats]);
+
+  const topSong = rankedSongs[0];
+
+  if (rankedSongs.length === 0) {
+    return (
+      <div className="py-32 text-center opacity-40">
+        <Music2 className="h-12 w-12 mx-auto mb-4" />
+        <p className="text-sm font-black uppercase tracking-widest">No sonic nodes materialized yet</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 sm:space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -94,7 +102,7 @@ export function MusicCharts() {
                 Global Number One
               </Badge>
               <span className="text-green-400 text-[10px] sm:text-xs font-black italic uppercase tracking-widest flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" /> {topSong.gain} Stream Gain
+                <TrendingUp className="h-3 w-3" /> Peak Pulse Reached
               </span>
             </div>
             
@@ -103,7 +111,7 @@ export function MusicCharts() {
               <h2 className="text-3xl sm:text-7xl font-black italic uppercase tracking-tighter leading-none text-white drop-shadow-2xl">
                 {topSong.title}
               </h2>
-              <Link href={`/profile/${topSong.artistUsername}`} className="inline-block mt-1 sm:mt-2">
+              <Link href={`/profile/${topSong.artistUsername || 'arivera'}`} className="inline-block mt-1 sm:mt-2">
                 <p className="text-lg sm:text-2xl text-primary font-bold hover:underline underline-offset-4">{topSong.artist}</p>
               </Link>
             </div>
@@ -111,7 +119,7 @@ export function MusicCharts() {
             <Button 
               size="lg" 
               className="rounded-full bg-white text-black font-black px-8 sm:px-10 h-11 sm:h-14 hover:scale-105 transition-transform gap-2 text-xs sm:text-base"
-              onClick={() => setTrack(topSong as any)}
+              onClick={() => setTrack(topSong)}
             >
               <Play className="h-4 w-4 sm:h-6 sm:w-6 fill-current" /> PLAY NOW
             </Button>
@@ -123,7 +131,6 @@ export function MusicCharts() {
         </div>
       </div>
 
-      {/* Top Chart Ad */}
       <NativeAdNode type="standard" />
 
       {/* 2. Chart Navigation */}
@@ -150,39 +157,36 @@ export function MusicCharts() {
         <div className="grid grid-cols-[40px_1fr_50px] sm:grid-cols-[60px_1fr_120px_100px_60px] gap-2 sm:gap-4 px-4 sm:px-8 py-4 sm:py-6 text-[8px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] border-b border-white/5">
           <span className="text-center"># RANK</span>
           <span>TRACK / ARTIST</span>
-          <span className="hidden sm:block text-center">TREND (7D)</span>
-          <span className="text-center">PEAK</span>
-          <span className="hidden sm:block text-center">STATS</span>
+          <span className="hidden sm:block text-center">TREND (LIVE)</span>
+          <span className="text-center">VIBES</span>
+          <span className="hidden sm:block text-center">ANALYTICS</span>
         </div>
 
         <div className="divide-y divide-white/5">
-          {MOCK_CHART_DATA.map((item) => {
-            const isCurrent = currentTrack?.title === item.title;
-            const trendColor = item.trend === "up" ? "#4ADE80" : item.trend === "down" ? "#FB7185" : "#6E96FF";
+          {rankedSongs.map((item, index) => {
+            const rank = index + 1;
+            const isCurrent = currentTrack?.id === item.id;
+            const likes = trackStats[item.id]?.likes || item.likes || 0;
 
             return (
               <div 
-                key={item.rank} 
+                key={item.id} 
                 className={cn(
                   "grid grid-cols-[40px_1fr_50px] sm:grid-cols-[60px_1fr_120px_100px_60px] items-center gap-2 sm:gap-4 px-4 sm:px-8 py-4 sm:py-5 group hover:bg-white/5 transition-colors cursor-pointer",
                   isCurrent && "bg-primary/5"
                 )}
-                onClick={() => setTrack(item as any)}
+                onClick={() => setTrack(item)}
               >
-                {/* Rank & Movement */}
                 <div className="flex flex-col items-center gap-0.5 sm:gap-1">
                   <span className={cn(
                     "text-lg sm:text-xl font-black italic tracking-tighter",
-                    item.rank === 1 ? "text-primary scale-110 sm:scale-125" : "text-foreground"
+                    rank === 1 ? "text-primary scale-110 sm:scale-125" : "text-foreground"
                   )}>
-                    {item.rank.toString().padStart(2, '0')}
+                    {rank.toString().padStart(2, '0')}
                   </span>
-                  {item.trend === "up" && <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-green-500" />}
-                  {item.trend === "down" && <TrendingDown className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-red-500" />}
-                  {item.trend === "new" && <CircleDot className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-blue-500" />}
+                  {rank < 5 && <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-green-500" />}
                 </div>
 
-                {/* Track Info */}
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                   <div className="relative h-10 w-10 sm:h-14 sm:w-14 rounded-lg sm:rounded-xl overflow-hidden shadow-lg shrink-0">
                     <Image src={item.cover} alt={item.title} fill className="object-cover" />
@@ -197,31 +201,24 @@ export function MusicCharts() {
                     )}>
                       {item.title}
                     </span>
-                    <div className="flex items-center gap-2">
-                      <Link 
-                        href={`/profile/${item.artistUsername}`} 
-                        className="text-[10px] sm:text-xs font-bold text-muted-foreground hover:text-primary transition-colors truncate"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {item.artist}
-                      </Link>
-                      <span className="sm:hidden text-[8px] font-black text-primary/60 bg-primary/5 px-1 rounded">PK: #{item.peak}</span>
-                    </div>
+                    <Link 
+                      href={`/profile/${item.artistUsername || 'vimore'}`} 
+                      className="text-[10px] sm:text-xs font-bold text-muted-foreground hover:text-primary transition-colors truncate"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {item.artist}
+                    </Link>
                   </div>
                 </div>
 
-                {/* Trend Graph - Hidden on Mobile */}
                 <div className="hidden sm:flex justify-center">
-                  <Sparkline data={item.trendData} color={trendColor} />
+                  <Sparkline data={[20, 25, 30, 45, 50, 65, 80]} color="#9940E5" />
                 </div>
 
-                {/* Peak Stats */}
                 <div className="flex flex-col items-center justify-center gap-0.5 sm:gap-1">
-                  <span className="hidden sm:block text-[9px] font-black text-muted-foreground uppercase tracking-widest">Peak Position</span>
-                  <Badge variant="outline" className="text-[9px] sm:text-xs font-black border-white/10 rounded-lg bg-white/5 h-6 px-2">#{item.peak}</Badge>
+                  <Badge variant="outline" className="text-[9px] sm:text-xs font-black border-white/10 rounded-lg bg-white/5 h-6 px-2">{(likes/1000).toFixed(1)}K</Badge>
                 </div>
 
-                {/* Interaction - Hidden on Mobile */}
                 <div className="hidden sm:flex justify-center">
                   <Button variant="ghost" size="icon" className="rounded-xl hover:bg-primary/10 hover:text-primary">
                     <BarChart2 className="h-5 w-5" />
@@ -233,28 +230,23 @@ export function MusicCharts() {
         </div>
       </div>
 
-      {/* Mid Chart Ad */}
-      <NativeAdNode type="standard" />
-
-      {/* 4. Insight Card */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pb-20">
         <div className="bg-gradient-to-br from-indigo-600 to-primary rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden">
           <div className="relative z-10 space-y-2">
             <h3 className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter leading-none">Weekly Insight</h3>
             <p className="text-white/80 text-xs sm:text-sm font-medium max-w-sm">
-              Afrobeats is dominating the global charts this week, with a 24% increase in listener retention.
+              Community engagement is peaking in the Afrobeats cluster. materializing high-velocity vibes for top artists.
             </p>
-            <Button className="mt-2 sm:mt-4 bg-white text-primary font-black rounded-xl px-6 h-10 sm:h-11 text-xs">View Full Report</Button>
           </div>
           <Star className="absolute -right-8 -bottom-8 h-32 sm:h-48 w-32 sm:w-48 opacity-10" />
         </div>
 
         <div className="bg-white/50 dark:bg-card/50 backdrop-blur-xl rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 border border-white/10 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="space-y-1 text-center sm:text-left">
-            <h3 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter">Chart Prediction</h3>
-            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">Predict the next #1 and win tokens</p>
+            <h3 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter">Vault Stats</h3>
+            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">Tracking {globalSongs.length} sonic nodes globally</p>
           </div>
-          <Button variant="outline" className="w-full sm:w-auto rounded-full border-primary text-primary font-black px-8 h-10 text-xs">Predict</Button>
+          <Link href="/admin"><Button variant="outline" className="w-full sm:w-auto rounded-full border-primary text-primary font-black px-8 h-10 text-xs">View Command Core</Button></Link>
         </div>
       </div>
 
