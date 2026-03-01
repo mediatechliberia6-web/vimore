@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -24,6 +23,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useNotifications, PulseCategory } from "@/context/NotificationContext";
+import { useTranslation } from "@/context/LanguageContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,13 +32,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-
-const navItems: { icon: any; label: string; id: string; href: string; category: PulseCategory }[] = [
-  { icon: Home, label: "Home", id: "home", href: "/", category: "HOME" },
-  { icon: Users, label: "Friends", id: "friends", href: "/friends", category: "FRIENDS" },
-  { icon: Music2, label: "Music", id: "music", href: "/music", category: "MUSIC" },
-  { icon: Clapperboard, label: "Reels", id: "reels", href: "/reels", category: "REELS" },
-];
 
 const PulseBadge = ({ count }: { count: number }) => {
   if (count <= 0) return null;
@@ -55,6 +48,14 @@ export function SubHeader() {
   const { setSearchOpen, currentUser } = usePosts();
   const { triggerHaptic } = useMusic();
   const { categoryPulses, clearPulse } = useNotifications();
+  const { t } = useTranslation();
+
+  const navItems: { icon: any; label: string; id: string; href: string; category: PulseCategory }[] = [
+    { icon: Home, label: t('sub_home'), id: "home", href: "/", category: "HOME" },
+    { icon: Users, label: t('sub_friends'), id: "friends", href: "/friends", category: "FRIENDS" },
+    { icon: Music2, label: t('sub_music'), id: "music", href: "/music", category: "MUSIC" },
+    { icon: Clapperboard, label: t('sub_reels'), id: "reels", href: "/reels", category: "REELS" },
+  ];
 
   const handleNav = (href: string) => {
     triggerHaptic(5);
@@ -102,7 +103,7 @@ export function SubHeader() {
           <div className="relative group w-full max-w-[120px] xs:max-w-[160px] sm:max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input 
-              placeholder="Search..." 
+              placeholder={t('ui_search')} 
               className="pl-8 pr-2 rounded-xl bg-secondary/30 border-none focus-visible:ring-primary h-8 sm:h-9 text-xs sm:text-sm cursor-pointer" 
               readOnly
               onClick={() => setSearchOpen(true)}
@@ -117,7 +118,7 @@ export function SubHeader() {
               >
                 <div className="hidden lg:block text-right">
                   <p className="text-xs font-bold leading-none group-hover:text-primary transition-colors">{currentUser.name}</p>
-                  <p className="text-[10px] text-muted-foreground">Pulse Wallet</p>
+                  <p className="text-[10px] text-muted-foreground">{t('sub_wallet_pulse')}</p>
                 </div>
                 <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border-2 border-primary/10 transition-transform group-hover:scale-105 shadow-sm">
                   <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
@@ -128,7 +129,7 @@ export function SubHeader() {
             <DropdownMenuContent align="end" className="w-64 rounded-[1.5rem] p-2 shadow-2xl border-primary/10 animate-in zoom-in-95 duration-200">
               <DropdownMenuLabel className="p-3">
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Identity Node</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('ui_identity_vault')}</span>
                   <div className="flex items-center gap-2">
                     <span className="font-black italic uppercase tracking-tighter text-lg">{currentUser.name}</span>
                     {currentUser.isVerified && <CheckCircle2 className="h-3.5 w-3.5 text-primary fill-primary text-white" />}
@@ -142,21 +143,21 @@ export function SubHeader() {
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-secondary/20 border border-transparent hover:border-primary/10 transition-all">
                   <div className="flex items-center gap-2">
                     <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Stars</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{t('sub_energy_stars')}</span>
                   </div>
                   <span className="text-sm font-black tabular-nums">{(currentUser.starBalance || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-secondary/20 border border-transparent hover:border-primary/10 transition-all">
                   <div className="flex items-center gap-2">
                     <Coins className="h-4 w-4 text-amber-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Gold</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{t('sub_energy_gold')}</span>
                   </div>
                   <span className="text-sm font-black tabular-nums">{currentUser.goldBalance || 0}</span>
                 </div>
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-secondary/20 border border-transparent hover:border-primary/10 transition-all">
                   <div className="flex items-center gap-2">
                     <Gem className="h-4 w-4 text-cyan-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Diamonds</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{t('sub_energy_diamonds')}</span>
                   </div>
                   <span className="text-sm font-black tabular-nums">{currentUser.diamondBalance || 0}</span>
                 </div>
@@ -169,7 +170,7 @@ export function SubHeader() {
                   <User className="h-4 w-4" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold">My Profile</span>
+                  <span className="text-xs font-bold">{t('nav_profile')}</span>
                   <span className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter">Workspace Node</span>
                 </div>
                 <ChevronRight className="ml-auto h-3.5 w-3.5 text-muted-foreground opacity-40" />
@@ -180,7 +181,7 @@ export function SubHeader() {
                   <Wallet className="h-4 w-4" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold">Buy Currency</span>
+                  <span className="text-xs font-bold">{t('menu_currency_hub')}</span>
                   <span className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter">Purchase Energy</span>
                 </div>
                 <ChevronRight className="ml-auto h-3.5 w-3.5 text-muted-foreground opacity-40" />
@@ -191,7 +192,7 @@ export function SubHeader() {
                   <TrendingUp className="h-4 w-4" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-green-600">Earnings Portal</span>
+                  <span className="text-xs font-bold text-green-600">{t('menu_earnings_hub')}</span>
                   <span className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter">Withdraw Assets</span>
                 </div>
                 <ChevronRight className="ml-auto h-3.5 w-3.5 text-muted-foreground opacity-40" />

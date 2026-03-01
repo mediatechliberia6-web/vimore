@@ -8,6 +8,7 @@ import { CreatePostModal } from "@/components/post/create-post-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNotifications } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 
 const PulseBadge = ({ count }: { count: number }) => {
@@ -22,13 +23,14 @@ const PulseBadge = ({ count }: { count: number }) => {
 export function Header() {
   const { unreadCount, categoryPulses, clearPulse } = useNotifications();
   const { setSearchOpen } = usePosts();
+  const { t } = useTranslation();
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-primary/10 px-4 py-2 flex items-center justify-between shadow-sm">
       <div className="flex items-center gap-3">
         <Link href="/" className="flex items-center gap-2 group" onClick={() => clearPulse('HOME')}>
           <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-white transition-transform group-hover:scale-105">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-6 h-6">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-2/3 h-2/3">
               <path d="M3 7L10 19L17 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M13 15L17 7L21 15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -38,7 +40,7 @@ export function Header() {
         <div className="hidden sm:block relative group max-w-[160px] sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
           <Input 
-            placeholder="Search ViMore" 
+            placeholder={t('ui_search_vimore')} 
             className="pl-10 rounded-full bg-secondary/50 border-none focus-visible:ring-primary h-9 text-sm cursor-pointer" 
             readOnly
             onClick={() => setSearchOpen(true)}

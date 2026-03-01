@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -8,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useNotifications, PulseCategory } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
+import { useTranslation } from "@/context/LanguageContext";
 
 const PulseBadge = ({ count }: { count: number }) => {
   if (count <= 0) return null;
@@ -22,17 +22,18 @@ export function MainNav() {
   const pathname = usePathname();
   const { unreadCount, categoryPulses, clearPulse } = useNotifications();
   const { settings } = usePosts();
+  const { t } = useTranslation();
 
   const navItems: { icon: any; label: string; href: string; badge?: number; category?: PulseCategory; isHidden?: boolean }[] = [
-    { icon: Home, label: "Home", href: "/", category: "HOME" },
-    { icon: Compass, label: "Explore", href: "/explore" },
-    { icon: Clapperboard, label: "Reels", href: "/reels", category: "REELS", isHidden: !settings.isReelsEnabled },
-    { icon: Music2, label: "Music", href: "/music", category: "MUSIC", isHidden: !settings.isMusicEnabled },
-    { icon: Bell, label: "Notifications", href: "/notifications", badge: unreadCount },
-    { icon: MessageCircle, label: "Messages", href: "/messages", category: "MESSAGES" },
-    { icon: User, label: "Profile", href: "/profile" },
-    { icon: Activity, label: "Admin", href: "/admin" },
-    { icon: Menu, label: "Menu", href: "/menu" },
+    { icon: Home, label: t('nav_home'), href: "/", category: "HOME" },
+    { icon: Compass, label: t('nav_explore'), href: "/explore" },
+    { icon: Clapperboard, label: t('nav_reels'), href: "/reels", category: "REELS", isHidden: !settings.isReelsEnabled },
+    { icon: Music2, label: t('nav_music'), href: "/music", category: "MUSIC", isHidden: !settings.isMusicEnabled },
+    { icon: Bell, label: t('nav_notifications'), href: "/notifications", badge: unreadCount },
+    { icon: MessageCircle, label: t('nav_messages'), href: "/messages", category: "MESSAGES" },
+    { icon: User, label: t('nav_profile'), href: "/profile" },
+    { icon: Activity, label: t('nav_admin'), href: "/admin" },
+    { icon: Menu, label: t('nav_menu'), href: "/menu" },
   ];
 
   return (
@@ -45,7 +46,7 @@ export function MainNav() {
               <path d="M13 15L17 7L21 15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <span className="font-headline font-bold text-2xl tracking-tight">ViMore</span>
+          <span className="font-headline font-bold text-2xl tracking-tight text-primary">ViMore</span>
         </Link>
       </div>
 
@@ -80,7 +81,7 @@ export function MainNav() {
         <div className="pt-4">
           <Button className="w-full rounded-2xl py-6 gap-2 font-black italic uppercase tracking-tighter text-lg bg-accent hover:bg-accent/90 shadow-xl shadow-accent/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
             <PlusSquare className="w-6 h-6" />
-            <span>Post</span>
+            <span>{t('action_post')}</span>
           </Button>
         </div>
       </nav>

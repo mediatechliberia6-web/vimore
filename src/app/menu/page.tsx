@@ -1,4 +1,3 @@
-
 "use client";
 
 import { 
@@ -37,6 +36,7 @@ import {
 import { useMusic } from "@/context/MusicContext";
 import { useNotifications, PulseCategory } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
+import { useTranslation } from "@/context/LanguageContext";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +45,7 @@ export default function MenuPage() {
   const { currentTrack, isExpanded } = useMusic();
   const { unreadCount, categoryPulses, clearPulse } = useNotifications();
   const { currentUser, triggerHaptic } = usePosts();
+  const { t } = useTranslation();
   const { toast } = useToast();
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -57,16 +58,16 @@ export default function MenuPage() {
   };
 
   const menuGrid: { label: string; icon: any; color: string; bg: string; href: string; badge?: number; category?: PulseCategory }[] = [
-    { label: "Home feed", icon: Home, color: "text-primary", bg: "bg-primary/10", href: "/", category: "HOME" },
-    { label: "Signals", icon: Bell, color: "text-red-500", bg: "bg-red-50", href: "/notifications", badge: unreadCount },
-    { label: "Music Hub", icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music", category: "MUSIC" },
-    { label: "Currency Hub", icon: Coins, color: "text-amber-500", bg: "bg-amber-50", href: "/currency" },
-    { label: "Earnings Hub", icon: TrendingUp, color: "text-green-500", bg: "bg-green-50", href: "/earnings" },
-    { label: "Star Network", icon: Star, color: "text-yellow-500", bg: "bg-yellow-50", href: "/referrals" },
-    { label: "Community", icon: Users, color: "text-emerald-500", bg: "bg-emerald-50", href: "/friends", category: "FRIENDS" },
-    { label: "Messages", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages", category: "MESSAGES" },
-    { label: "Reels", icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-50", href: "/reels", category: "REELS" },
-    { label: "Command Core", icon: Activity, color: "text-indigo-500", bg: "bg-indigo-50", href: "/admin" },
+    { label: t('menu_home_feed'), icon: Home, color: "text-primary", bg: "bg-primary/10", href: "/", category: "HOME" },
+    { label: t('menu_signals'), icon: Bell, color: "text-red-500", bg: "bg-red-50", href: "/notifications", badge: unreadCount },
+    { label: t('menu_music_hub'), icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music", category: "MUSIC" },
+    { label: t('menu_currency_hub'), icon: Coins, color: "text-amber-500", bg: "bg-amber-50", href: "/currency" },
+    { label: t('menu_earnings_hub'), icon: TrendingUp, color: "text-green-500", bg: "bg-green-50", href: "/earnings" },
+    { label: t('menu_star_network'), icon: Star, color: "text-yellow-500", bg: "bg-yellow-50", href: "/referrals" },
+    { label: t('menu_community'), icon: Users, color: "text-emerald-500", bg: "bg-emerald-50", href: "/friends", category: "FRIENDS" },
+    { label: t('menu_messages'), icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages", category: "MESSAGES" },
+    { label: t('menu_reels'), icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-50", href: "/reels", category: "REELS" },
+    { label: t('menu_command_core'), icon: Activity, color: "text-indigo-500", bg: "bg-indigo-50", href: "/admin" },
   ];
 
   return (
@@ -78,7 +79,7 @@ export default function MenuPage() {
               <ArrowLeft className="h-6 w-6" />
             </Button>
           </Link>
-          <h1 className="text-xl font-bold font-headline tracking-tight text-foreground">Menu</h1>
+          <h1 className="text-xl font-bold font-headline tracking-tight text-foreground">{t('nav_menu')}</h1>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50 dark:bg-white/5">
@@ -134,8 +135,8 @@ export default function MenuPage() {
 
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2">
-            <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Shortcuts</h2>
-            <Button variant="link" className="text-xs font-bold p-0 h-auto">Edit</Button>
+            <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">{t('menu_shortcuts')}</h2>
+            <Button variant="link" className="text-xs font-bold p-0 h-auto">{t('menu_edit')}</Button>
           </div>
           <div className="grid grid-cols-2 gap-4">
             {menuGrid.map((item) => {
@@ -171,29 +172,29 @@ export default function MenuPage() {
                   <div className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl group-hover:scale-110 transition-transform">
                     <Settings className="h-5 w-5 text-slate-600 dark:text-slate-400" />
                   </div>
-                  <span className="font-bold text-lg tracking-tight text-foreground">Settings & Privacy</span>
+                  <span className="font-bold text-lg tracking-tight text-foreground">{t('menu_settings_privacy')}</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-4 space-y-1">
                 <Link href="/settings" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-secondary/50 transition-colors font-semibold text-[15px] text-left">
                   <Settings className="h-4 w-4 text-slate-500" />
-                  Global Command Center
+                  {t('settings_title')}
                 </Link>
                 <Link href="/admin" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-indigo-500/10 transition-colors font-semibold text-[15px] text-left text-indigo-600">
                   <ShieldCheck className="h-4 w-4" />
-                  Command Core Access
+                  {t('menu_command_core')}
                 </Link>
                 <Link href="/settings/privacy-checkup" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-green-500/10 transition-colors font-semibold text-[15px] text-left text-green-600">
                   <ShieldCheck className="h-4 w-4" />
-                  Privacy Checkup
+                  {t('privacy_checkup')}
                 </Link>
                 <Link href="/settings/account" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-blue-500/10 transition-colors font-semibold text-[15px] text-left text-blue-600">
                   <UserCog className="h-4 w-4" />
-                  Account Center
+                  {t('account_center')}
                 </Link>
                 <Link href="/settings/language" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-orange-500/10 transition-colors font-semibold text-[15px] text-left text-orange-600">
                   <Languages className="h-4 w-4" />
-                  Language Hub
+                  {t('language_hub')}
                 </Link>
               </AccordionContent>
             </AccordionItem>
@@ -207,12 +208,12 @@ export default function MenuPage() {
             onClick={handleLogout}
           >
             <LogOut className="h-5 w-5" />
-            Log out
+            {t('logout')}
           </Button>
 
           <div className="flex flex-col items-center gap-2 py-8 opacity-40">
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-foreground">ViMore Network</p>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-primary italic">From Media Tech Liberia</p>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-primary italic">{t('branding_mtl')}</p>
           </div>
         </div>
       </main>
