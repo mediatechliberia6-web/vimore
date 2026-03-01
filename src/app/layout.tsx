@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { PostProvider } from "@/context/PostContext";
 import { MusicProvider } from "@/context/MusicContext";
 import { NotificationProvider } from "@/context/NotificationContext";
+import { LanguageProvider } from "@/context/LanguageContext";
 import { MusicPlayer } from "@/components/music/music-player";
 import { AlbumDetail } from "@/components/music/album-detail";
 import { PlaylistDetail } from "@/components/music/playlist-detail";
@@ -50,25 +51,27 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-background text-foreground">
         <PostProvider>
-          <NotificationProvider>
-            <MusicProvider>
-              <FontScaleWrapper>
-                {children}
-                <MusicPlayer />
-                <AlbumDetail />
-                <PlaylistDetail />
-                <CaptureStudio />
-                <AdPortal />
-                <PostPortal />
-                <ImageViewerPortal />
-                <SearchPortal />
-                <CommentHub />
-                <GiftHub />
-                <IncomingCallOverlay />
-                <Toaster />
-              </FontScaleWrapper>
-            </MusicProvider>
-          </NotificationProvider>
+          <LanguageProvider>
+            <NotificationProvider>
+              <MusicProvider>
+                <FontScaleWrapper>
+                  {children}
+                  <MusicPlayer />
+                  <AlbumDetail />
+                  <PlaylistDetail />
+                  <CaptureStudio />
+                  <AdPortal />
+                  <PostPortal />
+                  <ImageViewerPortal />
+                  <SearchPortal />
+                  <CommentHub />
+                  <GiftHub />
+                  <IncomingCallOverlay />
+                  <Toaster />
+                </FontScaleWrapper>
+              </MusicProvider>
+            </NotificationProvider>
+          </LanguageProvider>
         </PostProvider>
       </body>
     </html>
