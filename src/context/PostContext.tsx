@@ -97,6 +97,7 @@ export interface User {
   referralCount?: number;
   verificationExpiry?: number; // Timestamp
   hasEverBeenVerified?: boolean;
+  role?: 'SUPER' | 'FINANCIAL' | 'MODERATOR' | 'USER';
   links?: Array<{ label: string; url: string; icon: any }>;
   profilePictureHistory?: string[];
   coverPhotoHistory?: string[];
@@ -302,6 +303,7 @@ interface PostContextType {
   clusters: Cluster[];
   auditLogs: AuditLogNode[];
   disputes: DisputeNode[];
+  staff: Array<{ username: string, role: 'SUPER' | 'FINANCIAL' | 'MODERATOR' }>;
   adStats: AdStats;
   intelligenceMetrics: IntelligenceMetrics;
   selectedChatId: string | null;
@@ -372,6 +374,8 @@ interface PostContextType {
   addMemberToCluster: (clusterId: string, member: Connection) => void;
   leaveCluster: (clusterId: string) => void;
   resolveDispute: (id: string, action: 'RESTORE' | 'SEVER') => void;
+  promoteUser: (username: string, role: 'FINANCIAL' | 'MODERATOR') => void;
+  demoteUser: (username: string) => void;
   
   // Campaigns
   addCampaign: (campaign: Omit<Campaign, 'id' | 'timestamp' | 'clicks'>) => void;
@@ -416,6 +420,7 @@ const INITIAL_USER: User = {
   isOnline: true,
   isVerified: false,
   hasEverBeenVerified: false,
+  role: 'SUPER', // Prime Node
   lastModifiedName: 0,
   lastModifiedDob: 0,
   profilePictureHistory: ["https://picsum.photos/seed/me/400/400"],
@@ -691,6 +696,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogNode[]>([]);
   const [disputes, setDisputes] = useState<DisputeNode[]>([]);
+  const [staff, setStaff] = useState<Array<{ username: string, role: 'SUPER' | 'FINANCIAL' | 'MODERATOR' }>>([
+    { username: 'johndoe_creative', role: 'SUPER' }
+  ]);
   
   const [adStats, setAdStats] = useState<AdStats>({ materializations: 842, handshakes: 124, revenue: 12.40 });
   const [intelligenceMetrics, setIntelligenceMetrics] = useState<IntelligenceMetrics>({
@@ -770,6 +778,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const savedDisputes = localStorage.getItem('vimore_disputes');
     const savedAdStats = localStorage.getItem('vimore_ad_stats');
     const savedCampaigns = localStorage.getItem('vimore_campaigns');
+    const savedStaff = localStorage.getItem('vimore_staff');
 
     if (savedUser) try { setCurrentUser(JSON.parse(savedUser)); } catch (e) {}
     if (savedSettings) try { setSettings({ ...INITIAL_SETTINGS, ...JSON.parse(savedSettings) }); } catch (e) {}
@@ -788,6 +797,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (savedDisputes) setDisputes(JSON.parse(savedDisputes));
     if (savedAdStats) try { setAdStats(JSON.parse(savedAdStats)); } catch (e) {}
     if (savedCampaigns) try { setCampaigns(JSON.parse(savedCampaigns)); } catch (e) {}
+    if (savedStaff) try { setStaff(JSON.parse(savedStaff)); } catch (e) {}
     
     if (savedLocalPosts) {
       try {
@@ -821,6 +831,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => { safePersist('vimore_disputes', disputes); }, [disputes]);
   useEffect(() => { safePersist('vimore_ad_stats', adStats); }, [adStats]);
   useEffect(() => { safePersist('vimore_campaigns', campaigns); }, [campaigns]);
+  useEffect(() => { safePersist('vimore_staff', staff); }, [staff]);
 
   const recordAdMaterialization = useCallback(() => {
     setAdStats(prev => ({ ...prev, materializations: prev.materializations + 1 }));
@@ -1260,6 +1271,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const promoteUser = (username: string, role: 'FINANCIAL' | 'MODERATOR') => {
+    triggerHaptic(100);
+    setStaff(prev => [...prev, { username, role }]);
+    addAuditLog("GOVERNANCE_PROMOTION", `Promoted @${username} to ${role} node.`);
+  };
+
+  const demoteUser = (username: string) => {
+    triggerHaptic(150);
+    setStaff(prev => prev.filter(s => s.username !== username));
+    addAuditLog("GOVERNANCE_DEMOTION", `Severed administrative node for @${username}.`);
+  };
+
   const addCampaign = (data: Omit<Campaign, 'id' | 'timestamp' | 'clicks'>) => {
     triggerHaptic(50);
     const newCamp: Campaign = {
@@ -1341,7 +1364,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   return (
     <PostContext.Provider value={{ 
-      currentUser, posts, stories, highlights, campaigns, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, auditLogs, disputes, adStats, intelligenceMetrics, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, gatewaySettings, callState, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, boostNode, initiateCall, receiveCall, acceptCall, endCall
+      currentUser, posts, stories, highlights, campaigns, mutedUserNames, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, activeSubscriptions, followingUsernames, activeStoryIndex, connections, clusters, auditLogs, disputes, staff, adStats, intelligenceMetrics, selectedChatId, selectedPostId, activeCommentPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, pendingTransaction, withdrawalHistory, paymentRequests, referralLink, settings, gatewaySettings, callState, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, incrementShareCount, voteOnStoryPoll, toggleMuteUser, togglePinPost, archivePost, updateCurrentUser, updateSettings, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, triggerHaptic, createCluster, addMemberToCluster, leaveCluster, resolveDispute, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, boostNode, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall
     }}>
       {children}
     </PostContext.Provider>
