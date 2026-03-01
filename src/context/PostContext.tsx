@@ -193,6 +193,7 @@ interface PostContextType {
   paymentRequests: any[];
   referralLink: string;
   pendingTransaction: any;
+  activeSubscriptions: Set<string>;
   login: (email: string, pass: string) => Promise<void>;
   signup: (email: string, pass: string, name: string, username: string) => Promise<void>;
   uploadMedia: (file: File) => Promise<string>;
@@ -219,6 +220,7 @@ interface PostContextType {
   isPostSaved: (postId: string) => boolean;
   isPostUnlocked: (postId: string) => boolean;
   isFollowing: (username: string) => boolean;
+  isSubscribed: (username: string) => boolean;
   addComment: (postId: string, text: string) => Promise<void>;
   addReply: (postId: string, commentId: string, text: string) => void;
   addStory: (segment: any) => Promise<void>;
@@ -312,12 +314,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
+  const [gatewaySettings, setGatewaySettings] = useState({ orangeName: "MTL Official", orangeNumber: "+231778451835", mtnName: "MTL Official", mtnNumber: "+231881234567" });
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [stories, setStories] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [mutedUserNames, setMutedUserNames] = useState<string[]>([]);
+  const [activeSubscriptions, setActiveSubscriptions] = useState<Set<string>>(new Set());
   
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
   const [unlikedPostIds, setUnlikedPostIds] = useState<Set<string>>(new Set());
@@ -513,6 +517,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const deletePost = async (postId: string) => { await databases.deleteDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId); await refreshFeed(); };
+  
   const toggleLikePost = async (postId: string) => {
     const isCurrentlyLiked = likedPostIds.has(postId);
     const user = await account.get();
@@ -523,12 +528,22 @@ export function PostProvider({ children }: { children: ReactNode }) {
         const response = await databases.listDocuments(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, [Query.equal('postId', postId), Query.equal('userId', user.$id)]);
         if (response.documents.length > 0) await databases.deleteDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, response.documents[0].$id);
         await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { likes: Math.max(0, post.likes - 1) });
+        setLikedPostIds(prev => { const n = new Set(prev); n.delete(postId); return n; });
       } else {
         await databases.createDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, ID.unique(), { postId, userId: user.$id });
         await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { likes: post.likes + 1 });
+        setLikedPostIds(prev => { const n = new Set(prev); n.add(postId); return n; });
       }
       await refreshFeed();
     } catch (e) {}
+  };
+
+  const toggleUnlikePost = (postId: string) => {
+    setUnlikedPostIds(prev => { const n = new Set(prev); if(n.has(postId)) n.delete(postId); else n.add(postId); return n; });
+  };
+
+  const toggleSavePost = (postId: string) => {
+    setSavedPostIds(prev => { const n = new Set(prev); if(n.has(postId)) n.delete(postId); else n.add(postId); return n; });
   };
 
   const toggleFollowUser = async (username: string) => {
@@ -550,6 +565,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
     await refreshFeed();
   };
 
+  const addReply = (postId: string, commentId: string, text: string) => {
+    // Prototype: In production this would be a sub-collection or separate linked document
+    triggerHaptic(10);
+  };
+
   const addStory = async (segmentData: any) => {
     const expiresAt = Date.now() + (24 * 60 * 60 * 1000);
     await databases.createDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, ID.unique(), { user: JSON.stringify(currentUser), segments: JSON.stringify([{ id: ID.unique(), ...segmentData }]), isCloseFriends: false, viewCount: 0, expiresAt });
@@ -564,6 +584,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
     await refreshStories();
   };
 
+  const processWithdrawal = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      await databases.updateDocument(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, id, { status });
+      const withdrawal = withdrawalHistory.find(w => w.$id === id);
+      await addAuditLog("WITHDRAWAL_PROCESSED", `Withdrawal ${id} for @${withdrawal?.username || 'unknown'} was ${status.toLowerCase()}.`);
+      if (currentUser.id) await refreshEconomy(currentUser.id);
+      await refreshAdminData();
+    } catch (e) { console.error("Withdrawal processing failed:", e); }
+  };
+
   const approvePaymentRequest = async (id: string) => {
     const r = paymentRequests.find(p => p.$id === id);
     if (!r) return;
@@ -575,6 +605,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
     await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, r.userId, updates);
     await addAuditLog("PAYMENT_APPROVED", `Authorized ${r.amount} for @${r.username}`);
     await refreshAdminData();
+  };
+
+  const createPaymentRequest = async (screenshot: string) => {
+    if (!currentUser.id) return;
+    try {
+      await databases.createDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, ID.unique(), {
+        userId: currentUser.id,
+        username: currentUser.username,
+        packageName: pendingTransaction?.packageName || "Unknown",
+        amount: parseFloat(pendingTransaction?.amount || "0"),
+        currency: pendingTransaction?.type || "Gold",
+        screenshot,
+        status: 'PENDING',
+        timestamp: Date.now()
+      });
+      await refreshEconomy(currentUser.id);
+    } catch (e) { console.error("Payment request failed:", e); }
   };
 
   const recordWithdrawal = async (node: any) => {
@@ -627,9 +674,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const contextValue = useMemo(() => ({ 
-    currentUser, posts, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings: {}, callState, stories, campaigns: [], mutedUserNames, connections, clusters, auditLogs, staff, adStats: { revenue: 0, handshakes: 0 }, intelligenceMetrics: { sentimentScore: 75, sentimentVibe: 'POSITIVE', sentimentSummary: "System optimal.", botRisk: 5, latency: 45 }, withdrawalHistory, paymentRequests, referralLink: "", pendingTransaction,
-    login, signup, uploadMedia, setSearchOpen: (open: boolean) => { triggerHaptic(5); setIsSearchOpen(open); }, setSelectedChatId: (id: string | null) => setSelectedChatId(id), setSelectedPostId: (id: string | null) => setSelectedPostId(id), setSelectedImageUrl: (url: string | null) => setSelectedImageUrl(url), openCommentHub: (id: string) => { triggerHaptic(5); setActiveCommentPostId(id); }, closeCommentHub: () => { triggerHaptic(5); setActiveCommentPostId(null); }, openGiftHub: (u: User) => { setTargetUserForGift(u); setIsGiftHubOpen(true); }, closeGiftHub: () => { setTargetUserForGift(null); setIsGiftHubOpen(false); }, setActiveStoryIndex: (idx: number | null) => setActiveStoryIndex(idx), addPost, deletePost, addStory, addComment, addReply: () => {}, voteOnStoryPoll, toggleMuteUser: (u: string) => setMutedUserNames(prev => [...prev, u]), togglePinPost: () => {}, archivePost: () => {}, updateCurrentUser, updateSettings: (s: any) => setSettings(prev => ({ ...prev, ...s })), updateGatewaySettings: () => {}, addAuditLog, toggleLikePost, toggleUnlikePost: () => {}, toggleSavePost: () => {}, toggleFollowUser, initiateTransaction: (d: any) => setPendingTransaction(d), cancelTransaction: () => setPendingTransaction(null), createPaymentRequest: (s: string) => Promise.resolve(), approvePaymentRequest, rejectPaymentRequest: (id: string) => databases.updateDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, id, { status: 'REJECTED' }).then(() => refreshAdminData()), recordWithdrawal, processWithdrawal, triggerReferralPulse: () => {}, verifyUser: (cost: number, currency: any) => updateCurrentUser({ [(currency === 'DIAMOND' ? 'diamondBalance' : 'starBalance')]: Math.max(0, (currentUser as any)[(currency === 'DIAMOND' ? 'diamondBalance' : 'starBalance')] - cost), isVerified: true, hasEverBeenVerified: true }), processGiftTransaction: (cost: number, currency: any) => updateCurrentUser({ [(currency === 'GOLD' ? 'goldBalance' : 'diamondBalance')]: Math.max(0, (currentUser as any)[(currency === 'GOLD' ? 'goldBalance' : 'diamondBalance')] - cost) }), unlockPost: (id: string) => setUnlockedPostIds(prev => new Set(prev).add(id)), subscribeToCreator: () => {}, cancelSubscription: (u: string) => {}, recordAdMaterialization: () => {}, recordAdHandshake: () => {}, updateIntelligence: (data: any) => {}, isPostLiked: (id: string) => likedPostIds.has(id), isPostUnliked: (id: string) => unlikedPostIds.has(id), isPostSaved: (id: string) => savedPostIds.has(id), isPostUnlocked: (id: string) => unlockedPostIds.has(id), isFollowing: (u: string) => followingUsernames.has(u), triggerHaptic, createCluster: (n: string, m: any[]) => databases.createDocument(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID, ID.unique(), { name: n, adminUsername: currentUser.username, members: JSON.stringify(m) }).then(() => refreshClusters()), addMemberToCluster: (c: string, m: any) => Promise.resolve(), leaveCluster: (c: string) => databases.deleteDocument(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID, c).then(() => refreshClusters()), resolveDispute: () => {}, addCampaign: () => {}, deleteCampaign: () => {}, toggleCampaignStatus: () => {}, recordCampaignClick: () => {}, boostNode, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall, refreshAdminData, fetchProfileByUsername
-  }), [currentUser, posts, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, callState, stories, auditLogs, withdrawalHistory, paymentRequests, pendingTransaction, triggerHaptic, approvePaymentRequest, recordWithdrawal, promoteUser, demoteUser, boostNode, refreshAdminData, receiveCall, endCall, fetchProfileByUsername, updateCurrentUser, mutedUserNames, refreshClusters]);
+    currentUser, posts, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns: [], mutedUserNames, connections, clusters, auditLogs, staff, adStats: { revenue: 0, handshakes: 0 }, intelligenceMetrics: { sentimentScore: 75, sentimentVibe: 'POSITIVE', sentimentSummary: "System optimal.", botRisk: 5, latency: 45 }, withdrawalHistory, paymentRequests, referralLink: "vimore.app/join/" + currentUser.username, pendingTransaction, activeSubscriptions,
+    login, signup, uploadMedia, setSearchOpen: (open: boolean) => { triggerHaptic(5); setIsSearchOpen(open); }, setSelectedChatId: (id: string | null) => setSelectedChatId(id), setSelectedPostId: (id: string | null) => setSelectedPostId(id), setSelectedImageUrl: (url: string | null) => setSelectedImageUrl(url), openCommentHub: (id: string) => { triggerHaptic(5); setActiveCommentPostId(id); }, closeCommentHub: () => { triggerHaptic(5); setActiveCommentPostId(null); }, openGiftHub: (u: User) => { setTargetUserForGift(u); setIsGiftHubOpen(true); }, closeGiftHub: () => { setTargetUserForGift(null); setIsGiftHubOpen(false); }, setActiveStoryIndex: (idx: number | null) => setActiveStoryIndex(idx), addPost, deletePost, addStory, addComment, addReply, voteOnStoryPoll, toggleMuteUser: (u: string) => setMutedUserNames(prev => [...prev, u]), togglePinPost: (id: string) => { triggerHaptic(10); }, archivePost: (id: string) => { triggerHaptic(10); }, updateCurrentUser, updateSettings: (s: any) => setSettings(prev => ({ ...prev, ...s })), updateGatewaySettings: (d: any) => setGatewaySettings(d), addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, initiateTransaction: (d: any) => setPendingTransaction(d), cancelTransaction: () => setPendingTransaction(null), createPaymentRequest, approvePaymentRequest, rejectPaymentRequest: (id: string) => databases.updateDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, id, { status: 'REJECTED' }).then(() => refreshAdminData()), recordWithdrawal, processWithdrawal, triggerReferralPulse: () => { triggerHaptic(20); }, verifyUser: (cost: number, currency: any) => updateCurrentUser({ [(currency === 'DIAMOND' ? 'diamondBalance' : 'starBalance')]: Math.max(0, (currentUser as any)[(currency === 'DIAMOND' ? 'diamondBalance' : 'starBalance')] - cost), isVerified: true, hasEverBeenVerified: true }), processGiftTransaction: (cost: number, currency: any) => updateCurrentUser({ [(currency === 'GOLD' ? 'goldBalance' : 'diamondBalance')]: Math.max(0, (currentUser as any)[(currency === 'GOLD' ? 'goldBalance' : 'diamondBalance')] - cost) }), unlockPost: (id: string) => setUnlockedPostIds(prev => new Set(prev).add(id)), subscribeToCreator: (u: string) => setActiveSubscriptions(prev => new Set(prev).add(u)), cancelSubscription: (u: string) => setActiveSubscriptions(prev => { const n = new Set(prev); n.delete(u); return n; }), recordAdMaterialization: () => {}, recordAdHandshake: () => {}, updateIntelligence: () => {}, isPostLiked: (id: string) => likedPostIds.has(id), isPostUnliked: (id: string) => unlikedPostIds.has(id), isPostSaved: (id: string) => savedPostIds.has(id), isPostUnlocked: (id: string) => unlockedPostIds.has(id), isFollowing: (u: string) => followingUsernames.has(u), isSubscribed: (u: string) => activeSubscriptions.has(u), triggerHaptic, createCluster: (n: string, m: any[]) => databases.createDocument(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID, ID.unique(), { name: n, adminUsername: currentUser.username, members: JSON.stringify(m) }).then(() => refreshClusters()), addMemberToCluster: (c: string, m: any) => Promise.resolve(), leaveCluster: (c: string) => databases.deleteDocument(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID, c).then(() => refreshClusters()), resolveDispute: () => {}, addCampaign: () => {}, deleteCampaign: () => {}, toggleCampaignStatus: () => {}, recordCampaignClick: () => {}, boostNode, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall, refreshAdminData, fetchProfileByUsername, incrementShareCount: () => {}
+  }), [currentUser, posts, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, auditLogs, withdrawalHistory, paymentRequests, pendingTransaction, triggerHaptic, approvePaymentRequest, recordWithdrawal, promoteUser, demoteUser, boostNode, refreshAdminData, receiveCall, endCall, fetchProfileByUsername, updateCurrentUser, mutedUserNames, refreshClusters, activeSubscriptions]);
 
   return <PostContext.Provider value={contextValue}>{children}</PostContext.Provider>;
 }
