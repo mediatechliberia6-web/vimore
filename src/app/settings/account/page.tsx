@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, UserCog, ShieldCheck, Mail, Smartphone, AtSign, KeyRound, Fingerprint, Trash2, Check } from "lucide-react";
+import { ArrowLeft, UserCog, ShieldCheck, Mail, Smartphone, AtSign, KeyRound, Fingerprint, Trash2, Check, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
