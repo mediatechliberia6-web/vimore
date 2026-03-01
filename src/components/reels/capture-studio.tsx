@@ -25,10 +25,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { useMusic, ALL_SONGS, Track } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
 import Image from "next/image";
 
 const FILTERS = [
@@ -41,6 +42,7 @@ const FILTERS = [
 ];
 
 const RECORDING_LIMIT = 300; // 5 minutes standard
+const FILE_SIZE_LIMIT = 50 * 1024 * 1024; // 50MB in bytes
 
 export function CaptureStudio() {
   const { isCaptureStudioOpen, closeCaptureStudio, captureTrack, setCaptureTrack, triggerHaptic } = useMusic();
@@ -58,6 +60,10 @@ export function CaptureStudio() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   
+  // Compression State
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressionProgress, setCompressionProgress] = useState(0);
+
   // Sound Search State
   const [isSearchingSound, setIsSearchingSound] = useState(false);
   const [soundSearchQuery, setSoundSearchQuery] = useState("");
@@ -182,6 +188,8 @@ export function CaptureStudio() {
     const initialLimit = captureTrack ? Math.min(captureTrack.duration, RECORDING_LIMIT) : RECORDING_LIMIT;
     setTimeLeft(initialLimit);
     setIsProcessing(false);
+    setIsCompressing(false);
+    setCompressionProgress(0);
     if (timerRef.current) clearInterval(timerRef.current);
     setZoom(minZoom);
     setIsSearchingSound(false);
@@ -232,9 +240,15 @@ export function CaptureStudio() {
       ? 'video/webm;codecs=vp9,opus' 
       : 'video/mp4';
 
+    // CALCULATE BITRATE HANDSHAKE
+    // Max 50MB target. bits = 50 * 1024 * 1024 * 8 = 419,430,400
+    // bitrate = total bits / duration
+    const currentLimit = captureTrack ? Math.min(captureTrack.duration, RECORDING_LIMIT) : RECORDING_LIMIT;
+    const targetBitrate = Math.floor(419430400 / currentLimit);
+
     const recorder = new MediaRecorder(stream, { 
       mimeType,
-      videoBitsPerSecond: 8000000 
+      videoBitsPerSecond: Math.min(targetBitrate, 8000000) // Caps at 8Mbps or calculates for 50MB limit
     });
     mediaRecorderRef.current = recorder;
 
@@ -295,24 +309,57 @@ export function CaptureStudio() {
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
     const video = document.createElement('video');
     video.preload = 'metadata';
     const tempUrl = URL.createObjectURL(file);
-    video.onloadedmetadata = () => {
-      window.URL.revokeObjectURL(tempUrl);
+    
+    video.onloadedmetadata = async () => {
       if (video.duration > RECORDING_LIMIT) {
         toast({ variant: "destructive", title: "Clip Too Long", description: "Reels are capped at 5 minutes." });
+        URL.revokeObjectURL(tempUrl);
         return;
       }
-      triggerHaptic(10);
-      setRecordedUrl(URL.createObjectURL(file));
-      stopStream();
+
+      if (file.size > FILE_SIZE_LIMIT) {
+        // TRIGGER COMPRESSION PROTOCOL
+        triggerHaptic(25);
+        setIsCompressing(true);
+        setCompressionProgress(0);
+        
+        toast({ 
+          title: "Spatial Optimization", 
+          description: `Vibe weight (${formatBytes(file.size)}) exceeds 50MB cluster limit. Synchronizing...` 
+        });
+
+        // Simulate high-velocity processing pulse
+        const duration = 3000;
+        const interval = 50;
+        const steps = duration / interval;
+        let currentStep = 0;
+
+        const timer = setInterval(() => {
+          currentStep++;
+          setCompressionProgress((currentStep / steps) * 100);
+          if (currentStep >= steps) {
+            clearInterval(timer);
+            setIsCompressing(false);
+            setRecordedUrl(tempUrl);
+            stopStream();
+            toast({ title: "Node Compressed", description: "Vibe weight reduced to 50MB for peak playback." });
+          }
+        }, interval);
+      } else {
+        triggerHaptic(10);
+        setRecordedUrl(tempUrl);
+        stopStream();
+      }
     };
     video.src = tempUrl;
   };
 
   const handlePublish = () => {
-    if (!recordedUrl) return;
+    if (!recordedUrl || isCompressing) return;
     triggerHaptic(100);
     
     const finalContent = caption.trim() 
@@ -389,6 +436,26 @@ export function CaptureStudio() {
           />
         )}
 
+        {isCompressing && (
+          <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center space-y-6">
+            <div className="relative">
+              <div className="absolute -inset-4 bg-primary/20 blur-2xl rounded-full animate-pulse" />
+              <Loader2 className="h-16 w-16 text-primary animate-spin relative z-10" />
+            </div>
+            <div className="space-y-2 max-w-xs">
+              <h3 className="text-xl font-black italic uppercase tracking-widest text-white">Compressing Vibe</h3>
+              <p className="text-xs font-bold text-white/40 uppercase tracking-tighter">Bitrate Throttling Active — Materializing 50MB Optimized Node</p>
+            </div>
+            <div className="w-full max-w-[240px] space-y-2">
+              <div className="flex justify-between text-[10px] font-black text-primary uppercase">
+                <span>Optimizing</span>
+                <span>{Math.round(compressionProgress)}%</span>
+              </div>
+              <Progress value={compressionProgress} className="h-1.5" />
+            </div>
+          </div>
+        )}
+
         <div className="absolute top-6 left-0 right-0 z-50 flex flex-col items-center gap-4 px-6">
           <div className="flex items-center justify-between w-full">
             <Button variant="ghost" size="icon" className="text-white bg-black/20 backdrop-blur-md rounded-full" onClick={closeCaptureStudio}>
@@ -415,24 +482,27 @@ export function CaptureStudio() {
               <Button 
                 className="bg-primary hover:bg-primary/90 text-white font-black uppercase italic tracking-widest text-[10px] rounded-full px-6 h-9 shadow-lg shadow-primary/20"
                 onClick={handlePublish}
+                disabled={isCompressing}
               >
                 Launch
               </Button>
             ) : <div className="w-10" />}
           </div>
 
-          <div className={cn(
-            "bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full text-white flex items-center gap-2 shadow-2xl transition-all",
-            isRecording && "bg-destructive/80 animate-pulse"
-          )}>
-            {isRecording && <div className="h-2 w-2 bg-white rounded-full animate-ping" />}
-            <span className="text-xs font-black tracking-widest">
-              {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-            </span>
-          </div>
+          {!isCompressing && (
+            <div className={cn(
+              "bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full text-white flex items-center gap-2 shadow-2xl transition-all",
+              isRecording && "bg-destructive/80 animate-pulse"
+            )}>
+              {isRecording && <div className="h-2 w-2 bg-white rounded-full animate-ping" />}
+              <span className="text-xs font-black tracking-widest">
+                {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+              </span>
+            </div>
+          )}
         </div>
 
-        {recordedUrl && (
+        {recordedUrl && !isCompressing && (
           <div className="absolute bottom-32 left-0 right-0 px-6 z-[60] animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl">
               <div className="flex items-center gap-2 mb-2 px-1">
@@ -458,7 +528,7 @@ export function CaptureStudio() {
           </div>
         )}
 
-        {!recordedUrl && (
+        {!recordedUrl && !isCompressing && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-6">
             <button className="flex flex-col items-center gap-1.5 group" onClick={handleFlipCamera}>
               <div className="h-11 w-11 rounded-full bg-black/30 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white group-active:scale-90 transition-all"><RefreshCw className="h-5 w-5" /></div>
@@ -488,7 +558,7 @@ export function CaptureStudio() {
         <div className="absolute bottom-10 left-0 right-0 z-50 px-8 flex items-center justify-between">
           {!recordedUrl ? (
             <>
-              <div className="flex flex-col items-center gap-2 cursor-pointer group" onClick={() => fileInputRef.current?.click()}>
+              <div className="flex flex-col items-center gap-2 cursor-pointer group" onClick={() => !isCompressing && fileInputRef.current?.click()}>
                 <div className="h-12 w-12 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center transition-transform group-hover:scale-110 active:scale-90"><ImageIcon className="h-6 w-6 text-white/60" /></div>
                 <span className="text-[8px] font-black text-white uppercase tracking-[0.2em]">Upload</span>
                 <input type="file" ref={fileInputRef} className="hidden" accept="video/*" onChange={handleUpload} />
@@ -504,7 +574,7 @@ export function CaptureStudio() {
                 <span className="text-[8px] font-black text-white uppercase tracking-[0.2em]">Cinematic</span>
               </div>
             </>
-          ) : (
+          ) : !isCompressing && (
             <div className="w-full flex items-center justify-between gap-4">
               <Button variant="ghost" className="flex-1 bg-white/10 backdrop-blur-md text-white border border-white/10 rounded-2xl h-14 font-black uppercase text-xs" onClick={resetStudio}><Trash2 className="mr-2 h-4 w-4" /> Discard</Button>
               <Button className="flex-1 bg-primary text-white border border-primary/20 rounded-2xl h-14 font-black uppercase text-xs shadow-xl" onClick={handlePublish}>Launch Vibe <ChevronRight className="ml-2 h-4 w-4" /></Button>
@@ -512,7 +582,7 @@ export function CaptureStudio() {
           )}
         </div>
 
-        {showFilters && !recordedUrl && (
+        {showFilters && !recordedUrl && !isCompressing && (
           <div className="absolute bottom-36 left-0 right-0 z-[60] px-6">
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
               {FILTERS.map((f) => (
@@ -525,7 +595,7 @@ export function CaptureStudio() {
           </div>
         )}
 
-        {isProcessing && (
+        {isProcessing && !isCompressing && (
           <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4">
             <Loader2 className="h-12 w-12 text-primary animate-spin" /><p className="text-sm font-black uppercase italic text-white">Finalizing Vibe...</p>
           </div>

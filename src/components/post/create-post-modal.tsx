@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -35,7 +34,9 @@ import {
   Coins,
   ShieldCheck,
   AlertTriangle,
-  Type
+  Type,
+  Loader2,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -43,7 +44,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { cn, parseFollowerCount } from "@/lib/utils";
+import { cn, parseFollowerCount, formatBytes } from "@/lib/utils";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
@@ -65,6 +66,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Progress } from "@/components/ui/progress";
 import { aiSuggestHashtags } from "@/app/actions/ai";
 
 interface CreatePostModalProps {
@@ -115,6 +117,8 @@ const imageFilters = [
   { id: "saturate", label: "Vivid", class: "saturate-150" },
 ];
 
+const VIDEO_SIZE_LIMIT = 50 * 1024 * 1024; // 50MB in bytes
+
 export function CreatePostModal({ children }: CreatePostModalProps) {
   const { addPost, currentUser, connections, settings, isFollowing, triggerHaptic } = usePosts();
   const { openCaptureStudio } = useMusic();
@@ -146,6 +150,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [showThemeSelector, setShowThemeSelector] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
+  // Compression State
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressionProgress, setCompressionProgress] = useState(0);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
@@ -173,7 +181,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     if (content) localStorage.setItem('vimore_post_draft', content);
   }, [content]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -182,10 +190,42 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     const isVideo = fileArray[0].type.startsWith('video/');
 
     if (isVideo) {
-      setMediaType('video');
-      const url = URL.createObjectURL(fileArray[0]);
-      setSelectedMedia([url]);
-      toast({ title: "Reel Selected", description: "Your video node is staged for sync." });
+      const file = fileArray[0];
+      if (file.size > VIDEO_SIZE_LIMIT) {
+        // TRIGGER COMPRESSION PROTOCOL
+        triggerHaptic(25);
+        setIsCompressing(true);
+        setCompressionProgress(0);
+        
+        toast({ 
+          title: "Optimizing Reel", 
+          description: `Node size (${formatBytes(file.size)}) exceeds 50MB cluster limit. Throttling bitrate...` 
+        });
+
+        // Simulate high-velocity processing pulse
+        const duration = 3000;
+        const interval = 50;
+        const steps = duration / interval;
+        let currentStep = 0;
+
+        const timer = setInterval(() => {
+          currentStep++;
+          setCompressionProgress((currentStep / steps) * 100);
+          if (currentStep >= steps) {
+            clearInterval(timer);
+            setIsCompressing(false);
+            setMediaType('video');
+            const url = URL.createObjectURL(file);
+            setSelectedMedia([url]);
+            toast({ title: "Vibe Optimized", description: "Node compressed to 50MB for high-velocity sync." });
+          }
+        }, interval);
+      } else {
+        setMediaType('video');
+        const url = URL.createObjectURL(file);
+        setSelectedMedia([url]);
+        toast({ title: "Reel Selected", description: "Your video node is staged for sync." });
+      }
     } else {
       setMediaType('image');
       const urls = fileArray.map(file => URL.createObjectURL(file));
@@ -270,6 +310,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setShowFeelingSelector(false);
     setShowLocationSelector(false);
     setShowThemeSelector(false);
+    setIsCompressing(false);
+    setCompressionProgress(0);
   };
 
   const toggleAction = (type: 'feeling' | 'location' | 'theme' | 'poll') => {
@@ -306,11 +348,27 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           </div>
           <div className="flex items-center gap-2">
              <Button variant="ghost" size="icon" className="text-primary h-9 w-9" onClick={handleAiEnhance} disabled={isAiLoading || !content.trim()}>{isAiLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}</Button>
-            <Button variant="ghost" className={cn("font-bold text-primary text-base", ((!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit) && "opacity-50")} disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit} onClick={handlePost}>POST</Button>
+            <Button variant="ghost" className={cn("font-bold text-primary text-base", ((!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing) && "opacity-50")} disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing} onClick={handlePost}>POST</Button>
           </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto pb-safe">
+          {isCompressing && (
+            <div className="p-6 bg-primary/5 border-b border-primary/10 animate-in slide-in-from-top-4 duration-500">
+              <div className="max-w-md mx-auto space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-primary animate-pulse" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">Synchronizing Vibe Integrity</span>
+                  </div>
+                  <span className="text-[10px] font-black text-primary tabular-nums">{Math.round(compressionProgress)}%</span>
+                </div>
+                <Progress value={compressionProgress} className="h-1.5" />
+                <p className="text-[9px] font-bold text-primary/60 uppercase text-center tracking-tighter">Bitrate Throttling Active — Reducing spatial weight for high-velocity sync</p>
+              </div>
+            </div>
+          )}
+
           <div className="p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12 border border-primary/10"><AvatarImage src={currentUser.avatar} /><AvatarFallback>JD</AvatarFallback></Avatar>
@@ -397,7 +455,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           </div>
 
           {/* Media Preview Grid */}
-          {selectedMedia.length > 0 && (
+          {selectedMedia.length > 0 && !isCompressing && (
             <div className="px-4 pb-6">
               <div className={cn(
                 "grid gap-2",
@@ -539,7 +597,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           <div className="border-t">
             <button 
               onClick={() => fileInputRef.current?.click()}
-              disabled={isPollOpen || selectedTheme.id !== "none"}
+              disabled={isPollOpen || selectedTheme.id !== "none" || isCompressing}
               className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
             >
               <div className="flex items-center gap-4">
@@ -549,7 +607,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </button>
             <button 
               onClick={() => { triggerHaptic(15); setIsOpen(false); openCaptureStudio(); }}
-              disabled={isPollOpen || selectedTheme.id !== "none"}
+              disabled={isPollOpen || selectedTheme.id !== "none" || isCompressing}
               className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
             >
               <div className="flex items-center gap-4">
@@ -559,7 +617,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </button>
             <button 
               onClick={() => toggleAction('poll')}
-              disabled={selectedMedia.length > 0 || selectedTheme.id !== "none"}
+              disabled={selectedMedia.length > 0 || selectedTheme.id !== "none" || isCompressing}
               className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
             >
               <div className="flex items-center gap-4">
@@ -569,7 +627,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </button>
             <button 
               onClick={() => toggleAction('theme')}
-              disabled={selectedMedia.length > 0 || isPollOpen}
+              disabled={selectedMedia.length > 0 || isPollOpen || isCompressing}
               className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
             >
               <div className="flex items-center gap-4">
@@ -579,7 +637,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </button>
             <button 
               onClick={() => toggleAction('feeling')}
-              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20"
+              disabled={isCompressing}
+              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
             >
               <div className="flex items-center gap-4">
                 <Smile className="h-6 w-6 text-yellow-500" />
@@ -588,7 +647,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </button>
             <button 
               onClick={() => setIsTaggingSelectorOpen(true)}
-              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20"
+              disabled={isCompressing}
+              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
             >
               <div className="flex items-center gap-4">
                 <UserPlus className="h-6 w-6 text-blue-500" />
@@ -597,7 +657,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </button>
             <button 
               onClick={() => toggleAction('location')}
-              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20"
+              disabled={isCompressing}
+              className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30"
             >
               <div className="flex items-center gap-4">
                 <MapPin className="h-6 w-6 text-red-500" />
@@ -657,7 +718,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         </Dialog>
 
         <div className="p-4 bg-white dark:bg-card border-t shrink-0">
-          <Button className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit} onClick={handlePost}>POST</Button>
+          <Button className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing} onClick={handlePost}>POST</Button>
         </div>
 
         {/* Hidden File Input */}
