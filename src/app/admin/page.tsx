@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { 
   ShieldCheck, 
   Zap, 
@@ -73,7 +73,6 @@ import {
   UserMinus,
   KeyRound,
   RefreshCcw,
-  Wand2,
   LayoutGrid
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -134,9 +133,8 @@ const MOCK_DAILY_PULSE = [
 ];
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections, disputes, resolveDispute, campaigns, addCampaign, deleteCampaign, toggleCampaignStatus, currentUser, staff, promoteUser, demoteUser } = usePosts();
+  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections, disputes, resolveDispute, campaigns, addCampaign, deleteCampaign, toggleCampaignStatus, currentUser, staff, promoteUser, demoteUser, refreshAdminData } = usePosts();
   const { addSignal } = useNotifications();
-  const { downloadedSongIds } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
   
@@ -153,12 +151,13 @@ export default function AdminDashboard() {
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   const [govSearch, setGovSearch] = useState("");
-  const [campType, setCampType] = useState<'photo' | 'video' | 'link'>('photo');
-  const [campContent, setCampContent] = useState("");
-  const [campMediaUrl, setCampMediaUrl] = useState("");
-  const [campActionUrl, setCampActionUrl] = useState("");
-  const [campActionLabel, setCampActionLabel] = useState("LAUNCH PULSE");
   const [gatewayForm, setGatewayForm] = useState(gatewaySettings);
+
+  useEffect(() => {
+    if (userRole !== 'USER') {
+      refreshAdminData();
+    }
+  }, [userRole, refreshAdminData]);
 
   const pendingWithdrawals = useMemo(() => 
     withdrawalHistory.filter(w => w.status === 'PENDING'), 
@@ -179,11 +178,11 @@ export default function AdminDashboard() {
   }, [isSuper, isFinancial, isModerator]);
 
   const stats = useMemo(() => ({
-    totalNodes: 12450,
-    totalSignatures: posts.length + 8540,
-    totalEnergy: "L$ 4.2M",
-    activeClusters: 142
-  }), [posts]);
+    totalNodes: connections.length,
+    totalSignatures: posts.length,
+    totalEnergy: `GD ${connections.reduce((acc, c) => acc + (c.goldBalance || 0), 0)}`,
+    activeClusters: 14
+  }), [posts, connections]);
 
   const filteredUsersForGov = useMemo(() => {
     if (!govSearch.trim()) return [];
@@ -206,25 +205,21 @@ export default function AdminDashboard() {
     toast({ title: "Node Severed", description: `Administrative authority removed for @${username}.` });
   };
 
-  const handleAction = (id: string, status: 'APPROVED' | 'REJECTED', type: 'withdrawal' | 'payment' | 'dispute') => {
+  const handleAction = async (id: string, status: 'APPROVED' | 'REJECTED', type: 'withdrawal' | 'payment' | 'dispute') => {
     triggerHaptic(status === 'APPROVED' ? 50 : 100);
     if (type === 'withdrawal') {
-      processWithdrawal(id, status);
+      await processWithdrawal(id, status);
       toast({ title: status === 'APPROVED' ? "Node Materialized" : "Handshake Denied" });
     } else if (type === 'payment') {
-      if (status === 'APPROVED') approvePaymentRequest(id);
-      else rejectPaymentRequest(id);
+      if (status === 'APPROVED') await approvePaymentRequest(id);
+      else await rejectPaymentRequest(id);
       toast({ title: status === 'APPROVED' ? "Pulse Authorized" : "Handshake Purged" });
-    } else if (type === 'dispute') {
-      resolveDispute(id, status === 'APPROVED' ? 'RESTORE' : 'SEVER');
-      toast({ title: "Resolution Synced" });
     }
   };
 
   const handleSaveGateway = () => {
     triggerHaptic(50);
     updateGatewaySettings(gatewayForm);
-    addAuditLog("GATEWAY_SYNC", "Updated platform financial nodes (Orange/MTN)");
     toast({ title: "Gateway Synchronized" });
   };
 
@@ -245,23 +240,6 @@ export default function AdminDashboard() {
     } finally {
       setIsAnalyzingVibe(false);
     }
-  };
-
-  const handleLaunchCampaign = () => {
-    if (!campContent.trim()) return;
-    triggerHaptic(50);
-    addCampaign({
-      type: campType,
-      content: campContent,
-      mediaUrl: campMediaUrl,
-      actionUrl: campActionUrl,
-      actionLabel: campActionLabel,
-      isActive: true
-    });
-    setCampContent("");
-    setCampMediaUrl("");
-    setCampActionUrl("");
-    toast({ title: "Campaign Materialized" });
   };
 
   const TABS_DATA = {
@@ -287,6 +265,21 @@ export default function AdminDashboard() {
   const mobileRemainingTabs: AdminTab[] = useMemo(() => {
     return availableTabs.filter(t => !mobilePrimaryTabs.includes(t));
   }, [availableTabs, mobilePrimaryTabs]);
+
+  if (userRole === 'USER') {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center space-y-6">
+        <div className="h-20 w-20 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive animate-pulse">
+          <ShieldAlert className="h-10 w-10" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white">Access Denied</h1>
+          <p className="text-muted-foreground text-sm max-w-xs uppercase font-bold">Insufficient spatial authority to synchronize with the Command Core.</p>
+        </div>
+        <Link href="/"><Button variant="outline" className="rounded-xl border-white/10 text-white font-black uppercase text-[10px] tracking-widest h-12 px-8">Return to Network</Button></Link>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex overflow-hidden selection:bg-primary/30 transition-colors duration-500">
@@ -397,11 +390,11 @@ export default function AdminDashboard() {
                       <thead><tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20"><th className="px-8 py-4">IDENTITY</th><th className="px-8 py-4">AMOUNT</th><th className="px-8 py-4">GATEWAY</th><th className="px-8 py-4 text-right">HANDSHAKE</th></tr></thead>
                       <tbody className="divide-y divide-border">
                         {pendingWithdrawals.length > 0 ? pendingWithdrawals.map((w) => (
-                          <tr key={w.id} className="hover:bg-secondary/10 transition-colors">
+                          <tr key={w.$id} className="hover:bg-secondary/10 transition-colors">
                             <td className="px-8 py-5"><div className="flex flex-col"><span className="font-bold text-sm">@{w.username}</span><span className="text-[10px] font-black text-muted-foreground uppercase">{w.accountName}</span></div></td>
                             <td className="px-8 py-5"><div className="flex flex-col"><span className="font-black text-primary text-sm">{w.payoutCurrency} {w.payoutAmount.toFixed(2)}</span><span className="text-[9px] font-bold text-muted-foreground uppercase">Source: {w.amount} {w.currency}</span></div></td>
                             <td className="px-8 py-5"><Badge variant="outline" className="text-[9px] font-black uppercase border-primary/20">{w.method}</Badge></td>
-                            <td className="px-8 py-5 text-right"><div className="flex items-center justify-end gap-2"><Button size="sm" className="h-8 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white" onClick={() => handleAction(w.id, 'APPROVED', 'withdrawal')}><Check className="h-4 w-4" /></Button><Button size="sm" className="h-8 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white" onClick={() => handleAction(w.id, 'REJECTED', 'withdrawal')}><X className="h-4 w-4" /></Button></div></td>
+                            <td className="px-8 py-5 text-right"><div className="flex items-center justify-end gap-2"><Button size="sm" className="h-8 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white" onClick={() => handleAction(w.$id, 'APPROVED', 'withdrawal')}><Check className="h-4 w-4" /></Button><Button size="sm" className="h-8 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white" onClick={() => handleAction(w.$id, 'REJECTED', 'withdrawal')}><X className="h-4 w-4" /></Button></div></td>
                           </tr>
                         )) : (<tr><td colSpan={4} className="py-24 text-center opacity-40 italic text-xs uppercase">No pending outbound handshakes</td></tr>)}
                       </tbody>
@@ -411,13 +404,13 @@ export default function AdminDashboard() {
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {pendingPayments.map((p) => (
-                    <Card key={p.id} className="bg-card/40 border-border rounded-[2.5rem] p-6 space-y-6 shadow-xl group">
+                    <Card key={p.$id} className="bg-card/40 border-border rounded-[2.5rem] p-6 space-y-6 shadow-xl group">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4"><Avatar className="h-12 w-12 border-2 border-primary/10"><AvatarImage src={`https://picsum.photos/seed/${p.username}/100/100`} /></Avatar><div><p className="font-bold text-base">@{p.username}</p><p className="text-[10px] font-black text-muted-foreground uppercase">{p.packageName}</p></div></div>
                         <Badge className="bg-amber-500/10 text-amber-500 border-none font-black h-5 px-3 uppercase">{p.currency} {p.amount}</Badge>
                       </div>
                       <div className="aspect-video relative rounded-2xl overflow-hidden border border-white/5 cursor-zoom-in" onClick={() => setSelectedReceipt(p.screenshot)}><Image src={p.screenshot} alt="Receipt" fill className="object-cover group-hover:scale-105 transition-transform" /><div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-black text-[10px] uppercase tracking-widest">Verify Visual</div></div>
-                      <div className="flex gap-3"><Button className="flex-1 h-12 rounded-2xl bg-green-600 text-white font-black uppercase text-[10px] tracking-widest" onClick={() => handleAction(p.id, 'APPROVED', 'payment')}>Approve Node</Button><Button variant="ghost" className="flex-1 h-12 rounded-2xl bg-destructive/10 text-destructive font-black uppercase text-[10px] tracking-widest" onClick={() => handleAction(p.id, 'REJECTED', 'payment')}>Reject</Button></div>
+                      <div className="flex gap-3"><Button className="flex-1 h-12 rounded-2xl bg-green-600 text-white font-black uppercase text-[10px] tracking-widest" onClick={() => handleAction(p.$id, 'APPROVED', 'payment')}>Approve Node</Button><Button variant="ghost" className="flex-1 h-12 rounded-2xl bg-destructive/10 text-destructive font-black uppercase text-[10px] tracking-widest" onClick={() => handleAction(p.$id, 'REJECTED', 'payment')}>Reject</Button></div>
                     </Card>
                   ))}
                   {pendingPayments.length === 0 && <div className="col-span-full py-24 text-center bg-card/20 rounded-[2.5rem] border border-dashed border-border opacity-40 uppercase text-xs font-black">Vault Inbound Nodes Silent</div>}
@@ -467,32 +460,6 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeTab === 'safety' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
-              <div className="space-y-1 px-2"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Safety Node</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Community Protection Queue</p></div>
-              <Card className="bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead><tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20"><th className="px-8 py-4">REPORTED NODE</th><th className="px-8 py-4">SOURCE</th><th className="px-8 py-4">VIOLATION</th><th className="px-8 py-4 text-right">ACTION</th></tr></thead>
-                    <tbody className="divide-y divide-border">
-                      {[
-                        { id: 'rep-1', user: 'bot_pulsar', content: 'Win 1000 Diamonds free! Visit http://scam.link', type: 'SPAM', risk: 'HIGH' },
-                        { id: 'rep-2', user: 'angry_user', content: 'Targeted harassment node detected.', type: 'HARASSMENT', risk: 'MEDIUM' }
-                      ].map((r) => (
-                        <tr key={r.id} className="hover:bg-secondary/10 transition-colors">
-                          <td className="px-8 py-5"><div className="flex flex-col gap-1"><span className="font-bold text-sm">@{r.user}</span><p className="text-xs text-muted-foreground line-clamp-1 italic">"{r.content}"</p></div></td>
-                          <td className="px-8 py-5"><Badge className="bg-red-500/10 text-red-500 border-none font-black text-[8px] uppercase">{r.risk} RISK</Badge></td>
-                          <td className="px-8 py-5"><span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{r.type}</span></td>
-                          <td className="px-8 py-5 text-right"><div className="flex items-center justify-end gap-2"><Button size="sm" className="h-8 rounded-xl bg-destructive text-white text-[8px] font-black uppercase tracking-widest px-4">PURGE</Button><Button size="sm" variant="ghost" className="h-8 rounded-xl text-[8px] font-black uppercase tracking-widest">IGNORE</Button></div></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            </div>
-          )}
-
           {activeTab === 'governance' && isSuper && (
             <div className="space-y-10 animate-in slide-in-from-right-4 duration-700">
               <div className="space-y-1 px-2"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Governance Hub</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Administrative Authority Materialization</p></div>
@@ -521,16 +488,13 @@ export default function AdminDashboard() {
                     <table className="w-full text-left">
                       <thead><tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20"><th className="px-8 py-4">IDENTITY</th><th className="px-8 py-4">ROLE SIGNATURE</th><th className="px-8 py-4 text-right">HANDSHAKE</th></tr></thead>
                       <tbody className="divide-y divide-border">
-                        {staff.map((s) => {
-                          const user = connections.find(c => c.username === s.username) || { name: s.username, avatar: "" };
-                          return (
-                            <tr key={s.username} className="hover:bg-secondary/10 transition-colors">
-                              <td className="px-8 py-5"><div className="flex items-center gap-3"><Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={(user as any).avatar} /></Avatar><div className="flex flex-col"><span className="font-bold text-sm">{(user as any).name}</span><span className="text-[10px] font-black text-muted-foreground uppercase">@{s.username}</span></div></div></td>
-                              <td className="px-8 py-5"><Badge className={cn("font-black text-[8px] uppercase tracking-widest px-3 h-5", s.role === 'SUPER' ? "bg-primary text-white" : s.role === 'FINANCIAL' ? "bg-amber-500/10 text-amber-500" : "bg-blue-500/10 text-blue-500")}>{s.role}</Badge></td>
-                              <td className="px-8 py-5 text-right">{s.username !== currentUser.username ? <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive rounded-xl" onClick={() => handleDemote(s.username)}><UserMinus className="h-4 w-4" /></Button> : <Badge variant="outline" className="text-[8px] font-black uppercase opacity-40">PRIMARY</Badge>}</td>
-                            </tr>
-                          );
-                        })}
+                        {staff.map((s) => (
+                          <tr key={s.username} className="hover:bg-secondary/10 transition-colors">
+                            <td className="px-8 py-5"><div className="flex items-center gap-3"><Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={s.avatar} /></Avatar><div className="flex flex-col"><span className="font-bold text-sm">{s.name}</span><span className="text-[10px] font-black text-muted-foreground uppercase">@{s.username}</span></div></div></td>
+                            <td className="px-8 py-5"><Badge className={cn("font-black text-[8px] uppercase tracking-widest px-3 h-5", s.role === 'SUPER' ? "bg-primary text-white" : s.role === 'FINANCIAL' ? "bg-amber-500/10 text-amber-500" : "bg-blue-500/10 text-blue-500")}>{s.role}</Badge></td>
+                            <td className="px-8 py-5 text-right">{s.username !== currentUser.username ? <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive rounded-xl" onClick={() => handleDemote(s.username)}><UserMinus className="h-4 w-4" /></Button> : <Badge variant="outline" className="text-[8px] font-black uppercase opacity-40">PRIMARY</Badge>}</td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -553,38 +517,6 @@ export default function AdminDashboard() {
                 </Card>
               </div>
               <div className="flex justify-center pt-10"><Button onClick={handleSaveGateway} className="h-16 px-12 rounded-3xl bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl shadow-primary/20 transition-all hover:scale-105 active:scale-95">Synchronize Gateways</Button></div>
-            </div>
-          )}
-
-          {activeTab === 'campaigns' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
-              <div className="space-y-1 px-2"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Campaign Hub</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Global Pulse Materialization</p></div>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <Card className="lg:col-span-1 bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
-                  <h4 className="text-xl font-black italic uppercase tracking-tighter">New Campaign Node</h4>
-                  <div className="space-y-4">
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Vibe Content</Label><Textarea value={campContent} onChange={(e) => setCampContent(e.target.value)} className="bg-secondary/30 border-none rounded-2xl min-h-[100px]" placeholder="The message to broadcast..." /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Media Node (URL)</Label><Input value={campMediaUrl} onChange={(e) => setCampMediaUrl(e.target.value)} className="bg-secondary/30 border-none rounded-xl" placeholder="Image/Video URL" /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Action Link</Label><Input value={campActionUrl} onChange={(e) => setCampActionUrl(e.target.value)} className="bg-secondary/30 border-none rounded-xl" placeholder="/verification, http://..." /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Action Label</Label><Input value={campActionLabel} onChange={(e) => setCampActionLabel(e.target.value)} className="bg-secondary/30 border-none rounded-xl" /></div>
-                    <Button onClick={handleLaunchCampaign} className="w-full h-12 rounded-xl bg-primary text-white font-black uppercase italic text-xs shadow-lg">Launch Campaign</Button>
-                  </div>
-                </Card>
-                <Card className="lg:col-span-2 bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl overflow-hidden">
-                  <h4 className="text-xl font-black italic uppercase tracking-tighter">Active Network Campaigns</h4>
-                  <div className="space-y-4">
-                    {campaigns.map((c) => (
-                      <div key={c.id} className="p-5 bg-secondary/20 rounded-[2rem] flex items-center justify-between group">
-                        <div className="flex items-center gap-4">
-                          <div className="h-14 w-14 rounded-2xl overflow-hidden bg-black/40"><img src={c.mediaUrl || "/icon.svg"} className="w-full h-full object-cover" /></div>
-                          <div className="flex flex-col"><span className="font-bold text-sm line-clamp-1">{c.content}</span><div className="flex items-center gap-3 text-[10px] font-black text-muted-foreground uppercase"><span className="text-primary">{c.clicks} Clicks</span><span>•</span><span>{c.type}</span></div></div>
-                        </div>
-                        <div className="flex items-center gap-2"><Switch checked={c.isActive} onCheckedChange={() => toggleCampaignStatus(c.id)} /><Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => deleteCampaign(c.id)}><Trash2 className="h-4 w-4" /></Button></div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              </div>
             </div>
           )}
 
@@ -611,29 +543,6 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeTab === 'resolution' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
-              <div className="space-y-1 px-2"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Resolution Hub</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Dispute & Appeal Management</p></div>
-              <Card className="bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead><tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20"><th className="px-8 py-4">DISPUTE ID</th><th className="px-8 py-4">IDENTITY</th><th className="px-8 py-4">REASON</th><th className="px-8 py-4 text-right">ACTION</th></tr></thead>
-                    <tbody className="divide-y divide-border">
-                      {disputes.length > 0 ? disputes.map((d) => (
-                        <tr key={d.id} className="hover:bg-secondary/10 transition-colors">
-                          <td className="px-8 py-5"><Badge variant="outline" className="text-[9px] font-black">{d.id}</Badge></td>
-                          <td className="px-8 py-5"><div className="flex flex-col"><span className="font-bold text-sm">@{d.username}</span><span className="text-[9px] font-black text-primary uppercase">{d.type} APPEAL</span></div></td>
-                          <td className="px-8 py-5"><p className="text-xs text-muted-foreground line-clamp-1 italic">"{d.reason}"</p></td>
-                          <td className="px-8 py-5 text-right"><div className="flex items-center justify-end gap-2"><Button size="sm" className="h-8 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white" onClick={() => handleAction(d.id, 'APPROVED', 'dispute')}><RotateCcw className="h-4 w-4" /></Button><Button size="sm" className="h-8 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white" onClick={() => handleAction(d.id, 'REJECTED', 'dispute')}><Trash2 className="h-4 w-4" /></Button></div></td>
-                        </tr>
-                      )) : (<tr><td colSpan={4} className="py-24 text-center opacity-40 italic text-xs uppercase">Resolutions Clear — All Nodes Aligned</td></tr>)}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            </div>
-          )}
-
           {activeTab === 'logs' && (
             <div className="space-y-10 animate-in fade-in duration-500">
               <div className="space-y-1 px-2"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Audit Logs</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Administrative Identity Logging</p></div>
@@ -643,8 +552,8 @@ export default function AdminDashboard() {
                     <thead><tr className="border-b border-border text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] bg-secondary/30"><th className="px-8 py-6">TIMESTAMP</th><th className="px-8 py-6">ADMIN</th><th className="px-8 py-6">ACTION</th><th className="px-8 py-6">DETAILS</th></tr></thead>
                     <tbody className="divide-y divide-border">
                       {auditLogs.map((log) => (
-                        <tr key={log.id} className="hover:bg-secondary/20 transition-colors">
-                          <td className="px-8 py-6 font-mono text-[10px] text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</td>
+                        <tr key={log.$id} className="hover:bg-secondary/20 transition-colors">
+                          <td className="px-8 py-6 font-mono text-[10px] text-muted-foreground">{new Date(log.$createdAt).toLocaleString()}</td>
                           <td className="px-8 py-6"><Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[9px] font-black shadow-sm">{log.admin}</Badge></td>
                           <td className="px-8 py-6 font-black italic uppercase tracking-widest text-xs">{log.action}</td>
                           <td className="px-8 py-6 text-xs text-muted-foreground font-medium">{log.details}</td>
@@ -659,37 +568,22 @@ export default function AdminDashboard() {
         </div>
       </main>
 
-      {/* MOBILE ADMIN DOCK */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[200] bg-card/80 backdrop-blur-2xl border-t border-border px-4 py-3 flex items-center justify-between safe-area-bottom shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
         {mobilePrimaryTabs.map((tab) => {
           const Icon = TABS_DATA[tab].icon;
           const isActive = activeTab === tab;
           return (
-            <button 
-              key={tab} 
-              onClick={() => { triggerHaptic(10); setActiveTab(tab); }} 
-              className={cn(
-                "flex flex-col items-center gap-1 transition-all",
-                isActive ? "text-primary" : "text-muted-foreground"
-              )}
-            >
-              <div className={cn(
-                "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
-                isActive ? "bg-primary/10 scale-110 shadow-lg shadow-primary/5" : "hover:bg-secondary/50"
-              )}>
+            <button key={tab} onClick={() => { triggerHaptic(10); setActiveTab(tab); }} className={cn("flex flex-col items-center gap-1 transition-all", isActive ? "text-primary" : "text-muted-foreground")}>
+              <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center transition-all", isActive ? "bg-primary/10 scale-110 shadow-lg shadow-primary/5" : "hover:bg-secondary/50")}>
                 <Icon className={cn("h-5 w-5", isActive && "animate-pulse")} />
               </div>
               <span className="text-[8px] font-black uppercase tracking-widest">{TABS_DATA[tab].label}</span>
             </button>
           );
         })}
-
         <Sheet open={isMobileDrawerOpen} onOpenChange={setIsMobileDrawerOpen}>
           <SheetTrigger asChild>
-            <button 
-              onClick={() => triggerHaptic(5)}
-              className="flex flex-col items-center gap-1 text-muted-foreground"
-            >
+            <button onClick={() => triggerHaptic(5)} className="flex flex-col items-center gap-1 text-muted-foreground">
               <div className="h-10 w-10 rounded-xl flex items-center justify-center hover:bg-secondary/50">
                 <LayoutGrid className="h-5 w-5" />
               </div>
@@ -709,20 +603,7 @@ export default function AdminDashboard() {
                   const Icon = TABS_DATA[tab].icon;
                   const isActive = activeTab === tab;
                   return (
-                    <button
-                      key={tab}
-                      onClick={() => { 
-                        triggerHaptic(15); 
-                        setActiveTab(tab); 
-                        setIsMobileDrawerOpen(false); 
-                      }}
-                      className={cn(
-                        "flex items-center gap-4 p-4 rounded-2xl transition-all border",
-                        isActive 
-                          ? "bg-primary text-white border-primary shadow-xl shadow-primary/20" 
-                          : "bg-secondary/30 border-transparent hover:border-primary/20"
-                      )}
-                    >
+                    <button key={tab} onClick={() => { triggerHaptic(15); setActiveTab(tab); setIsMobileDrawerOpen(false); }} className={cn("flex items-center gap-4 p-4 rounded-2xl transition-all border", isActive ? "bg-primary text-white border-primary shadow-xl shadow-primary/20" : "bg-secondary/30 border-transparent hover:border-primary/20")}>
                       <Icon className={cn("h-5 w-5", isActive && "animate-pulse")} />
                       <span className="text-xs font-black uppercase tracking-widest">{TABS_DATA[tab].label}</span>
                     </button>
