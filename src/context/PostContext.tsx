@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -259,7 +258,7 @@ interface PostContextType {
   initiateCall: (contact: any, type: CallType) => Promise<void>;
   receiveCall: (contact: any, type: CallType, channelName: string, token: string, callId: string) => void;
   acceptCall: () => Promise<void>;
-  endCall: () => Promise<void>;
+  endCall: (duration?: string) => Promise<void>;
   refreshAdminData: () => Promise<void>;
 }
 
@@ -345,7 +344,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const addAuditLog = async (action: string, details: string) => {
+  const addAuditLog = useCallback(async (action: string, details: string) => {
     try {
       await databases.createDocument(APPWRITE_DATABASE_ID, AUDIT_LOGS_COLLECTION_ID, ID.unique(), {
         admin: currentUser.username,
@@ -356,7 +355,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.error("Audit log failed to materialize:", e);
     }
-  };
+  }, [currentUser.username]);
 
   const refreshStories = useCallback(async () => {
     try {
@@ -497,18 +496,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setCallState({ type, status: 'incoming', contact, channelName, token, callId });
   }, []);
 
-  const endCall = useCallback(async () => {
+  const endCall = useCallback(async (duration?: string) => {
     const callId = activeCallIdRef.current;
+    const contactName = callState.contact?.name || 'Unknown';
     if (callId) {
       try {
         await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, callId, {
           status: 'ended'
         });
+        // Phase 8: Final Archival Handshake
+        await addAuditLog("SPATIAL_HANDSHAKE_ENDED", `Call with ${contactName} ended. Duration: ${duration || 'N/A'}. Node purged.`);
       } catch (e) {}
     }
     activeCallIdRef.current = null;
     setCallState({ type: 'audio', status: 'idle', contact: null });
-  }, []);
+  }, [callState.contact, addAuditLog]);
 
   const checkSession = useCallback(async () => {
     try {

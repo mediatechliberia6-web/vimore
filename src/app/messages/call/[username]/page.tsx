@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, use } from "react";
@@ -70,6 +69,14 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
     return () => clearInterval(interval);
   }, [callState.status]);
 
+  // Phase 8: Spatial Disconnect Pulse
+  // If the status becomes idle (due to remote hangup), navigate back to hub
+  useEffect(() => {
+    if (callState.status === 'idle') {
+      router.push('/messages');
+    }
+  }, [callState.status, router]);
+
   // Phase 7: Materialize Remote Track once element is ready
   useEffect(() => {
     if (remoteUserJoined && remoteVideoTrack && remoteVideoRef.current) {
@@ -134,7 +141,7 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
       }
     };
 
-    if (callState.token && callState.status !== 'idle') {
+    if (callState.token && (callState.status === 'active' || callState.status === 'outgoing')) {
       initAgora();
     }
 
@@ -149,7 +156,8 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
 
   const handleEndCall = () => {
     triggerHaptic(100);
-    endCall();
+    const finalDuration = formatDuration(callDuration);
+    endCall(finalDuration); // Phase 8: Transmit duration for archival
     router.push(`/messages`);
   };
 
@@ -196,7 +204,7 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
               <div className="w-full h-full flex flex-col items-center justify-center space-y-12">
                 <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
                   <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
-                  <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[120px] rounded-full animate-pulse delay-700" />
+                  <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[150px] rounded-full animate-pulse delay-700" />
                 </div>
                 
                 <div className="relative">
