@@ -20,14 +20,28 @@ import {
   Shield,
   Search,
   MessageCircle,
-  FileText
+  FileText,
+  UserCheck,
+  Heart,
+  Coins,
+  Music2,
+  EyeOff,
+  ShieldAlert,
+  Smartphone,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { usePosts } from "@/context/PostContext";
-import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
