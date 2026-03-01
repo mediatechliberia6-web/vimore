@@ -27,14 +27,21 @@ import {
   HardDrive,
   Eye,
   Trash2,
-  Search
+  Search,
+  CircleDashed,
+  UserPlus,
+  ShieldAlert,
+  Flag,
+  Ban,
+  MessageCircle,
+  Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { usePosts, WithdrawalNode } from "@/context/PostContext";
+import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -52,6 +59,7 @@ import {
   Cell
 } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { useToast } from "@/hooks/use-toast";
 
 type AdminTab = "pulse" | "economy" | "identity" | "safety";
 
@@ -65,8 +73,20 @@ const MOCK_DAILY_PULSE = [
   { time: "23:59", active: 1500, load: 20 },
 ];
 
+const MOCK_VERIFICATION_REQUESTS = [
+  { id: "V-8421", name: "Alex Rivera", username: "arivera", currency: "DIAMOND", cost: 15, time: "12m ago", avatar: "https://picsum.photos/seed/1/100/100" },
+  { id: "V-8422", name: "Sarah Chen", username: "schen_dev", currency: "STAR", cost: 20000, time: "45m ago", avatar: "https://picsum.photos/seed/2/100/100" },
+  { id: "V-8423", name: "Paul Node", username: "paul", currency: "DIAMOND", cost: 6, time: "1h ago", avatar: "https://picsum.photos/seed/paul/100/100" },
+];
+
+const MOCK_REPORTS = [
+  { id: "R-901", reporter: "jmoore", target: "spam_node", reason: "Commercial Spam", content: "Check out this link for cheap diamonds...", risk: "HIGH", time: "5m ago" },
+  { id: "R-902", reporter: "arivera", target: "troll_42", reason: "Harassment", content: "You pixels are trash, give up designing.", risk: "MEDIUM", time: "18m ago" },
+];
+
 export default function AdminDashboard() {
-  const { withdrawalHistory, processWithdrawal, triggerHaptic, connections, posts } = usePosts();
+  const { withdrawalHistory, processWithdrawal, triggerHaptic, posts } = usePosts();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<AdminTab>("pulse");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -83,8 +103,17 @@ export default function AdminDashboard() {
     activeClusters: 142
   }), [posts]);
 
-  const handleAction = (id: string, status: 'APPROVED' | 'REJECTED') => {
-    processWithdrawal(id, status);
+  const handleAction = (id: string, status: 'APPROVED' | 'REJECTED', type: 'withdrawal' | 'verification' | 'report') => {
+    triggerHaptic(status === 'APPROVED' ? 50 : 100);
+    
+    if (type === 'withdrawal') {
+      processWithdrawal(id, status);
+      toast({ title: status === 'APPROVED' ? "Node Materialized" : "Handshake Denied", description: `Transaction ${id} processed.` });
+    } else if (type === 'verification') {
+      toast({ title: "Identity Updated", description: `Verification pulse ${status.toLowerCase()} for request ${id}.` });
+    } else {
+      toast({ title: "Safety Action", description: `Report ${id} closed via ${status.toLowerCase()} handshake.` });
+    }
   };
 
   return (
@@ -114,7 +143,7 @@ export default function AdminDashboard() {
 
         <nav className="flex-1 p-4 space-y-2">
           {(["pulse", "economy", "identity", "safety"] as AdminTab[]).map((tab) => {
-            const icons = { pulse: Activity, economy: Coins, identity: Users, safety: ShieldCheck };
+            const icons = { pulse: Activity, economy: Coins, identity: UserPlus, safety: ShieldAlert };
             const labels = { pulse: "Global Pulse", economy: "Economy Auditor", identity: "Identity Forge", safety: "Safety Node" };
             const Icon = icons[tab];
             const isActive = activeTab === tab;
@@ -171,10 +200,10 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        <div className="p-6 sm:p-10 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="p-6 sm:p-10 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32">
+          
           {activeTab === 'pulse' && (
             <div className="space-y-10">
-              {/* High-Velocity Metrics */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
                   { label: "Active Nodes", value: stats.totalNodes.toLocaleString(), icon: Users, color: "text-blue-400", bg: "bg-blue-400/10" },
@@ -196,7 +225,6 @@ export default function AdminDashboard() {
                 ))}
               </div>
 
-              {/* Load & Activity Charts */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <Card className="bg-white/5 border-white/10 rounded-[2.5rem] p-8 space-y-6">
                   <div className="flex items-center justify-between">
@@ -286,7 +314,7 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {pendingWithdrawals.length > 0 ? pendingWithdrawals.map((node) => {
-                        const risk = Math.floor(Math.random() * 30); // Simulated risk check
+                        const risk = Math.floor(Math.random() * 30);
                         return (
                           <tr key={node.id} className="group hover:bg-white/[0.02] transition-colors">
                             <td className="px-8 py-6">
@@ -332,13 +360,13 @@ export default function AdminDashboard() {
                               <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Button 
                                   variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white"
-                                  onClick={() => handleAction(node.id, 'APPROVED')}
+                                  onClick={() => handleAction(node.id, 'APPROVED', 'withdrawal')}
                                 >
                                   <CheckCircle2 className="h-5 w-5" />
                                 </Button>
                                 <Button 
                                   variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white"
-                                  onClick={() => handleAction(node.id, 'REJECTED')}
+                                  onClick={() => handleAction(node.id, 'REJECTED', 'withdrawal')}
                                 >
                                   <XCircle className="h-5 w-5" />
                                 </Button>
@@ -364,25 +392,140 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === 'identity' && (
-            <div className="py-20 text-center space-y-6 opacity-40">
-              <div className="h-20 w-20 bg-primary/10 rounded-[2.5rem] flex items-center justify-center mx-auto border-2 border-dashed border-primary/20">
-                <Users className="h-10 w-10 text-primary" />
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="flex items-center justify-between px-2">
+                <div className="space-y-1">
+                  <h3 className="text-3xl font-black italic uppercase tracking-tighter">Identity Forge</h3>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Managing Spatial Verification Signatures</p>
+                </div>
+                <Badge className="bg-primary text-white font-black h-11 px-6 rounded-xl uppercase tracking-widest">
+                  {MOCK_VERIFICATION_REQUESTS.length} REQUESTS
+                </Badge>
               </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-black italic uppercase tracking-tighter">Identity Forge Under Sync</h3>
-                <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest max-w-xs mx-auto">The verification request queue is currently being calibrated for high-velocity materialization.</p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {MOCK_VERIFICATION_REQUESTS.map((req) => (
+                  <Card key={req.id} className="bg-white/5 border-white/10 rounded-[2.5rem] p-6 space-y-6 group hover:border-primary/40 transition-all">
+                    <div className="flex items-center justify-between">
+                      <Avatar className="h-16 w-16 border-2 border-primary/20">
+                        <AvatarImage src={req.avatar} />
+                      </Avatar>
+                      <div className="text-right">
+                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1">Method</span>
+                        <div className="flex items-center gap-2 justify-end">
+                          {req.currency === 'DIAMOND' ? <Gem className="h-4 w-4 text-cyan-500" /> : <Star className="h-4 w-4 text-yellow-500 fill-current" />}
+                          <span className="font-black text-white">{req.cost.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter text-white">{req.name}</h4>
+                      <p className="text-xs font-bold text-primary uppercase tracking-widest">@{req.username}</p>
+                    </div>
+
+                    <div className="bg-black/20 rounded-2xl p-4 flex items-center justify-between border border-white/5">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{req.time}</span>
+                      </div>
+                      <span className="text-[10px] font-black text-primary uppercase tracking-widest">ID: {req.id}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button 
+                        className="rounded-xl h-12 bg-primary text-white font-black uppercase tracking-widest text-[10px]"
+                        onClick={() => handleAction(req.id, 'APPROVED', 'verification')}
+                      >
+                        Authorize
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        className="rounded-xl h-12 bg-white/5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive font-black uppercase tracking-widest text-[10px]"
+                        onClick={() => handleAction(req.id, 'REJECTED', 'verification')}
+                      >
+                        Purge
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
               </div>
             </div>
           )}
 
           {activeTab === 'safety' && (
-            <div className="py-20 text-center space-y-6 opacity-40">
-              <div className="h-20 w-20 bg-destructive/10 rounded-[2.5rem] flex items-center justify-center mx-auto border-2 border-dashed border-destructive/20">
-                <ShieldCheck className="h-10 w-10 text-destructive" />
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="flex items-center justify-between px-2">
+                <div className="space-y-1">
+                  <h3 className="text-3xl font-black italic uppercase tracking-tighter">Safety Node</h3>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Network Integrity & Moderation Feed</p>
+                </div>
+                <div className="h-11 w-11 bg-destructive/10 rounded-xl flex items-center justify-center text-destructive">
+                  <ShieldAlert className="h-6 w-6 animate-pulse" />
+                </div>
               </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-black italic uppercase tracking-tighter">Safety Node Cold</h3>
-                <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest max-w-xs mx-auto">No community reports detected. Network integrity is currently at optimal levels.</p>
+
+              <div className="space-y-4">
+                {MOCK_REPORTS.map((report) => (
+                  <Card key={report.id} className="bg-white/5 border-white/10 rounded-[2rem] overflow-hidden group hover:border-destructive/30 transition-all">
+                    <div className="p-6 flex flex-col md:flex-row gap-6">
+                      <div className="flex-1 space-y-4">
+                        <div className="flex items-center gap-3">
+                          <Badge className={cn(
+                            "font-black text-[9px] uppercase tracking-widest px-3 h-6 border-none",
+                            report.risk === 'HIGH' ? "bg-red-500 text-white" : "bg-amber-500 text-white"
+                          )}>
+                            {report.risk} RISK
+                          </Badge>
+                          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Report {report.id} • {report.time}</span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8 py-2">
+                          <div className="space-y-1">
+                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Reporter</span>
+                            <p className="font-bold text-sm text-white">@{report.reporter}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Target Node</span>
+                            <p className="font-bold text-sm text-destructive">@{report.target}</p>
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-black/40 rounded-2xl border border-white/5 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Flag className="h-3.5 w-3.5 text-primary" />
+                            <span className="text-[10px] font-black text-primary uppercase tracking-widest">AI Content Audit</span>
+                          </div>
+                          <p className="text-sm font-medium text-white/80 leading-relaxed italic">"{report.content}"</p>
+                          <div className="pt-2">
+                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Reason: {report.reason}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-row md:flex-col gap-2 justify-end">
+                        <Button 
+                          variant="ghost" size="icon" className="h-12 w-12 rounded-xl bg-white/5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
+                          onClick={() => handleAction(report.id, 'APPROVED', 'report')}
+                        >
+                          <Eye className="h-5 w-5" />
+                        </Button>
+                        <Button 
+                          variant="ghost" size="icon" className="h-12 w-12 rounded-xl bg-white/5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
+                          onClick={() => handleAction(report.id, 'REJECTED', 'report')}
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </Button>
+                        <Button 
+                          variant="ghost" size="icon" className="h-12 w-12 rounded-xl bg-white/5 text-muted-foreground hover:bg-red-500 hover:text-white transition-all"
+                          onClick={() => handleAction(report.id, 'REJECTED', 'report')}
+                        >
+                          <Ban className="h-5 w-5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
               </div>
             </div>
           )}
@@ -393,7 +536,7 @@ export default function AdminDashboard() {
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[200] px-4 pb-6 flex justify-center pointer-events-none">
         <nav className="flex items-center gap-2 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-full px-6 py-2.5 shadow-2xl pointer-events-auto">
           {(["pulse", "economy", "identity", "safety"] as AdminTab[]).map((tab) => {
-            const icons = { pulse: Activity, economy: Coins, identity: Users, safety: ShieldCheck };
+            const icons = { pulse: Activity, economy: Coins, identity: UserPlus, safety: ShieldAlert };
             const Icon = icons[tab];
             const isActive = activeTab === tab;
 
