@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useNotifications } from "@/context/NotificationContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -68,6 +69,7 @@ export default function ReferralHub() {
   const { currentUser, referralLink, triggerHaptic, triggerReferralPulse } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
+  const { t } = useTranslation();
   const { toast } = useToast();
   
   const [isCopied, setIsCopied] = useState(false);
@@ -224,8 +226,8 @@ export default function ReferralHub() {
               </svg>
             </div>
             <div className="flex flex-col">
-              <h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground leading-none">Star Network</h1>
-              <span className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1">Global Ambassador</span>
+              <h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground leading-none">{t('star_network')}</h1>
+              <span className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1">{t('star_ambassador')}</span>
             </div>
           </div>
         </div>
@@ -254,7 +256,7 @@ export default function ReferralHub() {
             </div>
             <div className="space-y-0.5">
               <span className="text-3xl font-black italic uppercase tracking-tighter leading-none tabular-nums">{displayedReferrals}</span>
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Nodes Referred</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t('star_nodes_referred')}</p>
             </div>
           </div>
           <div className="bg-white dark:bg-card rounded-[2rem] p-6 shadow-xl border border-primary/5 flex flex-col items-center text-center gap-2 group transition-all hover:-translate-y-1">
@@ -263,14 +265,14 @@ export default function ReferralHub() {
             </div>
             <div className="space-y-0.5">
               <span className="text-3xl font-black italic uppercase tracking-tighter leading-none tabular-nums">{displayedStars.toLocaleString()}</span>
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Stars Earned</p>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{t('star_earned')}</p>
             </div>
           </div>
         </section>
 
         {/* Milestone Badges System */}
         <section className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 rounded-[2rem] p-6">
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-6 text-center">Ambassador Achievements</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-6 text-center">{t('star_achievements')}</h3>
           <div className="flex justify-around items-center">
             {MILESTONES.map((m) => {
               const isLocked = (currentUser.referralCount || 0) < m.count;
@@ -329,7 +331,7 @@ export default function ReferralHub() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 px-1">
                     <MessageSquare className="h-3.5 w-3.5 text-white/60" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Customize Invite</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/60">{t('star_invite_msg')}</span>
                   </div>
                   <Textarea 
                     value={customMessage}
@@ -342,7 +344,7 @@ export default function ReferralHub() {
                   onClick={handleShare}
                   className="w-full h-14 bg-white text-primary hover:bg-zinc-100 rounded-2xl font-black italic uppercase tracking-widest text-base shadow-2xl transition-all active:scale-[0.98]"
                 >
-                  <Share2 className="mr-3 h-5 w-5" /> Launch Invite
+                  <Share2 className="mr-3 h-5 w-5" /> {t('star_invite_launch')}
                 </Button>
               </div>
             </div>
@@ -380,7 +382,7 @@ export default function ReferralHub() {
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-amber-500" />
-              <h3 className="text-sm font-black italic uppercase tracking-widest">Top Networkers</h3>
+              <h3 className="text-sm font-black italic uppercase tracking-widest">{t('star_top_networkers')}</h3>
             </div>
             <Button variant="link" className="text-[10px] font-black uppercase p-0 h-auto">View Full Pulse</Button>
           </div>
@@ -416,7 +418,7 @@ export default function ReferralHub() {
         <section className="space-y-4 pb-20">
           <div className="flex items-center justify-between px-2">
             <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2">
-              <History className="h-4 w-4 text-primary" /> Handshake History
+              <History className="h-4 w-4 text-primary" /> {t('earn_recent_history')}
             </h3>
           </div>
           
@@ -442,7 +444,7 @@ export default function ReferralHub() {
                     <Star className="h-3 w-3 text-amber-500 fill-current" />
                     <span className="text-[10px] font-black text-green-500 uppercase">+5,000</span>
                   </div>
-                  <span className="text-[9px] text-muted-foreground uppercase font-bold">{node.time}</span>
+                  <span className="text-[9px] text-muted-foreground uppercase font-bold">{node.time === "Yesterday" ? "Hier" : node.time}</span>
                 </div>
               </div>
             ))}

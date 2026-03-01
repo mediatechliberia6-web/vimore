@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { CreateClusterModal } from "./create-cluster-modal";
 
@@ -39,6 +40,7 @@ const MOCK_MESSAGES: Record<string, { text: string; time: string; unread: number
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
   const { connections, clusters, triggerHaptic, settings } = usePosts();
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "unread" | "broadcasts" | "clusters">("all");
 
@@ -94,14 +96,14 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     <div className="flex flex-col h-full bg-white dark:bg-card">
       <div className="p-4 sm:p-6 border-b border-primary/5 flex items-center justify-between">
         <div className="space-y-0.5">
-          <h2 className="text-2xl font-black italic uppercase tracking-tighter">Chats</h2>
-          <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{connections.length + clusters.length} Active Nodes</span>
+          <h2 className="text-2xl font-black italic uppercase tracking-tighter">{t('nav_messages')}</h2>
+          <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{connections.length + clusters.length} {t('chat_nodes_online')}</span>
         </div>
         <div className="flex items-center gap-1">
           <CreateClusterModal>
             <button 
               className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-all active:scale-90"
-              title="Materialize Cluster"
+              title={t('chat_materialize_cluster')}
             >
               <Layers className="h-4 w-4" />
             </button>
@@ -116,7 +118,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
         <div className="relative group">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <Input 
-            placeholder="Query nodes..." 
+            placeholder={t('chat_query_nodes')}
             className="pl-10 h-10 bg-secondary/30 border-none rounded-xl focus-visible:ring-primary/20 text-sm"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -130,7 +132,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
             className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest shrink-0"
             onClick={() => { triggerHaptic(5); setActiveFilter("all"); }}
           >
-            All
+            {t('ui_all')}
           </Button>
           <Button 
             variant={activeFilter === "clusters" ? "default" : "secondary"} 
@@ -138,7 +140,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
             className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest shrink-0 gap-1.5"
             onClick={() => { triggerHaptic(5); setActiveFilter("clusters"); }}
           >
-            <Layers className="h-3 w-3" /> Clusters
+            <Layers className="h-3 w-3" /> {t('admin_clusters')}
           </Button>
           <Button 
             variant={activeFilter === "unread" ? "default" : "secondary"} 
@@ -146,10 +148,10 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
             className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest shrink-0"
             onClick={() => { triggerHaptic(5); setActiveFilter("unread"); }}
           >
-            Unread
+            {t('ui_unread')}
           </Button>
           <Button variant="secondary" size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest ml-auto shrink-0">
-            <Filter className="h-3 w-3 mr-1.5" /> Filter
+            <Filter className="h-3 w-3 mr-1.5" /> {t('ui_filter')}
           </Button>
         </div>
       </div>

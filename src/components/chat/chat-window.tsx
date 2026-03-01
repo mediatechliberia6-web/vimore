@@ -47,6 +47,7 @@ import { Connection, Cluster, usePosts } from "@/context/PostContext";
 import { ChatBubble } from "./chat-bubble";
 import { ChatInput } from "./chat-input";
 import { useMusic } from "@/context/MusicContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import Link from "next/link";
@@ -123,6 +124,7 @@ interface ChatWindowProps {
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections, addMemberToCluster, settings } = usePosts();
+  const { t } = useTranslation();
   const { toast } = useToast();
   const router = useRouter();
   
@@ -276,7 +278,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             <div className="flex flex-col min-w-0 ml-1">
               <h3 className="font-bold text-sm sm:text-base truncate">{contact.name}</h3>
               <span className={cn("text-[10px] font-black uppercase tracking-widest", isCluster ? "text-primary" : isContactOnline ? "text-green-500" : "text-muted-foreground")}>
-                {isCluster ? `${contact.members.length} Nodes in Cluster` : isContactOnline ? "Active Pulse" : "Away"}
+                {isCluster ? `${contact.members.length} ${t('chat_members_pulse')}` : isContactOnline ? t('chat_active_pulse') : t('chat_away')}
               </span>
             </div>
           </div>
@@ -330,7 +332,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
               {isCluster ? <Bookmark className="h-5 w-5" /> : <InfoIcon className="h-5 w-5" />}
             </div>
-            <h3 className="font-black italic uppercase tracking-tighter text-lg">{isCluster ? "Collective Vault" : "Node Details"}</h3>
+            <h3 className="font-black italic uppercase tracking-tighter text-lg">{isCluster ? t('chat_vault') : t('chat_node_details')}</h3>
           </div>
           <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" onClick={() => setShowVault(false)}><X className="h-6 w-6" /></Button>
         </div>
@@ -340,7 +342,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             {isCluster && (
               <section className="space-y-4">
                 <div className="flex items-center justify-between px-1">
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Members Pulse</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{t('chat_members_pulse')}</span>
                   <div className="flex items-center gap-2">
                     {isAdmin && (
                       <Dialog open={isAddNodeOpen} onOpenChange={setIsAddNodeOpen}>
@@ -429,7 +431,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
             <section className="space-y-4">
               <div className="flex items-center justify-between px-1">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Visual History</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{t('chat_visual_history')}</span>
                 <span className="text-[10px] font-black text-primary uppercase">{vaultMedia.length} NODES</span>
               </div>
               {vaultMedia.length > 0 ? (
@@ -455,7 +457,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
             <section className="space-y-4">
               <div className="flex items-center justify-between px-1">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Spatial Links</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{t('chat_spatial_links')}</span>
                 <span className="text-[10px] font-black text-primary uppercase">{vaultLinks.length} NODES</span>
               </div>
               {vaultLinks.length > 0 ? (

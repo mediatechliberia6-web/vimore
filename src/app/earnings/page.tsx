@@ -41,6 +41,7 @@ import { Label } from "@/components/ui/label";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useNotifications } from "@/context/NotificationContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { 
@@ -87,6 +88,7 @@ export default function EarningsPage() {
   const { currentUser, triggerHaptic, withdrawalHistory, recordWithdrawal, processGiftTransaction, settings } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
+  const { t } = useTranslation();
   const { toast } = useToast();
   
   const [isPortalOpen, setIsPortalOpen] = useState(false);
@@ -260,8 +262,8 @@ export default function EarningsPage() {
               </Button>
             </Link>
             <div className="flex flex-col">
-              <h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground">Earnings Portal</h1>
-              <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Financial Intelligence</span>
+              <h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground">{t('earn_portal')}</h1>
+              <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{t('earn_financial_intel')}</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -284,15 +286,15 @@ export default function EarningsPage() {
             <Card className="relative bg-white dark:bg-card border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
               <div className="absolute top-0 right-0 p-8 opacity-5"><Wallet className="h-32 w-32" /></div>
               <CardHeader className="pb-2">
-                <CardDescription className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground ml-1">Available Energy</CardDescription>
-                <CardTitle className="text-4xl font-black italic uppercase tracking-tighter">Vault Balance</CardTitle>
+                <CardDescription className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground ml-1">{t('earn_available_energy')}</CardDescription>
+                <CardTitle className="text-4xl font-black italic uppercase tracking-tighter">{t('earn_vault_balance')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-8">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-amber-500/5 border border-amber-500/10 rounded-3xl p-6 space-y-2">
                     <div className="flex items-center gap-2">
                       <Coins className="h-5 w-5 text-amber-500" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Gold Pulse</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('earn_gold_pulse')}</span>
                     </div>
                     <p className="text-3xl font-black italic tabular-nums">{currentUser.goldBalance || 0}</p>
                     <p className="text-[10px] font-bold text-amber-600/60 uppercase tracking-tighter">≈ ${((currentUser.goldBalance || 0) * settings.goldRate).toFixed(2)} USD</p>
@@ -300,7 +302,7 @@ export default function EarningsPage() {
                   <div className="bg-cyan-500/5 border border-cyan-500/10 rounded-3xl p-6 space-y-2">
                     <div className="flex items-center gap-2">
                       <Gem className="h-5 w-5 text-cyan-500" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Diamond Pulse</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('earn_diamond_pulse')}</span>
                     </div>
                     <p className="text-3xl font-black italic tabular-nums">{currentUser.diamondBalance || 0}</p>
                     <p className="text-[10px] font-bold text-cyan-600/60 uppercase tracking-tighter">≈ ${((currentUser.diamondBalance || 0) * settings.diamondRate).toFixed(2)} USD</p>
@@ -309,7 +311,7 @@ export default function EarningsPage() {
 
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-6 border-t border-primary/5">
                   <div className="flex flex-col items-center sm:items-start">
-                    <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">Total Conversion Estimate</span>
+                    <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">{t('earn_conversion_estimate')}</span>
                     <div className="flex items-baseline gap-2">
                       <span className="text-2xl font-black text-primary">${estimates.totalUSD.toFixed(2)}</span>
                       <span className="text-xs font-bold text-muted-foreground">/</span>
@@ -321,7 +323,7 @@ export default function EarningsPage() {
                     onClick={() => { triggerHaptic(20); setIsPortalOpen(true); }}
                   >
                     <ArrowDownToLine className="h-5 w-5" />
-                    Withdraw Earnings
+                    {t('earn_withdraw')}
                   </Button>
                 </div>
               </CardContent>
@@ -334,7 +336,7 @@ export default function EarningsPage() {
               <CardHeader className="pb-0">
                 <div className="flex items-center gap-3">
                   <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><PieIcon className="h-4 w-4" /></div>
-                  <CardTitle className="text-lg font-black italic uppercase tracking-tighter">Revenue Pulse</CardTitle>
+                  <CardTitle className="text-lg font-black italic uppercase tracking-tighter">{t('earn_revenue_pulse')}</CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="h-[240px] pt-4">
@@ -369,7 +371,7 @@ export default function EarningsPage() {
               <CardHeader>
                 <div className="flex items-center gap-3">
                   <div className="h-8 w-8 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500"><History className="h-4 w-4" /></div>
-                  <CardTitle className="text-lg font-black italic uppercase tracking-tighter">Exchange Rates</CardTitle>
+                  <CardTitle className="text-lg font-black italic uppercase tracking-tighter">{t('earn_exchange_rates')}</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
@@ -403,7 +405,7 @@ export default function EarningsPage() {
           {/* 3. Withdrawal History Vault */}
           <section className="space-y-4">
             <div className="flex items-center justify-between px-2">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Audit Trail (Recent History)</h3>
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">{t('earn_audit_trail')} ({t('earn_recent_history')})</h3>
               <span className="text-[9px] font-black text-primary uppercase">{withdrawalHistory.length} NODES</span>
             </div>
             <div className="space-y-3">
@@ -446,13 +448,13 @@ export default function EarningsPage() {
 
           {/* 4. Monetization Requirements Card */}
           <Card className="bg-[#0A0A0A] border-white/5 shadow-2xl rounded-[2.5rem] overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity"><TrendingUp className="h-32 w-32 text-primary" /></div>
+            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-100 transition-opacity"><TrendingUp className="h-32 w-32 text-primary" /></div>
             <CardHeader>
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-2xl bg-primary/20 flex items-center justify-center text-primary"><Zap className="h-6 w-6 animate-pulse" /></div>
                 <div>
-                  <CardTitle className="text-xl font-black italic uppercase tracking-tighter text-white">Creator Requirements</CardTitle>
-                  <CardDescription className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Protocol Eligibility & Handshakes</CardDescription>
+                  <CardTitle className="text-xl font-black italic uppercase tracking-tighter text-white">{t('earn_requirements')}</CardTitle>
+                  <CardDescription className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('earn_protocol_eligibility')}</CardDescription>
                 </div>
               </div>
             </CardHeader>

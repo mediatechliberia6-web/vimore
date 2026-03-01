@@ -54,6 +54,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useNotifications } from "@/context/NotificationContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { ShareHub } from "./share-hub";
 import { useRouter } from "next/navigation";
 import {
@@ -143,6 +144,7 @@ export function PostCard(props: PostCardProps) {
 
   const { addSignal } = useNotifications();
   const { triggerHaptic } = useMusic();
+  const { t } = useTranslation();
   const router = useRouter();
 
   const isLiked = isPostLiked(id);
@@ -383,7 +385,7 @@ export function PostCard(props: PostCardProps) {
         isShared ? "bg-secondary/20 shadow-none ring-0 border border-primary/10 rounded-2xl" : "bg-white dark:bg-card",
         isCampaign && "border-2 border-primary/20 shadow-xl shadow-primary/5"
       )}>
-        {isPinned && !isShared && <div className="absolute top-0 right-0 z-10 p-1 px-2 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-bl-lg flex items-center gap-1 shadow-md"><Pin className="h-2 w-2 fill-current" /> Pinned</div>}
+        {isPinned && !isShared && <div className="absolute top-0 right-0 z-10 p-1 px-2 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-bl-lg flex items-center gap-1 shadow-md"><Pin className="h-2 w-2 fill-current" /> {t('post_pin').split(' ')[0]}</div>}
         
         <CardHeader className={cn("flex flex-row items-center justify-between space-y-0 p-3", isShared ? "pb-1" : "bg-white dark:bg-card")}>
           <div className="flex items-center gap-2">
@@ -393,13 +395,13 @@ export function PostCard(props: PostCardProps) {
                 <div className="flex items-center gap-1">
                   <Link href={isCampaign ? "#" : `/profile/${user.username}`} className={cn("font-bold text-foreground hover:underline", isShared ? "text-xs" : "text-sm")}>{user.name}</Link>
                   {effectiveIsVerified && <VerificationBadge size={isShared ? "h-2.5 w-2.5" : "h-3 w-3"} />}
-                  {isCampaign && <Badge className="bg-primary text-white border-none text-[8px] font-black h-4 px-1.5 rounded ml-1 uppercase">Official</Badge>}
+                  {isCampaign && <Badge className="bg-primary text-white border-none text-[8px] font-black h-4 px-1.5 rounded ml-1 uppercase">{t('post_global_node')}</Badge>}
                 </div>
                 {!isShared && collaborator && <div className="flex items-center gap-1"><span className="text-xs text-muted-foreground">and</span><Link href={`/profile/${collaborator.username}`} className="font-bold text-sm text-foreground hover:underline">{collaborator.name}</Link>{collaborator.isVerified && <VerificationBadge />}</div>}
                 {!isShared && feeling && <span className="text-xs text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
                 {!isShared && location && <span className="text-xs text-muted-foreground">— in <span className="font-bold text-foreground">{location}</span></span>}
               </div>
-              {!isShared && <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><span>{time}</span><span>•</span><Badge variant="ghost" className="p-0 h-auto font-normal text-[10px] uppercase">{isCampaign ? "Global Node" : "Public"}</Badge></div>}
+              {!isShared && <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><span>{time === "Just now" ? t('post_now') : time}</span><span>•</span><Badge variant="ghost" className="p-0 h-auto font-normal text-[10px] uppercase">{isCampaign ? t('post_global_node') : t('post_public')}</Badge></div>}
             </div>
           </div>
           
@@ -409,10 +411,10 @@ export function PostCard(props: PostCardProps) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full"><MoreHorizontal className="h-5 w-5" /></Button></DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5">
-                  <DropdownMenuItem className="gap-2" onClick={() => setIsHidden(true)}><EyeOff className="h-4 w-4" />Hide post</DropdownMenuItem>
-                  {isOwner && <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); togglePinPost(id); }}><Pin className="h-4 w-4" />{isPinned ? "Unpin" : "Pin to profile"}</DropdownMenuItem>}
-                  {!isOwner && <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => toast({ title: "Report Sent", description: "This node has been flagged for audit." })}><Flag className="h-4 w-4" />Report Vibe</DropdownMenuItem>}
-                  {isOwner && <><DropdownMenuSeparator /><DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" />Purge Node</DropdownMenuItem></>}
+                  <DropdownMenuItem className="gap-2" onClick={() => setIsHidden(true)}><EyeOff className="h-4 w-4" />{t('post_hide')}</DropdownMenuItem>
+                  {isOwner && <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); togglePinPost(id); }}><Pin className="h-4 w-4" />{isPinned ? t('post_unpin') : t('post_pin')}</DropdownMenuItem>}
+                  {!isOwner && <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => toast({ title: "Report Sent", description: "This node has been flagged for audit." })}><Flag className="h-4 w-4" />{t('post_report')}</DropdownMenuItem>}
+                  {isOwner && <><DropdownMenuSeparator /><DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" />{t('post_purge')}</DropdownMenuItem></>}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -429,7 +431,7 @@ export function PostCard(props: PostCardProps) {
                   <Lock className="h-8 w-8" />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">Locked Node</h3>
+                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">{t('post_locked_node')}</h3>
                   <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest max-w-[240px]">Unlock this exclusive vibe from **{user.name}** to access the hub.</p>
                 </div>
                 <Button 
@@ -438,7 +440,7 @@ export function PostCard(props: PostCardProps) {
                   disabled={isUnlocking}
                 >
                   {isUnlocking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5 fill-current" />}
-                  UNLOCK FOR {unlockPrice} GOLD
+                  {t('post_unlock_for')} {unlockPrice} GOLD
                 </Button>
                 <div className="flex items-center gap-2 text-[9px] font-black text-muted-foreground uppercase tracking-widest">
                   <ShieldCheck className="h-3 w-3" /> Groq AI Verified
@@ -453,8 +455,8 @@ export function PostCard(props: PostCardProps) {
               
               {!isShared && !isCampaign && (
                 <div className="flex flex-wrap items-center gap-3 mt-1">
-                  {content.length > TRUNCATE_LIMIT && !isLimitedType && <button onClick={() => setIsExpanded(!isExpanded)} className="text-[13px] font-bold text-primary hover:underline">{isExpanded ? "Show less" : "See more"}</button>}
-                  {showTranslateButton && <button onClick={handleTranslate} disabled={isTranslating} className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-primary/60 hover:text-primary transition-colors disabled:opacity-50">{isTranslating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}{translatedText ? "See Original" : "Translate Vibe"}</button>}
+                  {content.length > TRUNCATE_LIMIT && !isLimitedType && <button onClick={() => setIsExpanded(!isExpanded)} className="text-[13px] font-bold text-primary hover:underline">{isExpanded ? t('post_see_less') : t('post_see_more')}</button>}
+                  {showTranslateButton && <button onClick={handleTranslate} disabled={isTranslating} className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-primary/60 hover:text-primary transition-colors disabled:opacity-50">{isTranslating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}{translatedText ? t('post_see_original') : t('post_translate')}</button>}
                 </div>
               )}
               
@@ -466,7 +468,7 @@ export function PostCard(props: PostCardProps) {
                     const isSelected = userVote === option.originalIndex;
                     return <button key={option.originalIndex} onClick={() => !isShared && handleVote(option.originalIndex)} disabled={isShared} className={cn("w-full relative h-10 rounded-lg border overflow-hidden transition-all", isSelected ? "border-primary bg-primary/10" : "border-primary/20 bg-white/40", isShared && "h-8 cursor-default")}><div className={cn("absolute inset-y-0 left-0 transition-all duration-700", isSelected ? "bg-primary/20" : "bg-primary/5")} style={{ width: `${p}%` }} /><div className="absolute inset-0 flex items-center justify-between px-3 text-sm"><div className="flex items-center gap-2"><span className="text-[10px] font-black text-primary/40">#{i + 1}</span><span className={cn("font-medium", isSelected && "text-primary font-bold", isShared && "text-xs")}>{option.text}</span></div><span className={cn("font-black text-primary", isShared ? "text-[10px]" : "text-xs")}>{Math.round(p)}%</span></div></button>;
                   })}</div>
-                  {!isShared && <div className="flex items-center justify-between pt-1 border-t border-primary/5"><span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{localTotalVotes.toLocaleString()} Total Votes</span>{rankedPollOptions.length > 4 && <button onClick={() => setIsPollExpanded(!isPollExpanded)} className="text-[10px] font-black text-primary uppercase">{isPollExpanded ? "Collapse" : "View all"}</button>}</div>}
+                  {!isShared && <div className="flex items-center justify-between pt-1 border-t border-primary/5"><span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{localTotalVotes.toLocaleString()} {t('post_poll_total_votes')}</span>{rankedPollOptions.length > 4 && <button onClick={() => setIsPollExpanded(!isPollExpanded)} className="text-[10px] font-black text-primary uppercase">{isPollExpanded ? "Collapse" : "View all"}</button>}</div>}
                 </div>
               )}
 
@@ -588,10 +590,10 @@ export function PostCard(props: PostCardProps) {
             </div>
 
             <div className="flex items-center justify-between gap-1 w-full pt-1">
-              <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isLiked ? "text-primary bg-primary/5" : "text-muted-foreground")} onClick={handleLike} disabled={isHiddenByLock}><ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} /> Like</button>
-              <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isUnliked ? "text-destructive bg-destructive/5" : "text-muted-foreground")} onClick={handleUnlike} disabled={isHiddenByLock}><ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} /> Dislike</button>
-              <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary" onClick={() => !isHiddenByLock && openCommentHub(id)} disabled={commentsDisabled || isHiddenByLock}><MessageCircle className="h-4 w-4" /> Comment</button>
-              <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary" onClick={() => { if(!isHiddenByLock){ triggerHaptic(10); setIsShareHubOpen(true); } else { handleUnlock(); } }}><Share2 className="h-4 w-4" /> Share</button>
+              <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isLiked ? "text-primary bg-primary/5" : "text-muted-foreground")} onClick={handleLike} disabled={isHiddenByLock}><ThumbsUp className={cn("h-4 w-4", isLiked && "fill-current")} /> {t('post_like')}</button>
+              <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all hover:bg-secondary", isUnliked ? "text-destructive bg-destructive/5" : "text-muted-foreground")} onClick={handleUnlike} disabled={isHiddenByLock}><ThumbsDown className={cn("h-4 w-4", isUnliked && "fill-current")} /> {t('post_unlike')}</button>
+              <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary" onClick={() => !isHiddenByLock && openCommentHub(id)} disabled={commentsDisabled || isHiddenByLock}><MessageCircle className="h-4 w-4" /> {t('post_comment')}</button>
+              <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:bg-secondary" onClick={() => { if(!isHiddenByLock){ triggerHaptic(10); setIsShareHubOpen(true); } else { handleUnlock(); } }}><Share2 className="h-4 w-4" /> {t('post_share')}</button>
             </div>
           </CardFooter>
         )}
@@ -606,7 +608,7 @@ export function PostCard(props: PostCardProps) {
       <ShareHub isOpen={isShareHubOpen} onClose={() => setIsShareHubOpen(false)} post={props} />
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="rounded-[2rem] sm:max-w-[400px]"><AlertDialogHeader><div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4"><Trash2 className="h-8 w-8" /></div><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">Purge Node?</AlertDialogTitle><AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">This action is permanent and will remove this signature from the ViMore network.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6"><AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50 border-none">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="rounded-xl h-12 font-black italic uppercase tracking-widest bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20">Confirm Purge</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+        <AlertDialogContent className="rounded-[2rem] sm:max-w-[400px]"><AlertDialogHeader><div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4"><Trash2 className="h-8 w-8" /></div><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">{t('post_purge')}?</AlertDialogTitle><AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">This action is permanent and will remove this signature from the ViMore network.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6"><AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50 border-none">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="rounded-xl h-12 font-black italic uppercase tracking-widest bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20">Confirm Purge</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </>
   );
 }

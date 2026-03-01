@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePosts, PostComment } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { aiSummarizeComments } from "@/app/actions/ai";
@@ -43,6 +44,7 @@ interface CommentNodeProps {
 
 export function CommentNode({ comment, postId, onReply, level = 0 }: CommentNodeProps) {
   const { triggerHaptic } = useMusic();
+  const { t } = useTranslation();
   const [isLiked, setIsLiked] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
 
@@ -66,7 +68,7 @@ export function CommentNode({ comment, postId, onReply, level = 0 }: CommentNode
               {comment.user.name}
               {comment.user.isVerified && <CheckCircle2 className="h-2.5 w-2.5 text-primary fill-primary text-white" />}
             </span>
-            <span className="text-[9px] text-muted-foreground uppercase font-black tracking-tighter">{comment.time}</span>
+            <span className="text-[9px] text-muted-foreground uppercase font-black tracking-tighter">{comment.time === "Just now" ? t('post_now') : comment.time}</span>
           </div>
           
           <p className="text-sm leading-relaxed text-foreground/90 bg-secondary/20 p-3 rounded-2xl rounded-tl-none">
@@ -87,7 +89,7 @@ export function CommentNode({ comment, postId, onReply, level = 0 }: CommentNode
               className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
             >
               <Reply className="h-3 w-3" />
-              Reply
+              {t('comm_reply')}
             </button>
             
             <button className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -104,7 +106,7 @@ export function CommentNode({ comment, postId, onReply, level = 0 }: CommentNode
             className="ml-10 flex items-center gap-2 text-[9px] font-black text-primary uppercase tracking-[0.2em] hover:opacity-80 transition-all"
           >
             <div className="w-6 h-[1.5px] bg-primary/20" />
-            {showReplies ? "Hide Activity" : `View ${comment.replies.length} Replies`}
+            {showReplies ? t('comm_hide_activity') : `${t('comm_view_replies')} (${comment.replies.length})`}
             {showReplies ? <ChevronUp className="h-2.5 w-2.5" /> : <ChevronDown className="h-2.5 w-2.5" />}
           </button>
           
@@ -129,6 +131,7 @@ export function CommentNode({ comment, postId, onReply, level = 0 }: CommentNode
 
 export function CommentHub() {
   const { activeCommentPostId, closeCommentHub, posts, addComment, addReply, triggerHaptic } = usePosts();
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [text, setText] = useState("");
   const [replyingTo, setReplyingTo] = useState<PostComment | null>(null);
@@ -193,11 +196,11 @@ export function CommentHub() {
         <SheetHeader className="px-6 py-4 border-b border-primary/5 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <SheetTitle className="text-xl font-black italic uppercase tracking-tighter">Community Pulse</SheetTitle>
+              <SheetTitle className="text-xl font-black italic uppercase tracking-tighter">{t('comm_pulse')}</SheetTitle>
               <div className="bg-primary/5 px-3 py-1 rounded-full flex items-center gap-2 border border-primary/10">
                 <Zap className="h-3 w-3 text-primary animate-pulse" />
                 <span className="text-[10px] font-black text-primary uppercase tracking-widest">
-                  {activePost?.comments || 0} Vibes
+                  {activePost?.comments || 0} {t('comm_vibes')}
                 </span>
               </div>
             </div>
@@ -230,7 +233,7 @@ export function CommentHub() {
                 <div className="absolute top-0 right-0 p-3 opacity-20"><Sparkles className="h-10 w-10 text-primary" /></div>
                 <div className="flex items-center gap-2 mb-3">
                   <Badge className="bg-primary text-white text-[8px] font-black uppercase tracking-widest border-none px-2 py-0.5">Groq Pulse</Badge>
-                  <span className="text-[10px] font-black uppercase text-primary/60 tracking-widest">Sentiment Summary</span>
+                  <span className="text-[10px] font-black uppercase text-primary/60 tracking-widest">{t('comm_sentiment')}</span>
                 </div>
                 <p className="text-sm font-bold italic leading-relaxed text-foreground">"{aiSummary}"</p>
                 <button 
@@ -255,8 +258,8 @@ export function CommentHub() {
               <div className="py-20 text-center space-y-4 opacity-40">
                 <MessageCircle className="h-12 w-12 mx-auto text-primary/40" />
                 <div className="space-y-1">
-                  <p className="text-sm font-black uppercase tracking-widest">Quiet in this Circle</p>
-                  <p className="text-[10px] font-medium uppercase">Be the first to synchronize your thoughts.</p>
+                  <p className="text-sm font-black uppercase tracking-widest">{t('comm_quiet')}</p>
+                  <p className="text-[10px] font-medium uppercase">{t('comm_first')}</p>
                 </div>
               </div>
             )}
@@ -269,7 +272,7 @@ export function CommentHub() {
             {replyingTo && (
               <div className="flex items-center justify-between bg-primary/10 px-4 py-2 rounded-xl animate-in slide-in-from-bottom-2 duration-300">
                 <p className="text-[10px] font-black text-primary uppercase tracking-widest">
-                  Replying to <span className="underline">@{replyingTo.user.username}</span>
+                  {t('comm_reply')} <span className="underline">@{replyingTo.user.username}</span>
                 </p>
                 <button onClick={() => setReplyingTo(null)} className="text-primary hover:text-primary/60">
                   <X className="h-3.5 w-3.5" />
@@ -280,7 +283,7 @@ export function CommentHub() {
             <div className="relative group">
               <Input 
                 ref={inputRef}
-                placeholder={replyingTo ? `Write a reply...` : "Synchronize your reaction..."}
+                placeholder={replyingTo ? `${t('comm_reply')}...` : t('comm_sync_reaction')}
                 className="h-14 pl-6 pr-14 bg-secondary/40 border-none rounded-2xl focus-visible:ring-primary/20 text-sm font-medium shadow-inner transition-all focus-visible:bg-secondary/60"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
