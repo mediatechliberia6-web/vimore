@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -107,7 +108,6 @@ export default function SettingsPage() {
     triggerHaptic(30);
     
     setTimeout(() => {
-      // Rule: Selectively clear only heavy transient data nodes
       const purgeKeys = ['vimore_local_posts', 'vimore_signals', 'vimore_recent_searches'];
       purgeKeys.forEach(k => localStorage.removeItem(k));
       
@@ -210,6 +210,28 @@ export default function SettingsPage() {
 
       <main className={cn("max-w-2xl mx-auto p-4 sm:p-8 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32", isPlayerActive ? "pt-[80px]" : "pt-4")}>
         
+        {/* PRIVACY CHECKUP GATEWAY */}
+        <section className="animate-in zoom-in-95 duration-700">
+          <Link href="/settings/privacy-checkup">
+            <div className="bg-gradient-to-br from-primary via-primary to-accent rounded-[2.5rem] p-8 text-white shadow-2xl shadow-primary/20 relative overflow-hidden group active:scale-[0.98] transition-all">
+              <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-transform duration-700">
+                <ShieldCheck className="h-32 w-32" />
+              </div>
+              <div className="relative z-10 space-y-4">
+                <Badge className="bg-white/20 text-[10px] font-black uppercase tracking-widest px-4 h-6 border-none">Handshake Audit</Badge>
+                <div className="space-y-1">
+                  <h3 className="text-3xl font-black italic uppercase tracking-tighter leading-tight">Privacy Checkup</h3>
+                  <p className="text-sm text-white/70 font-medium max-w-[240px]">Materialize your network integrity by auditing your digital signature protocols.</p>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest pt-2">
+                  Launch Calibration <ChevronRight className="h-4 w-4" />
+                </div>
+              </div>
+              <div className="absolute bottom-[-20%] left-[-5%] w-[120%] h-1 bg-white/20 blur-xl animate-pulse" />
+            </div>
+          </Link>
+        </section>
+
         {/* PHASE 1: AESTHETICS & ENVIRONMENT */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Appearance Node</h3>
