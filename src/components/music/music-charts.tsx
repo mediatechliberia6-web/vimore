@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -12,7 +11,8 @@ import {
   Star,
   Globe,
   MapPin,
-  BarChart2
+  BarChart2,
+  Music2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -64,6 +64,7 @@ export function MusicCharts() {
   const { globalSongs, setTrack, currentTrack, trackStats } = useMusic();
 
   const rankedSongs = useMemo(() => {
+    if (!globalSongs || globalSongs.length === 0) return [];
     return [...globalSongs].sort((a, b) => {
       const aLikes = trackStats[a.id]?.likes || a.likes || 0;
       const bLikes = trackStats[b.id]?.likes || b.likes || 0;
@@ -71,65 +72,72 @@ export function MusicCharts() {
     }).slice(0, 50);
   }, [globalSongs, trackStats]);
 
-  const topSong = rankedSongs[0];
-
   if (rankedSongs.length === 0) {
     return (
-      <div className="py-32 text-center opacity-40">
-        <Music2 className="h-12 w-12 mx-auto mb-4" />
-        <p className="text-sm font-black uppercase tracking-widest">No sonic nodes materialized yet</p>
+      <div className="py-32 text-center space-y-6 animate-in fade-in duration-700">
+        <div className="h-20 w-20 bg-primary/5 rounded-full flex items-center justify-center mx-auto border-2 border-dashed border-primary/20">
+          <Music2 className="h-10 w-10 text-primary/20" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-xl font-black italic uppercase tracking-tighter">Sonic Vault Silent</h3>
+          <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest">No tracks have materialized in the network yet.</p>
+        </div>
       </div>
     );
   }
+
+  const topSong = rankedSongs[0];
 
   return (
     <div className="space-y-8 sm:space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
       {/* 1. The #1 Spotlight */}
-      <div className="relative w-full aspect-video lg:aspect-[21/9] lg:min-h-[300px] rounded-[2rem] lg:rounded-[3rem] overflow-hidden group shadow-2xl">
-        <Image 
-          src={topSong.cover} 
-          alt={topSong.title} 
-          fill 
-          className="object-cover brightness-[0.4] lg:brightness-50 group-hover:scale-105 transition-transform duration-1000"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
-        
-        <div className="absolute inset-0 flex flex-col lg:flex-row items-center lg:items-center justify-center lg:justify-between px-6 sm:px-12 gap-6">
-          <div className="space-y-3 sm:space-y-4 max-w-xl text-center lg:text-left">
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 sm:gap-3">
-              <Badge className="bg-primary hover:bg-primary text-[8px] sm:text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full">
-                Global Number One
-              </Badge>
-              <span className="text-green-400 text-[10px] sm:text-xs font-black italic uppercase tracking-widest flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" /> Peak Pulse Reached
-              </span>
-            </div>
-            
-            <div className="relative">
-              <h1 className="hidden sm:block text-6xl sm:text-8xl font-black italic uppercase tracking-tighter leading-none opacity-10 absolute -top-4 -left-4 pointer-events-none">01</h1>
-              <h2 className="text-3xl sm:text-7xl font-black italic uppercase tracking-tighter leading-none text-white drop-shadow-2xl">
-                {topSong.title}
-              </h2>
-              <Link href={`/profile/${topSong.artistUsername || 'arivera'}`} className="inline-block mt-1 sm:mt-2">
-                <p className="text-lg sm:text-2xl text-primary font-bold hover:underline underline-offset-4">{topSong.artist}</p>
-              </Link>
+      {topSong && (
+        <div className="relative w-full aspect-video lg:aspect-[21/9] lg:min-h-[300px] rounded-[2rem] lg:rounded-[3rem] overflow-hidden group shadow-2xl">
+          <Image 
+            src={topSong.cover} 
+            alt={topSong.title} 
+            fill 
+            className="object-cover brightness-[0.4] lg:brightness-50 group-hover:scale-105 transition-transform duration-1000"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+          
+          <div className="absolute inset-0 flex flex-col lg:flex-row items-center lg:items-center justify-center lg:justify-between px-6 sm:px-12 gap-6">
+            <div className="space-y-3 sm:space-y-4 max-w-xl text-center lg:text-left">
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 sm:gap-3">
+                <Badge className="bg-primary hover:bg-primary text-[8px] sm:text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full">
+                  Global Number One
+                </Badge>
+                <span className="text-green-400 text-[10px] sm:text-xs font-black italic uppercase tracking-widest flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" /> Peak Pulse Reached
+                </span>
+              </div>
+              
+              <div className="relative">
+                <h1 className="hidden sm:block text-6xl sm:text-8xl font-black italic uppercase tracking-tighter leading-none opacity-10 absolute -top-4 -left-4 pointer-events-none">01</h1>
+                <h2 className="text-3xl sm:text-7xl font-black italic uppercase tracking-tighter leading-none text-white drop-shadow-2xl">
+                  {topSong.title}
+                </h2>
+                <Link href={`/profile/${topSong.artistUsername || 'vimore'}`} className="inline-block mt-1 sm:mt-2">
+                  <p className="text-lg sm:text-2xl text-primary font-bold hover:underline underline-offset-4">{topSong.artist}</p>
+                </Link>
+              </div>
+
+              <Button 
+                size="lg" 
+                className="rounded-full bg-white text-black font-black px-8 sm:px-10 h-11 sm:h-14 hover:scale-105 transition-transform gap-2 text-xs sm:text-base"
+                onClick={() => setTrack(topSong)}
+              >
+                <Play className="h-4 w-4 sm:h-6 sm:w-6 fill-current" /> PLAY NOW
+              </Button>
             </div>
 
-            <Button 
-              size="lg" 
-              className="rounded-full bg-white text-black font-black px-8 sm:px-10 h-11 sm:h-14 hover:scale-105 transition-transform gap-2 text-xs sm:text-base"
-              onClick={() => setTrack(topSong)}
-            >
-              <Play className="h-4 w-4 sm:h-6 sm:w-6 fill-current" /> PLAY NOW
-            </Button>
-          </div>
-
-          <div className="hidden lg:block relative w-64 h-64 rounded-[2rem] overflow-hidden shadow-2xl rotate-3 group-hover:rotate-0 transition-transform duration-700">
-            <Image src={topSong.cover} alt="Art" fill className="object-cover" />
+            <div className="hidden lg:block relative w-64 h-64 rounded-[2rem] overflow-hidden shadow-2xl rotate-3 group-hover:rotate-0 transition-transform duration-700">
+              <Image src={topSong.cover} alt="Art" fill className="object-cover" />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <NativeAdNode type="standard" />
 
@@ -235,7 +243,7 @@ export function MusicCharts() {
           <div className="relative z-10 space-y-2">
             <h3 className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter leading-none">Weekly Insight</h3>
             <p className="text-white/80 text-xs sm:text-sm font-medium max-w-sm">
-              Community engagement is peaking in the Afrobeats cluster. materializing high-velocity vibes for top artists.
+              Community engagement is peaking in the Afrobeats cluster. Materializing high-velocity vibes for top artists.
             </p>
           </div>
           <Star className="absolute -right-8 -bottom-8 h-32 sm:h-48 w-32 sm:w-48 opacity-10" />

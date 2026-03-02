@@ -1,4 +1,3 @@
-
 "use client";
 
 import { 
@@ -46,18 +45,17 @@ import { useToast } from "@/hooks/use-toast";
 export default function MenuPage() {
   const { currentTrack, isExpanded } = useMusic();
   const { unreadCount, categoryPulses, clearPulse } = useNotifications();
-  const { currentUser, triggerHaptic } = usePosts();
+  const { currentUser, triggerHaptic, logout } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   const isPlayerActive = currentTrack && !isExpanded;
 
   const isAdmin = currentUser.role && currentUser.role !== 'USER';
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     triggerHaptic(100);
     if (confirm("Initiate Log Out Protocol? Your local session cache will be purged.")) {
-      localStorage.clear();
-      window.location.href = "/";
+      await logout();
     }
   };
 
