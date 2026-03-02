@@ -18,7 +18,8 @@ import {
   CheckCircle2,
   MailQuestion,
   X,
-  ArrowLeft
+  ArrowLeft,
+  Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +34,7 @@ const NATIONALITIES = [
 ];
 
 export function AuthModal() {
-  const { currentUser, login, signup, verifyCode, forgotPassword, triggerHaptic } = usePosts();
+  const { currentUser, login, signup, forgotPassword, triggerHaptic } = usePosts();
   const { toast } = useToast();
   
   const [mode, setMode] = useState<"login" | "signup" | "verify" | "forgot">("login");
@@ -51,9 +52,6 @@ export function AuthModal() {
   const [dob, setDob] = useState("");
   const [nationality, setNationality] = useState("Liberian");
   const [gender, setGender] = useState<'Male' | 'Female'>('Male');
-  
-  // Verification State
-  const [vCode, setVCode] = useState("");
 
   // Calibration: Trigger verification ONLY if this is a fresh signup pulse
   useEffect(() => {
@@ -86,7 +84,6 @@ export function AuthModal() {
     e.preventDefault();
     
     if (signupStep === 1) {
-      // Step 1 Validation Pulse
       if (!email.includes('@')) {
         toast({ variant: "destructive", title: "Invalid Node", description: "Email protocol mismatch." });
         return;
@@ -99,13 +96,11 @@ export function AuthModal() {
         toast({ variant: "destructive", title: "Missing Data", description: "All identity fields are required." });
         return;
       }
-      
       setSignupStep(2);
       triggerHaptic(10);
       return;
     }
 
-    // Step 2 Validation Pulse
     if (!dob) {
       toast({ variant: "destructive", title: "Temporal Error", description: "Arrival date (DOB) is required for synchronization." });
       return;
@@ -115,14 +110,11 @@ export function AuthModal() {
     triggerHaptic(30);
     
     try {
-      const result = await signup({ email, password, name, username, dob, nationality, gender });
+      await signup({ email, password, name, username, dob, nationality, gender });
       setIsNewAccount(true);
-      
-      // Prototype Feedback Pulse: Show the code since no email server is active
       toast({ 
         title: "Node Initialized", 
-        description: `Identity pulse generated. Your Verification Code is: ${result.code}`,
-        duration: 10000 
+        description: "Identity pulse sent to your email node. Please verify to continue."
       });
     } catch (error: any) {
       console.error("Signup Pulse Failure:", error);
@@ -131,26 +123,6 @@ export function AuthModal() {
         title: "Handshake Failed", 
         description: error.message || "An unexpected error occurred during node materialization." 
       });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (vCode.length < 6) return;
-    setIsLoading(true);
-    triggerHaptic(50);
-    try {
-      const success = await verifyCode(vCode);
-      if (success) {
-        setIsNewAccount(false);
-        toast({ title: "Signature Verified", description: "Welcome to the ViMore network." });
-      } else {
-        toast({ variant: "destructive", title: "Invalid Code", description: "The AI pulse did not match. Please try again." });
-      }
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Sync Error" });
     } finally {
       setIsLoading(false);
     }
@@ -174,7 +146,6 @@ export function AuthModal() {
 
   return (
     <div className="fixed inset-0 z-[1000] bg-[#050505] flex items-center justify-center p-6 overflow-hidden">
-      {/* Aurora Ambient Pulse */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[120px] rounded-full animate-pulse delay-700" />
@@ -260,19 +231,22 @@ export function AuthModal() {
           )}
 
           {mode === 'verify' && (
-            <form onSubmit={handleVerify} className="space-y-8 animate-in zoom-in-95 duration-500 text-center">
+            <div className="space-y-8 animate-in zoom-in-95 duration-500 text-center">
               <div className="space-y-2">
-                <div className="h-16 w-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mx-auto mb-4 animate-pulse"><ShieldCheck className="h-8 w-8" /></div>
-                <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Identity Challenge</h3>
-                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Groq AI generated a unique code for node validation.</p>
+                <div className="h-16 w-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mx-auto mb-4 animate-pulse"><Mail className="h-8 w-8" /></div>
+                <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Check Your Email</h3>
+                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">We've sent a high-velocity verification link to your node.</p>
               </div>
-              <div className="space-y-4">
-                <Input value={vCode} onChange={(e) => setVCode(e.target.value.toUpperCase().slice(0, 6))} placeholder="XXXXXX" className="h-20 bg-white/5 border-primary/20 rounded-2xl text-center text-4xl font-black tracking-[0.5em] text-white focus-visible:ring-primary/40 uppercase" />
-                <p className="text-[9px] font-black text-primary uppercase animate-pulse">Syncing Code with Central Vault...</p>
+              <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
+                <p className="text-xs text-white/60 leading-relaxed uppercase tracking-tight">
+                  Click the link in the email to synchronize your identity with the network. This window will update automatically once verified.
+                </p>
               </div>
-              <Button type="submit" disabled={isLoading || vCode.length < 6} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Handshake"}</Button>
+              <Button onClick={() => window.location.reload()} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em] gap-2">
+                <Zap className="h-4 w-4" /> Check Status
+              </Button>
               <div className="text-center"><button type="button" onClick={() => { setIsNewAccount(false); setMode('login'); }} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-destructive transition-all">Cancel Node Sync</button></div>
-            </form>
+            </div>
           )}
 
           {mode === 'forgot' && (
@@ -283,7 +257,7 @@ export function AuthModal() {
                 <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Input your registered email node to receive a reset pulse.</p>
               </div>
               <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Email Node</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 pl-11 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="sync@vimore.com" /></div>
-              <Button type="submit" disabled={isLoading || !email} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Launch Recovery"}</Button>
+              <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Launch Recovery"}</Button>
               <div className="text-center"><button type="button" onClick={() => setMode('login')} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Cancel Request</button></div>
             </form>
           )}
