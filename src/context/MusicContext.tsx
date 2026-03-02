@@ -440,10 +440,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       likes: 0,
       unlikes: 0
     };
-    const response = await databases.createDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ID.unique(), docData);
-    const track: Track = { ...newTrack, id: response.$id };
-    setUserSongs(prev => [track, ...prev]);
-    setTrackStats(prev => ({ ...prev, [track.id]: { likes: 0, unlikes: 0 } }));
+    await databases.createDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ID.unique(), docData);
     await refreshMusicVault();
   };
 
@@ -458,7 +455,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       totalStreams: "0"
     };
     await databases.createDocument(APPWRITE_DATABASE_ID, ALBUMS_COLLECTION_ID, ID.unique(), docData);
-    setUserAlbums(prev => [albumData, ...prev]);
     await refreshMusicVault();
   };
 

@@ -544,9 +544,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       throw new Error("This spatial ID (username) is already taken. Choose another signature.");
     }
 
-    const profiles = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
-    const isFirstAccount = profiles.total === 0;
-    const assignedRole = isFirstAccount ? 'SUPER' : 'USER';
+    const profilesCount = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
+    const assignedRole = profilesCount.total === 0 ? 'SUPER' : 'USER';
 
     const user = await account.create(ID.unique(), data.email, data.pass, data.name);
     await account.createEmailPasswordSession(data.email, data.pass);
