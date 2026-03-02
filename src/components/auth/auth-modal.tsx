@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Zap, 
   Mail, 
@@ -18,7 +18,8 @@ import {
   Users,
   CheckCircle2,
   MailQuestion,
-  X
+  X,
+  ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,11 +55,18 @@ export function AuthModal() {
   // Verification State
   const [vCode, setVCode] = useState("");
 
-  // Logic: Only show gate if no verified identity exists
-  if (currentUser && currentUser.username !== 'johndoe_creative') {
-    if (currentUser.isEmailVerified) return null;
-    if (mode !== 'verify' && !currentUser.isEmailVerified) setMode('verify');
-  }
+  // Calibration: Trigger verification ONLY if an actual identity node is detected but unverified
+  useEffect(() => {
+    if (currentUser?.id) {
+      if (!currentUser.isEmailVerified && mode !== 'verify') {
+        setMode('verify');
+      }
+    }
+  }, [currentUser?.id, currentUser?.isEmailVerified, mode]);
+
+  // Terminal Handshake: Hide gate if user is fully synchronized
+  if (currentUser?.id && currentUser.isEmailVerified) return null;
+  if (currentUser?.username === 'johndoe_creative') return null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,7 +95,6 @@ export function AuthModal() {
     triggerHaptic(30);
     try {
       await signup({ email, password, name, username, dob, nationality, gender });
-      setMode("verify");
       toast({ title: "Node Initialized", description: "Identity pulse generated. Please verify your email node." });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Handshake Failed", description: error.message });
@@ -188,6 +195,9 @@ export function AuthModal() {
                 </div>
               ) : (
                 <div className="space-y-4 animate-in slide-in-from-right-4">
+                  <button type="button" onClick={() => setSignupStep(1)} className="flex items-center gap-2 text-[10px] font-black uppercase text-white/40 hover:text-white transition-colors mb-2">
+                    <ArrowLeft className="h-3 w-3" /> Back to Core
+                  </button>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Arrival Date (DOB)</Label>
                     <div className="relative"><Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" /><Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="h-12 pl-11 bg-white/5 border-none rounded-xl text-white font-bold" /></div>
@@ -227,6 +237,7 @@ export function AuthModal() {
                 <p className="text-[9px] font-black text-primary uppercase animate-pulse">Syncing Code with Central Vault...</p>
               </div>
               <Button type="submit" disabled={isLoading || vCode.length < 6} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Handshake"}</Button>
+              <div className="text-center"><button type="button" onClick={() => { localStorage.clear(); window.location.reload(); }} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-destructive transition-all">Cancel Node Sync</button></div>
             </form>
           )}
 
@@ -237,7 +248,7 @@ export function AuthModal() {
                 <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Vault Recovery</h3>
                 <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Input your registered email node to receive a reset pulse.</p>
               </div>
-              <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Email Node</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="sync@vimore.com" /></div>
+              <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Email Node</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 pl-11 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="sync@vimore.com" /></div>
               <Button type="submit" disabled={isLoading || !email} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Launch Recovery"}</Button>
               <div className="text-center"><button type="button" onClick={() => setMode('login')} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Cancel Request</button></div>
             </form>
