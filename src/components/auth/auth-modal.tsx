@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -19,7 +20,8 @@ import {
   MailQuestion,
   X,
   ArrowLeft,
-  Check
+  Check,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,13 +36,14 @@ const NATIONALITIES = [
 ];
 
 export function AuthModal() {
-  const { currentUser, login, signup, forgotPassword, triggerHaptic } = usePosts();
+  const { currentUser, login, signup, resendVerification, forgotPassword, triggerHaptic } = usePosts();
   const { toast } = useToast();
   
   const [mode, setMode] = useState<"login" | "signup" | "verify" | "forgot">("login");
   const [signupStep, setSignupStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isNewAccount, setIsNewAccount] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   
   // Auth Form State
   const [email, setEmail] = useState("");
@@ -63,7 +66,9 @@ export function AuthModal() {
   }, [currentUser?.id, currentUser?.isEmailVerified, mode, isNewAccount]);
 
   // Terminal Handshake: Hide gate if user is fully synchronized or a test user
+  // Also hide if logged in but NOT a new account requiring verification (per user request)
   if (currentUser?.id && currentUser.isEmailVerified) return null;
+  if (currentUser?.id && !isNewAccount) return null;
   if (currentUser?.username === 'johndoe_creative') return null;
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -125,6 +130,19 @@ export function AuthModal() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendPulse = async () => {
+    setIsResending(true);
+    triggerHaptic(10);
+    try {
+      await resendVerification();
+      toast({ title: "Pulse Re-emitted", description: "A new verification link has been launched to your email." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Sync Failed" });
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -242,10 +260,28 @@ export function AuthModal() {
                   Click the link in the email to synchronize your identity with the network. This window will update automatically once verified.
                 </p>
               </div>
-              <Button onClick={() => window.location.reload()} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em] gap-2">
-                <Zap className="h-4 w-4" /> Check Status
-              </Button>
-              <div className="text-center"><button type="button" onClick={() => { setIsNewAccount(false); setMode('login'); }} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-destructive transition-all">Cancel Node Sync</button></div>
+              
+              <div className="space-y-4">
+                <Button onClick={() => window.location.reload()} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em] gap-2">
+                  <Zap className="h-4 w-4" /> Check Status
+                </Button>
+                
+                <Button 
+                  variant="ghost" 
+                  disabled={isResending}
+                  onClick={handleResendPulse}
+                  className="w-full text-primary font-black uppercase text-[10px] tracking-widest gap-2"
+                >
+                  {isResending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                  Resend Protocol
+                </Button>
+              </div>
+
+              <div className="text-center">
+                <button type="button" onClick={() => { setIsNewAccount(false); setMode('login'); }} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-destructive transition-all">
+                  Cancel Node Sync
+                </button>
+              </div>
             </div>
           )}
 
