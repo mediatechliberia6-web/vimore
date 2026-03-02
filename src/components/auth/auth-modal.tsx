@@ -36,7 +36,7 @@ const NATIONALITIES = [
 ];
 
 export function AuthModal() {
-  const { currentUser, login, signup, resendVerification, forgotPassword, triggerHaptic } = usePosts();
+  const { currentUser, login, signup, resendVerification, forgotPassword, checkSession, triggerHaptic } = usePosts();
   const { toast } = useToast();
   
   const [mode, setMode] = useState<"login" | "signup" | "verify" | "forgot">("login");
@@ -56,7 +56,20 @@ export function AuthModal() {
   const [nationality, setNationality] = useState("Liberian");
   const [gender, setGender] = useState<'Male' | 'Female'>('Male');
 
-  // Calibration: Trigger verification ONLY if this is a fresh signup pulse
+  // 1. Spatial Polling: Check session status while waiting for email verification
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (mode === 'verify' && isNewAccount && !currentUser.isEmailVerified) {
+      interval = setInterval(() => {
+        checkSession();
+      }, 5000); // Pulse check every 5 seconds
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [mode, isNewAccount, currentUser.isEmailVerified, checkSession]);
+
+  // 2. Calibration: Transition to verification screen ONLY for fresh signups
   useEffect(() => {
     if (currentUser?.id && isNewAccount) {
       if (!currentUser.isEmailVerified && mode !== 'verify') {
@@ -65,10 +78,11 @@ export function AuthModal() {
     }
   }, [currentUser?.id, currentUser?.isEmailVerified, mode, isNewAccount]);
 
-  // Terminal Handshake: Hide gate if user is fully synchronized or a test user
-  // Also hide if logged in but NOT a new account requiring verification (per user request)
+  // Terminal Handshake: Hide gate if user is fully synchronized
   if (currentUser?.id && currentUser.isEmailVerified) return null;
+  // Standard Entrance: If user is logged in but not a fresh signup, allow entry (they can verify later in settings)
   if (currentUser?.id && !isNewAccount) return null;
+  // Admin Node Bypass
   if (currentUser?.username === 'johndoe_creative') return null;
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -169,7 +183,7 @@ export function AuthModal() {
         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[120px] rounded-full animate-pulse delay-700" />
       </div>
 
-      <div className="relative z-10 w-full max-md flex flex-col items-center space-y-10 animate-in fade-in zoom-in-95 duration-700">
+      <div className="relative z-10 w-full max-w-md flex flex-col items-center space-y-10 animate-in fade-in zoom-in-95 duration-700">
         
         <header className="text-center space-y-4">
           <div className="flex justify-center">
