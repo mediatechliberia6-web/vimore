@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -16,7 +17,8 @@ import {
   ChevronRight,
   Play,
   UserPlus,
-  Hash
+  Hash,
+  EyeOff
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +35,7 @@ type SearchTab = "all" | "people" | "audio" | "nodes";
 
 export function SearchPortal() {
   const router = useRouter();
-  const { isSearchOpen, setSearchOpen, connections, posts, setSelectedPostId, triggerHaptic } = usePosts();
+  const { isSearchOpen, setSearchOpen, connections, posts, setSelectedPostId, triggerHaptic, settings } = usePosts();
   const { setTrack, globalSongs } = useMusic();
   
   const [query, setQuery] = useState("");
@@ -261,11 +263,17 @@ export function SearchPortal() {
                         onClick={() => handleDeepLink('track', track.id)}
                         className="flex items-center gap-4 p-3 bg-white/40 dark:bg-white/5 border border-white/20 rounded-2xl hover:bg-primary/5 hover:border-primary/20 transition-all cursor-pointer group"
                       >
-                        <div className="relative h-14 w-14 rounded-xl overflow-hidden shrink-0 shadow-lg group-hover:scale-105 transition-transform">
-                          <Image src={track.cover} alt={track.title} fill className="object-cover" />
-                          <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <Play className="h-6 w-6 text-white fill-current" />
-                          </div>
+                        <div className="relative h-14 w-14 rounded-xl overflow-hidden shrink-0 shadow-lg group-hover:scale-105 transition-transform bg-secondary/30 flex items-center justify-center">
+                          {!settings.isFreeMode ? (
+                            <>
+                              <Image src={track.cover} alt={track.title} fill className="object-cover" />
+                              <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <Play className="h-6 w-6 text-white fill-current" />
+                              </div>
+                            </>
+                          ) : (
+                            <Music2 className="h-6 w-6 text-primary/40" />
+                          )}
                         </div>
                         <div className="flex flex-col min-w-0">
                           <span className="font-bold text-sm truncate">{track.title}</span>
@@ -296,9 +304,16 @@ export function SearchPortal() {
                             <AvatarFallback>{post.user.name[0]}</AvatarFallback>
                           </Avatar>
                           <span className="text-xs font-bold">{post.user.name}</span>
-                          <span className="text-[10px] text-muted-foreground font-medium ml-auto">{post.time} ago</span>
+                          <span className="text-[10px] text-muted-foreground font-medium ml-auto">{post.time}</span>
                         </div>
-                        <p className="text-sm line-clamp-2 leading-relaxed text-muted-foreground italic">"{post.content}"</p>
+                        <div className="flex gap-4">
+                          <p className="flex-1 text-sm line-clamp-2 leading-relaxed text-muted-foreground italic">"{post.content}"</p>
+                          {(post.image || post.images?.length) && !settings.isFreeMode && (
+                            <div className="relative h-12 w-12 rounded-lg overflow-hidden shrink-0 border border-primary/5">
+                              <Image src={post.image || post.images![0]} alt="Post visual" fill className="object-cover" />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

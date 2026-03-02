@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -22,7 +23,8 @@ import {
   Loader2,
   CheckCircle2,
   Gift,
-  Rocket
+  Rocket,
+  EyeOff
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -35,7 +37,7 @@ import { useNotifications } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { BoostPortal } from "@/components/post/boost-portal";
-import { cn, parseFollowerCount } from "@/lib/utils";
+import { cn, parseFollowerCount, saveFileToDevice } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -53,7 +55,7 @@ export function MusicPlayer() {
   } = useMusic();
 
   const { addSignal } = useNotifications();
-  const { currentUser, openGiftHub } = usePosts();
+  const { currentUser, openGiftHub, settings } = usePosts();
   const { t } = useTranslation();
 
   const [commentInput, setCommentInput] = useState("");
@@ -146,8 +148,12 @@ export function MusicPlayer() {
         onClick={() => setIsExpanded(true)}
       >
         <div className="max-w-[1440px] mx-auto w-full flex items-center gap-4">
-          <div className="relative h-10 w-10 rounded-lg overflow-hidden shrink-0 shadow-lg ring-1 ring-primary/10">
-            <Image src={currentTrack.cover} alt={currentTrack.title} fill className="object-cover" />
+          <div className="relative h-10 w-10 rounded-lg overflow-hidden shrink-0 shadow-lg ring-1 ring-primary/10 bg-secondary/30 flex items-center justify-center">
+            {!settings.isFreeMode ? (
+              <Image src={currentTrack.cover} alt={currentTrack.title} fill className="object-cover" />
+            ) : (
+              <Music2 className="h-5 w-5 text-primary/40" />
+            )}
           </div>
           <div className="flex-1 min-0">
             <div className="flex items-center gap-2">
@@ -241,8 +247,27 @@ export function MusicPlayer() {
               "absolute inset-0 bg-primary/30 blur-[100px] rounded-full transition-opacity duration-1000",
               isPlaying ? "opacity-100" : "opacity-0"
             )} />
-            <div className="relative h-full w-full rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden shadow-2xl ring-1 ring-white/10">
-              <Image src={currentTrack.cover} alt={currentTrack.title} fill className="object-cover" />
+            <div className="relative h-full w-full rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden shadow-2xl ring-1 ring-white/10 flex items-center justify-center bg-secondary/30">
+              {!settings.isFreeMode ? (
+                <Image src={currentTrack.cover} alt={currentTrack.title} fill className="object-cover" />
+              ) : (
+                <div className="flex flex-col items-center gap-6 p-8 text-center">
+                  <div className="relative">
+                    <div className="absolute -inset-4 bg-primary/20 blur-2xl rounded-full animate-pulse" />
+                    <Avatar className="h-32 w-32 border-4 border-primary shadow-2xl relative z-10">
+                      <AvatarImage src={currentTrack.cover} />
+                      <AvatarFallback>V</AvatarFallback>
+                    </Avatar>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-center gap-2">
+                      <EyeOff className="h-4 w-4 text-primary" />
+                      <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Free Mode Pulse</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">Artwork Suppressed</p>
+                  </div>
+                </div>
+              )}
               {reactions.map((r) => (
                 <div
                   key={r.id}

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { MainNav } from "@/components/layout/main-nav";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useMusic } from "@/context/MusicContext";
+import { usePosts } from "@/context/PostContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { 
   Search, 
@@ -23,7 +25,8 @@ import {
   Zap,
   Radio,
   GalleryVerticalEnd,
-  Rocket
+  Rocket,
+  EyeOff
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -44,6 +47,7 @@ const hubs = [
 
 export default function ExplorePage() {
   const { currentTrack, isExpanded } = useMusic();
+  const { settings } = usePosts();
   const { t } = useTranslation();
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -79,14 +83,25 @@ export default function ExplorePage() {
           <div className="grid grid-cols-1 md:grid-cols-4 grid-rows-none md:grid-rows-4 gap-4 min-h-[800px]">
             
             {/* 1. Hero Spotlight (Large Tile) */}
-            <div className="md:col-span-2 md:row-span-2 relative rounded-3xl overflow-hidden group shadow-xl bg-primary/10">
-              <Image 
-                src="https://picsum.photos/seed/explore-hero/800/800" 
-                alt="Featured Series" 
-                fill 
-                className="object-cover transition-transform duration-700 group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+            <div className={cn(
+              "md:col-span-2 md:row-span-2 relative rounded-3xl overflow-hidden group shadow-xl",
+              settings.isFreeMode ? "bg-gradient-to-br from-primary/20 to-accent/20" : "bg-primary/10"
+            )}>
+              {!settings.isFreeMode ? (
+                <>
+                  <Image 
+                    src="https://picsum.photos/seed/explore-hero/800/800" 
+                    alt="Featured Series" 
+                    fill 
+                    className="object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                </>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <EyeOff className="h-12 w-12 text-primary/20" />
+                </div>
+              )}
               <div className="absolute top-6 left-6">
                 <Badge className="bg-primary hover:bg-primary/90 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border-none shadow-lg">
                   {t('explore_hero_badge')}

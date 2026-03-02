@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -49,7 +50,8 @@ import {
   KeyRound,
   Timer,
   Eye,
-  FileText
+  FileText,
+  ZapOff
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -639,6 +641,19 @@ export default function SettingsPage() {
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_data')}</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
             
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <ZapOff className="h-4 w-4 text-primary" />
+                  <p className="font-bold text-sm">{t('settings_free_mode')}</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">{t('settings_free_mode_desc')}</p>
+              </div>
+              <Switch checked={settings.isFreeMode} onCheckedChange={(val) => handleUpdate({ isFreeMode: val })} className="data-[state=checked]:bg-primary" />
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
