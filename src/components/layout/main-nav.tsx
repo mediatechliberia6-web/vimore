@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -21,8 +22,10 @@ const PulseBadge = ({ count }: { count: number }) => {
 export function MainNav() {
   const pathname = usePathname();
   const { unreadCount, categoryPulses, clearPulse } = useNotifications();
-  const { settings } = usePosts();
+  const { settings, currentUser } = usePosts();
   const { t } = useTranslation();
+
+  const isAdmin = currentUser.role && currentUser.role !== 'USER';
 
   const navItems: { icon: any; label: string; href: string; badge?: number; category?: PulseCategory; isHidden?: boolean }[] = [
     { icon: Home, label: t('nav_home'), href: "/", category: "HOME" },
@@ -32,7 +35,7 @@ export function MainNav() {
     { icon: Bell, label: t('nav_notifications'), href: "/notifications", badge: unreadCount },
     { icon: MessageCircle, label: t('nav_messages'), href: "/messages", category: "MESSAGES" },
     { icon: User, label: t('nav_profile'), href: "/profile" },
-    { icon: Activity, label: t('nav_admin'), href: "/admin" },
+    { icon: Activity, label: t('nav_admin'), href: "/admin", isHidden: !isAdmin },
     { icon: Menu, label: t('nav_menu'), href: "/menu" },
   ];
 

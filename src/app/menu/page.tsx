@@ -1,3 +1,4 @@
+
 "use client";
 
 import { 
@@ -50,6 +51,8 @@ export default function MenuPage() {
   const { toast } = useToast();
   const isPlayerActive = currentTrack && !isExpanded;
 
+  const isAdmin = currentUser.role && currentUser.role !== 'USER';
+
   const handleLogout = () => {
     triggerHaptic(100);
     if (confirm("Initiate Log Out Protocol? Your local session cache will be purged.")) {
@@ -58,7 +61,7 @@ export default function MenuPage() {
     }
   };
 
-  const menuGrid: { label: string; icon: any; color: string; bg: string; href: string; badge?: number; category?: PulseCategory }[] = [
+  const menuGrid: { label: string; icon: any; color: string; bg: string; href: string; badge?: number; category?: PulseCategory; isHidden?: boolean }[] = [
     { label: t('menu_home_feed'), icon: Home, color: "text-primary", bg: "bg-primary/10", href: "/", category: "HOME" },
     { label: t('menu_signals'), icon: Bell, color: "text-red-500", bg: "bg-red-50", href: "/notifications", badge: unreadCount },
     { label: t('menu_music_hub'), icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music", category: "MUSIC" },
@@ -69,7 +72,7 @@ export default function MenuPage() {
     { label: t('menu_messages'), icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages", category: "MESSAGES" },
     { label: t('menu_reels'), icon: Clapperboard, color: "text-orange-500", bg: "bg-orange-50", href: "/reels", category: "REELS" },
     { label: t('menu_how_it_works'), icon: BookOpen, color: "text-rose-500", bg: "bg-rose-50", href: "/how-it-works" },
-    { label: t('menu_command_core'), icon: Activity, color: "text-indigo-500", bg: "bg-indigo-50", href: "/admin" },
+    { label: t('menu_command_core'), icon: Activity, color: "text-indigo-500", bg: "bg-indigo-50", href: "/admin", isHidden: !isAdmin },
   ];
 
   return (
@@ -141,7 +144,7 @@ export default function MenuPage() {
             <Button variant="link" className="text-xs font-bold p-0 h-auto">{t('menu_edit')}</Button>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            {menuGrid.map((item) => {
+            {menuGrid.filter(i => !i.isHidden).map((item) => {
               const displayBadge = item.category ? categoryPulses[item.category] : item.badge;
               
               return (
@@ -182,10 +185,12 @@ export default function MenuPage() {
                   <Settings className="h-4 w-4 text-slate-500" />
                   {t('settings_title')}
                 </Link>
-                <Link href="/admin" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-indigo-500/10 transition-colors font-semibold text-[15px] text-left text-indigo-600">
-                  <ShieldCheck className="h-4 w-4" />
-                  {t('menu_command_core')}
-                </Link>
+                {isAdmin && (
+                  <Link href="/admin" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-indigo-500/10 transition-colors font-semibold text-[15px] text-left text-indigo-600">
+                    <ShieldCheck className="h-4 w-4" />
+                    {t('menu_command_core')}
+                  </Link>
+                )}
                 <Link href="/settings/privacy-checkup" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-green-500/10 transition-colors font-semibold text-[15px] text-left text-green-600">
                   <ShieldCheck className="h-4 w-4" />
                   {t('privacy_checkup')}

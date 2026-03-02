@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { 
   ShieldCheck, 
   Zap, 
@@ -123,7 +123,7 @@ type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" |
 type EconomySubTab = "outbound" | "inbound";
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections, disputes, resolveDispute, campaigns, addCampaign, deleteCampaign, toggleCampaignStatus, currentUser, staff, promoteUser, demoteUser, refreshAdminData } = usePosts();
+  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   
@@ -131,6 +131,7 @@ export default function AdminDashboard() {
   const isSuper = userRole === 'SUPER';
   const isFinancial = userRole === 'FINANCIAL';
   const isModerator = userRole === 'MODERATOR';
+  const isUnauthorized = userRole === 'USER';
 
   const [activeTab, setActiveTab] = useState<AdminTab>("pulse");
   const [economySubTab, setEconomySubTab] = useState<EconomySubTab>("outbound");
@@ -141,12 +142,18 @@ export default function AdminDashboard() {
 
   const [govSearch, setGovSearch] = useState("");
   const [gatewayForm, setGatewayForm] = useState(gatewaySettings);
+  const hasLoggedBreach = useRef(false);
 
   useEffect(() => {
-    if (userRole !== 'USER') {
+    if (isUnauthorized && !hasLoggedBreach.current) {
+      addAuditLog("UNAUTHORIZED_CORE_ACCESS_ATTEMPT", `Standard user node @${currentUser.username} attempted to synchronize with the Command Core.`);
+      hasLoggedBreach.current = true;
+    }
+    
+    if (!isUnauthorized) {
       refreshAdminData();
     }
-  }, [userRole, refreshAdminData]);
+  }, [isUnauthorized, refreshAdminData, addAuditLog, currentUser.username]);
 
   const pendingWithdrawals = useMemo(() => 
     withdrawalHistory.filter(w => w.status === 'PENDING'), 
@@ -175,7 +182,6 @@ export default function AdminDashboard() {
   }), [posts, connections, auditLogs]);
 
   const livePulseData = useMemo(() => {
-    // Simulated Time-Series based on real node count
     const hours = ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00", "23:59"];
     return hours.map(h => ({
       time: h,
@@ -206,7 +212,7 @@ export default function AdminDashboard() {
     toast({ title: "Node Severed", description: `Administrative authority removed for @${username}.` });
   };
 
-  const handleAction = async (id: string, status: 'APPROVED' | 'REJECTED', type: 'withdrawal' | 'payment' | 'dispute') => {
+  const handleAction = async (id: string, status: 'APPROVED' | 'REJECTED', type: 'withdrawal' | 'payment') => {
     triggerHaptic(status === 'APPROVED' ? 50 : 100);
     if (type === 'withdrawal') {
       await processWithdrawal(id, status);
@@ -267,17 +273,37 @@ export default function AdminDashboard() {
     return availableTabs.filter(t => !mobilePrimaryTabs.includes(t));
   }, [availableTabs, mobilePrimaryTabs]);
 
-  if (userRole === 'USER') {
+  if (isUnauthorized) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center space-y-6">
-        <div className="h-20 w-20 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive animate-pulse">
-          <ShieldAlert className="h-10 w-10" />
+      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center space-y-8 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none opacity-20">
+          <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-destructive/20 blur-[150px] rounded-full animate-pulse" />
         </div>
-        <div className="space-y-2">
-          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white">Access Denied</h1>
-          <p className="text-muted-foreground text-sm max-w-xs uppercase font-bold">Insufficient spatial authority to synchronize with the Command Core.</p>
+        
+        <div className="relative">
+          <div className="absolute -inset-8 bg-destructive/10 rounded-full blur-2xl animate-ping opacity-40" />
+          <div className="h-24 w-24 bg-destructive/10 rounded-3xl flex items-center justify-center text-destructive relative z-10 border border-destructive/20 shadow-2xl">
+            <ShieldAlert className="h-12 w-12" />
+          </div>
         </div>
-        <Link href="/"><Button variant="outline" className="rounded-xl border-white/10 text-white font-black uppercase text-[10px] tracking-widest h-12 px-8">Return to Network</Button></Link>
+
+        <div className="space-y-3 relative z-10">
+          <h1 className="text-4xl font-black italic uppercase tracking-tighter text-white">Handshake Denied</h1>
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-muted-foreground text-sm max-w-xs uppercase font-bold tracking-widest leading-relaxed">
+              Insufficient spatial authority to synchronize with the MTL Command Core.
+            </p>
+            <Badge variant="outline" className="border-destructive/20 text-destructive text-[8px] font-black uppercase px-2 h-5">BREACH ATTEMPT LOGGED</Badge>
+          </div>
+        </div>
+
+        <Link href="/" className="relative z-10">
+          <Button variant="outline" className="rounded-2xl border-white/10 text-white font-black uppercase italic text-[10px] tracking-[0.3em] h-14 px-10 transition-all hover:bg-white hover:text-black active:scale-95">
+            Return to Network
+          </Button>
+        </Link>
+
+        <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.5em] pt-12">ViMore Sentry v1.5 • Command Core Active</p>
       </div>
     );
   }
@@ -514,7 +540,7 @@ export default function AdminDashboard() {
                 </Card>
                 <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-8 shadow-xl">
                   <div className="flex items-center gap-4"><div className="h-14 w-14 rounded-2xl bg-yellow-500/10 flex items-center justify-center text-yellow-500"><Building2 className="h-8 w-8" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter">MTN Momo Node</h4><p className="text-[10px] font-bold text-muted-foreground uppercase">Inbound collection point</p></div></div>
-                  <div className="space-y-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Account Identity (Name)</Label><Input value={gatewayForm.mtnName} onChange={(e) => setGatewayForm({...gatewayForm, mtnName: e.target.value})} className="h-14 bg-secondary/30 border-none rounded-2xl font-bold" /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Node Number</Label><Input value={gatewayForm.mtnNumber} onChange={(e) => setGatewayForm({...gatewayForm, mtnNumber: e.target.value})} className="h-14 bg-secondary/30 border-none rounded-2xl font-bold" /></div></div>
+                  <div className="space-y-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Account Identity (Name)</Label><Input value={gatewaySettings.mtnName} onChange={(e) => setGatewayForm({...gatewayForm, mtnName: e.target.value})} className="h-14 bg-secondary/30 border-none rounded-2xl font-bold" /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Node Number</Label><Input value={gatewaySettings.mtnNumber} onChange={(e) => setGatewayForm({...gatewayForm, mtnNumber: e.target.value})} className="h-14 bg-secondary/30 border-none rounded-2xl font-bold" /></div></div>
                 </Card>
               </div>
               <div className="flex justify-center pt-10"><Button onClick={handleSaveGateway} className="h-16 px-12 rounded-3xl bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl shadow-primary/20 transition-all hover:scale-105 active:scale-95">Synchronize Gateways</Button></div>
