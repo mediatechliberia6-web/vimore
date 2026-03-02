@@ -451,6 +451,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshAdminData = useCallback(async () => {
+    // RBAC: Only refresh admin data if user has administrative authority
     if (!currentUser.role || currentUser.role === 'USER') return;
     try {
       const [withdraws, payments, profiles, logs] = await Promise.all([
@@ -701,6 +702,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const receiveCall = (contact: any, type: CallType, channelName: string, token: string, callId: string) => {
+    setCallState({ type, status: 'incoming', contact, channelName, token, callId });
+    activeCallIdRef.current = callId;
+  };
+
   const initiateCall = async (contact: any, type: CallType) => {
     const channelName = `vimore_${currentUser.id}_${contact.id || contact.username}`;
     const token = await generateAgoraToken(channelName, 0); 
@@ -715,11 +721,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     });
     activeCallIdRef.current = callDoc.$id;
     setCallState({ type, status: 'outgoing', contact, channelName, token, callId: callDoc.$id });
-  };
-
-  const receiveCall = (contact: any, type: CallType, channelName: string, token: string, callId: string) => {
-    setCallState({ type, status: 'incoming', contact, channelName, token, callId });
-    activeCallIdRef.current = callId;
   };
 
   const acceptCall = async () => {
