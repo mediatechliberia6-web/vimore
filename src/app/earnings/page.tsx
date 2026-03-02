@@ -95,7 +95,7 @@ export default function EarningsPage() {
   const [isPortalOpen, setIsPortalOpen] = useState(false);
   const isPlayerActive = currentTrack && !isExpanded;
 
-  // Real-time conversion logic using DYNAMIC rates from context (Phase 1)
+  // Real-time conversion logic using DYNAMIC rates from context
   const estimates = useMemo(() => {
     const gold = currentUser.goldBalance || 0;
     const diamond = currentUser.diamondBalance || 0;
@@ -387,7 +387,6 @@ export default function EarningsPage() {
                         <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase tracking-tighter">{rate.per}</Badge>
                       </div>
                       <div className="flex items-center justify-between border-t border-black/5 pt-2">
-                        <div className="flex items-center justify-between border-t border-black/5 pt-2">
                         <div className="flex flex-col">
                           <span className="text-[8px] font-black text-muted-foreground uppercase">USD</span>
                           <span className="text-sm font-black">{rate.usd}</span>
