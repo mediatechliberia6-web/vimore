@@ -40,6 +40,7 @@ export function AuthModal() {
   const [mode, setMode] = useState<"login" | "signup" | "verify" | "forgot">("login");
   const [signupStep, setSignupStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [isNewAccount, setIsNewAccount] = useState(false);
   
   // Auth Form State
   const [email, setEmail] = useState("");
@@ -55,16 +56,16 @@ export function AuthModal() {
   // Verification State
   const [vCode, setVCode] = useState("");
 
-  // Calibration: Trigger verification ONLY if an actual identity node is detected but unverified
+  // Calibration: Trigger verification ONLY if this is a fresh signup pulse
   useEffect(() => {
-    if (currentUser?.id) {
+    if (currentUser?.id && isNewAccount) {
       if (!currentUser.isEmailVerified && mode !== 'verify') {
         setMode('verify');
       }
     }
-  }, [currentUser?.id, currentUser?.isEmailVerified, mode]);
+  }, [currentUser?.id, currentUser?.isEmailVerified, mode, isNewAccount]);
 
-  // Terminal Handshake: Hide gate if user is fully synchronized
+  // Terminal Handshake: Hide gate if user is fully synchronized or a test user
   if (currentUser?.id && currentUser.isEmailVerified) return null;
   if (currentUser?.username === 'johndoe_creative') return null;
 
@@ -95,6 +96,7 @@ export function AuthModal() {
     triggerHaptic(30);
     try {
       await signup({ email, password, name, username, dob, nationality, gender });
+      setIsNewAccount(true); // Identify this as a new account handshake
       toast({ title: "Node Initialized", description: "Identity pulse generated. Please verify your email node." });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Handshake Failed", description: error.message });
@@ -111,6 +113,7 @@ export function AuthModal() {
     try {
       const success = await verifyCode(vCode);
       if (success) {
+        setIsNewAccount(false);
         toast({ title: "Signature Verified", description: "Welcome to the ViMore network." });
       } else {
         toast({ variant: "destructive", title: "Invalid Code", description: "The AI pulse did not match. Please try again." });
@@ -237,7 +240,7 @@ export function AuthModal() {
                 <p className="text-[9px] font-black text-primary uppercase animate-pulse">Syncing Code with Central Vault...</p>
               </div>
               <Button type="submit" disabled={isLoading || vCode.length < 6} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Handshake"}</Button>
-              <div className="text-center"><button type="button" onClick={() => { localStorage.clear(); window.location.reload(); }} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-destructive transition-all">Cancel Node Sync</button></div>
+              <div className="text-center"><button type="button" onClick={() => { setIsNewAccount(false); setMode('login'); }} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-destructive transition-all">Cancel Node Sync</button></div>
             </form>
           )}
 
