@@ -19,6 +19,9 @@ import client, {
   AUDIT_LOGS_COLLECTION_ID,
   STORIES_COLLECTION_ID,
   CALLS_COLLECTION_ID,
+  SONGS_COLLECTION_ID,
+  ALBUMS_COLLECTION_ID,
+  PLAYLISTS_COLLECTION_ID,
   VERIFICATION_NODES_COLLECTION_ID,
   Query
 } from '@/lib/appwrite';
@@ -530,13 +533,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
   
   const signup = async (data: { email: string, pass: string, name: string, username: string, dob: string, nationality: string, gender: 'Male' | 'Female' }) => {
+    // 1. Pre-Flight Identity Node Verification
+    const existing = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
+      Query.equal('username', data.username)
+    ]);
+    
+    if (existing.total > 0) {
+      throw new Error("This spatial ID (username) is already taken. Choose another signature.");
+    }
+
     const profiles = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
     const isFirstAccount = profiles.total === 0;
     const assignedRole = isFirstAccount ? 'SUPER' : 'USER';
 
+    // 2. Materialize Core Identity
     const user = await account.create(ID.unique(), data.email, data.pass, data.name);
     await account.createEmailPasswordSession(data.email, data.pass);
     
+    // 3. Sync Profile Node
     await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id, { 
       userId: user.$id, 
       name: data.name, 
@@ -552,11 +566,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
       isEmailVerified: false 
     });
 
+    // 4. Generate Spatial Challenge Code
     const { code } = await aiGenerateVerificationCode({ packageName: "IDENTITY_VERIFICATION" });
     await databases.createDocument(APPWRITE_DATABASE_ID, VERIFICATION_NODES_COLLECTION_ID, ID.unique(), {
       userId: user.$id,
       code,
-      expiresAt: Date.now() + (15 * 60 * 1000)
+      expiresAt: Date.now() + (15 * 60 * 1000) // 15 Minute Window
     });
 
     await checkSession();

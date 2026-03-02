@@ -85,21 +85,47 @@ export function AuthModal() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (signupStep === 1) {
-      if (!email || !password || !name || !username) return;
+      // Step 1 Validation Pulse
+      if (!email.includes('@')) {
+        toast({ variant: "destructive", title: "Invalid Node", description: "Email protocol mismatch." });
+        return;
+      }
+      if (password.length < 8) {
+        toast({ variant: "destructive", title: "Weak Signature", description: "Password must be 8+ characters for vault security." });
+        return;
+      }
+      if (!name.trim() || !username.trim()) {
+        toast({ variant: "destructive", title: "Missing Data", description: "All identity fields are required." });
+        return;
+      }
+      
       setSignupStep(2);
       triggerHaptic(10);
       return;
     }
 
+    // Step 2 Validation Pulse
+    if (!dob) {
+      toast({ variant: "destructive", title: "Temporal Error", description: "Arrival date (DOB) is required for synchronization." });
+      return;
+    }
+
     setIsLoading(true);
     triggerHaptic(30);
+    
     try {
       await signup({ email, password, name, username, dob, nationality, gender });
-      setIsNewAccount(true); // Identify this as a new account handshake
+      setIsNewAccount(true);
       toast({ title: "Node Initialized", description: "Identity pulse generated. Please verify your email node." });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Handshake Failed", description: error.message });
+      console.error("Signup Pulse Failure:", error);
+      toast({ 
+        variant: "destructive", 
+        title: "Handshake Failed", 
+        description: error.message || "An unexpected error occurred during node materialization." 
+      });
     } finally {
       setIsLoading(false);
     }
