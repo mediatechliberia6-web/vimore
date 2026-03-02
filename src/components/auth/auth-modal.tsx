@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -21,7 +20,8 @@ import {
   X,
   ArrowLeft,
   Check,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,7 @@ export function AuthModal() {
   const [isLoading, setIsLoading] = useState(false);
   const [isNewAccount, setIsNewAccount] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   
   // Auth Form State
   const [email, setEmail] = useState("");
@@ -62,7 +63,7 @@ export function AuthModal() {
     if (mode === 'verify' && isNewAccount && !currentUser.isEmailVerified) {
       interval = setInterval(() => {
         checkSession();
-      }, 5000); // Pulse check every 5 seconds
+      }, 5000); 
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -78,21 +79,21 @@ export function AuthModal() {
     }
   }, [currentUser?.id, currentUser?.isEmailVerified, mode, isNewAccount]);
 
-  // Terminal Handshake: Hide gate if user is fully synchronized
+  // Terminal Handshake
   if (currentUser?.id && currentUser.isEmailVerified) return null;
-  // Standard Entrance: If user is logged in but not a fresh signup, allow entry (they can verify later in settings)
   if (currentUser?.id && !isNewAccount) return null;
-  // Admin Node Bypass
   if (currentUser?.username === 'johndoe_creative') return null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setAuthError(null);
     triggerHaptic(20);
     try {
       await login(email, password);
       toast({ title: "Identity Synced" });
     } catch (error: any) {
+      setAuthError(error.message);
       toast({ variant: "destructive", title: "Handshake Failed", description: error.message });
     } finally {
       setIsLoading(false);
@@ -101,6 +102,7 @@ export function AuthModal() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError(null);
     
     if (signupStep === 1) {
       if (!email.includes('@')) {
@@ -121,7 +123,7 @@ export function AuthModal() {
     }
 
     if (!dob) {
-      toast({ variant: "destructive", title: "Temporal Error", description: "Arrival date (DOB) is required for synchronization." });
+      toast({ variant: "destructive", title: "Temporal Error", description: "Arrival date (DOB) is required." });
       return;
     }
 
@@ -136,11 +138,11 @@ export function AuthModal() {
         description: "Identity pulse sent to your email node. Please verify to continue."
       });
     } catch (error: any) {
-      console.error("Signup Pulse Failure:", error);
+      setAuthError(error.message);
       toast({ 
         variant: "destructive", 
         title: "Handshake Failed", 
-        description: error.message || "An unexpected error occurred during node materialization." 
+        description: error.message || "An unexpected error occurred." 
       });
     } finally {
       setIsLoading(false);
@@ -152,7 +154,7 @@ export function AuthModal() {
     triggerHaptic(10);
     try {
       await resendVerification();
-      toast({ title: "Pulse Re-emitted", description: "A new verification link has been launched to your email." });
+      toast({ title: "Pulse Re-emitted", description: "Check your inbox for the link." });
     } catch (e) {
       toast({ variant: "destructive", title: "Sync Failed" });
     } finally {
@@ -167,7 +169,7 @@ export function AuthModal() {
     triggerHaptic(20);
     try {
       await forgotPassword(email);
-      toast({ title: "Recovery Pulse Sent", description: "Check your email for the signature reset link." });
+      toast({ title: "Recovery Pulse Sent" });
       setMode("login");
     } catch (error: any) {
       toast({ variant: "destructive", title: "Request Failed" });
@@ -187,7 +189,7 @@ export function AuthModal() {
         
         <header className="text-center space-y-4">
           <div className="flex justify-center">
-            <div className="w-16 h-16 bg-primary rounded-[1.25rem] flex items-center justify-center text-white shadow-2xl shadow-primary/20 transition-transform hover:scale-105 active:scale-95">
+            <div className="w-16 h-16 bg-primary rounded-[1.25rem] flex items-center justify-center text-white shadow-2xl">
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-10 h-10">
                 <path d="M3 7L10 19L17 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M13 15L17 7L21 15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -202,6 +204,15 @@ export function AuthModal() {
 
         <div className="w-full bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-8 shadow-2xl space-y-6">
           
+          {authError && (
+            <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-start gap-3 animate-in shake-vibe">
+              <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <p className="text-[11px] font-bold text-destructive uppercase leading-tight tracking-tight">
+                {authError}
+              </p>
+            </div>
+          )}
+
           {mode === 'login' && (
             <form onSubmit={handleLogin} className="space-y-6 animate-in slide-in-from-bottom-4">
               <div className="space-y-4">
@@ -215,7 +226,7 @@ export function AuthModal() {
                 </div>
               </div>
               <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Launch Pulse"}</Button>
-              <div className="text-center"><button type="button" onClick={() => { setMode('signup'); setSignupStep(1); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Create New Identity</button></div>
+              <div className="text-center"><button type="button" onClick={() => { setMode('signup'); setSignupStep(1); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Create New Identity</button></div>
             </form>
           )}
 
@@ -258,7 +269,7 @@ export function AuthModal() {
                 </div>
               )}
               <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : signupStep === 1 ? "Next Protocol" : "Materialize Identity"}</Button>
-              <div className="text-center"><button type="button" onClick={() => setMode('login')} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Back to Sync</button></div>
+              <div className="text-center"><button type="button" onClick={() => { setMode('login'); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Back to Sync</button></div>
             </form>
           )}
 
@@ -271,12 +282,12 @@ export function AuthModal() {
               </div>
               <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
                 <p className="text-xs text-white/60 leading-relaxed uppercase tracking-tight">
-                  Click the link in the email to synchronize your identity with the network. This window will update automatically once verified.
+                  Click the link in the email to synchronize your identity. This window will dissolve automatically once verified.
                 </p>
               </div>
               
               <div className="space-y-4">
-                <Button onClick={() => window.location.reload()} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em] gap-2">
+                <Button onClick={() => checkSession()} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em] gap-2">
                   <Zap className="h-4 w-4" /> Check Status
                 </Button>
                 
@@ -292,7 +303,7 @@ export function AuthModal() {
               </div>
 
               <div className="text-center">
-                <button type="button" onClick={() => { setIsNewAccount(false); setMode('login'); }} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-destructive transition-all">
+                <button type="button" onClick={() => { setIsNewAccount(false); setMode('login'); setAuthError(null); }} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-destructive transition-all">
                   Cancel Node Sync
                 </button>
               </div>
@@ -304,11 +315,11 @@ export function AuthModal() {
               <div className="space-y-4 text-center">
                 <div className="h-16 w-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mx-auto mb-4"><MailQuestion className="h-8 w-8" /></div>
                 <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Vault Recovery</h3>
-                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Input your registered email node to receive a reset pulse.</p>
+                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Input your email node to receive a reset pulse.</p>
               </div>
               <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Email Node</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 pl-11 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="sync@vimore.com" /></div>
               <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Launch Recovery"}</Button>
-              <div className="text-center"><button type="button" onClick={() => setMode('login')} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Cancel Request</button></div>
+              <div className="text-center"><button type="button" onClick={() => { setMode('login'); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Cancel Request</button></div>
             </form>
           )}
 

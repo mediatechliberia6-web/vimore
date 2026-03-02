@@ -21,7 +21,6 @@ import client, {
   SONGS_COLLECTION_ID,
   ALBUMS_COLLECTION_ID,
   PLAYLISTS_COLLECTION_ID,
-  VERIFICATION_NODES_COLLECTION_ID,
   NOTIFICATIONS_COLLECTION_ID,
   Query,
   storage
@@ -550,39 +549,56 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
   
   const signup = async (data: { email: string, pass: string, name: string, username: string, dob: string, nationality: string, gender: 'Male' | 'Female' }) => {
-    const existing = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
-      Query.equal('username', data.username)
-    ]);
-    
-    if (existing.total > 0) {
-      throw new Error("This spatial ID (username) is already taken. Choose another signature.");
+    try {
+      // 1. Availability Pulse: Check for existing signatures
+      const existing = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
+        Query.equal('username', data.username)
+      ]);
+      
+      if (existing.total > 0) {
+        throw new Error("This spatial ID (username) is already taken. Choose another signature.");
+      }
+
+      // 2. Primacy Check: Determine if this is the Prime Node
+      const profilesCount = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
+      const assignedRole = profilesCount.total === 0 ? 'SUPER' : 'USER';
+
+      // 3. Auth Materialization
+      const user = await account.create(ID.unique(), data.email, data.pass, data.name);
+      
+      // 4. Session Handshake: Required to write to protected collections
+      await account.createEmailPasswordSession(data.email, data.pass);
+      
+      // 5. Database Materialization: Coupling Auth ID with Profile Document
+      try {
+        await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id, { 
+          name: data.name, 
+          username: data.username, 
+          avatar: INITIAL_USER.avatar, 
+          goldBalance: 0, 
+          diamondBalance: 0, 
+          starBalance: 0, 
+          role: assignedRole,
+          dateOfBirth: data.dob,
+          nationality: data.nationality,
+          gender: data.gender,
+          referralCount: 0,
+          isEmailVerified: false 
+        });
+      } catch (profileError: any) {
+        console.error("Profile Document Failure:", profileError);
+        throw new Error(`Profile Materialization Error: ${profileError.message || "Ensure collection attributes are correctly defined in Appwrite Console."}`);
+      }
+
+      // 6. Verification Pulse
+      const verificationUrl = `${window.location.origin}/auth/verify`;
+      await account.createVerification(verificationUrl);
+
+      await checkSession();
+    } catch (error: any) {
+      console.error("Signup Chain Collapse:", error);
+      throw error;
     }
-
-    const profilesCount = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
-    const assignedRole = profilesCount.total === 0 ? 'SUPER' : 'USER';
-
-    const user = await account.create(ID.unique(), data.email, data.pass, data.name);
-    await account.createEmailPasswordSession(data.email, data.pass);
-    
-    await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id, { 
-      userId: user.$id, 
-      name: data.name, 
-      username: data.username, 
-      avatar: INITIAL_USER.avatar, 
-      goldBalance: 0, 
-      diamondBalance: 0, 
-      starBalance: 0, 
-      role: assignedRole,
-      dateOfBirth: data.dob,
-      nationality: data.nationality,
-      gender: data.gender,
-      isEmailVerified: false 
-    });
-
-    const verificationUrl = `${window.location.origin}/auth/verify`;
-    await account.createVerification(verificationUrl);
-
-    await checkSession();
   };
 
   const resendVerification = async () => {
