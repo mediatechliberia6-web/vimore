@@ -64,7 +64,7 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
         finalImageUrl = await uploadMedia(selectedFile);
       }
 
-      addStory({
+      await addStory({
         image: finalImageUrl, 
         type: mediaType || 'image',
         filter: selectedFilter.class,
@@ -117,7 +117,7 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
           ) : step === 'text' ? (
             <div className={cn("flex-1 flex-col flex items-center justify-center relative p-8 transition-all duration-500", selectedGradient.class)}><textarea autoFocus placeholder="Start typing..." className="w-full bg-transparent border-none focus:ring-0 text-4xl text-center font-black italic uppercase text-white placeholder:text-white/30 resize-none" value={storyText} onChange={(e) => setStoryStory(e.target.value)} /></div>
           ) : (
-            <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">{isProcessing ? <Loader2 className="h-10 w-10 animate-spin text-primary" /> : (mediaType === 'video' ? <video src={previewUrl!} className="w-full h-full object-cover" autoPlay muted loop playsInline /> : <Image src={previewUrl!} alt="Story" fill className={cn("object-cover", selectedFilter.class)} />)}</div>
+            <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">{isProcessing ? <Loader2 className="h-10 w-10 animate-spin text-primary" /> : (mediaType === 'video' ? <video src={previewUrl!} className="w-full h-full object-cover" autoPlay loop playsInline /> : <Image src={previewUrl!} alt="Story" fill className={cn("object-cover", selectedFilter.class)} />)}</div>
           )}
         </div>
       </div>

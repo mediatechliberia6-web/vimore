@@ -36,6 +36,7 @@ export const SONGS_COLLECTION_ID = 'songs';
 export const ALBUMS_COLLECTION_ID = 'albums';
 export const PLAYLISTS_COLLECTION_ID = 'playlists';
 export const VERIFICATION_NODES_COLLECTION_ID = 'verification_nodes';
+export const NOTIFICATIONS_COLLECTION_ID = 'notifications';
 
 export { ID, Query };
 

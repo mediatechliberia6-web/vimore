@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useMemo, useEffect } from "react";
@@ -46,7 +47,7 @@ import {
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
+import { cn, dataURLtoFile } from "@/lib/utils";
 import { aiTranslatePost } from "@/app/actions/ai";
 import {
   Dialog,
@@ -118,7 +119,7 @@ export function InfoNode({ icon: Icon, label, value, colorClass }: { icon: any, 
 }
 
 export default function MyProfilePage() {
-  const { currentUser, posts, updateCurrentUser, isPostSaved, addPost, followingUsernames, toggleFollowUser, setSelectedPostId, setSelectedImageUrl, triggerHaptic, settings } = usePosts();
+  const { currentUser, posts, updateCurrentUser, uploadMedia, triggerHaptic, settings } = usePosts();
   const { currentTrack, isExpanded, userSongs } = useMusic();
   const { toast } = useToast();
   const router = useRouter();
@@ -134,13 +135,13 @@ export default function MyProfilePage() {
   const [refiningImage, setRefiningImage] = useState<string | null>(null);
   const [refiningMode, setRefiningMode] = useState<"avatar" | "cover">("avatar");
   const [isRefinementOpen, setIsRefinementOpen] = useState(false);
+  const [isApplyingRefinement, setIsApplyingRefinement] = useState(false);
 
   const [visualToDelete, setVisualToDelete] = useState<"avatar" | "cover" | null>(null);
 
   const isPlayerActive = currentTrack && !isExpanded;
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const introInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -188,6 +189,26 @@ export default function MyProfilePage() {
     updateCurrentUser(updates);
     setIsEditModalOpen(false);
     toast({ title: "Identity Re-calibrated" });
+  };
+
+  const handleApplyRefinement = async (refinedDataUrl: string) => {
+    setIsApplyingRefinement(true);
+    triggerHaptic(30);
+    toast({ title: "Archiving Visual", description: "Transmitting node to spatial vault..." });
+
+    try {
+      const fileName = refiningMode === 'avatar' ? 'avatar.jpg' : 'cover.jpg';
+      const file = dataURLtoFile(refinedDataUrl, fileName);
+      const vaultUrl = await uploadMedia(file);
+      
+      updateCurrentUser({ [refiningMode]: vaultUrl });
+      toast({ title: "Presence Refreshed", description: "Digital signature updated." });
+      setIsRefinementOpen(false);
+    } catch (e) {
+      toast({ variant: "destructive", title: "Vault Sync Error" });
+    } finally {
+      setIsApplyingRefinement(false);
+    }
   };
 
   const isNameLocked = currentUser.lastModifiedName ? (Date.now() - currentUser.lastModifiedName < NINETY_DAYS_MS) : false;
@@ -273,7 +294,7 @@ export default function MyProfilePage() {
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Role Node</Label>
+                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Role Node</Label>
                           <Select value={editData.category} onValueChange={(val) => setEditData({ ...editData, category: val })}>
                             <SelectTrigger className="h-12 rounded-xl bg-secondary/20 border-none px-4 font-bold">
                               <SelectValue />
@@ -331,7 +352,7 @@ export default function MyProfilePage() {
                 
                 <div className="flex items-center gap-6 py-2">
                   <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{currentUser.followers || 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div>
-                  <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{followingUsernames.size}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
+                  <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">0</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
                   <div className="flex flex-col"><span className="font-bold text-lg leading-none">{myPosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
                 </div>
 
@@ -429,7 +450,7 @@ export default function MyProfilePage() {
       </div>
       
       <CreateStoryModal isOpen={isStoryModalOpen} onClose={() => setIsStoryModalOpen(false)} />
-      <ImageRefinementPortal isOpen={isRefinementOpen} onClose={() => setIsRefinementOpen(false)} image={refiningImage} mode={refiningMode} onApply={(refinedUrl) => { triggerHaptic(30); updateCurrentUser({ [refiningMode]: refinedUrl }); toast({ title: "Presence Refreshed" }); }} />
+      <ImageRefinementPortal isOpen={isRefinementOpen} onClose={() => setIsRefinementOpen(false)} image={refiningImage} mode={refiningMode} onApply={handleApplyRefinement} />
 
       <AlertDialog open={!!visualToDelete} onOpenChange={(open) => !open && setVisualToDelete(null)}>
         <AlertDialogContent className="rounded-[2.5rem] sm:max-w-[420px]">

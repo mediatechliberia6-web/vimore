@@ -1,8 +1,10 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { usePosts } from '@/context/PostContext';
+import client, { databases, APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, Query, ID } from '@/lib/appwrite';
 
 export type SignalType = 'SOCIAL' | 'SONIC' | 'POST' | 'SYSTEM';
 export type PulseCategory = 'HOME' | 'FRIENDS' | 'MUSIC' | 'REELS' | 'MESSAGES';
@@ -14,6 +16,7 @@ export interface NotificationNode {
   content: string;
   time: string;
   isRead: boolean;
+  recipientId: string;
   avatar?: string;
   image?: string;
   actionLabel?: string;
@@ -43,31 +46,8 @@ const SOUNDS = {
   lofi: "https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"
 };
 
-const MOCK_SIGNALS: NotificationNode[] = [
-  {
-    id: 'sig-paul',
-    type: 'SOCIAL',
-    title: 'Mutual Pulse',
-    content: '**Paul Node** followed you back. You are now mutual nodes.',
-    time: 'Just now',
-    isRead: false,
-    avatar: 'https://picsum.photos/seed/paul/100/100',
-    targetUsername: 'paul'
-  },
-  {
-    id: 'sig-1',
-    type: 'SOCIAL',
-    title: 'New Connection',
-    content: '**Sarah Chen** just followed you back. You are now mutual nodes.',
-    time: '2m ago',
-    isRead: false,
-    avatar: 'https://picsum.photos/seed/2/100/100',
-    targetUsername: 'schen_dev'
-  }
-];
-
-// Maximum nodes to keep in local storage to prevent QuotaExceededError
-const SIGNAL_STORAGE_LIMIT = 30;
+// Maximum nodes to keep in local view
+const SIGNAL_DISPLAY_LIMIT = 50;
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<NotificationNode[]>([]);
@@ -80,70 +60,76 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   });
   const [hasPushPermission, setHasPushPermission] = useState(false);
   const { toast } = useToast();
-  const { settings, triggerHaptic } = usePosts();
+  const { settings, triggerHaptic, currentUser } = usePosts();
+
+  const fetchNotifications = useCallback(async () => {
+    if (!currentUser.id) return;
+    try {
+      const response = await databases.listDocuments(
+        APPWRITE_DATABASE_ID,
+        NOTIFICATIONS_COLLECTION_ID,
+        [
+          Query.equal('recipientId', currentUser.id),
+          Query.orderDesc('$createdAt'),
+          Query.limit(SIGNAL_DISPLAY_LIMIT)
+        ]
+      );
+      
+      const nodes: NotificationNode[] = response.documents.map(doc => ({
+        id: doc.$id,
+        type: doc.type,
+        title: doc.title,
+        content: doc.content,
+        recipientId: doc.recipientId,
+        time: new Date(doc.$createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isRead: doc.isRead,
+        avatar: doc.avatar,
+        image: doc.image,
+        postId: doc.postId,
+        trackId: doc.trackId,
+        targetUsername: doc.targetUsername,
+        actionHref: doc.actionHref,
+        actionLabel: doc.actionLabel
+      }));
+      
+      setNotifications(nodes);
+    } catch (e) {
+      console.warn("Signal vault fetch failed.");
+    }
+  }, [currentUser.id]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('vimore_signals');
-    const savedPulses = localStorage.getItem('vimore_pulses');
-    
-    if (saved) {
-      try { setNotifications(JSON.parse(saved)); } catch (e) { setNotifications(MOCK_SIGNALS); }
-    } else {
-      setNotifications(MOCK_SIGNALS);
-    }
+    fetchNotifications();
 
-    if (savedPulses) {
-      try { setCategoryPulses(JSON.parse(savedPulses)); } catch (e) {}
-    }
+    if (!currentUser.id) return;
 
+    // REAL-TIME HANDSHAKE
+    const unsubscribe = client.subscribe(
+      `databases.${APPWRITE_DATABASE_ID}.collections.${NOTIFICATIONS_COLLECTION_ID}.documents`,
+      (response) => {
+        const payload = response.payload as any;
+        if (payload.recipientId === currentUser.id) {
+          fetchNotifications();
+          triggerSound();
+          triggerHaptic(10);
+        }
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUser.id, fetchNotifications]);
+
+  useEffect(() => {
     if (typeof window !== 'undefined' && "Notification" in window) {
       setHasPushPermission(Notification.permission === "granted");
     }
   }, []);
-
-  // Safe Persistence Protocol
-  useEffect(() => {
-    try {
-      // Buffer Check: Keep only latest nodes
-      const bufferedNotifications = notifications.slice(0, SIGNAL_STORAGE_LIMIT);
-      localStorage.setItem('vimore_signals', JSON.stringify(bufferedNotifications));
-    } catch (e) {
-      console.warn("Signal buffer failed to sync. Clearing cache to restore handshake.");
-      localStorage.removeItem('vimore_signals');
-    }
-  }, [notifications]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('vimore_pulses', JSON.stringify(categoryPulses));
-    } catch (e) {}
-  }, [categoryPulses]);
-
-  // Synthetic Signal Simulator
-  useEffect(() => {
-    const categories: PulseCategory[] = ['HOME', 'FRIENDS', 'MUSIC', 'REELS', 'MESSAGES'];
-    
-    const interval = setInterval(() => {
-      // 30% chance of a pulse every interval
-      if (Math.random() > 0.7) {
-        const randomCat = categories[Math.floor(Math.random() * categories.length)];
-        setCategoryPulses(prev => ({
-          ...prev,
-          [randomCat]: Math.min(prev[randomCat] + 1, 10) // Cap at 10 for "9+" display
-        }));
-        triggerHaptic(5);
-      }
-    }, 45000); // Pulse check every 45 seconds
-
-    return () => clearInterval(interval);
-  }, [triggerHaptic]);
 
   const triggerSound = useCallback(() => {
     if (settings.isSilenceActive) {
       const now = new Date();
       const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       
-      // Handle overnight window (e.g., 22:00 to 07:00)
       const isSilenced = settings.silenceStart < settings.silenceEnd 
         ? (currentTime >= settings.silenceStart && currentTime <= settings.silenceEnd)
         : (currentTime >= settings.silenceStart || currentTime <= settings.silenceEnd);
@@ -157,35 +143,45 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     audio.play().catch(() => {});
   }, [settings]);
 
-  const addSignal = useCallback((signal: Omit<NotificationNode, 'id' | 'time' | 'isRead'>) => {
-    const newNode: NotificationNode = {
-      ...signal,
-      id: `sig-${Date.now()}`,
-      time: 'Just now',
-      isRead: false
-    };
-
-    setNotifications(prev => [newNode, ...prev].slice(0, SIGNAL_STORAGE_LIMIT + 10)); // Local state buffer
-    triggerSound();
-
-    if (typeof window !== 'undefined' && "Notification" in window && Notification.permission === "granted") {
-      new Notification(signal.title, {
-        body: signal.content.replace(/\*\*/g, ''),
-        icon: signal.avatar || '/icon.svg'
-      });
+  const addSignal = useCallback(async (signal: Omit<NotificationNode, 'id' | 'time' | 'isRead'>) => {
+    try {
+      await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        NOTIFICATIONS_COLLECTION_ID,
+        ID.unique(),
+        {
+          ...signal,
+          isRead: false,
+          timestamp: Date.now()
+        }
+      );
+    } catch (e) {
+      console.error("Signal transmission failed:", e);
     }
-  }, [triggerSound]);
+  }, []);
 
-  const markAsRead = (id: string) => {
+  const markAsRead = async (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    try {
+      await databases.updateDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, id, { isRead: true });
+    } catch (e) {}
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    const unread = notifications.filter(n => !n.isRead);
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    try {
+      for (const n of unread) {
+        await databases.updateDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, n.id, { isRead: true });
+      }
+    } catch (e) {}
   };
 
-  const purgeSignal = (id: string) => {
+  const purgeSignal = async (id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
+    try {
+      await databases.deleteDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, id);
+    } catch (e) {}
   };
 
   const clearPulse = (category: PulseCategory) => {
