@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye, BellOff, VolumeX } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye, BellOff, VolumeX, EyeOff, Zap } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { usePosts, StorySegment } from "@/context/PostContext";
@@ -26,7 +26,7 @@ interface FloatingReaction {
 }
 
 export function StoryViewer() {
-  const { stories, activeStoryIndex, mutedUserNames, setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser } = usePosts();
+  const { stories, activeStoryIndex, mutedUserNames, setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser, settings } = usePosts();
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -104,7 +104,6 @@ export function StoryViewer() {
       const elapsed = time - (startTime.current || 0);
       const newProgress = Math.min((elapsed / STORY_DURATION) * 100, 100);
       
-      // Update progress state without triggering heavy re-renders if possible
       setProgress(newProgress);
 
       if (newProgress >= 100) {
@@ -113,14 +112,12 @@ export function StoryViewer() {
       }
       requestRef.current = requestAnimationFrame(animate);
     } else {
-      // Calculate how much time passed before pausing
       pausedTime.current = time - (startTime.current || 0);
     }
   }, [isPaused, nextSegment]);
 
   useEffect(() => {
     if (activeStoryIndex !== null && !isPaused) {
-      // If we were paused, resume from where we were
       startTime.current = performance.now() - (progress / 100 * STORY_DURATION);
       requestRef.current = requestAnimationFrame(animate);
     } else {
@@ -130,7 +127,7 @@ export function StoryViewer() {
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [activeStoryIndex, isPaused, animate, segmentIndex]);
+  }, [activeStoryIndex, isPaused, animate, segmentIndex, progress]);
 
   const handleTap = (e: React.MouseEvent | React.TouchEvent) => {
     if (isPaused) return;
@@ -208,7 +205,7 @@ export function StoryViewer() {
           <div className="flex items-start gap-3">
             <div className="flex flex-col items-center gap-1.5">
               <Link 
-                href={`/profile/${activeStory.user.username || 'johndoe_creative'}`} 
+                href={`/profile/${activeStory.user.username}`} 
                 onClick={handleClose}
                 className="transition-transform hover:scale-105 active:scale-95"
               >
@@ -231,7 +228,7 @@ export function StoryViewer() {
 
             <div className="flex flex-col pt-0.5">
               <Link 
-                href={`/profile/${activeStory.user.username || 'johndoe_creative'}`} 
+                href={`/profile/${activeStory.user.username}`} 
                 onClick={handleClose} 
                 className="group"
               >
@@ -279,24 +276,49 @@ export function StoryViewer() {
           )}
           onClick={handleTap}
         >
-          {currentSegment.type === 'video' ? (
-            <video 
-              src={currentSegment.image} 
-              className="w-full h-full object-cover" 
-              autoPlay 
-              muted 
-              loop 
-              playsInline 
-            />
-          ) : currentSegment.image ? (
-            <Image 
-              src={currentSegment.image} 
-              alt="Story Content" 
-              fill 
-              className={cn("object-cover", currentSegment.filter)}
-              priority
-            />
-          ) : null}
+          {settings.isFreeMode ? (
+            <div className="flex flex-col items-center gap-6 p-12 text-center">
+              <div className="relative">
+                <div className="absolute -inset-4 bg-primary/20 blur-3xl rounded-full animate-pulse" />
+                <Avatar className="h-32 w-32 border-4 border-primary shadow-2xl relative z-10">
+                  <AvatarImage src={activeStory.user.avatar} />
+                  <AvatarFallback>{activeStory.user.name[0]}</AvatarFallback>
+                </Avatar>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2">
+                  <EyeOff className="h-4 w-4 text-primary" />
+                  <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Free Mode Active</span>
+                </div>
+                <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">Visual Suppressed</h3>
+                <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl inline-flex items-center gap-2">
+                  <Zap className="h-3 w-3 text-primary animate-pulse" />
+                  <span className="text-[9px] font-black text-white/60 uppercase tracking-widest">High-Velocity Text Sync</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {currentSegment.type === 'video' ? (
+                <video 
+                  src={currentSegment.image} 
+                  className="w-full h-full object-cover" 
+                  autoPlay 
+                  muted 
+                  loop 
+                  playsInline 
+                />
+              ) : currentSegment.image ? (
+                <Image 
+                  src={currentSegment.image} 
+                  alt="Story Content" 
+                  fill 
+                  className={cn("object-cover", currentSegment.filter)}
+                  priority
+                />
+              ) : null}
+            </>
+          )}
 
           {/* Draggable Text Overlays / Centered Story Text */}
           {currentSegment.textOverlays?.map((overlay, i) => (
