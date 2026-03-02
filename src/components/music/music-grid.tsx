@@ -3,6 +3,7 @@
 import { Play, Pause, MoreVertical, Heart, ThumbsDown, TrendingUp, Music2, Share2, Plus, Download, User, ListPlus, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMusic, Track, Album, Playlist } from "@/context/MusicContext";
+import { usePosts } from "@/context/PostContext";
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ interface MusicGridProps {
 
 export function MusicGrid({ type, items = [], title }: MusicGridProps) {
   const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, isTrackDownloaded, simulateDownload, addToQueue, userPlaylists, openCreatePlaylist, addTrackToPlaylist, trackStats, playCollection, triggerDownloadWithAd } = useMusic();
+  const { settings } = usePosts();
   const { toast } = useToast();
   const [downloadingIds, setDownloadingIds] = useState<Set<string | number>>(new Set());
 
@@ -76,7 +78,11 @@ export function MusicGrid({ type, items = [], title }: MusicGridProps) {
     if (type === "hero") {
       return (
         <div key={stableKey} className="relative w-full max-w-4xl aspect-video sm:h-[400px] rounded-[2rem] sm:rounded-[3rem] overflow-hidden group cursor-pointer shadow-2xl ring-1 ring-white/10">
-          <Image src={item.cover} alt={item.title} fill className="object-cover transition-transform duration-1000 group-hover:scale-105" />
+          {!settings.isFreeMode ? (
+            <Image src={item.cover} alt={item.title} fill className="object-cover transition-transform duration-1000 group-hover:scale-105" />
+          ) : (
+            <div className="absolute inset-0 bg-secondary/20" />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
           <div className="absolute bottom-6 left-6 right-6 sm:bottom-10 sm:left-10 sm:right-10 space-y-2 sm:space-y-4">
             <div className="flex items-center gap-2">
@@ -169,7 +175,13 @@ export function MusicGrid({ type, items = [], title }: MusicGridProps) {
           <div className="absolute -left-1 sm:-left-2 top-2 bottom-2 w-2 sm:w-3 bg-white/20 backdrop-blur-md rounded-l-lg z-10 border-r border-white/30" />
           
           <div className="relative h-full w-full rounded-[0.75rem] sm:rounded-[1rem] overflow-hidden shadow-xl ring-1 ring-white/10 group-hover:-translate-y-1 sm:group-hover:-translate-y-2 transition-transform duration-500">
-            <Image src={item.cover} alt={item.title} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
+            {!settings.isFreeMode ? (
+              <Image src={item.cover} alt={item.title} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
+            ) : (
+              <div className="absolute inset-0 bg-secondary/30 flex items-center justify-center">
+                <Music2 className="h-10 w-10 text-muted-foreground/20" />
+              </div>
+            )}
             <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent" />
             
             {isDownloaded && !isDownloading && (

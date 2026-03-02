@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useMemo, useEffect } from "react";
@@ -38,10 +37,11 @@ import {
   Trash2,
   Loader2,
   Clapperboard,
-  Image as ImageIcon,
+  ImageIcon,
   CheckCircle2,
   Globe,
-  Users
+  Users,
+  EyeOff
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
@@ -118,7 +118,7 @@ export function InfoNode({ icon: Icon, label, value, colorClass }: { icon: any, 
 }
 
 export default function MyProfilePage() {
-  const { currentUser, posts, updateCurrentUser, isPostSaved, addPost, followingUsernames, toggleFollowUser, setSelectedPostId, setSelectedImageUrl, triggerHaptic } = usePosts();
+  const { currentUser, posts, updateCurrentUser, isPostSaved, addPost, followingUsernames, toggleFollowUser, setSelectedPostId, setSelectedImageUrl, triggerHaptic, settings } = usePosts();
   const { currentTrack, isExpanded, userSongs } = useMusic();
   const { toast } = useToast();
   const router = useRouter();
@@ -296,7 +296,13 @@ export default function MyProfilePage() {
 
           <div className="relative">
             <div className="relative h-48 sm:h-64 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/20 overflow-hidden group">
-              <Image src={currentUser.cover || "https://picsum.photos/seed/my_cover/1200/400"} alt="Cover" fill className="object-cover dark:brightness-75 transition-transform duration-700 group-hover:scale-105" />
+              {settings.isFreeMode ? (
+                <div className="absolute inset-0 bg-secondary/20 flex items-center justify-center">
+                  <EyeOff className="h-10 w-10 text-muted-foreground/20" />
+                </div>
+              ) : (
+                <Image src={currentUser.cover || "https://picsum.photos/seed/my_cover/1200/400"} alt="Cover" fill className="object-cover dark:brightness-75 transition-transform duration-700 group-hover:scale-105" />
+              )}
               <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
                 <button onClick={() => coverInputRef.current?.click()} className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30 text-white hover:bg-white/40 transition-all"><Camera className="h-6 w-6" /></button>
               </div>
@@ -361,7 +367,13 @@ export default function MyProfilePage() {
                 <div className="grid grid-cols-3 gap-1">
                   {myReels.length > 0 ? myReels.map(reel => (
                     <div key={reel.id} onClick={() => router.push(`/reels?id=${reel.id}`)} className="aspect-[9/16] relative group overflow-hidden rounded-xl bg-black cursor-pointer">
-                      <video src={reel.videoUrl} className="object-cover w-full h-full opacity-80" muted playsInline />
+                      {!settings.isFreeMode ? (
+                        <video src={reel.videoUrl} className="object-cover w-full h-full opacity-80" muted playsInline />
+                      ) : (
+                        <div className="absolute inset-0 bg-secondary/20 flex items-center justify-center">
+                          <EyeOff className="h-6 w-6 text-white/20" />
+                        </div>
+                      )}
                       <div className="absolute inset-0 bg-black/20" />
                       <div className="absolute bottom-2 left-2 flex items-center gap-1 text-white text-[10px] font-black"><Clapperboard className="h-3 w-3" />{reel.likes}</div>
                     </div>
@@ -375,7 +387,15 @@ export default function MyProfilePage() {
                     {userSongs.map(song => (
                       <div key={song.id} className="flex items-center justify-between p-3 bg-secondary/20 rounded-2xl hover:bg-secondary/40 transition-all group">
                         <div className="flex items-center gap-4">
-                          <div className="relative h-12 w-12 rounded-xl overflow-hidden shadow-lg"><Image src={song.cover} alt="Song" fill className="object-cover" /></div>
+                          <div className="relative h-12 w-12 rounded-xl overflow-hidden shadow-lg">
+                            {!settings.isFreeMode ? (
+                              <Image src={song.cover} alt="Song" fill className="object-cover" />
+                            ) : (
+                              <div className="absolute inset-0 bg-secondary/40 flex items-center justify-center">
+                                <MusicIcon className="h-5 w-5 text-muted-foreground/40" />
+                              </div>
+                            )}
+                          </div>
                           <div><p className="font-bold text-sm">{song.title}</p><p className="text-[10px] text-muted-foreground uppercase font-black">{song.artist}</p></div>
                         </div>
                         <Button variant="ghost" size="icon" className="rounded-full text-primary opacity-0 group-hover:opacity-100 transition-opacity"><Play className="h-4 w-4 fill-current" /></Button>
@@ -388,7 +408,13 @@ export default function MyProfilePage() {
               <TabsContent value="media" className="p-4">
                 <div className="grid grid-cols-3 gap-2">
                   {postedImages.map((url, i) => (
-                    <div key={i} onClick={() => setSelectedImageUrl(url)} className="aspect-square relative rounded-xl overflow-hidden cursor-pointer hover:scale-[1.02] transition-transform shadow-lg"><Image src={url} alt="Shared" fill className="object-cover" /></div>
+                    <div key={i} onClick={() => !settings.isFreeMode && setSelectedImageUrl(url)} className={cn("aspect-square relative rounded-xl overflow-hidden shadow-lg", !settings.isFreeMode ? "cursor-pointer hover:scale-[1.02] transition-transform" : "bg-secondary/20 flex items-center justify-center")}>
+                      {!settings.isFreeMode ? (
+                        <Image src={url} alt="Shared" fill className="object-cover" />
+                      ) : (
+                        <ImageIcon className="h-6 w-6 text-muted-foreground/20" />
+                      )}
+                    </div>
                   ))}
                   {postedImages.length === 0 && <p className="col-span-3 text-center text-xs opacity-40 py-10">No images shared in the network.</p>}
                 </div>
@@ -406,7 +432,7 @@ export default function MyProfilePage() {
       <ImageRefinementPortal isOpen={isRefinementOpen} onClose={() => setIsRefinementOpen(false)} image={refiningImage} mode={refiningMode} onApply={(refinedUrl) => { triggerHaptic(30); updateCurrentUser({ [refiningMode]: refinedUrl }); toast({ title: "Presence Refreshed" }); }} />
 
       <AlertDialog open={!!visualToDelete} onOpenChange={(open) => !open && setVisualToDelete(null)}>
-        <AlertDialogContent className="rounded-[2.5rem] sm:max-w-[400px]">
+        <AlertDialogContent className="rounded-[2.5rem] sm:max-w-[420px]">
           <AlertDialogHeader><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">Purge Visual?</AlertDialogTitle><AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">Remove this visual node from your current profile presence.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6"><AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50 border-none">Cancel</AlertDialogCancel><AlertDialogAction onClick={() => { if (visualToDelete === 'avatar') updateCurrentUser({ avatar: "https://picsum.photos/seed/default/400/400" }); else updateCurrentUser({ cover: "" }); setVisualToDelete(null); }} className="rounded-xl h-12 font-black italic uppercase bg-destructive text-white">Confirm Purge</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>

@@ -14,11 +14,13 @@ import {
   ListMusic,
   Clock,
   CheckCircle2,
-  Loader2
+  Loader2,
+  Disc3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMusic, Track } from "@/context/MusicContext";
+import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
@@ -36,6 +38,7 @@ export function AlbumDetail() {
     selectedAlbum, setSelectedAlbum, currentTrack, isPlaying, setTrack, togglePlay, playCollection, 
     toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, isTrackDownloaded, simulateDownload, trackStats, triggerDownloadWithAd 
   } = useMusic();
+  const { settings } = usePosts();
   const { toast } = useToast();
   const [downloadingIds, setDownloadingIds] = useState<Set<string | number>>(new Set());
 
@@ -103,12 +106,14 @@ export function AlbumDetail() {
     <div className="fixed inset-0 z-[120] bg-background flex flex-col animate-in fade-in duration-500 overflow-hidden">
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full bg-primary/10 blur-[150px] opacity-40" />
-        <Image 
-          src={selectedAlbum.cover} 
-          alt="Album Blur" 
-          fill 
-          className="object-cover blur-[100px] opacity-20"
-        />
+        {!settings.isFreeMode && (
+          <Image 
+            src={selectedAlbum.cover} 
+            alt="Album Blur" 
+            fill 
+            className="object-cover blur-[100px] opacity-20"
+          />
+        )}
         <div className="absolute inset-0 bg-background/60 backdrop-blur-3xl" />
       </div>
 
@@ -143,7 +148,13 @@ export function AlbumDetail() {
           
           <div className="flex flex-col items-center lg:items-start text-center lg:text-left space-y-8 lg:w-1/3">
             <div className="relative w-full aspect-square max-w-[320px] rounded-[2rem] overflow-hidden shadow-2xl ring-1 ring-white/10">
-              <Image src={selectedAlbum.cover} alt={selectedAlbum.title} fill className="object-cover" />
+              {!settings.isFreeMode ? (
+                <Image src={selectedAlbum.cover} alt={selectedAlbum.title} fill className="object-cover" />
+              ) : (
+                <div className="absolute inset-0 bg-secondary/20 flex items-center justify-center">
+                  <Disc3 className="h-20 w-20 text-muted-foreground/20" />
+                </div>
+              )}
             </div>
             
             <div className="space-y-2">

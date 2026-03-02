@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, use, useMemo, useRef } from "react";
@@ -31,7 +30,8 @@ import {
   Gem,
   Loader2,
   ShieldCheck,
-  Share2
+  Share2,
+  EyeOff
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts, User } from "@/context/PostContext";
@@ -66,7 +66,7 @@ import {
 export default function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const resolvedParams = use(params);
   const username = resolvedParams.username;
-  const { currentUser, posts, connections, isFollowing, isSubscribed, toggleFollowUser, subscribeToCreator, cancelSubscription, fetchProfileByUsername } = usePosts();
+  const { currentUser, posts, connections, isFollowing, isSubscribed, toggleFollowUser, subscribeToCreator, cancelSubscription, fetchProfileByUsername, settings } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { addSignal } = useNotifications();
   const router = useRouter();
@@ -101,7 +101,6 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
       const profile = await fetchProfileByUsername(username);
       if (profile) setDisplayUser(profile);
       else {
-        // Spatial node not found fallback
         setDisplayUser(null);
       }
       setIsLoadingProfile(false);
@@ -210,7 +209,15 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
               <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); navigator.clipboard.writeText(window.location.href); toast({ title: "Link Copied" }); }}><Share2 className="h-4 w-4" /> Share Profile</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
           </header>
           <div className="relative">
-            <div className="relative h-48 sm:h-64 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/20 overflow-hidden"><Image src={displayUser.cover || `https://picsum.photos/seed/cover_${username}/1200/400`} alt="Cover" fill className="object-cover dark:brightness-75" /></div>
+            <div className="relative h-48 sm:h-64 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/20 overflow-hidden">
+              {settings.isFreeMode ? (
+                <div className="absolute inset-0 bg-secondary/20 flex items-center justify-center">
+                  <EyeOff className="h-10 w-10 text-muted-foreground/20" />
+                </div>
+              ) : (
+                <Image src={displayUser.cover || `https://picsum.photos/seed/cover_${username}/1200/400`} alt="Cover" fill className="object-cover dark:brightness-75" />
+              )}
+            </div>
             <div className="px-4 pb-4">
               <div className="relative inline-block -mt-16 sm:-mt-24 ml-0 sm:ml-2"><Avatar className="w-32 h-32 sm:w-44 sm:h-44 border-4 border-white dark:border-card shadow-xl ring-2 ring-primary/5"><AvatarImage src={displayUser.avatar} /><AvatarFallback>{displayUser.name[0]}</AvatarFallback></Avatar></div>
               <div className="mt-2 space-y-1 px-1">
@@ -271,7 +278,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                 <div className="mt-4 flex gap-2"><Button onClick={handleFollowAction} className={cn("flex-1 rounded-lg gap-2 h-11 font-bold transition-all shadow-lg group/btn min-w-[120px]", amIFollowing ? "bg-secondary text-foreground hover:bg-destructive hover:text-white" : "bg-primary text-white shadow-primary/20")}><span className={cn(amIFollowing && "group-hover/btn:hidden")}>{amIFollowing ? <UserCheck className="h-5 w-5 inline mr-1" /> : <UserPlus className="h-5 w-5 inline mr-1" />}{mainLabel}</span>{amIFollowing && <span className="hidden group-hover/btn:inline flex items-center gap-2"><UserMinus className="h-5 w-5" /> {mainHoverLabel}</span>}</Button><Link href="/messages" className="flex-1"><Button variant="secondary" className="w-full rounded-lg gap-2 h-11 font-bold active:scale-95 transition-all"><MessageCircle className="h-5 w-5" /> Message</Button></Link></div>
               </div>
             </div>
-            <Tabs defaultValue="all" className="w-full mt-2"><TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0"><TabsTrigger value="all" className="flex-1 font-bold text-sm">Posts</TabsTrigger><TabsTrigger value="reels" className="flex-1 font-bold text-sm">Reels</TabsTrigger><TabsTrigger value="media" className="flex-1 font-bold text-sm">Media</TabsTrigger></TabsList><TabsContent value="all" className="p-4 space-y-4">{userPosts.map(post => <PostCard key={post.id} {...post} />)}</TabsContent><TabsContent value="reels" className="p-4"><div className="grid grid-cols-3 gap-1">{userReels.length > 0 ? userReels.map(reel => <Link key={reel.id} href="/reels" className="aspect-[9/16] relative group overflow-hidden rounded-xl bg-black"><video src={reel.videoUrl} className="object-cover w-full h-full opacity-80" muted playsInline /><div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" /><div className="absolute bottom-2 left-2 flex items-center gap-1 text-white text-[10px] font-black"><Clapperboard className="h-3 w-3" />{reel.likes}</div></Link>) : <div className="col-span-3 py-20 text-center text-muted-foreground bg-secondary/10 rounded-[2rem] border-2 border-dashed border-border/50"><Clapperboard className="h-10 w-10 mx-auto mb-2 opacity-20" /><p className="font-bold">No Reels yet</p></div>}</div></TabsContent><TabsContent value="media" className="p-4"><div className="grid grid-cols-3 gap-1">{mediaPosts.length > 0 ? mediaPosts.map(post => <div key={post.id} className="aspect-square relative group cursor-pointer overflow-hidden rounded-lg"><Image src={post.image || post.images![0]} alt="Media" fill className="object-cover transition-transform group-hover:scale-110" /><div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"><Play className="h-6 w-6" /></div></div>) : <div className="col-span-3 py-20 text-center text-muted-foreground"><p className="font-bold">No media shared yet</p></div>}</div></TabsContent></Tabs>
+            <Tabs defaultValue="all" className="w-full mt-2"><TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0"><TabsTrigger value="all" className="flex-1 font-bold text-sm">Posts</TabsTrigger><TabsTrigger value="reels" className="flex-1 font-bold text-sm">Reels</TabsTrigger><TabsTrigger value="media" className="flex-1 font-bold text-sm">Media</TabsTrigger></TabsList><TabsContent value="all" className="p-4 space-y-4">{userPosts.map(post => <PostCard key={post.id} {...post} />)}</TabsContent><TabsContent value="reels" className="p-4"><div className="grid grid-cols-3 gap-1">{userReels.length > 0 ? userReels.map(reel => <Link key={reel.id} href="/reels" className="aspect-[9/16] relative group overflow-hidden rounded-xl bg-black">{!settings.isFreeMode ? <video src={reel.videoUrl} className="object-cover w-full h-full opacity-80" muted playsInline /> : <div className="absolute inset-0 bg-secondary/20 flex items-center justify-center"><EyeOff className="h-6 w-6 text-white/20" /></div>}<div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" /><div className="absolute bottom-2 left-2 flex items-center gap-1 text-white text-[10px] font-black"><Clapperboard className="h-3 w-3" />{reel.likes}</div></Link>) : <div className="col-span-3 py-20 text-center text-muted-foreground bg-secondary/10 rounded-[2rem] border-2 border-dashed border-border/50"><Clapperboard className="h-10 w-10 mx-auto mb-2 opacity-20" /><p className="font-bold">No Reels yet</p></div>}</div></TabsContent><TabsContent value="media" className="p-4"><div className="grid grid-cols-3 gap-1">{mediaPosts.length > 0 ? mediaPosts.map(post => <div key={post.id} className={cn("aspect-square relative group overflow-hidden rounded-lg", !settings.isFreeMode ? "cursor-pointer" : "bg-secondary/20 flex items-center justify-center")}>{!settings.isFreeMode ? (<><Image src={post.image || post.images![0]} alt="Media" fill className="object-cover transition-transform group-hover:scale-110" /><div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"><Play className="h-6 w-6" /></div></>) : <Zap className="h-6 w-6 text-muted-foreground/20" />}</div>) : <div className="col-span-3 py-20 text-center text-muted-foreground"><p className="font-bold">No media shared yet</p></div>}</div></TabsContent></Tabs>
           </div>
         </main>
         <aside className={cn("hidden lg:block sticky h-screen transition-all duration-300", isPlayerActive ? "top-16" : "top-0")}><RightSidebar /></aside>
