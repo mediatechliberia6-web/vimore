@@ -157,6 +157,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [compressionProgress, setCompressionProgress] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
   
@@ -198,8 +199,9 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         setIsCompressing(true);
         setCompressionProgress(0);
         
-        toast({ title: "Optimizing Reel", description: `Node size (${formatBytes(file.size)}) exceeds 50MB. Throttling...` });
+        toast({ title: "Optimizing Reel", description: `Node size (${formatBytes(file.size)}) exceeds limit. Throttling...` });
 
+        // Simulated High-Velocity Compression Pulse
         const duration = 2000;
         const interval = 50;
         const steps = duration / interval;
@@ -242,7 +244,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   };
 
   const handlePost = async () => {
-    setIsAiLoading(true); // Reusing loader for upload pulse
+    setIsAiLoading(true); 
     triggerHaptic(30);
     
     try {
@@ -254,7 +256,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
       const creationLanguage = typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en';
 
-      addPost({
+      await addPost({
         user: currentUser,
         collaborator: collaborator || undefined,
         content,
@@ -466,26 +468,11 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           )}
 
-          {isPollOpen && (
-            <div className="mx-4 mb-4 p-4 border border-primary/20 rounded-2xl bg-primary/5 space-y-4 animate-in slide-in-from-bottom-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Post Poll</span>
-                <button onClick={() => setIsPollOpen(false)} className="text-primary"><X className="h-4 w-4" /></button>
-              </div>
-              <Input placeholder="Ask a question..." className="bg-white border-primary/10 rounded-xl" value={pollQuestion} onChange={(e) => setPollQuestion(e.target.value)} />
-              <div className="space-y-2">
-                {pollOptions.map((opt, i) => (
-                  <Input key={i} placeholder={`Option ${i + 1}`} className="bg-white border-primary/10 rounded-xl" value={opt} onChange={(e) => { const n = [...pollOptions]; n[i] = e.target.value; setPollOptions(n); }} />
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="border-t">
             <button onClick={() => fileInputRef.current?.click()} disabled={isPollOpen || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
               <div className="flex items-center gap-4"><ImageIcon className="h-6 w-6 text-green-500" /><span className="text-base font-medium">Photo</span></div>
             </button>
-            <button onClick={() => { triggerHaptic(15); setIsOpen(false); openCaptureStudio(); }} disabled={isPollOpen || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
+            <button onClick={() => videoInputRef.current?.click()} disabled={isPollOpen || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
               <div className="flex items-center gap-4"><Video className="h-6 w-6 text-red-500" /><span className="text-base font-medium">Upload Reel</span></div>
             </button>
             <button onClick={() => toggleAction('poll')} disabled={selectedMedia.length > 0 || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
@@ -503,7 +490,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           </Button>
         </div>
 
-        <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*" multiple onChange={handleFileChange} />
+        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" multiple onChange={handleFileChange} />
+        <input type="file" ref={videoInputRef} className="hidden" accept="video/*" onChange={handleFileChange} />
       </DialogContent>
     </Dialog>
   );

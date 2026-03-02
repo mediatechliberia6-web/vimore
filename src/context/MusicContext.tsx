@@ -1,9 +1,9 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { saveFileToDevice } from '@/lib/utils';
-import { databases, APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ALBUMS_COLLECTION_ID, PLAYLISTS_COLLECTION_ID, Query } from '@/lib/appwrite';
+import { databases, APPWRITE_BUCKET_ID, APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ALBUMS_COLLECTION_ID, PLAYLISTS_COLLECTION_ID, Query, ID, storage } from '@/lib/appwrite';
 
 export interface Comment {
   id: string | number;
@@ -20,6 +20,7 @@ export interface Track {
   artistUsername?: string;
   artistFollowers?: string | number;
   cover: string;
+  audioUrl?: string; // High-velocity sound node
   duration: number; 
   streams?: string;
   likes?: number;
@@ -116,8 +117,8 @@ interface MusicContextType {
   isCollectionLiked: (id: string | number) => boolean;
   playCollection: (tracks: Track[], startIndex?: number) => void;
   addToQueue: (track: Track) => void;
-  publishTrack: (track: Track) => void;
-  publishAlbum: (album: Album) => void;
+  publishTrack: (track: any) => Promise<void>;
+  publishAlbum: (album: Album) => Promise<void>;
   deleteUserTrack: (trackId: string | number) => void;
   deleteUserAlbum: (albumId: string | number) => void;
   openCreatePlaylist: (firstTrack?: Track) => void;
@@ -163,6 +164,16 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
   const [trackForNewPlaylist, setTrackForNewPlaylist] = useState<Track | null>(null);
 
+  // High-Fidelity Sonic Engine
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (!audioRef.current && typeof window !== 'undefined') {
+      audioRef.current = new Audio();
+      audioRef.current.volume = volume / 100;
+    }
+  }, [volume]);
+
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
       window.navigator.vibrate(intensity);
@@ -182,6 +193,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         title: d.title,
         artist: d.artist,
         cover: d.cover,
+        audioUrl: d.audioUrl,
         duration: d.duration || 180,
         streams: d.streams || "0",
         likes: d.likes || 0,
@@ -198,7 +210,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         year: d.year || "2024",
         tracks: d.tracks || 0,
         totalStreams: d.totalStreams || "0",
-        songs: [] // To be populated if needed
+        songs: [] 
       } as Album));
 
       const playlists = playlistDocs.documents.map(d => ({
@@ -255,16 +267,32 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem('vimore_user_albums', JSON.stringify(userAlbums)); }, [userAlbums]);
   useEffect(() => { localStorage.setItem('vimore_track_stats', JSON.stringify(trackStats)); }, [trackStats]);
 
+  // Sonic Handshake: Sync real audio object
+  useEffect(() => {
+    if (!audioRef.current || !currentTrack?.audioUrl) return;
+    
+    if (audioRef.current.src !== currentTrack.audioUrl) {
+      audioRef.current.src = currentTrack.audioUrl;
+      audioRef.current.load();
+    }
+
+    if (isPlaying) {
+      audioRef.current.play().catch(e => console.error("Sonic engine stall:", e));
+    } else {
+      audioRef.current.pause();
+    }
+  }, [currentTrack, isPlaying]);
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isPlaying && currentTrack) {
+    if (isPlaying && currentTrack && audioRef.current) {
       interval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 100) return 100;
-          const step = (1 / (currentTrack.duration || 1)) * 100;
-          return Math.min(prev + step / 10, 100); 
-        });
-      }, 100);
+        if (audioRef.current) {
+          const p = (audioRef.current.currentTime / audioRef.current.duration) * 100;
+          setProgress(p || 0);
+          if (p >= 100) nextTrack();
+        }
+      }, 500);
     }
     return () => clearInterval(interval);
   }, [isPlaying, currentTrack]);
@@ -278,10 +306,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setProgress(0);
     setIsPlaying(true);
   }, [queue, currentTrack, triggerHaptic]);
-
-  useEffect(() => {
-    if (progress >= 100 && isPlaying) nextTrack();
-  }, [progress, isPlaying, nextTrack]);
 
   const setTrack = (track: Track) => {
     triggerHaptic(15);
@@ -310,7 +334,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setIsExpanded(true);
   };
 
-  const togglePlay = () => { triggerHaptic(10); setIsPlaying(!isPlaying); };
+  const togglePlay = () => { 
+    triggerHaptic(10); 
+    setIsPlaying(!isPlaying); 
+  };
 
   const prevTrack = () => {
     if (queue.length === 0) return;
@@ -372,8 +399,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     if (downloadedSongIds.has(track.id)) return;
     triggerHaptic(10);
     try {
-      await saveFileToDevice('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', `vimore_sonic_${track.id}.mp3`);
-      setDownloadedSongIds(prev => { const n = new Set(prev); n.add(track.id); return n; });
+      if (track.audioUrl) {
+        await saveFileToDevice(track.audioUrl, `vimore_sonic_${track.id}.mp3`);
+        setDownloadedSongIds(prev => { const n = new Set(prev); n.add(track.id); return n; });
+      }
     } catch (e) {
       console.error("Binary Archival Failed:", e);
     }
@@ -399,30 +428,62 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const isTrackDownloaded = (trackId: string | number) => downloadedSongIds.has(trackId);
   const isCollectionLiked = (id: string | number) => likedCollectionIds.has(id);
 
-  const publishTrack = (track: Track) => { setUserSongs(prev => [track, ...prev]); setTrackStats(prev => ({ ...prev, [track.id]: { likes: 0, unlikes: 0 } })); };
-  const publishAlbum = (album: Album) => {
-    setUserAlbums(prev => [album, ...prev]);
-    const newStats = { ...trackStats };
-    album.songs.forEach(s => { newStats[s.id] = { likes: 0, unlikes: 0 }; });
-    setTrackStats(newStats);
+  const publishTrack = async (newTrack: any) => {
+    const docData = {
+      title: newTrack.title,
+      artist: newTrack.artist,
+      artistUsername: newTrack.artistUsername,
+      cover: newTrack.cover,
+      audioUrl: newTrack.audioUrl,
+      duration: newTrack.duration,
+      streams: "0",
+      likes: 0,
+      unlikes: 0
+    };
+    const response = await databases.createDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ID.unique(), docData);
+    const track: Track = { ...newTrack, id: response.$id };
+    setUserSongs(prev => [track, ...prev]);
+    setTrackStats(prev => ({ ...prev, [track.id]: { likes: 0, unlikes: 0 } }));
+    await refreshMusicVault();
   };
 
-  const deleteUserTrack = (trackId: string | number) => { setUserSongs(prev => prev.filter(t => t.id !== trackId)); setTrackStats(prev => { const next = { ...prev }; delete next[trackId]; return next; }); };
-  const deleteUserAlbum = (albumId: string | number) => { setUserAlbums(prev => prev.filter(a => a.id !== albumId)); };
+  const publishAlbum = async (albumData: Album) => {
+    const docData = {
+      title: albumData.title,
+      artist: albumData.artist,
+      artistUsername: albumData.artistUsername,
+      cover: albumData.cover,
+      year: albumData.year,
+      tracks: albumData.tracks,
+      totalStreams: "0"
+    };
+    await databases.createDocument(APPWRITE_DATABASE_ID, ALBUMS_COLLECTION_ID, ID.unique(), docData);
+    setUserAlbums(prev => [albumData, ...prev]);
+    await refreshMusicVault();
+  };
+
+  const deleteUserTrack = (trackId: string | number) => { 
+    databases.deleteDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, trackId as string).then(() => {
+      setUserSongs(prev => prev.filter(t => t.id !== trackId));
+      setTrackStats(prev => { const next = { ...prev }; delete next[trackId]; return next; });
+      refreshMusicVault();
+    });
+  };
+
+  const deleteUserAlbum = (albumId: string | number) => { 
+    databases.deleteDocument(APPWRITE_DATABASE_ID, ALBUMS_COLLECTION_ID, albumId as string).then(() => {
+      setUserAlbums(prev => prev.filter(a => a.id !== albumId));
+      refreshMusicVault();
+    });
+  };
 
   const boostTrack = (trackId: string | number, targetViews: number, durationDays: number) => {
-    setUserSongs(prev => prev.map(t => {
-      if (t.id === trackId) {
-        return {
-          ...t,
-          isBoosted: true,
-          boostTargetViews: targetViews,
-          boostCurrentViews: 0,
-          boostExpiry: Date.now() + (durationDays * 24 * 60 * 60 * 1000)
-        };
-      }
-      return t;
-    }));
+    databases.updateDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, trackId as string, {
+      isBoosted: true,
+      boostTargetViews: targetViews,
+      boostCurrentViews: 0,
+      boostExpiry: Date.now() + (durationDays * 24 * 60 * 60 * 1000)
+    }).then(() => refreshMusicVault());
   };
 
   const openCreatePlaylist = (track?: Track) => { triggerHaptic(10); setTrackForNewPlaylist(track || null); setIsCreatePlaylistOpen(true); };
@@ -430,11 +491,31 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const confirmCreatePlaylist = (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => {
     triggerHaptic(30);
     const newPlaylist: Playlist = { id: Date.now(), title: data.title, description: data.description, isPrivate: data.isPrivate, creator: "John Doe", cover: data.cover || trackForNewPlaylist?.cover || "https://picsum.photos/seed/playlist/400/400", totalStreams: "0", songs: trackForNewPlaylist ? [trackForNewPlaylist] : [] };
+    
+    databases.createDocument(APPWRITE_DATABASE_ID, PLAYLISTS_COLLECTION_ID, ID.unique(), {
+      title: newPlaylist.title,
+      creator: newPlaylist.creator,
+      cover: newPlaylist.cover,
+      totalStreams: "0",
+      songs: JSON.stringify(newPlaylist.songs),
+      isPrivate: newPlaylist.isPrivate,
+      description: newPlaylist.description
+    }).then(() => refreshMusicVault());
+
     setUserPlaylists(prev => [newPlaylist, ...prev]);
     closeCreatePlaylist();
   };
 
-  const addTrackToPlaylist = (playlistId: string | number, track: Track) => { triggerHaptic(15); setUserPlaylists(prev => prev.map(p => { if (p.id === playlistId) { if (p.songs.some(s => s.id === track.id)) return p; return { ...p, songs: [...p.songs, track] }; } return p; })); };
+  const addTrackToPlaylist = (playlistId: string | number, track: Track) => { 
+    triggerHaptic(15); 
+    const playlist = userPlaylists.find(p => p.id === playlistId);
+    if (!playlist) return;
+    
+    const updatedSongs = [...playlist.songs, track];
+    databases.updateDocument(APPWRITE_DATABASE_ID, PLAYLISTS_COLLECTION_ID, playlistId as string, {
+      songs: JSON.stringify(updatedSongs)
+    }).then(() => refreshMusicVault());
+  };
 
   const addReaction = (emoji: string) => {
     triggerHaptic(5);

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -20,7 +21,8 @@ import {
   ChevronUp,
   Settings2,
   Mic2,
-  ArrowLeft
+  ArrowLeft,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,11 +35,12 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useMusic, Track, Album } from "@/context/MusicContext";
+import { usePosts } from "@/context/PostContext";
 
 interface TrackSlot {
   id: number;
   title: string;
-  file: string | null;
+  file: File | null;
   fileName: string | null;
   collaborator: string;
   isExplicit: boolean;
@@ -50,12 +53,16 @@ const GENRES = ["Afrobeats", "Amapiano", "Hip-Hop", "R&B", "Trap", "Jazz", "Lo-F
 export function MusicUpload({ onCancel }: { onCancel: () => void }) {
   const { toast } = useToast();
   const { triggerHaptic, publishTrack, publishAlbum } = useMusic();
+  const { uploadMedia, currentUser } = usePosts();
+  
   const [step, setStep] = useState<"choice" | "studio">("choice");
   const [projectType, setProjectType] = useState<"single" | "album">("single");
   const [coverArt, setCoverArt] = useState<string | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
   const [projectTitle, setProjectTitle] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("");
   const [releaseDate, setReleaseDate] = useState("");
+  const [isPublishing, setIsPublishing] = useState(false);
   
   const [tracks, setTracks] = useState<TrackSlot[]>(
     Array.from({ length: 12 }, (_, i) => ({
@@ -72,7 +79,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
 
   const coverInputRef = useRef<HTMLInputElement>(null);
 
-  // Persistence: LOAD draft
+  // Persistence Logic
   useEffect(() => {
     const savedDraft = localStorage.getItem('vimore_studio_draft');
     if (savedDraft) {
@@ -85,20 +92,9 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
           setProjectType(draft.projectType);
           setStep("studio");
         }
-        if (draft.tracks) {
-          setTracks(draft.tracks.map((t: any) => ({ ...t, file: null, fileName: null })));
-        }
       } catch (e) { console.error("Draft failed to load", e); }
     }
   }, []);
-
-  // Persistence: SAVE draft
-  useEffect(() => {
-    if (step === "studio") {
-      const draft = { projectTitle, selectedGenre, releaseDate, projectType, tracks: tracks.map(t => ({ ...t, file: null, fileName: null })) };
-      localStorage.setItem('vimore_studio_draft', JSON.stringify(draft));
-    }
-  }, [projectTitle, selectedGenre, releaseDate, projectType, tracks, step]);
 
   const handleChoice = (type: "single" | "album") => {
     triggerHaptic(15);
@@ -113,6 +109,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
     const file = e.target.files?.[0];
     if (file) {
       triggerHaptic(10);
+      setCoverFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setCoverArt(reader.result as string);
       reader.readAsDataURL(file);
@@ -129,7 +126,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
       triggerHaptic(10);
       updateTrack(id, { 
         fileName: file.name, 
-        file: "simulated_blob_url", 
+        file: file, 
         title: file.name.split('.')[0] 
       });
     }
@@ -153,68 +150,77 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
 
   const isReadyToPublish = calculateProgress() === 100;
 
-  const handlePublish = () => {
-    if (!isReadyToPublish) {
+  const handlePublish = async () => {
+    if (!isReadyToPublish || isPublishing) {
       triggerHaptic(50);
-      toast({ 
-        variant: "destructive", 
-        title: "Incomplete Project", 
-        description: "Please complete all required steps in the checklist before publishing." 
-      });
       return;
     }
 
+    setIsPublishing(true);
     triggerHaptic(100);
+    toast({ title: "Vault Archival Initiated", description: "Materializing high-fidelity sonic nodes..." });
     
-    // Create actual context data
-    if (projectType === "single") {
-      const track: Track = {
-        id: Date.now(),
-        title: projectTitle,
-        artist: "John Doe",
-        artistUsername: "johndoe_creative",
-        cover: coverArt || "https://picsum.photos/seed/single/600/600",
-        duration: 180,
-        streams: "0",
-        likes: 0,
-        unlikes: 0,
-        comments: []
-      };
-      publishTrack(track);
-    } else {
-      const albumSongs: Track[] = tracks.filter(t => t.file).map(t => ({
-        id: `song-${Date.now()}-${t.id}`,
-        title: t.title,
-        artist: "John Doe",
-        artistUsername: "johndoe_creative",
-        cover: coverArt || "https://picsum.photos/seed/album/600/600",
-        duration: 180,
-        streams: "0",
-        likes: 0,
-        unlikes: 0,
-        comments: []
-      }));
-      
-      const album: Album = {
-        id: `album-${Date.now()}`,
-        title: projectTitle,
-        artist: "John Doe",
-        artistUsername: "johndoe_creative",
-        cover: coverArt || "https://picsum.photos/seed/album/600/600",
-        year: new Date().getFullYear().toString(),
-        tracks: albumSongs.length,
-        totalStreams: "0",
-        songs: albumSongs
-      };
-      publishAlbum(album);
-    }
+    try {
+      // 1. Physical Cover Archival
+      const coverUrl = coverFile ? await uploadMedia(coverFile) : "https://picsum.photos/seed/single/600/600";
 
-    toast({ 
-      title: "Project Published!", 
-      description: `${projectTitle} is now live on ViMore and in your Library.` 
-    });
-    localStorage.removeItem('vimore_studio_draft');
-    onCancel();
+      if (projectType === "single") {
+        const slot = tracks[0];
+        // 2. Binary Track Archival
+        const audioUrl = slot.file ? await uploadMedia(slot.file) : "";
+
+        await publishTrack({
+          title: projectTitle,
+          artist: currentUser.name,
+          artistUsername: currentUser.username,
+          cover: coverUrl,
+          audioUrl: audioUrl,
+          duration: 180, // Prototype approximation
+          artistFollowers: currentUser.followers
+        });
+      } else {
+        const albumSongs: Track[] = [];
+        for (const slot of tracks.filter(t => t.file)) {
+          const audioUrl = await uploadMedia(slot.file!);
+          albumSongs.push({
+            id: `song-${Date.now()}-${slot.id}`,
+            title: slot.title,
+            artist: currentUser.name,
+            artistUsername: currentUser.username,
+            cover: coverUrl,
+            audioUrl: audioUrl,
+            duration: 180,
+            streams: "0",
+            likes: 0,
+            unlikes: 0,
+            comments: []
+          });
+        }
+        
+        await publishAlbum({
+          id: `album-${Date.now()}`,
+          title: projectTitle,
+          artist: currentUser.name,
+          artistUsername: currentUser.username,
+          cover: coverUrl,
+          year: new Date().getFullYear().toString(),
+          tracks: albumSongs.length,
+          totalStreams: "0",
+          songs: albumSongs
+        });
+      }
+
+      toast({ 
+        title: "Project Published!", 
+        description: `${projectTitle} is now live on the ViMore global cluster.` 
+      });
+      localStorage.removeItem('vimore_studio_draft');
+      onCancel();
+    } catch (e) {
+      toast({ variant: "destructive", title: "Sonic Sync Error", description: "Could not materialize audio nodes in the vault." });
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   if (step === "choice") {
@@ -292,11 +298,13 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
           <Button 
             className={cn(
               "h-9 px-6 rounded-full font-black italic uppercase tracking-widest text-[10px] transition-all",
-              isReadyToPublish ? "bg-primary text-white shadow-lg shadow-primary/30" : "bg-white/10 text-white/40"
+              isReadyToPublish && !isPublishing ? "bg-primary text-white shadow-lg shadow-primary/30" : "bg-white/10 text-white/40"
             )}
             onClick={handlePublish}
+            disabled={!isReadyToPublish || isPublishing}
           >
-            Publish
+            {isPublishing ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : null}
+            {isPublishing ? "Syncing..." : "Publish"}
           </Button>
         </div>
 
@@ -546,11 +554,12 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
             <Button 
               className={cn(
                 "w-full h-14 rounded-2xl font-black italic uppercase tracking-widest text-lg transition-all",
-                isReadyToPublish ? "bg-primary text-white hover:scale-[1.02] shadow-xl shadow-primary/30" : "bg-white/5 text-white/20 cursor-not-allowed"
+                isReadyToPublish && !isPublishing ? "bg-primary text-white hover:scale-[1.02] shadow-xl shadow-primary/30" : "bg-white/5 text-white/20 cursor-not-allowed"
               )}
               onClick={handlePublish}
+              disabled={!isReadyToPublish || isPublishing}
             >
-              Publish Project
+              {isPublishing ? "Syncing Nodes..." : "Publish Project"}
             </Button>
           </div>
         </section>
