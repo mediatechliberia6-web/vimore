@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -17,7 +18,8 @@ import {
   EyeOff,
   Loader2,
   ShieldAlert,
-  Shield
+  Shield,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,7 +79,9 @@ export default function AccountCenter() {
 
   useEffect(() => {
     if (!isPasswordDialogOpen && !isDeactivateDialogOpen) {
-      document.body.style.pointerEvents = 'auto';
+      if (typeof document !== 'undefined') {
+        document.body.style.pointerEvents = 'auto';
+      }
     }
   }, [isPasswordDialogOpen, isDeactivateDialogOpen]);
 
