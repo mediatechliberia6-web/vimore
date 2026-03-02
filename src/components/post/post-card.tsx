@@ -87,6 +87,7 @@ interface PostCardProps {
     name: string;
     username: string;
     avatar: string;
+    role: string;
     isVerified?: boolean;
     isOnline?: boolean;
     followers?: string | number;
@@ -441,7 +442,7 @@ export function PostCard(props: PostCardProps) {
           {isHiddenByLock ? (
             <div className="relative min-h-[380px] w-full rounded-[2.5rem] overflow-hidden flex flex-col items-center justify-center p-8 bg-secondary/20">
               <div className="absolute inset-0 bg-black/10 backdrop-blur-3xl" />
-              {image && <Image src={image} alt="Locked" fill className="object-cover opacity-20 blur-xl" />}
+              {image && !settings.isFreeMode && <Image src={image} alt="Locked" fill className="object-cover opacity-20 blur-xl" />}
               <div className="relative z-10 flex flex-col items-center text-center space-y-5 animate-in zoom-in duration-500">
                 <div className="h-16 w-16 bg-amber-500 rounded-[2rem] flex items-center justify-center text-white shadow-2xl shadow-amber-500/20">
                   <Lock className="h-8 w-8" />
@@ -488,7 +489,7 @@ export function PostCard(props: PostCardProps) {
                 </div>
               )}
 
-              {allImages.length > 0 && (
+              {allImages.length > 0 && !settings.isFreeMode && (
                 <div className={cn("relative mt-2", isShared ? "-mx-1" : "-mx-3 sm:mx-0")}>
                   {allImages.length > 1 && (
                     <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/10 shadow-xl pointer-events-none">
@@ -532,7 +533,7 @@ export function PostCard(props: PostCardProps) {
                 </div>
               )}
               
-              {videoUrl && (
+              {videoUrl && !settings.isFreeMode && (
                 <div 
                   className={cn("relative mt-2 rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center cursor-pointer group/vid", isShared ? "-mx-1" : "-mx-3 sm:mx-0")} 
                   onClick={handleReelClick}

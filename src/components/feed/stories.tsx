@@ -10,7 +10,7 @@ import { StoryViewer } from "./story-viewer";
 import { cn } from "@/lib/utils";
 
 export function Stories() {
-  const { stories, setActiveStoryIndex, currentUser, triggerHaptic } = usePosts();
+  const { stories, setActiveStoryIndex, currentUser, triggerHaptic, settings } = usePosts();
 
   const handleStoryClick = (index: number) => {
     triggerHaptic(10);
@@ -46,20 +46,29 @@ export function Stories() {
           {stories.map((story, index) => (
             <div 
               key={story.id} 
-              className="relative w-28 h-48 rounded-2xl overflow-hidden shrink-0 border border-primary/5 cursor-pointer group shadow-sm transition-all hover:scale-[1.02]"
+              className={cn(
+                "relative w-28 h-48 rounded-2xl overflow-hidden shrink-0 border border-primary/5 cursor-pointer group shadow-sm transition-all hover:scale-[1.02]",
+                settings.isFreeMode ? "bg-secondary/20" : ""
+              )}
               onClick={() => handleStoryClick(index)}
             >
-              <Image 
-                src={story.segments[0].image} 
-                alt={story.user.name} 
-                fill 
-                className={cn("object-cover transition-transform group-hover:scale-110", story.segments[0].filter)} 
-              />
+              {!settings.isFreeMode && (
+                <Image 
+                  src={story.segments[0].image} 
+                  alt={story.user.name} 
+                  fill 
+                  className={cn("object-cover transition-transform group-hover:scale-110", story.segments[0].filter)} 
+                />
+              )}
               <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
               
-              <div className="absolute top-2 left-2">
+              <div className={cn(
+                "absolute transition-all duration-500",
+                settings.isFreeMode ? "inset-0 flex items-center justify-center" : "top-2 left-2"
+              )}>
                 <Avatar className={cn(
-                  "h-8 w-8 border-2 shadow-lg",
+                  "border-2 shadow-lg transition-all",
+                  settings.isFreeMode ? "h-16 w-16" : "h-8 w-8",
                   story.isCloseFriends ? "border-[#42b72a]" : "border-primary"
                 )}>
                   <AvatarImage src={story.user.avatar} />

@@ -16,7 +16,8 @@ import {
   Loader2,
   Gift,
   Rocket,
-  Zap
+  Zap,
+  EyeOff
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn, parseFollowerCount, saveFileToDevice } from "@/lib/utils";
@@ -58,7 +59,7 @@ interface ReelCardProps {
 export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares, music, isActive, isBoosted, boostTargetViews, boostCurrentViews }: ReelCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { triggerHaptic, openCaptureStudio, triggerDownloadWithAd } = useMusic();
-  const { currentUser, openCommentHub, openGiftHub, t } = usePosts();
+  const { currentUser, openCommentHub, openGiftHub, settings, t } = usePosts();
   const { toast } = useToast();
   
   const [isMuted, setIsMuted] = useState(false);
@@ -71,7 +72,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
   const [isShareHubOpen, setIsShareHubOpen] = useState(false);
 
   useEffect(() => {
-    if (isActive && videoRef.current && videoUrl) {
+    if (isActive && videoRef.current && videoUrl && !settings.isFreeMode) {
       videoRef.current.play().catch((err) => {
         console.warn("Reel playback failed:", err);
       });
@@ -79,7 +80,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
       videoRef.current?.pause();
       if (videoRef.current) videoRef.current.currentTime = 0;
     }
-  }, [isActive, videoUrl]);
+  }, [isActive, videoUrl, settings.isFreeMode]);
 
   const toggleLike = () => {
     triggerHaptic(20);
@@ -160,17 +161,37 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
 
   return (
     <div className="relative h-[100dvh] w-full flex items-center justify-center group select-none bg-black overflow-hidden">
-      <video
-        key={videoUrl}
-        ref={videoRef}
-        src={videoUrl}
-        className="h-full w-full object-cover"
-        loop
-        muted={isMuted}
-        playsInline
-        onClick={toggleMute}
-        onDoubleClick={handleDoubleClick}
-      />
+      {settings.isFreeMode ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-12 bg-zinc-950">
+          <div className="relative mb-8">
+            <div className="absolute -inset-4 bg-primary/20 blur-3xl rounded-full animate-pulse" />
+            <Avatar className="h-32 w-32 border-4 border-primary shadow-2xl relative z-10">
+              <AvatarImage src={user.avatar} />
+              <AvatarFallback>{user.name[0]}</AvatarFallback>
+            </Avatar>
+          </div>
+          <div className="text-center space-y-4">
+            <div className="flex items-center justify-center gap-2">
+              <EyeOff className="h-4 w-4 text-primary" />
+              <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Free Mode Active</span>
+            </div>
+            <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">Video Node Suppressed</h3>
+            <p className="text-xs text-white/40 uppercase font-bold tracking-widest max-w-xs">Text-only pulse active to conserve spatial energy.</p>
+          </div>
+        </div>
+      ) : (
+        <video
+          key={videoUrl}
+          ref={videoRef}
+          src={videoUrl}
+          className="h-full w-full object-cover"
+          loop
+          muted={isMuted}
+          playsInline
+          onClick={toggleMute}
+          onDoubleClick={handleDoubleClick}
+        />
+      )}
 
       {isBoosted && (
         <div className="absolute top-20 left-6 z-[60] flex items-center gap-2 bg-gradient-to-r from-primary/80 to-accent/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 shadow-xl animate-in fade-in slide-in-from-left-4">
