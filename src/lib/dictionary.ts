@@ -5,7 +5,7 @@
 
 export type LanguageCode = 'en' | 'es' | 'fr' | 'pt' | 'ar' | 'zh';
 
-export const dictionary = {
+const dictionaryRaw = {
   en: {
     nav_home: "Home",
     nav_explore: "Explore",
@@ -92,6 +92,8 @@ export const dictionary = {
     settings_data: "Data & Archival",
     settings_archive: "Archive Identity Node",
     settings_purge: "Purge Vibe Cache",
+    settings_free_mode: "Free Mode (Data Saver)",
+    settings_free_mode_desc: "Text-only high-velocity sync",
     admin_active_nodes: "Active Nodes",
     admin_signatures: "Digital Signatures",
     admin_pulses: "Sonic Pulses",
@@ -291,6 +293,8 @@ export const dictionary = {
     menu_reels: "Reels",
     menu_command_core: "Núcleo de Comando",
     menu_how_it_works: "Cómo funciona ViMore",
+    settings_free_mode: "Modo Gratis (Ahorro de Datos)",
+    settings_free_mode_desc: "Sincronización de texto a alta velocidad",
     admin_gov_title: "Centro de Gobernanza",
     admin_gov_desc: "Materializar y gestionar la autoridad administrativa.",
     admin_gov_staff: "Clúster Administrativo",
@@ -495,7 +499,7 @@ export const dictionary = {
     ui_manual_sync: "Sync manuelle",
     ui_save_hub: "Sauvegarder",
     ui_identity_vault: "Coffre d'identité",
-    ui_account_center_desc: "Gérez vos identifiants spatiaux",
+    ui_account_center_desc: "Gerez vos identifiants spatiaux",
     ui_language_hub_desc: "Calibrer le dialecte mondial",
     ui_universal_translation: "Traduction universelle",
     ui_auto_pulse: "Auto-impulsion Groq AI",
@@ -518,6 +522,8 @@ export const dictionary = {
     menu_reels: "Reels",
     menu_command_core: "Centre de Commande",
     menu_how_it_works: "Comment fonctionne ViMore",
+    settings_free_mode: "Mode Gratuit (Économie de données)",
+    settings_free_mode_desc: "Sync texte haute vélocité",
     admin_gov_title: "Centre de Gouvernance",
     admin_gov_desc: "Matérialiser et gérer l'autorité administrative.",
     admin_gov_staff: "Cluster Administratif",
@@ -582,7 +588,7 @@ export const dictionary = {
     explore_active_hubs: "Espaces Actifs",
     explore_people_know: "Gens à connaître",
     music_title: "Espace Musique",
-    music_search: "Rechercher des chansons, albums, artistes...",
+    music_search: "Rechercher des chansons, albums, activités...",
     music_discover: "Découvrir",
     music_charts: "Classements",
     music_upload: "Télécharger",
@@ -745,6 +751,8 @@ export const dictionary = {
     menu_reels: "Reels",
     menu_command_core: "Núcleo de Comando",
     menu_how_it_works: "Como o ViMore funciona",
+    settings_free_mode: "Modo Grátis (Economia de Dados)",
+    settings_free_mode_desc: "Sincronização de texto de alta velocidade",
     admin_gov_title: "Central de Governança",
     admin_gov_desc: "Materializar e gerir a autoridade administrativa.",
     admin_gov_staff: "Cluster Administrativo",
@@ -887,7 +895,7 @@ export const dictionary = {
     chat_vault: "Cofre Coletivo",
     chat_node_details: "Detalhes do Nó",
     chat_members_pulse: "Pulso de Membros",
-    chat_visual_history: "Histórico Visual",
+    chat_visual_history: "Historial Visual",
     chat_spatial_links: "Links Espaciais",
     how_title: "Como o ViMore funciona",
     how_subtitle: "O Manual do ViMore",
@@ -910,7 +918,7 @@ export const dictionary = {
     boost_duration: "Duração",
     boost_days: "Dias",
     boost_launch: "Lançar Campanha",
-    boost_active: "Impulso Ativo",
+    boost_active: "Impulso Activo",
     boost_views_reached: "Visualizações Materializadas",
     boost_owner_only: "Nó Apenas para Criador"
   },
@@ -972,6 +980,8 @@ export const dictionary = {
     menu_reels: "ريلز",
     menu_command_core: "مركز القيادة",
     menu_how_it_works: "كيف يعمل ViMore",
+    settings_free_mode: "الوضع المجاني (توفير البيانات)",
+    settings_free_mode_desc: "مزامنة نصية عالية السرعة",
     admin_gov_title: "مركز الحوكمة",
     admin_gov_desc: "تجسيد وإدارة السلطة الإدارية.",
     admin_gov_staff: "العنقود الإداري",
@@ -1199,6 +1209,8 @@ export const dictionary = {
     menu_reels: "短视频",
     menu_command_core: "指挥核心",
     menu_how_it_works: "ViMore 运行机制",
+    settings_free_mode: "免费模式 (省流量)",
+    settings_free_mode_desc: "仅限文本的高速同步",
     admin_gov_title: "治理中心",
     admin_gov_desc: "实体化并管理行政权限。",
     admin_gov_staff: "管理集群",
@@ -1357,7 +1369,7 @@ export const dictionary = {
     how_economy_title: "经济审计",
     how_economy_desc: "我们以创作者为中心。赚取能量并将其变现。",
     how_integrity_title: "网络完整性",
-    how_integrity_desc: "安全已硬编码到 ViMore 逻辑中。隐身节点和 AI 过滤。",
+    how_integrity_desc: "安全已硬编码到 ViMore logic 中。隐身节点和 AI 过滤。",
     boost_title: "推广节点",
     boost_desc: "在网络集群中放大您的动态。",
     boost_promised_views: "预估曝光",
@@ -1370,4 +1382,6 @@ export const dictionary = {
   }
 };
 
-export type TranslationKey = keyof typeof dictionary['en'];
+export const dictionary: Record<LanguageCode, Record<TranslationKey, string>> = dictionaryRaw;
+
+export type TranslationKey = keyof typeof dictionaryRaw['en'];

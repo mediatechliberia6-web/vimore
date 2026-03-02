@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -14,7 +15,9 @@ import {
   Wallet,
   TrendingUp,
   ChevronRight,
-  CheckCircle2
+  CheckCircle2,
+  Zap,
+  ZapOff
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -32,6 +35,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
 
 const PulseBadge = ({ count }: { count: number }) => {
   if (count <= 0) return null;
@@ -45,10 +50,11 @@ const PulseBadge = ({ count }: { count: number }) => {
 export function SubHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { setSearchOpen, currentUser } = usePosts();
+  const { setSearchOpen, currentUser, settings, updateSettings } = usePosts();
   const { triggerHaptic } = useMusic();
   const { categoryPulses, clearPulse } = useNotifications();
   const { t } = useTranslation();
+  const { toast } = useToast();
 
   const navItems: { icon: any; label: string; id: string; href: string; category: PulseCategory }[] = [
     { icon: Home, label: t('sub_home'), id: "home", href: "/", category: "HOME" },
@@ -60,6 +66,17 @@ export function SubHeader() {
   const handleNav = (href: string) => {
     triggerHaptic(5);
     router.push(href);
+  };
+
+  const toggleFreeMode = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nextState = !settings.isFreeMode;
+    triggerHaptic(nextState ? 20 : 10);
+    updateSettings({ isFreeMode: nextState });
+    toast({
+      title: nextState ? "Free Mode Active" : "Full Fidelity Pulse",
+      description: nextState ? t('settings_free_mode_desc') : "Media nodes synchronized."
+    });
   };
 
   return (
@@ -120,10 +137,17 @@ export function SubHeader() {
                   <p className="text-xs font-bold leading-none group-hover:text-primary transition-colors">{currentUser.name}</p>
                   <p className="text-[10px] text-muted-foreground">{t('sub_wallet_pulse')}</p>
                 </div>
-                <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border-2 border-primary/10 transition-transform group-hover:scale-105 shadow-sm">
-                  <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
-                  <AvatarFallback>JD</AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border-2 border-primary/10 transition-transform group-hover:scale-105 shadow-sm">
+                    <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
+                    <AvatarFallback>JD</AvatarFallback>
+                  </Avatar>
+                  {settings.isFreeMode && (
+                    <div className="absolute -top-1 -right-1 bg-primary rounded-full p-0.5 border border-white dark:border-background">
+                      <Zap className="h-2 w-2 text-white fill-current" />
+                    </div>
+                  )}
+                </div>
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64 rounded-[1.5rem] p-2 shadow-2xl border-primary/10 animate-in zoom-in-95 duration-200">
@@ -137,6 +161,28 @@ export function SubHeader() {
                 </div>
               </DropdownMenuLabel>
               
+              <DropdownMenuSeparator className="bg-primary/5" />
+
+              {/* FREE MODE TOGGLE */}
+              <div 
+                className="flex items-center justify-between p-3 mx-1 rounded-xl bg-primary/5 border border-primary/10 cursor-pointer group hover:bg-primary/10 transition-all"
+                onClick={toggleFreeMode}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "h-8 w-8 rounded-lg flex items-center justify-center transition-all",
+                    settings.isFreeMode ? "bg-primary text-white" : "bg-primary/10 text-primary"
+                  )}>
+                    {settings.isFreeMode ? <Zap className="h-4 w-4 fill-current" /> : <ZapOff className="h-4 w-4" />}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold leading-none">{t('settings_free_mode')}</span>
+                    <span className="text-[8px] font-black text-primary/60 uppercase mt-1">Data Saver</span>
+                  </div>
+                </div>
+                <Switch checked={settings.isFreeMode} onCheckedChange={(val) => updateSettings({ isFreeMode: val })} />
+              </div>
+
               <DropdownMenuSeparator className="bg-primary/5" />
               
               <div className="p-2 space-y-1">
