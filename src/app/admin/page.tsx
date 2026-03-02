@@ -70,6 +70,7 @@ import {
   Plus,
   Shield,
   UserCheck,
+  UserCheck as UserVerifyIcon,
   UserMinus,
   KeyRound,
   RefreshCcw,
