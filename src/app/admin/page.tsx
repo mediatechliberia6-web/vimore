@@ -336,7 +336,7 @@ export default function AdminDashboard() {
             return (
               <button key={tab} onClick={() => { triggerHaptic(5); setActiveTab(tab); }} className={cn("w-full flex items-center gap-4 p-4 rounded-2xl transition-all group relative", isActive ? "bg-primary text-white shadow-xl shadow-primary/10" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
                 <Icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", isActive && "animate-pulse")} />
-                {isSidebarOpen && <span className="text-xs font-black italic uppercase tracking-widest">{tab}</span>}
+                {isSidebarOpen && <span className="text-xs font-black italic uppercase tracking-widest">{TABS_DATA[tab].label}</span>}
               </button>
             );
           })}
@@ -540,7 +540,7 @@ export default function AdminDashboard() {
                 </Card>
                 <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-8 shadow-xl">
                   <div className="flex items-center gap-4"><div className="h-14 w-14 rounded-2xl bg-yellow-500/10 flex items-center justify-center text-yellow-500"><Building2 className="h-8 w-8" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter">MTN Momo Node</h4><p className="text-[10px] font-bold text-muted-foreground uppercase">Inbound collection point</p></div></div>
-                  <div className="space-y-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Account Identity (Name)</Label><Input value={gatewaySettings.mtnName} onChange={(e) => setGatewayForm({...gatewayForm, mtnName: e.target.value})} className="h-14 bg-secondary/30 border-none rounded-2xl font-bold" /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Node Number</Label><Input value={gatewaySettings.mtnNumber} onChange={(e) => setGatewayForm({...gatewayForm, mtnNumber: e.target.value})} className="h-14 bg-secondary/30 border-none rounded-2xl font-bold" /></div></div>
+                  <div className="space-y-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Account Identity (Name)</Label><Input value={gatewayForm.mtnName} onChange={(e) => setGatewayForm({...gatewayForm, mtnName: e.target.value})} className="h-14 bg-secondary/30 border-none rounded-2xl font-bold" /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Node Number</Label><Input value={gatewayForm.mtnNumber} onChange={(e) => setGatewayForm({...gatewayForm, mtnNumber: e.target.value})} className="h-14 bg-secondary/30 border-none rounded-2xl font-bold" /></div></div>
                 </Card>
               </div>
               <div className="flex justify-center pt-10"><Button onClick={handleSaveGateway} className="h-16 px-12 rounded-3xl bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl shadow-primary/20 transition-all hover:scale-105 active:scale-95">Synchronize Gateways</Button></div>
