@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -198,7 +197,7 @@ interface PostContextType {
   pendingTransaction: any;
   activeSubscriptions: Set<string>;
   login: (email: string, pass: string) => Promise<void>;
-  signup: (data: { email: string, pass: string, name: string, username: string, dob: string, nationality: string, gender: 'Male' | 'Female' }) => Promise<void>;
+  signup: (data: { email: string, pass: string, name: string, username: string, dob: string, nationality: string, gender: 'Male' | 'Female' }) => Promise<{ code: string }>;
   verifyCode: (code: string) => Promise<boolean>;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (userId: string, secret: string, pass: string) => Promise<void>;
@@ -568,32 +567,47 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
     // 4. Generate Spatial Challenge Code
     const { code } = await aiGenerateVerificationCode({ packageName: "IDENTITY_VERIFICATION" });
+    const normalizedCode = code.toUpperCase();
+    
     await databases.createDocument(APPWRITE_DATABASE_ID, VERIFICATION_NODES_COLLECTION_ID, ID.unique(), {
       userId: user.$id,
-      code,
+      code: normalizedCode,
       expiresAt: Date.now() + (15 * 60 * 1000) // 15 Minute Window
     });
 
+    console.log(`[IDENTITY_PULSE] Code for ${data.username}: ${normalizedCode}`);
+
     await checkSession();
+    return { code: normalizedCode };
   };
 
   const verifyCode = async (code: string): Promise<boolean> => {
-    if (!currentUser.id) return false;
     try {
+      // Get spatial ID directly to prevent state lag issues
+      const user = await account.get();
+      const userId = user.$id;
+      const normalizedInput = code.toUpperCase().trim();
+
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, VERIFICATION_NODES_COLLECTION_ID, [
-        Query.equal('userId', currentUser.id),
-        Query.equal('code', code.toUpperCase()),
+        Query.equal('userId', userId),
+        Query.equal('code', normalizedInput),
         Query.greaterThan('expiresAt', Date.now())
       ]);
 
       if (response.documents.length > 0) {
-        await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, currentUser.id, { isEmailVerified: true });
+        // Authenticate Identity Pulse
+        await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, { isEmailVerified: true });
+        
+        // Purge used challenge node
         await databases.deleteDocument(APPWRITE_DATABASE_ID, VERIFICATION_NODES_COLLECTION_ID, response.documents[0].$id);
+        
+        // Finalize state sync
         setCurrentUser(prev => ({ ...prev, isEmailVerified: true }));
         return true;
       }
       return false;
     } catch (e) {
+      console.error("Verification handshake failed:", e);
       return false;
     }
   };

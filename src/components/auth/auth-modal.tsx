@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -116,9 +115,15 @@ export function AuthModal() {
     triggerHaptic(30);
     
     try {
-      await signup({ email, password, name, username, dob, nationality, gender });
+      const result = await signup({ email, password, name, username, dob, nationality, gender });
       setIsNewAccount(true);
-      toast({ title: "Node Initialized", description: "Identity pulse generated. Please verify your email node." });
+      
+      // Prototype Feedback Pulse: Show the code since no email server is active
+      toast({ 
+        title: "Node Initialized", 
+        description: `Identity pulse generated. Your Verification Code is: ${result.code}`,
+        duration: 10000 
+      });
     } catch (error: any) {
       console.error("Signup Pulse Failure:", error);
       toast({ 
@@ -175,7 +180,7 @@ export function AuthModal() {
         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[120px] rounded-full animate-pulse delay-700" />
       </div>
 
-      <div className="relative z-10 w-full max-w-md flex flex-col items-center space-y-10 animate-in fade-in zoom-in-95 duration-700">
+      <div className="relative z-10 w-full max-md flex flex-col items-center space-y-10 animate-in fade-in zoom-in-95 duration-700">
         
         <header className="text-center space-y-4">
           <div className="flex justify-center">
