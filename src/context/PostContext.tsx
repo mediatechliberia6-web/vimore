@@ -194,13 +194,13 @@ interface PostContextType {
   referralLink: string;
   pendingTransaction: any;
   activeSubscriptions: Set<string>;
-  login: (email: string, pass: string) => Promise<void>;
-  signup: (data: { email: string, pass: string, name: string, username: string, dob: string, nationality: string, gender: 'Male' | 'Female' }) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (data: { email: string, password: string, name: string, username: string, dob: string, nationality: string, gender: 'Male' | 'Female' }) => Promise<void>;
   logout: () => Promise<void>;
   resendVerification: () => Promise<void>;
   checkSession: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
-  resetPassword: (userId: string, secret: string, pass: string) => Promise<void>;
+  resetPassword: (userId: string, secret: string, password: string) => Promise<void>;
   uploadMedia: (file: File) => Promise<string>;
   addPost: (post: any) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
@@ -531,8 +531,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, [checkSession]);
 
-  const login = async (email: string, pass: string) => { 
-    await account.createEmailPasswordSession(email, pass); 
+  const login = async (email: string, password: string) => { 
+    await account.createEmailPasswordSession(email, password); 
     await checkSession(); 
   };
 
@@ -549,7 +549,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const signup = async (data: { email: string, pass: string, name: string, username: string, dob: string, nationality: string, gender: 'Male' | 'Female' }) => {
+  const signup = async (data: { email: string, password: string, name: string, username: string, dob: string, nationality: string, gender: 'Male' | 'Female' }) => {
     try {
       const existing = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
         Query.equal('username', data.username)
@@ -562,10 +562,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const profilesCount = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
       const assignedRole = profilesCount.total === 0 ? 'SUPER' : 'USER';
 
-      const user = await account.create(ID.unique(), data.email, data.pass, data.name);
-      await account.createEmailPasswordSession(data.email, data.pass);
+      // Materialize Account
+      const user = await account.create(ID.unique(), data.email, data.password, data.name);
+      
+      // Establish Session immediately to allow Profile materialization
+      await account.createEmailPasswordSession(data.email, data.password);
       
       try {
+        // Materialize Profile document using same ID
         await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id, { 
           name: data.name, 
           username: data.username, 
@@ -581,7 +585,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           isEmailVerified: false 
         });
       } catch (profileError: any) {
-        throw new Error(`Profile Error: ${profileError.message}`);
+        throw new Error(`Profile Materialization Error: ${profileError.message}`);
       }
 
       await account.createVerification(`${window.location.origin}/auth/verify`);
@@ -599,8 +603,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     await account.createRecovery(email, `${window.location.origin}/auth/recovery`);
   };
 
-  const resetPassword = async (userId: string, secret: string, pass: string) => {
-    await account.updateRecovery(userId, secret, pass, pass);
+  const resetPassword = async (userId: string, secret: string, password: string) => {
+    await account.updateRecovery(userId, secret, password, password);
   };
 
   const uploadMedia = async (file: File): Promise<string> => {
