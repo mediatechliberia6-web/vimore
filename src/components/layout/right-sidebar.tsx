@@ -10,9 +10,10 @@ import { usePosts } from "@/context/PostContext";
 import { useMemo } from "react";
 
 export function RightSidebar() {
-  const { currentUser, connections, isFollowing, toggleFollowUser, setSearchOpen } = usePosts();
+  const { currentUser, connections = [], isFollowing, toggleFollowUser, setSearchOpen } = usePosts();
 
   const suggestions = useMemo(() => {
+    if (!connections) return [];
     return connections
       .filter(c => !isFollowing(c.username) && c.username !== currentUser.username)
       .slice(0, 3);

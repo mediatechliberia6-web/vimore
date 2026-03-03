@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, Suspense } from "react";
@@ -56,7 +57,7 @@ const FILTER_CHIPS = [
 ];
 
 function FriendsPageContent() {
-  const { connections, isFollowing, toggleFollowUser } = usePosts();
+  const { connections = [], isFollowing, toggleFollowUser } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { toast } = useToast();
   const searchParams = useSearchParams();
@@ -89,6 +90,7 @@ function FriendsPageContent() {
   }, [confirmUser]);
 
   const filteredUsers = useMemo(() => {
+    if (!connections) return [];
     let list = [...connections];
 
     if (activeTab === "all") {
@@ -102,7 +104,7 @@ function FriendsPageContent() {
     }
 
     if (activeCategory !== "all") {
-      list = list.filter(u => u.category.includes(activeCategory));
+      list = list.filter(u => u.category?.includes(activeCategory));
     }
 
     if (searchQuery) {
@@ -110,7 +112,7 @@ function FriendsPageContent() {
       list = list.filter(u => 
         u.name.toLowerCase().includes(q) || 
         u.username.toLowerCase().includes(q) ||
-        u.category.toLowerCase().includes(q)
+        u.category?.toLowerCase().includes(q)
       );
     }
 
@@ -349,7 +351,7 @@ function FriendsPageContent() {
                             </div>
                           </Link>
                           <div className="mt-2 flex wrap gap-1">
-                            {user.category.split(',').map(cat => (
+                            {user.category?.split(',').map(cat => (
                               <span key={cat} className="text-[9px] font-black uppercase bg-primary/5 text-primary/70 px-2 py-0.5 rounded-md">{cat.trim()}</span>
                             ))}
                           </div>
