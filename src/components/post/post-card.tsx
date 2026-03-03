@@ -621,9 +621,9 @@ export function PostCard(props: PostCardProps) {
               <div className="flex items-center gap-3">
                 <div className="relative">
                   {isEligibleForGift && !isOwner && !isHiddenByLock && <button onClick={handleGiftClick} className="absolute -top-6 left-1/2 -translate-x-1/2 p-1.5 bg-primary rounded-full text-white shadow-lg animate-shake-vibe z-20"><Gift className="h-3.5 w-3.5" /></button>}
-                  <span className={cn("flex items-center gap-1.5 transition-colors", isLiked && "text-primary")}><ThumbsUp className={cn("h-3 w-3", isLiked && "fill-current")} />{((likes ?? 0) + (isLiked ? 1 : 0)).toLocaleString()}</span>
+                  <span className={cn("flex items-center gap-1.5 transition-colors", isLiked && "text-primary")}><ThumbsUp className={cn("h-3 w-3", isLiked && "fill-current")} />{(likes ?? 0).toLocaleString()}</span>
                 </div>
-                <span className={cn("flex items-center gap-1.5 transition-colors", isUnliked && "text-destructive")}><ThumbsDown className={cn("h-3 w-3", isUnliked && "fill-current")} />{((unlikes ?? 0) + (isUnliked ? 1 : 0)).toLocaleString()}</span>
+                <span className={cn("flex items-center gap-1.5 transition-colors", isUnliked && "text-destructive")}><ThumbsDown className={cn("h-3 w-3", isUnliked && "fill-current")} />{(unlikes ?? 0).toLocaleString()}</span>
               </div>
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1.5 cursor-pointer hover:text-primary transition-colors" onClick={() => !isHiddenByLock && openCommentHub(id)}><MessageCircle className="h-3 w-3" />{(comments ?? 0).toLocaleString()}</span>

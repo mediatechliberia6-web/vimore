@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -410,6 +409,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (error) {}
   }, []);
 
+  const refreshLikes = useCallback(async (userId: string) => {
+    try {
+      const response = await databases.listDocuments(
+        APPWRITE_DATABASE_ID,
+        LIKES_COLLECTION_ID,
+        [Query.equal('userId', userId), Query.limit(100)]
+      );
+      setLikedPostIds(new Set(response.documents.map(d => d.postId)));
+    } catch (e) {}
+  }, []);
+
   const refreshSocialGraph = useCallback(async (userId: string) => {
     try {
       const followResponse = await databases.listDocuments(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, [Query.equal('followerId', userId)]);
@@ -508,6 +518,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         refreshFeed(), 
         refreshStories(), 
         refreshSocialGraph(user.$id), 
+        refreshLikes(user.$id),
         refreshProfiles(), 
         refreshClusters(), 
         refreshEconomy(user.$id)
@@ -519,7 +530,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       setCurrentUser(INITIAL_USER);
     }
     finally { setIsLoading(false); }
-  }, [refreshFeed, refreshStories, refreshSocialGraph, refreshProfiles, refreshClusters, refreshEconomy, refreshAdminData]);
+  }, [refreshFeed, refreshStories, refreshSocialGraph, refreshLikes, refreshProfiles, refreshClusters, refreshEconomy, refreshAdminData]);
 
   useEffect(() => { 
     checkSession();
