@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -84,7 +85,6 @@ export default function CurrencyHub() {
     triggerHaptic(20);
     setIsGeneratingCode(true);
     
-    // AI Code Generation Phase
     try {
       const { code } = await aiGenerateVerificationCode({ packageName: selectedPackage.label });
       const amount = currencyMode === 'LD' ? selectedPackage.priceLD : selectedPackage.priceUSD;
@@ -99,8 +99,8 @@ export default function CurrencyHub() {
       });
       
       setSelectedPackage(null);
-    } catch (e) {
-      toast({ variant: "destructive", title: "Protocol Error", description: "Could not materialize security code." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Protocol Error", description: e.message });
     } finally {
       setIsGeneratingCode(false);
     }
@@ -116,18 +116,14 @@ export default function CurrencyHub() {
     }
   };
 
-  const handleSubmitForReview = () => {
+  const handleSubmitForReview = async () => {
     if (!uploadedScreenshot) return;
     setIsUploading(true);
     triggerHaptic(50);
     
-    setTimeout(() => {
-      // Logic: Materialize Payment Node in Review Cluster
-      createPaymentRequest(uploadedScreenshot);
+    try {
+      await createPaymentRequest(uploadedScreenshot);
       
-      setIsUploading(false);
-      
-      // Global Notification Sync
       addSignal({
         type: 'SYSTEM',
         title: 'Review Node Active',
@@ -142,7 +138,11 @@ export default function CurrencyHub() {
       
       cancelTransaction();
       router.push("/");
-    }, 3000);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -376,7 +376,6 @@ export default function CurrencyHub() {
             </TabsContent>
           </Tabs>
 
-          {/* Banner Ad Integration */}
           <BannerAdNode />
 
           {selectedPackage && (

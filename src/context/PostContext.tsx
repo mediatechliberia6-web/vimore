@@ -208,7 +208,7 @@ interface PostContextType {
   toggleUnlikePost: (postId: string) => void;
   toggleSavePost: (postId: string) => void;
   toggleFollowUser: (username: string) => Promise<void>;
-  updateCurrentUser: (data: Partial<User>) => void;
+  updateCurrentUser: (data: Partial<User>) => Promise<void>;
   updateSettings: (data: Partial<AppSettings>) => void;
   setSearchOpen: (open: boolean) => void;
   setSelectedChatId: (id: string | null) => void;
@@ -367,7 +367,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         details,
         timestamp: Date.now()
       });
-    } catch (e) { console.error("Audit log failed:", e); }
+    } catch (e: any) { console.error("Audit log failed:", e.message); }
   }, [currentUser.username]);
 
   const refreshStories = useCallback(async () => {
@@ -532,8 +532,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [checkSession]);
 
   const login = async (email: string, password: string) => { 
-    await account.createEmailPasswordSession(email, password); 
-    await checkSession(); 
+    try {
+      await account.createEmailPasswordSession(email, password); 
+      await checkSession(); 
+    } catch (e: any) {
+      throw new Error(e.message);
+    }
   };
 
   const logout = async () => {
@@ -562,14 +566,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const profilesCount = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
       const assignedRole = profilesCount.total === 0 ? 'SUPER' : 'USER';
 
-      // Materialize Account
       const user = await account.create(ID.unique(), data.email, data.password, data.name);
-      
-      // Establish Session immediately to allow Profile materialization
       await account.createEmailPasswordSession(data.email, data.password);
       
       try {
-        // Materialize Profile document using same ID
         await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id, { 
           name: data.name, 
           username: data.username, 
@@ -585,53 +585,77 @@ export function PostProvider({ children }: { children: ReactNode }) {
           isEmailVerified: false 
         });
       } catch (profileError: any) {
-        throw new Error(`Profile Materialization Error: ${profileError.message}`);
+        throw new Error(profileError.message);
       }
 
       await account.createVerification(`${window.location.origin}/auth/verify`);
       await checkSession();
     } catch (error: any) {
-      throw error;
+      throw new Error(error.message);
     }
   };
 
   const resendVerification = async () => {
-    await account.createVerification(`${window.location.origin}/auth/verify`);
+    try {
+      await account.createVerification(`${window.location.origin}/auth/verify`);
+    } catch (e: any) {
+      throw new Error(e.message);
+    }
   };
 
   const forgotPassword = async (email: string) => {
-    await account.createRecovery(email, `${window.location.origin}/auth/recovery`);
+    try {
+      await account.createRecovery(email, `${window.location.origin}/auth/recovery`);
+    } catch (e: any) {
+      throw new Error(e.message);
+    }
   };
 
   const resetPassword = async (userId: string, secret: string, password: string) => {
-    await account.updateRecovery(userId, secret, password, password);
+    try {
+      await account.updateRecovery(userId, secret, password, password);
+    } catch (e: any) {
+      throw new Error(e.message);
+    }
   };
 
   const uploadMedia = async (file: File): Promise<string> => {
-    const response = await storage.createFile(APPWRITE_BUCKET_ID, ID.unique(), file);
-    return `${client.client.config.endpoint}/storage/buckets/${APPWRITE_BUCKET_ID}/files/${response.$id}/view?project=${client.client.config.project}`;
+    try {
+      const response = await storage.createFile(APPWRITE_BUCKET_ID, ID.unique(), file);
+      return `${client.client.config.endpoint}/storage/buckets/${APPWRITE_BUCKET_ID}/files/${response.$id}/view?project=${client.client.config.project}`;
+    } catch (e: any) {
+      throw new Error(e.message);
+    }
   };
 
   const addPost = async (newPostData: any) => {
-    const docData = { 
-      content: newPostData.content, 
-      user: JSON.stringify(newPostData.user), 
-      image: newPostData.image, 
-      images: JSON.stringify(newPostData.images || []), 
-      videoUrl: newPostData.videoUrl, 
-      theme: newPostData.theme, 
-      language: newPostData.language, 
-      isLocked: newPostData.isLocked || false, 
-      unlockPrice: newPostData.unlockPrice || 0, 
-      likes: 0, unlikes: 0, comments: 0, shares: 0 
-    };
-    await databases.createDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, ID.unique(), docData);
-    await refreshFeed();
+    try {
+      const docData = { 
+        content: newPostData.content, 
+        user: JSON.stringify(newPostData.user), 
+        image: newPostData.image, 
+        images: JSON.stringify(newPostData.images || []), 
+        videoUrl: newPostData.videoUrl, 
+        theme: newPostData.theme, 
+        language: newPostData.language, 
+        isLocked: newPostData.isLocked || false, 
+        unlockPrice: newPostData.unlockPrice || 0, 
+        likes: 0, unlikes: 0, comments: 0, shares: 0 
+      };
+      await databases.createDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, ID.unique(), docData);
+      await refreshFeed();
+    } catch (e: any) {
+      throw new Error(e.message);
+    }
   };
 
   const deletePost = async (postId: string) => { 
-    await databases.deleteDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId); 
-    await refreshFeed(); 
+    try {
+      await databases.deleteDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId); 
+      await refreshFeed(); 
+    } catch (e: any) {
+      throw new Error(e.message);
+    }
   };
   
   const toggleLikePost = async (postId: string) => {
@@ -668,7 +692,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         timestamp: Date.now()
       });
       await refreshEconomy(currentUser.id);
-    } catch (e) { console.error("Payment request failed:", e); }
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const approvePaymentRequest = async (id: string) => {
@@ -682,7 +706,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         await addAuditLog("PAYMENT_AUTHORIZED", `Payment node ${id} approved. +${request.amount} ${request.currency} synced to @${request.username}.`);
       }
       await refreshAdminData();
-    } catch (e) { console.error("Payment authorization failed:", e); }
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const rejectPaymentRequest = async (id: string) => {
@@ -690,7 +714,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await databases.updateDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, id, { status: 'REJECTED' });
       await addAuditLog("PAYMENT_REJECTED", `Payment node ${id} was rejected during audit.`);
       await refreshAdminData();
-    } catch (e) { console.error("Payment rejection failed:", e); }
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const recordWithdrawal = async (node: any) => {
@@ -701,7 +725,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         userId: currentUser.id
       });
       await refreshEconomy(currentUser.id);
-    } catch (e) { console.error("Withdrawal archival failed:", e); }
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const processWithdrawal = async (id: string, status: 'APPROVED' | 'REJECTED') => {
@@ -709,7 +733,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await databases.updateDocument(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, id, { status });
       await addAuditLog("WITHDRAWAL_PROCESSED", `Withdrawal node ${id} set to ${status}.`);
       await refreshAdminData();
-    } catch (e) { console.error("Withdrawal processing failed:", e); }
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const receiveCall = useCallback((contact: any, type: CallType, channelName: string, token: string, callId: string) => {
@@ -718,19 +742,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const initiateCall = async (contact: any, type: CallType) => {
-    const channelName = `vimore_${currentUser.id}_${contact.id || contact.username}`;
-    const token = await generateAgoraToken(channelName, 0); 
-    const callDoc = await databases.createDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, ID.unique(), { 
-      caller: JSON.stringify(currentUser), 
-      callerId: currentUser.id, 
-      calleeId: contact.id || contact.username, 
-      channelName, 
-      token, 
-      type, 
-      status: 'ringing' 
-    });
-    activeCallIdRef.current = callDoc.$id;
-    setCallState({ type, status: 'outgoing', contact, channelName, token, callId: callDoc.$id });
+    try {
+      const channelName = `vimore_${currentUser.id}_${contact.id || contact.username}`;
+      const token = await generateAgoraToken(channelName, 0); 
+      const callDoc = await databases.createDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, ID.unique(), { 
+        caller: JSON.stringify(currentUser), 
+        callerId: currentUser.id, 
+        calleeId: contact.id || contact.username, 
+        channelName, 
+        token, 
+        type, 
+        status: 'ringing' 
+      });
+      activeCallIdRef.current = callDoc.$id;
+      setCallState({ type, status: 'outgoing', contact, channelName, token, callId: callDoc.$id });
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const acceptCall = async () => {
@@ -783,13 +809,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await updateCurrentUser({ [field]: newBalance });
       await addAuditLog("NODE_BOOSTED", `Content node ${nodeId} promoted for ${durationDays} days. Cost: ${cost} ${currency}.`);
       await refreshFeed();
-    } catch (e) { console.error("Boost materialization failed:", e); }
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const updateCurrentUser = async (data: Partial<User>) => {
     if (currentUser.id) {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, currentUser.id, data);
-      setCurrentUser(prev => ({ ...prev, ...data }));
+      try {
+        await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, currentUser.id, data);
+        setCurrentUser(prev => ({ ...prev, ...data }));
+      } catch (e: any) { throw new Error(e.message); }
     }
   };
 
@@ -847,8 +875,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         viewCount: 0
       });
       await refreshStories();
-    } catch (e) {
-      throw e;
+    } catch (e: any) {
+      throw new Error(e.message);
     }
   };
 
@@ -862,7 +890,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         timestamp: Date.now()
       });
       await refreshClusters();
-    } catch (e) { console.error("Cluster materialization failed:", e); }
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const addMemberToCluster = async (clusterId: string, member: any) => {
@@ -874,7 +902,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         members: JSON.stringify(updatedMembers)
       });
       await refreshClusters();
-    } catch (e) {}
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const leaveCluster = async (clusterId: string) => {
@@ -890,7 +918,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         });
       }
       await refreshClusters();
-    } catch (e) {}
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const togglePinPost = async (postId: string) => {
@@ -901,7 +929,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         isPinned: !post.isPinned
       });
       await refreshFeed();
-    } catch (e) {}
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const archivePost = async (postId: string) => {
@@ -910,7 +938,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         isArchived: true
       });
       await refreshFeed();
-    } catch (e) {}
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const incrementShareCount = async (postId: string) => {
@@ -921,7 +949,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         shares: (post.shares || 0) + 1
       });
       await refreshFeed();
-    } catch (e) {}
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const subscribeToCreator = async (username: string, cost: number) => {
@@ -931,16 +959,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await updateCurrentUser({ diamondBalance: newDiamondBalance });
       setActiveSubscriptions(prev => new Set(prev).add(username));
       await addAuditLog("PREMIUM_SUBSCRIPTION", `Subscribed to @${username} for ${cost} Diamonds.`);
-    } catch (e) {}
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const cancelSubscription = async (username: string) => {
-    setActiveSubscriptions(prev => {
-      const next = new Set(prev);
-      next.delete(username);
-      return next;
-    });
-    await addAuditLog("SUBSCRIPTION_CANCELLED", `Severed premium link with @${username}.`);
+    try {
+      setActiveSubscriptions(prev => {
+        const next = new Set(prev);
+        next.delete(username);
+        return next;
+      });
+      await addAuditLog("SUBSCRIPTION_CANCELLED", `Severed premium link with @${username}.`);
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const unlockPost = async (postId: string, cost: number) => {
@@ -950,31 +980,37 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await updateCurrentUser({ goldBalance: newGoldBalance });
       setUnlockedPostIds(prev => new Set(prev).add(postId));
       await addAuditLog("POST_UNLOCKED", `Unlocked post ${postId} for ${cost} Gold.`);
-    } catch (e) {}
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const processGiftTransaction = async (cost: number, currency: 'GOLD' | 'DIAMOND') => {
-    const field = currency === 'GOLD' ? 'goldBalance' : 'diamondBalance';
-    const newBalance = (currentUser as any)[field] - cost;
-    await updateCurrentUser({ [field]: newBalance });
-    await addAuditLog("GIFT_SENT", `Sent ${cost} ${currency} gift pulse.`);
+    try {
+      const field = currency === 'GOLD' ? 'goldBalance' : 'diamondBalance';
+      const newBalance = (currentUser as any)[field] - cost;
+      await updateCurrentUser({ [field]: newBalance });
+      await addAuditLog("GIFT_SENT", `Sent ${cost} ${currency} gift pulse.`);
+    } catch (e: any) { throw new Error(e.message); }
   };
 
   const promoteUser = async (username: string, role: 'FINANCIAL' | 'MODERATOR') => {
     const userProfile = connections.find(c => c.username === username);
     if (userProfile && userProfile.$id) {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userProfile.$id, { role });
-      await addAuditLog("NODE_PROMOTED", `Identity @${username} granted ${role} authority.`);
-      await refreshAdminData();
+      try {
+        await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userProfile.$id, { role });
+        await addAuditLog("NODE_PROMOTED", `Identity @${username} granted ${role} authority.`);
+        await refreshAdminData();
+      } catch (e: any) { throw new Error(e.message); }
     }
   };
 
   const demoteUser = async (username: string) => {
     const userProfile = connections.find(c => c.username === username);
     if (userProfile && userProfile.$id) {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userProfile.$id, { role: 'USER' });
-      await addAuditLog("NODE_DEMOTED", `Identity @${username} authority revoked.`);
-      await refreshAdminData();
+      try {
+        await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userProfile.$id, { role: 'USER' });
+        await addAuditLog("NODE_DEMOTED", `Identity @${username} authority revoked.`);
+        await refreshAdminData();
+      } catch (e: any) { throw new Error(e.message); }
     }
   };
 

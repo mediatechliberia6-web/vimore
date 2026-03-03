@@ -79,7 +79,6 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
 
   const coverInputRef = useRef<HTMLInputElement>(null);
 
-  // Persistence Logic
   useEffect(() => {
     const savedDraft = localStorage.getItem('vimore_studio_draft');
     if (savedDraft) {
@@ -161,12 +160,10 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
     toast({ title: "Vault Archival Initiated", description: "Materializing high-fidelity sonic nodes..." });
     
     try {
-      // 1. Physical Cover Archival
       const coverUrl = coverFile ? await uploadMedia(coverFile) : "https://picsum.photos/seed/single/600/600";
 
       if (projectType === "single") {
         const slot = tracks[0];
-        // 2. Binary Track Archival
         const audioUrl = slot.file ? await uploadMedia(slot.file) : "";
 
         await publishTrack({
@@ -175,7 +172,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
           artistUsername: currentUser.username,
           cover: coverUrl,
           audioUrl: audioUrl,
-          duration: 180, // Prototype approximation
+          duration: 180, 
           artistFollowers: currentUser.followers
         });
       } else {
@@ -216,8 +213,8 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
       });
       localStorage.removeItem('vimore_studio_draft');
       onCancel();
-    } catch (e) {
-      toast({ variant: "destructive", title: "Sonic Sync Error", description: "Could not materialize audio nodes in the vault." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Sonic Sync Error", description: e.message });
     } finally {
       setIsPublishing(false);
     }

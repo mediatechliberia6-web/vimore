@@ -164,7 +164,6 @@ export default function MyProfilePage() {
     gender: currentUser.gender || 'Male'
   });
 
-  // Sync editData if currentUser updates externally
   useEffect(() => {
     setEditData({
       name: currentUser.name,
@@ -180,15 +179,20 @@ export default function MyProfilePage() {
     });
   }, [currentUser]);
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     triggerHaptic(25);
     const updates: Partial<any> = { ...editData };
     const now = Date.now();
     if (editData.name !== currentUser.name) updates.lastModifiedName = now;
     if (editData.dateOfBirth !== currentUser.dateOfBirth) updates.lastModifiedDob = now;
-    updateCurrentUser(updates);
-    setIsEditModalOpen(false);
-    toast({ title: "Identity Re-calibrated" });
+    
+    try {
+      await updateCurrentUser(updates);
+      setIsEditModalOpen(false);
+      toast({ title: "Identity Re-calibrated" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
+    }
   };
 
   const handleApplyRefinement = async (refinedDataUrl: string) => {
@@ -201,11 +205,11 @@ export default function MyProfilePage() {
       const file = dataURLtoFile(refinedDataUrl, fileName);
       const vaultUrl = await uploadMedia(file);
       
-      updateCurrentUser({ [refiningMode]: vaultUrl });
+      await updateCurrentUser({ [refiningMode]: vaultUrl });
       toast({ title: "Presence Refreshed", description: "Digital signature updated." });
       setIsRefinementOpen(false);
-    } catch (e) {
-      toast({ variant: "destructive", title: "Vault Sync Error" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
     } finally {
       setIsApplyingRefinement(false);
     }

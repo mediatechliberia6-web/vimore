@@ -201,7 +201,6 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         
         toast({ title: "Optimizing Reel", description: `Node size (${formatBytes(file.size)}) exceeds limit. Throttling...` });
 
-        // Simulated High-Velocity Compression Pulse
         const duration = 2000;
         const interval = 50;
         const steps = duration / interval;
@@ -283,8 +282,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       localStorage.removeItem('vimore_post_draft');
       resetForm();
       setIsOpen(false);
-    } catch (e) {
-      toast({ variant: "destructive", title: "Vault Sync Error", description: "Could not materialize node in storage." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
     } finally {
       setIsAiLoading(false);
     }

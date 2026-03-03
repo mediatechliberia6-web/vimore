@@ -123,7 +123,7 @@ interface MusicContextType {
   deleteUserAlbum: (albumId: string | number) => void;
   openCreatePlaylist: (firstTrack?: Track) => void;
   closeCreatePlaylist: () => void;
-  confirmCreatePlaylist: (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => void;
+  confirmCreatePlaylist: (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => Promise<void>;
   addTrackToPlaylist: (playlistId: string | number, track: Track) => void;
   boostTrack: (trackId: string | number, targetViews: number, durationDays: number) => void;
   triggerHaptic: (intensity?: number) => void;
@@ -368,34 +368,42 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const isCollectionLiked = (id: string | number) => likedCollectionIds.has(id);
 
   const publishTrack = async (newTrack: any) => {
-    const docData = {
-      title: newTrack.title,
-      artist: newTrack.artist,
-      artistUsername: newTrack.artistUsername,
-      cover: newTrack.cover,
-      audioUrl: newTrack.audioUrl,
-      duration: newTrack.duration,
-      streams: "0",
-      likes: 0,
-      unlikes: 0,
-      artistFollowers: String(newTrack.artistFollowers || 0)
-    };
-    await databases.createDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ID.unique(), docData);
-    await refreshMusicVault();
+    try {
+      const docData = {
+        title: newTrack.title,
+        artist: newTrack.artist,
+        artistUsername: newTrack.artistUsername,
+        cover: newTrack.cover,
+        audioUrl: newTrack.audioUrl,
+        duration: newTrack.duration,
+        streams: "0",
+        likes: 0,
+        unlikes: 0,
+        artistFollowers: String(newTrack.artistFollowers || 0)
+      };
+      await databases.createDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ID.unique(), docData);
+      await refreshMusicVault();
+    } catch (e: any) {
+      throw new Error(e.message);
+    }
   };
 
   const publishAlbum = async (albumData: Album) => {
-    const docData = {
-      title: albumData.title,
-      artist: albumData.artist,
-      artistUsername: albumData.artistUsername,
-      cover: albumData.cover,
-      year: albumData.year,
-      tracks: albumData.tracks,
-      totalStreams: "0"
-    };
-    await databases.createDocument(APPWRITE_DATABASE_ID, ALBUMS_COLLECTION_ID, ID.unique(), docData);
-    await refreshMusicVault();
+    try {
+      const docData = {
+        title: albumData.title,
+        artist: albumData.artist,
+        artistUsername: albumData.artistUsername,
+        cover: albumData.cover,
+        year: albumData.year,
+        tracks: albumData.tracks,
+        totalStreams: "0"
+      };
+      await databases.createDocument(APPWRITE_DATABASE_ID, ALBUMS_COLLECTION_ID, ID.unique(), docData);
+      await refreshMusicVault();
+    } catch (e: any) {
+      throw new Error(e.message);
+    }
   };
 
   const deleteUserTrack = (trackId: string | number) => { 
@@ -421,20 +429,24 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const openCreatePlaylist = (track?: Track) => { triggerHaptic(10); setTrackForNewPlaylist(track || null); setIsCreatePlaylistOpen(true); };
   const closeCreatePlaylist = () => { setIsCreatePlaylistOpen(false); setTrackForNewPlaylist(null); };
-  const confirmCreatePlaylist = (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => {
+  
+  const confirmCreatePlaylist = async (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => {
     triggerHaptic(30);
-    databases.createDocument(APPWRITE_DATABASE_ID, PLAYLISTS_COLLECTION_ID, ID.unique(), {
-      title: data.title,
-      creator: "John Doe",
-      cover: data.cover || trackForNewPlaylist?.cover || "https://picsum.photos/seed/playlist/400/400",
-      totalStreams: "0",
-      songs: JSON.stringify(trackForNewPlaylist ? [trackForNewPlaylist] : []),
-      isPrivate: data.isPrivate,
-      description: data.description
-    }).then(() => {
-      refreshMusicVault();
+    try {
+      await databases.createDocument(APPWRITE_DATABASE_ID, PLAYLISTS_COLLECTION_ID, ID.unique(), {
+        title: data.title,
+        creator: "John Doe",
+        cover: data.cover || trackForNewPlaylist?.cover || "https://picsum.photos/seed/playlist/400/400",
+        totalStreams: "0",
+        songs: JSON.stringify(trackForNewPlaylist ? [trackForNewPlaylist] : []),
+        isPrivate: data.isPrivate,
+        description: data.description
+      });
+      await refreshMusicVault();
       closeCreatePlaylist();
-    });
+    } catch (e: any) {
+      throw new Error(e.message);
+    }
   };
 
   const addTrackToPlaylist = (playlistId: string | number, track: Track) => { 
