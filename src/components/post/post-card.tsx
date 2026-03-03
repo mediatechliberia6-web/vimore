@@ -435,7 +435,7 @@ export function PostCard(props: PostCardProps) {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          )}
+          )} vacation
         </CardHeader>
 
         <CardContent className={cn("px-3 pb-2 space-y-2 relative", theme && !isShared ? theme + " py-12 px-8 text-center" : "bg-transparent")}>

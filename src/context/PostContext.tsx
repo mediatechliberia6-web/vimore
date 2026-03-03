@@ -633,7 +633,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const uploadMedia = async (file: File): Promise<string> => {
     try {
       const response = await storage.createFile(APPWRITE_BUCKET_ID, ID.unique(), file);
-      return `${client.client.config.endpoint}/storage/buckets/${APPWRITE_BUCKET_ID}/files/${response.$id}/view?project=${client.client.config.project}`;
+      const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+      const project = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore';
+      return `${endpoint}/storage/buckets/${APPWRITE_BUCKET_ID}/files/${response.$id}/view?project=${project}`;
     } catch (e: any) {
       throw new Error(e.message);
     }
