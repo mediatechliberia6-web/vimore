@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
@@ -197,7 +198,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         likes: d.likes || 0,
         unlikes: d.unlikes || 0,
         artistUsername: d.artistUsername,
-        artistFollowers: d.artistFollowers
+        artistFollowers: d.artistFollowers,
+        isBoosted: d.isBoosted,
+        boostTargetViews: d.boostTargetViews,
+        boostCurrentViews: d.boostCurrentViews
       } as Track));
 
       const albums = albumDocs.documents.map(d => ({
@@ -217,12 +221,19 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         creator: d.creator,
         cover: d.cover,
         totalStreams: d.totalStreams || "0",
-        songs: d.songs ? JSON.parse(d.songs) : []
+        songs: d.songs ? JSON.parse(d.songs) : [],
+        description: d.description,
+        isPrivate: d.isPrivate
       } as Playlist));
 
       setGlobalSongs(songs);
       setGlobalAlbums(albums);
       setGlobalPlaylists(playlists);
+      
+      const statsMap: Record<string | number, { likes: number; unlikes: number }> = {};
+      songs.forEach(s => { statsMap[s.id] = { likes: s.likes || 0, unlikes: s.unlikes || 0 }; });
+      setTrackStats(statsMap);
+
       if (queue.length === 0) setQueue(songs);
     } catch (e) {
       console.error("Music vault handshake failed:", e);
@@ -298,24 +309,28 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setIsPlaying(true);
   };
 
-  const toggleLike = (track: Track) => {
+  const toggleLike = async (track: Track) => {
     const trackId = track.id;
-    setLikedSongIds(prev => {
-      const n = new Set(prev);
-      if (n.has(trackId)) n.delete(trackId);
-      else n.add(trackId);
-      return n;
-    });
+    const isCurrentlyLiked = likedSongIds.has(trackId);
+    triggerHaptic(15);
+    try {
+      const newLikes = isCurrentlyLiked ? Math.max(0, (track.likes || 0) - 1) : (track.likes || 0) + 1;
+      await databases.updateDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, trackId as string, { likes: newLikes });
+      setLikedSongIds(prev => { const n = new Set(prev); if (n.has(trackId)) n.delete(trackId); else n.add(trackId); return n; });
+      await refreshMusicVault();
+    } catch (e) {}
   };
 
-  const toggleUnlike = (track: Track) => {
+  const toggleUnlike = async (track: Track) => {
     const trackId = track.id;
-    setUnlikedSongIds(prev => {
-      const n = new Set(prev);
-      if (n.has(trackId)) n.delete(trackId);
-      else n.add(trackId);
-      return n;
-    });
+    const isCurrentlyUnliked = unlikedSongIds.has(trackId);
+    triggerHaptic(10);
+    try {
+      const newUnlikes = isCurrentlyUnliked ? Math.max(0, (track.unlikes || 0) - 1) : (track.unlikes || 0) + 1;
+      await databases.updateDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, trackId as string, { unlikes: newUnlikes });
+      setUnlikedSongIds(prev => { const n = new Set(prev); if (n.has(trackId)) n.delete(trackId); else n.add(trackId); return n; });
+      await refreshMusicVault();
+    } catch (e) {}
   };
 
   const toggleCollectionLike = (id: string | number) => {
