@@ -26,7 +26,7 @@ interface FloatingReaction {
 }
 
 export function StoryViewer() {
-  const { stories, activeStoryIndex, mutedUserNames, setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser, settings } = usePosts();
+  const { stories, activeStoryIndex, mutedUserNames = [], setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser, settings } = usePosts();
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
