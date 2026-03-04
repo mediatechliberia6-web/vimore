@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, Suspense } from "react";
@@ -57,7 +56,7 @@ const FILTER_CHIPS = [
 ];
 
 function FriendsPageContent() {
-  const { connections = [], isFollowing, toggleFollowUser } = usePosts();
+  const { connections = [], isFollowing, toggleFollowUser, currentUser } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { toast } = useToast();
   const searchParams = useSearchParams();
@@ -79,7 +78,6 @@ function FriendsPageContent() {
     }
   }, [searchParams]);
 
-  // Interaction Recovery Handshake Fail-safe
   useEffect(() => {
     if (!confirmUser) {
       document.body.style.pointerEvents = 'auto';
@@ -91,16 +89,16 @@ function FriendsPageContent() {
 
   const filteredUsers = useMemo(() => {
     if (!connections) return [];
-    let list = [...connections];
+    let list = connections.filter(c => c.username !== currentUser.username);
 
     if (activeTab === "all") {
-      list = connections.filter(c => c.followsYou && isFollowing(c.username));
+      list = list.filter(c => c.followsYou && isFollowing(c.username));
     } else if (activeTab === "followers") {
-      list = connections.filter(c => c.followsYou && !isFollowing(c.username));
+      list = list.filter(c => c.followsYou && !isFollowing(c.username));
     } else if (activeTab === "following") {
-      list = connections.filter(c => !c.followsYou && isFollowing(c.username));
+      list = list.filter(c => !c.followsYou && isFollowing(c.username));
     } else if (activeTab === "suggestions") {
-      list = connections.filter(c => !c.followsYou && !isFollowing(c.username));
+      list = list.filter(c => !c.followsYou && !isFollowing(c.username));
     }
 
     if (activeCategory !== "all") {
@@ -117,7 +115,7 @@ function FriendsPageContent() {
     }
 
     return list;
-  }, [activeTab, activeCategory, connections, isFollowing, searchQuery]);
+  }, [activeTab, activeCategory, connections, isFollowing, searchQuery, currentUser.username]);
 
   const tabs: { id: HubTab; label: string; icon: any }[] = [
     { id: "all", label: "Friends", icon: Heart },
@@ -163,7 +161,6 @@ function FriendsPageContent() {
     if (confirmUser) {
       triggerHaptic(30);
       const user = { ...confirmUser };
-      // Force interaction restoration before destruction
       document.body.style.pointerEvents = 'auto';
       setConfirmUser(null);
       toggleFollowUser(user.username);
@@ -226,7 +223,6 @@ function FriendsPageContent() {
               </div>
             </div>
 
-            {/* Floating Tab Bar */}
             <div className="flex p-1.5 bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-[2rem] overflow-x-auto scrollbar-hide shadow-xl shadow-black/5">
               {tabs.map((tab) => {
                 const isActive = activeTab === tab.id;
@@ -251,7 +247,6 @@ function FriendsPageContent() {
               })}
             </div>
 
-            {/* Smart Filter Chips */}
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1">
               <div className="flex items-center gap-2 px-3 border-r border-primary/10 mr-2 text-muted-foreground">
                 <Filter className="h-3.5 w-3.5" />

@@ -12,12 +12,12 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 export function SuggestedFollows() {
-  const { connections, isFollowing, toggleFollowUser } = usePosts();
+  const { connections, isFollowing, toggleFollowUser, currentUser } = usePosts();
   const { triggerHaptic } = useMusic();
 
   const suggestions = useMemo(() => {
-    return connections.filter(c => !isFollowing(c.username)).slice(0, 8);
-  }, [connections, isFollowing]);
+    return connections.filter(c => !isFollowing(c.username) && c.username !== currentUser.username).slice(0, 8);
+  }, [connections, isFollowing, currentUser.username]);
 
   if (suggestions.length === 0) return null;
 

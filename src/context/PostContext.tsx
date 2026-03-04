@@ -435,12 +435,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
       ]);
       
       const following = new Set(followingRes.documents.map(d => d.followingUsername));
-      const followers = new Set(followersRes.documents.map(d => d.followerUsername)); // Assuming followerUsername exists or mapping from followerId
+      const followers = new Set(followersRes.documents.map(d => d.followerUsername)); 
       
       setFollowingUsernames(following);
       setFollowerUsernames(followers);
 
-      // Map to connections
       setConnections(prev => prev.map(conn => ({
         ...conn,
         followsYou: followers.has(conn.username)
@@ -708,7 +707,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const post = posts.find(p => p.id === postId);
     if (!post) return;
 
-    // 1. Optimistic UI Pulse
     triggerHaptic(20);
     setLikedPostIds(prev => {
       const next = new Set(prev);
@@ -740,7 +738,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
         });
       }
     } catch (e: any) {
-      // 2. Rollback Handshake
       setLikedPostIds(prev => {
         const next = new Set(prev);
         if (isCurrentlyLiked) next.add(postId);
@@ -855,14 +852,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!currentUser.id) return;
     
-    // 1. Social Handshake Real-Time Sync
     const unsubscribeFollows = client.subscribe(
       `databases.${APPWRITE_DATABASE_ID}.collections.${FOLLOWS_COLLECTION_ID}.documents`,
       (response) => {
         const payload = response.payload as any;
         if (payload.followerId === currentUser.id || payload.followingUsername === currentUser.username) {
           refreshSocialGraph(currentUser.id!, currentUser.username);
-          // If I was followed, refresh my profile to update follower count
           if (payload.followingUsername === currentUser.username) {
             checkSession();
           }
@@ -870,7 +865,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // 2. Spatial Calls Real-Time Sync
     const unsubscribeCalls = client.subscribe(
       `databases.${APPWRITE_DATABASE_ID}.collections.${CALLS_COLLECTION_ID}.documents`,
       (response) => {
@@ -934,10 +928,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (username === currentUser.username) {
+      return;
+    }
+
     const isCurrentlyFollowing = followingUsernames.has(username);
     triggerHaptic(15);
 
-    // 1. Optimistic UI Pulse
     setFollowingUsernames(prev => {
       const next = new Set(prev);
       if (isCurrentlyFollowing) next.delete(username);
@@ -946,7 +943,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     });
 
     try {
-      // Find target user to update their counter
       const targetUser = connections.find(c => c.username === username);
       const targetUserId = targetUser?.$id || targetUser?.id;
 
@@ -959,7 +955,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
           await databases.deleteDocument(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, response.documents[0].$id);
         }
         
-        // Decrement counters
         if (targetUserId) {
           const currentFollowers = typeof targetUser?.followers === 'string' ? parseInt(targetUser.followers) : (targetUser?.followers || 0);
           await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, targetUserId, {
@@ -975,7 +970,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
           followingUsername: username
         });
 
-        // Increment counters
         if (targetUserId) {
           const currentFollowers = typeof targetUser?.followers === 'string' ? parseInt(targetUser.followers) : (targetUser?.followers || 0);
           await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, targetUserId, {
@@ -987,7 +981,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       
       await refreshSocialGraph(userId, currentUser.username);
     } catch (e: any) {
-      // 2. Rollback Handshake
       setFollowingUsernames(prev => {
         const next = new Set(prev);
         if (isCurrentlyFollowing) next.add(username);
