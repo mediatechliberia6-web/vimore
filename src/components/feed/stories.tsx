@@ -16,6 +16,20 @@ interface StoriesProps {
 export function Stories({ onOpenCreate }: StoriesProps) {
   const { stories, setActiveStoryIndex, currentUser, triggerHaptic, settings } = usePosts();
 
+  /**
+   * Spatial Sorting Handshake:
+   * Prioritize the user's own story at the front of the rail.
+   */
+  const sortedStories = useMemo(() => {
+    // Map stories with their original indices to ensure the click handshake remains valid
+    const storiesWithIndices = stories.map((story, index) => ({ story, index }));
+    
+    const myStoryNode = storiesWithIndices.find(item => item.story.user.username === currentUser.username);
+    const otherStoryNodes = storiesWithIndices.filter(item => item.story.user.username !== currentUser.username);
+    
+    return myStoryNode ? [myStoryNode, ...otherStoryNodes] : otherStoryNodes;
+  }, [stories, currentUser.username]);
+
   const handleStoryClick = (index: number) => {
     triggerHaptic(10);
     setActiveStoryIndex(index);
@@ -25,7 +39,7 @@ export function Stories({ onOpenCreate }: StoriesProps) {
     <div className="relative">
       <ScrollArea className="w-full whitespace-nowrap">
         <div className="flex gap-3 p-1 pb-4">
-          {/* Create Story Button */}
+          {/* Create Story Button - Fixed far left */}
           <div 
             className="relative w-28 h-48 rounded-2xl overflow-hidden shrink-0 border border-primary/10 bg-white dark:bg-card cursor-pointer group shadow-sm"
             onClick={() => { triggerHaptic(5); onOpenCreate?.(); }}
@@ -46,8 +60,8 @@ export function Stories({ onOpenCreate }: StoriesProps) {
             </div>
           </div>
 
-          {/* Stories Rail */}
-          {stories.map((story, index) => (
+          {/* Stories Rail - Sorted with current user first */}
+          {sortedStories.map(({ story, index }) => (
             <div 
               key={story.id} 
               className={cn(
@@ -82,7 +96,7 @@ export function Stories({ onOpenCreate }: StoriesProps) {
               
               <div className="absolute bottom-2 left-2 right-2">
                 <p className="text-[10px] font-bold text-white truncate drop-shadow-md">
-                  {story.user.name}
+                  {story.user.username === currentUser.username ? "Your Story" : story.user.name}
                 </p>
               </div>
             </div>
