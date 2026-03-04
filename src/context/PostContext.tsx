@@ -880,19 +880,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
           likes: post.likes + 1 
         });
 
-        // NOTIFICATION HANDSHAKE
+        // NOTIFICATION HANDSHAKE (Non-blocking)
         const recipientId = post.user.id || (post.user as any).$id;
         if (recipientId && recipientId !== currentUser.id) {
-          await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), {
-            type: 'POST',
-            title: 'New Vibe Pulse',
-            content: `**${currentUser.name}** liked your post: "${post.content.slice(0, 30)}..."`,
-            recipientId,
-            avatar: currentUser.avatar,
-            postId: postId,
-            isRead: false,
-            timestamp: Date.now()
-          });
+          try {
+            await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), {
+              type: 'POST',
+              title: 'New Vibe Pulse',
+              content: `**${currentUser.name}** liked your post: "${post.content.slice(0, 30)}..."`,
+              recipientId,
+              avatar: currentUser.avatar,
+              postId: postId,
+              isRead: false,
+              timestamp: Date.now()
+            });
+          } catch (notifErr) {
+            console.warn("Notification handshake deferred (Likes). Check collection ID.");
+          }
         }
       }
     } catch (e: any) {
@@ -963,17 +967,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
             followers: currentFollowers + 1
           });
 
-          // NOTIFICATION HANDSHAKE
-          await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), {
-            type: 'SOCIAL',
-            title: 'New Handshake',
-            content: `**${currentUser.name}** is now following your pulse.`,
-            recipientId: targetUserId,
-            avatar: currentUser.avatar,
-            targetUsername: currentUser.username,
-            isRead: false,
-            timestamp: Date.now()
-          });
+          // NOTIFICATION HANDSHAKE (Non-blocking)
+          try {
+            await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), {
+              type: 'SOCIAL',
+              title: 'New Handshake',
+              content: `**${currentUser.name}** is now following your pulse.`,
+              recipientId: targetUserId,
+              avatar: currentUser.avatar,
+              targetUsername: currentUser.username,
+              isRead: false,
+              timestamp: Date.now()
+            });
+          } catch (notifErr) {
+            console.warn("Notification handshake deferred (Follows). Check collection ID.");
+          }
         }
         await updateCurrentUser({ following: (typeof currentUser.following === 'string' ? parseInt(currentUser.following) : (currentUser.following || 0)) + 1 });
       }
@@ -1010,16 +1018,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (post) {
         const recipientId = post.user.id || (post.user as any).$id;
         if (recipientId && recipientId !== currentUser.id) {
-          await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), {
-            type: 'POST',
-            title: 'New Comment',
-            content: `**${currentUser.name}** commented on your vibe: "${text.slice(0, 30)}..."`,
-            recipientId,
-            avatar: currentUser.avatar,
-            postId: postId,
-            isRead: false,
-            timestamp: Date.now()
-          });
+          // NOTIFICATION HANDSHAKE (Non-blocking)
+          try {
+            await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), {
+              type: 'POST',
+              title: 'New Comment',
+              content: `**${currentUser.name}** commented on your vibe: "${text.slice(0, 30)}..."`,
+              recipientId,
+              avatar: currentUser.avatar,
+              postId: postId,
+              isRead: false,
+              timestamp: Date.now()
+            });
+          } catch (notifErr) {
+            console.warn("Notification handshake deferred (Comments). Check collection ID.");
+          }
         }
       }
       await refreshFeed(); 
