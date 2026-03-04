@@ -20,6 +20,7 @@ import client, {
   STORIES_COLLECTION_ID,
   CALLS_COLLECTION_ID,
   NOTIFICATIONS_COLLECTION_ID,
+  MESSAGES_COLLECTION_ID,
   Query,
   storage
 } from '@/lib/appwrite';
@@ -495,22 +496,50 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(100)]);
       const profiles = response.documents.map(doc => ({ ...doc, id: doc.$id, isGroup: false } as any));
-      setConnectionsState(profiles);
-      return profiles;
+      
+      // Fetch last messages for each profile
+      const profilesWithLastMsg = await Promise.all(profiles.map(async (p) => {
+        const convId = [currentUser.username, p.username].sort().join('_');
+        const lastMsgRes = await databases.listDocuments(APPWRITE_DATABASE_ID, MESSAGES_COLLECTION_ID, [
+          Query.equal('conversationId', convId),
+          Query.orderDesc('$createdAt'),
+          Query.limit(1)
+        ]);
+        const lastMsg = lastMsgRes.documents[0];
+        return {
+          ...p,
+          lastMessage: lastMsg?.text || (lastMsg?.type === 'photo' ? 'Sent a visual' : lastMsg?.type === 'voice' ? 'Sent a sonic note' : ''),
+          lastTime: lastMsg ? new Date(lastMsg.$createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+        };
+      }));
+
+      setConnectionsState(profilesWithLastMsg);
+      return profilesWithLastMsg;
     } catch (e) { return []; }
-  }, []);
+  }, [currentUser.username]);
 
   const refreshClusters = useCallback(async () => {
     try {
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID);
-      setClustersState(response.documents.map(doc => ({
-        id: doc.$id,
-        name: doc.name,
-        adminUsername: doc.adminUsername,
-        avatar: doc.avatar,
-        members: JSON.parse(doc.members || '[]'),
-        isGroup: true
-      })));
+      const mapped = await Promise.all(response.documents.map(async (doc) => {
+        const lastMsgRes = await databases.listDocuments(APPWRITE_DATABASE_ID, MESSAGES_COLLECTION_ID, [
+          Query.equal('conversationId', doc.$id),
+          Query.orderDesc('$createdAt'),
+          Query.limit(1)
+        ]);
+        const lastMsg = lastMsgRes.documents[0];
+        return {
+          id: doc.$id,
+          name: doc.name,
+          adminUsername: doc.adminUsername,
+          avatar: doc.avatar,
+          members: JSON.parse(doc.members || '[]'),
+          isGroup: true,
+          lastMessage: lastMsg?.text || (lastMsg?.type === 'photo' ? 'Sent a visual' : ''),
+          lastTime: lastMsg ? new Date(lastMsg.$createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+        } as Cluster;
+      }));
+      setClustersState(mapped);
     } catch (e) {}
   }, []);
 
@@ -647,12 +676,27 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
     );
 
+    // Messages Global Preview Listener
+    const messageUnsubscribe = client.subscribe(
+      `databases.${APPWRITE_DATABASE_ID}.collections.${MESSAGES_COLLECTION_ID}.documents`,
+      (response) => {
+        const payload = response.payload as any;
+        // Update local previews for connections and clusters
+        if (payload.conversationId.includes(currentUser.username)) {
+          refreshProfiles();
+        } else {
+          refreshClusters();
+        }
+      }
+    );
+
     return () => {
       followUnsubscribe();
       postUnsubscribe();
       commentUnsubscribe();
+      messageUnsubscribe();
     };
-  }, [currentUser.id, currentUser.username, activeCommentPostId, refreshSocialGraph, refreshProfiles, refreshFeed, fetchComments, triggerHaptic]);
+  }, [currentUser.id, currentUser.username, activeCommentPostId, refreshSocialGraph, refreshProfiles, refreshClusters, refreshFeed, fetchComments, triggerHaptic]);
 
   const login = useCallback(async (email: string, password: string) => { 
     try {

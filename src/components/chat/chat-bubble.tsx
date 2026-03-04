@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -126,14 +127,12 @@ export function ChatBubble({
         audioRef.current = null;
       }
       if (timerRef.current) clearInterval(timerRef.current);
-      // Interaction Recovery Handshake Fail-safe on Unmount
       if (typeof document !== 'undefined') {
         document.body.style.pointerEvents = 'auto';
       }
     };
   }, [type]);
 
-  // Ensure pointer events are restored when dialog closes
   useEffect(() => {
     if (!isDeleteDialogOpen) {
       if (typeof document !== 'undefined') {
@@ -171,7 +170,8 @@ export function ChatBubble({
     if (isDownloaded || isDownloading) return;
     triggerHaptic(15);
     setIsDownloading(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Simulate node archival process
+    await new Promise(resolve => setTimeout(resolve, 1500));
     setIsDownloading(false);
     onDownload?.(id);
     triggerHaptic(25);
@@ -179,11 +179,7 @@ export function ChatBubble({
 
   const handleDelete = () => {
     triggerHaptic(50);
-    // 1. Close the dialog locally first
     setIsDeleteDialogOpen(false);
-    
-    // 2. Perform Staggered Deletion Pulse
-    // This allows the dialog to trigger its cleanup before the component is unmounted
     setTimeout(() => {
       if (typeof document !== 'undefined') {
         document.body.style.pointerEvents = 'auto';
@@ -229,6 +225,7 @@ export function ChatBubble({
       setIsPlayingVoice(false);
       if (timerRef.current) clearInterval(timerRef.current);
     } else {
+      // Sonic Handshake: Play audio
       audioRef.current.play().catch(err => {
         console.warn("Voice playback failed:", err);
         setIsPlayingVoice(false);
@@ -408,9 +405,6 @@ export function ChatBubble({
                       </p>
                       <span className="text-[9px] font-bold uppercase text-white/60 tracking-widest">High-Velocity Encrypted</span>
                     </div>
-                    <div className="absolute top-3 left-3 z-10 opacity-40">
-                      {type === 'photo' ? <ImageIcon className="h-4 w-4 text-white" /> : <VideoIcon className="h-4 w-4 text-white" />}
-                    </div>
                   </div>
                 ) : (
                   <>
@@ -453,12 +447,6 @@ export function ChatBubble({
                   <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center">
                     <LayoutDashboard className="h-8 w-8 text-white opacity-60" />
                   </div>
-                  <div className="absolute top-2 right-2">
-                    <div className="bg-primary px-2 py-0.5 rounded-full flex items-center gap-1 shadow-lg border border-white/20">
-                      <Zap className="h-2 w-2 text-white fill-current" />
-                      <span className="text-[8px] font-black text-white uppercase tracking-widest">LIVE SYNC</span>
-                    </div>
-                  </div>
                 </div>
                 <div className="p-3 flex items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -482,19 +470,10 @@ export function ChatBubble({
               >
                 <div className="relative aspect-video w-full">
                   <Image src={linkData.image} alt="Link Preview" fill className="object-cover transition-transform group-hover/link:scale-105" />
-                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/link:opacity-100 transition-opacity flex items-center justify-center">
-                    <div className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30">
-                      <ExternalLink className="h-5 w-5 text-white" />
-                    </div>
-                  </div>
                 </div>
                 <div className="p-3 space-y-1">
                   <h4 className="font-bold text-xs uppercase tracking-widest truncate">{linkData.title}</h4>
                   <p className="text-[10px] opacity-70 line-clamp-2 leading-tight">{linkData.description}</p>
-                  <div className="flex items-center gap-1.5 pt-1 text-[9px] font-black opacity-50 uppercase">
-                    <LinkIcon className="h-2.5 w-2.5" />
-                    {new URL(linkData.url).hostname}
-                  </div>
                 </div>
               </button>
             )}

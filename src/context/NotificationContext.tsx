@@ -62,6 +62,24 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const { settings, triggerHaptic, currentUser } = usePosts();
 
+  const triggerSound = useCallback(() => {
+    if (settings.isSilenceActive) {
+      const now = new Date();
+      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      
+      const isSilenced = settings.silenceStart < settings.silenceEnd 
+        ? (currentTime >= settings.silenceStart && currentTime <= settings.silenceEnd)
+        : (currentTime >= settings.silenceStart || currentTime <= settings.silenceEnd);
+        
+      if (isSilenced) return;
+    }
+
+    const soundUrl = settings.activeSoundSet === 'cyberpunk' ? SOUNDS.cyberpunk : SOUNDS.lofi;
+    const audio = new Audio(soundUrl);
+    audio.volume = 0.4;
+    audio.play().catch(() => {});
+  }, [settings]);
+
   const fetchNotifications = useCallback(async () => {
     if (!currentUser.id) return;
     try {
@@ -130,10 +148,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       `databases.${APPWRITE_DATABASE_ID}.collections.${MESSAGES_COLLECTION_ID}.documents`,
       (response) => {
         const payload = response.payload as any;
-        // If message is incoming, increment message pulse
+        // If message is incoming, increment message pulse badge
         if (payload.senderId !== currentUser.username) {
           setCategoryPulses(prev => ({ ...prev, MESSAGES: prev.MESSAGES + 1 }));
           triggerHaptic(5);
+          triggerSound();
         }
       }
     );
@@ -142,31 +161,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       notificationUnsubscribe();
       messageUnsubscribe();
     };
-  }, [currentUser.id, currentUser.username, fetchNotifications, triggerHaptic]);
+  }, [currentUser.id, currentUser.username, fetchNotifications, triggerHaptic, triggerSound]);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && "Notification" in window) {
       setHasPushPermission(Notification.permission === "granted");
     }
   }, []);
-
-  const triggerSound = useCallback(() => {
-    if (settings.isSilenceActive) {
-      const now = new Date();
-      const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      
-      const isSilenced = settings.silenceStart < settings.silenceEnd 
-        ? (currentTime >= settings.silenceStart && currentTime <= settings.silenceEnd)
-        : (currentTime >= settings.silenceStart || currentTime <= settings.silenceEnd);
-        
-      if (isSilenced) return;
-    }
-
-    const soundUrl = settings.activeSoundSet === 'cyberpunk' ? SOUNDS.cyberpunk : SOUNDS.lofi;
-    const audio = new Audio(soundUrl);
-    audio.volume = 0.4;
-    audio.play().catch(() => {});
-  }, [settings]);
 
   const addSignal = useCallback(async (signal: Omit<NotificationNode, 'id' | 'time' | 'isRead'>) => {
     try {
