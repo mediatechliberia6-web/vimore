@@ -5,7 +5,7 @@ import { MainNav } from "@/components/layout/main-nav";
 import { ChatList } from "@/components/chat/chat-list";
 import { ChatWindow } from "@/components/chat/chat-window";
 import { useMusic } from "@/context/MusicContext";
-import { usePosts } from "@/context/PostContext";
+import { usePosts, Connection, Cluster } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 import { MessageSquare, Zap, Layers } from "lucide-react";
 import { BiometricGate } from "@/components/layout/biometric-gate";
@@ -28,9 +28,15 @@ export default function MessagesPage() {
   }, [selectedChatId]);
 
   const selectedContact = useMemo(() => {
+    if (!selectedChatId) return null;
+    
     const conn = connections.find(c => c.username === selectedChatId);
-    if (conn) return conn;
-    return clusters.find(cl => cl.id === selectedChatId) || null;
+    if (conn) return { ...conn, isGroup: false } as Connection;
+    
+    const cluster = clusters.find(cl => cl.id === selectedChatId);
+    if (cluster) return { ...cluster, isGroup: true } as Cluster;
+    
+    return null;
   }, [connections, clusters, selectedChatId]);
 
   return (

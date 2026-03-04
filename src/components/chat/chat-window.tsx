@@ -132,8 +132,10 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const { toast } = useToast();
   const router = useRouter();
   
-  const isCluster = 'isGroup' in contact;
-  const isAdmin = isCluster && contact.adminUsername === currentUser.username;
+  // High-Velocity Handshake: Verify explicit boolean instead of key presence
+  const isCluster = contact.isGroup === true;
+  const isAdmin = isCluster && (contact as Cluster).adminUsername === currentUser.username;
+  
   const [showVault, setShowVault] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
@@ -144,7 +146,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const conversationId = useMemo(() => {
-    if (isCluster) return contact.id;
+    if (isCluster) return (contact as Cluster).id;
     
     const contactUsername = (contact as Connection).username;
     if (!currentUser.username || !contactUsername || currentUser.username === contactUsername) {
@@ -156,8 +158,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
   const nonClusterMembers = useMemo(() => {
     if (!isCluster) return [];
-    // Null-Safe Handshake: Default to empty array if members node is missing
-    const memberUsernames = new Set((contact.members || []).map(m => m.username));
+    const memberUsernames = new Set(((contact as Cluster).members || []).map(m => m.username));
     return connections.filter(c => !memberUsernames.has(c.username));
   }, [isCluster, contact, connections]);
 
@@ -297,7 +298,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const handleConfirmLeave = () => {
     if (isCluster) {
       triggerHaptic(50);
-      leaveCluster(contact.id);
+      leaveCluster((contact as Cluster).id);
       onBack();
     }
   };
@@ -305,7 +306,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const handleAddNode = (member: Connection) => {
     if (isCluster) {
       triggerHaptic(30);
-      addMemberToCluster(contact.id, member);
+      addMemberToCluster((contact as Cluster).id, member);
       toast({ title: "Node Synced", description: `@${member.username} joined cluster.` });
       setAddNodeSearch("");
     }
@@ -322,7 +323,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             <div className="relative shrink-0">
               {isCluster ? (
                 <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-[1rem] bg-primary/10 flex items-center justify-center relative overflow-hidden border border-primary/5">
-                  {contact.avatar ? <img src={contact.avatar} alt="Cluster" className="w-full h-full object-cover" /> : <Layers className="h-5 w-5 text-primary" />}
+                  {(contact as Cluster).avatar ? <img src={(contact as Cluster).avatar} alt="Cluster" className="w-full h-full object-cover" /> : <Layers className="h-5 w-5 text-primary" />}
                 </div>
               ) : (
                 <Avatar className="h-10 w-10 sm:h-11 sm:w-11 border-2 border-primary/10">
@@ -335,7 +336,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             <div className="flex flex-col min-w-0 ml-1">
               <h3 className="font-bold text-sm sm:text-base truncate">{contact.name}</h3>
               <span className={cn("text-[10px] font-black uppercase tracking-widest", isCluster ? "text-primary" : isContactOnline ? "text-green-500" : "text-muted-foreground")}>
-                {isCluster ? `${(contact.members || []).length} ${t('chat_members_pulse')}` : isContactOnline ? t('chat_active_pulse') : t('chat_away')}
+                {isCluster ? `${((contact as Cluster).members || []).length} ${t('chat_members_pulse')}` : isContactOnline ? t('chat_active_pulse') : t('chat_away')}
               </span>
             </div>
           </div>
@@ -437,11 +438,11 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                         </DialogContent>
                       </Dialog>
                     )}
-                    <Badge variant="outline" className="bg-primary/5 text-primary border-primary/10 text-[8px] font-black h-4 px-2 uppercase">{(contact.members || []).length} ACTIVE</Badge>
+                    <Badge variant="outline" className="bg-primary/5 text-primary border-primary/10 text-[8px] font-black h-4 px-2 uppercase">{((contact as Cluster).members || []).length} ACTIVE</Badge>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
-                  {(contact.members || []).map(m => (
+                  {((contact as Cluster).members || []).map(m => (
                     <div key={m.username} className="flex items-center justify-between p-3 rounded-2xl bg-secondary/20 hover:bg-secondary/40 transition-all group">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10 border border-primary/5 shadow-sm group-hover:scale-105 transition-transform"><AvatarImage src={m.avatar} /></Avatar>
