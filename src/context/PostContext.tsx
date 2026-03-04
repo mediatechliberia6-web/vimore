@@ -1,4 +1,3 @@
-
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -985,7 +984,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
       await refreshStories();
     } catch (e: any) {
-      throw new Error(e.message);
+      console.error("Story Handshake Failed:", e);
+      throw new Error(e.message || "Failed to materialize story in vault.");
     }
   }, [currentUser, refreshStories]);
 
@@ -1173,7 +1173,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const isPostLiked = useCallback((postId: string) => likedPostIds.has(postId), [likedPostIds]);
   const isPostUnliked = useCallback((postId: string) => unlikedPostIds.has(postId), [unlikedPostIds]);
-  const isPostSaved = useCallback((postId: string) => savedPostIds.has(id), [savedPostIds]);
+  const isPostSaved = useCallback((postId: string) => savedPostIds.has(postId), [savedPostIds]);
   const isPostUnlocked = useCallback((postId: string) => unlockedPostIds.has(postId), [unlockedPostIds]);
   const isFollowing = useCallback((u: string) => followingUsernames.has(u), [followingUsernames]);
   const isSubscribed = useCallback((u: string) => activeSubscriptions.has(u), [activeSubscriptions]);
