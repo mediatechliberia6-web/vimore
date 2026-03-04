@@ -37,7 +37,9 @@ import {
   AlertTriangle,
   Type,
   Loader2,
-  Zap
+  Zap,
+  CheckCircle2,
+  Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -68,7 +70,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
-import { aiSuggestHashtags } from "@/app/actions/ai";
 
 interface CreatePostModalProps {
   children: React.ReactNode;
@@ -333,6 +334,12 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     }
   };
 
+  const handleAddPollOption = () => {
+    if (pollOptions.length < 4) {
+      setPollOptions([...pollOptions, ""]);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -340,7 +347,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         <DialogTitle className="sr-only">Create a New Post</DialogTitle>
         <DialogHeader className="p-4 border-b shrink-0 flex flex-row items-center justify-between space-y-0 bg-white dark:bg-card">
           <div className="flex items-center gap-4">
-            <DialogClose asChild><Button variant="ghost" size="icon" className="rounded-full h-8 w-8"><ArrowLeft className="h-6 w-6" /></Button></DialogClose>
+            <DialogClose asChild><Button variant="ghost" size="icon" className="rounded-full h-8 w-8" onClick={() => triggerHaptic(5)}><ArrowLeft className="h-6 w-6" /></Button></DialogClose>
             <DialogTitle className="font-bold text-lg">Create post</DialogTitle>
           </div>
           <div className="flex items-center gap-2">
@@ -454,8 +461,114 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             )}
           </div>
 
+          {isPollOpen && (
+            <div className="px-4 py-6 bg-secondary/10 border-y border-primary/5 space-y-6 animate-in slide-in-from-bottom-4">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Poll Question</Label>
+                <Input 
+                  placeholder="Ask the network..." 
+                  className="h-12 bg-white/50 dark:bg-card/50 border-primary/10 rounded-xl font-bold"
+                  value={pollQuestion}
+                  onChange={(e) => setPollQuestion(e.target.value)}
+                />
+              </div>
+              <div className="space-y-3">
+                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Options</Label>
+                {pollOptions.map((opt, i) => (
+                  <div key={i} className="relative group">
+                    <Input 
+                      placeholder={`Option ${i + 1}`} 
+                      className="h-11 bg-white dark:bg-card border-none rounded-xl pr-10 shadow-sm"
+                      value={opt}
+                      onChange={(e) => {
+                        const newOpts = [...pollOptions];
+                        newOpts[i] = e.target.value;
+                        setPollOptions(newOpts);
+                      }}
+                    />
+                    {i > 1 && (
+                      <button 
+                        onClick={() => setPollOptions(pollOptions.filter((_, idx) => idx !== i))}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-destructive transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {pollOptions.length < 4 && (
+                  <Button variant="ghost" className="w-full h-11 border-2 border-dashed border-primary/10 rounded-xl text-primary font-black uppercase text-[10px] tracking-widest gap-2" onClick={handleAddPollOption}>
+                    <Plus className="h-4 w-4" /> Add Pulse Option
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {showThemeSelector && (
+            <div className="p-4 border-y border-primary/5 bg-secondary/5">
+              <ScrollArea className="w-full whitespace-nowrap">
+                <div className="flex gap-3 pb-2">
+                  {backgroundThemes.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => { triggerHaptic(5); setSelectedTheme(t); }}
+                      className={cn(
+                        "h-12 w-12 rounded-xl flex items-center justify-center border-2 transition-all",
+                        selectedTheme.id === t.id ? "border-primary scale-110 shadow-lg" : "border-transparent",
+                        t.class === 'bg-transparent' ? "bg-secondary border-muted-foreground/20" : t.class
+                      )}
+                    >
+                      {selectedTheme.id === t.id && <Check className={cn("h-5 w-5", t.id === 'none' ? "text-primary" : "text-white")} />}
+                    </button>
+                  ))}
+                </div>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            </div>
+          )}
+
+          {showFeelingSelector && (
+            <div className="p-4 border-y border-primary/5 grid grid-cols-2 gap-2 animate-in fade-in zoom-in-95">
+              {feelings.map((f) => (
+                <button
+                  key={f.text}
+                  onClick={() => { triggerHaptic(5); setFeeling(f); setShowFeelingSelector(false); }}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl border transition-all",
+                    feeling?.text === f.text ? "bg-primary/10 border-primary text-primary" : "bg-secondary/20 border-transparent hover:bg-secondary/40"
+                  )}
+                >
+                  <span className="text-xl">{f.emoji}</span>
+                  <span className="text-xs font-bold uppercase tracking-widest">{f.text}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {showLocationSelector && (
+            <div className="p-4 border-y border-primary/5 space-y-4 animate-in slide-in-from-top-2">
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                <Input 
+                  placeholder="Where are you? (e.g. Monrovia, Liberia)" 
+                  className="h-12 pl-10 bg-secondary/30 border-none rounded-xl font-bold"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Recent Handshakes</p>
+              <div className="flex flex-wrap gap-2">
+                {["The Hub", "Main Cluster", "West Africa Node"].map(loc => (
+                  <button key={loc} onClick={() => { triggerHaptic(5); setLocation(loc); setShowLocationSelector(false); }} className="px-4 py-2 rounded-lg bg-secondary/40 text-[10px] font-bold uppercase hover:bg-primary/10 hover:text-primary transition-all">{loc}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {selectedMedia.length > 0 && !isCompressing && (
-            <div className="px-4 pb-6">
+            <div className="px-4 pb-6 mt-4">
               <div className={cn("grid gap-2", selectedMedia.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
                 {selectedMedia.map((url, i) => (
                   <div key={i} className="relative aspect-video rounded-[1.5rem] overflow-hidden group/media shadow-lg border border-primary/5">
@@ -467,7 +580,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
           )}
 
-          <div className="border-t">
+          <div className="border-t mt-4">
             <button onClick={() => fileInputRef.current?.click()} disabled={isPollOpen || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
               <div className="flex items-center gap-4"><ImageIcon className="h-6 w-6 text-green-500" /><span className="text-base font-medium">Photo</span></div>
             </button>
@@ -480,17 +593,48 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             <button onClick={() => toggleAction('theme')} disabled={selectedMedia.length > 0 || isPollOpen || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
               <div className="flex items-center gap-4"><Palette className="h-6 w-6 text-pink-500" /><span className="text-base font-medium">Theme</span></div>
             </button>
+            <button onClick={() => toggleAction('feeling')} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20">
+              <div className="flex items-center gap-4"><Smile className="h-6 w-6 text-amber-500" /><span className="text-base font-medium">Feeling/Activity</span></div>
+            </button>
+            <button onClick={() => toggleAction('location')} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20">
+              <div className="flex items-center gap-4"><MapPin className="h-6 w-6 text-red-400" /><span className="text-base font-medium">Check In</span></div>
+            </button>
           </div>
         </div>
 
         <div className="p-4 bg-white dark:bg-card border-t shrink-0">
           <Button className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing || isAiLoading} onClick={handlePost}>
-            {isAiLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "POST"}
+            {isAiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "POST"}
           </Button>
         </div>
 
         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" multiple onChange={handleFileChange} />
         <input type="file" ref={videoInputRef} className="hidden" accept="video/*" onChange={handleFileChange} />
+
+        <Dialog open={isTaggingSelectorOpen} onOpenChange={setIsTaggingSelectorOpen}>
+          <DialogContent className="rounded-t-[2.5rem] p-0 overflow-hidden h-[80vh] flex flex-col bg-white dark:bg-card">
+            <DialogHeader className="p-6 border-b"><DialogTitle className="text-xl font-black italic uppercase tracking-widest text-primary">Collaborator Sync</DialogTitle></DialogHeader>
+            <div className="p-4 space-y-4 shrink-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Query connections..." className="pl-10 h-12 bg-secondary/30 border-none rounded-xl" value={tagSearch} onChange={(e) => setTagSearch(e.target.value)} />
+              </div>
+            </div>
+            <ScrollArea className="flex-1 px-4">
+              <div className="space-y-2 pb-10">
+                {filteredTagResults.map((c) => (
+                  <button key={c.username} onClick={() => { triggerHaptic(10); setCollaborator(c); setIsTaggingSelectorOpen(false); }} className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-secondary/40 transition-all">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={c.avatar} /></Avatar>
+                      <div className="text-left"><p className="font-bold text-sm leading-none">{c.name}</p><p className="text-[10px] text-muted-foreground font-black uppercase mt-1">@{c.username}</p></div>
+                    </div>
+                    {collaborator?.username === c.username && <CheckCircle2 className="h-5 w-5 text-primary" />}
+                  </button>
+                ))}
+              </div>
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
