@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -13,7 +12,7 @@ export function RightSidebar() {
   const { currentUser, connections = [], isFollowing, toggleFollowUser, setSearchOpen } = usePosts();
 
   const suggestions = useMemo(() => {
-    if (!connections) return [];
+    if (!connections || !Array.isArray(connections)) return [];
     return connections
       .filter(c => !isFollowing(c.username) && c.username !== currentUser.username)
       .slice(0, 3);

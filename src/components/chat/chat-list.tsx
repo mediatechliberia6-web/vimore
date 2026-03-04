@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -32,7 +31,7 @@ interface ChatListProps {
 }
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
-  const { connections, clusters, triggerHaptic, settings } = usePosts();
+  const { connections = [], clusters = [], triggerHaptic, settings } = usePosts();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "unread" | "broadcasts" | "clusters">("all");
@@ -41,8 +40,8 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
 
   const sortedChats = useMemo(() => {
     const allItems = [
-      ...connections.map(c => ({ ...c, isGroup: false })),
-      ...clusters.map(cl => ({ ...cl, isGroup: true }))
+      ...(connections || []).map(c => ({ ...c, isGroup: false })),
+      ...(clusters || []).map(cl => ({ ...cl, isGroup: true }))
     ];
 
     let list = allItems;
@@ -56,7 +55,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
 
     if (searchQuery) {
       list = list.filter(item => 
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        item.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
         (item as any).username?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
@@ -108,7 +107,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                 <div className="relative shrink-0">
                   {item.isGroup ? (
                     <div className="h-12 w-12 rounded-[1rem] bg-primary/10 flex items-center justify-center relative overflow-hidden border border-primary/5">
-                      {item.avatar ? <img src={item.avatar} alt="Cluster" className="w-full h-full object-cover" /> : <div className="relative w-full h-full">{(item as any).members.slice(0, 2).map((m: any, i: number) => (<Avatar key={m.username} className={cn("absolute h-8 w-8 border-2 border-white dark:border-card", i === 0 ? "top-0 left-0" : "bottom-0 right-0")}><AvatarImage src={m.avatar} /></Avatar>))}</div>}
+                      {item.avatar ? <img src={item.avatar} alt="Cluster" className="w-full h-full object-cover" /> : <div className="relative w-full h-full">{(item as any).members?.slice(0, 2).map((m: any, i: number) => (<Avatar key={m.username} className={cn("absolute h-8 w-8 border-2 border-white dark:border-card", i === 0 ? "top-0 left-0" : "bottom-0 right-0")}><AvatarImage src={m.avatar} /></Avatar>))}</div>}
                     </div>
                   ) : (
                     <Avatar className="h-12 w-12 border-2 border-primary/5"><AvatarImage src={(item as any).avatar} /><AvatarFallback>{item.name[0]}</AvatarFallback></Avatar>

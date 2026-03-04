@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useMemo, useEffect } from "react";
@@ -119,7 +118,7 @@ export function InfoNode({ icon: Icon, label, value, colorClass }: { icon: any, 
 }
 
 export default function MyProfilePage() {
-  const { currentUser, posts, updateCurrentUser, uploadMedia, triggerHaptic, settings } = usePosts();
+  const { currentUser, posts, updateCurrentUser, uploadMedia, triggerHaptic, settings, setSelectedImageUrl } = usePosts();
   const { currentTrack, isExpanded, userSongs } = useMusic();
   const { toast } = useToast();
   const router = useRouter();

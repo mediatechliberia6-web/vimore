@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +40,8 @@ import {
   Trash2,
   UserPlus,
   ChevronRight,
-  Plus
+  Plus,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Connection, Cluster, usePosts } from "@/context/PostContext";
@@ -127,7 +127,7 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
-  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections, addMemberToCluster, settings } = usePosts();
+  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections = [], addMemberToCluster, settings } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   const router = useRouter();
@@ -147,6 +147,12 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     if (isCluster) return contact.id;
     return [currentUser.username, (contact as Connection).username].sort().join('_');
   }, [isCluster, contact, currentUser.username]);
+
+  const nonClusterMembers = useMemo(() => {
+    if (!isCluster) return [];
+    const memberUsernames = new Set(contact.members.map(m => m.username));
+    return connections.filter(c => !memberUsernames.has(c.username));
+  }, [isCluster, contact, connections]);
 
   // Fetch Message History
   const fetchHistory = useCallback(async () => {
@@ -189,6 +195,8 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
   useEffect(() => {
     fetchHistory();
+
+    if (!currentUser.id) return;
 
     // REAL-TIME HANDSHAKE
     const unsubscribe = client.subscribe(

@@ -1,4 +1,3 @@
-
 import { Client, Account, Databases, Storage, ID, Query } from 'appwrite';
 
 /**
@@ -10,9 +9,12 @@ import { Client, Account, Databases, Storage, ID, Query } from 'appwrite';
  * - Database: vimore_prod (ID: 69a2cffd00320dcd64bc)
  */
 
+const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+const project = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore';
+
 const client = new Client()
-    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
-    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore');
+    .setEndpoint(endpoint)
+    .setProject(project);
 
 export const account = new Account(client);
 export const databases = new Databases(client);
