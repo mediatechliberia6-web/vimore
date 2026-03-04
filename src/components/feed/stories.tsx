@@ -9,7 +9,11 @@ import { usePosts } from "@/context/PostContext";
 import { StoryViewer } from "./story-viewer";
 import { cn } from "@/lib/utils";
 
-export function Stories() {
+interface StoriesProps {
+  onOpenCreate?: () => void;
+}
+
+export function Stories({ onOpenCreate }: StoriesProps) {
   const { stories, setActiveStoryIndex, currentUser, triggerHaptic, settings } = usePosts();
 
   const handleStoryClick = (index: number) => {
@@ -24,7 +28,7 @@ export function Stories() {
           {/* Create Story Button */}
           <div 
             className="relative w-28 h-48 rounded-2xl overflow-hidden shrink-0 border border-primary/10 bg-white dark:bg-card cursor-pointer group shadow-sm"
-            onClick={() => triggerHaptic(5)}
+            onClick={() => { triggerHaptic(5); onOpenCreate?.(); }}
           >
             <div className="relative h-3/4 w-full overflow-hidden">
               <Image 

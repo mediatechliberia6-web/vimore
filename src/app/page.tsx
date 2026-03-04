@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Header } from "@/components/layout/header";
 import { SubHeader } from "@/components/layout/sub-header";
 import { PostCard } from "@/components/post/post-card";
@@ -15,10 +14,13 @@ import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Rocket, Zap, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CreateStoryModal } from "@/components/feed/create-story-modal";
 
 export default function Home() {
   const { posts, campaigns, isLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
+  const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
+  
   const isPlayerActive = currentTrack && !isExpanded;
 
   const feedItems = useMemo(() => {
@@ -65,7 +67,7 @@ export default function Home() {
         </aside>
 
         <main className="flex flex-col gap-4 w-full max-w-[680px] mx-auto">
-          <Stories />
+          <Stories onOpenCreate={() => setIsStoryModalOpen(true)} />
           
           <div className="flex flex-col gap-1">
             {posts.length > 0 ? (
@@ -117,6 +119,8 @@ export default function Home() {
           <RightSidebar />
         </aside>
       </div>
+
+      <CreateStoryModal isOpen={isStoryModalOpen} onClose={() => setIsStoryModalOpen(false)} />
     </div>
   );
 }
