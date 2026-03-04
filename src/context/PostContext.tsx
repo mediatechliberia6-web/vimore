@@ -169,6 +169,7 @@ interface PostContextType {
   savedPostIds: Set<string>;
   unlockedPostIds: Set<string>;
   followingUsernames: Set<string>;
+  followerUsernames: Set<string>;
   activeStoryIndex: number | null;
   selectedChatId: string | null;
   selectedPostId: string | null;
@@ -336,6 +337,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
   const [unlockedPostIds, setUnlockedPostIds] = useState<Set<string>>(new Set());
   const [followingUsernames, setFollowingUsernames] = useState<Set<string>>(new Set());
+  const [followerUsernames, setFollowerUsernames] = useState<Set<string>>(new Set());
   
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
@@ -425,10 +427,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const refreshSocialGraph = useCallback(async (userId: string) => {
+  const refreshSocialGraph = useCallback(async (userId: string, username: string) => {
     try {
-      const followResponse = await databases.listDocuments(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, [Query.equal('followerId', userId)]);
-      setFollowingUsernames(new Set(followResponse.documents.map(d => d.followingUsername)));
+      const [followingRes, followersRes] = await Promise.all([
+        databases.listDocuments(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, [Query.equal('followerId', userId)]),
+        databases.listDocuments(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, [Query.equal('followingUsername', username)])
+      ]);
+      
+      const following = new Set(followingRes.documents.map(d => d.followingUsername));
+      const followers = new Set(followersRes.documents.map(d => d.followerUsername)); // Assuming followerUsername exists or mapping from followerId
+      
+      setFollowingUsernames(following);
+      setFollowerUsernames(followers);
+
+      // Map to connections
+      setConnections(prev => prev.map(conn => ({
+        ...conn,
+        followsYou: followers.has(conn.username)
+      })));
     } catch (e: any) {
       console.warn("Social graph hydration failed:", e.message);
     }
@@ -437,8 +453,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const refreshProfiles = useCallback(async () => {
     try {
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(100)]);
-      setConnections(response.documents.map(doc => ({ ...doc, id: doc.$id, isGroup: false } as any)));
-    } catch (e) {}
+      const profiles = response.documents.map(doc => ({ ...doc, id: doc.$id, isGroup: false } as any));
+      setConnections(profiles);
+      return profiles;
+    } catch (e) { return []; }
   }, []);
 
   const refreshClusters = useCallback(async () => {
@@ -518,15 +536,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
         dateOfBirth: profile.dateOfBirth, 
         nationality: profile.nationality, 
         gender: profile.gender, 
-        isEmailVerified: user.emailVerification
+        isEmailVerified: user.emailVerification,
+        followers: profile.followers,
+        following: profile.following
       });
       
       await Promise.all([
         refreshFeed(), 
         refreshStories(), 
-        refreshSocialGraph(user.$id), 
+        refreshProfiles(),
+        refreshSocialGraph(user.$id, profile.username), 
         refreshLikes(user.$id),
-        refreshProfiles(), 
         refreshClusters(), 
         refreshEconomy(user.$id)
       ]);
@@ -600,7 +620,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
           nationality: data.nationality,
           gender: data.gender,
           referralCount: 0,
-          isEmailVerified: false 
+          isEmailVerified: false,
+          followers: 0,
+          following: 0
         });
       } catch (profileError: any) {
         throw new Error(profileError.message);
@@ -832,7 +854,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!currentUser.id) return;
-    const unsubscribe = client.subscribe(
+    
+    // 1. Social Handshake Real-Time Sync
+    const unsubscribeFollows = client.subscribe(
+      `databases.${APPWRITE_DATABASE_ID}.collections.${FOLLOWS_COLLECTION_ID}.documents`,
+      (response) => {
+        const payload = response.payload as any;
+        if (payload.followerId === currentUser.id || payload.followingUsername === currentUser.username) {
+          refreshSocialGraph(currentUser.id!, currentUser.username);
+          // If I was followed, refresh my profile to update follower count
+          if (payload.followingUsername === currentUser.username) {
+            checkSession();
+          }
+        }
+      }
+    );
+
+    // 2. Spatial Calls Real-Time Sync
+    const unsubscribeCalls = client.subscribe(
       `databases.${APPWRITE_DATABASE_ID}.collections.${CALLS_COLLECTION_ID}.documents`,
       (response) => {
         const payload = response.payload as any;
@@ -846,8 +885,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
         }
       }
     );
-    return () => unsubscribe();
-  }, [currentUser.id, receiveCall]);
+
+    return () => {
+      unsubscribeFollows();
+      unsubscribeCalls();
+    };
+  }, [currentUser.id, currentUser.username, receiveCall, refreshSocialGraph, checkSession]);
 
   const boostNode = async (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR') => {
     try {
@@ -903,6 +946,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
     });
 
     try {
+      // Find target user to update their counter
+      const targetUser = connections.find(c => c.username === username);
+      const targetUserId = targetUser?.$id || targetUser?.id;
+
       if (isCurrentlyFollowing) {
         const response = await databases.listDocuments(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, [
           Query.equal('followerId', userId),
@@ -911,14 +958,34 @@ export function PostProvider({ children }: { children: ReactNode }) {
         if (response.documents.length > 0) {
           await databases.deleteDocument(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, response.documents[0].$id);
         }
+        
+        // Decrement counters
+        if (targetUserId) {
+          const currentFollowers = typeof targetUser?.followers === 'string' ? parseInt(targetUser.followers) : (targetUser?.followers || 0);
+          await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, targetUserId, {
+            followers: Math.max(0, currentFollowers - 1)
+          });
+        }
+        await updateCurrentUser({ following: Math.max(0, (typeof currentUser.following === 'string' ? parseInt(currentUser.following) : (currentUser.following || 0)) - 1) });
+
       } else {
         await databases.createDocument(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, ID.unique(), {
           followerId: userId,
+          followerUsername: currentUser.username,
           followingUsername: username
         });
+
+        // Increment counters
+        if (targetUserId) {
+          const currentFollowers = typeof targetUser?.followers === 'string' ? parseInt(targetUser.followers) : (targetUser?.followers || 0);
+          await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, targetUserId, {
+            followers: currentFollowers + 1
+          });
+        }
+        await updateCurrentUser({ following: (typeof currentUser.following === 'string' ? parseInt(currentUser.following) : (currentUser.following || 0)) + 1 });
       }
-      // Re-sync to ensure accuracy
-      await refreshSocialGraph(userId);
+      
+      await refreshSocialGraph(userId, currentUser.username);
     } catch (e: any) {
       // 2. Rollback Handshake
       setFollowingUsernames(prev => {
@@ -931,7 +998,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       toast({ 
         variant: "destructive", 
         title: "Social Sync Error", 
-        description: e.message || "The network vault rejected the connection pulse. Ensure indexes are created in Appwrite." 
+        description: e.message 
       });
     }
   };
@@ -1096,9 +1163,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const contextValue = useMemo(() => ({ 
-    currentUser, posts, connections, clusters, staff, auditLogs, campaigns, adStats, intelligenceMetrics, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, withdrawalHistory, paymentRequests, referralLink: "vimore.app/join/" + currentUser.username, pendingTransaction, activeSubscriptions,
+    currentUser, posts, connections, clusters, staff, auditLogs, campaigns, adStats, intelligenceMetrics, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, withdrawalHistory, paymentRequests, referralLink: "vimore.app/join/" + currentUser.username, pendingTransaction, activeSubscriptions,
     login, signup, logout, resendVerification, checkSession, forgotPassword, resetPassword, uploadMedia, setSearchOpen: (open: boolean) => { triggerHaptic(5); setIsSearchOpen(open); }, setSelectedChatId: (id: string | null) => setSelectedChatId(id), setSelectedPostId: (id: string | null) => setSelectedPostId(id), setSelectedImageUrl: (url: string | null) => setSelectedImageUrl(url), openCommentHub: (id: string) => { triggerHaptic(5); setActiveCommentPostId(id); }, closeCommentHub: () => { triggerHaptic(5); setActiveCommentPostId(null); }, openGiftHub: (u: User) => { setTargetUserForGift(u); setIsGiftHubOpen(true); }, closeGiftHub: () => { setTargetUserForGift(null); setIsGiftHubOpen(false); }, setActiveStoryIndex: (idx: number | null) => setActiveStoryIndex(idx), addPost, deletePost, addStory, addComment: async (postId: string, text: string) => { await databases.createDocument(APPWRITE_DATABASE_ID, COMMENTS_COLLECTION_ID, ID.unique(), { postId, userId: currentUser.id, text, timestamp: Date.now() }); await refreshFeed(); }, addReply: async (postId: string, commentId: string, text: string) => { await databases.createDocument(APPWRITE_DATABASE_ID, COMMENTS_COLLECTION_ID, ID.unique(), { postId, userId: currentUser.id, text, parentId: commentId, timestamp: Date.now() }); await refreshFeed(); }, voteOnStoryPoll: async () => {}, toggleMuteUser: (u: string) => setMutedUserNames(prev => [...prev, u]), togglePinPost, archivePost, updateGatewaySettings: (data: any) => setGatewaySettings(data), addAuditLog, toggleLikePost, toggleUnlikePost: (id: string) => setUnlikedPostIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; }), toggleSavePost: (id: string) => setSavedPostIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; }), toggleFollowUser, updateSettings, initiateTransaction: (d: any) => setPendingTransaction(d), cancelTransaction: () => setPendingTransaction(null), createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse: () => {}, verifyUser: (cost: number, currency: any) => updateCurrentUser({ [(currency === 'DIAMOND' ? 'diamondBalance' : 'starBalance')]: Math.max(0, (currentUser as any)[(currency === 'DIAMOND' ? 'diamondBalance' : 'starBalance')] - cost), isVerified: true, hasEverBeenVerified: true }), processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization: () => {}, recordAdHandshake: () => {}, updateIntelligence: (data: any) => setIntelligenceMetrics(prev => ({ ...prev, ...data })), isPostLiked: (id: string) => likedPostIds.has(id), isPostUnliked: (id: string) => unlikedPostIds.has(id), isPostSaved: (id: string) => savedPostIds.has(id), isPostUnlocked: (id: string) => unlockedPostIds.has(id), isFollowing: (u: string) => followingUsernames.has(u), isSubscribed: (u: string) => activeSubscriptions.has(u), triggerHaptic, createCluster, addMemberToCluster, leaveCluster, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall, refreshAdminData, fetchProfileByUsername, incrementShareCount, addCampaign: () => {}, deleteCampaign: () => {}, toggleCampaignStatus: () => {}, recordCampaignClick: () => {}, boostNode
-  }), [currentUser, posts, connections, clusters, staff, auditLogs, campaigns, adStats, intelligenceMetrics, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, withdrawalHistory, paymentRequests, pendingTransaction, triggerHaptic, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, promoteUser, demoteUser, refreshAdminData, receiveCall, endCall, fetchProfileByUsername, updateCurrentUser, mutedUserNames, activeSubscriptions, incrementShareCount]);
+  }), [currentUser, posts, connections, clusters, staff, auditLogs, campaigns, adStats, intelligenceMetrics, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, withdrawalHistory, paymentRequests, pendingTransaction, triggerHaptic, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, promoteUser, demoteUser, refreshAdminData, receiveCall, endCall, fetchProfileByUsername, updateCurrentUser, mutedUserNames, activeSubscriptions, incrementShareCount]);
 
   return <PostContext.Provider value={contextValue}>{children}</PostContext.Provider>;
 }
