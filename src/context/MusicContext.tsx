@@ -1,9 +1,8 @@
-
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef, useMemo } from 'react';
 import { saveFileToDevice } from '@/lib/utils';
-import { databases, APPWRITE_BUCKET_ID, APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ALBUMS_COLLECTION_ID, PLAYLISTS_COLLECTION_ID, Query, ID, storage } from '@/lib/appwrite';
+import { databases, APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ALBUMS_COLLECTION_ID, PLAYLISTS_COLLECTION_ID, Query, ID } from '@/lib/appwrite';
 
 export interface Comment {
   id: string | number;
@@ -156,28 +155,108 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [unlikedSongIds, setUnlikedSongIdsState] = useState<Set<string | number>>(new Set());
   const [downloadedSongIds, setDownloadedSongIdsState] = useState<Set<string | number>>(new Set());
   const [likedCollectionIds, setLikedCollectionIdsState] = useState<Set<string | number>>(new Set());
-  const [likedTracks, setLikedTracksState] = useState<Track[]>([]);
-  const [userPlaylists, setUserPlaylistsState] = useState<Playlist[]>([]);
-  const [userSongs, setUserSongsState] = useState<Track[]>([]);
-  const [userAlbums, setUserAlbumsState] = useState<Album[]>([]);
   const [trackStats, setTrackStatsState] = useState<Record<string | number, { likes: number; unlikes: number }>>({});
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpenState] = useState(false);
   const [trackForNewPlaylist, setTrackForNewPlaylistState] = useState<Track | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    if (!audioRef.current && typeof window !== 'undefined') {
-      audioRef.current = new Audio();
-      audioRef.current.volume = volume / 100;
-    }
-  }, [volume]);
+  const isInitialMount = useRef(true);
 
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
       window.navigator.vibrate(intensity);
     }
   }, []);
+
+  // 1. Sonic Initialization & Temporal Pulse Handshake
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      audioRef.current.volume = volume / 100;
+    }
+
+    const audio = audioRef.current;
+
+    const handleTimeUpdate = () => {
+      if (audio.duration) {
+        const p = (audio.currentTime / audio.duration) * 100;
+        setProgressState(p);
+        // Save pulse position to device archival every 5% progress
+        if (Math.floor(p) % 5 === 0) {
+          localStorage.setItem('vimore_sonic_position', audio.currentTime.toString());
+        }
+      }
+    };
+
+    const handleEnded = () => {
+      nextTrack();
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [volume]);
+
+  // 2. Hardware Persistence Pulse: Load on Wake
+  useEffect(() => {
+    const loadSonicVault = async () => {
+      const savedTrack = localStorage.getItem('vimore_last_track');
+      const savedPosition = localStorage.getItem('vimore_sonic_position');
+      
+      if (savedTrack) {
+        try {
+          const track = JSON.parse(savedTrack) as Track;
+          setCurrentTrackState(track);
+          if (audioRef.current) {
+            audioRef.current.src = track.audioUrl || "";
+            if (savedPosition) {
+              audioRef.current.currentTime = parseFloat(savedPosition);
+            }
+          }
+        } catch (e) {
+          console.warn("Sonic archival node corrupted.");
+        }
+      }
+    };
+
+    if (isInitialMount.current) {
+      loadSonicVault();
+      isInitialMount.current = false;
+    }
+  }, []);
+
+  // 3. Operating System Handshake: Media Session API
+  useEffect(() => {
+    if (typeof window === 'undefined' || !currentTrack || !('mediaSession' in navigator)) return;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: currentTrack.title,
+      artist: currentTrack.artist,
+      album: 'ViMore Sonic Node',
+      artwork: [
+        { src: currentTrack.cover, sizes: '96x96', type: 'image/jpeg' },
+        { src: currentTrack.cover, sizes: '128x128', type: 'image/jpeg' },
+        { src: currentTrack.cover, sizes: '192x192', type: 'image/jpeg' },
+        { src: currentTrack.cover, sizes: '256x256', type: 'image/jpeg' },
+        { src: currentTrack.cover, sizes: '384x384', type: 'image/jpeg' },
+        { src: currentTrack.cover, sizes: '512x512', type: 'image/jpeg' },
+      ]
+    });
+
+    navigator.mediaSession.setActionHandler('play', () => setIsPlayingState(true));
+    navigator.mediaSession.setActionHandler('pause', () => setIsPlayingState(false));
+    navigator.mediaSession.setActionHandler('previoustrack', () => prevTrack());
+    navigator.mediaSession.setActionHandler('nexttrack', () => nextTrack());
+
+    // Persistent Archival
+    localStorage.setItem('vimore_last_track', JSON.stringify(currentTrack));
+  }, [currentTrack]);
 
   const refreshMusicVault = useCallback(async () => {
     try {
@@ -262,9 +341,14 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     triggerHaptic(10);
     const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
     const nextIndex = (currentIndex + 1) % queue.length;
-    setCurrentTrackState(queue[nextIndex]);
+    const track = queue[nextIndex];
+    setCurrentTrackState(track);
     setProgressState(0);
     setIsPlayingState(true);
+    if (audioRef.current) {
+      audioRef.current.src = track.audioUrl || "";
+      audioRef.current.currentTime = 0;
+    }
   }, [queue, currentTrack, triggerHaptic]);
 
   const setTrack = useCallback((track: Track) => {
@@ -274,7 +358,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setIsPlayingState(true);
     setProgressState(0);
     setReactionsState([]);
-    setIsExpandedState(true); 
+    setIsExpandedState(true);
+    if (audioRef.current) {
+      audioRef.current.src = track.audioUrl || "";
+      audioRef.current.currentTime = 0;
+    }
   }, [queue, triggerHaptic]);
 
   const addToQueue = useCallback((track: Track) => {
@@ -292,6 +380,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setProgressState(0);
     setReactionsState([]);
     setIsExpandedState(true);
+    if (audioRef.current) {
+      audioRef.current.src = track.audioUrl || "";
+      audioRef.current.currentTime = 0;
+    }
   }, [triggerHaptic]);
 
   const togglePlay = useCallback(() => { 
@@ -304,9 +396,14 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     triggerHaptic(10);
     const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
     const prevIndex = (currentIndex - 1 + queue.length) % queue.length;
-    setCurrentTrackState(queue[prevIndex]);
+    const track = queue[prevIndex];
+    setCurrentTrackState(track);
     setProgressState(0);
     setIsPlayingState(true);
+    if (audioRef.current) {
+      audioRef.current.src = track.audioUrl || "";
+      audioRef.current.currentTime = 0;
+    }
   }, [queue, currentTrack, triggerHaptic]);
 
   const toggleLike = useCallback(async (track: Track) => {
@@ -473,16 +570,41 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setCurrentTrackState({ ...currentTrack, comments: [newComment, ...(currentTrack.comments || [])] });
   }, [currentTrack, triggerHaptic]);
 
-  const clearPlayer = useCallback(() => { triggerHaptic(5); setIsPlayingState(false); setCurrentTrackState(null); setIsExpandedState(false); setProgressState(0); }, [triggerHaptic]);
+  const clearPlayer = useCallback(() => { 
+    triggerHaptic(5); 
+    setIsPlayingState(false); 
+    setCurrentTrackState(null); 
+    setIsExpandedState(false); 
+    setProgressState(0); 
+    localStorage.removeItem('vimore_last_track');
+    localStorage.removeItem('vimore_sonic_position');
+  }, [triggerHaptic]);
+
   const openCaptureStudio = useCallback((track?: Track) => { triggerHaptic(25); setCaptureTrackState(track || null); setIsCaptureStudioOpenState(true); }, [triggerHaptic]);
   const closeCaptureStudio = useCallback(() => { triggerHaptic(10); setIsCaptureStudioOpenState(false); setCaptureTrackState(null); }, [triggerHaptic]);
 
   const setIsExpanded = useCallback((expanded: boolean) => setIsExpandedState(expanded), []);
   const setSelectedAlbum = useCallback((album: Album | null) => setSelectedAlbumState(album), []);
   const setSelectedPlaylist = useCallback((playlist: Playlist | null) => setSelectedPlaylistState(playlist), []);
-  const setProgress = useCallback((progress: number) => setProgressState(progress), []);
-  const setVolume = useCallback((volume: number) => setVolumeState(volume), []);
+  const setProgress = useCallback((progress: number) => {
+    setProgressState(progress);
+    if (audioRef.current && audioRef.current.duration) {
+      audioRef.current.currentTime = (progress / 100) * audioRef.current.duration;
+    }
+  }, []);
+  const setVolume = useCallback((volume: number) => {
+    setVolumeState(volume);
+    if (audioRef.current) audioRef.current.volume = volume / 100;
+  }, []);
   const setCaptureTrack = useCallback((track: Track | null) => setCaptureTrackState(track), []);
+
+  const likedTracks = useMemo(() => {
+    return globalSongs.filter(s => likedSongIds.has(s.id));
+  }, [globalSongs, likedSongIds]);
+
+  const userPlaylists = useMemo(() => globalPlaylists.filter(p => p.creator === "John Doe"), [globalPlaylists]);
+  const userSongs = useMemo(() => globalSongs.filter(s => s.artistUsername === "johndoe_creative"), [globalSongs]);
+  const userAlbums = useMemo(() => globalAlbums.filter(a => a.artistUsername === "johndoe_creative"), [globalAlbums]);
 
   const contextValue = useMemo(() => ({
     currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, 
@@ -494,7 +616,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked,
     playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack,
     openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic, refreshMusicVault
-  }), [currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats, isAdPortalOpen, adDuration, pendingDownloadTask, isCreatePlaylistOpen, trackForNewPlaylist, isCaptureStudioOpen, captureTrack, triggerHaptic, setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked, playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack, openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, refreshMusicVault]);
+  }), [currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats, isAdPortalOpen, adDuration, isCreatePlaylistOpen, trackForNewPlaylist, isCaptureStudioOpen, captureTrack, triggerHaptic, setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked, playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack, openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, refreshMusicVault]);
 
   return (
     <MusicContext.Provider value={contextValue}>
