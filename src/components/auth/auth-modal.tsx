@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -131,7 +132,9 @@ export function AuthModal() {
     triggerHaptic(30);
     
     try {
-      await signup({ email, password, name, username, dob, nationality, gender });
+      // Identity ID Sanitization: Force lowercase and replace spaces
+      const sanitizedUsername = username.toLowerCase().trim().replace(/\s+/g, '_');
+      await signup({ email, password, name, username: sanitizedUsername, dob, nationality, gender });
       setIsNewAccount(true);
       toast({ 
         title: "Node Initialized", 
@@ -236,7 +239,7 @@ export function AuthModal() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="John Doe" /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Username</Label><Input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="johndoe" /></div>
+                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Username</Label><Input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, '_'))} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="johndoe" /></div>
                   </div>
                   <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="sync@vimore.com" /></div>
                   <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Password</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="••••••••" /></div>

@@ -556,8 +556,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const fetchProfileByUsername = useCallback(async (username: string): Promise<User | null> => {
     try {
-      const response = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', username)]);
-      if (response.documents.length === 0) return null;
+      const normalizedUsername = username.toLowerCase().trim();
+      const response = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', normalizedUsername)]);
+      
+      if (response.documents.length === 0) {
+        // High-Velocity Fallback: Search by name if username node is silent
+        const nameResponse = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('name', username)]);
+        if (nameResponse.documents.length > 0) {
+          const profile = nameResponse.documents[0];
+          return { id: profile.$id, name: profile.name, username: profile.username, avatar: profile.avatar, isVerified: profile.isVerified, followers: profile.followers, following: profile.following, posts: profile.posts, bio: profile.bio, category: profile.category, role: profile.role, goldBalance: profile.goldBalance, diamondBalance: profile.diamondBalance, starBalance: profile.starBalance, referralCount: profile.referralCount, hasEverBeenVerified: profile.hasEverBeenVerified, dateOfBirth: profile.dateOfBirth, nationality: profile.nationality, gender: profile.gender } as User;
+        }
+        return null;
+      }
+      
       const profile = response.documents[0];
       return { id: profile.$id, name: profile.name, username: profile.username, avatar: profile.avatar, isVerified: profile.isVerified, followers: profile.followers, following: profile.following, posts: profile.posts, bio: profile.bio, category: profile.category, role: profile.role, goldBalance: profile.goldBalance, diamondBalance: profile.diamondBalance, starBalance: profile.starBalance, referralCount: profile.referralCount, hasEverBeenVerified: profile.hasEverBeenVerified, dateOfBirth: profile.dateOfBirth, nationality: profile.nationality, gender: profile.gender } as User;
     } catch (e) { return null; }
@@ -722,8 +733,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   
   const signup = useCallback(async (data: { email: string, password: string, name: string, username: string, dob: string, nationality: string, gender: 'Male' | 'Female' }) => {
     try {
+      const normalizedUsername = data.username.toLowerCase().trim().replace(/\s+/g, '_');
       const existing = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
-        Query.equal('username', data.username)
+        Query.equal('username', normalizedUsername)
       ]);
       
       if (existing.total > 0) {
@@ -739,7 +751,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       try {
         await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id, { 
           name: data.name, 
-          username: data.username, 
+          username: normalizedUsername, 
           avatar: INITIAL_USER.avatar, 
           goldBalance: 0, 
           diamondBalance: 0, 
