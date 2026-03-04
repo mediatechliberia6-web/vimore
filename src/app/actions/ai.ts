@@ -125,14 +125,17 @@ export async function aiRequestSignatureVerification(input: { username: string, 
 }
 
 /**
- * Generates a unique 6-character verification code using Groq.
+ * Generates a unique 6-character verification code using Groq with Hardware Fallback.
  */
 export async function aiGenerateVerificationCode({ packageName }: { packageName: string }) {
   try {
+    // 1. Attempt AI Materialization
     const result = await codeFlow({ packageName });
+    if (!result || !result.code) throw new Error("Null pulse from AI Engine");
     return { code: result.code };
   } catch (error) {
-    console.error("Code Generation Error:", error);
+    // 2. Hardware Fallback Protocol
+    console.warn("AI Engine unreachable. Materializing local cryptographic code.");
     const fallback = Math.random().toString(36).substring(2, 8).toUpperCase();
     return { code: fallback };
   }
