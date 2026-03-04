@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
@@ -127,12 +128,11 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
-  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections = [], addMemberToCluster, settings } = usePosts();
+  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections = [], addMemberToCluster, settings, uploadMedia } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   const router = useRouter();
   
-  // High-Velocity Handshake: Verify explicit boolean instead of key presence
   const isCluster = contact.isGroup === true;
   const isAdmin = isCluster && (contact as Cluster).adminUsername === currentUser.username;
   
@@ -187,6 +187,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
         status: doc.status || 'sent',
         type: doc.type || 'text',
         mediaUrl: doc.mediaUrl,
+        voiceDuration: doc.duration,
         isViewOnce: doc.isViewOnce,
         isViewed: doc.isViewed,
         isDownloaded: true,
@@ -223,6 +224,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             status: payload.status,
             type: payload.type,
             mediaUrl: payload.mediaUrl,
+            voiceDuration: payload.duration,
             isViewOnce: payload.isViewOnce,
             isViewed: payload.isViewed,
             isDownloaded: false,
@@ -246,24 +248,13 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const handleSend = async (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string }) => {
     if (!conversationId) return;
     
+    let finalMediaUrl = options?.mediaUrl || "";
     const type = options?.isWorkspace ? "workspace" : (options?.mediaType || (text.includes("http") ? "link" : "text"));
-    
-    const docData = {
-      conversationId,
-      senderId: currentUser.username,
-      senderName: currentUser.name,
-      senderAvatar: currentUser.avatar,
-      text: text || "",
-      type,
-      mediaUrl: options?.mediaUrl || "",
-      status: "sent",
-      isViewOnce: options?.isViewOnce || false,
-      isViewed: false,
-      reactions: JSON.stringify([])
-    };
 
+    // Optimistic UI Handshake
+    const optimisticId = `temp-${Date.now()}`;
     const optimistic: Message = {
-      id: `temp-${Date.now()}`,
+      id: optimisticId,
       sender: "me",
       senderId: currentUser.username,
       text: text || undefined,
@@ -272,11 +263,36 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       type: type as any,
       isViewOnce: options?.isViewOnce,
       isDownloaded: true,
-      mediaUrl: options?.mediaUrl
+      mediaUrl: finalMediaUrl,
+      voiceDuration: options?.duration
     };
     setMessages(prev => [...prev, optimistic]);
 
     try {
+      // 1. Vault Sync: If mediaUrl is a local node, materialize it in Appwrite Storage
+      if (finalMediaUrl.startsWith('blob:')) {
+        const response = await fetch(finalMediaUrl);
+        const blob = await response.blob();
+        const extension = type === 'voice' ? 'webm' : (type === 'video' ? 'mp4' : 'jpg');
+        const file = new File([blob], `msg_media_${Date.now()}.${extension}`, { type: blob.type });
+        finalMediaUrl = await uploadMedia(file);
+      }
+
+      const docData = {
+        conversationId,
+        senderId: currentUser.username,
+        senderName: currentUser.name,
+        senderAvatar: currentUser.avatar,
+        text: text || "",
+        type,
+        mediaUrl: finalMediaUrl,
+        duration: options?.duration || "",
+        status: "sent",
+        isViewOnce: options?.isViewOnce || false,
+        isViewed: false,
+        reactions: JSON.stringify([])
+      };
+
       await databases.createDocument(
         APPWRITE_DATABASE_ID,
         MESSAGES_COLLECTION_ID,
@@ -285,6 +301,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       );
     } catch (e) {
       toast({ variant: "destructive", title: "Sync Error", description: "Node transmission failed." });
+      setMessages(prev => prev.filter(m => m.id !== optimisticId));
     }
   };
 

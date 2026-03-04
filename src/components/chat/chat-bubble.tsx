@@ -158,10 +158,6 @@ export function ChatBubble({
   };
 
   const handleMediaClick = () => {
-    if (!isDownloaded && !isMe) {
-      handleDownload();
-      return;
-    }
     triggerHaptic(10);
     onMediaOpen?.(id);
   };
@@ -170,7 +166,6 @@ export function ChatBubble({
     if (isDownloaded || isDownloading) return;
     triggerHaptic(15);
     setIsDownloading(true);
-    // Simulate node archival process
     await new Promise(resolve => setTimeout(resolve, 1500));
     setIsDownloading(false);
     onDownload?.(id);
@@ -190,10 +185,6 @@ export function ChatBubble({
 
   const toggleVideo = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!isDownloaded && !isMe) {
-      handleDownload();
-      return;
-    }
     if (!videoRef.current || !mediaUrl) return;
     triggerHaptic(10);
     if (isPlayingVideo) {
@@ -225,7 +216,6 @@ export function ChatBubble({
       setIsPlayingVoice(false);
       if (timerRef.current) clearInterval(timerRef.current);
     } else {
-      // Sonic Handshake: Play audio
       audioRef.current.play().catch(err => {
         console.warn("Voice playback failed:", err);
         setIsPlayingVoice(false);
@@ -267,7 +257,8 @@ export function ChatBubble({
     });
   };
 
-  const showMediaPlaceholder = !isDownloaded && !isMe && (type === 'photo' || type === 'video');
+  // Re-calibrated Preview Logic: Standard media is now granted auto-reveal.
+  const showMediaPlaceholder = isViewOnce && !isViewed && !isDownloaded && !isMe;
 
   return (
     <>
