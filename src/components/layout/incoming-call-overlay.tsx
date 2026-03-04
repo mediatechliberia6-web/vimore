@@ -25,7 +25,7 @@ import { useNotifications } from "@/context/NotificationContext";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
-const RINGTONE_URL = "https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3"; // Cyber-Pulse composition placeholder
+const RINGTONE_URL = "https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3";
 
 const QUICK_RESPONSES = [
   "In the Studio, sync later? 🎙️",
@@ -37,40 +37,37 @@ const QUICK_RESPONSES = [
 export function IncomingCallOverlay() {
   const { callState, acceptCall, endCall, triggerHaptic, settings } = usePosts();
   const { isPlaying, togglePlay } = useMusic();
-  const { addSignal, currentUser } = useNotifications();
+  const { addSignal } = useNotifications();
   const router = useRouter();
   
   const [pulseScale, setPulseScale] = useState(1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const wasMusicPlayingRef = useRef(false);
 
-  // 1. Audio Handshake & Ringtone logic
   useEffect(() => {
     if (callState.status === 'incoming') {
-      // Composition: Sonic Ducking
       if (isPlaying) {
         wasMusicPlayingRef.current = true;
         togglePlay();
       }
 
-      // composition: Materialize Ringtone
-      if (!audioRef.current) {
+      if (!audioRef.current && typeof window !== 'undefined') {
         audioRef.current = new Audio(RINGTONE_URL);
         audioRef.current.loop = true;
       }
       
-      // Safety: Check Silence Node setting
-      if (!settings.isSilenceActive) {
-        audioRef.current.play().catch(e => console.error("Ringtone failed", e));
+      if (audioRef.current && !settings.isSilenceActive) {
+        audioRef.current.play().catch(e => console.warn("Ringtone blocked by hardware guard."));
       }
 
-      // Background Pulse: Mini Handshake signal
-      addSignal({
-        type: 'SOCIAL',
-        title: `Incoming ${callState.type === 'video' ? 'Video' : 'Sonic'} Handshake`,
-        content: `**${callState.contact?.name}** is requesting a ${callState.type} link.`,
-        avatar: callState.contact?.avatar
-      });
+      if (callState.contact) {
+        addSignal({
+          type: 'SOCIAL',
+          title: `Incoming ${callState.type === 'video' ? 'Video' : 'Sonic'} Handshake`,
+          content: `**${callState.contact?.name || 'Unknown'}** is requesting a ${callState.type} link.`,
+          avatar: callState.contact?.avatar
+        });
+      }
 
       const interval = setInterval(() => {
         setPulseScale(s => s === 1 ? 1.1 : 1);
@@ -84,13 +81,12 @@ export function IncomingCallOverlay() {
         }
       };
     } else {
-      // Restoration logic
       if (wasMusicPlayingRef.current && !isPlaying) {
         togglePlay();
         wasMusicPlayingRef.current = false;
       }
     }
-  }, [callState.status, isPlaying, togglePlay, settings.isSilenceActive, addSignal, callState.type]);
+  }, [callState.status, isPlaying, togglePlay, settings.isSilenceActive, addSignal, callState.type, callState.contact]);
 
   if (callState.status !== 'incoming' || !callState.contact) return null;
 
@@ -107,14 +103,11 @@ export function IncomingCallOverlay() {
 
   const handleQuickResponse = (text: string) => {
     triggerHaptic(20);
-    // In a production node, this would send a DM to the caller
-    console.log(`Sending quick pulse response: ${text}`);
     endCall();
   };
 
   return (
     <div className="fixed inset-0 z-[600] bg-[#050505]/95 backdrop-blur-3xl flex flex-col items-center justify-center p-6 overflow-hidden animate-in fade-in duration-500">
-      {/* Background Ambience */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[120px] rounded-full animate-pulse delay-700" />
@@ -122,7 +115,6 @@ export function IncomingCallOverlay() {
       </div>
 
       <div className="relative z-10 w-full max-w-md flex flex-col items-center text-center space-y-12">
-        
         <header className="space-y-4">
           <div className="flex justify-center">
             <div className="bg-primary/10 border border-primary/20 rounded-2xl px-4 py-1.5 flex items-center gap-2">
@@ -147,7 +139,7 @@ export function IncomingCallOverlay() {
             <div className="relative h-full w-full rounded-full border-4 border-primary shadow-[0_0_40px_rgba(153,64,229,0.4)] overflow-hidden bg-zinc-900">
               <Avatar className="h-full w-full">
                 <AvatarImage src={callState.contact.avatar} />
-                <AvatarFallback>{callState.contact.name[0]}</AvatarFallback>
+                <AvatarFallback>{callState.contact.name?.[0] || 'V'}</AvatarFallback>
               </Avatar>
             </div>
 
@@ -165,11 +157,10 @@ export function IncomingCallOverlay() {
               </div>
             </div>
 
-            {/* Creator Pulse Context */}
             <div className="flex items-center justify-center gap-6 pt-2">
               <div className="flex flex-col items-center">
                 <span className="text-[10px] font-black text-primary uppercase tracking-widest leading-none mb-1">Role</span>
-                <p className="text-sm font-bold text-white leading-none">{callState.contact.category}</p>
+                <p className="text-sm font-bold text-white leading-none">{callState.contact.category || 'Creator'}</p>
               </div>
               <div className="w-px h-6 bg-white/10" />
               <div className="flex flex-col items-center">
@@ -205,7 +196,6 @@ export function IncomingCallOverlay() {
             </div>
           </div>
 
-          {/* Quick Pulse Responses */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 justify-center text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">
               <MessageCircle className="h-3 w-3" /> Quick Signal

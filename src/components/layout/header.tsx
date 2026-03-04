@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -12,7 +13,7 @@ import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 
 const PulseBadge = ({ count }: { count: number }) => {
-  if (count <= 0) return null;
+  if (!count || count <= 0) return null;
   return (
     <div className="absolute -top-1.5 -right-1.5 bg-primary text-white text-[8px] font-black h-4.5 w-4.5 min-w-[18px] rounded-full flex items-center justify-center border-2 border-white dark:border-background shadow-lg shadow-primary/20 animate-in zoom-in duration-300">
       {count > 9 ? '9+' : count}
@@ -21,8 +22,8 @@ const PulseBadge = ({ count }: { count: number }) => {
 };
 
 export function Header() {
-  const { unreadCount, categoryPulses, clearPulse } = useNotifications();
-  const { setSearchOpen } = usePosts();
+  const { unreadCount = 0, categoryPulses = { MESSAGES: 0, HOME: 0 }, clearPulse } = useNotifications();
+  const { setSearchOpen, currentUser = { name: "Guest", avatar: "" } } = usePosts();
   const { t } = useTranslation();
 
   return (
@@ -69,13 +70,13 @@ export function Header() {
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
             <MessageCircle className="h-5 w-5" />
           </Button>
-          <PulseBadge count={categoryPulses.MESSAGES} />
+          <PulseBadge count={categoryPulses?.MESSAGES || 0} />
         </Link>
         
         <Link href="/profile" className="hidden sm:block ml-2 group">
           <Avatar className="h-9 w-9 border-2 border-primary/10 transition-transform group-hover:scale-105">
-            <AvatarImage src="https://picsum.photos/seed/me/200/200" alt="My Profile" />
-            <AvatarFallback>JD</AvatarFallback>
+            <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />
+            <AvatarFallback>{currentUser?.name?.[0] || 'V'}</AvatarFallback>
           </Avatar>
         </Link>
 
@@ -83,8 +84,7 @@ export function Header() {
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50" aria-label="Open menu">
             <Menu className="h-5 w-5" />
           </Button>
-          {/* Aggregate pulse for mobile menu */}
-          <PulseBadge count={unreadCount + Object.values(categoryPulses).reduce((a, b) => a + b, 0)} />
+          <PulseBadge count={(unreadCount || 0) + Object.values(categoryPulses || {}).reduce((a, b) => a + b, 0)} />
         </Link>
       </div>
     </header>

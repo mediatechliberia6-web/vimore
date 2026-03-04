@@ -1,3 +1,4 @@
+
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
@@ -19,6 +20,7 @@ import { GiftHub } from "@/components/post/gift-hub";
 import { IncomingCallOverlay } from "@/components/layout/incoming-call-overlay";
 import { AuthModal } from "@/components/auth/auth-modal";
 import { AppLoadingGate } from "@/components/layout/app-loading-gate";
+import { DiagnosticErrorBoundary } from "@/components/layout/diagnostic-error-boundary";
 import NextTopLoader from 'nextjs-toploader';
 
 export const metadata: Metadata = {
@@ -69,22 +71,24 @@ export default function RootLayout({
             <NotificationProvider>
               <MusicProvider>
                 <FontScaleWrapper>
-                  <AppLoadingGate>
-                    {children}
-                    <MusicPlayer />
-                    <AlbumDetail />
-                    <PlaylistDetail />
-                    <CaptureStudio />
-                    <AdPortal />
-                    <PostPortal />
-                    <ImageViewerPortal />
-                    <SearchPortal />
-                    <CommentHub />
-                    <GiftHub />
-                    <IncomingCallOverlay />
-                    <AuthModal />
-                    <Toaster />
-                  </AppLoadingGate>
+                  <DiagnosticErrorBoundary title="System Core">
+                    <AppLoadingGate>
+                      {children}
+                      <MusicPlayer />
+                      <AlbumDetail />
+                      <PlaylistDetail />
+                      <CaptureStudio />
+                      <AdPortal />
+                      <PostPortal />
+                      <ImageViewerPortal />
+                      <SearchPortal />
+                      <CommentHub />
+                      <GiftHub />
+                      <IncomingCallOverlay />
+                      <AuthModal />
+                      <Toaster />
+                    </AppLoadingGate>
+                  </DiagnosticErrorBoundary>
                 </FontScaleWrapper>
               </MusicProvider>
             </NotificationProvider>

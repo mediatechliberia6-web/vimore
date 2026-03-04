@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -168,22 +169,25 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // 1. Sonic Initialization & Temporal Pulse Handshake
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     if (!audioRef.current) {
-      audioRef.current = new Audio();
-      audioRef.current.volume = volume / 100;
+      try {
+        audioRef.current = new Audio();
+        audioRef.current.volume = volume / 100;
+      } catch (e) {
+        console.warn("Sonic engine initialization deferred.");
+      }
     }
 
     const audio = audioRef.current;
+    if (!audio) return;
 
     const handleTimeUpdate = () => {
       if (audio.duration) {
         const p = (audio.currentTime / audio.duration) * 100;
         setProgressState(p);
-        // Save pulse position to device archival every 5% progress
         if (Math.floor(p) % 5 === 0) {
           localStorage.setItem('vimore_sonic_position', audio.currentTime.toString());
         }
@@ -203,8 +207,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     };
   }, [volume]);
 
-  // 2. Hardware Persistence Pulse: Load on Wake
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     const loadSonicVault = async () => {
       const savedTrack = localStorage.getItem('vimore_last_track');
       const savedPosition = localStorage.getItem('vimore_sonic_position');
@@ -231,30 +236,32 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // 3. Operating System Handshake: Media Session API
   useEffect(() => {
     if (typeof window === 'undefined' || !currentTrack || !('mediaSession' in navigator)) return;
 
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: currentTrack.title,
-      artist: currentTrack.artist,
-      album: 'ViMore Sonic Node',
-      artwork: [
-        { src: currentTrack.cover, sizes: '96x96', type: 'image/jpeg' },
-        { src: currentTrack.cover, sizes: '128x128', type: 'image/jpeg' },
-        { src: currentTrack.cover, sizes: '192x192', type: 'image/jpeg' },
-        { src: currentTrack.cover, sizes: '256x256', type: 'image/jpeg' },
-        { src: currentTrack.cover, sizes: '384x384', type: 'image/jpeg' },
-        { src: currentTrack.cover, sizes: '512x512', type: 'image/jpeg' },
-      ]
-    });
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentTrack.title,
+        artist: currentTrack.artist,
+        album: 'ViMore Sonic Node',
+        artwork: [
+          { src: currentTrack.cover, sizes: '96x96', type: 'image/jpeg' },
+          { src: currentTrack.cover, sizes: '128x128', type: 'image/jpeg' },
+          { src: currentTrack.cover, sizes: '192x192', type: 'image/jpeg' },
+          { src: currentTrack.cover, sizes: '256x256', type: 'image/jpeg' },
+          { src: currentTrack.cover, sizes: '384x384', type: 'image/jpeg' },
+          { src: currentTrack.cover, sizes: '512x512', type: 'image/jpeg' },
+        ]
+      });
 
-    navigator.mediaSession.setActionHandler('play', () => setIsPlayingState(true));
-    navigator.mediaSession.setActionHandler('pause', () => setIsPlayingState(false));
-    navigator.mediaSession.setActionHandler('previoustrack', () => prevTrack());
-    navigator.mediaSession.setActionHandler('nexttrack', () => nextTrack());
+      navigator.mediaSession.setActionHandler('play', () => setIsPlayingState(true));
+      navigator.mediaSession.setActionHandler('pause', () => setIsPlayingState(false));
+      navigator.mediaSession.setActionHandler('previoustrack', () => prevTrack());
+      navigator.mediaSession.setActionHandler('nexttrack', () => nextTrack());
+    } catch (e) {
+      console.warn("Media Session handshake deferred.");
+    }
 
-    // Persistent Archival
     localStorage.setItem('vimore_last_track', JSON.stringify(currentTrack));
   }, [currentTrack]);
 

@@ -39,7 +39,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 
 const PulseBadge = ({ count }: { count: number }) => {
-  if (count <= 0) return null;
+  if (!count || count <= 0) return null;
   return (
     <div className="absolute -top-1 -right-1 bg-primary text-white text-[7px] font-black h-3.5 w-3.5 min-w-[14px] rounded-full flex items-center justify-center border border-white dark:border-background shadow-sm animate-in zoom-in duration-300">
       {count > 9 ? '9+' : count}
@@ -50,9 +50,9 @@ const PulseBadge = ({ count }: { count: number }) => {
 export function SubHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { setSearchOpen, currentUser, settings, updateSettings } = usePosts();
+  const { setSearchOpen, currentUser = { name: "Guest", avatar: "", goldBalance: 0, diamondBalance: 0, starBalance: 0, isVerified: false }, settings, updateSettings } = usePosts();
   const { triggerHaptic } = useMusic();
-  const { categoryPulses, clearPulse } = useNotifications();
+  const { categoryPulses = { HOME: 0, FRIENDS: 0, MUSIC: 0, REELS: 0 }, clearPulse } = useNotifications();
   const { t } = useTranslation();
   const { toast } = useToast();
 
@@ -88,7 +88,7 @@ export function SubHeader() {
             const isLinkActive = pathname === item.href;
             const isHomeActive = item.href === "/" && pathname === "/";
             const isActive = isLinkActive || isHomeActive;
-            const pulseCount = categoryPulses[item.category];
+            const pulseCount = categoryPulses?.[item.category] || 0;
 
             return (
               <Link
@@ -134,13 +134,13 @@ export function SubHeader() {
                 onClick={() => triggerHaptic(5)}
               >
                 <div className="hidden lg:block text-right">
-                  <p className="text-xs font-bold leading-none group-hover:text-primary transition-colors">{currentUser.name}</p>
+                  <p className="text-xs font-bold leading-none group-hover:text-primary transition-colors">{currentUser?.name}</p>
                   <p className="text-[10px] text-muted-foreground">{t('sub_wallet_pulse')}</p>
                 </div>
                 <div className="relative">
                   <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border-2 border-primary/10 transition-transform group-hover:scale-105 shadow-sm">
-                    <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
-                    <AvatarFallback>JD</AvatarFallback>
+                    <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />
+                    <AvatarFallback>{currentUser?.name?.[0] || 'V'}</AvatarFallback>
                   </Avatar>
                   {settings.isFreeMode && (
                     <div className="absolute -top-1 -right-1 bg-primary rounded-full p-0.5 border border-white dark:border-background">
@@ -155,15 +155,14 @@ export function SubHeader() {
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('ui_identity_vault')}</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-black italic uppercase tracking-tighter text-lg">{currentUser.name}</span>
-                    {currentUser.isVerified && <CheckCircle2 className="h-3.5 w-3.5 text-primary fill-primary text-white" />}
+                    <span className="font-black italic uppercase tracking-tighter text-lg">{currentUser?.name}</span>
+                    {currentUser?.isVerified && <CheckCircle2 className="h-3.5 w-3.5 text-primary fill-primary text-white" />}
                   </div>
                 </div>
               </DropdownMenuLabel>
               
               <DropdownMenuSeparator className="bg-primary/5" />
 
-              {/* FREE MODE TOGGLE */}
               <div 
                 className="flex items-center justify-between p-3 mx-1 rounded-xl bg-primary/5 border border-primary/10 cursor-pointer group hover:bg-primary/10 transition-all"
                 onClick={toggleFreeMode}
@@ -191,21 +190,21 @@ export function SubHeader() {
                     <Star className="h-4 w-4 text-yellow-500 fill-current" />
                     <span className="text-[10px] font-black uppercase tracking-widest">{t('sub_energy_stars')}</span>
                   </div>
-                  <span className="text-sm font-black tabular-nums">{(currentUser.starBalance || 0).toLocaleString()}</span>
+                  <span className="text-sm font-black tabular-nums">{(currentUser?.starBalance || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-secondary/20 border border-transparent hover:border-primary/10 transition-all">
                   <div className="flex items-center gap-2">
                     <Coins className="h-4 w-4 text-amber-500" />
                     <span className="text-[10px] font-black uppercase tracking-widest">{t('sub_energy_gold')}</span>
                   </div>
-                  <span className="text-sm font-black tabular-nums">{currentUser.goldBalance || 0}</span>
+                  <span className="text-sm font-black tabular-nums">{currentUser?.goldBalance || 0}</span>
                 </div>
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-secondary/20 border border-transparent hover:border-primary/10 transition-all">
                   <div className="flex items-center gap-2">
                     <Gem className="h-4 w-4 text-cyan-500" />
                     <span className="text-[10px] font-black uppercase tracking-widest">{t('sub_energy_diamonds')}</span>
                   </div>
-                  <span className="text-sm font-black tabular-nums">{currentUser.diamondBalance || 0}</span>
+                  <span className="text-sm font-black tabular-nums">{currentUser?.diamondBalance || 0}</span>
                 </div>
               </div>
 
