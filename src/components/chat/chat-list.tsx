@@ -16,7 +16,8 @@ import {
   Radio,
   Plus,
   Users2,
-  Layers
+  Layers,
+  ArrowLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePosts } from "@/context/PostContext";
@@ -24,6 +25,7 @@ import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { CreateClusterModal } from "./create-cluster-modal";
+import Link from "next/link";
 
 interface ChatListProps {
   selectedId: string | null;
@@ -42,7 +44,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     // Identity Protocol: Only message OTHER users, never yourself.
     const allItems = [
       ...(connections || [])
-        .filter(c => c.username !== currentUser.username)
+        .filter(c => c && c.username && c.username !== currentUser.username)
         .map(c => ({ ...c, isGroup: false })),
       ...(clusters || []).map(cl => ({ ...cl, isGroup: true }))
     ];
@@ -52,7 +54,6 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     if (activeFilter === "clusters") {
       list = list.filter(item => item.isGroup);
     } else if (activeFilter === "unread") {
-      // Logic for real unread count would be here in a production node
       list = list.filter(item => false); 
     }
 
@@ -78,9 +79,16 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
   return (
     <div className="flex flex-col h-full bg-white dark:bg-card">
       <div className="p-4 sm:p-6 border-b border-primary/5 flex items-center justify-between">
-        <div className="space-y-0.5">
-          <h2 className="text-2xl font-black italic uppercase tracking-tighter">{t('nav_messages')}</h2>
-          <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{connections.length + clusters.length} {t('chat_nodes_online')}</span>
+        <div className="flex items-center gap-3">
+          <Link href="/">
+            <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 hover:bg-secondary/80">
+              <ArrowLeft className="h-6 w-6" />
+            </Button>
+          </Link>
+          <div className="space-y-0.5">
+            <h2 className="text-2xl font-black italic uppercase tracking-tighter">{t('nav_messages')}</h2>
+            <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{(connections?.length || 0) + (clusters?.length || 0)} {t('chat_nodes_online')}</span>
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <CreateClusterModal>

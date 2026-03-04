@@ -147,7 +147,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     if (isCluster) return contact.id;
     
     const contactUsername = (contact as Connection).username;
-    // Handshake Guard: Abort if identity nodes are invalid or identical
     if (!currentUser.username || !contactUsername || currentUser.username === contactUsername) {
       return null;
     }
@@ -157,11 +156,11 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
   const nonClusterMembers = useMemo(() => {
     if (!isCluster) return [];
-    const memberUsernames = new Set(contact.members.map(m => m.username));
+    // Null-Safe Handshake: Default to empty array if members node is missing
+    const memberUsernames = new Set((contact.members || []).map(m => m.username));
     return connections.filter(c => !memberUsernames.has(c.username));
   }, [isCluster, contact, connections]);
 
-  // Fetch Message History
   const fetchHistory = useCallback(async () => {
     if (!conversationId) return;
     setIsLoadingMessages(true);
@@ -207,7 +206,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
     if (!currentUser.id) return;
 
-    // REAL-TIME HANDSHAKE
     const unsubscribe = client.subscribe(
       `databases.${APPWRITE_DATABASE_ID}.collections.${MESSAGES_COLLECTION_ID}.documents`,
       (response) => {
@@ -263,7 +261,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       reactions: JSON.stringify([])
     };
 
-    // Optimistic UI Handshake
     const optimistic: Message = {
       id: `temp-${Date.now()}`,
       sender: "me",
@@ -338,7 +335,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             <div className="flex flex-col min-w-0 ml-1">
               <h3 className="font-bold text-sm sm:text-base truncate">{contact.name}</h3>
               <span className={cn("text-[10px] font-black uppercase tracking-widest", isCluster ? "text-primary" : isContactOnline ? "text-green-500" : "text-muted-foreground")}>
-                {isCluster ? `${contact.members.length} ${t('chat_members_pulse')}` : isContactOnline ? t('chat_active_pulse') : t('chat_away')}
+                {isCluster ? `${(contact.members || []).length} ${t('chat_members_pulse')}` : isContactOnline ? t('chat_active_pulse') : t('chat_away')}
               </span>
             </div>
           </div>
@@ -368,7 +365,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
               <p className="text-[10px] font-black uppercase tracking-widest">Vault Syncing...</p>
             </div>
           ) : (
-            messages.map((msg) => (
+            (messages || []).map((msg) => (
               <div key={msg.id} id={`msg-${msg.id}`} className="flex flex-col gap-1">
                 {isCluster && !msg.isMe && msg.senderName && (
                   <div className="flex items-center gap-2 ml-2 mb-1">
@@ -425,7 +422,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                             </div>
                             <ScrollArea className="h-[300px]">
                               <div className="space-y-2 pr-4">
-                                {nonClusterMembers.map((c) => (
+                                {(nonClusterMembers || []).map((c) => (
                                   <button key={c.username} onClick={() => handleAddNode(c)} className="w-full flex items-center justify-between p-3 rounded-2xl transition-all hover:bg-secondary/40">
                                     <div className="flex items-center gap-3">
                                       <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={c.avatar} /></Avatar>
@@ -440,11 +437,11 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                         </DialogContent>
                       </Dialog>
                     )}
-                    <Badge variant="outline" className="bg-primary/5 text-primary border-primary/10 text-[8px] font-black h-4 px-2 uppercase">{contact.members.length} ACTIVE</Badge>
+                    <Badge variant="outline" className="bg-primary/5 text-primary border-primary/10 text-[8px] font-black h-4 px-2 uppercase">{(contact.members || []).length} ACTIVE</Badge>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
-                  {contact.members.map(m => (
+                  {(contact.members || []).map(m => (
                     <div key={m.username} className="flex items-center justify-between p-3 rounded-2xl bg-secondary/20 hover:bg-secondary/40 transition-all group">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10 border border-primary/5 shadow-sm group-hover:scale-105 transition-transform"><AvatarImage src={m.avatar} /></Avatar>
