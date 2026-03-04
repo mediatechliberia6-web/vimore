@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
@@ -135,23 +134,23 @@ const MusicContext = createContext<MusicContextType | undefined>(undefined);
 const AD_URL = "https://www.effectivegatecpm.com/kry1iawb?key=8a705428be9dbe8fbb378f0520fdba4d";
 
 export function MusicProvider({ children }: { children: ReactNode }) {
-  const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
+  const [currentTrack, setCurrentTrackState] = useState<Track | null>(null);
   const [globalSongs, setGlobalSongs] = useState<Track[]>([]);
   const [globalAlbums, setGlobalAlbums] = useState<Album[]>([]);
   const [globalPlaylists, setGlobalPlaylists] = useState<Playlist[]>([]);
   const [queue, setQueue] = useState<Track[]>([]);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
-  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [volume, setVolume] = useState(80);
+  const [isPlaying, setIsPlayingState] = useState(false);
+  const [isExpanded, setIsExpandedState] = useState(false);
+  const [selectedAlbum, setSelectedAlbumState] = useState<Album | null>(null);
+  const [selectedPlaylist, setSelectedPlaylistState] = useState<Playlist | null>(null);
+  const [progress, setProgressState] = useState(0);
+  const [volume, setVolumeState] = useState(80);
   const [reactions, setReactions] = useState<MusicReaction[]>([]);
-  const [isAdPortalOpen, setIsAdPortalOpen] = useState(false);
-  const [adDuration, setAdDuration] = useState(30);
+  const [isAdPortalOpen, setIsAdPortalOpenState] = useState(false);
+  const [adDuration, setAdDurationState] = useState(30);
   const [pendingDownloadTask, setPendingDownloadTask] = useState<(() => Promise<void>) | null>(null);
-  const [isCaptureStudioOpen, setIsCaptureStudioOpen] = useState(false);
-  const [captureTrack, setCaptureTrack] = useState<Track | null>(null);
+  const [isCaptureStudioOpen, setIsCaptureStudioOpenState] = useState(false);
+  const [captureTrack, setCaptureTrackState] = useState<Track | null>(null);
   const [likedSongIds, setLikedSongIds] = useState<Set<string | number>>(new Set());
   const [unlikedSongIds, setUnlikedSongIds] = useState<Set<string | number>>(new Set());
   const [downloadedSongIds, setDownloadedSongIds] = useState<Set<string | number>>(new Set());
@@ -161,8 +160,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [userSongs, setUserSongs] = useState<Track[]>([]);
   const [userAlbums, setUserAlbums] = useState<Album[]>([]);
   const [trackStats, setTrackStats] = useState<Record<string | number, { likes: number; unlikes: number }>>({});
-  const [isCreatePlaylistOpen, setIsCreatePlaylistOpen] = useState(false);
-  const [trackForNewPlaylist, setTrackForNewPlaylist] = useState<Track | null>(null);
+  const [isCreatePlaylistOpen, setIsCreatePlaylistOpenState] = useState(false);
+  const [trackForNewPlaylist, setTrackForNewPlaylistState] = useState<Track | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -262,54 +261,54 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     triggerHaptic(10);
     const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
     const nextIndex = (currentIndex + 1) % queue.length;
-    setCurrentTrack(queue[nextIndex]);
-    setProgress(0);
-    setIsPlaying(true);
+    setCurrentTrackState(queue[nextIndex]);
+    setProgressState(0);
+    setIsPlayingState(true);
   }, [queue, currentTrack, triggerHaptic]);
 
-  const setTrack = (track: Track) => {
+  const setTrack = useCallback((track: Track) => {
     triggerHaptic(15);
     if (!queue.some(t => t.id === track.id)) setQueue([track, ...queue.filter(t => t.id !== track.id)]);
-    setCurrentTrack(track);
-    setIsPlaying(true);
-    setProgress(0);
+    setCurrentTrackState(track);
+    setIsPlayingState(true);
+    setProgressState(0);
     setReactions([]);
-    setIsExpanded(true); 
-  };
+    setIsExpandedState(true); 
+  }, [queue, triggerHaptic]);
 
-  const addToQueue = (track: Track) => {
+  const addToQueue = useCallback((track: Track) => {
     triggerHaptic(5);
     if (!queue.some(t => t.id === track.id)) setQueue(prev => [...prev, track]);
-  };
+  }, [queue, triggerHaptic]);
 
-  const playCollection = (tracks: Track[], startIndex: number = 0) => {
+  const playCollection = useCallback((tracks: Track[], startIndex: number = 0) => {
     triggerHaptic(20);
     if (tracks.length === 0) return;
     setQueue(tracks);
     const track = tracks[startIndex];
-    setCurrentTrack(track);
-    setIsPlaying(true);
-    setProgress(0);
+    setCurrentTrackState(track);
+    setIsPlayingState(true);
+    setProgressState(0);
     setReactions([]);
-    setIsExpanded(true);
-  };
+    setIsExpandedState(true);
+  }, [triggerHaptic]);
 
-  const togglePlay = () => { 
+  const togglePlay = useCallback(() => { 
     triggerHaptic(10); 
-    setIsPlaying(!isPlaying); 
-  };
+    setIsPlayingState(prev => !prev); 
+  }, [triggerHaptic]);
 
-  const prevTrack = () => {
+  const prevTrack = useCallback(() => {
     if (queue.length === 0) return;
     triggerHaptic(10);
     const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
     const prevIndex = (currentIndex - 1 + queue.length) % queue.length;
-    setCurrentTrack(queue[prevIndex]);
-    setProgress(0);
-    setIsPlaying(true);
-  };
+    setCurrentTrackState(queue[prevIndex]);
+    setProgressState(0);
+    setIsPlayingState(true);
+  }, [queue, currentTrack, triggerHaptic]);
 
-  const toggleLike = async (track: Track) => {
+  const toggleLike = useCallback(async (track: Track) => {
     const trackId = track.id;
     const isCurrentlyLiked = likedSongIds.has(trackId);
     triggerHaptic(15);
@@ -319,9 +318,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       setLikedSongIds(prev => { const n = new Set(prev); if (n.has(trackId)) n.delete(trackId); else n.add(trackId); return n; });
       await refreshMusicVault();
     } catch (e) {}
-  };
+  }, [likedSongIds, triggerHaptic, refreshMusicVault]);
 
-  const toggleUnlike = async (track: Track) => {
+  const toggleUnlike = useCallback(async (track: Track) => {
     const trackId = track.id;
     const isCurrentlyUnliked = unlikedSongIds.has(trackId);
     triggerHaptic(10);
@@ -331,43 +330,43 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       setUnlikedSongIds(prev => { const n = new Set(prev); if (n.has(trackId)) n.delete(trackId); else n.add(trackId); return n; });
       await refreshMusicVault();
     } catch (e) {}
-  };
+  }, [unlikedSongIds, triggerHaptic, refreshMusicVault]);
 
-  const toggleCollectionLike = (id: string | number) => {
+  const toggleCollectionLike = useCallback((id: string | number) => {
     triggerHaptic(20);
     setLikedCollectionIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  };
+  }, [triggerHaptic]);
 
-  const simulateDownload = async (track: Track) => {
+  const simulateDownload = useCallback(async (track: Track) => {
     if (downloadedSongIds.has(track.id)) return;
     triggerHaptic(10);
     if (track.audioUrl) {
       await saveFileToDevice(track.audioUrl, `vimore_sonic_${track.id}.mp3`);
       setDownloadedSongIds(prev => { const n = new Set(prev); n.add(track.id); return n; });
     }
-  };
+  }, [downloadedSongIds, triggerHaptic]);
 
-  const triggerDownloadWithAd = (type: 'single' | 'album' | 'reel', task: () => Promise<void>) => {
+  const triggerDownloadWithAd = useCallback((type: 'single' | 'album' | 'reel', task: () => Promise<void>) => {
     triggerHaptic(15);
-    setAdDuration(30); 
+    setAdDurationState(30); 
     setPendingDownloadTask(() => task);
-    setIsAdPortalOpen(true);
-  };
+    setIsAdPortalOpenState(true);
+  }, [triggerHaptic]);
 
   const onAdComplete = useCallback(() => {
-    setIsAdPortalOpen(false);
+    setIsAdPortalOpenState(false);
     if (pendingDownloadTask) {
       pendingDownloadTask().catch(console.error);
       setPendingDownloadTask(null);
     }
   }, [pendingDownloadTask]);
 
-  const isTrackLiked = (trackId: string | number) => likedSongIds.has(trackId);
-  const isTrackUnliked = (trackId: string | number) => unlikedSongIds.has(trackId);
-  const isTrackDownloaded = (trackId: string | number) => downloadedSongIds.has(trackId);
-  const isCollectionLiked = (id: string | number) => likedCollectionIds.has(id);
+  const isTrackLiked = useCallback((trackId: string | number) => likedSongIds.has(trackId), [likedSongIds]);
+  const isTrackUnliked = useCallback((trackId: string | number) => unlikedSongIds.has(trackId), [unlikedSongIds]);
+  const isTrackDownloaded = useCallback((trackId: string | number) => downloadedSongIds.has(trackId), [downloadedSongIds]);
+  const isCollectionLiked = useCallback((id: string | number) => likedCollectionIds.has(id), [likedCollectionIds]);
 
-  const publishTrack = async (newTrack: any) => {
+  const publishTrack = useCallback(async (newTrack: any) => {
     try {
       const docData = {
         title: newTrack.title,
@@ -386,9 +385,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       throw new Error(e.message);
     }
-  };
+  }, [refreshMusicVault]);
 
-  const publishAlbum = async (albumData: Album) => {
+  const publishAlbum = useCallback(async (albumData: Album) => {
     try {
       const docData = {
         title: albumData.title,
@@ -404,33 +403,33 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       throw new Error(e.message);
     }
-  };
+  }, [refreshMusicVault]);
 
-  const deleteUserTrack = (trackId: string | number) => { 
+  const deleteUserTrack = useCallback((trackId: string | number) => { 
     databases.deleteDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, trackId as string).then(() => {
       refreshMusicVault();
     });
-  };
+  }, [refreshMusicVault]);
 
-  const deleteUserAlbum = (albumId: string | number) => { 
+  const deleteUserAlbum = useCallback((albumId: string | number) => { 
     databases.deleteDocument(APPWRITE_DATABASE_ID, ALBUMS_COLLECTION_ID, albumId as string).then(() => {
       refreshMusicVault();
     });
-  };
+  }, [refreshMusicVault]);
 
-  const boostTrack = (trackId: string | number, targetViews: number, durationDays: number) => {
+  const boostTrack = useCallback((trackId: string | number, targetViews: number, durationDays: number) => {
     databases.updateDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, trackId as string, {
       isBoosted: true,
       boostTargetViews: targetViews,
       boostCurrentViews: 0,
       boostExpiry: Date.now() + (durationDays * 24 * 60 * 60 * 1000)
     }).then(() => refreshMusicVault());
-  };
+  }, [refreshMusicVault]);
 
-  const openCreatePlaylist = (track?: Track) => { triggerHaptic(10); setTrackForNewPlaylist(track || null); setIsCreatePlaylistOpen(true); };
-  const closeCreatePlaylist = () => { setIsCreatePlaylistOpen(false); setTrackForNewPlaylist(null); };
+  const openCreatePlaylist = useCallback((track?: Track) => { triggerHaptic(10); setTrackForNewPlaylistState(track || null); setIsCreatePlaylistOpenState(true); }, [triggerHaptic]);
+  const closeCreatePlaylist = useCallback(() => { setIsCreatePlaylistOpenState(false); setTrackForNewPlaylistState(null); }, []);
   
-  const confirmCreatePlaylist = async (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => {
+  const confirmCreatePlaylist = useCallback(async (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => {
     triggerHaptic(30);
     try {
       await databases.createDocument(APPWRITE_DATABASE_ID, PLAYLISTS_COLLECTION_ID, ID.unique(), {
@@ -447,9 +446,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       throw new Error(e.message);
     }
-  };
+  }, [trackForNewPlaylist, triggerHaptic, refreshMusicVault, closeCreatePlaylist]);
 
-  const addTrackToPlaylist = (playlistId: string | number, track: Track) => { 
+  const addTrackToPlaylist = useCallback((playlistId: string | number, track: Track) => { 
     triggerHaptic(15); 
     const playlist = globalPlaylists.find(p => p.id === playlistId);
     if (!playlist) return;
@@ -457,26 +456,33 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     databases.updateDocument(APPWRITE_DATABASE_ID, PLAYLISTS_COLLECTION_ID, playlistId as string, {
       songs: JSON.stringify(updatedSongs)
     }).then(() => refreshMusicVault());
-  };
+  }, [globalPlaylists, triggerHaptic, refreshMusicVault]);
 
-  const addReaction = (emoji: string) => {
+  const addReaction = useCallback((emoji: string) => {
     triggerHaptic(5);
     const id = Date.now();
     const newReaction = { id, emoji, x: Math.random() * 80 + 10 };
     setReactions((prev) => [...prev, newReaction]);
     setTimeout(() => setReactions((prev) => prev.filter((r) => r.id !== id)), 2500);
-  };
+  }, [triggerHaptic]);
 
-  const addComment = (text: string) => {
+  const addComment = useCallback((text: string) => {
     if (!currentTrack || !text.trim()) return;
     triggerHaptic(10);
     const newComment: Comment = { id: Date.now(), user: "John Doe", avatar: "https://picsum.photos/seed/me/100/100", text, time: "Just now" };
-    setCurrentTrack({ ...currentTrack, comments: [newComment, ...(currentTrack.comments || [])] });
-  };
+    setCurrentTrackState({ ...currentTrack, comments: [newComment, ...(currentTrack.comments || [])] });
+  }, [currentTrack, triggerHaptic]);
 
-  const clearPlayer = () => { triggerHaptic(5); setIsPlaying(false); setCurrentTrack(null); setIsExpanded(false); setProgress(0); };
-  const openCaptureStudio = (track?: Track) => { triggerHaptic(25); setCaptureTrack(track || null); setIsCaptureStudioOpen(true); };
-  const closeCaptureStudio = () => { triggerHaptic(10); setIsCaptureStudioOpen(false); setCaptureTrack(null); };
+  const clearPlayer = useCallback(() => { triggerHaptic(5); setIsPlayingState(false); setCurrentTrackState(null); setIsExpandedState(false); setProgressState(0); }, [triggerHaptic]);
+  const openCaptureStudio = useCallback((track?: Track) => { triggerHaptic(25); setCaptureTrackState(track || null); setIsCaptureStudioOpenState(true); }, [triggerHaptic]);
+  const closeCaptureStudio = useCallback(() => { triggerHaptic(10); setIsCaptureStudioOpenState(false); setCaptureTrackState(null); }, [triggerHaptic]);
+
+  const setIsExpanded = useCallback((expanded: boolean) => setIsExpandedState(expanded), []);
+  const setSelectedAlbum = useCallback((album: Album | null) => setSelectedAlbumState(album), []);
+  const setSelectedPlaylist = useCallback((playlist: Playlist | null) => setSelectedPlaylistState(playlist), []);
+  const setProgress = useCallback((progress: number) => setProgressState(progress), []);
+  const setVolume = useCallback((volume: number) => setVolumeState(volume), []);
+  const setCaptureTrack = useCallback((track: Track | null) => setCaptureTrackState(track), []);
 
   return (
     <MusicContext.Provider value={{
