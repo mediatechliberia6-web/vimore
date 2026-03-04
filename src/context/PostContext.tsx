@@ -670,11 +670,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateCurrentUser = useCallback(async (data: Partial<User>) => {
-    if (currentUser.id) {
-      try {
-        await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, currentUser.id, data);
-        setCurrentUserState(prev => ({ ...prev, ...data }));
-      } catch (e: any) { throw new Error(e.message); }
+    if (!currentUser.id) {
+      throw new Error("Handshake Failed: Identity signature (ID) missing. Please re-authenticate.");
+    }
+    
+    try {
+      await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, currentUser.id, data);
+      setCurrentUserState(prev => ({ ...prev, ...data }));
+    } catch (e: any) { 
+      throw new Error(e.message || "Vault update rejected."); 
     }
   }, [currentUser.id]);
 
@@ -835,7 +839,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         status: 'ringing' 
       });
       activeCallIdRef.current = callDoc.$id;
-      setCallState({ type, status: 'outgoing', contact, channelName, token, callId: callDoc.$id });
+      setCallState({ type: 'outgoing', status: 'outgoing', contact, channelName, token, callId: callDoc.$id });
     } catch (e: any) { throw new Error(e.message); }
   }, [currentUser]);
 

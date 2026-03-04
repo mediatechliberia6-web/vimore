@@ -127,6 +127,7 @@ export default function MyProfilePage() {
   const [isTranslating, setIsTranslating] = useState(false);
   const [translatedBio, setTranslatedBio] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
   const [isUploadingIntro, setIsUploadingIntro] = useState(false);
   const [deviceLanguage, setDeviceLanguage] = useState<string | null>(null);
@@ -179,7 +180,9 @@ export default function MyProfilePage() {
   }, [currentUser]);
 
   const handleSaveProfile = async () => {
+    setIsSavingProfile(true);
     triggerHaptic(25);
+    
     const updates: Partial<any> = { ...editData };
     const now = Date.now();
     if (editData.name !== currentUser.name) updates.lastModifiedName = now;
@@ -190,7 +193,13 @@ export default function MyProfilePage() {
       setIsEditModalOpen(false);
       toast({ title: "Identity Re-calibrated" });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
+      toast({ 
+        variant: "destructive", 
+        title: "Vault Sync Error", 
+        description: e.message || "The network handshake was rejected."
+      });
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -311,7 +320,15 @@ export default function MyProfilePage() {
                       </div>
                     </div>
                   </ScrollArea>
-                  <div className="p-6 bg-secondary/10 border-t border-primary/10"><Button onClick={handleSaveProfile} className="w-full bg-primary hover:bg-primary/90 text-white font-black uppercase italic tracking-widest h-14 rounded-2xl shadow-xl shadow-primary/20">Sync Identity Pulse</Button></div>
+                  <div className="p-6 bg-secondary/10 border-t border-primary/10">
+                    <Button 
+                      onClick={handleSaveProfile} 
+                      disabled={isSavingProfile}
+                      className="w-full bg-primary hover:bg-primary/90 text-white font-black uppercase italic tracking-widest h-14 rounded-2xl shadow-xl shadow-primary/20"
+                    >
+                      {isSavingProfile ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> SYNCING NODES...</> : "Sync Identity Pulse"}
+                    </Button>
+                  </div>
                 </DialogContent>
               </Dialog>
               <Button variant="ghost" size="icon" className="rounded-full"><MoreHorizontal className="h-5 w-5" /></Button>
