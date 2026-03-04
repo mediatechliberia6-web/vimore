@@ -435,14 +435,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
       ]);
       
       const following = new Set(followingRes.documents.map(d => d.followingUsername));
-      const followers = new Set(followersRes.documents.map(d => d.followerUsername)); 
+      const followers = new Set<string>();
+      
+      followersRes.documents.forEach(d => {
+        if (d.followerUsername) followers.add(d.followerUsername);
+        if (d.followerId) followers.add(d.followerId);
+      });
       
       setFollowingUsernamesState(following);
       setFollowerUsernamesState(followers);
 
       setConnectionsState(prev => prev.map(conn => ({
         ...conn,
-        followsYou: followers.has(conn.username)
+        followsYou: followers.has(conn.username) || followers.has(conn.id) || followers.has(conn.$id)
       })));
     } catch (e: any) {
       console.warn("Social graph hydration failed:", e.message);

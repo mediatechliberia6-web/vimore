@@ -92,12 +92,16 @@ function FriendsPageContent() {
     let list = connections.filter(c => c.username !== currentUser.username);
 
     if (activeTab === "all") {
+      // Mutual Handshake: Friends
       list = list.filter(c => c.followsYou && isFollowing(c.username));
     } else if (activeTab === "followers") {
+      // Incoming Pulse: They follow you, you don't follow back
       list = list.filter(c => c.followsYou && !isFollowing(c.username));
     } else if (activeTab === "following") {
+      // Outgoing Pulse: You follow them, they don't follow back
       list = list.filter(c => !c.followsYou && isFollowing(c.username));
     } else if (activeTab === "suggestions") {
+      // No Pulse: Strangers
       list = list.filter(c => !c.followsYou && !isFollowing(c.username));
     }
 
