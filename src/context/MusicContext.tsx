@@ -377,8 +377,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         duration: newTrack.duration,
         streams: "0",
         likes: 0,
-        unlikes: 0,
-        artistFollowers: String(newTrack.artistFollowers || 0)
+        unlikes: 0
       };
       await databases.createDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ID.unique(), docData);
       await refreshMusicVault();
