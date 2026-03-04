@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -15,6 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DiagnosticErrorBoundary } from "../layout/diagnostic-error-boundary";
 
 const STORY_DURATION = 5000; // 5 seconds per segment
 const QUICK_REACTIONS = ["❤️", "🔥", "😂", "😮", "😢", "👏"];
@@ -182,270 +182,272 @@ export function StoryViewer() {
       onTouchEnd={() => setIsPaused(false)}
     >
       <div className="relative w-full max-w-[500px] h-full sm:h-[90vh] sm:rounded-2xl overflow-hidden bg-zinc-900 shadow-2xl flex flex-col">
-        {/* Progress Bars */}
-        <div className="absolute top-4 left-4 right-4 z-[60] flex gap-1.5 px-1">
-          {activeStory.segments.map((_, i) => (
-            <div key={i} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
-              <div 
-                className={cn(
-                  "h-full bg-white transition-[width] duration-100 ease-linear",
-                  i < segmentIndex ? "w-full" : i === segmentIndex ? "" : "w-0"
-                )}
-                style={i === segmentIndex ? { width: `${progress}%` } : {}}
-              />
-            </div>
-          ))}
-        </div>
-
-        {/* Header */}
-        <div className={cn(
-          "absolute top-8 left-0 right-0 z-50 px-6 flex items-start justify-between transition-opacity duration-300",
-          isPaused ? "opacity-0" : "opacity-100"
-        )}>
-          <div className="flex items-start gap-3">
-            <div className="flex flex-col items-center gap-1.5">
-              <Link 
-                href={`/profile/${activeStory.user.username}`} 
-                onClick={handleClose}
-                className="transition-transform hover:scale-105 active:scale-95"
-              >
-                <Avatar className={cn(
-                  "h-10 w-10 border-2",
-                  activeStory.isCloseFriends ? "border-[#42b72a]" : "border-white/20"
-                )}>
-                  <AvatarImage src={activeStory.user.avatar} />
-                  <AvatarFallback>{activeStory.user.name[0]}</AvatarFallback>
-                </Avatar>
-              </Link>
-              
-              {isOwner && (
-                <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full text-white/90 border border-white/10 shadow-lg animate-in slide-in-from-top-1">
-                  <Eye className="h-2.5 w-2.5 text-primary" />
-                  <span className="text-[10px] font-black tracking-tighter">{activeStory.viewCount || 0}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-col pt-0.5">
-              <Link 
-                href={`/profile/${activeStory.user.username}`} 
-                onClick={handleClose} 
-                className="group"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-bold text-white drop-shadow-md group-hover:underline">{activeStory.user.name}</span>
-                  {activeStory.isCloseFriends && (
-                    <span className="text-[9px] bg-[#42b72a] text-white px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider">Close Friends</span>
+        <DiagnosticErrorBoundary title="Story Pulse">
+          {/* Progress Bars */}
+          <div className="absolute top-4 left-4 right-4 z-[60] flex gap-1.5 px-1">
+            {activeStory.segments.map((_, i) => (
+              <div key={i} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+                <div 
+                  className={cn(
+                    "h-full bg-white transition-[width] duration-100 ease-linear",
+                    i < segmentIndex ? "w-full" : i === segmentIndex ? "" : "w-0"
                   )}
-                </div>
-              </Link>
-              <span className="text-[10px] text-white/60 font-medium mt-0.5">Recently</span>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <DropdownMenu onOpenChange={(open) => setIsPaused(open)}>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-8 w-8">
-                  <MoreHorizontal className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 rounded-xl p-2">
-                <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={() => toggleMuteUser(activeStory.user.name)}>
-                  <VolumeX className="h-4 w-4" />
-                  {mutedUserNames.includes(activeStory.user.name) ? "Unmute" : "Mute"} {activeStory.user.name}
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer font-bold text-destructive focus:text-destructive">
-                  <BellOff className="h-4 w-4" />
-                  Notifications Off
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-8 w-8" onClick={handleClose}>
-              <X className="h-6 w-6" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Media Container */}
-        <div 
-          className={cn(
-            "relative flex-1 cursor-pointer select-none flex items-center justify-center overflow-hidden",
-            currentSegment.background || "bg-black"
-          )}
-          onClick={handleTap}
-        >
-          {settings.isFreeMode ? (
-            <div className="flex flex-col items-center gap-6 p-12 text-center">
-              <div className="relative">
-                <div className="absolute -inset-4 bg-primary/20 blur-3xl rounded-full animate-pulse" />
-                <Avatar className="h-32 w-32 border-4 border-primary shadow-2xl relative z-10">
-                  <AvatarImage src={activeStory.user.avatar} />
-                  <AvatarFallback>{activeStory.user.name[0]}</AvatarFallback>
-                </Avatar>
+                  style={i === segmentIndex ? { width: `${progress}%` } : {}}
+                />
               </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-center gap-2">
-                  <EyeOff className="h-4 w-4 text-primary" />
-                  <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Free Mode Active</span>
-                </div>
-                <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">Visual Suppressed</h3>
-                <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl inline-flex items-center gap-2">
-                  <Zap className="h-3 w-3 text-primary animate-pulse" />
-                  <span className="text-[9px] font-black text-white/60 uppercase tracking-widest">High-Velocity Text Sync</span>
-                </div>
+            ))}
+          </div>
+
+          {/* Header */}
+          <div className={cn(
+            "absolute top-8 left-0 right-0 z-50 px-6 flex items-start justify-between transition-opacity duration-300",
+            isPaused ? "opacity-0" : "opacity-100"
+          )}>
+            <div className="flex items-start gap-3">
+              <div className="flex flex-col items-center gap-1.5">
+                <Link 
+                  href={`/profile/${activeStory.user.username}`} 
+                  onClick={handleClose}
+                  className="transition-transform hover:scale-105 active:scale-95"
+                >
+                  <Avatar className={cn(
+                    "h-10 w-10 border-2",
+                    activeStory.isCloseFriends ? "border-[#42b72a]" : "border-white/20"
+                  )}>
+                    <AvatarImage src={activeStory.user.avatar} />
+                    <AvatarFallback>{activeStory.user.name[0]}</AvatarFallback>
+                  </Avatar>
+                </Link>
+                
+                {isOwner && (
+                  <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full text-white/90 border border-white/10 shadow-lg animate-in slide-in-from-top-1">
+                    <Eye className="h-2.5 w-2.5 text-primary" />
+                    <span className="text-[10px] font-black tracking-tighter">{activeStory.viewCount || 0}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col pt-0.5">
+                <Link 
+                  href={`/profile/${activeStory.user.username}`} 
+                  onClick={handleClose} 
+                  className="group"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-bold text-white drop-shadow-md group-hover:underline">{activeStory.user.name}</span>
+                    {activeStory.isCloseFriends && (
+                      <span className="text-[9px] bg-[#42b72a] text-white px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider">Close Friends</span>
+                    )}
+                  </div>
+                </Link>
+                <span className="text-[10px] text-white/60 font-medium mt-0.5">Recently</span>
               </div>
             </div>
-          ) : (
-            <>
-              {currentSegment.type === 'video' ? (
-                <video 
-                  src={currentSegment.image} 
-                  className="w-full h-full object-cover" 
-                  autoPlay 
-                  muted 
-                  loop 
-                  playsInline 
-                />
-              ) : currentSegment.image ? (
-                <Image 
-                  src={currentSegment.image} 
-                  alt="Story Content" 
-                  fill 
-                  className={cn("object-cover", currentSegment.filter)}
-                  priority
-                />
-              ) : null}
-            </>
-          )}
+            
+            <div className="flex items-center gap-2">
+              <DropdownMenu onOpenChange={(open) => setIsPaused(open)}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-8 w-8">
+                    <MoreHorizontal className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 rounded-xl p-2">
+                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={() => toggleMuteUser(activeStory.user.name)}>
+                    <VolumeX className="h-4 w-4" />
+                    {mutedUserNames.includes(activeStory.user.name) ? "Unmute" : "Mute"} {activeStory.user.name}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2 cursor-pointer font-bold text-destructive focus:text-destructive">
+                    <BellOff className="h-4 w-4" />
+                    Notifications Off
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-          {/* Draggable Text Overlays / Centered Story Text */}
-          {currentSegment.textOverlays?.map((overlay, i) => (
-            <div 
-              key={i}
-              className="absolute z-40 p-6 pointer-events-none w-full text-center"
-              style={{ 
-                top: `${overlay.y}%`, 
-                left: `${overlay.x}%`, 
-                transform: 'translate(-50%, -50%)',
-                color: overlay.color,
-                textShadow: '0 2px 8px rgba(0,0,0,0.3)'
-              }}
-            >
-              <span className="text-3xl font-black italic uppercase tracking-tighter leading-tight">
-                {overlay.text}
-              </span>
+              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-8 w-8" onClick={handleClose}>
+                <X className="h-6 w-6" />
+              </Button>
             </div>
-          ))}
+          </div>
 
-          {/* Poll Sticker */}
-          {currentSegment.poll && (
-            <div 
-              className="absolute z-40 w-[240px] bg-white rounded-2xl p-4 shadow-2xl animate-in zoom-in duration-300"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h4 className="text-center font-bold text-sm text-zinc-900 mb-3">{currentSegment.poll.question}</h4>
-              <div className="space-y-2">
-                {currentSegment.poll.options.map((opt, i) => {
-                  const percent = totalPollVotes > 0 ? (opt.votes / totalPollVotes) * 100 : 0;
-                  const isVoted = votedSegmentId === currentSegment.id || isOwner;
-                  
-                  return (
+          {/* Media Container */}
+          <div 
+            className={cn(
+              "relative flex-1 cursor-pointer select-none flex items-center justify-center overflow-hidden",
+              currentSegment.background || "bg-black"
+            )}
+            onClick={handleTap}
+          >
+            {settings.isFreeMode ? (
+              <div className="flex flex-col items-center gap-6 p-12 text-center">
+                <div className="relative">
+                  <div className="absolute -inset-4 bg-primary/20 blur-3xl rounded-full animate-pulse" />
+                  <Avatar className="h-32 w-32 border-4 border-primary shadow-2xl relative z-10">
+                    <AvatarImage src={activeStory.user.avatar} />
+                    <AvatarFallback>{activeStory.user.name[0]}</AvatarFallback>
+                  </Avatar>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-2">
+                    <EyeOff className="h-4 w-4 text-primary" />
+                    <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Free Mode Active</span>
+                  </div>
+                  <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">Visual Suppressed</h3>
+                  <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl inline-flex items-center gap-2">
+                    <Zap className="h-3 w-3 text-primary animate-pulse" />
+                    <span className="text-[9px] font-black text-white/60 uppercase tracking-widest">High-Velocity Text Sync</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                {currentSegment.type === 'video' ? (
+                  <video 
+                    src={currentSegment.image} 
+                    className="w-full h-full object-cover" 
+                    autoPlay 
+                    muted 
+                    loop 
+                    playsInline 
+                  />
+                ) : currentSegment.image ? (
+                  <Image 
+                    src={currentSegment.image} 
+                    alt="Story Content" 
+                    fill 
+                    className={cn("object-cover", currentSegment.filter)}
+                    priority
+                  />
+                ) : null}
+              </>
+            )}
+
+            {/* Draggable Text Overlays / Centered Story Text */}
+            {currentSegment.textOverlays?.map((overlay, i) => (
+              <div 
+                key={i}
+                className="absolute z-40 p-6 pointer-events-none w-full text-center"
+                style={{ 
+                  top: `${overlay.y}%`, 
+                  left: `${overlay.x}%`, 
+                  transform: 'translate(-50%, -50%)',
+                  color: overlay.color,
+                  textShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                }}
+              >
+                <span className="text-3xl font-black italic uppercase tracking-tighter leading-tight">
+                  {overlay.text}
+                </span>
+              </div>
+            ))}
+
+            {/* Poll Sticker */}
+            {currentSegment.poll && (
+              <div 
+                className="absolute z-40 w-[240px] bg-white rounded-2xl p-4 shadow-2xl animate-in zoom-in duration-300"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h4 className="text-center font-bold text-sm text-zinc-900 mb-3">{currentSegment.poll.question}</h4>
+                <div className="space-y-2">
+                  {currentSegment.poll.options.map((opt, i) => {
+                    const percent = totalPollVotes > 0 ? (opt.votes / totalPollVotes) * 100 : 0;
+                    const isVoted = votedSegmentId === currentSegment.id || isOwner;
+                    
+                    return (
+                      <button
+                        key={i}
+                        onClick={(e) => handlePollVote(e, i)}
+                        disabled={isVoted}
+                        className={cn(
+                          "w-full h-10 rounded-xl border-2 relative overflow-hidden transition-all group",
+                          isVoted ? "border-primary/20" : "border-primary/10 hover:border-primary/30"
+                        )}
+                      >
+                        {isVoted && (
+                          <div 
+                            className="absolute inset-y-0 left-0 bg-primary/10 transition-all duration-1000"
+                            style={{ width: `${percent}%` }}
+                          />
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-between px-3 text-sm font-bold">
+                          <span className={cn(isVoted ? "text-primary" : "text-zinc-800")}>{opt.text}</span>
+                          {isVoted && <span className="text-primary/60">{Math.round(percent)}%</span>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Floating Reactions */}
+            {reactions.map((r) => (
+              <div
+                key={r.id}
+                className="absolute bottom-20 text-4xl animate-out fade-out slide-out-to-top-[300px] pointer-events-none"
+                style={{ left: `${r.x}%`, animationDuration: '2000ms' }}
+              >
+                {r.emoji}
+              </div>
+            ))}
+          </div>
+
+          {/* Interaction Bar */}
+          <div className={cn(
+            "absolute bottom-0 left-0 right-0 p-6 pt-12 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300",
+            isPaused ? "opacity-0" : "opacity-100"
+          )}>
+            {!isOwner ? (
+              <>
+                <div className="flex items-center justify-between mb-4 px-2">
+                  {QUICK_REACTIONS.map((emoji) => (
                     <button
-                      key={i}
-                      onClick={(e) => handlePollVote(e, i)}
-                      disabled={isVoted}
-                      className={cn(
-                        "w-full h-10 rounded-xl border-2 relative overflow-hidden transition-all group",
-                        isVoted ? "border-primary/20" : "border-primary/10 hover:border-primary/30"
-                      )}
+                      key={emoji}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addReaction(emoji);
+                      }}
+                      className="text-2xl hover:scale-125 transition-transform active:scale-95 px-2"
                     >
-                      {isVoted && (
-                        <div 
-                          className="absolute inset-y-0 left-0 bg-primary/10 transition-all duration-1000"
-                          style={{ width: `${percent}%` }}
-                        />
-                      )}
-                      <div className="absolute inset-0 flex items-center justify-between px-3 text-sm font-bold">
-                        <span className={cn(isVoted ? "text-primary" : "text-zinc-800")}>{opt.text}</span>
-                        {isVoted && <span className="text-primary/60">{Math.round(percent)}%</span>}
-                      </div>
+                      {emoji}
                     </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+                  ))}
+                </div>
 
-          {/* Floating Reactions */}
-          {reactions.map((r) => (
-            <div
-              key={r.id}
-              className="absolute bottom-20 text-4xl animate-out fade-out slide-out-to-top-[300px] pointer-events-none"
-              style={{ left: `${r.x}%`, animationDuration: '2000ms' }}
-            >
-              {r.emoji}
-            </div>
-          ))}
-        </div>
-
-        {/* Interaction Bar */}
-        <div className={cn(
-          "absolute bottom-0 left-0 right-0 p-6 pt-12 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300",
-          isPaused ? "opacity-0" : "opacity-100"
-        )}>
-          {!isOwner ? (
-            <>
-              <div className="flex items-center justify-between mb-4 px-2">
-                {QUICK_REACTIONS.map((emoji) => (
-                  <button
-                    key={emoji}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-12 bg-white/10 backdrop-blur-md rounded-full border border-white/20 px-5 flex items-center text-white/60 text-sm transition-colors group">
+                    <input 
+                      type="text"
+                      placeholder={`Reply to ${activeStory.user.name}...`}
+                      className="bg-transparent border-none focus:ring-0 w-full placeholder:text-white/40"
+                      onClick={(e) => e.stopPropagation()}
+                      onFocus={() => setIsPaused(true)}
+                      onBlur={() => setIsPaused(false)}
+                    />
+                    <Send className="h-5 w-5 text-white/40 group-focus-within:text-white cursor-pointer" />
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="rounded-full h-12 w-12 bg-white/10 border border-white/20 text-white hover:bg-white/20"
                     onClick={(e) => {
                       e.stopPropagation();
-                      addReaction(emoji);
+                      addReaction("❤️");
                     }}
-                    className="text-2xl hover:scale-125 transition-transform active:scale-95 px-2"
                   >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-12 bg-white/10 backdrop-blur-md rounded-full border border-white/20 px-5 flex items-center text-white/60 text-sm transition-colors group">
-                  <input 
-                    type="text"
-                    placeholder={`Reply to ${activeStory.user.name}...`}
-                    className="bg-transparent border-none focus:ring-0 w-full placeholder:text-white/40"
-                    onClick={(e) => e.stopPropagation()}
-                    onFocus={() => setIsPaused(true)}
-                    onBlur={() => setIsPaused(false)}
-                  />
-                  <Send className="h-5 w-5 text-white/40 group-focus-within:text-white cursor-pointer" />
+                    <Heart className="h-6 w-6" />
+                  </Button>
                 </div>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="rounded-full h-12 w-12 bg-white/10 border border-white/20 text-white hover:bg-white/20"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    addReaction("❤️");
-                  }}
-                >
-                  <Heart className="h-6 w-6" />
-                </Button>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-2 mb-2 animate-in slide-in-from-bottom-2">
+                <div className="h-1 w-8 bg-white/20 rounded-full mb-2" />
+                <div className="flex items-center gap-2 text-white/40 font-bold text-[10px] uppercase tracking-[0.2em]">
+                  Owner Presence
+                </div>
               </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-2 mb-2 animate-in slide-in-from-bottom-2">
-              <div className="h-1 w-8 bg-white/20 rounded-full mb-2" />
-              <div className="flex items-center gap-2 text-white/40 font-bold text-[10px] uppercase tracking-[0.2em]">
-                Owner Presence
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </DiagnosticErrorBoundary>
 
         {/* Navigation Arrows */}
         <div className="hidden sm:block">
