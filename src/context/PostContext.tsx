@@ -22,6 +22,7 @@ import client, {
   storage
 } from '@/lib/appwrite';
 import { generateAgoraToken } from '@/app/actions/call';
+import { useToast } from "@/hooks/use-toast";
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
@@ -352,6 +353,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [paymentRequests, setPaymentRequests] = useState<any[]>([]);
   const [pendingTransaction, setPendingTransaction] = useState<any>(null);
 
+  const { toast } = useToast();
+
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
       window.navigator.vibrate(intensity);
@@ -417,14 +420,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
         [Query.equal('userId', userId), Query.limit(100)]
       );
       setLikedPostIds(new Set(response.documents.map(d => d.postId)));
-    } catch (e) {}
+    } catch (e: any) {
+      console.warn("Likes hydration failed:", e.message);
+    }
   }, []);
 
   const refreshSocialGraph = useCallback(async (userId: string) => {
     try {
       const followResponse = await databases.listDocuments(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, [Query.equal('followerId', userId)]);
       setFollowingUsernames(new Set(followResponse.documents.map(d => d.followingUsername)));
-    } catch (e) {}
+    } catch (e: any) {
+      console.warn("Social graph hydration failed:", e.message);
+    }
   }, []);
 
   const refreshProfiles = useCallback(async () => {
@@ -672,23 +679,55 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
   
   const toggleLikePost = async (postId: string) => {
+    const userId = currentUser.id;
+    if (!userId) return;
+
     const isCurrentlyLiked = likedPostIds.has(postId);
-    const user = await account.get();
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    // 1. Optimistic UI Pulse
+    triggerHaptic(20);
+    setLikedPostIds(prev => {
+      const next = new Set(prev);
+      if (isCurrentlyLiked) next.delete(postId);
+      else next.add(postId);
+      return next;
+    });
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes: isCurrentlyLiked ? Math.max(0, p.likes - 1) : p.likes + 1 } : p));
+
     try {
-      const post = posts.find(p => p.id === postId);
-      if (!post) return;
       if (isCurrentlyLiked) {
-        const response = await databases.listDocuments(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, [Query.equal('postId', postId), Query.equal('userId', user.$id)]);
-        if (response.documents.length > 0) await databases.deleteDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, response.documents[0].$id);
-        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { likes: Math.max(0, post.likes - 1) });
-        setLikedPostIds(prev => { const n = new Set(prev); n.delete(postId); return n; });
+        const response = await databases.listDocuments(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, [
+          Query.equal('postId', postId), 
+          Query.equal('userId', userId)
+        ]);
+        if (response.documents.length > 0) {
+          await databases.deleteDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, response.documents[0].$id);
+        }
+        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { 
+          likes: Math.max(0, post.likes - 1) 
+        });
       } else {
-        await databases.createDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, ID.unique(), { postId, userId: user.$id });
-        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { likes: post.likes + 1 });
-        setLikedPostIds(prev => { const n = new Set(prev); n.add(postId); return n; });
+        await databases.createDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, ID.unique(), { 
+          postId, 
+          userId 
+        });
+        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { 
+          likes: post.likes + 1 
+        });
       }
-      await refreshFeed();
-    } catch (e) {}
+    } catch (e: any) {
+      // 2. Rollback Handshake
+      setLikedPostIds(prev => {
+        const next = new Set(prev);
+        if (isCurrentlyLiked) next.add(postId);
+        else next.delete(postId);
+        return next;
+      });
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes: post.likes } : p));
+      toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
+    }
   };
 
   const createPaymentRequest = async (screenshot: string) => {
@@ -846,9 +885,22 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleFollowUser = async (username: string) => {
-    const isCurrentlyFollowing = followingUsernames.has(username);
     const userId = currentUser.id;
-    if (!userId) return;
+    if (!userId) {
+      toast({ variant: "destructive", title: "Handshake Required", description: "You must materialize an identity node to connect." });
+      return;
+    }
+
+    const isCurrentlyFollowing = followingUsernames.has(username);
+    triggerHaptic(15);
+
+    // 1. Optimistic UI Pulse
+    setFollowingUsernames(prev => {
+      const next = new Set(prev);
+      if (isCurrentlyFollowing) next.delete(username);
+      else next.add(username);
+      return next;
+    });
 
     try {
       if (isCurrentlyFollowing) {
@@ -856,16 +908,32 @@ export function PostProvider({ children }: { children: ReactNode }) {
           Query.equal('followerId', userId),
           Query.equal('followingUsername', username)
         ]);
-        if (response.documents.length > 0) await databases.deleteDocument(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, response.documents[0].$id);
-        setFollowingUsernames(prev => { const n = new Set(prev); n.delete(username); return n; });
+        if (response.documents.length > 0) {
+          await databases.deleteDocument(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, response.documents[0].$id);
+        }
       } else {
         await databases.createDocument(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, ID.unique(), {
           followerId: userId,
           followingUsername: username
         });
-        setFollowingUsernames(prev => { const n = new Set(prev); n.add(username); return n; });
       }
-    } catch (e) {}
+      // Re-sync to ensure accuracy
+      await refreshSocialGraph(userId);
+    } catch (e: any) {
+      // 2. Rollback Handshake
+      setFollowingUsernames(prev => {
+        const next = new Set(prev);
+        if (isCurrentlyFollowing) next.add(username);
+        else next.delete(username);
+        return next;
+      });
+      
+      toast({ 
+        variant: "destructive", 
+        title: "Social Sync Error", 
+        description: e.message || "The network vault rejected the connection pulse. Ensure indexes are created in Appwrite." 
+      });
+    }
   };
 
   const addStory = async (newStoryData: any) => {
