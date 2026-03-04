@@ -31,7 +31,7 @@ interface ChatListProps {
 }
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
-  const { connections = [], clusters = [], triggerHaptic, settings } = usePosts();
+  const { connections = [], clusters = [], triggerHaptic, settings, currentUser } = usePosts();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "unread" | "broadcasts" | "clusters">("all");
@@ -39,8 +39,11 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
   const [pinnedUsernames] = useState(new Set<string>());
 
   const sortedChats = useMemo(() => {
+    // Identity Protocol: Only message OTHER users, never yourself.
     const allItems = [
-      ...(connections || []).map(c => ({ ...c, isGroup: false })),
+      ...(connections || [])
+        .filter(c => c.username !== currentUser.username)
+        .map(c => ({ ...c, isGroup: false })),
       ...(clusters || []).map(cl => ({ ...cl, isGroup: true }))
     ];
 
@@ -69,7 +72,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
       if (!aPinned && bPinned) return 1;
       return 0;
     });
-  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames]);
+  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser.username]);
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-card">

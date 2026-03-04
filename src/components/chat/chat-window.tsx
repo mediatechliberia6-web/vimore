@@ -145,7 +145,14 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
   const conversationId = useMemo(() => {
     if (isCluster) return contact.id;
-    return [currentUser.username, (contact as Connection).username].sort().join('_');
+    
+    const contactUsername = (contact as Connection).username;
+    // Handshake Guard: Abort if identity nodes are invalid or identical
+    if (!currentUser.username || !contactUsername || currentUser.username === contactUsername) {
+      return null;
+    }
+    
+    return [currentUser.username, contactUsername].sort().join('_');
   }, [isCluster, contact, currentUser.username]);
 
   const nonClusterMembers = useMemo(() => {
@@ -156,6 +163,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
   // Fetch Message History
   const fetchHistory = useCallback(async () => {
+    if (!conversationId) return;
     setIsLoadingMessages(true);
     try {
       const response = await databases.listDocuments(
@@ -194,6 +202,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   }, [conversationId, currentUser.username]);
 
   useEffect(() => {
+    if (!conversationId) return;
     fetchHistory();
 
     if (!currentUser.id) return;
@@ -227,7 +236,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     );
 
     return () => unsubscribe();
-  }, [conversationId, fetchHistory, currentUser.username, triggerHaptic]);
+  }, [conversationId, fetchHistory, currentUser.id, currentUser.username, triggerHaptic]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -236,6 +245,8 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   }, [messages, showVault]);
 
   const handleSend = async (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string }) => {
+    if (!conversationId) return;
+    
     const type = options?.isWorkspace ? "workspace" : (options?.mediaType || (text.includes("http") ? "link" : "text"));
     
     const docData = {
@@ -468,7 +479,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             <AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">{isAdmin ? "Dissolve Cluster?" : "Leave Cluster?"}</AlertDialogTitle>
             <AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">This action is terminal. You will lose access to this collective workspace node.</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6"><AlertDialogCancel className="rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] bg-secondary/50 border-none">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleConfirmLeave} className="rounded-2xl h-14 font-black italic uppercase tracking-widest text-[10px] bg-destructive hover:bg-destructive/90 text-white shadow-xl">Confirm</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6"><AlertDialogCancel className="rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] bg-secondary/50 border-none hover:bg-secondary transition-all">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleConfirmLeave} className="rounded-2xl h-14 font-black italic uppercase tracking-widest text-[10px] bg-destructive hover:bg-destructive/90 text-white shadow-xl">Confirm</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
