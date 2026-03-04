@@ -183,7 +183,16 @@ export default function MyProfilePage() {
     setIsSavingProfile(true);
     triggerHaptic(25);
     
-    const updates: Partial<any> = { ...editData };
+    // SCHEMA HARDENING: Only send supported vault attributes to prevent handshake rejection
+    const updates: Partial<any> = {
+      name: editData.name,
+      category: editData.category,
+      bio: editData.bio,
+      dateOfBirth: editData.dateOfBirth,
+      nationality: editData.nationality,
+      gender: editData.gender
+    };
+
     const now = Date.now();
     if (editData.name !== currentUser.name) updates.lastModifiedName = now;
     if (editData.dateOfBirth !== currentUser.dateOfBirth) updates.lastModifiedDob = now;
