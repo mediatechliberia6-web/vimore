@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
@@ -90,17 +89,29 @@ function MusicPageContent() {
 
   const filteredSongs = useMemo(() => {
     if (!searchQuery) return globalSongs;
-    return globalSongs.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()) || s.artist.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = searchQuery.toLowerCase();
+    return globalSongs.filter(s => 
+      (s.title || "").toLowerCase().includes(q) || 
+      (s.artist || "").toLowerCase().includes(q)
+    );
   }, [searchQuery, globalSongs]);
 
   const filteredAlbums = useMemo(() => {
     if (!searchQuery) return globalAlbums;
-    return globalAlbums.filter(a => a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.artist.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = searchQuery.toLowerCase();
+    return globalAlbums.filter(a => 
+      (a.title || "").toLowerCase().includes(q) || 
+      (a.artist || "").toLowerCase().includes(q)
+    );
   }, [searchQuery, globalAlbums]);
 
   const filteredPlaylists = useMemo(() => {
     if (!searchQuery) return globalPlaylists;
-    return globalPlaylists.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()) || p.creator.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = searchQuery.toLowerCase();
+    return globalPlaylists.filter(p => 
+      (p.title || "").toLowerCase().includes(q) || 
+      (p.creator || "").toLowerCase().includes(q)
+    );
   }, [searchQuery, globalPlaylists]);
 
   const filteredArtists = useMemo(() => {
@@ -114,7 +125,11 @@ function MusicPageContent() {
     }));
     const uniqueArtists = Array.from(new Map(artistsFromSongs.map(item => [item.id, item])).values());
     if (!searchQuery) return uniqueArtists;
-    return uniqueArtists.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()) || a.username.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = searchQuery.toLowerCase();
+    return uniqueArtists.filter(a => 
+      (a.name || "").toLowerCase().includes(q) || 
+      (a.username || "").toLowerCase().includes(q)
+    );
   }, [searchQuery, globalSongs]);
 
   const hasResults = filteredSongs.length > 0 || filteredAlbums.length > 0 || filteredPlaylists.length > 0 || filteredArtists.length > 0;

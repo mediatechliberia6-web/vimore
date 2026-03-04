@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -83,15 +82,18 @@ export function SearchPortal() {
     const q = query.toLowerCase();
 
     const people = connections.filter(c => 
-      c.name.toLowerCase().includes(q) || c.username.toLowerCase().includes(q)
+      (c.name || "").toLowerCase().includes(q) || 
+      (c.username || "").toLowerCase().includes(q)
     );
 
     const audio = globalSongs.filter(s => 
-      s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)
+      (s.title || "").toLowerCase().includes(q) || 
+      (s.artist || "").toLowerCase().includes(q)
     );
 
     const nodes = posts.filter(p => 
-      p.content.toLowerCase().includes(q) || p.user.name.toLowerCase().includes(q)
+      (p.content || "").toLowerCase().includes(q) || 
+      (p.user?.name || "").toLowerCase().includes(q)
     );
 
     return { people, audio, nodes };

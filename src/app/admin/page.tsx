@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -194,9 +193,10 @@ export default function AdminDashboard() {
 
   const filteredUsersForGov = useMemo(() => {
     if (!govSearch.trim()) return [];
+    const q = govSearch.toLowerCase();
     return connections.filter(c => 
       !staff.some(s => s.username === c.username) &&
-      (c.name.toLowerCase().includes(govSearch.toLowerCase()) || c.username.toLowerCase().includes(govSearch.toLowerCase()))
+      ((c.name || "").toLowerCase().includes(q) || (c.username || "").toLowerCase().includes(q))
     );
   }, [connections, staff, govSearch]);
 

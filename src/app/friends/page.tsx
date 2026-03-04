@@ -102,15 +102,15 @@ function FriendsPageContent() {
     }
 
     if (activeCategory !== "all") {
-      list = list.filter(u => u.category?.includes(activeCategory));
+      list = list.filter(u => (u.category || "").includes(activeCategory));
     }
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       list = list.filter(u => 
-        u.name.toLowerCase().includes(q) || 
-        u.username.toLowerCase().includes(q) ||
-        u.category?.toLowerCase().includes(q)
+        (u.name || "").toLowerCase().includes(q) || 
+        (u.username || "").toLowerCase().includes(q) ||
+        (u.category || "").toLowerCase().includes(q)
       );
     }
 

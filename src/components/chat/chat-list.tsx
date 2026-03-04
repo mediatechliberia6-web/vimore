@@ -57,9 +57,10 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     }
 
     if (searchQuery) {
+      const q = searchQuery.toLowerCase();
       list = list.filter(item => 
-        item.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        (item as any).username?.toLowerCase().includes(searchQuery.toLowerCase())
+        (item.name || "").toLowerCase().includes(q) || 
+        ((item as any).username || "").toLowerCase().includes(q)
       );
     }
 
