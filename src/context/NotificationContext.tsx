@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { usePosts } from '@/context/PostContext';
-import client, { databases, APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, Query, ID } from '@/lib/appwrite';
+import client, { databases, APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, MESSAGES_COLLECTION_ID, Query, ID } from '@/lib/appwrite';
 
 export type SignalType = 'SOCIAL' | 'SONIC' | 'POST' | 'SYSTEM';
 export type PulseCategory = 'HOME' | 'FRIENDS' | 'MUSIC' | 'REELS' | 'MESSAGES';
@@ -103,8 +103,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     if (!currentUser.id) return;
 
-    // REAL-TIME HANDSHAKE
-    const unsubscribe = client.subscribe(
+    // REAL-TIME NOTIFICATION HANDSHAKE
+    const notificationUnsubscribe = client.subscribe(
       `databases.${APPWRITE_DATABASE_ID}.collections.${NOTIFICATIONS_COLLECTION_ID}.documents`,
       (response) => {
         const payload = response.payload as any;
@@ -112,12 +112,37 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           fetchNotifications();
           triggerSound();
           triggerHaptic(10);
+
+          // Update Category Pulse
+          setCategoryPulses(prev => {
+            const next = { ...prev };
+            if (payload.type === 'SOCIAL') next.FRIENDS += 1;
+            if (payload.type === 'POST') next.HOME += 1;
+            if (payload.type === 'SONIC') next.MUSIC += 1;
+            return next;
+          });
         }
       }
     );
 
-    return () => unsubscribe();
-  }, [currentUser.id, fetchNotifications]);
+    // REAL-TIME MESSAGE PULSE
+    const messageUnsubscribe = client.subscribe(
+      `databases.${APPWRITE_DATABASE_ID}.collections.${MESSAGES_COLLECTION_ID}.documents`,
+      (response) => {
+        const payload = response.payload as any;
+        // If message is incoming, increment message pulse
+        if (payload.senderId !== currentUser.username) {
+          setCategoryPulses(prev => ({ ...prev, MESSAGES: prev.MESSAGES + 1 }));
+          triggerHaptic(5);
+        }
+      }
+    );
+
+    return () => {
+      notificationUnsubscribe();
+      messageUnsubscribe();
+    };
+  }, [currentUser.id, currentUser.username, fetchNotifications, triggerHaptic]);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && "Notification" in window) {
