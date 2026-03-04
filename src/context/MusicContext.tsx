@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef, useMemo } from 'react';
 import { saveFileToDevice } from '@/lib/utils';
 import { databases, APPWRITE_BUCKET_ID, APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ALBUMS_COLLECTION_ID, PLAYLISTS_COLLECTION_ID, Query, ID, storage } from '@/lib/appwrite';
 
@@ -135,31 +136,31 @@ const AD_URL = "https://www.effectivegatecpm.com/kry1iawb?key=8a705428be9dbe8fbb
 
 export function MusicProvider({ children }: { children: ReactNode }) {
   const [currentTrack, setCurrentTrackState] = useState<Track | null>(null);
-  const [globalSongs, setGlobalSongs] = useState<Track[]>([]);
-  const [globalAlbums, setGlobalAlbums] = useState<Album[]>([]);
-  const [globalPlaylists, setGlobalPlaylists] = useState<Playlist[]>([]);
-  const [queue, setQueue] = useState<Track[]>([]);
+  const [globalSongs, setGlobalSongsState] = useState<Track[]>([]);
+  const [globalAlbums, setGlobalAlbumsState] = useState<Album[]>([]);
+  const [globalPlaylists, setGlobalPlaylistsState] = useState<Playlist[]>([]);
+  const [queue, setQueueState] = useState<Track[]>([]);
   const [isPlaying, setIsPlayingState] = useState(false);
   const [isExpanded, setIsExpandedState] = useState(false);
   const [selectedAlbum, setSelectedAlbumState] = useState<Album | null>(null);
   const [selectedPlaylist, setSelectedPlaylistState] = useState<Playlist | null>(null);
   const [progress, setProgressState] = useState(0);
   const [volume, setVolumeState] = useState(80);
-  const [reactions, setReactions] = useState<MusicReaction[]>([]);
+  const [reactions, setReactionsState] = useState<MusicReaction[]>([]);
   const [isAdPortalOpen, setIsAdPortalOpenState] = useState(false);
   const [adDuration, setAdDurationState] = useState(30);
   const [pendingDownloadTask, setPendingDownloadTask] = useState<(() => Promise<void>) | null>(null);
   const [isCaptureStudioOpen, setIsCaptureStudioOpenState] = useState(false);
   const [captureTrack, setCaptureTrackState] = useState<Track | null>(null);
-  const [likedSongIds, setLikedSongIds] = useState<Set<string | number>>(new Set());
-  const [unlikedSongIds, setUnlikedSongIds] = useState<Set<string | number>>(new Set());
-  const [downloadedSongIds, setDownloadedSongIds] = useState<Set<string | number>>(new Set());
-  const [likedCollectionIds, setLikedCollectionIds] = useState<Set<string | number>>(new Set());
-  const [likedTracks, setLikedTracks] = useState<Track[]>([]);
-  const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
-  const [userSongs, setUserSongs] = useState<Track[]>([]);
-  const [userAlbums, setUserAlbums] = useState<Album[]>([]);
-  const [trackStats, setTrackStats] = useState<Record<string | number, { likes: number; unlikes: number }>>({});
+  const [likedSongIds, setLikedSongIdsState] = useState<Set<string | number>>(new Set());
+  const [unlikedSongIds, setUnlikedSongIdsState] = useState<Set<string | number>>(new Set());
+  const [downloadedSongIds, setDownloadedSongIdsState] = useState<Set<string | number>>(new Set());
+  const [likedCollectionIds, setLikedCollectionIdsState] = useState<Set<string | number>>(new Set());
+  const [likedTracks, setLikedTracksState] = useState<Track[]>([]);
+  const [userPlaylists, setUserPlaylistsState] = useState<Playlist[]>([]);
+  const [userSongs, setUserSongsState] = useState<Track[]>([]);
+  const [userAlbums, setUserAlbumsState] = useState<Album[]>([]);
+  const [trackStats, setTrackStatsState] = useState<Record<string | number, { likes: number; unlikes: number }>>({});
   const [isCreatePlaylistOpen, setIsCreatePlaylistOpenState] = useState(false);
   const [trackForNewPlaylist, setTrackForNewPlaylistState] = useState<Track | null>(null);
 
@@ -225,15 +226,15 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         isPrivate: d.isPrivate
       } as Playlist));
 
-      setGlobalSongs(songs);
-      setGlobalAlbums(albums);
-      setGlobalPlaylists(playlists);
+      setGlobalSongsState(songs);
+      setGlobalAlbumsState(albums);
+      setGlobalPlaylistsState(playlists);
       
       const statsMap: Record<string | number, { likes: number; unlikes: number }> = {};
       songs.forEach(s => { statsMap[s.id] = { likes: s.likes || 0, unlikes: s.unlikes || 0 }; });
-      setTrackStats(statsMap);
+      setTrackStatsState(statsMap);
 
-      if (queue.length === 0) setQueue(songs);
+      if (queue.length === 0) setQueueState(songs);
     } catch (e) {
       console.error("Music vault handshake failed:", e);
     }
@@ -268,28 +269,28 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const setTrack = useCallback((track: Track) => {
     triggerHaptic(15);
-    if (!queue.some(t => t.id === track.id)) setQueue([track, ...queue.filter(t => t.id !== track.id)]);
+    if (!queue.some(t => t.id === track.id)) setQueueState([track, ...queue.filter(t => t.id !== track.id)]);
     setCurrentTrackState(track);
     setIsPlayingState(true);
     setProgressState(0);
-    setReactions([]);
+    setReactionsState([]);
     setIsExpandedState(true); 
   }, [queue, triggerHaptic]);
 
   const addToQueue = useCallback((track: Track) => {
     triggerHaptic(5);
-    if (!queue.some(t => t.id === track.id)) setQueue(prev => [...prev, track]);
+    if (!queue.some(t => t.id === track.id)) setQueueState(prev => [...prev, track]);
   }, [queue, triggerHaptic]);
 
   const playCollection = useCallback((tracks: Track[], startIndex: number = 0) => {
     triggerHaptic(20);
     if (tracks.length === 0) return;
-    setQueue(tracks);
+    setQueueState(tracks);
     const track = tracks[startIndex];
     setCurrentTrackState(track);
     setIsPlayingState(true);
     setProgressState(0);
-    setReactions([]);
+    setReactionsState([]);
     setIsExpandedState(true);
   }, [triggerHaptic]);
 
@@ -315,7 +316,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     try {
       const newLikes = isCurrentlyLiked ? Math.max(0, (track.likes || 0) - 1) : (track.likes || 0) + 1;
       await databases.updateDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, trackId as string, { likes: newLikes });
-      setLikedSongIds(prev => { const n = new Set(prev); if (n.has(trackId)) n.delete(trackId); else n.add(trackId); return n; });
+      setLikedSongIdsState(prev => { const n = new Set(prev); if (n.has(trackId)) n.delete(trackId); else n.add(trackId); return n; });
       await refreshMusicVault();
     } catch (e) {}
   }, [likedSongIds, triggerHaptic, refreshMusicVault]);
@@ -327,14 +328,14 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     try {
       const newUnlikes = isCurrentlyUnliked ? Math.max(0, (track.unlikes || 0) - 1) : (track.unlikes || 0) + 1;
       await databases.updateDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, trackId as string, { unlikes: newUnlikes });
-      setUnlikedSongIds(prev => { const n = new Set(prev); if (n.has(trackId)) n.delete(trackId); else n.add(trackId); return n; });
+      setUnlikedSongIdsState(prev => { const n = new Set(prev); if (n.has(trackId)) n.delete(trackId); else n.add(trackId); return n; });
       await refreshMusicVault();
     } catch (e) {}
   }, [unlikedSongIds, triggerHaptic, refreshMusicVault]);
 
   const toggleCollectionLike = useCallback((id: string | number) => {
     triggerHaptic(20);
-    setLikedCollectionIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+    setLikedCollectionIdsState(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   }, [triggerHaptic]);
 
   const simulateDownload = useCallback(async (track: Track) => {
@@ -342,7 +343,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     triggerHaptic(10);
     if (track.audioUrl) {
       await saveFileToDevice(track.audioUrl, `vimore_sonic_${track.id}.mp3`);
-      setDownloadedSongIds(prev => { const n = new Set(prev); n.add(track.id); return n; });
+      setDownloadedSongIdsState(prev => { const n = new Set(prev); n.add(track.id); return n; });
     }
   }, [downloadedSongIds, triggerHaptic]);
 
@@ -461,8 +462,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     triggerHaptic(5);
     const id = Date.now();
     const newReaction = { id, emoji, x: Math.random() * 80 + 10 };
-    setReactions((prev) => [...prev, newReaction]);
-    setTimeout(() => setReactions((prev) => prev.filter((r) => r.id !== id)), 2500);
+    setReactionsState((prev) => [...prev, newReaction]);
+    setTimeout(() => setReactionsState((prev) => prev.filter((r) => r.id !== id)), 2500);
   }, [triggerHaptic]);
 
   const addComment = useCallback((text: string) => {
@@ -483,18 +484,20 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const setVolume = useCallback((volume: number) => setVolumeState(volume), []);
   const setCaptureTrack = useCallback((track: Track | null) => setCaptureTrackState(track), []);
 
+  const contextValue = useMemo(() => ({
+    currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, 
+    likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats,
+    isAdPortalOpen, adDuration, adUrl: AD_URL, triggerDownloadWithAd, onAdComplete,
+    isCreatePlaylistOpen, trackForNewPlaylist,
+    isCaptureStudioOpen, captureTrack, openCaptureStudio, closeCaptureStudio, setCaptureTrack,
+    setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, 
+    toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked,
+    playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack,
+    openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic, refreshMusicVault
+  }), [currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats, isAdPortalOpen, adDuration, pendingDownloadTask, isCreatePlaylistOpen, trackForNewPlaylist, isCaptureStudioOpen, captureTrack, triggerHaptic, setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked, playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack, openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, refreshMusicVault]);
+
   return (
-    <MusicContext.Provider value={{
-      currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, 
-      likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats,
-      isAdPortalOpen, adDuration, adUrl: AD_URL, triggerDownloadWithAd, onAdComplete,
-      isCreatePlaylistOpen, trackForNewPlaylist,
-      isCaptureStudioOpen, captureTrack, openCaptureStudio, closeCaptureStudio, setCaptureTrack,
-      setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, 
-      toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked,
-      playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack,
-      openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic, refreshMusicVault
-    }}>
+    <MusicContext.Provider value={contextValue}>
       {children}
     </MusicContext.Provider>
   );
