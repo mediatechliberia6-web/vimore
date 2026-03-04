@@ -118,7 +118,7 @@ export function InfoNode({ icon: Icon, label, value, colorClass }: { icon: any, 
 }
 
 export default function MyProfilePage() {
-  const { currentUser, posts, updateCurrentUser, uploadMedia, triggerHaptic, settings, setSelectedImageUrl } = usePosts();
+  const { currentUser, posts, updateCurrentUser, uploadMedia, triggerHaptic, settings, setSelectedImageUrl, addPost } = usePosts();
   const { currentTrack, isExpanded, userSongs } = useMusic();
   const { toast } = useToast();
   const router = useRouter();
@@ -213,8 +213,22 @@ export default function MyProfilePage() {
       const file = dataURLtoFile(refinedDataUrl, fileName);
       const vaultUrl = await uploadMedia(file);
       
+      // 1. Update Identity Node
       await updateCurrentUser({ [refiningMode]: vaultUrl });
-      toast({ title: "Presence Refreshed", description: "Digital signature updated." });
+      
+      // 2. Materialize Reciprocal Post
+      const postCaption = refiningMode === 'avatar' 
+        ? "Updated my digital signature ✨" 
+        : "Materialized a new cover pulse ⚡";
+
+      await addPost({
+        user: { ...currentUser, [refiningMode]: vaultUrl },
+        content: postCaption,
+        image: vaultUrl,
+        language: currentUser.language || 'en'
+      });
+
+      toast({ title: "Presence Refreshed", description: "Digital signature updated and synced to feed." });
       setIsRefinementOpen(false);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
@@ -324,7 +338,7 @@ export default function MyProfilePage() {
                     <Button 
                       onClick={handleSaveProfile} 
                       disabled={isSavingProfile}
-                      className="w-full bg-primary hover:bg-primary/90 text-white font-black uppercase italic tracking-widest h-14 rounded-2xl shadow-xl shadow-primary/20"
+                      className="w-full bg-primary hover:bg-primary/90 text-white font-black italic uppercase tracking-widest h-14 rounded-2xl shadow-xl shadow-primary/20"
                     >
                       {isSavingProfile ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> SYNCING NODES...</> : "Sync Identity Pulse"}
                     </Button>
