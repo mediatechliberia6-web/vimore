@@ -1,4 +1,3 @@
-
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -695,14 +694,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
     );
 
     // Messages Global Preview Listener
+    // Calibrated to update chat list previews in real-time
     const messageUnsubscribe = client.subscribe(
       `databases.${APPWRITE_DATABASE_ID}.collections.${MESSAGES_COLLECTION_ID}.documents`,
       (response) => {
         const payload = response.payload as any;
-        // Update local previews for connections and clusters
-        if (payload.conversationId.includes(currentUser.username)) {
+        
+        // Identify if the message belongs to a 1-on-1 or Cluster circuit
+        const isDirect = payload.conversationId.includes(currentUser.username);
+        const isCluster = clusters.some(c => c.id === payload.conversationId);
+
+        if (isDirect) {
           refreshProfiles();
-        } else {
+        } else if (isCluster) {
           refreshClusters();
         }
       }
@@ -714,7 +718,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       commentUnsubscribe();
       messageUnsubscribe();
     };
-  }, [currentUser.id, currentUser.username, activeCommentPostId, refreshSocialGraph, refreshProfiles, refreshClusters, refreshFeed, fetchComments, triggerHaptic]);
+  }, [currentUser.id, currentUser.username, clusters, activeCommentPostId, refreshSocialGraph, refreshProfiles, refreshClusters, refreshFeed, fetchComments, triggerHaptic]);
 
   const login = useCallback(async (email: string, password: string) => { 
     try {

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
@@ -60,7 +59,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   });
   const [hasPushPermission, setHasPushPermission] = useState(false);
   const { toast } = useToast();
-  const { settings, triggerHaptic, currentUser } = usePosts();
+  const { settings, triggerHaptic, currentUser, clusters } = usePosts();
 
   const triggerSound = useCallback(() => {
     if (settings.isSilenceActive) {
@@ -119,7 +118,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     fetchNotifications();
 
-    if (!currentUser.id) return;
+    if (!currentUser.id || !currentUser.username) return;
 
     // REAL-TIME NOTIFICATION HANDSHAKE
     const notificationUnsubscribe = client.subscribe(
@@ -144,12 +143,23 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     );
 
     // REAL-TIME MESSAGE PULSE
+    // Calibrated to increment the header badge for 1-on-1 and Cluster messages
     const messageUnsubscribe = client.subscribe(
       `databases.${APPWRITE_DATABASE_ID}.collections.${MESSAGES_COLLECTION_ID}.documents`,
       (response) => {
         const payload = response.payload as any;
-        // If message is incoming, increment message pulse badge
-        if (payload.senderId !== currentUser.username) {
+        
+        // 1. Ignore pulses from the current identity node
+        if (payload.senderId === currentUser.username) return;
+
+        // 2. Identify if the message is intended for this node
+        // Check 1-on-1: conversationId contains username
+        const isDirect = payload.conversationId.includes(currentUser.username);
+        
+        // Check Clusters: conversationId matches a cluster ID the user belongs to
+        const isCluster = clusters.some(c => c.id === payload.conversationId);
+
+        if (isDirect || isCluster) {
           setCategoryPulses(prev => ({ ...prev, MESSAGES: prev.MESSAGES + 1 }));
           triggerHaptic(5);
           triggerSound();
@@ -161,7 +171,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       notificationUnsubscribe();
       messageUnsubscribe();
     };
-  }, [currentUser.id, currentUser.username, fetchNotifications, triggerHaptic, triggerSound]);
+  }, [currentUser.id, currentUser.username, clusters, fetchNotifications, triggerHaptic, triggerSound]);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && "Notification" in window) {
