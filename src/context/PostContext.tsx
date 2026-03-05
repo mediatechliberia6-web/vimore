@@ -89,6 +89,7 @@ export interface User {
   hasEverBeenVerified?: boolean;
   role?: 'SUPER' | 'FINANCIAL' | 'MODERATOR' | 'USER';
   isEmailVerified?: boolean;
+  referredBy?: string;
 }
 
 export interface Post {
@@ -751,6 +752,44 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const user = await account.create(ID.unique(), data.email, data.password, data.name);
       await account.createEmailPasswordSession(data.email, data.password);
       
+      // Referral Logic Integration
+      let referrerId = null;
+      const storedReferrer = localStorage.getItem('vimore_referrer');
+      
+      if (storedReferrer) {
+        try {
+          const referrerProfileRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
+            Query.equal('username', storedReferrer)
+          ]);
+          
+          if (referrerProfileRes.documents.length > 0) {
+            const referrer = referrerProfileRes.documents[0];
+            referrerId = referrer.$id;
+            
+            // Reward the Referrer: +5000 Stars
+            await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, referrer.$id, {
+              starBalance: (referrer.starBalance || 0) + 5000,
+              referralCount: (referrer.referralCount || 0) + 1
+            });
+
+            // Create notification for the referrer (Non-blocking)
+            try {
+              await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), {
+                type: 'SOCIAL',
+                title: 'Referral Reward!',
+                content: `**${data.name}** joined via your node. **+5,000 Stars** synced to your vault.`,
+                recipientId: referrer.$id,
+                targetUsername: normalizedUsername,
+                isRead: false,
+                timestamp: Date.now()
+              });
+            } catch (notifErr) {}
+          }
+        } catch (err) {
+          console.warn("Referral handshake failed.");
+        }
+      }
+
       try {
         await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id, { 
           name: data.name, 
@@ -766,18 +805,30 @@ export function PostProvider({ children }: { children: ReactNode }) {
           referralCount: 0,
           isEmailVerified: false,
           followers: 0,
-          following: 0
+          following: 0,
+          referredBy: referrerId
         });
+
+        // Auto-Follow protocol if enabled and referrer exists
+        if (referrerId && storedReferrer && settings.isAutoFollowEnabled) {
+           await databases.createDocument(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, ID.unique(), {
+            followerId: user.$id,
+            followerUsername: normalizedUsername,
+            followingUsername: storedReferrer,
+            followingId: referrerId
+          });
+        }
       } catch (profileError: any) {
         throw new Error(profileError.message);
       }
 
+      localStorage.removeItem('vimore_referrer');
       await account.createVerification(`${window.location.origin}/auth/verify`);
       await checkSession();
     } catch (error: any) {
       throw new Error(error.message);
     }
-  }, [checkSession]);
+  }, [checkSession, settings.isAutoFollowEnabled]);
 
   const resendVerification = useCallback(async () => {
     try {
