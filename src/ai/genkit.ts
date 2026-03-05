@@ -10,10 +10,16 @@ export const ai = genkit({});
 
 /**
  * Lazy-initialized Groq client for high-velocity inference.
- * This prevents initialization errors during build time.
+ * Includes a Diagnostic Handshake to check for API key presence.
  */
 export function getGroq() {
+  const apiKey = process.env.GROQ_API_KEY;
+  
+  if (!apiKey) {
+    console.error("AI PROTOCOL CRITICAL: GROQ_API_KEY node is missing from environment variables.");
+  }
+
   return new Groq({
-    apiKey: process.env.GROQ_API_KEY,
+    apiKey: apiKey || 'MISSING_KEY',
   });
 }

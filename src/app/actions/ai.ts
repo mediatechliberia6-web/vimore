@@ -1,3 +1,4 @@
+
 'use server';
 
 import { aiSummarizePost as summarizeFlow } from '@/ai/flows/ai-summarize-post-flow';
@@ -19,15 +20,16 @@ export async function aiAuditBoostHandshake(input: { userBalance: number, boostC
   try {
     const result = await boostFlow(input);
     return result;
-  } catch (error) {
-    console.error("Boost Audit Error:", error);
+  } catch (error: any) {
+    console.error("BOOST AUDIT DIAGNOSTIC:", error.message);
     const approved = input.userBalance >= input.boostCost;
     return {
       approved,
       promisedViews: Math.round((input.boostCost / (input.currencyType === 'DIAMOND' ? 25 : 30000)) * 10000),
       strategy: "Heuristic fallback active. Direct node prioritization.",
-      message: approved ? "Boost handshake authorized via fallback protocol." : "Insufficient energy for boost. Top up in Currency Hub.",
-      auditToken: approved ? "BST-FB-" + Math.random().toString(36).substring(2, 10).toUpperCase() : ""
+      message: approved ? "Boost authorized via fallback. (Note: AI Node was unreachable)" : "Insufficient energy for boost.",
+      auditToken: approved ? "BST-FB-" + Math.random().toString(36).substring(2, 10).toUpperCase() : "",
+      diagnosticError: error.message
     };
   }
 }
@@ -39,12 +41,12 @@ export async function aiAnalyzeGlobalSentiment({ messages }: { messages: string[
   try {
     const result = await sentimentFlow({ messages });
     return result;
-  } catch (error) {
-    console.error("Sentiment Analysis Error:", error);
+  } catch (error: any) {
+    console.error("SENTIMENT ANALYSIS DIAGNOSTIC:", error.message);
     return {
       score: 75,
       vibe: 'POSITIVE' as const,
-      summary: "Protocol fallback: Network vibe stable and synchronized."
+      summary: "Protocol fallback: Network vibe stable. (Diagnostic: " + error.message + ")"
     };
   }
 }
@@ -56,12 +58,12 @@ export async function aiAuditMonetizationHandshake(input: { type: 'LOCK_UNLOCK' 
   try {
     const result = await monetizationFlow(input);
     return result;
-  } catch (error) {
-    console.error("Monetization Audit Error:", error);
+  } catch (error: any) {
+    console.error("MONETIZATION AUDIT DIAGNOSTIC:", error.message);
     const approved = input.userBalance >= input.cost;
     return {
       approved,
-      message: approved ? "Handshake protocol fallback initiated." : "Insufficient Energy Buy Currency and sync again",
+      message: approved ? "Handshake protocol fallback initiated." : "Insufficient Energy. (Diagnostic: " + error.message + ")",
       auditToken: approved ? "MT-FB-" + Math.random().toString(36).substring(2, 10).toUpperCase() : "",
       payoutAmount: input.cost * 0.7
     };
@@ -75,13 +77,12 @@ export async function aiAuditGiftHandshake(input: { userBalance: number, giftCos
   try {
     const result = await auditFlow(input);
     return result;
-  } catch (error) {
-    console.error("Gift Audit Error:", error);
-    // Secure Fallback
+  } catch (error: any) {
+    console.error("GIFT AUDIT DIAGNOSTIC:", error.message);
     const approved = input.userBalance >= input.giftCost;
     return {
       approved,
-      message: approved ? "Handshake protocol fallback initiated. Transaction valid." : "Insufficient Balance Buy Currency and try again",
+      message: approved ? "Fallback handshake established." : "Insufficient Balance. (Diagnostic: " + error.message + ")",
       auditToken: approved ? "TX-FB-" + Math.random().toString(36).substring(2, 10).toUpperCase() : ""
     };
   }
@@ -94,9 +95,9 @@ export async function aiSummarizeComments({ comments }: { comments: string[] }) 
   try {
     const result = await commentsFlow({ comments });
     return { summary: result.summary };
-  } catch (error) {
-    console.error("Comment Summarization Error:", error);
-    return { summary: "Discussion pulse is too complex for immediate analysis." };
+  } catch (error: any) {
+    console.error("COMMENT SUMMARIZATION DIAGNOSTIC:", error.message);
+    return { summary: "Discussion pulse too complex. Error: " + error.message };
   }
 }
 
@@ -107,9 +108,8 @@ export async function aiRequestSignatureVerification(input: { username: string, 
   try {
     const result = await verifyFlow(input);
     return result;
-  } catch (error) {
-    console.error("Verification Audit Error:", error);
-    // Secure Fallback Logic
+  } catch (error: any) {
+    console.error("VERIFICATION AUDIT DIAGNOSTIC:", error.message);
     const cost = input.hasEverBeenVerified 
       ? (input.currencyChoice === 'DIAMOND' ? 15 : 20000)
       : (input.currencyChoice === 'DIAMOND' ? 6 : 10000);
@@ -118,7 +118,7 @@ export async function aiRequestSignatureVerification(input: { username: string, 
       approved: true,
       cost,
       durationDays: 30,
-      message: "Direct protocol fallback initiated. Handshake valid.",
+      message: "Direct protocol fallback initiated. (Diagnostic: " + error.message + ")",
       auditToken: "V-FB-" + Math.random().toString(36).substring(2, 8).toUpperCase()
     };
   }
@@ -129,13 +129,11 @@ export async function aiRequestSignatureVerification(input: { username: string, 
  */
 export async function aiGenerateVerificationCode({ packageName }: { packageName: string }) {
   try {
-    // 1. Attempt AI Materialization
     const result = await codeFlow({ packageName });
     if (!result || !result.code) throw new Error("Null pulse from AI Engine");
     return { code: result.code };
-  } catch (error) {
-    // 2. Hardware Fallback Protocol
-    console.warn("AI Engine unreachable. Materializing local cryptographic code.");
+  } catch (error: any) {
+    console.warn("AI CODE GENERATION DIAGNOSTIC:", error.message);
     const fallback = Math.random().toString(36).substring(2, 8).toUpperCase();
     return { code: fallback };
   }
@@ -151,8 +149,8 @@ export async function aiGenerateDailyMixes() {
   try {
     const result = await mixesFlow({ vibe: selectedVibe });
     return { mixes: result.mixes };
-  } catch (error) {
-    console.error("Daily Mix Generation Error:", error);
+  } catch (error: any) {
+    console.error("DAILY MIX DIAGNOSTIC:", error.message);
     return { mixes: ["Morning Chill", "Coding Beats", "Late Night", "Focus Flow", "Vibe Check", "Groove Hub"] };
   }
 }
@@ -164,8 +162,8 @@ export async function aiSuggestHashtags({ postContent }: { postContent: string }
   try {
     const result = await hashtagsFlow({ postContent });
     return { hashtags: result.hashtags };
-  } catch (error) {
-    console.error("Hashtag Suggestion Error:", error);
+  } catch (error: any) {
+    console.error("HASHTAG SUGGESTION DIAGNOSTIC:", error.message);
     return { hashtags: [] };
   }
 }
@@ -177,9 +175,9 @@ export async function aiSummarizePost({ postContent }: { postContent: string }) 
   try {
     const result = await summarizeFlow({ postContent });
     return { summary: result.summary };
-  } catch (error) {
-    console.error("Summarization Error:", error);
-    return { summary: "Could not generate summary." };
+  } catch (error: any) {
+    console.error("POST SUMMARIZATION DIAGNOSTIC:", error.message);
+    return { summary: "Summarization pulse failed: " + error.message };
   }
 }
 
@@ -190,8 +188,8 @@ export async function aiTranslatePost({ postContent, targetLanguage = "English" 
   try {
     const result = await translateFlow({ postContent, targetLanguage });
     return { translation: result.translation };
-  } catch (error) {
-    console.error("Translation Error:", error);
-    return { translation: "Could not translate post." };
+  } catch (error: any) {
+    console.error("TRANSLATION DIAGNOSTIC:", error.message);
+    return { translation: "Translation pulse failed: " + error.message };
   }
 }
