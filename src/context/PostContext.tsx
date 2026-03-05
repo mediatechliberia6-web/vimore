@@ -416,7 +416,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
         parentId: doc.parentId
       }));
 
-      // Assemble Thread Pulse
       const topLevel = mappedComments.filter(c => !c.parentId);
       topLevel.forEach(parent => {
         parent.replies = mappedComments.filter(c => c.parentId === parent.id);
@@ -504,7 +503,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(100)]);
       const profiles = response.documents.map(doc => ({ ...doc, id: doc.$id, isGroup: false } as any));
       
-      // Fetch last messages for each profile
       const profilesWithLastMsg = await Promise.all(profiles.map(async (p) => {
         const convId = [currentUser.username, p.username].sort().join('_');
         const lastMsgRes = await databases.listDocuments(APPWRITE_DATABASE_ID, MESSAGES_COLLECTION_ID, [
@@ -567,7 +565,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', normalizedUsername)]);
       
       if (response.documents.length === 0) {
-        // High-Velocity Fallback: Search by name if username node is silent
         const nameResponse = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('name', username)]);
         if (nameResponse.documents.length > 0) {
           const profile = nameResponse.documents[0];
@@ -641,7 +638,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       
       if (profile.role && profile.role !== 'USER') await refreshAdminData();
     } catch (error) {
-      console.warn("Session pulse silent.");
       setCurrentUserState(INITIAL_USER);
     }
     finally { setIsLoadingState(false); }
@@ -657,11 +653,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, [checkSession]);
 
-  // Real-Time Listeners Hub
   useEffect(() => {
     if (!currentUser.id) return;
 
-    // Follows Listener
     const followUnsubscribe = client.subscribe(
       `databases.${APPWRITE_DATABASE_ID}.collections.${FOLLOWS_COLLECTION_ID}.documents`,
       (response) => {
@@ -674,7 +668,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Posts Listener
     const postUnsubscribe = client.subscribe(
       `databases.${APPWRITE_DATABASE_ID}.collections.${POSTS_COLLECTION_ID}.documents`,
       () => {
@@ -682,7 +675,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Comments Listener
     const commentUnsubscribe = client.subscribe(
       `databases.${APPWRITE_DATABASE_ID}.collections.${COMMENTS_COLLECTION_ID}.documents`,
       (response) => {
@@ -694,7 +686,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Messages Global Preview Listener
     const messageUnsubscribe = client.subscribe(
       `databases.${APPWRITE_DATABASE_ID}.collections.${MESSAGES_COLLECTION_ID}.documents`,
       (response) => {
@@ -1061,10 +1052,59 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const recordWithdrawal = useCallback(async (node: any) => {}, []);
   const processWithdrawal = useCallback(async (id: string, status: 'APPROVED' | 'REJECTED') => {}, []);
   const triggerReferralPulse = useCallback((referralCode?: string) => {}, []);
-  const verifyUser = useCallback(async (cost: number, currency: 'DIAMOND' | 'STAR') => {}, []);
-  const processGiftTransaction = useCallback(async (cost: number, currency: 'GOLD' | 'DIAMOND') => {}, []);
-  const unlockPost = useCallback(async (postId: string, cost: number) => { setUnlockedPostIdsState(prev => new Set(prev).add(postId)); }, []);
-  const subscribeToCreator = useCallback(async (username: string, cost: number) => { setActiveSubscriptionsState(prev => new Set(prev).add(username)); }, []);
+  
+  const verifyUser = useCallback(async (cost: number, currency: 'DIAMOND' | 'STAR') => {
+    if (!currentUser.id) return;
+    triggerHaptic(50);
+    const updates: any = {
+      isVerified: true,
+      hasEverBeenVerified: true,
+      verificationExpiry: Date.now() + (30 * 24 * 60 * 60 * 1000)
+    };
+
+    if (currency === 'DIAMOND') {
+      updates.diamondBalance = Math.max(0, (currentUser.diamondBalance || 0) - cost);
+    } else {
+      updates.starBalance = Math.max(0, (currentUser.starBalance || 0) - cost);
+    }
+
+    try {
+      await updateCurrentUser(updates);
+      toast({ title: "Signature Materialized", description: "Your purple badge is now active for 30 days." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Vault Error", description: e.message });
+    }
+  }, [currentUser, updateCurrentUser, triggerHaptic, toast]);
+
+  const processGiftTransaction = useCallback(async (cost: number, currency: 'GOLD' | 'DIAMOND') => {
+    if (!currentUser.id) return;
+    const updates: any = {};
+    if (currency === 'GOLD') {
+      updates.goldBalance = Math.max(0, (currentUser.goldBalance || 0) - cost);
+    } else {
+      updates.diamondBalance = Math.max(0, (currentUser.diamondBalance || 0) - cost);
+    }
+    try {
+      await updateCurrentUser(updates);
+    } catch (e) {}
+  }, [currentUser, updateCurrentUser]);
+
+  const unlockPost = useCallback(async (postId: string, cost: number) => {
+    if (!currentUser.id) return;
+    try {
+      await updateCurrentUser({ goldBalance: Math.max(0, (currentUser.goldBalance || 0) - cost) });
+      setUnlockedPostIdsState(prev => new Set(prev).add(postId));
+    } catch (e) {}
+  }, [currentUser, updateCurrentUser]);
+
+  const subscribeToCreator = useCallback(async (username: string, cost: number) => {
+    if (!currentUser.id) return;
+    try {
+      await updateCurrentUser({ diamondBalance: Math.max(0, (currentUser.diamondBalance || 0) - cost) });
+      setActiveSubscriptionsState(prev => new Set(prev).add(username));
+    } catch (e) {}
+  }, [currentUser, updateCurrentUser]);
+
   const cancelSubscription = useCallback(async (username: string) => { setActiveSubscriptionsState(prev => { const next = new Set(prev); next.delete(username); return next; }); }, []);
   const recordAdMaterialization = useCallback(() => {}, []);
   const recordAdHandshake = useCallback((revenue: number) => {}, []);
