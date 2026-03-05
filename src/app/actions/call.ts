@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -9,12 +8,11 @@
 import { RtcTokenBuilder, RtcRole } from 'agora-token';
 import { AGORA_APP_ID } from '@/lib/agora';
 
-const APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE || '';
+const APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE || 'ef792758166f413c962ede45ddd8fe89';
 
 export async function generateAgoraToken(channelName: string, uid: string | number) {
   if (!APP_CERTIFICATE) {
     console.warn("Security Alert: AGORA_APP_CERTIFICATE is missing. Materializing unsecure pulse.");
-    // In test mode, we might return an empty string if token verification is disabled in Agora console
     return ""; 
   }
 

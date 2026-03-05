@@ -70,12 +70,12 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
   }, [callState.status]);
 
   // Phase 8: Spatial Disconnect Pulse
-  // If the status becomes idle (due to remote hangup), navigate back to hub
+  // Updated safety return: only redirect if idle and NOT in the middle of connecting
   useEffect(() => {
-    if (callState.status === 'idle') {
+    if (callState.status === 'idle' && !isConnecting) {
       router.push('/messages');
     }
-  }, [callState.status, router]);
+  }, [callState.status, router, isConnecting]);
 
   // Phase 7: Materialize Remote Track once element is ready
   useEffect(() => {
@@ -137,7 +137,10 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
         triggerHaptic(50);
       } catch (e) {
         console.error("Agora Handshake Failure:", e);
-        handleEndCall();
+        // Desist from auto-ending immediately if hardware is just initializing
+        setTimeout(() => {
+          if (isConnecting) handleEndCall();
+        }, 5000);
       }
     };
 
@@ -152,7 +155,7 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
       localTracksRef.current.video?.close();
       agoraClientRef.current?.leave();
     };
-  }, [callState.token, callState.channelName, callState.status, isAudioCall, triggerHaptic]);
+  }, [callState.token, callState.channelName, callState.status, isAudioCall, triggerHaptic, isConnecting]);
 
   const handleEndCall = () => {
     triggerHaptic(100);
