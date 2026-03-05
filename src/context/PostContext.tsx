@@ -1,3 +1,4 @@
+
 "use client";
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -151,7 +152,7 @@ export interface Connection extends User {
 }
 
 export type CallType = 'video' | 'audio';
-export type CallStatus = 'idle' | 'incoming' | 'outgoing' | 'active';
+export type CallStatus = 'idle' | 'incoming' | 'outgoing' | 'active' | 'ringing';
 
 export interface CallState {
   type: CallType;
@@ -697,13 +698,51 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
     );
 
+    const callUnsubscribe = client.subscribe(
+      `databases.${APPWRITE_DATABASE_ID}.collections.${CALLS_COLLECTION_ID}.documents`,
+      (response) => {
+        const payload = response.payload as any;
+        
+        // Incoming Call Detection
+        if (payload.receiverId === currentUser.username) {
+          if (response.events.includes('databases.*.collections.*.documents.*.create')) {
+            receiveCall(
+              { name: payload.callerName, username: payload.callerId, avatar: payload.callerAvatar },
+              payload.type,
+              payload.channelName,
+              payload.token,
+              payload.$id
+            );
+          } else if (response.events.includes('databases.*.collections.*.documents.*.update')) {
+            if (payload.status === 'active') {
+              setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() }));
+            } else if (payload.status === 'ended') {
+              setCallState({ type: 'video', status: 'idle', contact: null });
+            }
+          } else if (response.events.includes('databases.*.collections.*.documents.*.delete')) {
+            setCallState({ type: 'video', status: 'idle', contact: null });
+          }
+        }
+
+        // Outgoing Call Status Updates
+        if (payload.callerId === currentUser.username) {
+          if (payload.status === 'active' && callState.status === 'outgoing') {
+            setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() }));
+          } else if (payload.status === 'ended') {
+            setCallState({ type: 'video', status: 'idle', contact: null });
+          }
+        }
+      }
+    );
+
     return () => {
       followUnsubscribe();
       postUnsubscribe();
       commentUnsubscribe();
       messageUnsubscribe();
+      callUnsubscribe();
     };
-  }, [currentUser.id, currentUser.username, clusters, activeCommentPostId, refreshSocialGraph, refreshProfiles, refreshClusters, refreshFeed, fetchComments, triggerHaptic]);
+  }, [currentUser.id, currentUser.username, clusters, activeCommentPostId, callState.status, refreshSocialGraph, refreshProfiles, refreshClusters, refreshFeed, fetchComments, triggerHaptic]);
 
   const login = useCallback(async (email: string, password: string) => { 
     try {
@@ -1110,24 +1149,70 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const recordAdHandshake = useCallback((revenue: number) => {}, []);
   const updateIntelligence = useCallback((data: any) => { setIntelligenceMetricsState(prev => ({ ...prev, ...data })); }, []);
   const incrementShareCount = useCallback(async (postId: string) => {}, []);
+  
   const createCluster = useCallback(async (name: string, members: any[]) => {
     try {
       await databases.createDocument(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID, ID.unique(), { name, adminUsername: currentUser.username, members: JSON.stringify(members) });
       await refreshClusters();
     } catch (e: any) { throw new Error(e.message); }
   }, [currentUser.username, refreshClusters]);
+
   const addMemberToCluster = useCallback(async (clusterId: string, member: any) => {}, []);
   const leaveCluster = useCallback(async (clusterId: string) => {}, []);
   const promoteUser = useCallback(async (username: string, role: 'FINANCIAL' | 'MODERATOR') => {}, []);
   const demoteUser = useCallback(async (username: string) => {}, []);
+
   const initiateCall = useCallback(async (contact: any, type: CallType) => {
     const channelName = `call_${currentUser.username}_${contact.username}_${Date.now()}`;
     const token = await generateAgoraToken(channelName, currentUser.id!);
-    setCallState({ type, status: 'outgoing', contact, channelName, token, startTime: Date.now() });
-  }, [currentUser.username, currentUser.id]);
-  const receiveCall = useCallback((contact: any, type: CallType, channelName: string, token: string, callId: string) => { setCallState({ type, status: 'incoming', contact, channelName, token, callId }); }, []);
-  const acceptCall = useCallback(async () => { setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() })); }, []);
-  const endCall = useCallback(async (duration?: string) => { setCallState({ type: 'video', status: 'idle', contact: null }); }, []);
+    
+    try {
+      const doc = await databases.createDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, ID.unique(), {
+        callerId: currentUser.username,
+        callerName: currentUser.name,
+        callerAvatar: currentUser.avatar,
+        receiverId: contact.username,
+        type,
+        status: 'ringing',
+        channelName,
+        token,
+        startTime: Date.now()
+      });
+      
+      activeCallIdRef.current = doc.$id;
+      setCallState({ type, status: 'outgoing', contact, channelName, token, startTime: Date.now(), callId: doc.$id });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Handshake Failed", description: "Node transmission aborted." });
+    }
+  }, [currentUser, toast]);
+
+  const receiveCall = useCallback((contact: any, type: CallType, channelName: string, token: string, callId: string) => { 
+    activeCallIdRef.current = callId;
+    setCallState({ type, status: 'incoming', contact, channelName, token, callId }); 
+  }, []);
+
+  const acceptCall = useCallback(async () => { 
+    if (!activeCallIdRef.current) return;
+    try {
+      await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, activeCallIdRef.current, { status: 'active' });
+      setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() }));
+    } catch (e) {}
+  }, []);
+
+  const endCall = useCallback(async (duration?: string) => { 
+    if (activeCallIdRef.current) {
+      try {
+        await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, activeCallIdRef.current, { status: 'ended' });
+        // Temporal delay before deletion to ensure nodes sync
+        setTimeout(() => {
+          if (activeCallIdRef.current) databases.deleteDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, activeCallIdRef.current);
+          activeCallIdRef.current = null;
+        }, 2000);
+      } catch (e) {}
+    }
+    setCallState({ type: 'video', status: 'idle', contact: null }); 
+  }, []);
+
   const addCampaign = useCallback((data: any) => {}, []);
   const deleteCampaign = useCallback((id: string) => {}, []);
   const toggleCampaignStatus = useCallback((id: string) => {}, []);

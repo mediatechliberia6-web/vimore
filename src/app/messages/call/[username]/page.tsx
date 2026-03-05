@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, use } from "react";
@@ -31,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { AGORA_APP_ID } from "@/lib/agora";
+import { generateAgoraToken } from "@/app/actions/call";
 import type { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IRemoteUser, IRemoteVideoTrack } from "agora-rtc-sdk-ng";
 
 export default function CallPage({ params }: { params: Promise<{ username: string }> }) {
@@ -69,15 +71,12 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
     return () => clearInterval(interval);
   }, [callState.status]);
 
-  // Phase 8: Spatial Disconnect Pulse
-  // Updated safety return: only redirect if idle and NOT in the middle of connecting
   useEffect(() => {
     if (callState.status === 'idle' && !isConnecting) {
       router.push('/messages');
     }
   }, [callState.status, router, isConnecting]);
 
-  // Phase 7: Materialize Remote Track once element is ready
   useEffect(() => {
     if (remoteUserJoined && remoteVideoTrack && remoteVideoRef.current) {
       remoteVideoTrack.play(remoteVideoRef.current);
@@ -86,14 +85,15 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
 
   useEffect(() => {
     const initAgora = async () => {
+      // 1. Handshake Protocol: Only proceed if status is 'active'
+      if (callState.status !== 'active') return;
+
       const AgoraRTC = (await import("agora-rtc-sdk-ng")).default;
       const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
       agoraClientRef.current = client;
 
-      // Signaling Handshake
       client.on("user-published", async (user: IRemoteUser, mediaType: "video" | "audio") => {
         await client.subscribe(user, mediaType);
-        
         if (mediaType === "video") {
           setRemoteVideoTrack(user.videoTrack || null);
           setRemoteUserJoined(true);
@@ -103,28 +103,24 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
         }
       });
 
-      client.on("user-left", (user) => {
+      client.on("user-left", () => {
         setRemoteUserJoined(false);
         setRemoteVideoTrack(null);
       });
 
-      client.on("user-unpublished", (user, mediaType) => {
-        if (mediaType === "video") {
-          setRemoteUserJoined(false);
-          setRemoteVideoTrack(null);
-        }
-      });
-
       try {
-        // Spatial Handshake: Join Channel
+        let token = callState.token;
+        if (!token) {
+          token = await generateAgoraToken(callState.channelName!, currentUser.id!);
+        }
+
         await client.join(
           AGORA_APP_ID, 
           callState.channelName || "", 
-          callState.token || null, 
+          token || null, 
           null
         );
 
-        // Hardware Handshake: Create Tracks
         const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
         localTracksRef.current = { audio: audioTrack, video: videoTrack };
 
@@ -137,16 +133,11 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
         triggerHaptic(50);
       } catch (e) {
         console.error("Agora Handshake Failure:", e);
-        // Desist from auto-ending immediately if hardware is just initializing
-        setTimeout(() => {
-          if (isConnecting) handleEndCall();
-        }, 5000);
+        setTimeout(() => { if (isConnecting) handleEndCall(); }, 5000);
       }
     };
 
-    if (callState.token && (callState.status === 'active' || callState.status === 'outgoing')) {
-      initAgora();
-    }
+    initAgora();
 
     return () => {
       localTracksRef.current.audio?.stop();
@@ -155,12 +146,12 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
       localTracksRef.current.video?.close();
       agoraClientRef.current?.leave();
     };
-  }, [callState.token, callState.channelName, callState.status, isAudioCall, triggerHaptic, isConnecting]);
+  }, [callState.status, callState.channelName, callState.token, isAudioCall, triggerHaptic, currentUser.id]);
 
   const handleEndCall = () => {
     triggerHaptic(100);
     const finalDuration = formatDuration(callDuration);
-    endCall(finalDuration); // Phase 8: Transmit duration for archival
+    endCall(finalDuration);
     router.push(`/messages`);
   };
 
@@ -180,9 +171,8 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
 
   return (
     <div className="fixed inset-0 z-[500] bg-black flex flex-col overflow-hidden select-none touch-none">
-      {/* Remote Canvas Node */}
       <div className="absolute inset-0 z-0 bg-zinc-950">
-        {isConnecting ? (
+        {(isConnecting || callState.status === 'outgoing' || callState.status === 'ringing') ? (
           <div className="w-full h-full flex flex-col items-center justify-center space-y-8">
             <div className="relative">
               <div className="absolute -inset-12 bg-primary/20 blur-3xl rounded-full animate-pulse" />
@@ -195,7 +185,9 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
               </Avatar>
             </div>
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">Synchronizing Node</h2>
+              <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">
+                {callState.status === 'active' ? 'Synchronizing Node' : 'Ringing...'}
+              </h2>
               <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Agora Edge Handshake Active</p>
             </div>
           </div>
@@ -211,9 +203,6 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
                 </div>
                 
                 <div className="relative">
-                  {isOutgoing && (
-                    <div className="absolute -inset-8 border-2 border-primary/40 rounded-full animate-ping" />
-                  )}
                   <Avatar className="h-48 w-48 border-4 border-white/10 shadow-2xl relative z-10">
                     <AvatarImage src={callState.contact?.avatar} />
                     <AvatarFallback>V</AvatarFallback>
@@ -222,12 +211,8 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
 
                 <div className="text-center space-y-2 z-10 px-6">
                   <h3 className="text-3xl font-black italic uppercase tracking-tighter text-white">{callState.contact?.name}</h3>
-                  <div className="flex items-center justify-center gap-2 text-primary font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">
-                    {isOutgoing ? (
-                      <><Radio className="h-3 w-3" /> Calling Node...</>
-                    ) : (
-                      <><Volume2 className="h-3 w-3" /> Spatial Link Established</>
-                    )}
+                  <div className="flex items-center justify-center gap-2 text-primary font-black uppercase tracking-[0.2em] text-[10px] animate-pulse">
+                    <Volume2 className="h-3 w-3" /> Spatial Link Established
                   </div>
                 </div>
               </div>
@@ -236,7 +221,6 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
         )}
       </div>
 
-      {/* Local PiP Handshake */}
       {!isAudioCall && !isConnecting && (
         <div className={cn(
           "absolute top-24 right-6 z-50 w-32 sm:w-44 aspect-[9/16] rounded-[2.5rem] overflow-hidden shadow-2xl ring-2 ring-white/10 transition-all",
@@ -246,7 +230,6 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
         </div>
       )}
 
-      {/* Control Overlay */}
       <header className="absolute top-0 left-0 right-0 z-50 px-6 py-8 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/20 to-transparent">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" className="rounded-full bg-black/20 backdrop-blur-md text-white border border-white/10" onClick={handleEndCall}>
