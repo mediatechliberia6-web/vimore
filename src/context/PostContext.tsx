@@ -448,6 +448,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         isBoosted: doc.isBoosted,
         boostTargetViews: doc.boostTargetViews,
         boostCurrentViews: doc.boostCurrentViews,
+        poll: doc.poll ? JSON.parse(doc.poll) : undefined,
         commentNodes: []
       })) as Post[]);
     } catch (error) {}
@@ -897,6 +898,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         language: newPostData.language, 
         isLocked: newPostData.isLocked || false, 
         unlockPrice: newPostData.unlockPrice || 0, 
+        poll: newPostData.poll ? JSON.stringify(newPostData.poll) : null,
         likes: 0, unlikes: 0, comments: 0, shares: 0 
       };
       await databases.createDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, ID.unique(), docData);
