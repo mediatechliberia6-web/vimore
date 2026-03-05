@@ -130,6 +130,7 @@ export interface PostComment {
   likes: number;
   replies: PostComment[];
   parentId?: string;
+  timestamp: number;
 }
 
 export interface Cluster {
@@ -400,10 +401,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const fetchComments = useCallback(async (postId: string) => {
     try {
+      // Remove server-side sorting to avoid Index errors in prototype phase
       const response = await databases.listDocuments(
         APPWRITE_DATABASE_ID,
         COMMENTS_COLLECTION_ID,
-        [Query.equal('postId', postId), Query.orderAsc('timestamp'), Query.limit(100)]
+        [Query.equal('postId', postId), Query.limit(100)]
       );
       
       const mappedComments: PostComment[] = response.documents.map(doc => ({
@@ -413,16 +415,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
         time: new Date(doc.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         likes: doc.likes || 0,
         replies: [],
-        parentId: doc.parentId
+        parentId: doc.parentId,
+        timestamp: doc.timestamp || 0
       }));
 
-      const topLevel = mappedComments.filter(c => !c.parentId);
+      // Perform Local Linguistic Sort (Chronological)
+      const sortedComments = mappedComments.sort((a, b) => a.timestamp - b.timestamp);
+
+      const topLevel = sortedComments.filter(c => !c.parentId);
       topLevel.forEach(parent => {
-        parent.replies = mappedComments.filter(c => c.parentId === parent.id);
+        parent.replies = sortedComments.filter(c => c.parentId === parent.id);
       });
 
+      // Update global posts state to trigger CommentHub materialization
       setPostsState(prev => prev.map(p => p.id === postId ? { ...p, commentNodes: topLevel } : p));
-    } catch (e) {}
+    } catch (e) {
+      console.warn("Linguistic sync for comments failed:", e);
+    }
   }, []);
 
   const refreshFeed = useCallback(async () => {
