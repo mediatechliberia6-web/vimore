@@ -1,5 +1,4 @@
-
-"use client";
+'use client';
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback, useRef } from 'react';
 import client, { 
@@ -702,45 +701,25 @@ export function PostProvider({ children }: { children: ReactNode }) {
       `databases.${APPWRITE_DATABASE_ID}.collections.${CALLS_COLLECTION_ID}.documents`,
       (response) => {
         const payload = response.payload as any;
-        
-        // Incoming Call Detection
         if (payload.receiverId === currentUser.username) {
           if (response.events.includes('databases.*.collections.*.documents.*.create')) {
-            receiveCall(
-              { name: payload.callerName, username: payload.callerId, avatar: payload.callerAvatar },
-              payload.type,
-              payload.channelName,
-              payload.token,
-              payload.$id
-            );
+            receiveCall({ name: payload.callerName, username: payload.callerId, avatar: payload.callerAvatar }, payload.type, payload.channelName, payload.token, payload.$id);
           } else if (response.events.includes('databases.*.collections.*.documents.*.update')) {
-            if (payload.status === 'active') {
-              setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() }));
-            } else if (payload.status === 'ended') {
-              setCallState({ type: 'video', status: 'idle', contact: null });
-            }
+            if (payload.status === 'active') setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() }));
+            else if (payload.status === 'ended') setCallState({ type: 'video', status: 'idle', contact: null });
           } else if (response.events.includes('databases.*.collections.*.documents.*.delete')) {
             setCallState({ type: 'video', status: 'idle', contact: null });
           }
         }
-
-        // Outgoing Call Status Updates
         if (payload.callerId === currentUser.username) {
-          if (payload.status === 'active' && callState.status === 'outgoing') {
-            setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() }));
-          } else if (payload.status === 'ended') {
-            setCallState({ type: 'video', status: 'idle', contact: null });
-          }
+          if (payload.status === 'active' && callState.status === 'outgoing') setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() }));
+          else if (payload.status === 'ended') setCallState({ type: 'video', status: 'idle', contact: null });
         }
       }
     );
 
     return () => {
-      followUnsubscribe();
-      postUnsubscribe();
-      commentUnsubscribe();
-      messageUnsubscribe();
-      callUnsubscribe();
+      followUnsubscribe(); postUnsubscribe(); commentUnsubscribe(); messageUnsubscribe(); callUnsubscribe();
     };
   }, [currentUser.id, currentUser.username, clusters, activeCommentPostId, callState.status, refreshSocialGraph, refreshProfiles, refreshClusters, refreshFeed, fetchComments, triggerHaptic]);
 
@@ -772,111 +751,46 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const existing = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
         Query.equal('username', normalizedUsername)
       ]);
-      
-      if (existing.total > 0) {
-        throw new Error("This spatial ID (username) is already taken.");
-      }
-
+      if (existing.total > 0) throw new Error("This spatial ID (username) is already taken.");
       const profilesCount = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
       const assignedRole = profilesCount.total === 0 ? 'SUPER' : 'USER';
-
       const user = await account.create(ID.unique(), data.email, data.password, data.name);
       await account.createEmailPasswordSession(data.email, data.password);
-      
       let referrerId = null;
       const storedReferrer = localStorage.getItem('vimore_referrer');
-      
       if (storedReferrer) {
         try {
-          const referrerProfileRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
-            Query.equal('username', storedReferrer)
-          ]);
-          
+          const referrerProfileRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', storedReferrer)]);
           if (referrerProfileRes.documents.length > 0) {
             const referrer = referrerProfileRes.documents[0];
             referrerId = referrer.$id;
-            await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, referrer.$id, {
-              starBalance: (referrer.starBalance || 0) + 5000,
-              referralCount: (referrer.referralCount || 0) + 1
-            });
-            try {
-              await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), {
-                type: 'SOCIAL',
-                title: 'Referral Reward!',
-                content: `**${data.name}** joined via your node. **+5,000 Stars** synced to your vault.`,
-                recipientId: referrer.$id,
-                targetUsername: normalizedUsername,
-                isRead: false,
-                timestamp: Date.now()
-              });
-            } catch (notifErr) {}
+            await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, referrer.$id, { starBalance: (referrer.starBalance || 0) + 5000, referralCount: (referrer.referralCount || 0) + 1 });
+            try { await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), { type: 'SOCIAL', title: 'Referral Reward!', content: `**${data.name}** joined via your node. **+5,000 Stars** synced to your vault.`, recipientId: referrer.$id, targetUsername: normalizedUsername, isRead: false, timestamp: Date.now() }); } catch (notifErr) {}
           }
-        } catch (err) {
-          console.warn("Referral handshake failed.");
-        }
+        } catch (err) { console.warn("Referral handshake failed."); }
       }
-
       try {
-        await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id, { 
-          name: data.name, 
-          username: normalizedUsername, 
-          avatar: INITIAL_USER.avatar, 
-          goldBalance: 0, 
-          diamondBalance: 0, 
-          starBalance: 0, 
-          role: assignedRole,
-          dateOfBirth: data.dob,
-          nationality: data.nationality,
-          gender: data.gender,
-          referralCount: 0,
-          isEmailVerified: false,
-          followers: 0,
-          following: 0,
-          referredBy: referrerId
-        });
-
+        await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id, { name: data.name, username: normalizedUsername, avatar: INITIAL_USER.avatar, goldBalance: 0, diamondBalance: 0, starBalance: 0, role: assignedRole, dateOfBirth: data.dob, nationality: data.nationality, gender: data.gender, referralCount: 0, isEmailVerified: false, followers: 0, following: 0, referredBy: referrerId });
         if (referrerId && storedReferrer && settings.isAutoFollowEnabled) {
-           await databases.createDocument(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, ID.unique(), {
-            followerId: user.$id,
-            followerUsername: normalizedUsername,
-            followingUsername: storedReferrer,
-            followingId: referrerId
-          });
+           await databases.createDocument(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, ID.unique(), { followerId: user.$id, followerUsername: normalizedUsername, followingUsername: storedReferrer, followingId: referrerId });
         }
-      } catch (profileError: any) {
-        throw new Error(profileError.message);
-      }
-
+      } catch (profileError: any) { throw new Error(profileError.message); }
       localStorage.removeItem('vimore_referrer');
       await account.createVerification(`${window.location.origin}/auth/verify`);
       await checkSession();
-    } catch (error: any) {
-      throw new Error(error.message);
-    }
+    } catch (error: any) { throw new Error(error.message); }
   }, [checkSession, settings.isAutoFollowEnabled]);
 
   const resendVerification = useCallback(async () => {
-    try {
-      await account.createVerification(`${window.location.origin}/auth/verify`);
-    } catch (e: any) {
-      throw new Error(e.message);
-    }
+    try { await account.createVerification(`${window.location.origin}/auth/verify`); } catch (e: any) { throw new Error(e.message); }
   }, []);
 
   const forgotPassword = useCallback(async (email: string) => {
-    try {
-      await account.createRecovery(email, `${window.location.origin}/auth/recovery`);
-    } catch (e: any) {
-      throw new Error(e.message);
-    }
+    try { await account.createRecovery(email, `${window.location.origin}/auth/recovery`); } catch (e: any) { throw new Error(e.message); }
   }, []);
 
   const resetPassword = useCallback(async (userId: string, secret: string, password: string) => {
-    try {
-      await account.updateRecovery(userId, secret, password, password);
-    } catch (e: any) {
-      throw new Error(e.message);
-    }
+    try { await account.updateRecovery(userId, secret, password, password); } catch (e: any) { throw new Error(e.message); }
   }, []);
 
   const uploadMedia = useCallback(async (file: File): Promise<string> => {
@@ -885,9 +799,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
       const project = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore';
       return `${endpoint}/storage/buckets/${APPWRITE_BUCKET_ID}/files/${response.$id}/view?project=${project}`;
-    } catch (e: any) {
-      throw new Error(e.message);
-    }
+    } catch (e: any) { throw new Error(e.message); }
   }, []);
 
   const updateCurrentUser = useCallback(async (data: Partial<User>) => {
@@ -900,44 +812,32 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const addPost = useCallback(async (newPostData: any) => {
     try {
-      const docData = { 
-        content: newPostData.content, 
-        user: JSON.stringify(newPostData.user), 
-        image: newPostData.image, 
-        images: JSON.stringify(newPostData.images || []), 
-        videoUrl: newPostData.videoUrl, 
-        theme: newPostData.theme, 
-        language: newPostData.language, 
-        isLocked: newPostData.isLocked || false, 
-        unlockPrice: newPostData.unlockPrice || 0, 
-        poll: newPostData.poll ? JSON.stringify(newPostData.poll) : null,
-        likes: 0, unlikes: 0, comments: 0, shares: 0 
-      };
+      const docData = { content: newPostData.content, user: JSON.stringify(newPostData.user), image: newPostData.image, images: JSON.stringify(newPostData.images || []), videoUrl: newPostData.videoUrl, theme: newPostData.theme, language: newPostData.language, isLocked: newPostData.isLocked || false, unlockPrice: newPostData.unlockPrice || 0, poll: newPostData.poll ? JSON.stringify(newPostData.poll) : null, likes: 0, unlikes: 0, comments: 0, shares: 0 };
       await databases.createDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, ID.unique(), docData);
       await refreshFeed();
     } catch (e: any) { throw new Error(e.message); }
   }, [refreshFeed]);
 
   const deletePost = useCallback(async (postId: string) => { 
-    try {
-      await databases.deleteDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId); 
-      await refreshFeed(); 
-    } catch (e: any) { throw new Error(e.message); }
+    try { await databases.deleteDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId); await refreshFeed(); } catch (e: any) { throw new Error(e.message); }
   }, [refreshFeed]);
   
   const toggleLikePost = useCallback(async (postId: string) => {
     const userId = currentUser.id;
     if (!userId) return;
     const isCurrentlyLiked = likedPostIds.has(postId);
+    const isCurrentlyUnliked = unlikedPostIds.has(postId);
     const post = posts.find(p => p.id === postId);
     if (!post) return;
     triggerHaptic(20);
-    setLikedPostIdsState(prev => {
-      const next = new Set(prev);
-      if (isCurrentlyLiked) next.delete(postId); else next.add(postId);
-      return next;
-    });
-    setPostsState(prev => prev.map(p => p.id === postId ? { ...p, likes: isCurrentlyLiked ? Math.max(0, p.likes - 1) : p.likes + 1 } : p));
+    setLikedPostIdsState(prev => { const next = new Set(prev); if (isCurrentlyLiked) next.delete(postId); else next.add(postId); return next; });
+    if (!isCurrentlyLiked && isCurrentlyUnliked) setUnlikedPostIdsState(prev => { const next = new Set(prev); next.delete(postId); return next; });
+    setPostsState(prev => prev.map(p => {
+      if (p.id !== postId) return p;
+      let newLikes = isCurrentlyLiked ? Math.max(0, p.likes - 1) : p.likes + 1;
+      let newUnlikes = (!isCurrentlyLiked && isCurrentlyUnliked) ? Math.max(0, p.unlikes - 1) : p.unlikes;
+      return { ...p, likes: newLikes, unlikes: newUnlikes };
+    }));
     try {
       if (isCurrentlyLiked) {
         const response = await databases.listDocuments(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, [Query.equal('postId', postId), Query.equal('userId', userId)]);
@@ -945,45 +845,53 @@ export function PostProvider({ children }: { children: ReactNode }) {
         await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { likes: Math.max(0, post.likes - 1) });
       } else {
         await databases.createDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, ID.unique(), { postId, userId });
-        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { likes: post.likes + 1 });
+        const updateData: any = { likes: post.likes + 1 };
+        if (isCurrentlyUnliked) updateData.unlikes = Math.max(0, post.unlikes - 1);
+        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, updateData);
         const recipientId = post.user.id || (post.user as any).$id;
         if (recipientId && recipientId !== currentUser.id) {
-          try {
-            await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), {
-              type: 'POST', title: 'New Vibe Pulse', content: `**${currentUser.name}** liked your post: "${post.content.slice(0, 30)}..."`, recipientId, avatar: currentUser.avatar, postId: postId, isRead: false, timestamp: Date.now()
-            });
-          } catch (notifErr) {}
+          try { await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), { type: 'POST', title: 'New Vibe Pulse', content: `**${currentUser.name}** liked your post: "${post.content.slice(0, 30)}..."`, recipientId, avatar: currentUser.avatar, postId: postId, isRead: false, timestamp: Date.now() }); } catch (notifErr) {}
         }
       }
-    } catch (e: any) {
-      setLikedPostIdsState(prev => { const next = new Set(prev); if (isCurrentlyLiked) next.add(postId); else next.delete(postId); return next; });
-      setPostsState(prev => prev.map(p => p.id === postId ? { ...p, likes: post.likes } : p));
-    }
-  }, [currentUser.id, currentUser.name, currentUser.avatar, likedPostIds, posts, triggerHaptic]);
+    } catch (e: any) { refreshFeed(); }
+  }, [currentUser.id, currentUser.name, currentUser.avatar, likedPostIds, unlikedPostIds, posts, triggerHaptic, refreshFeed]);
 
   const toggleUnlikePost = useCallback(async (postId: string) => {
     const userId = currentUser.id;
     if (!userId) return;
     const post = posts.find(p => p.id === postId);
     if (!post) return;
+    const isCurrentlyLiked = likedPostIds.has(postId);
     const isCurrentlyUnliked = unlikedPostIds.has(postId);
     triggerHaptic(15);
     setUnlikedPostIdsState(prev => { const next = new Set(prev); if (isCurrentlyUnliked) next.delete(postId); else next.add(postId); return next; });
+    if (!isCurrentlyUnliked && isCurrentlyLiked) setLikedPostIdsState(prev => { const next = new Set(prev); next.delete(postId); return next; });
+    setPostsState(prev => prev.map(p => {
+      if (p.id !== postId) return p;
+      let newUnlikes = isCurrentlyUnliked ? Math.max(0, p.unlikes - 1) : p.unlikes + 1;
+      let newLikes = (!isCurrentlyUnliked && isCurrentlyLiked) ? Math.max(0, p.likes - 1) : p.likes;
+      return { ...p, unlikes: newUnlikes, likes: newLikes };
+    }));
     try {
-      const newUnlikes = isCurrentlyUnliked ? Math.max(0, post.unlikes - 1) : post.unlikes + 1;
-      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { unlikes: newUnlikes });
-      setPostsState(prev => prev.map(p => p.id === postId ? { ...p, unlikes: newUnlikes } : p));
-    } catch (e: any) {
-      setUnlikedPostIdsState(prev => { const next = new Set(prev); if (isCurrentlyUnliked) next.add(postId); else next.delete(postId); return next; });
-    }
-  }, [currentUser.id, unlikedPostIds, posts, triggerHaptic]);
+      if (isCurrentlyUnliked) {
+        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { unlikes: Math.max(0, post.unlikes - 1) });
+      } else {
+        const updateData: any = { unlikes: post.unlikes + 1 };
+        if (isCurrentlyLiked) {
+          updateData.likes = Math.max(0, post.likes - 1);
+          const response = await databases.listDocuments(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, [Query.equal('postId', postId), Query.equal('userId', userId)]);
+          if (response.documents.length > 0) await databases.deleteDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, response.documents[0].$id);
+        }
+        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, updateData);
+      }
+    } catch (e: any) { refreshFeed(); }
+  }, [currentUser.id, likedPostIds, unlikedPostIds, posts, triggerHaptic, refreshFeed]);
 
   const toggleSavePost = useCallback((postId: string) => {
     triggerHaptic(5);
     setSavedPostIdsState(prev => {
       const next = new Set(prev);
-      if (next.has(postId)) next.delete(postId);
-      else next.add(postId);
+      if (next.has(postId)) next.delete(postId); else next.add(postId);
       return next;
     });
   }, [triggerHaptic]);
@@ -1010,16 +918,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
         if (targetUserId) {
           const currentFollowers = typeof targetUser?.followers === 'string' ? parseInt(targetUser.followers) : (targetUser?.followers || 0);
           await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, targetUserId, { followers: currentFollowers + 1 });
-          try {
-            await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), { type: 'SOCIAL', title: 'New Handshake', content: `**${currentUser.name}** is now following your pulse.`, recipientId: targetUserId, avatar: currentUser.avatar, targetUsername: currentUser.username, isRead: false, timestamp: Date.now() });
-          } catch (notifErr) {}
+          try { await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), { type: 'SOCIAL', title: 'New Handshake', content: `**${currentUser.name}** is now following your pulse.`, recipientId: targetUserId, avatar: currentUser.avatar, targetUsername: currentUser.username, isRead: false, timestamp: Date.now() }); } catch (notifErr) {}
         }
         await updateCurrentUser({ following: (typeof currentUser.following === 'string' ? parseInt(currentUser.following) : (currentUser.following || 0)) + 1 });
       }
       await refreshSocialGraph(userId, currentUser.username);
-    } catch (e: any) {
-      setFollowingUsernamesState(prev => { const next = new Set(prev); if (isCurrentlyFollowing) next.add(username); else next.delete(username); return next; });
-    }
+    } catch (e: any) { setFollowingUsernamesState(prev => { const next = new Set(prev); if (isCurrentlyFollowing) next.add(username); else next.delete(username); return next; }); }
   }, [currentUser, followingUsernames, connections, triggerHaptic, updateCurrentUser, refreshSocialGraph]);
 
   const addComment = useCallback(async (postId: string, text: string) => { 
@@ -1031,13 +935,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
         await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { comments: (post.comments || 0) + 1 });
         const recipientId = post.user.id || (post.user as any).$id;
         if (recipientId && recipientId !== currentUser.id) {
-          try {
-            await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), { type: 'POST', title: 'New Comment', content: `**${currentUser.name}** commented on your vibe: "${text.slice(0, 30)}..."`, recipientId, avatar: currentUser.avatar, postId: postId, isRead: false, timestamp: Date.now() });
-          } catch (notifErr) {}
+          try { await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), { type: 'POST', title: 'New Comment', content: `**${currentUser.name}** commented on your vibe: "${text.slice(0, 30)}..."`, recipientId, avatar: currentUser.avatar, postId: postId, isRead: false, timestamp: Date.now() }); } catch (notifErr) {}
         }
       }
-      await refreshFeed(); 
-      await fetchComments(postId);
+      await refreshFeed(); await fetchComments(postId);
     } catch (e: any) { throw new Error(e.message); }
   }, [currentUser, posts, refreshFeed, fetchComments]);
 
@@ -1047,8 +948,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await databases.createDocument(APPWRITE_DATABASE_ID, COMMENTS_COLLECTION_ID, ID.unique(), { postId, userId: currentUser.id, user: JSON.stringify(currentUser), text, parentId: commentId, timestamp: Date.now() }); 
       const post = posts.find(p => p.id === postId);
       if (post) await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { comments: (post.comments || 0) + 1 });
-      await refreshFeed(); 
-      await fetchComments(postId);
+      await refreshFeed(); await fetchComments(postId);
     } catch (e: any) { throw new Error(e.message); }
   }, [currentUser, posts, refreshFeed, fetchComments]);
 
@@ -1064,11 +964,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const setActiveStoryIndex = useCallback((index: number | null) => { setActiveStoryIndexState(index); }, []);
 
   const updateSettings = useCallback((data: Partial<AppSettings>) => {
-    setSettingsState(prev => {
-      const next = { ...prev, ...data };
-      localStorage.setItem('vimore_settings', JSON.stringify(next));
-      return next;
-    });
+    setSettingsState(prev => { const next = { ...prev, ...data }; localStorage.setItem('vimore_settings', JSON.stringify(next)); return next; });
   }, []);
 
   const addStory = useCallback(async (segment: any) => {
@@ -1095,53 +991,28 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const verifyUser = useCallback(async (cost: number, currency: 'DIAMOND' | 'STAR') => {
     if (!currentUser.id) return;
     triggerHaptic(50);
-    const updates: any = {
-      isVerified: true,
-      hasEverBeenVerified: true,
-      verificationExpiry: Date.now() + (30 * 24 * 60 * 60 * 1000)
-    };
-
-    if (currency === 'DIAMOND') {
-      updates.diamondBalance = Math.max(0, (currentUser.diamondBalance || 0) - cost);
-    } else {
-      updates.starBalance = Math.max(0, (currentUser.starBalance || 0) - cost);
-    }
-
-    try {
-      await updateCurrentUser(updates);
-      toast({ title: "Signature Materialized", description: "Your purple badge is now active for 30 days." });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Vault Error", description: e.message });
-    }
+    const updates: any = { isVerified: true, hasEverBeenVerified: true, verificationExpiry: Date.now() + (30 * 24 * 60 * 60 * 1000) };
+    if (currency === 'DIAMOND') updates.diamondBalance = Math.max(0, (currentUser.diamondBalance || 0) - cost);
+    else updates.starBalance = Math.max(0, (currentUser.starBalance || 0) - cost);
+    try { await updateCurrentUser(updates); toast({ title: "Signature Materialized", description: "Your purple badge is now active for 30 days." }); } catch (e: any) { toast({ variant: "destructive", title: "Vault Error", description: e.message }); }
   }, [currentUser, updateCurrentUser, triggerHaptic, toast]);
 
   const processGiftTransaction = useCallback(async (cost: number, currency: 'GOLD' | 'DIAMOND') => {
     if (!currentUser.id) return;
     const updates: any = {};
-    if (currency === 'GOLD') {
-      updates.goldBalance = Math.max(0, (currentUser.goldBalance || 0) - cost);
-    } else {
-      updates.diamondBalance = Math.max(0, (currentUser.diamondBalance || 0) - cost);
-    }
-    try {
-      await updateCurrentUser(updates);
-    } catch (e) {}
+    if (currency === 'GOLD') updates.goldBalance = Math.max(0, (currentUser.goldBalance || 0) - cost);
+    else updates.diamondBalance = Math.max(0, (currentUser.diamondBalance || 0) - cost);
+    try { await updateCurrentUser(updates); } catch (e) {}
   }, [currentUser, updateCurrentUser]);
 
   const unlockPost = useCallback(async (postId: string, cost: number) => {
     if (!currentUser.id) return;
-    try {
-      await updateCurrentUser({ goldBalance: Math.max(0, (currentUser.goldBalance || 0) - cost) });
-      setUnlockedPostIdsState(prev => new Set(prev).add(postId));
-    } catch (e) {}
+    try { await updateCurrentUser({ goldBalance: Math.max(0, (currentUser.goldBalance || 0) - cost) }); setUnlockedPostIdsState(prev => new Set(prev).add(postId)); } catch (e) {}
   }, [currentUser, updateCurrentUser]);
 
   const subscribeToCreator = useCallback(async (username: string, cost: number) => {
     if (!currentUser.id) return;
-    try {
-      await updateCurrentUser({ diamondBalance: Math.max(0, (currentUser.diamondBalance || 0) - cost) });
-      setActiveSubscriptionsState(prev => new Set(prev).add(username));
-    } catch (e) {}
+    try { await updateCurrentUser({ diamondBalance: Math.max(0, (currentUser.diamondBalance || 0) - cost) }); setActiveSubscriptionsState(prev => new Set(prev).add(username)); } catch (e) {}
   }, [currentUser, updateCurrentUser]);
 
   const cancelSubscription = useCallback(async (username: string) => { setActiveSubscriptionsState(prev => { const next = new Set(prev); next.delete(username); return next; }); }, []);
@@ -1165,49 +1036,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const initiateCall = useCallback(async (contact: any, type: CallType) => {
     const channelName = `call_${currentUser.username}_${contact.username}_${Date.now()}`;
     const token = await generateAgoraToken(channelName, currentUser.id!);
-    
     try {
-      const doc = await databases.createDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, ID.unique(), {
-        callerId: currentUser.username,
-        callerName: currentUser.name,
-        callerAvatar: currentUser.avatar,
-        receiverId: contact.username,
-        type,
-        status: 'ringing',
-        channelName,
-        token,
-        startTime: Date.now()
-      });
-      
+      const doc = await databases.createDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, ID.unique(), { callerId: currentUser.username, callerName: currentUser.name, callerAvatar: currentUser.avatar, receiverId: contact.username, type, status: 'ringing', channelName, token, startTime: Date.now() });
       activeCallIdRef.current = doc.$id;
       setCallState({ type, status: 'outgoing', contact, channelName, token, startTime: Date.now(), callId: doc.$id });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Handshake Failed", description: "Node transmission aborted." });
-    }
+    } catch (e) { toast({ variant: "destructive", title: "Handshake Failed", description: "Node transmission aborted." }); }
   }, [currentUser, toast]);
 
-  const receiveCall = useCallback((contact: any, type: CallType, channelName: string, token: string, callId: string) => { 
-    activeCallIdRef.current = callId;
-    setCallState({ type, status: 'incoming', contact, channelName, token, callId }); 
-  }, []);
-
+  const receiveCall = useCallback((contact: any, type: CallType, channelName: string, token: string, callId: string) => { activeCallIdRef.current = callId; setCallState({ type, status: 'incoming', contact, channelName, token, callId }); }, []);
   const acceptCall = useCallback(async () => { 
     if (!activeCallIdRef.current) return;
-    try {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, activeCallIdRef.current, { status: 'active' });
-      setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() }));
-    } catch (e) {}
+    try { await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, activeCallIdRef.current, { status: 'active' }); setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() })); } catch (e) {}
   }, []);
 
   const endCall = useCallback(async (duration?: string) => { 
     if (activeCallIdRef.current) {
       try {
         await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, activeCallIdRef.current, { status: 'ended' });
-        // Temporal delay before deletion to ensure nodes sync
-        setTimeout(() => {
-          if (activeCallIdRef.current) databases.deleteDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, activeCallIdRef.current);
-          activeCallIdRef.current = null;
-        }, 2000);
+        setTimeout(() => { if (activeCallIdRef.current) databases.deleteDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, activeCallIdRef.current); activeCallIdRef.current = null; }, 2000);
       } catch (e) {}
     }
     setCallState({ type: 'video', status: 'idle', contact: null }); 
