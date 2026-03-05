@@ -251,7 +251,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     let finalMediaUrl = options?.mediaUrl || "";
     const type = options?.isWorkspace ? "workspace" : (options?.mediaType || (text.includes("http") ? "link" : "text"));
 
-    // Optimistic UI Handshake
     const optimisticId = `temp-${Date.now()}`;
     const optimistic: Message = {
       id: optimisticId,
@@ -269,7 +268,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     setMessages(prev => [...prev, optimistic]);
 
     try {
-      // 1. Vault Sync: If mediaUrl is a local node, materialize it in Appwrite Storage
       if (finalMediaUrl.startsWith('blob:')) {
         const response = await fetch(finalMediaUrl);
         const blob = await response.blob();
@@ -303,6 +301,11 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       toast({ variant: "destructive", title: "Sync Error", description: "Node transmission failed." });
       setMessages(prev => prev.filter(m => m.id !== optimisticId));
     }
+  };
+
+  const handleExternalLink = (url: string) => {
+    triggerHaptic(5);
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleStartCall = (type: 'video' | 'audio') => {
@@ -395,6 +398,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                   {...msg} 
                   isMe={msg.sender === "me"} 
                   status={settings.showReadReceipts ? msg.status : 'sent'}
+                  onExternalLink={handleExternalLink}
                   onDelete={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
                   onDownload={(id) => setMessages(prev => prev.map(m => m.id === id ? { ...m, isDownloaded: true } : m))}
                 />

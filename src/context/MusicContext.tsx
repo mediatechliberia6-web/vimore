@@ -236,35 +236,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || !currentTrack || !('mediaSession' in navigator)) return;
-
-    try {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: currentTrack.title,
-        artist: currentTrack.artist,
-        album: 'ViMore Sonic Node',
-        artwork: [
-          { src: currentTrack.cover, sizes: '96x96', type: 'image/jpeg' },
-          { src: currentTrack.cover, sizes: '128x128', type: 'image/jpeg' },
-          { src: currentTrack.cover, sizes: '192x192', type: 'image/jpeg' },
-          { src: currentTrack.cover, sizes: '256x256', type: 'image/jpeg' },
-          { src: currentTrack.cover, sizes: '384x384', type: 'image/jpeg' },
-          { src: currentTrack.cover, sizes: '512x512', type: 'image/jpeg' },
-        ]
-      });
-
-      navigator.mediaSession.setActionHandler('play', () => setIsPlayingState(true));
-      navigator.mediaSession.setActionHandler('pause', () => setIsPlayingState(false));
-      navigator.mediaSession.setActionHandler('previoustrack', () => prevTrack());
-      navigator.mediaSession.setActionHandler('nexttrack', () => nextTrack());
-    } catch (e) {
-      console.warn("Media Session handshake deferred.");
-    }
-
-    localStorage.setItem('vimore_last_track', JSON.stringify(currentTrack));
-  }, [currentTrack]);
-
   const refreshMusicVault = useCallback(async () => {
     try {
       const [songDocs, albumDocs, playlistDocs] = await Promise.all([
@@ -446,8 +417,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     if (downloadedSongIds.has(track.id)) return;
     triggerHaptic(10);
     if (track.audioUrl) {
-      await saveFileToDevice(track.audioUrl, `vimore_sonic_${track.id}.mp3`);
-      setDownloadedSongIdsState(prev => { const n = new Set(prev); n.add(track.id); return n; });
+      // Physical Archival Handshake: Save to device
+      const success = await saveFileToDevice(track.audioUrl, `${track.artist} - ${track.title}.mp3`);
+      if (success) {
+        setDownloadedSongIdsState(prev => { const n = new Set(prev); n.add(track.id); return n; });
+      }
     }
   }, [downloadedSongIds, triggerHaptic]);
 

@@ -13,6 +13,7 @@ import { CaptureStudio } from "@/components/reels/capture-studio";
 import { AdPortal } from "@/components/ad/ad-portal";
 import { PostPortal } from "@/components/post/post-portal";
 import { ImageViewerPortal } from "@/components/layout/image-viewer-portal";
+import { VideoViewerPortal } from "@/components/layout/video-viewer-portal";
 import { SearchPortal } from "@/components/layout/search-portal";
 import { FontScaleWrapper } from "@/components/layout/font-scale-wrapper";
 import { CommentHub } from "@/components/post/comment-hub";
@@ -81,6 +82,7 @@ export default function RootLayout({
                       <AdPortal />
                       <PostPortal />
                       <ImageViewerPortal />
+                      <VideoViewerPortal />
                       <SearchPortal />
                       <CommentHub />
                       <GiftHub />

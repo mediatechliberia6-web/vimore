@@ -30,6 +30,7 @@ import {
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMusic } from "@/context/MusicContext";
+import { usePosts } from "@/context/PostContext";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -97,6 +98,7 @@ export function ChatBubble({
   id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, callData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete 
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
+  const { setSelectedImageUrl, setSelectedVideoUrl } = usePosts();
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -158,7 +160,13 @@ export function ChatBubble({
   };
 
   const handleMediaClick = () => {
+    if (!mediaUrl) return;
     triggerHaptic(10);
+    if (type === 'photo') {
+      setSelectedImageUrl(mediaUrl);
+    } else if (type === 'video') {
+      setSelectedVideoUrl(mediaUrl);
+    }
     onMediaOpen?.(id);
   };
 
@@ -257,7 +265,6 @@ export function ChatBubble({
     });
   };
 
-  // Re-calibrated Preview Logic: Standard media is now granted auto-reveal.
   const showMediaPlaceholder = isViewOnce && !isViewed && !isDownloaded && !isMe;
 
   return (
@@ -460,7 +467,7 @@ export function ChatBubble({
                 onClick={() => onExternalLink?.(linkData.url)}
               >
                 <div className="relative aspect-video w-full">
-                  <Image src={linkData.image} alt="Link Preview" fill className="object-cover transition-transform group-hover/link:scale-105" />
+                  <Image src={linkData.image} alt="Link Preview" fill className="object-cover transition-transform group/link:scale-105" />
                 </div>
                 <div className="p-3 space-y-1">
                   <h4 className="font-bold text-xs uppercase tracking-widest truncate">{linkData.title}</h4>
