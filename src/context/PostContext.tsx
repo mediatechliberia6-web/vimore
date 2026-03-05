@@ -1,3 +1,4 @@
+
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -401,7 +402,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const fetchComments = useCallback(async (postId: string) => {
     try {
-      // Remove server-side sorting to avoid Index errors in prototype phase
       const response = await databases.listDocuments(
         APPWRITE_DATABASE_ID,
         COMMENTS_COLLECTION_ID,
@@ -419,7 +419,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
         timestamp: doc.timestamp || 0
       }));
 
-      // Perform Local Linguistic Sort (Chronological)
       const sortedComments = mappedComments.sort((a, b) => a.timestamp - b.timestamp);
 
       const topLevel = sortedComments.filter(c => !c.parentId);
@@ -427,7 +426,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
         parent.replies = sortedComments.filter(c => c.parentId === parent.id);
       });
 
-      // Update global posts state to trigger CommentHub materialization
       setPostsState(prev => prev.map(p => p.id === postId ? { ...p, commentNodes: topLevel } : p));
     } catch (e) {
       console.warn("Linguistic sync for comments failed:", e);
@@ -661,76 +659,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       } catch (e) {}
     }
   }, [checkSession]);
-
-  useEffect(() => {
-    if (!currentUser.id) return;
-
-    const followUnsubscribe = client.subscribe(
-      `databases.${APPWRITE_DATABASE_ID}.collections.${FOLLOWS_COLLECTION_ID}.documents`,
-      (response) => {
-        const payload = response.payload as any;
-        if (payload.followingUsername === currentUser.username || payload.followerId === currentUser.id) {
-          refreshSocialGraph(currentUser.id!, currentUser.username);
-          refreshProfiles();
-          triggerHaptic(10);
-        }
-      }
-    );
-
-    const postUnsubscribe = client.subscribe(
-      `databases.${APPWRITE_DATABASE_ID}.collections.${POSTS_COLLECTION_ID}.documents`,
-      () => {
-        refreshFeed();
-      }
-    );
-
-    const commentUnsubscribe = client.subscribe(
-      `databases.${APPWRITE_DATABASE_ID}.collections.${COMMENTS_COLLECTION_ID}.documents`,
-      (response) => {
-        const payload = response.payload as any;
-        if (activeCommentPostId === payload.postId) {
-          fetchComments(payload.postId);
-        }
-        refreshFeed();
-      }
-    );
-
-    const messageUnsubscribe = client.subscribe(
-      `databases.${APPWRITE_DATABASE_ID}.collections.${MESSAGES_COLLECTION_ID}.documents`,
-      (response) => {
-        const payload = response.payload as any;
-        const isDirect = payload.conversationId.includes(currentUser.username);
-        const isCluster = clusters.some(c => c.id === payload.conversationId);
-        if (isDirect) refreshProfiles();
-        else if (isCluster) refreshClusters();
-      }
-    );
-
-    const callUnsubscribe = client.subscribe(
-      `databases.${APPWRITE_DATABASE_ID}.collections.${CALLS_COLLECTION_ID}.documents`,
-      (response) => {
-        const payload = response.payload as any;
-        if (payload.receiverId === currentUser.username) {
-          if (response.events.includes('databases.*.collections.*.documents.*.create')) {
-            receiveCall({ name: payload.callerName, username: payload.callerId, avatar: payload.callerAvatar }, payload.type, payload.channelName, payload.token, payload.$id);
-          } else if (response.events.includes('databases.*.collections.*.documents.*.update')) {
-            if (payload.status === 'active') setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() }));
-            else if (payload.status === 'ended') setCallState({ type: 'video', status: 'idle', contact: null });
-          } else if (response.events.includes('databases.*.collections.*.documents.*.delete')) {
-            setCallState({ type: 'video', status: 'idle', contact: null });
-          }
-        }
-        if (payload.callerId === currentUser.username) {
-          if (payload.status === 'active' && callState.status === 'outgoing') setCallState(prev => ({ ...prev, status: 'active', startTime: Date.now() }));
-          else if (payload.status === 'ended') setCallState({ type: 'video', status: 'idle', contact: null });
-        }
-      }
-    );
-
-    return () => {
-      followUnsubscribe(); postUnsubscribe(); commentUnsubscribe(); messageUnsubscribe(); callUnsubscribe();
-    };
-  }, [currentUser.id, currentUser.username, clusters, activeCommentPostId, callState.status, refreshSocialGraph, refreshProfiles, refreshClusters, refreshFeed, fetchComments, triggerHaptic]);
 
   const login = useCallback(async (email: string, password: string) => { 
     try {
@@ -993,7 +921,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const createPaymentRequest = useCallback(async (screenshot: string) => {}, []);
   const approvePaymentRequest = useCallback(async (id: string) => {}, []);
   const rejectPaymentRequest = useCallback(async (id: string) => {}, []);
-  const recordWithdrawal = useCallback(async (node: any) => {}, []);
+  const recordWithdrawal = useCallback(async (node: any) => {
+    try {
+      await databases.createDocument(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, ID.unique(), {
+        ...node,
+        userId: currentUser.id
+      });
+    } catch (e: any) { console.error("Withdrawal record failed:", e.message); }
+  }, [currentUser.id]);
   const processWithdrawal = useCallback(async (id: string, status: 'APPROVED' | 'REJECTED') => {}, []);
   const triggerReferralPulse = useCallback((referralCode?: string) => {}, []);
   

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -57,7 +58,6 @@ import {
   ChartTooltipContent 
 } from "@/components/ui/chart";
 import { useToast } from "@/hooks/use-toast";
-import { aiGenerateVerificationCode } from "@/app/actions/ai";
 import { BiometricGate } from "@/components/layout/biometric-gate";
 import { BannerAdNode } from "@/components/ad/banner-ad-node";
 
@@ -86,7 +86,7 @@ const QUALIFICATIONS = [
 ];
 
 export default function EarningsPage() {
-  const { currentUser, triggerHaptic, withdrawalHistory, recordWithdrawal, processGiftTransaction, settings } = usePosts();
+  const { currentUser, triggerHaptic, withdrawalHistory, recordWithdrawal, processGiftTransaction, settings, resendVerification } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
   const { t } = useTranslation();
@@ -95,7 +95,7 @@ export default function EarningsPage() {
   const [isPortalOpen, setIsPortalOpen] = useState(false);
   const isPlayerActive = currentTrack && !isExpanded;
 
-  // Real-time conversion logic using DYNAMIC rates from context
+  // Real-time conversion logic
   const estimates = useMemo(() => {
     const gold = currentUser.goldBalance || 0;
     const diamond = currentUser.diamondBalance || 0;
@@ -113,21 +113,15 @@ export default function EarningsPage() {
   ], [settings]);
 
   // PORTAL STATE
-  const [step, setStep] = useState<"form" | "verify">("form");
+  const [step, setStep] = useState<"form" | "authorize">("form");
   const [payoutMethod, setPayoutMethod] = useState<"ORANGE" | "MTN" | null>(null);
   const [accountName, setAccountName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [withdrawCurrency, setWithdrawCurrency] = useState<"GOLD" | "DIAMOND">("GOLD");
   const [amount, setAmount] = useState("");
   const [payoutCurrency, setPayoutCurrency] = useState<"USD" | "LD">("USD");
-  
-  const [verificationCode, setVerificationCode] = useState("");
-  const [generatedCode, setGeneratedCode] = useState("");
-  const [timeLeft, setTimeLeft] = useState(120);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
 
-  // LOGIC CALCULATIONS
   const feeMultiplier = currentUser.isVerified ? 1 : 0.85;
   const rawAmount = parseFloat(amount) || 0;
   
@@ -158,37 +152,14 @@ export default function EarningsPage() {
   const canProceedToVerify = payoutMethod && accountName && accountNumber && amount && hasEnoughBalance;
 
   // HANDLERS
-  const handleInitiateVerify = async () => {
+  const handleInitiateHandshake = async () => {
     if (!canProceedToVerify) return;
-    triggerHaptic(20);
-    setIsGeneratingCode(true);
+    setIsSubmitting(true);
+    triggerHaptic(50);
     
     try {
-      const { code } = await aiGenerateVerificationCode({ packageName: "WITHDRAWAL_AUTH" });
-      setGeneratedCode(code);
-      setStep("verify");
-      setTimeLeft(120);
-      toast({ title: "Security Node Active", description: "Verification pulse sent to your registered email." });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Sync Error", description: "Could not materialize security code." });
-    } finally {
-      setIsGeneratingCode(false);
-    }
-  };
-
-  const handleSubmitFinal = () => {
-    if (verificationCode.toUpperCase() !== generatedCode.toUpperCase()) {
-      triggerHaptic(50);
-      toast({ variant: "destructive", title: "Handshake Failed", description: "Invalid security code node." });
-      return;
-    }
-
-    setIsSubmitting(true);
-    triggerHaptic(100);
-
-    setTimeout(() => {
-      // FINANCIAL DEB PULSE
-      processGiftTransaction(rawAmount, withdrawCurrency);
+      // 1. Lock Balances immediately
+      await processGiftTransaction(rawAmount, withdrawCurrency);
 
       const historyNode = {
         id: `TX-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
@@ -198,30 +169,36 @@ export default function EarningsPage() {
         currency: withdrawCurrency,
         payoutAmount: calculation.finalPayout,
         payoutCurrency: payoutCurrency,
-        status: 'PENDING' as const,
+        status: 'AWAITING_EMAIL_SIGNATURE' as const,
         timestamp: Date.now(),
         accountName,
         accountNumber
       };
 
-      recordWithdrawal(historyNode);
+      // 2. Archive record in vault
+      await recordWithdrawal(historyNode);
 
+      // 3. Emit Official Appwrite Identity Link
+      await resendVerification();
+
+      setStep("authorize");
+      
       addSignal({
         type: 'SYSTEM',
-        title: 'Review Node Active',
-        content: `Your withdrawal for **${payoutCurrency} ${calculation.finalPayout.toFixed(2)}** is being audited by the Groq AI Financial Engine.`,
-        image: "https://picsum.photos/seed/money/100/100"
+        title: 'Authorization Required',
+        content: `Please check your email to sign the withdrawal request for **${payoutCurrency} ${calculation.finalPayout.toFixed(2)}**.`,
+        image: "https://picsum.photos/seed/secure/100/100"
       });
 
       toast({
-        title: "Audit Trail Synchronized",
-        description: "Your withdrawal node is now in the review cluster."
+        title: "Authorization Link Emitted",
+        description: "Node created. Check your email to finalize the handshake."
       });
-
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
+    } finally {
       setIsSubmitting(false);
-      setIsPortalOpen(false);
-      resetPortal();
-    }, 3000);
+    }
   };
 
   const resetPortal = () => {
@@ -230,26 +207,11 @@ export default function EarningsPage() {
     setAccountName("");
     setAccountNumber("");
     setAmount("");
-    setVerificationCode("");
-    setGeneratedCode("");
   };
-
-  // TIMER LOGIC
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (step === 'verify' && timeLeft > 0) {
-      interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
-    } else if (timeLeft === 0 && step === 'verify') {
-      setStep("form");
-      toast({ variant: "destructive", title: "Temporal Expiry", description: "Security code has expired. Please re-initiate." });
-    }
-    return () => clearInterval(interval);
-  }, [step, timeLeft]);
 
   return (
     <BiometricGate title="Earnings Portal">
       <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300 relative overflow-x-hidden">
-        {/* Background Ambience */}
         <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
           <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/10 blur-[150px] rounded-full animate-pulse" />
           <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/10 blur-[120px] rounded-full animate-pulse delay-700" />
@@ -281,7 +243,6 @@ export default function EarningsPage() {
           isPlayerActive ? "pt-[80px]" : "pt-4"
         )}>
           
-          {/* 1. Hero Balance Card */}
           <section className="relative group">
             <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-accent/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
             <Card className="relative bg-white dark:bg-card border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
@@ -331,10 +292,8 @@ export default function EarningsPage() {
             </Card>
           </section>
 
-          {/* Banner Ad Protocol Integration */}
           <BannerAdNode />
 
-          {/* 2. Earnings Analytics & Exchange Rates */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="bg-white dark:bg-card border-border shadow-xl rounded-[2rem]">
               <CardHeader className="pb-0">
@@ -398,15 +357,11 @@ export default function EarningsPage() {
                       </div>
                     </div>
                   ))}
-                  <p className="text-[9px] text-muted-foreground text-center font-medium uppercase tracking-tight italic mt-2">
-                    * Rates are updated live by the ViMore Central Economy Auditor.
-                  </p>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* 3. Withdrawal History Vault */}
           <section className="space-y-4">
             <div className="flex items-center justify-between px-2">
               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">{t('earn_audit_trail')} ({t('earn_recent_history')})</h3>
@@ -418,9 +373,9 @@ export default function EarningsPage() {
                   <div className="flex items-center gap-4">
                     <div className={cn(
                       "h-12 w-12 rounded-2xl flex items-center justify-center",
-                      node.status === 'PENDING' ? "bg-amber-500/10 text-amber-500" : "bg-green-500/10 text-green-500"
+                      node.status === 'PENDING' || node.status === 'AWAITING_EMAIL_SIGNATURE' ? "bg-amber-500/10 text-amber-500" : "bg-green-500/10 text-green-500"
                     )}>
-                      {node.status === 'PENDING' ? <CircleDashed className="h-6 w-6 animate-spin" /> : <CheckCircle2 className="h-6 w-6" />}
+                      {node.status === 'PENDING' || node.status === 'AWAITING_EMAIL_SIGNATURE' ? <CircleDashed className="h-6 w-6 animate-spin" /> : <CheckCircle2 className="h-6 w-6" />}
                     </div>
                     <div className="flex flex-col">
                       <p className="text-sm font-bold">{node.payoutCurrency} {node.payoutAmount.toFixed(2)}</p>
@@ -434,9 +389,9 @@ export default function EarningsPage() {
                   <div className="flex flex-col items-end">
                     <Badge className={cn(
                       "font-black text-[8px] uppercase tracking-tighter border-none h-5 px-3",
-                      node.status === 'PENDING' ? "bg-amber-500/10 text-amber-500" : "bg-green-500/10 text-green-500"
+                      node.status === 'PENDING' || node.status === 'AWAITING_EMAIL_SIGNATURE' ? "bg-amber-500/10 text-amber-500" : "bg-green-500/10 text-green-500"
                     )}>
-                      {node.status}
+                      {node.status === 'AWAITING_EMAIL_SIGNATURE' ? 'AWAITING AUTH' : node.status}
                     </Badge>
                     <span className="text-[9px] text-muted-foreground uppercase mt-1">{new Date(node.timestamp).toLocaleDateString()}</span>
                   </div>
@@ -449,63 +404,8 @@ export default function EarningsPage() {
               )}
             </div>
           </section>
-
-          {/* 4. Monetization Requirements Card */}
-          <Card className="bg-[#0A0A0A] border-white/5 shadow-2xl rounded-[2.5rem] overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-100 transition-opacity"><TrendingUp className="h-32 w-32 text-primary" /></div>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-primary/20 flex items-center justify-center text-primary"><Zap className="h-6 w-6 animate-pulse" /></div>
-                <div>
-                  <CardTitle className="text-xl font-black italic uppercase tracking-tighter text-white">{t('earn_requirements')}</CardTitle>
-                  <CardDescription className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t('earn_protocol_eligibility')}</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {QUALIFICATIONS.map((q) => (
-                  <div key={q.title} className="p-6 rounded-3xl bg-white/5 border border-white/10 space-y-4 hover:border-primary/30 transition-all group/q">
-                    <div className="flex items-center justify-between">
-                      <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center transition-transform group-hover/q:scale-110", q.bg, q.color)}>
-                        <q.icon className="h-6 w-6" />
-                      </div>
-                      <Badge variant="outline" className="border-white/10 text-white/60 text-[8px] font-black uppercase">{q.requirement}</Badge>
-                    </div>
-                    <div className="space-y-1">
-                      <h4 className="font-black italic uppercase tracking-tight text-white">{q.title}</h4>
-                      <p className="text-xs text-white/40 font-medium leading-relaxed">{q.benefit}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-primary/10 border border-primary/20 rounded-3xl p-6 flex gap-4">
-                <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary shrink-0"><ShieldCheck className="h-5 w-5" /></div>
-                <div className="space-y-1">
-                  <h5 className="text-[10px] font-black uppercase text-primary tracking-[0.2em]">The 70/30 Handshake</h5>
-                  <p className="text-[11px] text-white/60 leading-relaxed font-medium uppercase tracking-tight">
-                    ViMore operates on a high-velocity creator-first model. You receive exactly **70%** of all monetized pulses (Gold/Diamonds). The remaining **30%** maintains our high-fidelity server clusters and secure node infrastructure.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* System Footer */}
-          <footer className="pt-10 pb-20 flex flex-col items-center gap-6 opacity-40">
-            <div className="flex items-center gap-2">
-              <Globe className="h-4 w-4 text-primary" />
-              <span className="text-[10px] font-black uppercase tracking-[0.4em]">ViMore Economy v1.5.0-HighVelocity</span>
-            </div>
-            <p className="text-[9px] text-center max-w-xs font-bold uppercase tracking-widest">
-              All transactions are audited by the Groq AI Financial Engine to ensure peak system integrity.
-            </p>
-          </footer>
-
         </main>
 
-        {/* WITHDRAWAL PORTAL */}
         {isPortalOpen && (
           <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-500 overflow-hidden">
             <header className="h-20 px-6 flex items-center justify-between shrink-0 bg-black/40 border-b border-white/5">
@@ -603,9 +503,6 @@ export default function EarningsPage() {
                             {withdrawCurrency === 'GOLD' ? <Coins className="h-6 w-6 text-amber-500" /> : <Gem className="h-6 w-6 text-cyan-500" />}
                           </div>
                         </div>
-                        {!hasEnoughBalance && rawAmount > 0 && (
-                          <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest text-center animate-pulse">Insufficient Vault Energy</p>
-                        )}
                       </div>
 
                       <div className="h-px bg-white/5" />
@@ -614,57 +511,29 @@ export default function EarningsPage() {
                         <div className="flex items-center justify-between">
                           <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Payout Asset</Label>
                           <div className="flex gap-2">
-                            <button 
-                              onClick={() => setPayoutCurrency("USD")}
-                              className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", payoutCurrency === 'USD' ? "bg-white text-black" : "bg-white/5 text-white/40")}
-                            >USD ($)</button>
-                            <button 
-                              onClick={() => setPayoutCurrency("LD")}
-                              className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", payoutCurrency === 'LD' ? "bg-white text-black" : "bg-white/5 text-white/40")}
-                            >LD (L$)</button>
+                            <button onClick={() => setPayoutCurrency("USD")} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", payoutCurrency === 'USD' ? "bg-white text-black" : "bg-white/5 text-white/40")}>USD ($)</button>
+                            <button onClick={() => setPayoutCurrency("LD")} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", payoutCurrency === 'LD' ? "bg-white text-black" : "bg-white/5 text-white/40")}>LD (L$)</button>
                           </div>
                         </div>
 
                         <div className="bg-black/40 rounded-3xl p-6 space-y-4 border border-white/5">
-                          <div className="flex items-center justify-between text-[10px] font-black uppercase text-white/40 tracking-widest">
-                            <span>Raw Value</span>
-                            <span className="text-white">{payoutCurrency === 'USD' ? '$' : 'L$'} {calculation.payoutValue.toFixed(2)}</span>
-                          </div>
-                          <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
-                            <span className={currentUser.isVerified ? "text-green-500" : "text-amber-500"}>
-                              {currentUser.isVerified ? "Verified Discount" : "Network Maintenance Fee (15%)"}
-                            </span>
-                            <span className={currentUser.isVerified ? "text-green-500" : "text-red-500"}>
-                              {currentUser.isVerified ? "FREE" : `- ${payoutCurrency === 'USD' ? '$' : 'L$'} ${calculation.feeAmount.toFixed(2)}`}
-                            </span>
-                          </div>
-                          <div className="h-px bg-white/5" />
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-black uppercase text-white tracking-[0.2em]">Materialized Amount</span>
+                            <span className="text-xs font-black uppercase text-white tracking-[0.2em]">Final Payout</span>
                             <span className="text-2xl font-black italic text-primary">{payoutCurrency === 'USD' ? '$' : 'L$'} {calculation.finalPayout.toFixed(2)}</span>
                           </div>
                         </div>
                       </div>
                     </section>
 
-                    {!currentUser.isVerified && (
-                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex gap-4">
-                        <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
-                        <p className="text-[9px] font-black text-amber-500 uppercase leading-relaxed tracking-tighter">
-                          MATERIALIZE YOUR VERIFICATION SIGNATURE TO PURGE ALL WITHDRAWAL FEES. UNVERIFIED NODES INCUR A 15% MAINTENANCE PULSE.
-                        </p>
-                      </div>
-                    )}
-
                     <Button 
                       className={cn(
                         "w-full h-20 rounded-[2rem] font-black italic uppercase tracking-[0.3em] text-xl shadow-2xl transition-all active:scale-95",
-                        canProceedToVerify && !isGeneratingCode ? "bg-primary text-white shadow-primary/20" : "bg-white/5 text-white/20 cursor-not-allowed"
+                        canProceedToVerify && !isSubmitting ? "bg-primary text-white shadow-primary/20" : "bg-white/5 text-white/20 cursor-not-allowed"
                       )}
-                      onClick={handleInitiateVerify}
-                      disabled={!canProceedToVerify || isGeneratingCode}
+                      onClick={handleInitiateHandshake}
+                      disabled={!canProceedToVerify || isSubmitting}
                     >
-                      {isGeneratingCode ? <><Loader2 className="mr-3 h-6 w-6 animate-spin" /> SYNCING AI...</> : "Submit for Review"}
+                      {isSubmitting ? <><Loader2 className="mr-3 h-6 w-6 animate-spin" /> SYNCING...</> : "Submit for Review"}
                     </Button>
                   </div>
                 ) : (
@@ -676,57 +545,26 @@ export default function EarningsPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <h3 className="text-3xl font-black italic uppercase tracking-tighter text-white">Identity Check</h3>
+                    <div className="space-y-4">
+                      <h3 className="text-3xl font-black italic uppercase tracking-tighter text-white">Authorization Required</h3>
                       <p className="text-sm text-white/40 font-medium uppercase tracking-widest max-w-xs mx-auto">
-                        A high-velocity verification pulse has been sent to your registered email node.
+                        An identity authorization link has been emitted to your registered email node.
                       </p>
                     </div>
 
-                    <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-10 space-y-8">
-                      <div className="space-y-4">
-                        <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Spatial Verification Code</Label>
-                        <Input 
-                          placeholder="XXXXXX" 
-                          className="h-20 bg-black/40 border-primary/20 rounded-2xl text-center text-4xl font-black tracking-[0.5em] text-white focus-visible:ring-primary/40 uppercase"
-                          value={verificationCode}
-                          onChange={(e) => setVerificationCode(e.target.value.slice(0, 6))}
-                          maxLength={6}
-                          autoFocus
-                        />
+                    <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-10 space-y-6">
+                      <div className="flex items-center justify-center gap-3 text-primary animate-pulse">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Awaiting Signature Pulse...</span>
                       </div>
-
-                      <div className="flex flex-col items-center gap-4 pt-4 border-t border-white/5">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-primary animate-pulse" />
-                          <span className={cn("text-lg font-black tabular-nums tracking-widest", timeLeft < 30 ? "text-red-500" : "text-white")}>
-                            {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-                          </span>
-                        </div>
-                        <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Temporal Validity</p>
-                      </div>
+                      <p className="text-xs text-white/60 leading-relaxed font-medium uppercase tracking-tight">
+                        Click the secure link in your email to finalize this financial handshake. This portal will update automatically upon sync.
+                      </p>
                     </div>
 
-                    <div className="space-y-4">
-                      <Button 
-                        className="w-full h-16 rounded-[1.75rem] bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl transition-all active:scale-95"
-                        onClick={handleSubmitFinal}
-                        disabled={verificationCode.length < 6 || isSubmitting}
-                      >
-                        {isSubmitting ? <><Loader2 className="mr-3 h-6 w-6 animate-spin" /> AUDITING...</> : "Finalize Handshake"}
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        className="w-full text-white/40 font-black uppercase text-[10px] tracking-widest"
-                        onClick={() => { triggerHaptic(10); setStep('form'); }}
-                      >
-                        Resend Protocol
-                      </Button>
-                    </div>
-
-                    <div className="flex items-center justify-center gap-2 text-white/20 font-bold text-[9px] uppercase tracking-widest pt-10">
-                      <ShieldCheck className="h-3 w-3" /> Groq AI Financial Auditor v1.5
-                    </div>
+                    <Button variant="ghost" className="text-white/40 font-black uppercase text-[10px] tracking-widest" onClick={() => setIsPortalOpen(false)}>
+                      Back to Hub
+                    </Button>
                   </div>
                 )}
 

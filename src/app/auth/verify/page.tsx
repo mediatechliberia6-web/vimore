@@ -10,17 +10,20 @@ import {
   Zap, 
   ShieldCheck, 
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Coins,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { account } from "@/lib/appwrite";
+import client, { account, databases, APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, Query } from "@/lib/appwrite";
 import { usePosts } from "@/context/PostContext";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 
 /**
  * @fileOverview ViMore Verification Handshake Node
- * Handles incoming spatial verification pulses from the Appwrite Email Protocol.
+ * Handles incoming spatial verification pulses.
+ * Dual-Purpose: Identity Confirmation + Withdrawal Authorization.
  */
 
 function VerifyContent() {
@@ -33,6 +36,7 @@ function VerifyContent() {
   const secret = searchParams.get("secret");
 
   const [status, setStatus] = useState<"verifying" | "success" | "error">("verifying");
+  const [withdrawalAuthorized, setWithdrawalAuthorized] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
@@ -44,21 +48,48 @@ function VerifyContent() {
       }
 
       try {
-        // Appwrite Protocol: Update verification status
+        // 1. Official Appwrite Identity Handshake
         await account.updateVerification(userId, secret);
         
+        // 2. Withdrawal Authorization Pulse
+        // Check for any withdrawals for this userId awaiting email signature
+        try {
+          const pendingNodes = await databases.listDocuments(
+            APPWRITE_DATABASE_ID,
+            WITHDRAWALS_COLLECTION_ID,
+            [
+              Query.equal('userId', userId),
+              Query.equal('status', 'AWAITING_EMAIL_SIGNATURE')
+            ]
+          );
+
+          if (pendingNodes.total > 0) {
+            // Materialize the signature for each pending node
+            for (const doc of pendingNodes.documents) {
+              await databases.updateDocument(
+                APPWRITE_DATABASE_ID,
+                WITHDRAWALS_COLLECTION_ID,
+                doc.$id,
+                { status: 'PENDING' }
+              );
+            }
+            setWithdrawalAuthorized(true);
+            toast({ title: "Withdrawal Authorized", description: "Your financial handshake has been signed." });
+          }
+        } catch (e) {
+          console.warn("Withdrawal search node silent.");
+        }
+
         setStatus("success");
         triggerHaptic(100);
-        toast({ 
-          title: "Identity Synchronized", 
-          description: "Your email node has been successfully verified." 
-        });
         
-        // Final Handshake: Trigger global session refresh to update isEmailVerified state
+        // 3. Final Handshake: Refresh global state
         await checkSession();
         
-        // Automatic Redirection to the Network Core
-        setTimeout(() => router.push("/"), 3000);
+        // 4. Redirect Node
+        if (!withdrawalAuthorized) {
+          setTimeout(() => router.push("/"), 3000);
+        }
       } catch (error: any) {
         console.error("Verification handshake failed:", error);
         setStatus("error");
@@ -67,11 +98,10 @@ function VerifyContent() {
     };
 
     performHandshake();
-  }, [userId, secret, router, toast, triggerHaptic, checkSession]);
+  }, [userId, secret, router, toast, triggerHaptic, checkSession, withdrawalAuthorized]);
 
   return (
     <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center">
-      {/* Background Ambience */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[120px] rounded-full animate-pulse delay-700" />
@@ -109,15 +139,27 @@ function VerifyContent() {
               <div className="h-20 w-20 bg-green-500 rounded-full flex items-center justify-center text-white mx-auto shadow-2xl shadow-green-500/20">
                 <CheckCircle2 className="h-12 w-12" />
               </div>
+              
               <div className="space-y-2">
                 <h2 className="text-2xl font-black italic uppercase text-white">Sync Confirmed</h2>
-                <p className="text-sm text-white/40 font-medium uppercase tracking-widest leading-relaxed">
-                  Your identity node is now fully synchronized. Materializing feed in 3s...
-                </p>
+                {withdrawalAuthorized ? (
+                  <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-center gap-2 text-green-500">
+                      <TrendingUp className="h-4 w-4" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Withdrawal Authorized</span>
+                    </div>
+                    <p className="text-xs text-white/60 font-medium uppercase tracking-tighter">Your financial node has been signed and transmitted to the review cluster.</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-white/40 font-medium uppercase tracking-widest leading-relaxed">
+                    Your identity node is now fully synchronized.
+                  </p>
+                )}
               </div>
-              <Link href="/">
+
+              <Link href={withdrawalAuthorized ? "/earnings" : "/"}>
                 <Button className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-widest mt-4 shadow-xl shadow-primary/20">
-                  Enter Network Now <ArrowRight className="ml-2 h-4 w-4" />
+                  {withdrawalAuthorized ? "Back to Vault" : "Enter Network Now"} <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             </div>
