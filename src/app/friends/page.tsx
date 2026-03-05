@@ -20,18 +20,13 @@ import {
   Search, 
   MessageCircle, 
   UserCheck, 
-  Sparkles,
-  Zap,
-  Calendar,
-  Layers,
-  Music2,
-  Filter,
-  Play,
-  Bookmark,
-  Volume2,
-  UserMinus,
-  X,
-  Heart
+  Zap, 
+  Play, 
+  Bookmark, 
+  Volume2, 
+  UserMinus, 
+  Heart,
+  ArrowRight
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -45,15 +40,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type HubTab = "all" | "followers" | "following" | "suggestions";
-
-const FILTER_CHIPS = [
-  { id: "all", label: "All Categories" },
-  { id: "Designer", label: "Designers" },
-  { id: "Developer", label: "Developers" },
-  { id: "Creator", label: "Creators" },
-  { id: "Photographer", label: "Photographers" },
-];
+type HubTab = "followers" | "following";
 
 function FriendsPageContent() {
   const { connections = [], isFollowing, toggleFollowUser, currentUser } = usePosts();
@@ -61,8 +48,7 @@ function FriendsPageContent() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   
-  const [activeTab, setActiveTab] = useState<HubTab>("all");
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeTab, setActiveTab] = useState<HubTab>("followers");
   const [searchQuery, setSearchQuery] = useState("");
   const [playingPreview, setPlayingPreview] = useState<string | null>(null);
 
@@ -73,7 +59,7 @@ function FriendsPageContent() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as HubTab;
-    if (tabParam && ["all", "followers", "following", "suggestions"].includes(tabParam)) {
+    if (tabParam && ["followers", "following"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -91,41 +77,28 @@ function FriendsPageContent() {
     if (!connections) return [];
     let list = connections.filter(c => c.username !== currentUser.username);
 
-    if (activeTab === "all") {
-      // Mutual Handshake: Friends
-      list = list.filter(c => c.followsYou && isFollowing(c.username));
-    } else if (activeTab === "followers") {
-      // Incoming Pulse: They follow you, you don't follow back
-      list = list.filter(c => c.followsYou && !isFollowing(c.username));
+    if (activeTab === "followers") {
+      // Inbound Pulse: Users following the current node
+      list = list.filter(c => c.followsYou);
     } else if (activeTab === "following") {
-      // Outgoing Pulse: You follow them, they don't follow back
-      list = list.filter(c => !c.followsYou && isFollowing(c.username));
-    } else if (activeTab === "suggestions") {
-      // No Pulse: Strangers
-      list = list.filter(c => !c.followsYou && !isFollowing(c.username));
-    }
-
-    if (activeCategory !== "all") {
-      list = list.filter(u => (u.category || "").includes(activeCategory));
+      // Outbound Pulse: Users the current node is following
+      list = list.filter(c => isFollowing(c.username));
     }
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       list = list.filter(u => 
         (u.name || "").toLowerCase().includes(q) || 
-        (u.username || "").toLowerCase().includes(q) ||
-        (u.category || "").toLowerCase().includes(q)
+        (u.username || "").toLowerCase().includes(q)
       );
     }
 
     return list;
-  }, [activeTab, activeCategory, connections, isFollowing, searchQuery, currentUser.username]);
+  }, [activeTab, connections, isFollowing, searchQuery, currentUser.username]);
 
   const tabs: { id: HubTab; label: string; icon: any }[] = [
-    { id: "all", label: "Friends", icon: Heart },
     { id: "followers", label: "Followers", icon: UserPlus },
     { id: "following", label: "Following", icon: UserCheck },
-    { id: "suggestions", label: "Discover", icon: Sparkles },
   ];
 
   const handlePreviewSonic = (username: string, name: string) => {
@@ -175,14 +148,6 @@ function FriendsPageContent() {
     }
   };
 
-  const handleVaultUser = (username: string) => {
-    triggerHaptic(5);
-    toast({
-      title: "Noted",
-      description: `@${username} noted in your workspace collection.`
-    });
-  };
-
   return (
     <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#050505] text-foreground flex flex-col transition-colors duration-500 overflow-x-hidden">
       <div className="fixed top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/10 blur-[120px] rounded-full pointer-events-none animate-pulse" />
@@ -207,19 +172,21 @@ function FriendsPageContent() {
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
               <div className="space-y-1">
-                <h1 className="text-4xl font-black italic uppercase tracking-tighter flex items-center gap-3 font-headline">
-                  Community Hub
+                <h1 className="text-4xl font-black italic uppercase tracking-tighter flex items-center gap-3 font-headline text-primary">
+                  COMMUNITY
                   <div className="bg-primary/20 p-2 rounded-xl shadow-lg shadow-primary/10">
-                    <Zap className="h-6 w-6 text-primary fill-primary" />
+                    <Users className="h-6 w-6 text-primary fill-primary" />
                   </div>
                 </h1>
-                <p className="text-muted-foreground text-sm font-medium">Managing {connections.length} specialized nodes in your network</p>
+                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">
+                  {filteredUsers.length} specialized nodes in current view
+                </p>
               </div>
 
               <div className="relative group w-full sm:max-w-xs">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input 
-                  placeholder="Query your network..." 
+                  placeholder="Query connections..." 
                   className="pl-11 h-12 bg-white/40 dark:bg-white/5 backdrop-blur-md border-primary/10 rounded-2xl focus-visible:ring-primary/30 transition-all placeholder:text-muted-foreground/40"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -227,7 +194,7 @@ function FriendsPageContent() {
               </div>
             </div>
 
-            <div className="flex p-1.5 bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-[2rem] overflow-x-auto scrollbar-hide shadow-xl shadow-black/5">
+            <div className="flex p-1.5 bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-[2rem] shadow-xl shadow-black/5">
               {tabs.map((tab) => {
                 const isActive = activeTab === tab.id;
                 return (
@@ -235,7 +202,7 @@ function FriendsPageContent() {
                     key={tab.id}
                     onClick={() => { triggerHaptic(5); setActiveTab(tab.id); }}
                     className={cn(
-                      "flex items-center gap-2 px-8 py-3 rounded-full text-sm font-black italic uppercase tracking-widest transition-all shrink-0 relative overflow-hidden group",
+                      "flex-1 flex items-center justify-center gap-2 py-4 rounded-full text-sm font-black italic uppercase tracking-widest transition-all relative overflow-hidden group",
                       isActive 
                         ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105" 
                         : "text-muted-foreground hover:text-foreground hover:bg-white/10"
@@ -250,27 +217,6 @@ function FriendsPageContent() {
                 );
               })}
             </div>
-
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide py-1">
-              <div className="flex items-center gap-2 px-3 border-r border-primary/10 mr-2 text-muted-foreground">
-                <Filter className="h-3.5 w-3.5" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Niche</span>
-              </div>
-              {FILTER_CHIPS.map((chip) => (
-                <button
-                  key={chip.id}
-                  onClick={() => { triggerHaptic(5); setActiveCategory(chip.id); }}
-                  className={cn(
-                    "px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 border-2",
-                    activeCategory === chip.id
-                      ? "bg-primary border-primary text-white shadow-md shadow-primary/20"
-                      : "bg-transparent border-primary/10 text-muted-foreground hover:border-primary/30 hover:bg-primary/5"
-                  )}
-                >
-                  {chip.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -278,24 +224,6 @@ function FriendsPageContent() {
               const following = isFollowing(user.username);
               const isMutual = user.followsYou && following;
               const isPlaying = playingPreview === user.username;
-
-              let label = "Follow";
-              let hoverLabel = "Follow";
-              let btnVariant: "default" | "secondary" = "default";
-
-              if (activeTab === "all" || isMutual) {
-                label = "Friend";
-                hoverLabel = "Unfriend";
-                btnVariant = "secondary";
-              } else if (activeTab === "followers") {
-                label = "Follow Back";
-                hoverLabel = "Follow Back";
-                btnVariant = "default";
-              } else if (following) {
-                label = "Following";
-                hoverLabel = "Unfollow";
-                btnVariant = "secondary";
-              }
 
               return (
                 <div 
@@ -331,8 +259,8 @@ function FriendsPageContent() {
                               {isPlaying ? <Volume2 className="h-8 w-8 text-white animate-bounce" /> : <Play className="h-8 w-8 text-white fill-current" />}
                             </button>
                           </div>
-                          {user.followsYou && (
-                            <div className="absolute -bottom-1 -right-1 bg-accent text-white text-[8px] font-black uppercase px-2 py-1 rounded-full border-2 border-white dark:border-[#050505] shadow-lg">
+                          {isMutual && (
+                            <div className="absolute -bottom-1 -right-1 bg-primary text-white text-[8px] font-black uppercase px-2 py-1 rounded-full border-2 border-white dark:border-[#050505] shadow-lg">
                               Mutual
                             </div>
                           )}
@@ -342,24 +270,17 @@ function FriendsPageContent() {
                             <span className="font-headline font-black text-xl italic uppercase tracking-tighter truncate hover:text-primary transition-colors">{user.name}</span>
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">@{user.username}</span>
-                              {activeTab === 'suggestions' && (
-                                <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black h-4 px-2">
-                                  94% MATCH
-                                </Badge>
-                              )}
+                              {user.isVerified && <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black h-4 px-2">VERIFIED</Badge>}
                             </div>
                           </Link>
                           <div className="mt-2 flex wrap gap-1">
-                            {user.category?.split(',').map(cat => (
-                              <span key={cat} className="text-[9px] font-black uppercase bg-primary/5 text-primary/70 px-2 py-0.5 rounded-md">{cat.trim()}</span>
-                            ))}
+                            <span className="text-[9px] font-black uppercase bg-primary/5 text-primary/70 px-2 py-0.5 rounded-md">{user.category || "CREATOR"}</span>
                           </div>
                         </div>
                       </div>
 
                       <div className="flex flex-col gap-2 shrink-0">
                         <Button 
-                          variant={btnVariant}
                           size="sm"
                           className={cn(
                             "rounded-[1.25rem] h-11 px-6 font-black italic uppercase tracking-widest text-[10px] transition-all group/btn min-w-[120px] shadow-lg",
@@ -368,79 +289,56 @@ function FriendsPageContent() {
                           onClick={() => handleAction(user)}
                         >
                           <span className={cn(following && "group-hover/btn:hidden")}>
-                            {label}
+                            {following ? <><UserCheck className="h-3.5 w-3.5 inline mr-1.5" /> Handshake</> : "Follow Back"}
                           </span>
                           {following && (
                             <span className="hidden group-hover/btn:inline flex items-center gap-1.5">
-                              <UserMinus className="h-3.5 w-3.5" /> {hoverLabel}
+                              <UserMinus className="h-3.5 w-3.5" /> Disconnect
                             </span>
                           )}
                         </Button>
-                        <div className="flex gap-2">
-                          <Link href="/messages" className="flex-1">
-                            <Button variant="ghost" size="icon" className="w-full rounded-xl bg-white/40 dark:bg-white/5 h-10 text-muted-foreground hover:text-primary transition-all">
-                              <MessageCircle className="h-5 w-5" />
-                            </Button>
-                          </Link>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="rounded-xl bg-white/40 dark:bg-white/5 h-10 w-10 text-muted-foreground hover:text-accent transition-all"
-                            onClick={() => handleVaultUser(user.username)}
-                          >
-                            <Bookmark className="h-5 w-5" />
+                        <Link href="/messages" className="w-full">
+                          <Button variant="ghost" className="w-full rounded-xl bg-white/40 dark:bg-white/5 h-10 text-muted-foreground hover:text-primary transition-all font-bold text-[10px] uppercase">
+                            Message
                           </Button>
-                        </div>
+                        </Link>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between pt-4 border-t border-primary/10">
-                      {user.mutualFriends && user.mutualFriends.length > 0 ? (
-                        <div className="flex items-center gap-3">
-                          <div className="flex -space-x-3">
-                            {user.mutualFriends.slice(0, 3).map((avatar, idx) => (
-                              <Avatar key={idx} className="h-7 w-7 border-2 border-white dark:border-[#0A0A0A] shadow-md">
-                                <AvatarImage src={avatar} />
-                                <AvatarFallback>?</AvatarFallback>
-                              </Avatar>
-                            ))}
-                          </div>
-                          <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">
-                            {user.mutualFriends.length}+ Shared Circles
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 text-muted-foreground opacity-40">
-                          <Layers className="h-3.5 w-3.5" />
-                          <span className="text-[9px] font-black uppercase tracking-widest">Primary Connection</span>
-                        </div>
-                      )}
-
-                      {activeTab === 'suggestions' ? (
-                        <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20">
-                          <Music2 className="h-3 w-3 text-primary animate-pulse" />
-                          <span className="text-[8px] font-black uppercase tracking-widest text-primary">Simulating Taste...</span>
-                        </div>
-                      ) : user.connectionDate && (
-                        <div className="flex items-center gap-2 bg-white/40 dark:bg-white/5 px-3 py-1.5 rounded-full border border-white/20 dark:border-white/10 shadow-sm">
-                          <Calendar className="h-3.5 w-3.5 text-primary" />
-                          <span className="text-[8px] font-black uppercase tracking-widest text-primary/80">Since {user.connectionDate}</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2 text-muted-foreground opacity-40">
+                        <Zap className="h-3.5 w-3.5" />
+                        <span className="text-[9px] font-black uppercase tracking-widest">
+                          {user.followers || 0} Spatial Nodes
+                        </span>
+                      </div>
+                      <Link href={`/profile/${user.username}`}>
+                        <Button variant="ghost" size="sm" className="h-7 px-3 rounded-full text-[9px] font-black uppercase tracking-widest text-primary hover:bg-primary/10">
+                          View Workspace <ArrowRight className="ml-1 h-2.5 w-2.5" />
+                        </Button>
+                      </Link>
                     </div>
                   </div>
                 </div>
               );
             }) : (
-              <div className="col-span-full py-24 text-center space-y-6 opacity-60 animate-in fade-in zoom-in-95 duration-500">
+              <div className="col-span-full py-32 text-center space-y-6 opacity-60 animate-in fade-in zoom-in-95 duration-500">
                 <div className="h-24 w-24 bg-primary/5 rounded-[2rem] flex items-center justify-center mx-auto border-2 border-dashed border-primary/20">
-                  <Search className="h-10 w-10 text-primary/40" />
+                  <Heart className="h-10 w-10 text-primary/40 animate-pulse" />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">No nodes matched</h3>
-                  <p className="text-muted-foreground text-sm font-medium">Try adjusting your community filters or search query</p>
+                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">Node Cluster Silent</h3>
+                  <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest max-w-xs mx-auto">
+                    {activeTab === 'followers' 
+                      ? "No inbound pulses detected. Share your referral node to attract new connections." 
+                      : "You haven't established any outbound handshakes yet."}
+                  </p>
                 </div>
-                <Button variant="outline" className="rounded-full border-primary text-primary" onClick={() => { setSearchQuery(""); setActiveCategory("all"); }}>Reset Filters</Button>
+                <Link href={activeTab === 'followers' ? "/referrals" : "/explore"}>
+                  <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase text-[10px] h-12 px-10 shadow-lg">
+                    {activeTab === 'followers' ? "Expand Star Network" : "Discover New Nodes"}
+                  </Button>
+                </Link>
               </div>
             )}
           </div>
@@ -461,16 +359,16 @@ function FriendsPageContent() {
               <UserMinus className="h-8 w-8" />
             </div>
             <AlertDialogTitle className="font-headline font-black italic uppercase tracking-tighter text-3xl text-center">
-              {confirmType === "unfriend" ? "Unfriend Creator?" : "Unfollow Creator?"}
+              Sever Handshake?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">
               {confirmType === "unfriend" 
-                ? `You'll no longer be mutual friends with @${confirmUser?.username}. This shifts them to your standard followers.`
+                ? `You'll no longer be mutual friends with @${confirmUser?.username}.`
                 : `You'll stop receiving updates and digital pulses from @${confirmUser?.username}.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6 px-4 pb-2">
-            <AlertDialogCancel className="rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] bg-secondary/50 border-none hover:bg-secondary transition-all">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] bg-secondary/50 border-none hover:bg-secondary transition-all">Abort</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmRemoval}
               className="rounded-2xl h-14 font-black italic uppercase tracking-[0.2em] text-[10px] bg-destructive hover:bg-destructive/90 text-white shadow-xl shadow-destructive/20 transition-all active:scale-95"
@@ -486,7 +384,7 @@ function FriendsPageContent() {
 
 export default function FriendsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#F2ECF7] dark:bg-[#050505] flex items-center justify-center"><Zap className="h-10 w-10 text-primary animate-pulse" /></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#F2ECF7] dark:bg-[#050505] flex items-center justify-center"><Zap className="h-10 w-10 text-primary animate-spin" /></div>}>
       <FriendsPageContent />
     </Suspense>
   );
