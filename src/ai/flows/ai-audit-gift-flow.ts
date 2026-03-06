@@ -1,25 +1,14 @@
+'use server';
+
+import { getGroq } from '@/ai/genkit';
 
 /**
- * @fileOverview A Genkit flow for auditing digital gift transactions using Groq AI.
+ * @fileOverview Standard function for auditing digital gift transactions using Groq.
  */
 
-import {ai, getGroq} from '@/ai/genkit';
-import {z} from 'genkit';
-
-const GiftAuditInputSchema = z.object({
-  userBalance: z.number().describe('The current balance of the user.'),
-  giftCost: z.number().describe('The cost of the selected gift.'),
-  currencyType: z.enum(['GOLD', 'DIAMOND']).describe('The type of currency being used.'),
-});
-
-const GiftAuditOutputSchema = z.object({
-  approved: z.boolean().describe('Whether the transaction is approved based on balance.'),
-  message: z.string().describe('A message explaining the decision.'),
-  auditToken: z.string().describe('A secure transaction token if approved.'),
-});
-
-export async function aiAuditGiftHandshake(input: z.infer<typeof GiftAuditInputSchema>) {
+export async function aiAuditGiftHandshake(input: { userBalance: number, giftCost: number, currencyType: 'GOLD' | 'DIAMOND' }) {
   const groq = getGroq();
+  
   const response = await groq.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
     messages: [
@@ -45,6 +34,6 @@ export async function aiAuditGiftHandshake(input: z.infer<typeof GiftAuditInputS
     response_format: { type: 'json_object' }
   });
 
-  const result = JSON.parse(response.choices[0]?.message?.content || '{}');
-  return result as z.infer<typeof GiftAuditOutputSchema>;
+  const content = response.choices[0]?.message?.content;
+  return JSON.parse(content || '{}');
 }

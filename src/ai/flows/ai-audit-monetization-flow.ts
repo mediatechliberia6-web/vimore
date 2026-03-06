@@ -1,28 +1,14 @@
+'use server';
+
+import { getGroq } from '@/ai/genkit';
 
 /**
- * @fileOverview A Genkit flow for auditing monetized network transactions (Locked Posts & Subscriptions).
+ * @fileOverview Standard function for auditing monetized network transactions using Groq.
  */
 
-import {ai, getGroq} from '@/ai/genkit';
-import {z} from 'genkit';
-
-const MonetizationAuditInputSchema = z.object({
-  type: z.enum(['LOCK_UNLOCK', 'SUBSCRIPTION']),
-  userBalance: z.number().describe('The current balance of the user.'),
-  cost: z.number().describe('The cost of the transaction.'),
-  currencyType: z.enum(['GOLD', 'DIAMOND']).describe('The type of currency being used.'),
-  creatorUsername: z.string().describe('The creator receiving the funds.'),
-});
-
-const MonetizationAuditOutputSchema = z.object({
-  approved: z.boolean().describe('Whether the transaction is approved.'),
-  message: z.string().describe('A system message explaining the decision.'),
-  auditToken: z.string().describe('A secure transaction token if approved.'),
-  payoutAmount: z.number().describe('The amount to be sent to the creator (70%).'),
-});
-
-export async function aiAuditMonetizationHandshake(input: z.infer<typeof MonetizationAuditInputSchema>) {
+export async function aiAuditMonetizationHandshake(input: { type: 'LOCK_UNLOCK' | 'SUBSCRIPTION', userBalance: number, cost: number, currencyType: 'GOLD' | 'DIAMOND', creatorUsername: string }) {
   const groq = getGroq();
+  
   const response = await groq.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
     messages: [
@@ -50,6 +36,6 @@ export async function aiAuditMonetizationHandshake(input: z.infer<typeof Monetiz
     response_format: { type: 'json_object' }
   });
 
-  const result = JSON.parse(response.choices[0]?.message?.content || '{}');
-  return result as z.infer<typeof MonetizationAuditOutputSchema>;
+  const content = response.choices[0]?.message?.content;
+  return JSON.parse(content || '{}');
 }

@@ -1,17 +1,11 @@
-
 import 'server-only';
-import {genkit} from 'genkit';
 import Groq from 'groq-sdk';
 
 /**
- * Genkit instance for flow orchestration and schema validation.
+ * @fileOverview ViMore AI Engine (Groq Native)
+ * Provides direct access to high-velocity inference nodes.
  */
-export const ai = genkit({});
 
-/**
- * Lazy-initialized Groq client for high-velocity inference.
- * Includes a Diagnostic Handshake to check for API key presence.
- */
 export function getGroq() {
   const apiKey = process.env.GROQ_API_KEY;
   
