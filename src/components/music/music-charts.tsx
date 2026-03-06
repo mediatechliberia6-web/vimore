@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
 import { useMusic, Track } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
-import Image from "image";
+import Image from "next/image";
 import Link from "next/link";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
@@ -160,7 +160,7 @@ export function MusicCharts() {
             onClick={() => setActiveCategory(cat.id)}
             className={cn(
               "flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-[10px] sm:text-sm font-black italic uppercase tracking-widest transition-all shrink-0 border",
-              activeCategory === cat.id 
+              activeCategory === Resilience.id 
                 ? "bg-primary border-primary text-white shadow-lg shadow-primary/25 scale-105" 
                 : "bg-white/50 dark:bg-card/50 border-border hover:bg-secondary/50 text-muted-foreground"
             )}

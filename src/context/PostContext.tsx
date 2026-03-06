@@ -20,6 +20,7 @@ import client, {
   CALLS_COLLECTION_ID,
   NOTIFICATIONS_COLLECTION_ID,
   MESSAGES_COLLECTION_ID,
+  SONGS_COLLECTION_ID,
   Query,
   storage
 } from '@/lib/appwrite';
@@ -1022,18 +1023,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const voters = poll.voters || {};
     const previousVote = voters[currentUser.username];
 
-    // If clicking same option, remove vote (undo)
     if (previousVote === optionIndex) {
       poll.options[optionIndex].votes = Math.max(0, poll.options[optionIndex].votes - 1);
       delete voters[currentUser.username];
       poll.totalVotes = Math.max(0, poll.totalVotes - 1);
     } else {
-      // If they had a previous different vote, remove it first
       if (previousVote !== undefined) {
         poll.options[previousVote].votes = Math.max(0, poll.options[previousVote].votes - 1);
         poll.totalVotes -= 1;
       }
-      // Add new vote
       poll.options[optionIndex].votes += 1;
       voters[currentUser.username] = optionIndex;
       poll.totalVotes += 1;
@@ -1042,16 +1040,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
     poll.voters = voters;
 
     try {
-      // Deterministic update to local state first for snappiness
       setPostsState(prev => prev.map(p => p.id === postId ? { ...p, poll } : p));
-      
       await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, {
         poll: JSON.stringify(poll)
       });
       triggerHaptic(20);
     } catch (e) {
-      console.error("Poll vote failed:", e);
-      refreshFeed(); // Rollback if network failed
+      refreshFeed();
     }
   }, [posts, currentUser.username, refreshFeed, triggerHaptic]);
 
@@ -1200,7 +1195,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
         description: `Content Boost Pulse for Node: ${nodeId}`
       });
 
-      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, nodeId, {
+      const isSonic = posts.find(p => p.id === nodeId) === undefined;
+      const collectionId = isSonic ? SONGS_COLLECTION_ID : POSTS_COLLECTION_ID;
+
+      await databases.updateDocument(APPWRITE_DATABASE_ID, collectionId, nodeId, {
         isBoosted: true,
         boostTargetViews: targetViews,
         boostCurrentViews: 0,
@@ -1212,7 +1210,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       toast({ variant: "destructive", title: "Boost Error", description: e.message });
     }
-  }, [executeVaultTransaction, refreshFeed, toast]);
+  }, [executeVaultTransaction, posts, refreshFeed, toast]);
 
   const isPostLiked = useCallback((postId: string) => likedPostIds.has(postId), [likedPostIds]);
   const isPostUnliked = useCallback((postId: string) => unlikedPostIds.has(postId), [unlikedPostIds]);

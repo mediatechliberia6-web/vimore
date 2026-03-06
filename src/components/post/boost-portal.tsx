@@ -33,7 +33,6 @@ interface BoostPortalProps {
 
 export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
   const { currentUser, boostNode, triggerHaptic } = usePosts();
-  const { boostTrack } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
   
@@ -44,7 +43,7 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // Calibration Logic
+  // Calibration Logic: Deterministic Vault Parameters
   const minPrice = currency === 'DIAMOND' ? 25 : 30000;
   const maxPrice = currency === 'DIAMOND' ? 100 : 120000;
   const step = currency === 'DIAMOND' ? 1 : 1000;
@@ -60,13 +59,12 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
     return Math.round((ratio * baseViews) + durationBonus);
   }, [amount, duration, minPrice]);
 
-  const hasBalance = currency === 'DIAMOND' 
-    ? (currentUser.diamondBalance || 0) >= amount 
-    : (currentUser.starBalance || 0) >= amount;
+  const balanceKey = currency === 'DIAMOND' ? 'diamondBalance' : 'starBalance';
+  const hasBalance = (currentUser[balanceKey] || 0) >= amount;
 
   const handleLaunch = async () => {
     if (!hasBalance) {
-      toast({ variant: "destructive", title: "Vault Low", description: "Top up in the Currency Hub to launch this pulse." });
+      toast({ variant: "destructive", title: "Insufficient Energy", description: "Increase your vault balance to materialize this boost." });
       return;
     }
 
@@ -74,23 +72,19 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
     triggerHaptic(30);
 
     try {
-      // VI-MORE PAYMENT VERIFICATION SYSTEM: Deterministic Pulse
-      if (type === 'SONIC') {
-        await boostTrack(nodeId, promisedViews, duration);
-      } else {
-        await boostNode(nodeId, promisedViews, duration, amount, currency);
-      }
+      // VI-MORE PAYMENT VERIFICATION SYSTEM
+      // Atomic handshake: Balance check -> Deduction -> Boost activation
+      await boostNode(nodeId, promisedViews, duration, amount, currency);
 
       setIsSuccess(true);
       triggerHaptic(100);
-      toast({ title: "Boost Materialized", description: "Campaign strategy synchronized with network discovery clusters." });
-
+      
       setTimeout(() => {
         setIsOpen(false);
         setIsSuccess(false);
       }, 2500);
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
+      toast({ variant: "destructive", title: "Boost Failure", description: e.message });
     } finally {
       setIsSyncing(false);
     }
@@ -131,20 +125,18 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
           <div className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 overflow-y-auto px-6 space-y-10 py-6 scrollbar-hide">
               
-              {/* Reach Projection Node */}
               <div className="bg-primary/5 border-2 border-primary/20 rounded-[2rem] p-8 text-center space-y-4 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><TrendingUp className="h-24 w-24" /></div>
                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">{t('boost_promised_views')}</span>
                 <div className="flex flex-col items-center gap-1">
                   <h4 className="text-5xl font-black italic tracking-tighter text-primary">{promisedViews.toLocaleString()}+</h4>
-                  <p className="text-xs font-bold text-muted-foreground uppercase">Target Network Handshakes</p>
+                  <p className="text-xs font-bold text-muted-foreground uppercase">Target Reach Nodes</p>
                 </div>
                 <div className="flex items-center justify-center gap-2 text-[9px] font-black text-primary/60 uppercase">
                   <ShieldCheck className="h-3.5 w-3.5" /> High-Velocity Verified Protocol
                 </div>
               </div>
 
-              {/* Calibration Sliders */}
               <div className="space-y-10">
                 <div className="space-y-6">
                   <div className="flex items-center justify-between px-1">
@@ -162,8 +154,8 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
                     onValueChange={(val) => { triggerHaptic(5); setDuration(val[0]); }}
                   />
                   <div className="flex justify-between text-[8px] font-black text-muted-foreground uppercase tracking-widest">
-                    <span>3 DAYS (MIN)</span>
-                    <span>15 DAYS (MAX)</span>
+                    <span>3 DAYS</span>
+                    <span>15 DAYS</span>
                   </div>
                 </div>
 
@@ -192,7 +184,6 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
                       max={maxPrice} 
                       step={step} 
                       onValueChange={(val) => { triggerHaptic(5); setAmount(val[0]); }}
-                      className="[&_[role=slider]]:h-6 [&_[role=slider]]:w-6"
                     />
                     <div className="mt-6 bg-secondary/20 h-16 rounded-2xl flex items-center justify-between px-6 border border-white/5">
                       <span className="text-[10px] font-black text-muted-foreground uppercase">COST</span>
@@ -205,27 +196,18 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
                 </div>
               </div>
 
-              {/* Economic Policy Card */}
               <div className="bg-secondary/10 border border-white/5 rounded-[2rem] p-6 flex gap-4">
-                <Info className="h-5 w-5 text-primary shrink-0" />
+                <AlertTriangle className="h-5 w-5 text-primary shrink-0" />
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase text-primary tracking-widest">Boost Logic</p>
+                  <p className="text-[10px] font-black uppercase text-primary tracking-widest">Boost Strategy</p>
                   <p className="text-[11px] font-medium leading-relaxed uppercase tracking-tight text-muted-foreground">
-                    This campaign will prioritize your node in the global discovery stream at a 2:1 ratio. Boosted energy costs maintain the MTL high-fidelity spatial clusters.
+                    This pulse will prioritize your node at a 2:1 ratio in the discovery stream. High-velocity interleaving will maintain campaign visibility until the views or duration threshold is reached.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Launch Action */}
             <div className="p-6 bg-white dark:bg-[#050505] border-t border-primary/5 pb-10">
-              {!hasBalance && (
-                <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex gap-3 animate-in slide-in-from-bottom-2">
-                  <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
-                  <p className="text-[10px] font-bold text-red-500 uppercase leading-tight">Insufficient Vault Energy. Please synchronize additional currency nodes.</p>
-                </div>
-              )}
-              
               <Button 
                 className={cn(
                   "w-full h-16 rounded-2xl font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl transition-all active:scale-[0.98]",
@@ -235,7 +217,7 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
                 onClick={handleLaunch}
               >
                 {isSyncing ? (
-                  <><Loader2 className="mr-3 h-6 w-6 animate-spin" /> SYNCING VAULT...</>
+                  <><Loader2 className="mr-3 h-6 w-6 animate-spin" /> SYNCING...</>
                 ) : (
                   <>{t('boost_launch')}</>
                 )}
