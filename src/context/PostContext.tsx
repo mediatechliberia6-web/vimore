@@ -26,6 +26,7 @@ import client, {
 } from '@/lib/appwrite';
 import { generateAgoraToken } from '@/app/actions/call';
 import { useToast } from "@/hooks/use-toast";
+import { dataURLtoFile } from '@/lib/utils';
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
@@ -356,7 +357,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [followingUsernames, setFollowingUsernamesState] = useState<Set<string>>(new Set());
   const [followerUsernames, setFollowerUsernamesState] = useState<Set<string>>(new Set());
   
-  // High-Velocity Unique View Cache (Session Persistence)
   const [viewedNodeIds, setViewedNodeIds] = useState<Set<string>>(new Set());
   
   const [selectedPostId, setSelectedPostIdState] = useState<string | null>(null);
@@ -455,7 +455,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         segments: typeof doc.segments === 'string' ? JSON.parse(doc.segments) : doc.segments,
         isCloseFriends: doc.isCloseFriends,
         viewCount: doc.viewCount || 0,
-        viewers: doc.viewers || [] // Fetch unique viewers array
+        viewers: doc.viewers || []
       })));
     } catch (e) {}
   }, []);
@@ -466,7 +466,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const story = stories.find(s => s.id === storyId);
     if (!story) return;
 
-    // Check if user is already in the viewers list from the fetched story data
     const viewers = story.viewers || [];
     if (viewers.includes(currentUser.id)) {
       setViewedNodeIds(prev => new Set(prev).add(storyId));
@@ -479,7 +478,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       
       await databases.updateDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, storyId, {
         viewCount: newViews,
-        viewers: updatedViewers // Add unique identity to registry
+        viewers: updatedViewers
       });
       
       setViewedNodeIds(prev => new Set(prev).add(storyId));
@@ -552,7 +551,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           comments: doc.comments || 0,
           shares: doc.shares || 0,
           views: doc.views || 0,
-          viewers: doc.viewers || [], // Fetch unique viewers array
+          viewers: doc.viewers || [],
           theme: doc.theme,
           language: doc.language,
           isLocked: doc.isLocked,
@@ -576,7 +575,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const post = posts.find(p => p.id === postId);
     if (!post) return;
 
-    // Check if user is already in the viewers list from the fetched post data
     const viewers = post.viewers || [];
     if (viewers.includes(currentUser.id)) {
       setViewedNodeIds(prev => new Set(prev).add(postId));
@@ -588,7 +586,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const updatedViewers = [...viewers, currentUser.id];
       const updates: any = { 
         views: newTotalViews,
-        viewers: updatedViewers // Add unique identity to registry
+        viewers: updatedViewers
       };
 
       if (post.isBoosted) {
@@ -601,8 +599,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
 
       await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, updates);
-      
-      // Update local session cache
       setViewedNodeIds(prev => new Set(prev).add(postId));
       
       setPostsState(prev => prev.map(p => p.id === postId ? { 
@@ -1109,11 +1105,116 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const togglePinPost = useCallback(async (postId: string) => {}, []);
   const archivePost = useCallback(async (postId: string) => {}, []);
   const updateGatewaySettings = useCallback((data: any) => { setGatewaySettingsState(data); }, []);
+  
   const initiateTransaction = useCallback((data: any) => { setPendingTransactionState(data); }, []);
   const cancelTransaction = useCallback(() => { setPendingTransactionState(null); }, []);
-  const createPaymentRequest = useCallback(async (screenshot: string) => {}, []);
-  const approvePaymentRequest = useCallback(async (id: string) => {}, []);
-  const rejectPaymentRequest = useCallback(async (id: string) => {}, []);
+  
+  const createPaymentRequest = useCallback(async (screenshot: string) => {
+    if (!pendingTransaction || !currentUser.id) return;
+
+    try {
+      const file = dataURLtoFile(screenshot, `payment_${Date.now()}.jpg`);
+      const screenshotUrl = await uploadMedia(file);
+
+      await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        PAYMENTS_COLLECTION_ID,
+        ID.unique(),
+        {
+          userId: currentUser.id,
+          username: currentUser.username,
+          packageName: pendingTransaction.packageName,
+          packageId: pendingTransaction.packageId,
+          amount: parseFloat(pendingTransaction.amount),
+          currency: pendingTransaction.currency,
+          code: pendingTransaction.code,
+          screenshot: screenshotUrl,
+          status: 'PENDING',
+          timestamp: Date.now(),
+          type: pendingTransaction.type
+        }
+      );
+
+      setPendingTransactionState(null);
+      if (currentUser.role && currentUser.role !== 'USER') await refreshAdminData();
+    } catch (e: any) {
+      console.error("Payment sync aborted:", e.message);
+      throw new Error("Could not transmit payment pulse.");
+    }
+  }, [pendingTransaction, currentUser, uploadMedia, refreshAdminData]);
+
+  const approvePaymentRequest = useCallback(async (id: string) => {
+    try {
+      const payment = paymentRequests.find(p => p.$id === id);
+      if (!payment) return;
+
+      await databases.updateDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, id, { status: 'APPROVED' });
+
+      const userRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
+        Query.equal('username', payment.username)
+      ]);
+
+      if (userRes.documents.length > 0) {
+        const userDoc = userRes.documents[0];
+        const isGold = payment.type === 'Gold';
+        const field = isGold ? 'goldBalance' : 'diamondBalance';
+        
+        const creditValue = payment.packageId === 'g1' ? 200 : 
+                           payment.packageId === 'g2' ? 500 : 
+                           payment.packageId === 'g3' ? 1000 : 
+                           payment.packageId === 'g4' ? 3000 :
+                           payment.packageId === 'd1' ? 25 : 
+                           payment.packageId === 'd2' ? 50 : 100;
+
+        await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userDoc.$id, {
+          [field]: (userDoc[field] || 0) + creditValue
+        });
+
+        await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), {
+          type: 'SYSTEM',
+          title: 'Vault Sync Complete',
+          content: `Your deposit for **${payment.packageName}** is confirmed. **+${creditValue} ${isGold ? 'Gold' : 'Diamonds'}** materialized in your vault.`,
+          recipientId: userDoc.$id,
+          isRead: false,
+          timestamp: Date.now()
+        });
+      }
+
+      await refreshAdminData();
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
+    }
+  }, [paymentRequests, refreshAdminData, toast]);
+
+  const rejectPaymentRequest = useCallback(async (id: string) => {
+    try {
+      const payment = paymentRequests.find(p => p.$id === id);
+      if (!payment) return;
+
+      await databases.updateDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, id, { status: 'REJECTED' });
+
+      const userRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
+        Query.equal('username', payment.username)
+      ]);
+
+      if (userRes.documents.length > 0) {
+        const userDoc = userRes.documents[0];
+        await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), {
+          type: 'SYSTEM',
+          title: 'Handshake Rejected',
+          content: `Your deposit proof for **${payment.packageName}** was rejected by the auditor node. Please verify your receipt and resync.`,
+          recipientId: userDoc.$id,
+          isRead: false,
+          timestamp: Date.now()
+        });
+      }
+
+      await refreshAdminData();
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Audit Error", description: e.message });
+    }
+  }, [paymentRequests, refreshAdminData, toast]);
+
   const recordWithdrawal = useCallback(async (node: any) => {
     try {
       await databases.createDocument(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, ID.unique(), {
@@ -1122,7 +1223,46 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
     } catch (e: any) { console.error("Withdrawal record failed:", e.message); }
   }, [currentUser.id]);
-  const processWithdrawal = useCallback(async (id: string, status: 'APPROVED' | 'REJECTED') => {}, []);
+
+  const processWithdrawal = useCallback(async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      const withdrawal = withdrawalHistory.find(w => w.$id === id);
+      if (!withdrawal) return;
+
+      await databases.updateDocument(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, id, { status });
+
+      const userRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
+        Query.equal('username', withdrawal.username)
+      ]);
+
+      if (userRes.documents.length > 0) {
+        const userDoc = userRes.documents[0];
+        
+        if (status === 'REJECTED') {
+          const balanceKey = withdrawal.currency === 'GOLD' ? 'goldBalance' : 'diamondBalance';
+          await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userDoc.$id, {
+            [balanceKey]: (userDoc[balanceKey] || 0) + withdrawal.amount
+          });
+        }
+
+        await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), {
+          type: 'SYSTEM',
+          title: status === 'APPROVED' ? 'Withdrawal Materialized' : 'Withdrawal Aborted',
+          content: status === 'APPROVED' 
+            ? `Your withdrawal of **${withdrawal.payoutCurrency} ${withdrawal.payoutAmount.toFixed(2)}** has been processed successfully.`
+            : `Your withdrawal request was rejected. Energy nodes have been returned to your vault.`,
+          recipientId: userDoc.$id,
+          isRead: false,
+          timestamp: Date.now()
+        });
+      }
+
+      await refreshAdminData();
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Process Error", description: e.message });
+    }
+  }, [withdrawalHistory, refreshAdminData, toast]);
+
   const triggerReferralPulse = useCallback((referralCode?: string) => {}, []);
   
   const verifyUser = useCallback(async (cost: number, currency: 'DIAMOND' | 'STAR') => {
@@ -1259,11 +1399,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         boostExpiry: Date.now() + (durationDays * 24 * 60 * 60 * 1000)
       });
 
-      if (type === 'SONIC') {
-        // Music handles its own refresh but we can help it
-      } else {
-        await refreshFeed();
-      }
+      if (type !== 'SONIC') await refreshFeed();
       
       toast({ title: "Boost Materialized", description: "Campaign strategy synchronized with network discover stream." });
     } catch (e: any) {
