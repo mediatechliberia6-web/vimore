@@ -16,8 +16,6 @@ import {
   MoreHorizontal, 
   Volume2, 
   Play, 
-  Star, 
-  Check, 
   UserPlus, 
   UserMinus, 
   MessageCircle, 
@@ -36,7 +34,7 @@ import {
 import Link from "next/link";
 import { usePosts, User } from "@/context/PostContext";
 import { useNotifications } from "@/context/NotificationContext";
-import { aiTranslatePostAction, aiAuditMonetizationHandshakeAction } from "@/app/actions/ai";
+import { aiTranslatePostAction } from "@/app/actions/ai";
 import Image from "next/image";
 import { cn, parseFollowerCount } from "@/lib/utils";
 import {
@@ -130,34 +128,26 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     triggerHaptic(50);
 
     try {
-      const result = await aiAuditMonetizationHandshakeAction({
-        type: 'SUBSCRIPTION',
-        userBalance: currentUser.diamondBalance || 0,
-        cost: 20,
-        currencyType: 'DIAMOND',
-        creatorUsername: username
+      // VI-MORE PAYMENT VERIFICATION SYSTEM: Deterministic Subscription
+      await subscribeToCreator(username, 20);
+      
+      addSignal({
+        type: 'SYSTEM',
+        title: 'Premium Pulse Active',
+        content: `You are now subscribed to **${displayUser.name}**. **-20 Diamonds** synced for the first month.`,
+        avatar: displayUser.avatar
       });
-
-      if (result.approved) {
-        subscribeToCreator(username, 20);
-        addSignal({
-          type: 'SYSTEM',
-          title: 'Premium Pulse Active',
-          content: `You are now subscribed to **${displayUser.name}**. **-20 Diamonds** synced for the first month.`,
-          avatar: displayUser.avatar
-        });
-        addSignal({
-          type: 'SOCIAL',
-          title: 'New VIP Node',
-          content: `**${currentUser.name}** just subscribed to your premium loop! **+14 Diamonds** synced to your vault.`,
-          avatar: currentUser.avatar
-        });
-        toast({ title: "Loyalty Loop Active", description: "Premium signature established." });
-      } else {
-        toast({ variant: "destructive", title: "Handshake Failed", description: result.message });
-      }
-    } catch (e) {
-      toast({ variant: "destructive", title: "Protocol Error", description: "Audit node unreachable." });
+      
+      addSignal({
+        type: 'SOCIAL',
+        title: 'New VIP Node',
+        content: `**${currentUser.name}** just subscribed to your premium loop! **+14 Diamonds** synced to your vault.`,
+        avatar: currentUser.avatar
+      });
+      
+      toast({ title: "Loyalty Loop Active", description: "Premium signature established successfully." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
     } finally {
       setIsSubscribing(false);
     }
@@ -199,7 +189,6 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
   const amISubscribed = isSubscribed(username);
 
-  // Button State Engine
   let mainLabel = "Connect"; 
   let btnVariant: "default" | "secondary" = "default";
 
@@ -281,7 +270,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                             {isSubscribing ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : amISubscribed ? "NODE ACTIVE" : "SYNC PREMIUM"}
                           </Button>
                           <p className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest flex items-center gap-2">
-                            <ShieldCheck className="h-3 w-3" /> Groq AI Audited • Cancel Anytime in Core
+                            <ShieldCheck className="h-3 w-3" /> ViMore Payment Verification • 70/30 Split
                           </p>
                         </div>
                       </DialogContent>

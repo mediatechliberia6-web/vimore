@@ -12,7 +12,6 @@ import {
   Loader2, 
   CheckCircle2,
   ChevronRight,
-  Info,
   Rocket,
   AlertTriangle
 } from "lucide-react";
@@ -24,7 +23,6 @@ import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
-import { aiAuditBoostHandshakeAction } from "@/app/actions/ai";
 import { cn } from "@/lib/utils";
 
 interface BoostPortalProps {
@@ -43,7 +41,7 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
   const [currency, setCurrency] = useState<'DIAMOND' | 'STAR'>('DIAMOND');
   const [duration, setDuration] = useState(3);
   const [amount, setAmount] = useState(25);
-  const [isAuditing, setIsAuditing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   // Calibration Logic
@@ -58,7 +56,7 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
   const promisedViews = useMemo(() => {
     const baseViews = 10000;
     const ratio = amount / minPrice;
-    const durationBonus = (duration - 3) * 500; // Extra reach for longer campaigns
+    const durationBonus = (duration - 3) * 500; 
     return Math.round((ratio * baseViews) + durationBonus);
   }, [amount, duration, minPrice]);
 
@@ -72,40 +70,29 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
       return;
     }
 
-    setIsAuditing(true);
+    setIsSyncing(true);
     triggerHaptic(30);
 
     try {
-      const result = await aiAuditBoostHandshakeAction({
-        userBalance: currency === 'DIAMOND' ? (currentUser.diamondBalance || 0) : (currentUser.starBalance || 0),
-        boostCost: amount,
-        currencyType: currency,
-        durationDays: duration
-      });
-
-      if (result.approved) {
-        // Materialize Pulse
-        if (type === 'SONIC') {
-          boostTrack(nodeId, result.promisedViews, duration);
-        } else {
-          boostNode(nodeId, result.promisedViews, duration, amount, currency);
-        }
-
-        setIsSuccess(true);
-        triggerHaptic(100);
-        toast({ title: "Boost Materialized", description: result.message });
-
-        setTimeout(() => {
-          setIsOpen(false);
-          setIsSuccess(false);
-        }, 3000);
+      // VI-MORE PAYMENT VERIFICATION SYSTEM: Deterministic Pulse
+      if (type === 'SONIC') {
+        await boostTrack(nodeId, promisedViews, duration);
       } else {
-        toast({ variant: "destructive", title: "Handshake Failed", description: result.message });
+        await boostNode(nodeId, promisedViews, duration, amount, currency);
       }
-    } catch (e) {
-      toast({ variant: "destructive", title: "Protocol Error", description: "AI Auditor unreachable." });
+
+      setIsSuccess(true);
+      triggerHaptic(100);
+      toast({ title: "Boost Materialized", description: "Campaign strategy synchronized with network discovery clusters." });
+
+      setTimeout(() => {
+        setIsOpen(false);
+        setIsSuccess(false);
+      }, 2500);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
     } finally {
-      setIsAuditing(false);
+      setIsSyncing(false);
     }
   };
 
@@ -118,7 +105,7 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
         <DialogHeader className="px-6 py-4 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
-              <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter">{t('boost_title')}</DialogTitle>
+              <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter text-foreground">{t('boost_title')}</DialogTitle>
               <p className="text-[10px] font-bold text-primary uppercase tracking-widest">{t('boost_desc')}</p>
             </div>
             <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" onClick={() => setIsOpen(false)}>
@@ -136,8 +123,8 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
               </div>
             </div>
             <div className="text-center space-y-1">
-              <h3 className="text-2xl font-black italic uppercase tracking-tighter">Campaign Active</h3>
-              <p className="text-sm text-muted-foreground uppercase font-bold">Groq AI Manager is throttling your vibe.</p>
+              <h3 className="text-2xl font-black italic uppercase tracking-tighter text-foreground">Campaign Active</h3>
+              <p className="text-sm text-muted-foreground uppercase font-bold">Node Priority Synchronized Successfully</p>
             </div>
           </div>
         ) : (
@@ -150,10 +137,10 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">{t('boost_promised_views')}</span>
                 <div className="flex flex-col items-center gap-1">
                   <h4 className="text-5xl font-black italic tracking-tighter text-primary">{promisedViews.toLocaleString()}+</h4>
-                  <p className="text-xs font-bold text-muted-foreground uppercase">Unique Network Handshakes</p>
+                  <p className="text-xs font-bold text-muted-foreground uppercase">Target Network Handshakes</p>
                 </div>
                 <div className="flex items-center justify-center gap-2 text-[9px] font-black text-primary/60 uppercase">
-                  <ShieldCheck className="h-3.5 w-3.5" /> Groq AI Managed Protocol
+                  <ShieldCheck className="h-3.5 w-3.5" /> High-Velocity Verified Protocol
                 </div>
               </div>
 
@@ -211,20 +198,20 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
                       <span className="text-[10px] font-black text-muted-foreground uppercase">COST</span>
                       <div className="flex items-center gap-3">
                         {currency === 'DIAMOND' ? <Gem className="h-5 w-5 text-cyan-500" /> : <Star className="h-5 w-5 text-yellow-500 fill-current" />}
-                        <span className="text-3xl font-black italic tracking-tighter tabular-nums">{amount.toLocaleString()}</span>
+                        <span className="text-3xl font-black italic tracking-tighter tabular-nums text-foreground">{amount.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* AI Insight Card */}
+              {/* Economic Policy Card */}
               <div className="bg-secondary/10 border border-white/5 rounded-[2rem] p-6 flex gap-4">
                 <Info className="h-5 w-5 text-primary shrink-0" />
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase text-primary tracking-widest">AI Strategy Node</p>
+                  <p className="text-[10px] font-black uppercase text-primary tracking-widest">Boost Logic</p>
                   <p className="text-[11px] font-medium leading-relaxed uppercase tracking-tight text-muted-foreground">
-                    Groq AI will dynamically prioritize your node in the global discovery stream. If the view pulse falls behind schedule, the AI Manager will throttle up visibility across all clusters.
+                    This campaign will prioritize your node in the global discovery stream at a 2:1 ratio. Boosted energy costs maintain the MTL high-fidelity spatial clusters.
                   </p>
                 </div>
               </div>
@@ -242,13 +229,13 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
               <Button 
                 className={cn(
                   "w-full h-16 rounded-2xl font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl transition-all active:scale-[0.98]",
-                  hasBalance && !isAuditing ? "bg-primary text-white shadow-primary/20" : "bg-secondary text-muted-foreground/40 cursor-not-allowed"
+                  hasBalance && !isSyncing ? "bg-primary text-white shadow-primary/20" : "bg-secondary text-muted-foreground/40 cursor-not-allowed"
                 )}
-                disabled={!hasBalance || isAuditing}
+                disabled={!hasBalance || isSyncing}
                 onClick={handleLaunch}
               >
-                {isAuditing ? (
-                  <><Loader2 className="mr-3 h-6 w-6 animate-spin" /> AUDITING PULSE...</>
+                {isSyncing ? (
+                  <><Loader2 className="mr-3 h-6 w-6 animate-spin" /> SYNCING VAULT...</>
                 ) : (
                   <>{t('boost_launch')}</>
                 )}
