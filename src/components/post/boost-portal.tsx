@@ -24,7 +24,7 @@ import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
-import { aiAuditBoostHandshake } from "@/app/actions/ai";
+import { aiAuditBoostHandshakeAction } from "@/app/actions/ai";
 import { cn } from "@/lib/utils";
 
 interface BoostPortalProps {
@@ -76,7 +76,7 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
     triggerHaptic(30);
 
     try {
-      const result = await aiAuditBoostHandshake({
+      const result = await aiAuditBoostHandshakeAction({
         userBalance: currency === 'DIAMOND' ? (currentUser.diamondBalance || 0) : (currentUser.starBalance || 0),
         boostCost: amount,
         currencyType: currency,

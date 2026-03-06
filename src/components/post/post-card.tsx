@@ -50,7 +50,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
-import { aiTranslatePost, aiAuditMonetizationHandshake } from "@/app/actions/ai";
+import { aiTranslatePostAction, aiAuditMonetizationHandshakeAction } from "@/app/actions/ai";
 import { useToast } from "@/hooks/use-toast";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
@@ -237,7 +237,7 @@ export function PostCard(props: PostCardProps) {
     triggerHaptic(30);
 
     try {
-      const result = await aiAuditMonetizationHandshake({
+      const result = await aiAuditMonetizationHandshakeAction({
         type: 'LOCK_UNLOCK',
         userBalance: currentUser.goldBalance || 0,
         cost: unlockPrice,
@@ -291,7 +291,7 @@ export function PostCard(props: PostCardProps) {
     setIsTranslating(true);
     try {
       const target = viewerLanguage || "English";
-      const result = await aiTranslatePost({ postContent: content, targetLanguage: target });
+      const result = await aiTranslatePostAction({ postContent: content, targetLanguage: target });
       setTranslatedText(result.translation);
       toast({ description: "Vibe translated ✨" });
     } catch (error) { toast({ description: "Translation failed", variant: "destructive" }); }

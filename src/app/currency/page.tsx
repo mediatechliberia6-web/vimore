@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -34,7 +33,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
-import { aiGenerateVerificationCode } from "@/app/actions/ai";
+import { aiGenerateVerificationCodeAction } from "@/app/actions/ai";
 import { BiometricGate } from "@/components/layout/biometric-gate";
 import { BannerAdNode } from "@/components/ad/banner-ad-node";
 
@@ -86,7 +85,7 @@ export default function CurrencyHub() {
     setIsGeneratingCode(true);
     
     try {
-      const { code } = await aiGenerateVerificationCode({ packageName: selectedPackage.label });
+      const { code } = await aiGenerateVerificationCodeAction({ packageName: selectedPackage.label });
       const amount = currencyMode === 'LD' ? selectedPackage.priceLD : selectedPackage.priceUSD;
       
       initiateTransaction({

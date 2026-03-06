@@ -109,7 +109,7 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-import { aiAnalyzeGlobalSentiment } from "@/app/actions/ai";
+import { aiAnalyzeGlobalSentimentAction } from "@/app/actions/ai";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
@@ -236,7 +236,7 @@ export default function AdminDashboard() {
     triggerHaptic(30);
     try {
       const messages = posts.slice(0, 10).map(p => p.content);
-      const res = await aiAnalyzeGlobalSentiment({ messages });
+      const res = await aiAnalyzeGlobalSentimentAction({ messages });
       updateIntelligence({
         sentimentScore: res.score,
         sentimentVibe: res.vibe,

@@ -32,7 +32,7 @@ import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { aiSummarizeComments } from "@/app/actions/ai";
+import { aiSummarizeCommentsAction } from "@/app/actions/ai";
 import { useToast } from "@/hooks/use-toast";
 
 interface CommentNodeProps {
@@ -174,7 +174,7 @@ export function CommentHub() {
     const commentTexts = activePost.commentNodes!.map(c => c.text);
     
     try {
-      const res = await aiSummarizeComments({ comments: commentTexts });
+      const res = await aiSummarizeCommentsAction({ comments: commentTexts });
       setAiSummary(res.summary);
     } catch (e) {
       toast({ variant: "destructive", title: "Audit Error", description: "Could not pulse community sentiment." });

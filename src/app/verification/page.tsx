@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -25,7 +24,7 @@ import { useNotifications } from "@/context/NotificationContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { aiRequestSignatureVerification } from "@/app/actions/ai";
+import { aiRequestSignatureVerificationAction } from "@/app/actions/ai";
 import { Badge } from "@/components/ui/badge";
 
 export default function VerificationHub() {
@@ -88,7 +87,7 @@ export default function VerificationHub() {
 
     try {
       // AI AUDITOR HANDSHAKE
-      const result = await aiRequestSignatureVerification({
+      const result = await aiRequestSignatureVerificationAction({
         username: currentUser.username,
         hasEverBeenVerified: !isFirstTime,
         currencyChoice

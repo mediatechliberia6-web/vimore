@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -33,7 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useToast } from "@/hooks/use-toast";
-import { aiAuditGiftHandshake } from "@/app/actions/ai";
+import { aiAuditGiftHandshakeAction } from "@/app/actions/ai";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -248,7 +247,7 @@ export function GiftHub() {
     
     try {
       // AI AUDITOR HANDSHAKE
-      const result = await aiAuditGiftHandshake({
+      const result = await aiAuditGiftHandshakeAction({
         userBalance: balance,
         giftCost: selectedGift.cost,
         currencyType: activeTab.toUpperCase() as 'GOLD' | 'DIAMOND'

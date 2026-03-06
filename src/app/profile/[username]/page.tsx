@@ -36,7 +36,7 @@ import {
 import Link from "next/link";
 import { usePosts, User } from "@/context/PostContext";
 import { useNotifications } from "@/context/NotificationContext";
-import { aiTranslatePost, aiAuditMonetizationHandshake } from "@/app/actions/ai";
+import { aiTranslatePostAction, aiAuditMonetizationHandshakeAction } from "@/app/actions/ai";
 import Image from "next/image";
 import { cn, parseFollowerCount } from "@/lib/utils";
 import {
@@ -130,7 +130,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     triggerHaptic(50);
 
     try {
-      const result = await aiAuditMonetizationHandshake({
+      const result = await aiAuditMonetizationHandshakeAction({
         type: 'SUBSCRIPTION',
         userBalance: currentUser.diamondBalance || 0,
         cost: 20,
@@ -167,7 +167,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     if (!displayUser?.bio) return;
     if (translatedBio) { setTranslatedBio(null); return; }
     triggerHaptic(); setIsTranslating(true);
-    try { const res = await aiTranslatePost({ postContent: displayUser.bio, targetLanguage: deviceLanguage || "en" }); setTranslatedBio(res.translation); }
+    try { const res = await aiTranslatePostAction({ postContent: displayUser.bio, targetLanguage: deviceLanguage || "en" }); setTranslatedBio(res.translation); }
     catch (e) { toast({ variant: "destructive", description: "Translation failed" }); }
     finally { setIsTranslating(false); }
   };

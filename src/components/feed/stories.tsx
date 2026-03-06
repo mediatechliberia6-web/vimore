@@ -61,46 +61,61 @@ export function Stories({ onOpenCreate }: StoriesProps) {
           </div>
 
           {/* Stories Rail - Sorted with current user first */}
-          {sortedStories.map(({ story, index }) => (
-            <div 
-              key={story.id} 
-              className={cn(
-                "relative w-28 h-48 rounded-2xl overflow-hidden shrink-0 border border-primary/5 cursor-pointer group shadow-sm transition-all hover:scale-[1.02]",
-                settings.isFreeMode ? "bg-secondary/20" : ""
-              )}
-              onClick={() => handleStoryClick(index)}
-            >
-              {!settings.isFreeMode && (
-                <Image 
-                  src={story.segments[0].image} 
-                  alt={story.user.name} 
-                  fill 
-                  className={cn("object-cover transition-transform group-hover:scale-110", story.segments[0].filter)} 
-                />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
-              
-              <div className={cn(
-                "absolute transition-all duration-500",
-                settings.isFreeMode ? "inset-0 flex items-center justify-center" : "top-2 left-2"
-              )}>
-                <Avatar className={cn(
-                  "border-2 shadow-lg transition-all",
-                  settings.isFreeMode ? "h-16 w-16" : "h-8 w-8",
-                  story.isCloseFriends ? "border-[#42b72a]" : "border-primary"
+          {sortedStories.map(({ story, index }) => {
+            const firstSegment = story.segments[0];
+            const isVideo = firstSegment.type === 'video';
+
+            return (
+              <div 
+                key={story.id} 
+                className={cn(
+                  "relative w-28 h-48 rounded-2xl overflow-hidden shrink-0 border border-primary/5 cursor-pointer group shadow-sm transition-all hover:scale-[1.02]",
+                  settings.isFreeMode ? "bg-secondary/20" : ""
+                )}
+                onClick={() => handleStoryClick(index)}
+              >
+                {!settings.isFreeMode && (
+                  isVideo ? (
+                    <video 
+                      src={firstSegment.image} 
+                      className={cn("object-cover w-full h-full transition-transform group-hover:scale-110", firstSegment.filter)}
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  ) : (
+                    <Image 
+                      src={firstSegment.image} 
+                      alt={story.user.name} 
+                      fill 
+                      className={cn("object-cover transition-transform group-hover:scale-110", firstSegment.filter)} 
+                    />
+                  )
+                )}
+                <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
+                
+                <div className={cn(
+                  "absolute transition-all duration-500",
+                  settings.isFreeMode ? "inset-0 flex items-center justify-center" : "top-2 left-2"
                 )}>
-                  <AvatarImage src={story.user.avatar} />
-                  <AvatarFallback>{story.user.name[0]}</AvatarFallback>
-                </Avatar>
+                  <Avatar className={cn(
+                    "border-2 shadow-lg transition-all",
+                    settings.isFreeMode ? "h-16 w-16" : "h-8 w-8",
+                    story.isCloseFriends ? "border-[#42b72a]" : "border-primary"
+                  )}>
+                    <AvatarImage src={story.user.avatar} />
+                    <AvatarFallback>{story.user.name[0]}</AvatarFallback>
+                  </Avatar>
+                </div>
+                
+                <div className="absolute bottom-2 left-2 right-2">
+                  <p className="text-[10px] font-bold text-white truncate drop-shadow-md">
+                    {story.user.username === currentUser.username ? "Your Story" : story.user.name}
+                  </p>
+                </div>
               </div>
-              
-              <div className="absolute bottom-2 left-2 right-2">
-                <p className="text-[10px] font-bold text-white truncate drop-shadow-md">
-                  {story.user.username === currentUser.username ? "Your Story" : story.user.name}
-                </p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <ScrollBar orientation="horizontal" className="opacity-0" />
       </ScrollArea>
