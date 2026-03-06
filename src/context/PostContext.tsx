@@ -269,7 +269,7 @@ interface PostContextType {
   deleteCampaign: (id: string) => void;
   toggleCampaignStatus: (id: string) => void;
   recordCampaignClick: (id: string) => void;
-  boostNode: (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR') => void;
+  boostNode: (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR') => Promise<void>;
   initiateCall: (contact: any, type: CallType) => Promise<void>;
   receiveCall: (contact: any, type: CallType, channelName: string, token: string, callId: string) => void;
   acceptCall: () => Promise<void>;
@@ -386,6 +386,66 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e: any) { console.error("Audit log failed:", e.message); }
   }, [currentUser.username]);
 
+  /**
+   * CORE VIMORE PAYMENT VERIFICATION SYSTEM (PHASE 1)
+   * Deterministic logic for balance checks and 70/30 splits.
+   */
+  const executeVaultTransaction = useCallback(async (options: {
+    cost: number;
+    currency: 'GOLD' | 'DIAMOND' | 'STAR';
+    recipientUsername?: string;
+    isPlatformService?: boolean;
+    description: string;
+  }) => {
+    if (!currentUser.id) throw new Error("Identity signature missing.");
+
+    const balanceKey = options.currency === 'GOLD' ? 'goldBalance' : options.currency === 'DIAMOND' ? 'diamondBalance' : 'starBalance';
+    const currentBalance = currentUser[balanceKey] || 0;
+
+    // 1. Threshold Audit
+    if (currentBalance < options.cost) {
+      throw new Error(`Insufficient ${options.currency}. Available pulse: ${currentBalance}`);
+    }
+
+    try {
+      // 2. Sender Deduction (100%)
+      const updatedSenderBalance = currentBalance - options.cost;
+      await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, currentUser.id, {
+        [balanceKey]: updatedSenderBalance
+      });
+
+      // 3. Reciprocal Credit (70% to Creator)
+      if (options.recipientUsername && !options.isPlatformService) {
+        const recipientRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
+          Query.equal('username', options.recipientUsername)
+        ]);
+
+        if (recipientRes.documents.length > 0) {
+          const recipient = recipientRes.documents[0];
+          const creditAmount = Math.floor(options.cost * 0.7);
+          const platformFee = options.cost - creditAmount;
+
+          await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, recipient.$id, {
+            [balanceKey]: (recipient[balanceKey] || 0) + creditAmount
+          });
+
+          // 4. Platform Archival (30%)
+          await addAuditLog('PLATFORM_FEE_LOG', `Collected ${platformFee} ${options.currency} from ${options.description} transaction between @${currentUser.username} and @${options.recipientUsername}.`);
+        }
+      } else if (options.isPlatformService) {
+        // Full cost to platform
+        await addAuditLog('PLATFORM_SERVICE_LOG', `Collected ${options.cost} ${options.currency} for ${options.description} from @${currentUser.username}.`);
+      }
+
+      // Update local state pulse
+      setCurrentUserState(prev => ({ ...prev, [balanceKey]: updatedSenderBalance }));
+      return true;
+    } catch (e: any) {
+      console.error("Vault Handshake Failure:", e.message);
+      throw new Error("Financial synchronization aborted.");
+    }
+  }, [currentUser, addAuditLog]);
+
   const refreshStories = useCallback(async () => {
     try {
       const now = Date.now();
@@ -419,6 +479,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         timestamp: doc.timestamp || 0
       }));
 
+      // Deterministic chronological sort
       const sortedComments = mappedComments.sort((a, b) => a.timestamp - b.timestamp);
 
       const topLevel = sortedComments.filter(c => !c.parentId);
@@ -933,31 +994,71 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const triggerReferralPulse = useCallback((referralCode?: string) => {}, []);
   
   const verifyUser = useCallback(async (cost: number, currency: 'DIAMOND' | 'STAR') => {
-    if (!currentUser.id) return;
-    triggerHaptic(50);
-    const updates: any = { isVerified: true, hasEverBeenVerified: true, verificationExpiry: Date.now() + (30 * 24 * 60 * 60 * 1000) };
-    if (currency === 'DIAMOND') updates.diamondBalance = Math.max(0, (currentUser.diamondBalance || 0) - cost);
-    else updates.starBalance = Math.max(0, (currentUser.starBalance || 0) - cost);
-    try { await updateCurrentUser(updates); toast({ title: "Signature Materialized", description: "Your purple badge is now active for 30 days." }); } catch (e: any) { toast({ variant: "destructive", title: "Vault Error", description: e.message }); }
-  }, [currentUser, updateCurrentUser, triggerHaptic, toast]);
+    try {
+      await executeVaultTransaction({
+        cost,
+        currency,
+        isPlatformService: true,
+        description: 'Verification Signature Upgrade'
+      });
+      
+      const expiry = Date.now() + (30 * 24 * 60 * 60 * 1000);
+      await updateCurrentUser({ 
+        isVerified: true, 
+        hasEverBeenVerified: true, 
+        verificationExpiry: expiry 
+      });
+      
+      toast({ title: "Signature Materialized", description: "Your purple badge is now active for 30 days." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
+    }
+  }, [executeVaultTransaction, updateCurrentUser, toast]);
 
   const processGiftTransaction = useCallback(async (cost: number, currency: 'GOLD' | 'DIAMOND') => {
-    if (!currentUser.id) return;
-    const updates: any = {};
-    if (currency === 'GOLD') updates.goldBalance = Math.max(0, (currentUser.goldBalance || 0) - cost);
-    else updates.diamondBalance = Math.max(0, (currentUser.diamondBalance || 0) - cost);
-    try { await updateCurrentUser(updates); } catch (e) {}
-  }, [currentUser, updateCurrentUser]);
+    if (!targetUserForGift) return;
+    try {
+      await executeVaultTransaction({
+        cost,
+        currency,
+        recipientUsername: targetUserForGift.username,
+        description: `Digital Gift Pulse to @${targetUserForGift.username}`
+      });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
+    }
+  }, [executeVaultTransaction, targetUserForGift, toast]);
 
   const unlockPost = useCallback(async (postId: string, cost: number) => {
-    if (!currentUser.id) return;
-    try { await updateCurrentUser({ goldBalance: Math.max(0, (currentUser.goldBalance || 0) - cost) }); setUnlockedPostIdsState(prev => new Set(prev).add(postId)); } catch (e) {}
-  }, [currentUser, updateCurrentUser]);
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+    
+    try {
+      await executeVaultTransaction({
+        cost,
+        currency: 'GOLD',
+        recipientUsername: post.user.username,
+        description: `Locked Post Handshake — Post Node: ${postId}`
+      });
+      setUnlockedPostIdsState(prev => new Set(prev).add(postId));
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
+    }
+  }, [executeVaultTransaction, posts, toast]);
 
   const subscribeToCreator = useCallback(async (username: string, cost: number) => {
-    if (!currentUser.id) return;
-    try { await updateCurrentUser({ diamondBalance: Math.max(0, (currentUser.diamondBalance || 0) - cost) }); setActiveSubscriptionsState(prev => new Set(prev).add(username)); } catch (e) {}
-  }, [currentUser, updateCurrentUser]);
+    try {
+      await executeVaultTransaction({
+        cost,
+        currency: 'DIAMOND',
+        recipientUsername: username,
+        description: `Premium Loop Subscription to @${username}`
+      });
+      setActiveSubscriptionsState(prev => new Set(prev).add(username));
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
+    }
+  }, [executeVaultTransaction, toast]);
 
   const cancelSubscription = useCallback(async (username: string) => { setActiveSubscriptionsState(prev => { const next = new Set(prev); next.delete(username); return next; }); }, []);
   const recordAdMaterialization = useCallback(() => {}, []);
@@ -1007,7 +1108,29 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const deleteCampaign = useCallback((id: string) => {}, []);
   const toggleCampaignStatus = useCallback((id: string) => {}, []);
   const recordCampaignClick = useCallback((id: string) => {}, []);
-  const boostNode = useCallback((nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR') => {}, []);
+  
+  const boostNode = useCallback(async (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR') => {
+    try {
+      await executeVaultTransaction({
+        cost,
+        currency,
+        isPlatformService: true,
+        description: `Content Boost Pulse for Node: ${nodeId}`
+      });
+
+      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, nodeId, {
+        isBoosted: true,
+        boostTargetViews: targetViews,
+        boostCurrentViews: 0,
+        boostExpiry: Date.now() + (durationDays * 24 * 60 * 60 * 1000)
+      });
+
+      await refreshFeed();
+      toast({ title: "Boost Materialized", description: "Campaign strategy synchronized with network discover stream." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Boost Error", description: e.message });
+    }
+  }, [executeVaultTransaction, refreshFeed, toast]);
 
   const isPostLiked = useCallback((postId: string) => likedPostIds.has(postId), [likedPostIds]);
   const isPostUnliked = useCallback((postId: string) => unlikedPostIds.has(postId), [unlikedPostIds]);
