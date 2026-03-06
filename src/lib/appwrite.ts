@@ -40,6 +40,8 @@ export const PLAYLISTS_COLLECTION_ID = 'playlists';
 export const VERIFICATION_NODES_COLLECTION_ID = 'verification_nodes';
 export const NOTIFICATIONS_COLLECTION_ID = 'notifications';
 export const CAMPAIGNS_COLLECTION_ID = 'campaigns';
+export const REPORTS_COLLECTION_ID = 'reports';
+export const TICKETS_COLLECTION_ID = 'tickets';
 
 export { ID, Query };
 

@@ -124,7 +124,7 @@ type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" |
 type EconomySubTab = "outbound" | "inbound";
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus } = usePosts();
+  const { withdrawalHistory, paymentRequests, reports, tickets, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus, updateUserIdentity, handleReportAction, handleTicketAction } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   
@@ -142,6 +142,7 @@ export default function AdminDashboard() {
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   const [govSearch, setGovSearch] = useState("");
+  const [idSearch, setIdSearch] = useState("");
   const [gatewayForm, setGatewayForm] = useState(gatewaySettings);
   const hasLoggedBreach = useRef(false);
 
@@ -171,7 +172,7 @@ export default function AdminDashboard() {
   }, [isUnauthorized, refreshAdminData, addAuditLog, currentUser.username]);
 
   const pendingWithdrawals = useMemo(() => 
-    withdrawalHistory.filter(w => w.status === 'PENDING'), 
+    withdrawalHistory.filter(w => w.status === 'PENDING' || w.status === 'AWAITING_EMAIL_SIGNATURE'), 
     [withdrawalHistory]
   );
 
@@ -214,6 +215,13 @@ export default function AdminDashboard() {
       ((c.name || "").toLowerCase().includes(q) || (c.username || "").toLowerCase().includes(q))
     );
   }, [connections, staff, govSearch]);
+
+  const filteredUsersForId = useMemo(() => {
+    const q = idSearch.toLowerCase();
+    return connections.filter(c => 
+      ((c.name || "").toLowerCase().includes(q) || (c.username || "").toLowerCase().includes(q))
+    );
+  }, [connections, idSearch]);
 
   const handlePromote = (username: string, role: 'FINANCIAL' | 'MODERATOR') => {
     triggerHaptic(50);
@@ -279,7 +287,6 @@ export default function AdminDashboard() {
     setIsCreatingCampaign(true);
     triggerHaptic(50);
     try {
-      const { uploadMedia } = usePosts.getState(); 
       const mediaUrl = await uploadMedia(campFile);
       await addCampaign({ ...campForm, mediaUrl });
       toast({ title: "Campaign Launched", description: "Global node materialized in discover stream." });
@@ -359,7 +366,7 @@ export default function AdminDashboard() {
         isSidebarOpen ? "w-72" : "w-20"
       )}>
         <div className="p-6 flex items-center gap-4 border-b border-border">
-          <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-primary/20">
+          <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shrink-0 shadow-lg shadow-primary/20">
             <ShieldCheck className="h-6 w-6" />
           </div>
           {isSidebarOpen && (
@@ -531,6 +538,92 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {activeTab === 'velocity' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="space-y-1 px-2"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Velocity Hub</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Real-time Network Hardware Metrics</p></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[
+                  { label: "CPU Sync Load", value: intelligenceMetrics.cpuLoad || 12, max: 100, icon: Cpu, color: "text-primary" },
+                  { label: "Memory Pulse", value: intelligenceMetrics.memorySync || 84, max: 100, icon: HardDrive, color: "text-blue-500" },
+                  { label: "Vault Latency", value: intelligenceMetrics.latency, max: 200, icon: Zap, color: "text-amber-500", suffix: "ms" }
+                ].map((m) => (
+                  <Card key={m.label} className="bg-card/40 border-border rounded-[2rem] p-6 shadow-xl relative overflow-hidden group">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className={cn("h-12 w-12 rounded-2xl bg-secondary/40 flex items-center justify-center transition-transform group-hover:scale-110", m.color)}><m.icon className="h-6 w-6" /></div>
+                      <Badge variant="outline" className="text-[10px] font-black border-primary/10">v1.5-HD</Badge>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-baseline"><span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{m.label}</span><span className="text-2xl font-black italic tabular-nums">{m.value}{m.suffix || '%'}</span></div>
+                      <Progress value={(m.value/m.max)*100} className="h-1.5" />
+                    </div>
+                  </Card>
+                ))}
+              </div>
+              <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 shadow-xl">
+                <div className="flex items-center justify-between mb-8"><h4 className="text-xl font-black italic uppercase tracking-tighter">Spatial Node Concurrency</h4><Badge className="bg-green-500/10 text-green-500 border-none px-3 font-black h-5 uppercase">Optimal</Badge></div>
+                <div className="h-[300px] w-full">
+                  <ChartContainer config={{ load: { label: "Load", color: "hsl(var(--primary))" } }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={livePulseData}>
+                        <XAxis dataKey="time" hide />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Line type="step" dataKey="load" stroke="hsl(var(--primary))" strokeWidth={3} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {activeTab === 'identity' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="flex items-center justify-between px-2">
+                <div className="space-y-1"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Identity Registry</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Global Network Node Verification</p></div>
+                <div className="relative w-64"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Query identities..." className="h-10 pl-9 bg-secondary/30 border-none rounded-xl" value={idSearch} onChange={(e) => setIdSearch(e.target.value)} /></div>
+              </div>
+              <Card className="bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead><tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20"><th className="px-8 py-4">IDENTITY</th><th className="px-8 py-4">VAULT BALANCES</th><th className="px-8 py-4">STATUS</th><th className="px-8 py-4 text-right">SYNC</th></tr></thead>
+                    <tbody className="divide-y divide-border">
+                      {filteredUsersForId.map((u) => (
+                        <tr key={u.id} className="hover:bg-secondary/10 transition-colors">
+                          <td className="px-8 py-5"><div className="flex items-center gap-3"><Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={u.avatar} /></Avatar><div className="flex flex-col"><span className="font-bold text-sm">{u.name}</span><span className="text-[10px] font-black text-muted-foreground uppercase">@{u.username}</span></div></div></td>
+                          <td className="px-8 py-5"><div className="flex gap-4"><div className="flex items-center gap-1.5"><Coins className="h-3 w-3 text-amber-500" /><span className="text-xs font-black tabular-nums">{u.goldBalance || 0}</span></div><div className="flex items-center gap-1.5"><Gem className="h-3 w-3 text-cyan-500" /><span className="text-xs font-black tabular-nums">{u.diamondBalance || 0}</span></div></div></td>
+                          <td className="px-8 py-5"><div className="flex items-center gap-2">{u.isVerified ? <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black h-4 px-2 uppercase">VERIFIED</Badge> : <Badge variant="outline" className="text-[8px] font-black h-4 px-2 uppercase opacity-40">STANDARD</Badge>}</div></td>
+                          <td className="px-8 py-5 text-right"><Button variant="ghost" size="icon" className="rounded-xl hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all" onClick={() => { triggerHaptic(10); updateUserIdentity(u.$id || u.id!, { isVerified: !u.isVerified }); }}><ShieldCheck className="h-4 w-4" /></Button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {activeTab === 'safety' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="space-y-1 px-2"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Safety Hub</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Network Integrity & Moderation</p></div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {reports.length > 0 ? reports.map((r) => (
+                  <Card key={r.$id} className="bg-card/40 border-border rounded-[2.5rem] p-6 space-y-6 shadow-xl relative group">
+                    <div className="absolute top-4 right-4"><Badge variant="destructive" className="font-black uppercase text-[8px] h-4">{r.category || 'GENERAL'}</Badge></div>
+                    <div className="flex items-center gap-4"><Avatar className="h-12 w-12 border border-destructive/20"><AvatarImage src={r.targetUserAvatar} /></Avatar><div><p className="text-[10px] font-black text-muted-foreground uppercase">Target Node</p><p className="font-bold text-base">@{r.targetUsername}</p></div></div>
+                    <div className="p-4 bg-destructive/5 border border-destructive/10 rounded-2xl"><p className="text-xs font-medium italic">"{r.reason}"</p></div>
+                    <div className="flex gap-2">
+                      <Button className="flex-1 bg-destructive hover:bg-destructive/90 text-white font-black uppercase text-[10px] rounded-xl h-11" onClick={() => handleReportAction(r.$id, 'BAN')}>BAN IDENTITY</Button>
+                      <Button className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black uppercase text-[10px] rounded-xl h-11" onClick={() => handleReportAction(r.$id, 'DELETE')}>PURGE VIBE</Button>
+                      <Button variant="secondary" className="bg-secondary/40 font-black uppercase text-[10px] rounded-xl h-11" onClick={() => handleReportAction(r.$id, 'DISMISS')}>DISMISS</Button>
+                    </div>
+                  </Card>
+                )) : (
+                  <div className="col-span-full py-32 text-center bg-card/20 rounded-[2.5rem] border border-dashed border-border opacity-40 uppercase text-xs font-black">All network nodes optimal • No active flags</div>
+                )}
+              </div>
+            </div>
+          )}
+
           {activeTab === 'governance' && isSuper && (
             <div className="space-y-10 animate-in slide-in-from-right-4 duration-700">
               <div className="space-y-1 px-2"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Governance Hub</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Administrative Authority Materialization</p></div>
@@ -631,7 +724,7 @@ export default function AdminDashboard() {
                       <input type="file" ref={campInputRef} className="hidden" accept="image/*,video/*" onChange={handleCampaignMedia} />
                     </div>
 
-                    <Button className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-widest shadow-xl shadow-primary/20" disabled={isCreatingCampaign || !campForm.title || !campFile} onClick={handleLaunchCampaign}>
+                    <Button className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-black italic uppercase tracking-widest shadow-xl shadow-primary/20" disabled={isCreatingCampaign || !campForm.title || !campFile} onClick={handleLaunchCampaign}>
                       {isCreatingCampaign ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Zap className="h-5 w-5 mr-2" />}
                       Launch Node
                     </Button>
@@ -640,7 +733,7 @@ export default function AdminDashboard() {
 
                 {/* Management Registry */}
                 <Card className="lg:col-span-2 bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl flex flex-col">
-                  <div className="p-8 border-b border-border flex items-center justify-between"><div className="space-y-1"><h4 className="text-xl font-black italic uppercase tracking-tighter">Campaign Registry</h4><p className="text-[10px] font-bold text-muted-foreground uppercase">Active global discovery stream handshakes</p></div><Badge className="bg-primary text-white border-none font-black h-5 px-3 uppercase tracking-tighter">{campaigns.length} NODES</Badge></div>
+                  <div className="p-8 border-b border-border flex items-center justify-between"><div className="space-y-1"><h4 className="text-xl font-black italic uppercase tracking-tighter">Campaign Registry</h4><p className="text-[10px] font-bold text-muted-foreground uppercase">Active global discovery stream handshakes</p></div><Badge className="bg-primary text-primary-foreground border-none font-black h-5 px-3 uppercase tracking-tighter">{campaigns.length} NODES</Badge></div>
                   <ScrollArea className="flex-1">
                     <div className="p-6 grid grid-cols-1 gap-4">
                       {campaigns.map((c) => (
@@ -669,6 +762,38 @@ export default function AdminDashboard() {
                     </div>
                   </ScrollArea>
                 </Card>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'resolution' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="space-y-1 px-2"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Resolution Hub</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Support Ticketing & Network Disputes</p></div>
+              <div className="grid grid-cols-1 gap-4">
+                {tickets.length > 0 ? tickets.map((t) => (
+                  <Card key={t.$id} className="bg-card/40 border-border rounded-[2rem] p-6 shadow-xl flex items-center justify-between gap-6 group">
+                    <div className="flex items-center gap-5 flex-1">
+                      <div className={cn("h-14 w-14 rounded-2xl flex items-center justify-center shrink-0", t.status === 'RESOLVED' ? "bg-green-500/10 text-green-500" : "bg-amber-500/10 text-amber-500")}>
+                        {t.status === 'RESOLVED' ? <CheckCircle2 className="h-7 w-7" /> : <Clock className="h-7 w-7 animate-pulse" />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-3 mb-1">
+                          <h5 className="font-bold text-lg truncate">@{t.username}</h5>
+                          <Badge variant="outline" className="text-[8px] font-black uppercase border-primary/10">{t.type || 'GENERAL'}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-1 italic">"{t.description}"</p>
+                        <span className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest mt-2 block">{new Date(t.timestamp).toLocaleString()}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2 shrink-0">
+                      <Button className={cn("h-10 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg", t.status === 'RESOLVED' ? "bg-secondary text-muted-foreground" : "bg-primary text-primary-foreground")} onClick={() => handleTicketAction(t.$id, t.status === 'RESOLVED' ? 'PENDING' : 'RESOLVED')}>
+                        {t.status === 'RESOLVED' ? 'REOPEN' : 'RESOLVE NODE'}
+                      </Button>
+                    </div>
+                  </Card>
+                )) : (
+                  <div className="py-32 text-center bg-card/20 rounded-[2.5rem] border border-dashed border-border opacity-40 uppercase text-xs font-black">All support pulses neutralized • System Optimal</div>
+                )}
               </div>
             </div>
           )}
@@ -757,7 +882,7 @@ export default function AdminDashboard() {
                   const isActive = activeTab === tab;
                   return (
                     <button key={tab} onClick={() => { triggerHaptic(15); setActiveTab(tab); setIsMobileDrawerOpen(false); }} className={cn("flex items-center gap-4 p-4 rounded-2xl transition-all border", isActive ? "bg-primary text-white border-primary shadow-xl shadow-primary/20" : "bg-secondary/30 border-transparent hover:border-primary/20")}>
-                      <Icon className={cn("h-5 w-5", isActive && "animate-pulse")} />
+                      <Icon className="h-5 w-5" />
                       <span className="text-xs font-black uppercase tracking-widest">{TABS_DATA[tab].label}</span>
                     </button>
                   );
