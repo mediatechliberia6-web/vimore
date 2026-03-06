@@ -89,7 +89,6 @@ interface PostCardProps {
     avatar: string;
     role: string;
     isVerified?: boolean;
-    isOnline?: boolean;
     followers?: string | number;
   };
   collaborator?: {
@@ -123,6 +122,7 @@ interface PostCardProps {
   poll?: {
     question: string;
     options: { text: string; votes: number }[];
+    voters?: Record<string, number>;
     totalVotes: number;
     duration?: string;
   };
@@ -147,7 +147,7 @@ export function PostCard(props: PostCardProps) {
   } = props;
 
   const { 
-    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, settings, recordCampaignClick, recordView
+    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, voteOnPostPoll, settings, recordCampaignClick, recordView
   } = usePosts();
 
   const { addSignal } = useNotifications();
@@ -176,15 +176,25 @@ export function PostCard(props: PostCardProps) {
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  const [userVote, setUserVote] = useState<number | null>(null);
-  const [localPollOptions, setLocalPollOptions] = useState(poll?.options || []);
-  const [localTotalVotes, setLocalTotalVotes] = useState(poll?.totalVotes || 0);
   const [isPollExpanded, setIsPollExpanded] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const hasRecordedView = useRef(false);
 
   const { toast } = useToast();
+
+  // DERIVED POLL DATA - Deterministic Handshake
+  const userVote = useMemo(() => {
+    if (!poll || !poll.voters) return null;
+    return poll.voters[currentUser.username] ?? null;
+  }, [poll, currentUser.username]);
+
+  const rankedPollOptions = useMemo(() => {
+    if (!poll) return [];
+    return poll.options
+      .map((option, idx) => ({ ...option, originalIndex: idx }))
+      .sort((a, b) => b.votes - a.votes);
+  }, [poll]);
 
   // Visibility Handshake for View Tracking
   useEffect(() => {
@@ -315,30 +325,9 @@ export function PostCard(props: PostCardProps) {
   };
 
   const handleVote = (originalIndex: number) => {
-    triggerHaptic(30);
-    if (!poll) return;
-    const newOptions = [...localPollOptions];
-    let newTotal = localTotalVotes;
-    if (userVote === originalIndex) {
-      newOptions[originalIndex] = { ...newOptions[originalIndex], votes: Math.max(0, newOptions[originalIndex].votes - 1) };
-      newTotal = Math.max(0, newTotal - 1);
-      setUserVote(null);
-    } else {
-      if (userVote !== null) { newOptions[userVote] = { ...newOptions[userVote], votes: Math.max(0, newOptions[userVote].votes - 1) }; newTotal -= 1; }
-      newOptions[originalIndex] = { ...newOptions[originalIndex], votes: newOptions[originalIndex].votes + 1 };
-      newTotal += 1;
-      setUserVote(originalIndex);
-    }
-    setLocalPollOptions(newOptions);
-    setLocalTotalVotes(newTotal);
+    if (isShared || isCampaign) return;
+    voteOnPostPoll(id, originalIndex);
   };
-
-  const rankedPollOptions = useMemo(() => {
-    if (!poll) return [];
-    return localPollOptions
-      .map((option, idx) => ({ ...option, originalIndex: idx }))
-      .sort((a, b) => b.votes - a.votes);
-  }, [localPollOptions, poll]);
 
   const handleReelClick = (e: React.MouseEvent) => {
     if (isSensitiveNode) { setIsRevealedManually(true); return; }
@@ -489,11 +478,11 @@ export function PostCard(props: PostCardProps) {
                 <div className={cn("mt-3 p-4 rounded-xl border border-primary/10 bg-primary/5 space-y-3", isShared && "p-2 scale-95 origin-top-left")}>
                   <div className="flex items-center justify-between"><h4 className={cn("font-bold", isShared ? "text-xs" : "text-sm")}>{poll.question}</h4>{!isShared && <Badge variant="secondary" className="bg-primary/10 text-primary border-none text-[8px] font-black h-4 px-2">RANKED</Badge>}</div>
                   <div className="space-y-2">{(isPollExpanded || isShared ? rankedPollOptions.slice(0, isShared ? 2 : rankedPollOptions.length) : rankedPollOptions.slice(0, 4)).map((option, i) => {
-                    const p = localTotalVotes > 0 ? (option.votes / localTotalVotes) * 100 : 0;
+                    const p = poll.totalVotes > 0 ? (option.votes / poll.totalVotes) * 100 : 0;
                     const isSelected = userVote === option.originalIndex;
-                    return <button key={option.originalIndex} onClick={() => !isShared && handleVote(option.originalIndex)} disabled={isShared} className={cn("w-full relative h-10 rounded-lg border overflow-hidden transition-all", isSelected ? "border-primary bg-primary/10" : "border-primary/20 bg-white/40", isShared && "h-8 cursor-default")}><div className={cn("absolute inset-y-0 left-0 transition-all duration-700", isSelected ? "bg-primary/20" : "bg-primary/5")} style={{ width: `${p}%` }} /><div className="absolute inset-0 flex items-center justify-between px-3 text-sm"><div className="flex items-center gap-2"><span className="text-[10px] font-black text-primary/40">#{i + 1}</span><span className={cn("font-medium", isSelected && "text-primary font-bold", isShared && "text-xs")}>{option.text}</span></div><span className={cn("font-black text-primary", isShared ? "text-[10px]" : "text-xs")}>{Math.round(p)}%</span></div></button>;
+                    return <button key={option.originalIndex} onClick={() => !isShared && handleVote(option.originalIndex)} disabled={isShared} className={cn("w-full relative h-10 rounded-lg border overflow-hidden transition-all", isSelected ? "border-primary bg-primary/10 shadow-inner" : "border-primary/20 bg-white/40", isShared && "h-8 cursor-default")}><div className={cn("absolute inset-y-0 left-0 transition-all duration-700", isSelected ? "bg-primary/30" : "bg-primary/5")} style={{ width: `${p}%` }} /><div className="absolute inset-0 flex items-center justify-between px-3 text-sm"><div className="flex items-center gap-2"><span className="text-[10px] font-black text-primary/40">#{i + 1}</span><span className={cn("font-medium", isSelected && "text-primary font-black", isShared && "text-xs")}>{option.text}</span></div><span className={cn("font-black text-primary", isShared ? "text-[10px]" : "text-xs")}>{Math.round(p)}%</span></div></button>;
                   })}</div>
-                  {!isShared && <div className="flex items-center justify-between pt-1 border-t border-primary/5"><span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{localTotalVotes.toLocaleString()} {t('post_poll_total_votes')}</span>{rankedPollOptions.length > 4 && <button onClick={() => setIsPollExpanded(!isPollExpanded)} className="text-[10px] font-black text-primary uppercase">{isPollExpanded ? "Collapse" : "View all"}</button>}</div>}
+                  {!isShared && <div className="flex items-center justify-between pt-1 border-t border-primary/5"><span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{poll.totalVotes.toLocaleString()} {t('post_poll_total_votes')}</span>{rankedPollOptions.length > 4 && <button onClick={() => setIsPollExpanded(!isPollExpanded)} className="text-[10px] font-black text-primary uppercase">{isPollExpanded ? "Collapse" : "View all"}</button>}</div>}
                 </div>
               )}
 

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -274,6 +273,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         poll: isPollOpen && pollQuestion ? {
           question: pollQuestion,
           options: pollOptions.filter(o => o.trim()).map(text => ({ text, votes: 0 })),
+          voters: {},
           totalVotes: 0,
           duration: pollDuration
         } : undefined
