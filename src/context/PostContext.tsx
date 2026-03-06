@@ -103,6 +103,7 @@ export interface Post {
   comments: number;
   shares: number;
   views: number;
+  viewers?: string[];
   images?: string[];
   image?: string;
   videoUrl?: string; 
@@ -355,6 +356,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [followingUsernames, setFollowingUsernamesState] = useState<Set<string>>(new Set());
   const [followerUsernames, setFollowerUsernamesState] = useState<Set<string>>(new Set());
   
+  // High-Velocity Unique View Cache (Session Persistence)
+  const [viewedNodeIds, setViewedNodeIds] = useState<Set<string>>(new Set());
+  
   const [selectedPostId, setSelectedPostIdState] = useState<string | null>(null);
   const [selectedChatId, setSelectedChatIdState] = useState<string | null>(null);
   const [selectedImageUrl, setSelectedImageUrlState] = useState<string | null>(null);
@@ -450,26 +454,40 @@ export function PostProvider({ children }: { children: ReactNode }) {
         user: typeof doc.user === 'string' ? JSON.parse(doc.user) : doc.user,
         segments: typeof doc.segments === 'string' ? JSON.parse(doc.segments) : doc.segments,
         isCloseFriends: doc.isCloseFriends,
-        viewCount: doc.viewCount || 0
+        viewCount: doc.viewCount || 0,
+        viewers: doc.viewers || [] // Fetch unique viewers array
       })));
     } catch (e) {}
   }, []);
 
   const recordStoryView = useCallback(async (storyId: string) => {
+    if (!currentUser.id || viewedNodeIds.has(storyId)) return;
+
+    const story = stories.find(s => s.id === storyId);
+    if (!story) return;
+
+    // Check if user is already in the viewers list from the fetched story data
+    const viewers = story.viewers || [];
+    if (viewers.includes(currentUser.id)) {
+      setViewedNodeIds(prev => new Set(prev).add(storyId));
+      return;
+    }
+
     try {
-      const story = stories.find(s => s.id === storyId);
-      if (!story) return;
-      
       const newViews = (story.viewCount || 0) + 1;
+      const updatedViewers = [...viewers, currentUser.id];
+      
       await databases.updateDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, storyId, {
-        viewCount: newViews
+        viewCount: newViews,
+        viewers: updatedViewers // Add unique identity to registry
       });
       
-      setStoriesState(prev => prev.map(s => s.id === storyId ? { ...s, viewCount: newViews } : s));
+      setViewedNodeIds(prev => new Set(prev).add(storyId));
+      setStoriesState(prev => prev.map(s => s.id === storyId ? { ...s, viewCount: newViews, viewers: updatedViewers } : s));
     } catch (e) {
       console.warn("Story view pulse rejection in vault.");
     }
-  }, [stories]);
+  }, [stories, currentUser.id, viewedNodeIds]);
 
   const fetchComments = useCallback(async (postId: string) => {
     try {
@@ -534,6 +552,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           comments: doc.comments || 0,
           shares: doc.shares || 0,
           views: doc.views || 0,
+          viewers: doc.viewers || [], // Fetch unique viewers array
           theme: doc.theme,
           language: doc.language,
           isLocked: doc.isLocked,
@@ -552,12 +571,25 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const recordView = useCallback(async (postId: string) => {
+    if (!currentUser.id || viewedNodeIds.has(postId)) return;
+
     const post = posts.find(p => p.id === postId);
     if (!post) return;
 
+    // Check if user is already in the viewers list from the fetched post data
+    const viewers = post.viewers || [];
+    if (viewers.includes(currentUser.id)) {
+      setViewedNodeIds(prev => new Set(prev).add(postId));
+      return;
+    }
+
     try {
       const newTotalViews = (post.views || 0) + 1;
-      const updates: any = { views: newTotalViews };
+      const updatedViewers = [...viewers, currentUser.id];
+      const updates: any = { 
+        views: newTotalViews,
+        viewers: updatedViewers // Add unique identity to registry
+      };
 
       if (post.isBoosted) {
         const newBoostViews = (post.boostCurrentViews || 0) + 1;
@@ -570,16 +602,20 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
       await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, updates);
       
+      // Update local session cache
+      setViewedNodeIds(prev => new Set(prev).add(postId));
+      
       setPostsState(prev => prev.map(p => p.id === postId ? { 
         ...p, 
-        views: newTotalViews, 
+        views: newTotalViews,
+        viewers: updatedViewers,
         boostCurrentViews: updates.boostCurrentViews || p.boostCurrentViews,
         isBoosted: updates.isBoosted !== undefined ? updates.isBoosted : p.isBoosted
       } : p));
     } catch (e) {
       console.warn("View pulse rejection in vault.");
     }
-  }, [posts]);
+  }, [posts, currentUser.id, viewedNodeIds]);
 
   const refreshLikes = useCallback(async (userId: string) => {
     try {
@@ -870,7 +906,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const addPost = useCallback(async (newPostData: any) => {
     try {
-      const docData = { content: newPostData.content, user: JSON.stringify(newPostData.user), image: newPostData.image, images: JSON.stringify(newPostData.images || []), videoUrl: newPostData.videoUrl, theme: newPostData.theme, language: newPostData.language, isLocked: newPostData.isLocked || false, unlockPrice: newPostData.unlockPrice || 0, poll: newPostData.poll ? JSON.stringify(newPostData.poll) : null, likes: 0, unlikes: 0, comments: 0, shares: 0, views: 0, isBoosted: false };
+      const docData = { content: newPostData.content, user: JSON.stringify(newPostData.user), image: newPostData.image, images: JSON.stringify(newPostData.images || []), videoUrl: newPostData.videoUrl, theme: newPostData.theme, language: newPostData.language, isLocked: newPostData.isLocked || false, unlockPrice: newPostData.unlockPrice || 0, poll: newPostData.poll ? JSON.stringify(newPostData.poll) : null, likes: 0, unlikes: 0, comments: 0, shares: 0, views: 0, isBoosted: false, viewers: [] };
       await databases.createDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, ID.unique(), docData);
       await refreshFeed();
     } catch (e: any) { throw new Error(e.message); }
@@ -1027,7 +1063,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const addStory = useCallback(async (segment: any) => {
     try {
-      await databases.createDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, ID.unique(), { user: JSON.stringify(currentUser), segments: JSON.stringify([segment]), expiresAt: Date.now() + (24 * 60 * 60 * 1000) });
+      await databases.createDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, ID.unique(), { user: JSON.stringify(currentUser), segments: JSON.stringify([segment]), expiresAt: Date.now() + (24 * 60 * 60 * 1000), viewers: [] });
       await refreshStories();
     } catch (e: any) { throw new Error(e.message); }
   }, [currentUser, refreshStories]);
