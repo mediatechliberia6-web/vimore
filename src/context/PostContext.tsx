@@ -21,6 +21,7 @@ import client, {
   NOTIFICATIONS_COLLECTION_ID,
   MESSAGES_COLLECTION_ID,
   SONGS_COLLECTION_ID,
+  CAMPAIGNS_COLLECTION_ID,
   Query,
   storage
 } from '@/lib/appwrite';
@@ -270,10 +271,10 @@ interface PostContextType {
   leaveCluster: (clusterId: string) => Promise<void>;
   promoteUser: (username: string, role: 'FINANCIAL' | 'MODERATOR') => Promise<void>;
   demoteUser: (username: string) => Promise<void>;
-  addCampaign: (data: any) => void;
-  deleteCampaign: (id: string) => void;
-  toggleCampaignStatus: (id: string) => void;
-  recordCampaignClick: (id: string) => void;
+  addCampaign: (data: any) => Promise<void>;
+  deleteCampaign: (id: string) => Promise<void>;
+  toggleCampaignStatus: (id: string) => Promise<void>;
+  recordCampaignClick: (id: string) => Promise<void>;
   boostNode: (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'REEL' | 'SONIC') => Promise<void>;
   initiateCall: (contact: any, type: CallType) => Promise<void>;
   receiveCall: (contact: any, type: CallType, channelName: string, token: string, callId: string) => void;
@@ -456,6 +457,25 @@ export function PostProvider({ children }: { children: ReactNode }) {
         isCloseFriends: doc.isCloseFriends,
         viewCount: doc.viewCount || 0,
         viewers: doc.viewers || []
+      })));
+    } catch (e) {}
+  }, []);
+
+  const refreshCampaigns = useCallback(async () => {
+    try {
+      const response = await databases.listDocuments(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID, [Query.limit(50)]);
+      setCampaignsState(response.documents.map(doc => ({
+        id: doc.$id,
+        title: doc.title,
+        content: doc.content,
+        type: doc.type,
+        mediaUrl: doc.mediaUrl,
+        actionUrl: doc.actionUrl,
+        actionLabel: doc.actionLabel,
+        isActive: doc.isActive,
+        clicks: doc.clicks || 0,
+        impressions: doc.impressions || 0,
+        timestamp: doc.$createdAt
       })));
     } catch (e) {}
   }, []);
@@ -752,8 +772,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
       setStaffState(profiles.documents.filter(p => p.role && p.role !== 'USER'));
       setConnectionsState(profiles.documents.map(p => ({ ...p, id: p.$id, isGroup: false } as any)));
       setAuditLogsState(logs.documents);
+      await refreshCampaigns();
     } catch (e) {}
-  }, [currentUser.role]);
+  }, [currentUser.role, refreshCampaigns]);
 
   const checkSession = useCallback(async () => {
     try {
@@ -790,6 +811,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         refreshFeed(), 
         refreshStories(), 
         refreshProfiles(),
+        refreshCampaigns(),
         refreshSocialGraph(user.$id, profile.username), 
         refreshLikes(user.$id),
         refreshClusters(), 
@@ -801,7 +823,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       setCurrentUserState(INITIAL_USER);
     }
     finally { setIsLoadingState(false); }
-  }, [refreshFeed, refreshStories, refreshSocialGraph, refreshLikes, refreshProfiles, refreshClusters, refreshEconomy, refreshAdminData]);
+  }, [refreshFeed, refreshStories, refreshProfiles, refreshCampaigns, refreshSocialGraph, refreshLikes, refreshClusters, refreshEconomy, refreshAdminData]);
 
   useEffect(() => { 
     checkSession();
@@ -1376,10 +1398,42 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setCallState({ type: 'video', status: 'idle', contact: null }); 
   }, []);
 
-  const addCampaign = useCallback((data: any) => {}, []);
-  const deleteCampaign = useCallback((id: string) => {}, []);
-  const toggleCampaignStatus = useCallback((id: string) => {}, []);
-  const recordCampaignClick = useCallback((id: string) => {}, []);
+  const addCampaign = useCallback(async (data: any) => {
+    try {
+      await databases.createDocument(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID, ID.unique(), {
+        ...data,
+        isActive: true,
+        clicks: 0,
+        impressions: 0
+      });
+      await refreshCampaigns();
+    } catch (e: any) { throw new Error(e.message); }
+  }, [refreshCampaigns]);
+
+  const deleteCampaign = useCallback(async (id: string) => {
+    try {
+      await databases.deleteDocument(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID, id);
+      await refreshCampaigns();
+    } catch (e: any) { throw new Error(e.message); }
+  }, [refreshCampaigns]);
+
+  const toggleCampaignStatus = useCallback(async (id: string) => {
+    const campaign = campaigns.find(c => c.id === id);
+    if (!campaign) return;
+    try {
+      await databases.updateDocument(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID, id, { isActive: !campaign.isActive });
+      await refreshCampaigns();
+    } catch (e: any) { throw new Error(e.message); }
+  }, [campaigns, refreshCampaigns]);
+
+  const recordCampaignClick = useCallback(async (id: string) => {
+    const campaign = campaigns.find(c => c.id === id);
+    if (!campaign) return;
+    try {
+      await databases.updateDocument(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID, id, { clicks: (campaign.clicks || 0) + 1 });
+      await refreshCampaigns();
+    } catch (e) {}
+  }, [campaigns, refreshCampaigns]);
   
   const boostNode = useCallback(async (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'REEL' | 'SONIC') => {
     try {

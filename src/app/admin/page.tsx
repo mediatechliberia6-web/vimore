@@ -73,7 +73,8 @@ import {
   UserMinus,
   KeyRound,
   RefreshCcw,
-  LayoutGrid
+  LayoutGrid,
+  Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -123,7 +124,7 @@ type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" |
 type EconomySubTab = "outbound" | "inbound";
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData } = usePosts();
+  const { withdrawalHistory, paymentRequests, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   
@@ -143,6 +144,20 @@ export default function AdminDashboard() {
   const [govSearch, setGovSearch] = useState("");
   const [gatewayForm, setGatewayForm] = useState(gatewaySettings);
   const hasLoggedBreach = useRef(false);
+
+  // Campaign Form State
+  const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
+  const [campForm, setCampForm] = useState({
+    title: "",
+    content: "",
+    type: "photo" as "photo" | "video",
+    actionUrl: "",
+    actionLabel: "Launch Pulse",
+    mediaUrl: ""
+  });
+  const [campFile, setCampFile] = useState<File | null>(null);
+  const [campPreview, setCampPreview] = useState<string | null>(null);
+  const campInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isUnauthorized && !hasLoggedBreach.current) {
@@ -247,6 +262,34 @@ export default function AdminDashboard() {
       toast({ variant: "destructive", title: "Audit Error" });
     } finally {
       setIsAnalyzingVibe(false);
+    }
+  };
+
+  const handleCampaignMedia = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCampFile(file);
+      setCampPreview(URL.createObjectURL(file));
+      setCampForm(prev => ({ ...prev, type: file.type.startsWith('video/') ? 'video' : 'photo' }));
+    }
+  };
+
+  const handleLaunchCampaign = async () => {
+    if (!campForm.title || !campForm.content || !campFile) return;
+    setIsCreatingCampaign(true);
+    triggerHaptic(50);
+    try {
+      const { uploadMedia } = usePosts.getState(); 
+      const mediaUrl = await uploadMedia(campFile);
+      await addCampaign({ ...campForm, mediaUrl });
+      toast({ title: "Campaign Launched", description: "Global node materialized in discover stream." });
+      setCampForm({ title: "", content: "", type: "photo", actionUrl: "", actionLabel: "Launch Pulse", mediaUrl: "" });
+      setCampFile(null);
+      setCampPreview(null);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
+    } finally {
+      setIsCreatingCampaign(false);
     }
   };
 
@@ -545,6 +588,88 @@ export default function AdminDashboard() {
                 </Card>
               </div>
               <div className="flex justify-center pt-10"><Button onClick={handleSaveGateway} className="h-16 px-12 rounded-3xl bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl shadow-primary/20 transition-all hover:scale-105 active:scale-95">Synchronize Gateways</Button></div>
+            </div>
+          )}
+
+          {activeTab === 'campaigns' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="space-y-1 px-2">
+                <h3 className="text-3xl font-black italic uppercase tracking-tighter">Campaign Hub</h3>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Global Discovery Node Materialization</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Creation Node */}
+                <Card className="lg:col-span-1 bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-6 opacity-5"><Megaphone className="h-24 w-24" /></div>
+                  <div className="space-y-2 relative z-10"><h4 className="text-xl font-black italic uppercase tracking-tighter">Materialize Node</h4><p className="text-[10px] font-bold text-muted-foreground uppercase">Launch global discovery vibes</p></div>
+                  
+                  <div className="space-y-4 relative z-10">
+                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Vibe Title</Label><Input value={campForm.title} onChange={(e) => setCampForm({...campForm, title: e.target.value})} className="h-12 bg-secondary/30 border-none rounded-xl font-bold" placeholder="Summer Sonic Pulse..." /></div>
+                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Content Manifesto</Label><Textarea value={campForm.content} onChange={(e) => setCampForm({...campForm, content: e.target.value})} className="bg-secondary/30 border-none rounded-xl font-medium min-h-[100px] resize-none" placeholder="Experience the high-velocity..." /></div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Action Link</Label><Input value={campForm.actionUrl} onChange={(e) => setCampForm({...campForm, actionUrl: e.target.value})} className="h-12 bg-secondary/30 border-none rounded-xl font-bold" placeholder="/music or URL" /></div>
+                      <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Button Label</Label><Input value={campForm.actionLabel} onChange={(e) => setCampForm({...campForm, actionLabel: e.target.value})} className="h-12 bg-secondary/30 border-none rounded-xl font-bold" /></div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Visual Handshake</Label>
+                      <div className="relative aspect-video rounded-2xl bg-secondary/30 border-2 border-dashed border-primary/10 flex flex-col items-center justify-center cursor-pointer group hover:border-primary/30 transition-all overflow-hidden" onClick={() => campInputRef.current?.click()}>
+                        {campPreview ? (
+                          <>
+                            {campForm.type === 'video' ? <video src={campPreview} className="w-full h-full object-cover" autoPlay loop muted /> : <Image src={campPreview} alt="Preview" fill className="object-cover" />}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><RefreshCcw className="h-6 w-6 text-white" /></div>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
+                            <Upload className="h-6 w-6" />
+                            <span className="text-[9px] font-black uppercase">Upload HQ Media</span>
+                          </div>
+                        )}
+                      </div>
+                      <input type="file" ref={campInputRef} className="hidden" accept="image/*,video/*" onChange={handleCampaignMedia} />
+                    </div>
+
+                    <Button className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-widest shadow-xl shadow-primary/20" disabled={isCreatingCampaign || !campForm.title || !campFile} onClick={handleLaunchCampaign}>
+                      {isCreatingCampaign ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Zap className="h-5 w-5 mr-2" />}
+                      Launch Node
+                    </Button>
+                  </div>
+                </Card>
+
+                {/* Management Registry */}
+                <Card className="lg:col-span-2 bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl flex flex-col">
+                  <div className="p-8 border-b border-border flex items-center justify-between"><div className="space-y-1"><h4 className="text-xl font-black italic uppercase tracking-tighter">Campaign Registry</h4><p className="text-[10px] font-bold text-muted-foreground uppercase">Active global discovery stream handshakes</p></div><Badge className="bg-primary text-white border-none font-black h-5 px-3 uppercase tracking-tighter">{campaigns.length} NODES</Badge></div>
+                  <ScrollArea className="flex-1">
+                    <div className="p-6 grid grid-cols-1 gap-4">
+                      {campaigns.map((c) => (
+                        <div key={c.id} className="p-4 bg-secondary/20 rounded-3xl border border-white/5 flex items-center gap-6 group hover:bg-secondary/30 transition-all">
+                          <div className="relative h-20 w-20 rounded-2xl overflow-hidden shrink-0 shadow-lg">
+                            {c.type === 'video' ? <video src={c.mediaUrl} className="w-full h-full object-cover" muted /> : <Image src={c.mediaUrl} alt="Campaign" fill className="object-cover" />}
+                          </div>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <h5 className="font-bold text-base truncate">{c.title}</h5>
+                              <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5", c.isActive ? "bg-green-500 text-white" : "bg-zinc-500 text-white")}>{c.isActive ? 'ACTIVE' : 'IDLE'}</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-1 italic">"{c.content}"</p>
+                            <div className="flex items-center gap-4 pt-1">
+                              <div className="flex items-center gap-1 text-[9px] font-black text-primary uppercase"><Eye className="h-3 w-3" /> {c.impressions.toLocaleString()} Reach</div>
+                              <div className="flex items-center gap-1 text-[9px] font-black text-accent uppercase"><ArrowUpRight className="h-3 w-3" /> {c.clicks.toLocaleString()} Clicks</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Switch checked={c.isActive} onCheckedChange={() => toggleCampaignStatus(c.id)} />
+                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-destructive transition-colors" onClick={() => { triggerHaptic(50); deleteCampaign(c.id); }}><Trash2 className="h-4 w-4" /></Button>
+                          </div>
+                        </div>
+                      ))}
+                      {campaigns.length === 0 && <div className="py-24 text-center opacity-40 italic text-xs uppercase font-black">Campaign clusters silent</div>}
+                    </div>
+                  </ScrollArea>
+                </Card>
+              </div>
             </div>
           )}
 
