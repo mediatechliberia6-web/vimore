@@ -24,7 +24,6 @@ import { useNotifications } from "@/context/NotificationContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { aiRequestSignatureVerificationAction } from "@/app/actions/ai";
 import { Badge } from "@/components/ui/badge";
 
 export default function VerificationHub() {
@@ -86,34 +85,24 @@ export default function VerificationHub() {
     triggerHaptic(20);
 
     try {
-      // AI AUDITOR HANDSHAKE
-      const result = await aiRequestSignatureVerificationAction({
-        username: currentUser.username,
-        hasEverBeenVerified: !isFirstTime,
-        currencyChoice
+      // VI-MORE PAYMENT VERIFICATION SYSTEM (PHASE 3)
+      // Deterministic handshake: No AI audit required. 
+      await verifyUser(currentCost, currencyChoice);
+      
+      // SYNC SIGNAL
+      addSignal({
+        type: 'SYSTEM',
+        title: 'Signature Materialized',
+        content: `Your high-velocity purple signature is now live. **Valid for 30 days.**`,
+        avatar: currentUser.avatar
       });
 
-      if (result.approved) {
-        // SECURE TRANSACTION
-        verifyUser(result.cost, currencyChoice);
-        
-        // SYNC SIGNAL
-        addSignal({
-          type: 'SYSTEM',
-          title: 'Signature Materialized',
-          content: `Your high-velocity purple signature is now live. **Valid for 30 days.**`,
-          avatar: currentUser.avatar
-        });
-
-        toast({
-          title: "Signature Materialized",
-          description: result.message
-        });
-      } else {
-        toast({ variant: "destructive", title: "Audit Failed", description: result.message });
-      }
-    } catch (e) {
-      toast({ variant: "destructive", title: "Protocol Error", description: "Audit node unreachable." });
+      toast({
+        title: "Signature Active",
+        description: "Your digital signature has been upgraded successfully."
+      });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Protocol Error", description: e.message });
     } finally {
       setIsVerifying(false);
     }
@@ -288,19 +277,19 @@ export default function VerificationHub() {
             onClick={handleVerificationRequest}
           >
             {isVerifying ? (
-              <><Loader2 className="mr-3 h-6 w-6 animate-spin" /> AUDITING PROTOCOL...</>
+              <><Loader2 className="mr-3 h-6 w-6 animate-spin" /> SYNCING VAULT...</>
             ) : currentUser.isVerified ? (
-              <><CheckCircle2 className="mr-3 h-6 w-6" /> PROTOCOL ACTIVE</>
+              <><CheckCircle2 className="mr-3 h-6 w-6" /> SIGNATURE ACTIVE</>
             ) : !isEmailPulseActive ? (
               <><Mail className="mr-3 h-6 w-6" /> SYNC EMAIL FIRST</>
             ) : (
-              <><Zap className="mr-3 h-6 w-6" /> GET VERIFIED</>
+              <><Zap className="mr-3 h-6 w-6" /> UPGRADE IDENTITY</>
             )}
           </Button>
           
           <div className="flex items-center justify-center gap-2 text-muted-foreground/40 font-bold text-[9px] uppercase tracking-widest">
             <ShieldCheck className="h-3 w-3" /> 
-            Groq AI Audited • End-to-End Encrypted
+            ViMore Payment Verification Protocol • Instant Sync
           </div>
         </div>
 

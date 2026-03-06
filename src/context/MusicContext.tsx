@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -67,6 +66,7 @@ interface MusicContextType {
   globalSongs: Track[];
   globalAlbums: Album[];
   globalPlaylists: Playlist[];
+  forYouSongs: Track[];
   isPlaying: boolean;
   isExpanded: boolean;
   selectedAlbum: Album | null;
@@ -256,10 +256,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         unlikes: d.unlikes || 0,
         artistUsername: d.artistUsername,
         artistFollowers: d.artistFollowers,
-        isBoosted: d.isBoosted,
+        isBoosted: d.isBoosted || false,
         boostTargetViews: d.boostTargetViews,
         boostCurrentViews: d.boostCurrentViews
-      } as Track));
+      } as Track)).sort((a, b) => (b.isBoosted ? 1 : 0) - (a.isBoosted ? 1 : 0));
 
       const albums = albumDocs.documents.map(d => ({
         id: d.$id,
@@ -313,6 +313,25 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       audioRef.current.pause();
     }
   }, [currentTrack, isPlaying]);
+
+  const forYouSongs = useMemo(() => {
+    const boosted = globalSongs.filter(s => s.isBoosted);
+    const regular = globalSongs.filter(s => !s.isBoosted);
+    const result: Track[] = [];
+    
+    // Interleave Logic: 1 Boosted per 2 Regular
+    let bIdx = 0;
+    let rIdx = 0;
+    while(rIdx < regular.length || bIdx < boosted.length) {
+      for(let i=0; i<2 && rIdx < regular.length; i++) {
+        result.push(regular[rIdx++]);
+      }
+      if(bIdx < boosted.length) {
+        result.push(boosted[bIdx++]);
+      }
+    }
+    return result;
+  }, [globalSongs]);
 
   const nextTrack = useCallback(() => {
     if (queue.length === 0) return;
@@ -456,7 +475,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         duration: newTrack.duration,
         streams: "0",
         likes: 0,
-        unlikes: 0
+        unlikes: 0,
+        isBoosted: false
       };
       await databases.createDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ID.unique(), docData);
       await refreshMusicVault();
@@ -588,7 +608,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const userAlbums = useMemo(() => globalAlbums.filter(a => a.artistUsername === "johndoe_creative"), [globalAlbums]);
 
   const contextValue = useMemo(() => ({
-    currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, 
+    currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, forYouSongs, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, 
     likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats,
     isAdPortalOpen, adDuration, adUrl: AD_URL, triggerDownloadWithAd, onAdComplete,
     isCreatePlaylistOpen, trackForNewPlaylist,
@@ -597,7 +617,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked,
     playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack,
     openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic, refreshMusicVault
-  }), [currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats, isAdPortalOpen, adDuration, isCreatePlaylistOpen, trackForNewPlaylist, isCaptureStudioOpen, captureTrack, triggerHaptic, setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked, playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack, openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, refreshMusicVault]);
+  }), [currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, forYouSongs, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats, isAdPortalOpen, adDuration, isCreatePlaylistOpen, trackForNewPlaylist, isCaptureStudioOpen, captureTrack, triggerHaptic, setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked, playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack, openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, refreshMusicVault]);
 
   return (
     <MusicContext.Provider value={contextValue}>

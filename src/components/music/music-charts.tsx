@@ -12,7 +12,8 @@ import {
   Globe,
   MapPin,
   BarChart2,
-  Music2
+  Music2,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
 import { useMusic, Track } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
+import Image from "image";
 import Link from "next/link";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
@@ -65,7 +66,12 @@ export function MusicCharts() {
 
   const rankedSongs = useMemo(() => {
     if (!globalSongs || globalSongs.length === 0) return [];
+    
+    // Deterministic Logic: Priority 1: isBoosted, Priority 2: Likes
     return [...globalSongs].sort((a, b) => {
+      if (a.isBoosted && !b.isBoosted) return -1;
+      if (!a.isBoosted && b.isBoosted) return 1;
+      
       const aLikes = trackStats[a.id]?.likes || a.likes || 0;
       const bLikes = trackStats[b.id]?.likes || b.likes || 0;
       return bLikes - aLikes;
@@ -106,8 +112,13 @@ export function MusicCharts() {
             <div className="space-y-3 sm:space-y-4 max-w-xl text-center lg:text-left">
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 sm:gap-3">
                 <Badge className="bg-primary hover:bg-primary text-[8px] sm:text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full">
-                  Global Number One
+                  {topSong.isBoosted ? "Promoted Peak" : "Global Number One"}
                 </Badge>
+                {topSong.isBoosted && (
+                  <span className="text-primary text-[10px] sm:text-xs font-black italic uppercase tracking-widest flex items-center gap-1">
+                    <Zap className="h-3 w-3 fill-current animate-pulse" /> Boosted Pulse
+                  </span>
+                )}
                 <span className="text-green-400 text-[10px] sm:text-xs font-black italic uppercase tracking-widest flex items-center gap-1">
                   <TrendingUp className="h-3 w-3" /> Peak Pulse Reached
                 </span>
@@ -133,7 +144,7 @@ export function MusicCharts() {
             </div>
 
             <div className="hidden lg:block relative w-64 h-64 rounded-[2rem] overflow-hidden shadow-2xl rotate-3 group-hover:rotate-0 transition-transform duration-700">
-              <Image src={topSong.cover} alt="Art" fill className="object-cover" />
+              <img src={topSong.cover} alt="Art" className="w-full h-full object-cover" />
             </div>
           </div>
         </div>
@@ -197,18 +208,21 @@ export function MusicCharts() {
 
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                   <div className="relative h-10 w-10 sm:h-14 sm:w-14 rounded-lg sm:rounded-xl overflow-hidden shadow-lg shrink-0">
-                    <Image src={item.cover} alt={item.title} fill className="object-cover" />
+                    <img src={item.cover} alt={item.title} className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <Play className="h-4 w-4 sm:h-6 sm:w-6 text-white fill-current" />
                     </div>
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className={cn(
-                      "font-black italic uppercase tracking-tight truncate text-xs sm:text-base",
-                      isCurrent ? "text-primary" : "text-foreground"
-                    )}>
-                      {item.title}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={cn(
+                        "font-black italic uppercase tracking-tight truncate text-xs sm:text-base",
+                        isCurrent ? "text-primary" : "text-foreground"
+                      )}>
+                        {item.title}
+                      </span>
+                      {item.isBoosted && <Zap className="h-2.5 w-2.5 text-primary fill-current animate-pulse" />}
+                    </div>
                     <Link 
                       href={`/profile/${item.artistUsername || 'vimore'}`} 
                       className="text-[10px] sm:text-xs font-bold text-muted-foreground hover:text-primary transition-colors truncate"

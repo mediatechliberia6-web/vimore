@@ -38,7 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 
 function MusicPageContent() {
   const searchParams = useSearchParams();
-  const { globalSongs, globalAlbums, globalPlaylists, currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, userSongs, userAlbums, openCreatePlaylist, downloadedSongIds, deleteUserTrack, deleteUserAlbum, triggerHaptic } = useMusic();
+  const { globalSongs, globalAlbums, globalPlaylists, forYouSongs, currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, userSongs, userAlbums, openCreatePlaylist, downloadedSongIds, deleteUserTrack, deleteUserAlbum, triggerHaptic } = useMusic();
   const { connections } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -185,6 +185,7 @@ function MusicPageContent() {
                   <>
                     {!searchQuery && filteredSongs.length > 0 && <MusicGrid type="hero" items={[filteredSongs[0]]} />}
                     {!searchQuery && <NativeAdNode type="standard" /> }
+                    {forYouSongs.length > 0 && <MusicGrid type="song" title="For You" items={forYouSongs.slice(0, 10)} />}
                     {filteredSongs.length > 0 && <MusicGrid type="song" title={searchQuery ? t('ui_all') : t('music_trending_songs')} items={filteredSongs} />}
                     {!searchQuery && <NativeAdNode type="standard" /> }
                     {filteredAlbums.length > 0 && <MusicGrid type="album" title={searchQuery ? t('music_my_albums') : t('music_trending_albums')} items={filteredAlbums} />}
