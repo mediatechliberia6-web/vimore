@@ -272,7 +272,7 @@ interface PostContextType {
   deleteCampaign: (id: string) => void;
   toggleCampaignStatus: (id: string) => void;
   recordCampaignClick: (id: string) => void;
-  boostNode: (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR') => Promise<void>;
+  boostNode: (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'REEL' | 'SONIC') => Promise<void>;
   initiateCall: (contact: any, type: CallType) => Promise<void>;
   receiveCall: (contact: any, type: CallType, channelName: string, token: string, callId: string) => void;
   acceptCall: () => Promise<void>;
@@ -284,6 +284,7 @@ interface PostContextType {
   refreshClusters: () => Promise<void>;
   refreshFeed: () => Promise<void>;
   recordView: (postId: string) => Promise<void>;
+  recordStoryView: (storyId: string) => Promise<void>;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -454,6 +455,22 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e) {}
   }, []);
 
+  const recordStoryView = useCallback(async (storyId: string) => {
+    try {
+      const story = stories.find(s => s.id === storyId);
+      if (!story) return;
+      
+      const newViews = (story.viewCount || 0) + 1;
+      await databases.updateDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, storyId, {
+        viewCount: newViews
+      });
+      
+      setStoriesState(prev => prev.map(s => s.id === storyId ? { ...s, viewCount: newViews } : s));
+    } catch (e) {
+      console.warn("Story view pulse rejection in vault.");
+    }
+  }, [stories]);
+
   const fetchComments = useCallback(async (postId: string) => {
     try {
       const response = await databases.listDocuments(
@@ -559,7 +576,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
         boostCurrentViews: updates.boostCurrentViews || p.boostCurrentViews,
         isBoosted: updates.isBoosted !== undefined ? updates.isBoosted : p.isBoosted
       } : p));
-    } catch (e) {}
+    } catch (e) {
+      console.warn("View pulse rejection in vault.");
+    }
   }, [posts]);
 
   const refreshLikes = useCallback(async (userId: string) => {
@@ -1186,17 +1205,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const toggleCampaignStatus = useCallback((id: string) => {}, []);
   const recordCampaignClick = useCallback((id: string) => {}, []);
   
-  const boostNode = useCallback(async (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR') => {
+  const boostNode = useCallback(async (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'REEL' | 'SONIC') => {
     try {
       await executeVaultTransaction({
         cost,
         currency,
         isPlatformService: true,
-        description: `Content Boost Pulse for Node: ${nodeId}`
+        description: `Content Boost Pulse for ${type} Node: ${nodeId}`
       });
 
-      const isSonic = posts.find(p => p.id === nodeId) === undefined;
-      const collectionId = isSonic ? SONGS_COLLECTION_ID : POSTS_COLLECTION_ID;
+      const collectionId = type === 'SONIC' ? SONGS_COLLECTION_ID : POSTS_COLLECTION_ID;
 
       await databases.updateDocument(APPWRITE_DATABASE_ID, collectionId, nodeId, {
         isBoosted: true,
@@ -1205,12 +1223,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
         boostExpiry: Date.now() + (durationDays * 24 * 60 * 60 * 1000)
       });
 
-      await refreshFeed();
+      if (type === 'SONIC') {
+        // Music handles its own refresh but we can help it
+      } else {
+        await refreshFeed();
+      }
+      
       toast({ title: "Boost Materialized", description: "Campaign strategy synchronized with network discover stream." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Boost Error", description: e.message });
     }
-  }, [executeVaultTransaction, posts, refreshFeed, toast]);
+  }, [executeVaultTransaction, refreshFeed, toast]);
 
   const isPostLiked = useCallback((postId: string) => likedPostIds.has(postId), [likedPostIds]);
   const isPostUnliked = useCallback((postId: string) => unlikedPostIds.has(postId), [unlikedPostIds]);
@@ -1221,8 +1244,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const contextValue = useMemo(() => ({ 
     currentUser, posts, connections, clusters, staff, auditLogs, campaigns, adStats, intelligenceMetrics, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, withdrawalHistory, paymentRequests, referralLink: "http://vimore.appwrite.network/join/" + currentUser.username, pendingTransaction, activeSubscriptions, mutedUserNames,
-    login, signup, logout, resendVerification, checkSession, forgotPassword, resetPassword, uploadMedia, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, setSelectedVideoUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, voteOnStoryPoll, voteOnPostPoll, toggleMuteUser, togglePinPost, archivePost, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, updateCurrentUser, updateSettings, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, incrementShareCount, createCluster, addMemberToCluster, leaveCluster, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall, refreshAdminData, fetchProfileByUsername, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, boostNode, triggerHaptic, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, fetchComments, refreshProfiles, refreshClusters, refreshFeed, recordView
-  }), [currentUser, posts, connections, clusters, staff, auditLogs, campaigns, adStats, intelligenceMetrics, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, withdrawalHistory, paymentRequests, pendingTransaction, activeSubscriptions, mutedUserNames, login, signup, logout, resendVerification, checkSession, forgotPassword, resetPassword, uploadMedia, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, setSelectedVideoUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, voteOnStoryPoll, voteOnPostPoll, toggleMuteUser, togglePinPost, archivePost, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, updateCurrentUser, updateSettings, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, incrementShareCount, createCluster, addMemberToCluster, leaveCluster, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall, refreshAdminData, fetchProfileByUsername, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, boostNode, triggerHaptic, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, fetchComments, refreshProfiles, refreshClusters, refreshFeed, recordView]);
+    login, signup, logout, resendVerification, checkSession, forgotPassword, resetPassword, uploadMedia, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, setSelectedVideoUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, voteOnStoryPoll, voteOnPostPoll, toggleMuteUser, togglePinPost, archivePost, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, updateCurrentUser, updateSettings, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, incrementShareCount, createCluster, addMemberToCluster, leaveCluster, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall, refreshAdminData, fetchProfileByUsername, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, boostNode, triggerHaptic, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, fetchComments, refreshProfiles, refreshClusters, refreshFeed, recordView, recordStoryView
+  }), [currentUser, posts, connections, clusters, staff, auditLogs, campaigns, adStats, intelligenceMetrics, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, withdrawalHistory, paymentRequests, pendingTransaction, activeSubscriptions, mutedUserNames, login, signup, logout, resendVerification, checkSession, forgotPassword, resetPassword, uploadMedia, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, setSelectedVideoUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, voteOnStoryPoll, voteOnPostPoll, toggleMuteUser, togglePinPost, archivePost, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, updateCurrentUser, updateSettings, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, incrementShareCount, createCluster, addMemberToCluster, leaveCluster, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall, refreshAdminData, fetchProfileByUsername, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, boostNode, triggerHaptic, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, fetchComments, refreshProfiles, refreshClusters, refreshFeed, recordView, recordStoryView]);
 
   return <PostContext.Provider value={contextValue}>{children}</PostContext.Provider>;
 }

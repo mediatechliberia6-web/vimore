@@ -61,7 +61,7 @@ interface ReelCardProps {
 export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares, views = 0, music, isActive, isBoosted, boostTargetViews, boostCurrentViews }: ReelCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { triggerHaptic, openCaptureStudio, triggerDownloadWithAd } = useMusic();
-  const { currentUser, openCommentHub, openGiftHub, settings, t } = usePosts();
+  const { currentUser, openCommentHub, openGiftHub, settings } = usePosts();
   const { toast } = useToast();
   
   const [isMuted, setIsMuted] = useState(false);

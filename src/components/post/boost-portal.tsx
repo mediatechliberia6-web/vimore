@@ -74,7 +74,7 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
     try {
       // VI-MORE PAYMENT VERIFICATION SYSTEM
       // Atomic handshake: Balance check -> Deduction -> Boost activation
-      await boostNode(nodeId, promisedViews, duration, amount, currency);
+      await boostNode(nodeId, promisedViews, duration, amount, currency, type);
 
       setIsSuccess(true);
       triggerHaptic(100);

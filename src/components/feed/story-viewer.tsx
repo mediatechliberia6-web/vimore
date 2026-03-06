@@ -26,7 +26,7 @@ interface FloatingReaction {
 }
 
 export function StoryViewer() {
-  const { stories, activeStoryIndex, mutedUserNames = [], setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser, settings } = usePosts();
+  const { stories, activeStoryIndex, mutedUserNames = [], setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser, settings, recordStoryView } = usePosts();
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -36,6 +36,7 @@ export function StoryViewer() {
   const startTime = useRef<number | null>(null);
   const requestRef = useRef<number | null>(null);
   const pausedTime = useRef<number>(0);
+  const hasRecordedCurrentSegment = useRef<string | null>(null);
 
   const activeStory = activeStoryIndex !== null ? stories[activeStoryIndex] : null;
   const isOwner = activeStory?.user.username === currentUser.username;
@@ -48,6 +49,7 @@ export function StoryViewer() {
     pausedTime.current = 0;
     setReactions([]);
     setVotedSegmentId(null);
+    hasRecordedCurrentSegment.current = null;
   }, [setActiveStoryIndex]);
 
   const nextSegment = useCallback(() => {
@@ -115,6 +117,14 @@ export function StoryViewer() {
       pausedTime.current = time - (startTime.current || 0);
     }
   }, [isPaused, nextSegment]);
+
+  // View Pulse Handshake
+  useEffect(() => {
+    if (activeStory && !isOwner && hasRecordedCurrentSegment.current !== activeStory.id) {
+      recordStoryView(activeStory.id);
+      hasRecordedCurrentSegment.current = activeStory.id;
+    }
+  }, [activeStory, isOwner, recordStoryView]);
 
   useEffect(() => {
     if (activeStoryIndex !== null && !isPaused) {
@@ -219,12 +229,10 @@ export function StoryViewer() {
                   </Avatar>
                 </Link>
                 
-                {isOwner && (
-                  <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full text-white/90 border border-white/10 shadow-lg animate-in slide-in-from-top-1">
-                    <Eye className="h-2.5 w-2.5 text-primary" />
-                    <span className="text-[10px] font-black tracking-tighter">{activeStory.viewCount || 0}</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full text-white/90 border border-white/10 shadow-lg animate-in slide-in-from-top-1">
+                  <Eye className="h-2.5 w-2.5 text-primary" />
+                  <span className="text-[10px] font-black tracking-tighter">{activeStory.viewCount || 0}</span>
+                </div>
               </div>
 
               <div className="flex flex-col pt-0.5">
