@@ -128,6 +128,7 @@ interface MusicContextType {
   boostTrack: (trackId: string | number, targetViews: number, durationDays: number) => void;
   triggerHaptic: (intensity?: number) => void;
   refreshMusicVault: () => Promise<void>;
+  recordSongStream: (songId: string | number) => Promise<void>;
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
@@ -244,22 +245,40 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         databases.listDocuments(APPWRITE_DATABASE_ID, PLAYLISTS_COLLECTION_ID, [Query.limit(50)])
       ]);
 
-      const songs = songDocs.documents.map(d => ({
-        id: d.$id,
-        title: d.title,
-        artist: d.artist,
-        cover: d.cover,
-        audioUrl: d.audioUrl,
-        duration: d.duration || 180,
-        streams: d.streams || "0",
-        likes: d.likes || 0,
-        unlikes: d.unlikes || 0,
-        artistUsername: d.artistUsername,
-        artistFollowers: d.artistFollowers,
-        isBoosted: d.isBoosted || false,
-        boostTargetViews: d.boostTargetViews,
-        boostCurrentViews: d.boostCurrentViews
-      } as Track)).sort((a, b) => (b.isBoosted ? 1 : 0) - (a.isBoosted ? 1 : 0));
+      const now = Date.now();
+
+      const songs = songDocs.documents.map(d => {
+        let isBoosted = d.isBoosted || false;
+        
+        // AUTO-EXPIRY LOGIC for Songs
+        if (isBoosted) {
+          const hasExpired = d.boostExpiry && d.boostExpiry < now;
+          const hasReachedLimit = d.boostCurrentViews >= (d.boostTargetViews || 1);
+          
+          if (hasExpired || hasReachedLimit) {
+            isBoosted = false;
+            databases.updateDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, d.$id, { isBoosted: false });
+          }
+        }
+
+        return {
+          id: d.$id,
+          title: d.title,
+          artist: d.artist,
+          cover: d.cover,
+          audioUrl: d.audioUrl,
+          duration: d.duration || 180,
+          streams: d.streams || "0",
+          likes: d.likes || 0,
+          unlikes: d.unlikes || 0,
+          artistUsername: d.artistUsername,
+          artistFollowers: d.artistFollowers,
+          isBoosted,
+          boostTargetViews: d.boostTargetViews,
+          boostCurrentViews: d.boostCurrentViews,
+          boostExpiry: d.boostExpiry
+        } as Track;
+      }).sort((a, b) => (b.isBoosted ? 1 : 0) - (a.isBoosted ? 1 : 0));
 
       const albums = albumDocs.documents.map(d => ({
         id: d.$id,
@@ -297,6 +316,35 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   }, [queue.length]);
 
+  const recordSongStream = useCallback(async (songId: string | number) => {
+    const song = globalSongs.find(s => s.id === songId);
+    if (!song) return;
+
+    try {
+      const currentStreams = parseInt(String(song.streams).replace(/,/g, '')) || 0;
+      const newStreams = currentStreams + 1;
+      const updates: any = { streams: newStreams.toString() };
+
+      if (song.isBoosted) {
+        const newBoostViews = (song.boostCurrentViews || 0) + 1;
+        updates.boostCurrentViews = newBoostViews;
+        
+        if (newBoostViews >= (song.boostTargetViews || 1)) {
+          updates.isBoosted = false;
+        }
+      }
+
+      await databases.updateDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, songId as string, updates);
+      
+      setGlobalSongsState(prev => prev.map(s => s.id === songId ? { 
+        ...s, 
+        streams: newStreams.toString(),
+        boostCurrentViews: updates.boostCurrentViews || s.boostCurrentViews,
+        isBoosted: updates.isBoosted !== undefined ? updates.isBoosted : s.isBoosted
+      } : s));
+    } catch (e) {}
+  }, [globalSongs]);
+
   useEffect(() => {
     refreshMusicVault();
   }, [refreshMusicVault]);
@@ -309,17 +357,18 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
     if (isPlaying) {
       audioRef.current.play().catch(e => console.error("Sonic engine stall:", e));
+      // Log stream handshake
+      recordSongStream(currentTrack.id);
     } else {
       audioRef.current.pause();
     }
-  }, [currentTrack, isPlaying]);
+  }, [currentTrack, isPlaying, recordSongStream]);
 
   const forYouSongs = useMemo(() => {
     const boosted = globalSongs.filter(s => s.isBoosted);
     const regular = globalSongs.filter(s => !s.isBoosted);
     const result: Track[] = [];
     
-    // Interleave Logic: 1 Boosted per 2 Regular
     let bIdx = 0;
     let rIdx = 0;
     while(rIdx < regular.length || bIdx < boosted.length) {
@@ -436,7 +485,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     if (downloadedSongIds.has(track.id)) return;
     triggerHaptic(10);
     if (track.audioUrl) {
-      // Physical Archival Handshake: Save to device
       const success = await saveFileToDevice(track.audioUrl, `${track.artist} - ${track.title}.mp3`);
       if (success) {
         setDownloadedSongIdsState(prev => { const n = new Set(prev); n.add(track.id); return n; });
@@ -616,8 +664,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, 
     toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked,
     playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack,
-    openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic, refreshMusicVault
-  }), [currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, forYouSongs, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats, isAdPortalOpen, adDuration, isCreatePlaylistOpen, trackForNewPlaylist, isCaptureStudioOpen, captureTrack, triggerHaptic, setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked, playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack, openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, refreshMusicVault]);
+    openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic, refreshMusicVault, recordSongStream
+  }), [currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, forYouSongs, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats, isAdPortalOpen, adDuration, isCreatePlaylistOpen, trackForNewPlaylist, isCaptureStudioOpen, captureTrack, triggerHaptic, setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked, playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack, openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, refreshMusicVault, recordSongStream]);
 
   return (
     <MusicContext.Provider value={contextValue}>

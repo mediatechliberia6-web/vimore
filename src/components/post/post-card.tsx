@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { 
@@ -147,7 +147,7 @@ export function PostCard(props: PostCardProps) {
   } = props;
 
   const { 
-    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, settings, recordCampaignClick
+    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, settings, recordCampaignClick, recordView
   } = usePosts();
 
   const { addSignal } = useNotifications();
@@ -181,7 +181,33 @@ export function PostCard(props: PostCardProps) {
   const [localTotalVotes, setLocalTotalVotes] = useState(poll?.totalVotes || 0);
   const [isPollExpanded, setIsPollExpanded] = useState(false);
 
+  const cardRef = useRef<HTMLDivElement>(null);
+  const hasRecordedView = useRef(false);
+
   const { toast } = useToast();
+
+  // Visibility Handshake for View Tracking
+  useEffect(() => {
+    if (isShared || isCampaign || hasRecordedView.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasRecordedView.current) {
+            hasRecordedView.current = true;
+            recordView(id);
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+
+    if (cardRef.current) {
+      observer.observe(cardRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [id, isShared, isCampaign, recordView]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -371,7 +397,7 @@ export function PostCard(props: PostCardProps) {
 
   return (
     <>
-      <Card className={cn(
+      <Card ref={cardRef} className={cn(
         "border-none shadow-sm overflow-hidden mb-4 transition-colors relative ring-1 ring-black/5 dark:ring-white/5",
         isShared ? "bg-secondary/20 shadow-none ring-0 border border-primary/10 rounded-2xl" : "bg-white dark:bg-card",
         isCampaign && "border-2 border-primary/20 shadow-xl shadow-primary/5",

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 
 export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
-  const { posts, followingUsernames, triggerHaptic } = usePosts();
+  const { posts, followingUsernames, triggerHaptic, recordView } = usePosts();
   const searchParams = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
@@ -38,9 +38,12 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
         likes: p.likes,
         comments: p.comments,
         shares: p.shares || 0,
+        views: p.views || 0,
         isLocked: p.isLocked,
         unlockPrice: p.unlockPrice,
         isBoosted: p.isBoosted,
+        boostTargetViews: p.boostTargetViews,
+        boostCurrentViews: p.boostCurrentViews,
         music: {
           id: 'custom',
           title: "Original Audio",
@@ -90,9 +93,12 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
       }
     } else if (reelsWithAds.length > 0 && !activeReelId) {
       const first = reelsWithAds[0];
-      setActiveReelId(first.type === 'ad' ? first.id : first.data.id);
+      const firstId = first.type === 'ad' ? first.id : first.data.id;
+      setActiveReelId(firstId);
+      // Log initial view
+      if (first.type === 'reel') recordView(first.data.id);
     }
-  }, [searchParams, reelsWithAds, activeReelId]);
+  }, [searchParams, reelsWithAds, activeReelId, recordView]);
 
   useEffect(() => {
     const options = {
@@ -108,6 +114,9 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
           if (id && id !== activeReelId) {
             setActiveReelId(id);
             triggerHaptic(5);
+            // Impression tracking Pulse
+            const item = reelsWithAds.find(r => (r.type === 'reel' && r.data.id === id));
+            if (item) recordView(id);
           }
         }
       });
@@ -117,7 +126,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
     cards?.forEach((card) => observer.observe(card));
 
     return () => observer.disconnect();
-  }, [activeReelId, triggerHaptic, reelsWithAds]);
+  }, [activeReelId, triggerHaptic, reelsWithAds, recordView]);
 
   return (
     <div 
