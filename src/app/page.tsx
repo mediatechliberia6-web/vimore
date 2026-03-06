@@ -23,29 +23,50 @@ export default function Home() {
   
   const isPlayerActive = currentTrack && !isExpanded;
 
+  /**
+   * INTERLEAVING ALGORITHM (2:1 RATIO)
+   * Materializes 1 Boosted Post after every 2 Organic Posts.
+   */
   const feedItems = useMemo(() => {
     if (posts.length === 0) return [];
     
-    const result: (any)[] = [];
-    let organicCount = 0;
+    const organicPosts = posts.filter(p => !p.isBoosted);
+    const boostedPosts = posts.filter(p => p.isBoosted);
     const activeCampaigns = campaigns.filter(c => c.isActive);
+    
+    const result: (any)[] = [];
+    let organicIdx = 0;
+    let boostedIdx = 0;
 
-    posts.forEach((post, index) => {
-      result.push({ type: 'post', data: post });
-      organicCount++;
+    // Weave the discovery stream
+    while (organicIdx < organicPosts.length) {
+      // 1. Add up to 2 organic posts
+      for (let i = 0; i < 2 && organicIdx < organicPosts.length; i++) {
+        const post = organicPosts[organicIdx];
+        result.push({ type: 'post', data: post });
+        organicIdx++;
 
-      if (organicCount === 1 && activeCampaigns.length > 0) {
-        result.push({ type: 'campaign', data: activeCampaigns[0] });
+        // Interleave secondary nodes (Campaigns, Ads, Suggestions)
+        if (organicIdx === 1 && activeCampaigns.length > 0) {
+          result.push({ type: 'campaign', data: activeCampaigns[0] });
+        }
+        if (organicIdx === 3) {
+          result.push({ type: 'ad', id: `ad-init-${organicIdx}` });
+        }
+        if (organicIdx === 5) {
+          result.push({ type: 'suggestions', id: `suggested-follows-${organicIdx}` });
+        }
       }
 
-      if (organicCount === 2) {
-        result.push({ type: 'ad', id: `ad-init-${index}` });
-      } else if (organicCount === 3) {
-        result.push({ type: 'suggestions', id: `suggested-follows-${index}` });
-      } else if (organicCount > 3 && (organicCount - 3) % 5 === 0) {
-        result.push({ type: 'ad', id: `ad-seq-${index}` });
+      // 2. Add 1 boosted post if available (The 2:1 Handshake)
+      if (boostedIdx < boostedPosts.length) {
+        result.push({ type: 'post', data: boostedPosts[boostedIdx] });
+        boostedIdx++;
+      } else if (organicIdx % 5 === 0) {
+        // Fallback to ad if no boosted content is in the stack
+        result.push({ type: 'ad', id: `ad-seq-${organicIdx}` });
       }
-    });
+    }
 
     return result;
   }, [posts, campaigns]);

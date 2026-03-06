@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRef, useState, useEffect, useMemo } from "react";
@@ -17,9 +16,12 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
 
-  // Organic Vibe Logic: Only use real nodes from the vault. Mock purged.
+  /**
+   * REEL INTERLEAVING (2:1 RATIO)
+   * Materializes 1 Boosted Reel after every 2 Organic Reels.
+   */
   const reelsWithAds = useMemo(() => {
-    const userReels = posts
+    const allReels = posts
       .filter(p => p.videoUrl)
       .map(p => ({
         id: p.id,
@@ -38,6 +40,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
         shares: p.shares || 0,
         isLocked: p.isLocked,
         unlockPrice: p.unlockPrice,
+        isBoosted: p.isBoosted,
         music: {
           id: 'custom',
           title: "Original Audio",
@@ -46,21 +49,33 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
         }
       }));
 
-    const source = activeTab === "foryou" ? userReels : userReels.filter(reel => followingUsernames.has(reel.user.username));
+    const source = activeTab === "foryou" ? allReels : allReels.filter(reel => followingUsernames.has(reel.user.username));
+    
+    const organic = source.filter(r => !r.isBoosted);
+    const boosted = source.filter(r => r.isBoosted);
     
     const result: (any)[] = [];
-    let organicCount = 0;
+    let organicIdx = 0;
+    let boostedIdx = 0;
 
-    source.forEach((reel, index) => {
-      result.push({ type: 'reel', data: reel });
-      organicCount++;
+    while (organicIdx < organic.length) {
+      // 1. Add 2 organic reels
+      for (let i = 0; i < 2 && organicIdx < organic.length; i++) {
+        result.push({ type: 'reel', data: organic[organicIdx] });
+        organicIdx++;
 
-      if (organicCount === 1) { 
-        result.push({ type: 'ad', id: `ad-reel-init-${index}` });
-      } else if (organicCount > 1 && (organicCount - 1) % 4 === 0) {
-        result.push({ type: 'ad', id: `ad-reel-seq-${index}` });
+        // Add standard ad pulse occasionally
+        if (organicIdx === 1 || (organicIdx > 1 && organicIdx % 6 === 0)) {
+          result.push({ type: 'ad', id: `ad-reel-${organicIdx}` });
+        }
       }
-    });
+
+      // 2. Add 1 boosted reel if available
+      if (boostedIdx < boosted.length) {
+        result.push({ type: 'reel', data: boosted[boostedIdx] });
+        boostedIdx++;
+      }
+    }
 
     return result;
   }, [activeTab, followingUsernames, posts]);
