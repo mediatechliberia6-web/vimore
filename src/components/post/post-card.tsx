@@ -50,7 +50,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
-import { aiTranslatePostAction, aiAuditMonetizationHandshakeAction } from "@/app/actions/ai";
+import { aiTranslatePostAction } from "@/app/actions/ai";
 import { useToast } from "@/hooks/use-toast";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
@@ -108,6 +108,7 @@ interface PostCardProps {
   unlikes: number;
   comments: number;
   shares?: number;
+  views: number;
   time: string;
   hashtags?: string[];
   feeling?: { emoji: string; text: string };
@@ -132,7 +133,6 @@ interface PostCardProps {
   isCampaign?: boolean;
   actionUrl?: string;
   actionLabel?: string;
-  // Boost Metadata
   isBoosted?: boolean;
   boostTargetViews?: number;
   boostCurrentViews?: number;
@@ -141,7 +141,7 @@ interface PostCardProps {
 export function PostCard(props: PostCardProps) {
   const { 
     id, user, collaborator, content, image, images = [], imageFilter, theme, language,
-    likes = 0, unlikes = 0, comments = 0, shares = 0, time, hashtags, feeling, location, commentsDisabled, isPinned, 
+    likes = 0, unlikes = 0, comments = 0, shares = 0, views = 0, time, hashtags, feeling, location, commentsDisabled, isPinned, 
     isSeries, seriesTitle, poll, isShared = false, videoUrl, sharedPost, isLocked, unlockPrice, isCampaign, actionUrl, actionLabel,
     isBoosted, boostTargetViews, boostCurrentViews
   } = props;
@@ -237,34 +237,16 @@ export function PostCard(props: PostCardProps) {
     triggerHaptic(30);
 
     try {
-      const result = await aiAuditMonetizationHandshakeAction({
-        type: 'LOCK_UNLOCK',
-        userBalance: currentUser.goldBalance || 0,
-        cost: unlockPrice,
-        currencyType: 'GOLD',
-        creatorUsername: user.username
+      await unlockPost(id, unlockPrice);
+      addSignal({
+        type: 'SYSTEM',
+        title: 'Node Unlocked',
+        content: `You unlocked a high-velocity vibe from **${user.name}**.`,
+        avatar: user.avatar
       });
-
-      if (result.approved) {
-        unlockPost(id, unlockPrice);
-        addSignal({
-          type: 'SYSTEM',
-          title: 'Node Unlocked',
-          content: `You unlocked a high-velocity vibe from **${user.name}**.`,
-          avatar: user.avatar
-        });
-        addSignal({
-          type: 'SOCIAL',
-          title: 'Monetized Sync',
-          content: `**${currentUser.name}** unlocked your locked vibe! **+${result.payoutAmount} Gold** synced.`,
-          avatar: currentUser.avatar
-        });
-        toast({ title: "Vibe Materialized", description: "Node permanently synced to your feed." });
-      } else {
-        toast({ variant: "destructive", title: "Handshake Failed", description: result.message });
-      }
-    } catch (e) {
-      toast({ variant: "destructive", title: "Protocol Error", description: "Audit node unreachable." });
+      toast({ title: "Vibe Materialized", description: "Node permanently synced to your feed." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
     } finally {
       setIsUnlocking(false);
     }
@@ -460,7 +442,7 @@ export function PostCard(props: PostCardProps) {
                   {t('post_unlock_for')} {unlockPrice} GOLD
                 </Button>
                 <div className="flex items-center gap-2 text-[9px] font-black text-muted-foreground uppercase tracking-widest">
-                  <ShieldCheck className="h-3 w-3" /> Groq AI Verified
+                  <ShieldCheck className="h-3 w-3" /> ViMore Handshake Verified
                 </div>
               </div>
             </div>
@@ -624,6 +606,7 @@ export function PostCard(props: PostCardProps) {
                   <span className={cn("flex items-center gap-1.5 transition-colors", isLiked && "text-primary")}><ThumbsUp className={cn("h-3 w-3", isLiked && "fill-current")} />{(likes ?? 0).toLocaleString()}</span>
                 </div>
                 <span className={cn("flex items-center gap-1.5 transition-colors", isUnliked && "text-destructive")}><ThumbsDown className={cn("h-3 w-3", isUnliked && "fill-current")} />{(unlikes ?? 0).toLocaleString()}</span>
+                <span className="flex items-center gap-1.5"><Eye className="h-3 w-3" />{(views ?? 0).toLocaleString()}</span>
               </div>
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1.5 cursor-pointer hover:text-primary transition-colors" onClick={() => !isHiddenByLock && openCommentHub(id)}><MessageCircle className="h-3 w-3" />{(comments ?? 0).toLocaleString()}</span>
@@ -650,7 +633,7 @@ export function PostCard(props: PostCardProps) {
       <ShareHub isOpen={isShareHubOpen} onClose={() => setIsShareHubOpen(false)} post={props} />
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="rounded-[2rem] sm:max-w-[400px]"><AlertDialogHeader><div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4"><Trash2 className="h-8 w-8" /></div><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">{t('post_purge')}?</AlertDialogTitle><AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">This action is permanent and will remove this signature from the ViMore network.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6"><AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50 border-none">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="rounded-xl h-12 font-black italic uppercase tracking-widest bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20">Confirm Purge</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+        <AlertDialogContent className="rounded-[2rem] sm:max-w-[420px]"><AlertDialogHeader><div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4"><Trash2 className="h-8 w-8" /></div><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">{t('post_purge')}?</AlertDialogTitle><AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">This action is permanent and will remove this signature from the ViMore network.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6"><AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50 border-none">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="rounded-xl h-12 font-black italic uppercase tracking-widest bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20">Confirm Purge</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </>
   );
 }

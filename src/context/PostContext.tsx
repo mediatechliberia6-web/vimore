@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -102,6 +101,7 @@ export interface Post {
   unlikes: number;
   comments: number;
   shares: number;
+  views: number;
   images?: string[];
   image?: string;
   videoUrl?: string; 
@@ -386,10 +386,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e: any) { console.error("Audit log failed:", e.message); }
   }, [currentUser.username]);
 
-  /**
-   * CORE VIMORE PAYMENT VERIFICATION SYSTEM (PHASE 1)
-   * Deterministic logic for balance checks and 70/30 splits.
-   */
   const executeVaultTransaction = useCallback(async (options: {
     cost: number;
     currency: 'GOLD' | 'DIAMOND' | 'STAR';
@@ -402,19 +398,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const balanceKey = options.currency === 'GOLD' ? 'goldBalance' : options.currency === 'DIAMOND' ? 'diamondBalance' : 'starBalance';
     const currentBalance = currentUser[balanceKey] || 0;
 
-    // 1. Threshold Audit
     if (currentBalance < options.cost) {
       throw new Error(`Insufficient ${options.currency}. Available pulse: ${currentBalance}`);
     }
 
     try {
-      // 2. Sender Deduction (100%)
       const updatedSenderBalance = currentBalance - options.cost;
       await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, currentUser.id, {
         [balanceKey]: updatedSenderBalance
       });
 
-      // 3. Reciprocal Credit (70% to Creator)
       if (options.recipientUsername && !options.isPlatformService) {
         const recipientRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
           Query.equal('username', options.recipientUsername)
@@ -429,15 +422,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
             [balanceKey]: (recipient[balanceKey] || 0) + creditAmount
           });
 
-          // 4. Platform Archival (30%)
           await addAuditLog('PLATFORM_FEE_LOG', `Collected ${platformFee} ${options.currency} from ${options.description} transaction between @${currentUser.username} and @${options.recipientUsername}.`);
         }
       } else if (options.isPlatformService) {
-        // Full cost to platform
         await addAuditLog('PLATFORM_SERVICE_LOG', `Collected ${options.cost} ${options.currency} for ${options.description} from @${currentUser.username}.`);
       }
 
-      // Update local state pulse
       setCurrentUserState(prev => ({ ...prev, [balanceKey]: updatedSenderBalance }));
       return true;
     } catch (e: any) {
@@ -479,7 +469,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
         timestamp: doc.timestamp || 0
       }));
 
-      // Deterministic chronological sort
       const sortedComments = mappedComments.sort((a, b) => a.timestamp - b.timestamp);
 
       const topLevel = sortedComments.filter(c => !c.parentId);
@@ -508,6 +497,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         unlikes: doc.unlikes || 0,
         comments: doc.comments || 0,
         shares: doc.shares || 0,
+        views: doc.views || 0,
         theme: doc.theme,
         language: doc.language,
         isLocked: doc.isLocked,
@@ -810,7 +800,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const addPost = useCallback(async (newPostData: any) => {
     try {
-      const docData = { content: newPostData.content, user: JSON.stringify(newPostData.user), image: newPostData.image, images: JSON.stringify(newPostData.images || []), videoUrl: newPostData.videoUrl, theme: newPostData.theme, language: newPostData.language, isLocked: newPostData.isLocked || false, unlockPrice: newPostData.unlockPrice || 0, poll: newPostData.poll ? JSON.stringify(newPostData.poll) : null, likes: 0, unlikes: 0, comments: 0, shares: 0 };
+      const docData = { content: newPostData.content, user: JSON.stringify(newPostData.user), image: newPostData.image, images: JSON.stringify(newPostData.images || []), videoUrl: newPostData.videoUrl, theme: newPostData.theme, language: newPostData.language, isLocked: newPostData.isLocked || false, unlockPrice: newPostData.unlockPrice || 0, poll: newPostData.poll ? JSON.stringify(newPostData.poll) : null, likes: 0, unlikes: 0, comments: 0, shares: 0, views: 0 };
       await databases.createDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, ID.unique(), docData);
       await refreshFeed();
     } catch (e: any) { throw new Error(e.message); }

@@ -17,7 +17,8 @@ import {
   Gift,
   Rocket,
   Zap,
-  EyeOff
+  EyeOff,
+  Eye
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn, parseFollowerCount, saveFileToDevice } from "@/lib/utils";
@@ -44,6 +45,7 @@ interface ReelCardProps {
   likes: number;
   comments: number;
   shares: number;
+  views: number;
   music: {
     id: string | number;
     title: string;
@@ -56,7 +58,7 @@ interface ReelCardProps {
   boostCurrentViews?: number;
 }
 
-export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares, music, isActive, isBoosted, boostTargetViews, boostCurrentViews }: ReelCardProps) {
+export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares, views = 0, music, isActive, isBoosted, boostTargetViews, boostCurrentViews }: ReelCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { triggerHaptic, openCaptureStudio, triggerDownloadWithAd } = useMusic();
   const { currentUser, openCommentHub, openGiftHub, settings, t } = usePosts();
@@ -116,7 +118,6 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
       toast({ title: "Archiving Vibe", description: "Preparing high-fidelity reel node..." });
       
       try {
-        // BINARY HANDSHAKE: Actual Save to Hardware
         await saveFileToDevice(videoUrl, `vimore_reel_${id}.mp4`);
         toast({ title: "Reel Saved", description: "Vibe archived to your device library." });
       } catch (e) {
@@ -263,6 +264,13 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
             <MessageCircle className="h-5 w-5" />
           </button>
           <span className="text-[9px] font-black text-white drop-shadow-md uppercase tracking-widest">{formatCount(comments)}</span>
+        </div>
+
+        <div className="flex flex-col items-center gap-1">
+          <button className="p-2.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white hover:bg-black/40 transition-all active:scale-75 shadow-lg">
+            <Eye className="h-5 w-5" />
+          </button>
+          <span className="text-[9px] font-black text-white drop-shadow-md uppercase tracking-widest">{formatCount(views)}</span>
         </div>
 
         <div className="flex flex-col items-center gap-1">
