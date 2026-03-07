@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -22,7 +21,8 @@ import {
   ArrowLeft,
   Check,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  Smartphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,53 +37,28 @@ const NATIONALITIES = [
 ];
 
 export function AuthModal() {
-  const { currentUser, login, signup, resendVerification, forgotPassword, checkSession, triggerHaptic } = usePosts();
+  const { currentUser, login, signup, sendVerificationCode, verifyCode, triggerHaptic } = usePosts();
   const { toast } = useToast();
   
   const [mode, setMode] = useState<"login" | "signup" | "verify" | "forgot">("login");
   const [signupStep, setSignupStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [isNewAccount, setIsNewAccount] = useState(false);
-  const [isResending, setIsResending] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   
   // Auth Form State
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState(""); // Email or Phone
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
+  const [otp, setOtp] = useState("");
   
   // Identity Nodes State
   const [dob, setDob] = useState("");
   const [nationality, setNationality] = useState("Liberian");
   const [gender, setGender] = useState<'Male' | 'Female'>('Male');
 
-  // 1. Spatial Polling: Check session status while waiting for email verification
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (mode === 'verify' && isNewAccount && !currentUser.isEmailVerified) {
-      interval = setInterval(() => {
-        checkSession();
-      }, 5000); 
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [mode, isNewAccount, currentUser.isEmailVerified, checkSession]);
-
-  // 2. Calibration: Transition to verification screen ONLY for fresh signups
-  useEffect(() => {
-    if (currentUser?.id && isNewAccount) {
-      if (!currentUser.isEmailVerified && mode !== 'verify') {
-        setMode('verify');
-      }
-    }
-  }, [currentUser?.id, currentUser?.isEmailVerified, mode, isNewAccount]);
-
-  // Terminal Handshake
-  if (currentUser?.id && currentUser.isEmailVerified) return null;
-  if (currentUser?.id && !isNewAccount) return null;
-  if (currentUser?.username === 'johndoe_creative') return null;
+  // Terminal Handshake: Only show if the node is not materialized
+  if (currentUser?.id && currentUser.username !== 'guest_node') return null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +66,7 @@ export function AuthModal() {
     setAuthError(null);
     triggerHaptic(20);
     try {
-      await login(email, password);
+      await login(identifier, password);
       toast({ title: "Identity Synced" });
     } catch (error: any) {
       setAuthError(error.message);
@@ -101,21 +76,21 @@ export function AuthModal() {
     }
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSignupInit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
     
     if (signupStep === 1) {
-      if (!email.includes('@')) {
-        toast({ variant: "destructive", title: "Invalid Node", description: "Email protocol mismatch." });
+      if (!identifier.includes('@') && !/^\d+$/.test(identifier.replace(/\+/g, ''))) {
+        toast({ variant: "destructive", title: "Invalid Node", description: "Email or Phone pulse required." });
         return;
       }
       if (password.length < 8) {
-        toast({ variant: "destructive", title: "Weak Signature", description: "Password must be 8+ characters for vault security." });
+        toast({ variant: "destructive", title: "Weak Signature", description: "Password must be 8+ characters." });
         return;
       }
       if (!name.trim() || !username.trim()) {
-        toast({ variant: "destructive", title: "Missing Data", description: "All identity fields are required." });
+        toast({ variant: "destructive", title: "Missing Data" });
         return;
       }
       setSignupStep(2);
@@ -124,7 +99,7 @@ export function AuthModal() {
     }
 
     if (!dob) {
-      toast({ variant: "destructive", title: "Temporal Error", description: "Arrival date (DOB) is required." });
+      toast({ variant: "destructive", title: "Arrival Date Required" });
       return;
     }
 
@@ -132,50 +107,45 @@ export function AuthModal() {
     triggerHaptic(30);
     
     try {
-      // Identity ID Sanitization: Force lowercase and replace spaces
-      const sanitizedUsername = username.toLowerCase().trim().replace(/\s+/g, '_');
-      await signup({ email, password, name, username: sanitizedUsername, dob, nationality, gender });
-      setIsNewAccount(true);
-      toast({ 
-        title: "Node Initialized", 
-        description: "Identity pulse sent to your email node. Please verify to continue."
-      });
+      const type = identifier.includes('@') ? 'EMAIL' : 'PHONE';
+      await sendVerificationCode(identifier, type);
+      setMode('verify');
+      toast({ title: "OTP Emitted", description: "Check your email or phone for the 6-digit signature." });
     } catch (error: any) {
       setAuthError(error.message);
-      toast({ 
-        variant: "destructive", 
-        title: "Handshake Failed", 
-        description: error.message || "An unexpected error occurred." 
-      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleResendPulse = async () => {
-    setIsResending(true);
-    triggerHaptic(10);
-    try {
-      await resendVerification();
-      toast({ title: "Pulse Re-emitted", description: "Check your inbox for the link." });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Sync Failed" });
-    } finally {
-      setIsResending(false);
-    }
-  };
-
-  const handleForgot = async (e: React.FormEvent) => {
+  const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
     setIsLoading(true);
-    triggerHaptic(20);
+    triggerHaptic(30);
+
     try {
-      await forgotPassword(email);
-      toast({ title: "Recovery Pulse Sent" });
-      setMode("login");
+      const isValid = await verifyCode(identifier, otp);
+      if (isValid) {
+        const sanitizedUsername = username.toLowerCase().trim().replace(/\s+/g, '_');
+        const isEmail = identifier.includes('@');
+        
+        await signup({
+          email: isEmail ? identifier : undefined,
+          phone: !isEmail ? identifier : undefined,
+          password,
+          name,
+          username: sanitizedUsername,
+          dob,
+          nationality,
+          gender
+        });
+        toast({ title: "Node Materialized", description: "Welcome to the network cluster." });
+      } else {
+        throw new Error("Invalid or expired code.");
+      }
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Request Failed" });
+      setAuthError(error.message);
+      toast({ variant: "destructive", title: "Handshake Failed", description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -185,7 +155,7 @@ export function AuthModal() {
     <div className="fixed inset-0 z-[1000] bg-[#050505] flex items-center justify-center p-6 overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[120px] rounded-full animate-pulse delay-700" />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/10 blur-[120px] rounded-full animate-pulse delay-700" />
       </div>
 
       <div className="relative z-10 w-full max-w-md flex flex-col items-center space-y-10 animate-in fade-in zoom-in-95 duration-700">
@@ -193,15 +163,12 @@ export function AuthModal() {
         <header className="text-center space-y-4">
           <div className="flex justify-center">
             <div className="w-16 h-16 bg-primary rounded-[1.25rem] flex items-center justify-center text-white shadow-2xl">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-10 h-10">
-                <path d="M3 7L10 19L17 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M13 15L17 7L21 15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <Zap className="h-10 w-10 fill-current" />
             </div>
           </div>
           <div className="space-y-1">
             <h1 className="text-4xl font-black italic uppercase tracking-tighter text-white">ViMore</h1>
-            <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.4em]">Spatial Connection Node</p>
+            <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.4em]">High-Velocity Identity Hub</p>
           </div>
         </header>
 
@@ -210,9 +177,7 @@ export function AuthModal() {
           {authError && (
             <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-start gap-3 animate-in shake-vibe">
               <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-              <p className="text-[11px] font-bold text-destructive uppercase leading-tight tracking-tight">
-                {authError}
-              </p>
+              <p className="text-[11px] font-bold text-destructive uppercase leading-tight tracking-tight">{authError}</p>
             </div>
           )}
 
@@ -220,117 +185,87 @@ export function AuthModal() {
             <form onSubmit={handleLogin} className="space-y-6 animate-in slide-in-from-bottom-4">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Email Node</Label>
-                  <div className="relative"><Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" /><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 pl-11 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="sync@vimore.com" /></div>
+                  <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Email or Phone Node</Label>
+                  <div className="relative">
+                    {identifier.includes('@') ? <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" /> : <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />}
+                    <Input value={identifier} onChange={(e) => setIdentifier(e.target.value)} className="h-12 pl-11 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="Email or Phone Number" />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center px-1"><Label className="text-[10px] font-black uppercase text-white/40">Security Node</Label><button type="button" onClick={() => setMode('forgot')} className="text-[9px] font-bold text-primary uppercase hover:underline">Forgot Signature?</button></div>
+                  <div className="flex justify-between items-center px-1"><Label className="text-[10px] font-black uppercase text-white/40">Security Signature</Label></div>
                   <div className="relative"><Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" /><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 pl-11 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="••••••••" /></div>
                 </div>
               </div>
-              <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Launch Pulse"}</Button>
-              <div className="text-center"><button type="button" onClick={() => { setMode('signup'); setSignupStep(1); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Create New Identity</button></div>
+              <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sync Identity"}</Button>
+              <div className="text-center"><button type="button" onClick={() => { setMode('signup'); setSignupStep(1); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Materialize New Identity</button></div>
             </form>
           )}
 
           {mode === 'signup' && (
-            <form onSubmit={handleSignup} className="space-y-6 animate-in slide-in-from-bottom-4">
+            <form onSubmit={handleSignupInit} className="space-y-6 animate-in slide-in-from-bottom-4">
               {signupStep === 1 ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="John Doe" /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Username</Label><Input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, '_'))} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="johndoe" /></div>
+                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="Identity Label" /></div>
+                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Username</Label><Input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, '_'))} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="signature_id" /></div>
                   </div>
-                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="sync@vimore.com" /></div>
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Email or Phone</Label><Input value={identifier} onChange={(e) => setIdentifier(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="sync@vimore.com or +231..." /></div>
                   <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Password</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="••••••••" /></div>
                 </div>
               ) : (
                 <div className="space-y-4 animate-in slide-in-from-right-4">
-                  <button type="button" onClick={() => setSignupStep(1)} className="flex items-center gap-2 text-[10px] font-black uppercase text-white/40 hover:text-white transition-colors mb-2">
-                    <ArrowLeft className="h-3 w-3" /> Back to Core
-                  </button>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Arrival Date (DOB)</Label>
-                    <div className="relative"><Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" /><Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="h-12 pl-11 bg-white/5 border-none rounded-xl text-white font-bold" /></div>
-                  </div>
+                  <button type="button" onClick={() => setSignupStep(1)} className="flex items-center gap-2 text-[10px] font-black uppercase text-white/40 hover:text-white transition-colors mb-2"><ArrowLeft className="h-3 w-3" /> Back to Protocol</button>
+                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Arrival Date (DOB)</Label><div className="relative"><Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" /><Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="h-12 pl-11 bg-white/5 border-none rounded-xl text-white font-bold" /></div></div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Nationality</Label>
                     <div className="relative">
                       <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
-                      <select value={nationality} onChange={(e) => setNationality(e.target.value)} className="w-full h-12 pl-11 bg-white/5 border-none rounded-xl text-white font-bold appearance-none outline-none focus:ring-2 ring-primary/40">
-                        {NATIONALITIES.map(n => <option key={n} value={n} className="bg-zinc-900">{n}</option>)}
+                      <select 
+                        value={nationality} 
+                        onChange={(e) => setNationality(e.target.value)} 
+                        className="w-full h-12 pl-11 bg-white/5 border-none rounded-xl text-white font-bold appearance-none outline-none"
+                      >
+                        {NATIONALITIES.map(n => (
+                          <option key={n} value={n} className="bg-zinc-900">{n}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Gender Signature</Label>
+                    <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Gender Node</Label>
                     <div className="grid grid-cols-2 gap-3">
-                      <button type="button" onClick={() => setGender('Male')} className={cn("h-12 rounded-xl border-2 transition-all flex items-center justify-center gap-2 font-black uppercase text-[10px] tracking-widest", gender === 'Male' ? "bg-primary border-primary text-white" : "border-white/5 bg-white/5 text-white/40")}>Male</button>
-                      <button type="button" onClick={() => setGender('Female')} className={cn("h-12 rounded-xl border-2 transition-all flex items-center justify-center gap-2 font-black uppercase text-[10px] tracking-widest", gender === 'Female' ? "bg-primary border-primary text-white" : "border-white/5 bg-white/5 text-white/40")}>Female</button>
+                      <button type="button" onClick={() => setGender('Male')} className={cn("h-12 rounded-xl border-2 transition-all font-black uppercase text-[10px]", gender === 'Male' ? "bg-primary border-primary text-white" : "border-white/5 bg-white/5 text-white/40")}>Male</button>
+                      <button type="button" onClick={() => setGender('Female')} className={cn("h-12 rounded-xl border-2 transition-all font-black uppercase text-[10px]", gender === 'Female' ? "bg-primary border-primary text-white" : "border-white/5 bg-white/5 text-white/40")}>Female</button>
                     </div>
                   </div>
                 </div>
               )}
-              <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : signupStep === 1 ? "Next Protocol" : "Materialize Identity"}</Button>
+              <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Send OTP"}</Button>
               <div className="text-center"><button type="button" onClick={() => { setMode('login'); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Back to Sync</button></div>
             </form>
           )}
 
           {mode === 'verify' && (
-            <div className="space-y-8 animate-in zoom-in-95 duration-500 text-center">
+            <form onSubmit={handleVerifyOTP} className="space-y-8 animate-in zoom-in-95 duration-500 text-center">
               <div className="space-y-2">
-                <div className="h-16 w-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mx-auto mb-4 animate-pulse"><Mail className="h-8 w-8" /></div>
-                <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Check Your Email</h3>
-                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">We've sent a high-velocity verification link to your node.</p>
+                <div className="h-16 w-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mx-auto mb-4 animate-pulse"><CheckCircle2 className="h-8 w-8" /></div>
+                <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Enter OTP</h3>
+                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Sent to: {identifier}</p>
               </div>
-              <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
-                <p className="text-xs text-white/60 leading-relaxed uppercase tracking-tight">
-                  Click the link in the email to synchronize your identity. This window will dissolve automatically once verified.
-                </p>
-              </div>
-              
               <div className="space-y-4">
-                <Button onClick={() => checkSession()} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em] gap-2">
-                  <Zap className="h-4 w-4" /> Check Status
-                </Button>
-                
-                <Button 
-                  variant="ghost" 
-                  disabled={isResending}
-                  onClick={handleResendPulse}
-                  className="w-full text-primary font-black uppercase text-[10px] tracking-widest gap-2"
-                >
-                  {isResending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                  Resend Protocol
-                </Button>
+                <Input value={otp} onChange={(e) => setOtp(e.target.value)} maxLength={6} className="h-16 bg-white/5 border-none rounded-2xl text-white text-3xl font-black tracking-[0.5em] text-center" placeholder="XXXXXX" />
+                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10"><p className="text-[9px] font-bold text-primary/60 uppercase">Valid for 2 minutes. Sync now.</p></div>
               </div>
-
-              <div className="text-center">
-                <button type="button" onClick={() => { setIsNewAccount(false); setMode('login'); setAuthError(null); }} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-destructive transition-all">
-                  Cancel Node Sync
-                </button>
-              </div>
-            </div>
-          )}
-
-          {mode === 'forgot' && (
-            <form onSubmit={handleForgot} className="space-y-6 animate-in slide-in-from-bottom-4">
-              <div className="space-y-4 text-center">
-                <div className="h-16 w-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mx-auto mb-4"><MailQuestion className="h-8 w-8" /></div>
-                <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Vault Recovery</h3>
-                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Input your email node to receive a reset pulse.</p>
-              </div>
-              <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Email Node</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 pl-11 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="sync@vimore.com" /></div>
-              <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Launch Recovery"}</Button>
-              <div className="text-center"><button type="button" onClick={() => { setMode('login'); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Cancel Request</button></div>
+              <Button type="submit" disabled={isLoading || otp.length < 6} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Node"}</Button>
+              <button type="button" onClick={() => setMode('signup')} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-primary">Change Identifier</button>
             </form>
           )}
 
         </div>
 
         <footer className="w-full flex flex-col items-center gap-4 opacity-40">
-          <div className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-primary" /><span className="text-[10px] font-black text-white uppercase tracking-[0.3em]">MTL Command Core Protected</span></div>
-          <p className="text-[9px] font-bold text-white uppercase tracking-widest text-center">ViMore v1.5.0-SYNC • High-Velocity Identity Hub</p>
+          <div className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-primary" /><span className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Brevo Sync Cluster v1.5</span></div>
+          <p className="text-[9px] font-bold text-white uppercase tracking-widest text-center">ViMore Logic • Automated OTP Node</p>
         </footer>
       </div>
     </div>
