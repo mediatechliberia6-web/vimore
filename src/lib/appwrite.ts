@@ -42,6 +42,7 @@ export const NOTIFICATIONS_COLLECTION_ID = 'notifications';
 export const CAMPAIGNS_COLLECTION_ID = 'campaigns';
 export const REPORTS_COLLECTION_ID = 'reports';
 export const TICKETS_COLLECTION_ID = 'tickets';
+export const PLATFORM_SETTINGS_COLLECTION_ID = 'platform_settings';
 
 export { ID, Query };
 

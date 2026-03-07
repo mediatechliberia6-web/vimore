@@ -24,6 +24,7 @@ import client, {
   CAMPAIGNS_COLLECTION_ID,
   REPORTS_COLLECTION_ID,
   TICKETS_COLLECTION_ID,
+  PLATFORM_SETTINGS_COLLECTION_ID,
   Query,
   storage
 } from '@/lib/appwrite';
@@ -251,7 +252,7 @@ interface PostContextType {
   toggleMuteUser: (username: string) => void;
   togglePinPost: (postId: string) => Promise<void>;
   archivePost: (postId: string) => Promise<void>;
-  updateGatewaySettings: (data: any) => void;
+  updateGatewaySettings: (data: any) => Promise<void>;
   addAuditLog: (action: string, details: string) => Promise<void>;
   initiateTransaction: (data: any) => void;
   cancelTransaction: () => void;
@@ -340,6 +341,8 @@ const INITIAL_SETTINGS: AppSettings = {
   isSensitivityFilterActive: false,
   isFreeMode: false
 };
+
+const GLOBAL_CONFIG_ID = 'master_config';
 
 export function PostProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUserState] = useState<User>(INITIAL_USER);
@@ -454,6 +457,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
       throw new Error("Financial synchronization aborted.");
     }
   }, [currentUser, addAuditLog]);
+
+  const refreshGlobalSettings = useCallback(async () => {
+    try {
+      const doc = await databases.getDocument(
+        APPWRITE_DATABASE_ID,
+        PLATFORM_SETTINGS_COLLECTION_ID,
+        GLOBAL_CONFIG_ID
+      );
+      setGatewaySettingsState({
+        orangeName: doc.orangeName,
+        orangeNumber: doc.orangeNumber,
+        mtnName: doc.mtnName,
+        mtnNumber: doc.mtnNumber
+      });
+    } catch (e) {
+      console.warn("Global settings node silent. Using local defaults.");
+    }
+  }, []);
 
   const refreshStories = useCallback(async () => {
     try {
@@ -831,6 +852,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
       
       await Promise.all([
+        refreshGlobalSettings(),
         refreshFeed(), 
         refreshStories(), 
         refreshProfiles(),
@@ -846,7 +868,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       setCurrentUserState(INITIAL_USER);
     }
     finally { setIsLoadingState(false); }
-  }, [refreshFeed, refreshStories, refreshProfiles, refreshCampaigns, refreshSocialGraph, refreshLikes, refreshClusters, refreshEconomy, refreshAdminData]);
+  }, [refreshGlobalSettings, refreshFeed, refreshStories, refreshProfiles, refreshCampaigns, refreshSocialGraph, refreshLikes, refreshClusters, refreshEconomy, refreshAdminData]);
 
   useEffect(() => { 
     checkSession();
@@ -1149,7 +1171,30 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const toggleMuteUser = useCallback((username: string) => { setMutedUserNamesState(prev => { if (prev.includes(username)) return prev.filter(u => u !== username); return [...prev, username]; }); }, []);
   const togglePinPost = useCallback(async (postId: string) => {}, []);
   const archivePost = useCallback(async (postId: string) => {}, []);
-  const updateGatewaySettings = useCallback((data: any) => { setGatewaySettingsState(data); }, []);
+  
+  const updateGatewaySettings = useCallback(async (data: any) => {
+    try {
+      await databases.updateDocument(
+        APPWRITE_DATABASE_ID,
+        PLATFORM_SETTINGS_COLLECTION_ID,
+        GLOBAL_CONFIG_ID,
+        data
+      );
+      setGatewaySettingsState(data);
+    } catch (e) {
+      try {
+        await databases.createDocument(
+          APPWRITE_DATABASE_ID,
+          PLATFORM_SETTINGS_COLLECTION_ID,
+          GLOBAL_CONFIG_ID,
+          data
+        );
+        setGatewaySettingsState(data);
+      } catch (err) {
+        console.error("Gateway sync failed:", err);
+      }
+    }
+  }, []);
   
   const initiateTransaction = useCallback((data: any) => { setPendingTransactionState(data); }, []);
   const cancelTransaction = useCallback(() => { setPendingTransactionState(null); }, []);
