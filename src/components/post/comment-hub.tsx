@@ -39,14 +39,20 @@ interface CommentNodeProps {
   comment: PostComment;
   postId: string;
   onReply: (comment: PostComment) => void;
+  allComments: PostComment[];
   level?: number;
 }
 
-export function CommentNode({ comment, postId, onReply, level = 0 }: CommentNodeProps) {
+export function CommentNode({ comment, postId, onReply, allComments, level = 0 }: CommentNodeProps) {
   const { triggerHaptic } = useMusic();
   const { t } = useTranslation();
   const [isLiked, setIsLiked] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
+
+  const replies = useMemo(() => 
+    allComments.filter(c => c.parentId === comment.id),
+    [allComments, comment.id]
+  );
 
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -57,21 +63,20 @@ export function CommentNode({ comment, postId, onReply, level = 0 }: CommentNode
   return (
     <div className={cn("space-y-4", level > 0 && "ml-10 mt-4 border-l-2 border-primary/5 pl-4")}>
       <div className="group relative flex gap-3 animate-in fade-in slide-in-from-left-2 duration-300">
-        <Avatar className={cn(level > 0 ? "h-7 w-7" : "h-9 w-9", "border border-primary/10")}>
-          <AvatarImage src={comment.user.avatar} />
-          <AvatarFallback>{comment.user.name[0]}</AvatarFallback>
+        <Avatar className={cn(level > 0 ? "h-7 w-7" : "h-9 w-9", "border border-primary/10 shadow-sm")}>
+          <AvatarImage src={comment.userAvatar} />
+          <AvatarFallback>{comment.userName[0]}</AvatarFallback>
         </Avatar>
         
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-2">
             <span className="font-bold text-xs hover:underline cursor-pointer flex items-center gap-1">
-              {comment.user.name}
-              {comment.user.isVerified && <CheckCircle2 className="h-2.5 w-2.5 text-primary fill-primary text-white" />}
+              {comment.userName}
             </span>
             <span className="text-[9px] text-muted-foreground uppercase font-black tracking-tighter">{comment.time === "Just now" ? t('post_now') : comment.time}</span>
           </div>
           
-          <p className="text-sm leading-relaxed text-foreground/90 bg-secondary/20 p-3 rounded-2xl rounded-tl-none">
+          <p className="text-sm leading-relaxed text-foreground/90 bg-secondary/20 p-3 rounded-2xl rounded-tl-none border border-white/5 shadow-sm">
             {comment.text}
           </p>
           
@@ -81,7 +86,7 @@ export function CommentNode({ comment, postId, onReply, level = 0 }: CommentNode
               className={cn("flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-colors", isLiked ? "text-primary" : "text-muted-foreground hover:text-primary")}
             >
               <Heart className={cn("h-3 w-3", isLiked && "fill-current")} />
-              {isLiked ? (comment.likes + 1) : comment.likes}
+              Sync Like
             </button>
             
             <button 
@@ -91,33 +96,30 @@ export function CommentNode({ comment, postId, onReply, level = 0 }: CommentNode
               <Reply className="h-3 w-3" />
               {t('comm_reply')}
             </button>
-            
-            <button className="opacity-0 group-hover:opacity-100 transition-opacity">
-              <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
-            </button>
           </div>
         </div>
       </div>
 
-      {comment.replies.length > 0 && (
+      {replies.length > 0 && (
         <div className="space-y-4">
           <button 
             onClick={() => setShowReplies(!showReplies)}
             className="ml-10 flex items-center gap-2 text-[9px] font-black text-primary uppercase tracking-[0.2em] hover:opacity-80 transition-all"
           >
             <div className="w-6 h-[1.5px] bg-primary/20" />
-            {showReplies ? t('comm_hide_activity') : `${t('comm_view_replies')} (${comment.replies.length})`}
+            {showReplies ? t('comm_hide_activity') : `${t('comm_view_replies')} (${replies.length})`}
             {showReplies ? <ChevronUp className="h-2.5 w-2.5" /> : <ChevronDown className="h-2.5 w-2.5" />}
           </button>
           
           {showReplies && (
             <div className="space-y-4">
-              {comment.replies.map(reply => (
+              {replies.map(reply => (
                 <CommentNode 
                   key={reply.id} 
                   comment={reply} 
                   postId={postId} 
                   onReply={onReply} 
+                  allComments={allComments}
                   level={level + 1} 
                 />
               ))}
@@ -130,7 +132,7 @@ export function CommentNode({ comment, postId, onReply, level = 0 }: CommentNode
 }
 
 export function CommentHub() {
-  const { activeCommentPostId, closeCommentHub, posts, addComment, addReply, triggerHaptic } = usePosts();
+  const { activeCommentPostId, closeCommentHub, posts, activeComments, addComment, addReply, triggerHaptic } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   const [text, setText] = useState("");
@@ -144,18 +146,29 @@ export function CommentHub() {
     [posts, activeCommentPostId]
   );
 
-  const handleSend = () => {
+  const topLevelComments = useMemo(() => 
+    activeComments.filter(c => !c.parentId),
+    [activeComments]
+  );
+
+  const handleSend = async () => {
     if (!text.trim() || !activeCommentPostId) return;
     
-    if (replyingTo) {
-      addReply(activeCommentPostId, replyingTo.id, text);
-    } else {
-      addComment(activeCommentPostId, text);
-    }
-    
-    setText("");
-    setReplyingTo(null);
     triggerHaptic(20);
+    const currentText = text;
+    setText("");
+    
+    try {
+      if (replyingTo) {
+        await addReply(activeCommentPostId, replyingTo.id, currentText);
+      } else {
+        await addComment(activeCommentPostId, currentText);
+      }
+      setReplyingTo(null);
+    } catch (e) {
+      setText(currentText);
+      toast({ variant: "destructive", title: "Sync Failed" });
+    }
   };
 
   const handleInitiateReply = (comment: PostComment) => {
@@ -165,19 +178,19 @@ export function CommentHub() {
   };
 
   const handleSummarize = async () => {
-    if (!activePost || (activePost.commentNodes?.length || 0) === 0) return;
+    if (activeComments.length === 0) return;
     
     triggerHaptic(30);
     setIsSummarizing(true);
     setAiSummary(null);
 
-    const commentTexts = activePost.commentNodes!.map(c => c.text);
+    const commentTexts = activeComments.map(c => c.text);
     
     try {
       const res = await aiSummarizeCommentsAction({ comments: commentTexts });
       setAiSummary(res.summary);
     } catch (e) {
-      toast({ variant: "destructive", title: "Audit Error", description: "Could not pulse community sentiment." });
+      toast({ variant: "destructive", title: "Audit Error" });
     } finally {
       setIsSummarizing(false);
     }
@@ -189,7 +202,7 @@ export function CommentHub() {
     <Sheet open={!!activeCommentPostId} onOpenChange={(open) => !open && closeCommentHub()}>
       <SheetContent 
         side="bottom" 
-        className="rounded-t-[3rem] p-0 border-primary/10 bg-white/80 dark:bg-[#050505]/80 backdrop-blur-3xl h-[65vh] flex flex-col transition-all duration-500 overflow-hidden"
+        className="rounded-t-[3rem] p-0 border-primary/10 bg-white/80 dark:bg-[#050505]/80 backdrop-blur-3xl h-[85vh] sm:h-[75vh] flex flex-col transition-all duration-500 overflow-hidden"
       >
         <div className="mx-auto w-12 h-1.5 bg-primary/20 rounded-full mt-4 mb-2 shrink-0" />
         
@@ -200,7 +213,7 @@ export function CommentHub() {
               <div className="bg-primary/5 px-3 py-1 rounded-full flex items-center gap-2 border border-primary/10">
                 <Zap className="h-3 w-3 text-primary animate-pulse" />
                 <span className="text-[10px] font-black text-primary uppercase tracking-widest">
-                  {activePost?.comments || 0} {t('comm_vibes')}
+                  {activeComments.length} {t('comm_vibes')}
                 </span>
               </div>
             </div>
@@ -213,8 +226,7 @@ export function CommentHub() {
                   isSummarizing ? "bg-primary/20 text-primary" : "bg-secondary/40 text-muted-foreground hover:text-primary"
                 )}
                 onClick={handleSummarize}
-                disabled={isSummarizing || (activePost?.commentNodes?.length || 0) === 0}
-                title="Groq Pulse Summary"
+                disabled={isSummarizing || activeComments.length === 0}
               >
                 {isSummarizing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}
               </Button>
@@ -226,7 +238,7 @@ export function CommentHub() {
         </SheetHeader>
 
         <ScrollArea className="flex-1 px-6 pt-6">
-          <div className="space-y-8 pb-32">
+          <div className="space-y-8 pb-40">
             {/* AI Summary Card */}
             {aiSummary && (
               <div className="p-5 bg-primary/10 border border-primary/20 rounded-[2rem] animate-in zoom-in-95 duration-500 relative overflow-hidden group">
@@ -245,20 +257,21 @@ export function CommentHub() {
               </div>
             )}
 
-            {activePost?.commentNodes && activePost.commentNodes.length > 0 ? (
-              activePost.commentNodes.map(comment => (
+            {topLevelComments.length > 0 ? (
+              topLevelComments.map(comment => (
                 <CommentNode 
                   key={comment.id} 
                   comment={comment} 
-                  postId={activePost.id} 
-                  onReply={handleInitiateReply} 
+                  postId={activeCommentPostId} 
+                  onReply={handleInitiateReply}
+                  allComments={activeComments}
                 />
               ))
             ) : (
               <div className="py-20 text-center space-y-4 opacity-40">
                 <MessageCircle className="h-12 w-12 mx-auto text-primary/40" />
                 <div className="space-y-1">
-                  <p className="text-sm font-black uppercase tracking-widest">{t('comm_quiet')}</p>
+                  <p className="text-sm font-black italic uppercase tracking-widest">{t('comm_quiet')}</p>
                   <p className="text-[10px] font-medium uppercase">{t('comm_first')}</p>
                 </div>
               </div>
@@ -272,7 +285,7 @@ export function CommentHub() {
             {replyingTo && (
               <div className="flex items-center justify-between bg-primary/10 px-4 py-2 rounded-xl animate-in slide-in-from-bottom-2 duration-300">
                 <p className="text-[10px] font-black text-primary uppercase tracking-widest">
-                  {t('comm_reply')} <span className="underline">@{replyingTo.user.username}</span>
+                  {t('comm_reply')} <span className="underline">@{replyingTo.userName}</span>
                 </p>
                 <button onClick={() => setReplyingTo(null)} className="text-primary hover:text-primary/60">
                   <X className="h-3.5 w-3.5" />

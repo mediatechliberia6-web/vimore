@@ -120,7 +120,6 @@ export interface Post {
   isLocked?: boolean;
   unlockPrice?: number;
   poll?: any;
-  commentNodes?: PostComment[];
   sharedPost?: any;
   isCampaign?: boolean;
   actionUrl?: string;
@@ -133,11 +132,11 @@ export interface Post {
 
 export interface PostComment {
   id: string;
-  user: User;
+  userId: string;
+  userName: string;
+  userAvatar: string;
   text: string;
   time: string;
-  likes: number;
-  replies: PostComment[];
   parentId?: string;
   timestamp: number;
 }
@@ -176,6 +175,7 @@ export interface CallState {
 interface PostContextType {
   currentUser: User;
   posts: Post[];
+  activeComments: PostComment[];
   isLoading: boolean;
   likedPostIds: Set<string>;
   unlikedPostIds: Set<string>;
@@ -245,7 +245,7 @@ interface PostContextType {
   isFollowing: (username: string) => boolean;
   isSubscribed: (username: string) => boolean;
   addComment: (postId: string, text: string) => Promise<void>;
-  addReply: (postId: string, commentId: string, text: string) => Promise<void>;
+  addReply: (postId: string, parentId: string, text: string) => Promise<void>;
   addStory: (segment: any) => Promise<void>;
   voteOnStoryPoll: (storyId: string, segmentId: string, optionIndex: number) => Promise<void>;
   voteOnPostPoll: (postId: string, optionIndex: number) => Promise<void>;
@@ -347,6 +347,7 @@ const GLOBAL_CONFIG_ID = 'master_config';
 export function PostProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUserState] = useState<User>(INITIAL_USER);
   const [posts, setPostsState] = useState<Post[]>([]);
+  const [activeComments, setActiveComments] = useState<PostComment[]>([]);
   const [isLoading, setIsLoadingState] = useState(true);
   const [settings, setSettingsState] = useState<AppSettings>(INITIAL_SETTINGS);
   
@@ -564,28 +565,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const response = await databases.listDocuments(
         APPWRITE_DATABASE_ID,
         COMMENTS_COLLECTION_ID,
-        [Query.equal('postId', postId), Query.limit(100), Query.orderAsc('timestamp')]
+        [Query.equal('postId', postId), Query.orderAsc('timestamp'), Query.limit(100)]
       );
       
       const mappedComments: PostComment[] = response.documents.map(doc => ({
         id: doc.$id,
-        user: typeof doc.user === 'string' ? JSON.parse(doc.user) : doc.user,
+        userId: doc.userId,
+        userName: doc.userName,
+        userAvatar: doc.userAvatar,
         text: doc.text,
-        time: new Date(doc.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        likes: doc.likes || 0,
-        replies: [],
+        time: new Date(doc.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         parentId: doc.parentId,
-        timestamp: doc.timestamp || 0
+        timestamp: doc.timestamp
       }));
 
-      const topLevel = mappedComments.filter(c => !c.parentId);
-      topLevel.forEach(parent => {
-        parent.replies = mappedComments.filter(c => c.parentId === parent.id);
-      });
-
-      setPostsState(prev => prev.map(p => p.id === postId ? { ...p, commentNodes: topLevel } : p));
+      setActiveComments(mappedComments);
     } catch (e) {
-      console.warn("Linguistic sync for comments failed. Index may be missing.");
+      console.warn("Comment sync failed. Collection or Index may be missing.");
     }
   }, []);
 
@@ -594,48 +590,43 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, [Query.orderDesc('$createdAt'), Query.limit(50)]);
       const now = Date.now();
       
-      setPostsState(prevPosts => {
-        const commentCache = new Map(prevPosts.map(p => [p.id, p.commentNodes]));
+      setPostsState(response.documents.map(doc => {
+        let isBoosted = doc.isBoosted || false;
         
-        return response.documents.map(doc => {
-          let isBoosted = doc.isBoosted || false;
-          
-          if (isBoosted) {
-            const hasExpired = doc.boostExpiry && doc.boostExpiry < now;
-            const hasReachedLimit = doc.boostCurrentViews >= (doc.boostTargetViews || 1);
-            if (hasExpired || hasReachedLimit) {
-              isBoosted = false;
-              databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, doc.$id, { isBoosted: false });
-            }
+        if (isBoosted) {
+          const hasExpired = doc.boostExpiry && doc.boostExpiry < now;
+          const hasReachedLimit = doc.boostCurrentViews >= (doc.boostTargetViews || 1);
+          if (hasExpired || hasReachedLimit) {
+            isBoosted = false;
+            databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, doc.$id, { isBoosted: false });
           }
+        }
 
-          return {
-            id: doc.$id,
-            user: typeof doc.user === 'string' ? JSON.parse(doc.user) : doc.user,
-            content: doc.content,
-            image: doc.image,
-            images: doc.images ? JSON.parse(doc.images) : [],
-            videoUrl: doc.videoUrl,
-            time: new Date(doc.$createdAt).toLocaleDateString(),
-            likes: doc.likes || 0,
-            unlikes: doc.unlikes || 0,
-            comments: doc.comments || 0,
-            shares: doc.shares || 0,
-            views: doc.views || 0,
-            viewers: doc.viewers || [],
-            theme: doc.theme,
-            language: doc.language,
-            isLocked: doc.isLocked,
-            unlockPrice: doc.unlockPrice,
-            isBoosted,
-            boostTargetViews: doc.boostTargetViews,
-            boostCurrentViews: doc.boostCurrentViews,
-            boostExpiry: doc.boostExpiry,
-            poll: doc.poll ? JSON.parse(doc.poll) : undefined,
-            commentNodes: commentCache.get(doc.$id) || []
-          } as Post;
-        });
-      });
+        return {
+          id: doc.$id,
+          user: typeof doc.user === 'string' ? JSON.parse(doc.user) : doc.user,
+          content: doc.content,
+          image: doc.image,
+          images: doc.images ? JSON.parse(doc.images) : [],
+          videoUrl: doc.videoUrl,
+          time: new Date(doc.$createdAt).toLocaleDateString(),
+          likes: doc.likes || 0,
+          unlikes: doc.unlikes || 0,
+          comments: doc.comments || 0,
+          shares: doc.shares || 0,
+          views: doc.views || 0,
+          viewers: doc.viewers || [],
+          theme: doc.theme,
+          language: doc.language,
+          isLocked: doc.isLocked,
+          unlockPrice: doc.unlockPrice,
+          isBoosted,
+          boostTargetViews: doc.boostTargetViews,
+          boostCurrentViews: doc.boostCurrentViews,
+          boostExpiry: doc.boostExpiry,
+          poll: doc.poll ? JSON.parse(doc.poll) : undefined
+        } as Post;
+      }));
     } catch (error) {}
   }, []);
 
@@ -1059,7 +1050,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const addComment = useCallback(async (postId: string, text: string) => { 
     if (!currentUser.id) return;
     try {
-      await databases.createDocument(APPWRITE_DATABASE_ID, COMMENTS_COLLECTION_ID, ID.unique(), { postId, userId: currentUser.id, user: JSON.stringify(currentUser), text, timestamp: Date.now() }); 
+      await databases.createDocument(APPWRITE_DATABASE_ID, COMMENTS_COLLECTION_ID, ID.unique(), { 
+        postId, 
+        userId: currentUser.id, 
+        userName: currentUser.name,
+        userAvatar: currentUser.avatar,
+        text, 
+        timestamp: Date.now() 
+      }); 
+      
       const post = posts.find(p => p.id === postId);
       if (post) {
         await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { comments: (post.comments || 0) + 1 });
@@ -1072,10 +1071,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e: any) { throw new Error(e.message); }
   }, [currentUser, posts, fetchComments]);
 
-  const addReply = useCallback(async (postId: string, commentId: string, text: string) => { 
+  const addReply = useCallback(async (postId: string, parentId: string, text: string) => { 
     if (!currentUser.id) return;
     try {
-      await databases.createDocument(APPWRITE_DATABASE_ID, COMMENTS_COLLECTION_ID, ID.unique(), { postId, userId: currentUser.id, user: JSON.stringify(currentUser), text, parentId: commentId, timestamp: Date.now() }); 
+      await databases.createDocument(APPWRITE_DATABASE_ID, COMMENTS_COLLECTION_ID, ID.unique(), { 
+        postId, 
+        userId: currentUser.id, 
+        userName: currentUser.name,
+        userAvatar: currentUser.avatar,
+        text, 
+        parentId, 
+        timestamp: Date.now() 
+      }); 
+      
       const post = posts.find(p => p.id === postId);
       if (post) await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { comments: (post.comments || 0) + 1 });
       await fetchComments(postId);
@@ -1088,7 +1096,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const setSelectedImageUrl = useCallback((url: string | null) => { triggerHaptic(5); setSelectedImageUrlState(url); }, [triggerHaptic]);
   const setSelectedVideoUrl = useCallback((url: string | null) => { triggerHaptic(5); setSelectedVideoUrlState(url); }, [triggerHaptic]);
   const openCommentHub = useCallback((id: string) => { triggerHaptic(5); setActiveCommentPostIdState(id); fetchComments(id); }, [triggerHaptic, fetchComments]);
-  const closeCommentHub = useCallback(() => { triggerHaptic(5); setActiveCommentPostIdState(null); }, [triggerHaptic]);
+  const closeCommentHub = useCallback(() => { triggerHaptic(5); setActiveCommentPostIdState(null); setActiveComments([]); }, [triggerHaptic]);
   const openGiftHub = useCallback((user: User) => { triggerHaptic(10); setTargetUserForGiftState(user); setIsGiftHubOpenState(true); }, [triggerHaptic]);
   const closeGiftHub = useCallback(() => { triggerHaptic(5); setIsGiftHubOpenState(false); setTargetUserForGiftState(null); }, [triggerHaptic]);
   const setActiveStoryIndex = useCallback((index: number | null) => { setActiveStoryIndexState(index); }, []);
@@ -1320,9 +1328,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const isSubscribed = useCallback((username: string) => activeSubscriptions.has(username), [activeSubscriptions]);
 
   const contextValue = useMemo(() => ({ 
-    currentUser, posts, connections, clusters, staff, auditLogs, campaigns, reports, tickets, adStats, intelligenceMetrics, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, withdrawalHistory, paymentRequests, referralLink: "http://vimore.appwrite.network/join/" + currentUser.username, pendingTransaction, activeSubscriptions, mutedUserNames,
+    currentUser, posts, activeComments, connections, clusters, staff, auditLogs, campaigns, reports, tickets, adStats, intelligenceMetrics, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, withdrawalHistory, paymentRequests, referralLink: "http://vimore.appwrite.network/join/" + currentUser.username, pendingTransaction, activeSubscriptions, mutedUserNames,
     login, signup, logout, resendVerification, checkSession, forgotPassword, resetPassword, uploadMedia, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, setSelectedVideoUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, voteOnStoryPoll, voteOnPostPoll, toggleMuteUser, togglePinPost, archivePost, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, updateCurrentUser, updateSettings, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, incrementShareCount, createCluster, addMemberToCluster, leaveCluster, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall, refreshAdminData, fetchProfileByUsername, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, boostNode, triggerHaptic, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, fetchComments, refreshProfiles, refreshClusters, refreshFeed, recordView, recordStoryView, updateUserIdentity, handleReportAction, handleTicketAction
-  }), [currentUser, posts, connections, clusters, staff, auditLogs, campaigns, reports, tickets, adStats, intelligenceMetrics, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, withdrawalHistory, paymentRequests, pendingTransaction, activeSubscriptions, mutedUserNames, login, signup, logout, resendVerification, checkSession, forgotPassword, resetPassword, uploadMedia, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, setSelectedVideoUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, voteOnStoryPoll, voteOnPostPoll, toggleMuteUser, togglePinPost, archivePost, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, updateCurrentUser, updateSettings, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, incrementShareCount, createCluster, addMemberToCluster, leaveCluster, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall, refreshAdminData, fetchProfileByUsername, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, boostNode, triggerHaptic, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, fetchComments, refreshProfiles, refreshClusters, refreshFeed, recordView, recordStoryView, updateUserIdentity, handleReportAction, handleTicketAction]);
+  }), [currentUser, posts, activeComments, connections, clusters, staff, auditLogs, campaigns, reports, tickets, adStats, intelligenceMetrics, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, withdrawalHistory, paymentRequests, pendingTransaction, activeSubscriptions, mutedUserNames, login, signup, logout, resendVerification, checkSession, forgotPassword, resetPassword, uploadMedia, setSearchOpen, setSelectedChatId, setSelectedPostId, setSelectedImageUrl, setSelectedVideoUrl, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, addPost, deletePost, addStory, addComment, addReply, voteOnStoryPoll, voteOnPostPoll, toggleMuteUser, togglePinPost, archivePost, updateGatewaySettings, addAuditLog, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, updateCurrentUser, updateSettings, initiateTransaction, cancelTransaction, createPaymentRequest, approvePaymentRequest, rejectPaymentRequest, recordWithdrawal, processWithdrawal, triggerReferralPulse, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, cancelSubscription, recordAdMaterialization, recordAdHandshake, updateIntelligence, incrementShareCount, createCluster, addMemberToCluster, leaveCluster, promoteUser, demoteUser, initiateCall, receiveCall, acceptCall, endCall, refreshAdminData, fetchProfileByUsername, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, boostNode, triggerHaptic, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, fetchComments, refreshProfiles, refreshClusters, refreshFeed, recordView, recordStoryView, updateUserIdentity, handleReportAction, handleTicketAction]);
 
   return <PostContext.Provider value={contextValue}>{children}</PostContext.Provider>;
 }
