@@ -23,7 +23,8 @@ import {
   CheckCircle2,
   Gift,
   Rocket,
-  EyeOff
+  EyeOff,
+  Music2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -50,11 +51,11 @@ export function MusicPlayer() {
   
   const { 
     currentTrack, isPlaying, isExpanded, progress, volume, reactions, trackStats,
-    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, simulateDownload, isTrackDownloaded, triggerDownloadWithAd, triggerHaptic
+    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, simulateDownload, isTrackDownloaded, triggerDownloadWithAd, triggerHaptic
   } = useMusic();
 
   const { addSignal } = useNotifications();
-  const { currentUser, openGiftHub, settings } = usePosts();
+  const { currentUser, openGiftHub, settings, addComment: addVaultComment, activeComments, openCommentHub } = usePosts();
   const { t } = useTranslation();
 
   const [commentInput, setCommentInput] = useState("");
@@ -75,8 +76,8 @@ export function MusicPlayer() {
   const currentTime = (progress / 100) * currentTrack.duration;
 
   const handleSendComment = () => {
-    if (!commentInput.trim()) return;
-    addComment(commentInput);
+    if (!commentInput.trim() || !currentTrack) return;
+    addVaultComment(currentTrack.id.toString(), commentInput);
     setCommentInput("");
   };
 
@@ -393,24 +394,26 @@ export function MusicPlayer() {
                   <MessageCircle className="h-5 w-5 text-primary" />
                   <h3 className="text-sm font-black uppercase tracking-[0.2em] text-foreground">Fan Reactions</h3>
                 </div>
-                <span className="text-[10px] font-black text-muted-foreground bg-secondary/20 px-2 py-0.5 rounded-full">{currentTrack.comments?.length || 0}</span>
+                <span className="text-[10px] font-black text-muted-foreground bg-secondary/20 px-2 py-0.5 rounded-full" onClick={() => openCommentHub(currentTrack.id.toString())}>
+                  {currentTrack.comments || 0}
+                </span>
               </div>
 
               <ScrollArea className="h-[300px] w-full rounded-2xl bg-black/5 dark:bg-white/5 p-4">
                 <div className="space-y-6">
-                  {currentTrack.comments && currentTrack.comments.length > 0 ? (
-                    currentTrack.comments.map((comment) => (
+                  {activeComments.length > 0 ? (
+                    activeComments.map((comment) => (
                       <div key={comment.id} className="flex gap-4 group animate-in slide-in-from-bottom-2 duration-300">
-                        <Link href={`/profile/${comment.user === 'John Doe' ? 'johndoe_creative' : (comment.user === 'Alex Rivera' ? 'arivera' : (comment.user === 'Sarah Chen' ? 'schen_dev' : 'mstone'))}`} onClick={() => setIsExpanded(false)}>
+                        <Link href={`/profile/${comment.userName}`} onClick={() => setIsExpanded(false)}>
                           <Avatar className="h-10 w-10 border-2 border-primary/10 shrink-0 hover:scale-105 transition-transform">
-                            <AvatarImage src={comment.avatar} />
-                            <AvatarFallback>{comment.user[0]}</AvatarFallback>
+                            <AvatarImage src={comment.userAvatar} />
+                            <AvatarFallback>{comment.userName[0]}</AvatarFallback>
                           </Avatar>
                         </Link>
                         <div className="flex flex-col gap-1 flex-1 min-w-0">
                           <div className="flex items-center justify-between">
-                            <Link href={`/profile/${comment.user === 'John Doe' ? 'johndoe_creative' : (comment.user === 'Alex Rivera' ? 'arivera' : (comment.user === 'Sarah Chen' ? 'schen_dev' : 'mstone'))}`} onClick={() => setIsExpanded(false)}>
-                              <span className="text-xs font-bold hover:underline cursor-pointer">{comment.user}</span>
+                            <Link href={`/profile/${comment.userName}`} onClick={() => setIsExpanded(false)}>
+                              <span className="text-xs font-bold hover:underline cursor-pointer">{comment.userName}</span>
                             </Link>
                             <span className="text-[9px] text-muted-foreground font-medium">{comment.time}</span>
                           </div>
@@ -431,7 +434,7 @@ export function MusicPlayer() {
               <div className="relative group pt-4 mb-10 lg:mb-0">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
                   <Avatar className="h-8 w-8 border-2 border-primary/20">
-                    <AvatarImage src="https://picsum.photos/seed/me/100/100" />
+                    <AvatarImage src={currentUser.avatar} />
                     <AvatarFallback>JD</AvatarFallback>
                   </Avatar>
                 </div>

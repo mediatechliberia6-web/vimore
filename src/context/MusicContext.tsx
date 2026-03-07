@@ -24,7 +24,7 @@ export interface Track {
   streams?: string;
   likes?: number;
   unlikes?: number;
-  comments?: Comment[];
+  comments?: number; 
   isBoosted?: boolean;
   boostTargetViews?: number;
   boostCurrentViews?: number;
@@ -105,7 +105,6 @@ interface MusicContextType {
   setProgress: (progress: number) => void;
   setVolume: (volume: number) => void;
   addReaction: (emoji: string) => void;
-  addComment: (text: string) => void;
   clearPlayer: () => void;
   toggleLike: (track: Track) => void;
   toggleUnlike: (track: Track) => void;
@@ -250,7 +249,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       const songs = songDocs.documents.map(d => {
         let isBoosted = d.isBoosted || false;
         
-        // AUTO-EXPIRY LOGIC for Songs
         if (isBoosted) {
           const hasExpired = d.boostExpiry && d.boostExpiry < now;
           const hasReachedLimit = d.boostCurrentViews >= (d.boostTargetViews || 1);
@@ -271,6 +269,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
           streams: d.streams || "0",
           likes: d.likes || 0,
           unlikes: d.unlikes || 0,
+          comments: d.comments || 0,
           artistUsername: d.artistUsername,
           artistFollowers: d.artistFollowers,
           isBoosted,
@@ -524,6 +523,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         streams: "0",
         likes: 0,
         unlikes: 0,
+        comments: 0,
         isBoosted: false
       };
       await databases.createDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ID.unique(), docData);
@@ -612,13 +612,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setTimeout(() => setReactionsState((prev) => prev.filter((r) => r.id !== id)), 2500);
   }, [triggerHaptic]);
 
-  const addComment = useCallback((text: string) => {
-    if (!currentTrack || !text.trim()) return;
-    triggerHaptic(10);
-    const newComment: Comment = { id: Date.now(), user: "John Doe", avatar: "https://picsum.photos/seed/me/100/100", text, time: "Just now" };
-    setCurrentTrackState({ ...currentTrack, comments: [newComment, ...(currentTrack.comments || [])] });
-  }, [currentTrack, triggerHaptic]);
-
   const clearPlayer = useCallback(() => { 
     triggerHaptic(5); 
     setIsPlayingState(false); 
@@ -661,11 +654,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     isAdPortalOpen, adDuration, adUrl: AD_URL, triggerDownloadWithAd, onAdComplete,
     isCreatePlaylistOpen, trackForNewPlaylist,
     isCaptureStudioOpen, captureTrack, openCaptureStudio, closeCaptureStudio, setCaptureTrack,
-    setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, 
+    setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, clearPlayer, 
     toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked,
     playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack,
     openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic, refreshMusicVault, recordSongStream
-  }), [currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, forYouSongs, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats, isAdPortalOpen, adDuration, isCreatePlaylistOpen, trackForNewPlaylist, isCaptureStudioOpen, captureTrack, triggerHaptic, setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, addComment, clearPlayer, toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked, playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack, openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, refreshMusicVault, recordSongStream]);
+  }), [currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, forYouSongs, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats, isAdPortalOpen, adDuration, isCreatePlaylistOpen, trackForNewPlaylist, isCaptureStudioOpen, captureTrack, triggerHaptic, setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, clearPlayer, toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked, playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack, openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, refreshMusicVault, recordSongStream]);
 
   return (
     <MusicContext.Provider value={contextValue}>

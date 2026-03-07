@@ -1047,6 +1047,34 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e: any) { setFollowingUsernamesState(prev => { const next = new Set(prev); if (isCurrentlyFollowing) next.add(username); else next.delete(username); return next; }); }
   }, [currentUser, followingUsernames, connections, triggerHaptic, updateCurrentUser, refreshSocialGraph]);
 
+  const incrementParentCommentCount = useCallback(async (postId: string) => {
+    // 1. Check Posts
+    const post = posts.find(p => p.id === postId);
+    if (post) {
+      const newCount = (post.comments || 0) + 1;
+      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { 
+        comments: newCount 
+      });
+      // Optimistic state update
+      setPostsState(prev => prev.map(p => p.id === postId ? { ...p, comments: newCount } : p));
+      return post;
+    }
+
+    // 2. Check Songs (Fallthrough)
+    try {
+      const songDoc = await databases.getDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, postId);
+      if (songDoc) {
+        await databases.updateDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, postId, {
+          comments: (songDoc.comments || 0) + 1
+        });
+        return songDoc;
+      }
+    } catch (e) {
+      // Not a song or does not exist
+    }
+    return null;
+  }, [posts]);
+
   const addComment = useCallback(async (postId: string, text: string) => { 
     if (!currentUser.id) return;
     try {
@@ -1059,17 +1087,36 @@ export function PostProvider({ children }: { children: ReactNode }) {
         timestamp: Date.now() 
       }); 
       
-      const post = posts.find(p => p.id === postId);
-      if (post) {
-        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { comments: (post.comments || 0) + 1 });
-        const recipientId = post.user.id || (post.user as any).$id;
-        if (recipientId && recipientId !== currentUser.id) {
-          try { await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), { type: 'POST', title: 'New Comment', content: `**${currentUser.name}** commented on your vibe: "${text.slice(0, 30)}..."`, recipientId, avatar: currentUser.avatar, postId: postId, isRead: false, timestamp: Date.now() }); } catch (notifErr) {}
+      const parentNode = await incrementParentCommentCount(postId);
+      
+      if (parentNode) {
+        // Find user data depending on post vs song structure
+        const ownerUsername = parentNode.user ? (typeof parentNode.user === 'string' ? JSON.parse(parentNode.user).username : parentNode.user.username) : parentNode.artistUsername;
+        const ownerId = parentNode.user ? (typeof parentNode.user === 'string' ? JSON.parse(parentNode.user).id || JSON.parse(parentNode.user).$id : parentNode.user.id || parentNode.user.$id) : null;
+
+        if (ownerUsername && ownerUsername !== currentUser.username) {
+          try { 
+            const recipientRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', ownerUsername)]);
+            const recipientId = recipientRes.documents[0]?.$id;
+            
+            if (recipientId) {
+              await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), { 
+                type: 'POST', 
+                title: 'New Comment', 
+                content: `**${currentUser.name}** commented on your vibe: "${text.slice(0, 30)}..."`, 
+                recipientId, 
+                avatar: currentUser.avatar, 
+                postId: postId, 
+                isRead: false, 
+                timestamp: Date.now() 
+              }); 
+            }
+          } catch (notifErr) {}
         }
       }
       await fetchComments(postId);
     } catch (e: any) { throw new Error(e.message); }
-  }, [currentUser, posts, fetchComments]);
+  }, [currentUser, posts, fetchComments, incrementParentCommentCount]);
 
   const addReply = useCallback(async (postId: string, parentId: string, text: string) => { 
     if (!currentUser.id) return;
@@ -1084,11 +1131,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
         timestamp: Date.now() 
       }); 
       
-      const post = posts.find(p => p.id === postId);
-      if (post) await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { comments: (post.comments || 0) + 1 });
+      await incrementParentCommentCount(postId);
       await fetchComments(postId);
     } catch (e: any) { throw new Error(e.message); }
-  }, [currentUser, posts, fetchComments]);
+  }, [currentUser, fetchComments, incrementParentCommentCount]);
 
   const setSearchOpen = useCallback((open: boolean) => { triggerHaptic(5); setIsSearchOpenState(open); }, [triggerHaptic]);
   const setSelectedChatId = useCallback((id: string | null) => { triggerHaptic(5); setSelectedChatIdState(id); }, [triggerHaptic]);
