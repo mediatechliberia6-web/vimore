@@ -19,9 +19,7 @@ import client, {
   STORIES_COLLECTION_ID,
   NOTIFICATIONS_COLLECTION_ID,
   MESSAGES_COLLECTION_ID,
-  SONGS_COLLECTION_ID,
-  ALBUMS_COLLECTION_ID,
-  PLAYLISTS_COLLECTION_ID,
+  CAMPAIGNS_COLLECTION_ID,
   REPORTS_COLLECTION_ID,
   TICKETS_COLLECTION_ID,
   Query,
@@ -501,6 +499,71 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // --- PHASE 5: STATISTICS & VIEWER GUARD ---
+  const recordView = useCallback(async (postId: string) => {
+    if (!currentUser.id) return;
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    // Unique Identity Guard: Check if user has already pulsed this node
+    const currentViewers = post.viewers || [];
+    if (currentViewers.includes(currentUser.id)) return;
+
+    try {
+      const updatedViewers = [...currentViewers, currentUser.id];
+      const newViewCount = (post.views || 0) + 1;
+
+      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, {
+        views: newViewCount,
+        viewers: updatedViewers
+      });
+
+      setPostsState(prev => prev.map(p => p.id === postId ? { ...p, views: newViewCount, viewers: updatedViewers } : p));
+    } catch (e) {
+      console.error("View handshake rejected by vault.");
+    }
+  }, [currentUser.id, posts]);
+
+  const recordStoryView = useCallback(async (storyId: string) => {
+    if (!currentUser.id) return;
+    const story = stories.find(s => s.id === storyId);
+    if (!story) return;
+
+    // Unique Identity Guard for Stories
+    const currentViewers = story.viewers || [];
+    if (currentViewers.includes(currentUser.id)) return;
+
+    try {
+      const updatedViewers = [...currentViewers, currentUser.id];
+      const newViewCount = (story.viewCount || 0) + 1;
+
+      await databases.updateDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, storyId, {
+        viewCount: newViewCount,
+        viewers: updatedViewers
+      });
+
+      setStoriesState(prev => prev.map(s => s.id === storyId ? { ...s, viewCount: newViewCount, viewers: updatedViewers } : s));
+    } catch (e) {
+      console.warn("Story view pulse failed.");
+    }
+  }, [currentUser.id, stories]);
+
+  const incrementShareCount = useCallback(async (postId: string) => {
+    triggerHaptic(10);
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    try {
+      const newShares = (post.shares || 0) + 1;
+      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, {
+        shares: newShares
+      });
+      setPostsState(prev => prev.map(p => p.id === postId ? { ...p, shares: newShares } : p));
+    } catch (e) {
+      console.error("Share counter sync failed.");
+    }
+  }, [posts, triggerHaptic]);
+
   // --- CONTENT HUB LOGIC ---
   const addPost = useCallback(async (postData: any) => {
     if (!currentUser.id) return;
@@ -547,21 +610,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, [toast]);
 
-  const recordView = useCallback(async (postId: string) => {
-    if (!currentUser.id) return;
-    const post = posts.find(p => p.id === postId);
-    if (!post || (post.viewers && post.viewers.includes(currentUser.id))) return;
-
-    try {
-      const updatedViewers = [...(post.viewers || []), currentUser.id];
-      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, {
-        views: (post.views || 0) + 1,
-        viewers: updatedViewers
-      });
-      setPostsState(prev => prev.map(p => p.id === postId ? { ...p, views: p.views + 1, viewers: updatedViewers } : p));
-    } catch (e) {}
-  }, [currentUser.id, posts]);
-
   // --- INTERACTION HANDSHAKES ---
   const toggleLikePost = useCallback(async (postId: string) => {
     if (!currentUser.id) return;
@@ -577,18 +625,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
       let finalUnlikes = post.unlikes;
 
       if (isAlreadyLiked) {
-        // UNDO LIKE
         const res = await databases.listDocuments(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, [Query.equal('postId', postId), Query.equal('userId', currentUser.id)]);
         for (const doc of res.documents) await databases.deleteDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, doc.$id);
         finalLikes = Math.max(0, finalLikes - 1);
         setLikedPostIdsState(prev => { const n = new Set(prev); n.delete(postId); return n; });
       } else {
-        // ADD LIKE
         await databases.createDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, ID.unique(), { postId, userId: currentUser.id });
         finalLikes += 1;
         setLikedPostIdsState(prev => { const n = new Set(prev); n.add(postId); return n; });
 
-        // SWAP: IF UNLIKED, REMOVE UNLIKE
         if (isAlreadyUnliked) {
           const res = await databases.listDocuments(APPWRITE_DATABASE_ID, UNLIKES_COLLECTION_ID, [Query.equal('postId', postId), Query.equal('userId', currentUser.id)]);
           for (const doc of res.documents) await databases.deleteDocument(APPWRITE_DATABASE_ID, UNLIKES_COLLECTION_ID, doc.$id);
@@ -618,18 +663,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
       let finalUnlikes = post.unlikes;
 
       if (isAlreadyUnliked) {
-        // UNDO UNLIKE
         const res = await databases.listDocuments(APPWRITE_DATABASE_ID, UNLIKES_COLLECTION_ID, [Query.equal('postId', postId), Query.equal('userId', currentUser.id)]);
         for (const doc of res.documents) await databases.deleteDocument(APPWRITE_DATABASE_ID, UNLIKES_COLLECTION_ID, doc.$id);
         finalUnlikes = Math.max(0, finalUnlikes - 1);
         setUnlikedPostIdsState(prev => { const n = new Set(prev); n.delete(postId); return n; });
       } else {
-        // ADD UNLIKE
         await databases.createDocument(APPWRITE_DATABASE_ID, UNLIKES_COLLECTION_ID, ID.unique(), { postId, userId: currentUser.id });
         finalUnlikes += 1;
         setUnlikedPostIdsState(prev => { const n = new Set(prev); n.add(postId); return n; });
 
-        // SWAP: IF LIKED, REMOVE LIKE
         if (isAlreadyLiked) {
           const res = await databases.listDocuments(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, [Query.equal('postId', postId), Query.equal('userId', currentUser.id)]);
           for (const doc of res.documents) await databases.deleteDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, doc.$id);
@@ -799,28 +841,30 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e: any) { throw new Error(e.message); }
   }, [currentUser.id]);
 
-  // --- REMAINING HANDSHAKES (Skeletons for Phase 5-10) ---
   const toggleSavePost = useCallback((postId: string) => {
     triggerHaptic(5);
     setSavedPostIdsState(prev => { const n = new Set(prev); if(n.has(postId)) n.delete(postId); else n.add(postId); return n; });
   }, [triggerHaptic]);
 
-  const toggleFollowUser = useCallback(async (username: string) => {}, []);
-  const addStory = useCallback(async (segment: any) => {}, []);
+  const isPostLiked = useCallback((postId: string) => likedPostIds.has(postId), [likedPostIds]);
+  const isPostUnliked = useCallback((postId: string) => unlikedPostIds.has(postId), [unlikedPostIds]);
+  const isPostSaved = useCallback((postId: string) => savedPostIds.has(postId), [savedPostIds]);
+  const isPostUnlocked = useCallback((postId: string) => unlockedPostIds.has(postId), [unlockedPostIds]);
+  const isFollowing = useCallback((username: string) => followingUsernames.has(username), [followingUsernames]);
+  const isSubscribed = useCallback((username: string) => activeSubscriptions.has(username), [activeSubscriptions]);
 
   const contextValue = useMemo(() => ({
     currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, referralLink: "http://vimore.network/join/" + currentUser.username, pendingTransaction, activeSubscriptions,
     login, signup, logout, resendVerification, checkSession, forgotPassword: async (e: string) => {}, resetPassword: async (u: string, s: string, p: string) => {}, uploadMedia,
-    addPost, deletePost, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, updateCurrentUser,
+    addPost, deletePost, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser: async (u: string) => {}, updateCurrentUser,
     updateSettings: (d: any) => { setSettingsState(prev => ({ ...prev, ...d })); },
     setSearchOpen: setIsSearchOpenState, setSelectedChatId: setSelectedChatIdState, setSelectedPostId: setSelectedPostIdState, setSelectedImageUrl: setSelectedImageUrlState, setSelectedVideoUrl: setSelectedVideoUrlState,
     openCommentHub: (id: string) => { setActiveCommentPostIdState(id); fetchComments(id); }, closeCommentHub: () => setActiveCommentPostIdState(null), openGiftHub: (u: User) => { setTargetUserForGiftState(u); setIsGiftHubOpenState(true); }, closeGiftHub: () => setIsGiftHubOpenState(false), setActiveStoryIndex: setActiveStoryIndexState, triggerHaptic, 
-    isPostLiked: (id: string) => likedPostIds.has(id), isPostUnliked: (id: string) => unlikedPostIds.has(id), isPostSaved: (id: string) => savedPostIds.has(id), isPostUnlocked: (id: string) => unlockedPostIds.has(id), 
-    isFollowing: (u: string) => followingUsernames.has(u), isSubscribed: (u: string) => activeSubscriptions.has(u), 
-    addComment, addReply, addStory, voteOnStoryPoll: async (s: string, seg: string, o: number) => {}, voteOnPostPoll: async (p: string, o: number) => {}, toggleMuteUser: (u: string) => {}, togglePinPost: async (id: string) => {}, archivePost: async (id: string) => {},
-    updateGatewaySettings: async (d: any) => {}, addAuditLog: async (a: string, d: string) => {}, approvePaymentRequest: async (id: string) => {}, rejectPaymentRequest: async (id: string) => {}, createPaymentRequest: async (s: string) => {}, initiateCall: async (c: any, t: CallType) => {}, acceptCall: async () => {}, endCall: async () => {}, refreshAdminData: async () => {}, promoteUser: async (u: string, r: any) => {}, demoteUser: async (u: string) => {}, addCampaign: async (d: any) => {}, deleteCampaign: async (id: string) => {}, toggleCampaignStatus: async (id: string) => {}, recordCampaignClick: async (id: string) => {}, boostNode: async (n: string, t: number, d: number, c: number, cur: any, type: any) => {}, verifyUser: async (c: number, cur: any) => {}, processGiftTransaction: async (c: number, cur: any) => {}, unlockPost: async (id: string, c: number) => {}, subscribeToCreator: async (u: string, c: number) => {}, cancelSubscription: (u: string) => {}, recordView, recordStoryView: async (id: string) => {}, updateUserIdentity: async (id: string, d: any) => {}, handleReportAction: async (id: string, a: any) => {}, handleTicketAction: async (id: string, s: any) => {},
-    fetchProfileByUsername: async (u: string) => { return null; }, fetchComments, refreshProfiles, refreshClusters, refreshFeed, recordWithdrawal: async (n: any) => {}, receiveCall: (c: any, t: CallType, ch: string, tk: string, id: string) => {}, initiateTransaction: (d: any) => {}, cancelTransaction: () => {}
-  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, login, signup, logout, checkSession, uploadMedia, toggleLikePost, toggleUnlikePost, triggerHaptic, fetchComments, addComment, addReply, recordView, resendVerification, updateCurrentUser, addPost, deletePost, toggleSavePost]);
+    isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed, 
+    addComment, addReply, addStory: async (s: any) => {}, voteOnStoryPoll: async (s: string, seg: string, o: number) => {}, voteOnPostPoll: async (p: string, o: number) => {}, toggleMuteUser: (u: string) => {}, togglePinPost: async (id: string) => {}, archivePost: async (id: string) => {},
+    updateGatewaySettings: async (d: any) => {}, addAuditLog: async (a: string, d: string) => {}, approvePaymentRequest: async (id: string) => {}, rejectPaymentRequest: async (id: string) => {}, createPaymentRequest: async (s: string) => {}, initiateCall: async (c: any, t: CallType) => {}, acceptCall: async () => {}, endCall: async () => {}, refreshAdminData: async () => {}, promoteUser: async (u: string, r: any) => {}, demoteUser: async (u: string) => {}, addCampaign: async (d: any) => {}, deleteCampaign: async (id: string) => {}, toggleCampaignStatus: async (id: string) => {}, recordCampaignClick: async (id: string) => {}, boostNode: async (n: string, t: number, d: number, c: number, cur: any, type: any) => {}, verifyUser: async (c: number, cur: any) => {}, processGiftTransaction: async (c: number, cur: any) => {}, unlockPost: async (id: string, c: number) => {}, subscribeToCreator: async (u: string, c: number) => {}, cancelSubscription: (u: string) => {}, recordView, recordStoryView, updateUserIdentity: async (id: string, d: any) => {}, handleReportAction: async (id: string, a: any) => {}, handleTicketAction: async (id: string, s: any) => {},
+    fetchProfileByUsername: async (u: string) => { return null; }, fetchComments, refreshProfiles, refreshClusters, refreshFeed, recordWithdrawal: async (n: any) => {}, receiveCall: (c: any, t: CallType, ch: string, tk: string, id: string) => {}, initiateTransaction: (d: any) => {}, cancelTransaction: () => {}, incrementShareCount
+  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, login, signup, logout, checkSession, uploadMedia, toggleLikePost, toggleUnlikePost, triggerHaptic, fetchComments, addComment, addReply, recordView, recordStoryView, incrementShareCount, resendVerification, updateCurrentUser, addPost, deletePost, toggleSavePost, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, isFollowing, isSubscribed]);
 
   useEffect(() => { checkSession(); }, [checkSession]);
 
