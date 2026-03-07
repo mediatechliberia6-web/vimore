@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef, useMemo } from 'react';
 import { saveFileToDevice } from '@/lib/utils';
-import { databases, APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ALBUMS_COLLECTION_ID, PLAYLISTS_COLLECTION_ID, Query, ID } from '@/lib/appwrite';
+import client, { databases, APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ALBUMS_COLLECTION_ID, PLAYLISTS_COLLECTION_ID, Query, ID } from '@/lib/appwrite';
 
 export interface Comment {
   id: string | number;
@@ -169,73 +169,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    if (!audioRef.current) {
-      try {
-        audioRef.current = new Audio();
-        audioRef.current.volume = volume / 100;
-      } catch (e) {
-        console.warn("Sonic engine initialization deferred.");
-      }
-    }
-
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const handleTimeUpdate = () => {
-      if (audio.duration) {
-        const p = (audio.currentTime / audio.duration) * 100;
-        setProgressState(p);
-        if (Math.floor(p) % 5 === 0) {
-          localStorage.setItem('vimore_sonic_position', audio.currentTime.toString());
-        }
-      }
-    };
-
-    const handleEnded = () => {
-      nextTrack();
-    };
-
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('ended', handleEnded);
-
-    return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('ended', handleEnded);
-    };
-  }, [volume]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    const loadSonicVault = async () => {
-      const savedTrack = localStorage.getItem('vimore_last_track');
-      const savedPosition = localStorage.getItem('vimore_sonic_position');
-      
-      if (savedTrack) {
-        try {
-          const track = JSON.parse(savedTrack) as Track;
-          setCurrentTrackState(track);
-          if (audioRef.current) {
-            audioRef.current.src = track.audioUrl || "";
-            if (savedPosition) {
-              audioRef.current.currentTime = parseFloat(savedPosition);
-            }
-          }
-        } catch (e) {
-          console.warn("Sonic archival node corrupted.");
-        }
-      }
-    };
-
-    if (isInitialMount.current) {
-      loadSonicVault();
-      isInitialMount.current = false;
-    }
-  }, []);
-
   const refreshMusicVault = useCallback(async () => {
     try {
       const [songDocs, albumDocs, playlistDocs] = await Promise.all([
@@ -287,7 +220,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         year: d.year || "2024",
         tracks: d.tracks || 0,
         totalStreams: d.totalStreams || "0",
-        songs: [] 
+        songs: d.songs ? JSON.parse(d.songs) : [] 
       } as Album));
 
       const playlists = playlistDocs.documents.map(d => ({
@@ -316,10 +249,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   }, [queue.length]);
 
   const recordSongStream = useCallback(async (songId: string | number) => {
-    const song = globalSongs.find(s => s.id === songId);
-    if (!song) return;
-
     try {
+      const song = globalSongs.find(s => s.id === songId);
+      if (!song) return;
+
       const currentStreams = parseInt(String(song.streams).replace(/,/g, '')) || 0;
       const newStreams = currentStreams + 1;
       const updates: any = { streams: newStreams.toString() };
@@ -327,7 +260,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       if (song.isBoosted) {
         const newBoostViews = (song.boostCurrentViews || 0) + 1;
         updates.boostCurrentViews = newBoostViews;
-        
         if (newBoostViews >= (song.boostTargetViews || 1)) {
           updates.isBoosted = false;
         }
@@ -341,8 +273,45 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         boostCurrentViews: updates.boostCurrentViews || s.boostCurrentViews,
         isBoosted: updates.isBoosted !== undefined ? updates.isBoosted : s.isBoosted
       } : s));
-    } catch (e) {}
+    } catch (e) {
+      console.warn("Stream pulse rejected by vault.");
+    }
   }, [globalSongs]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (!audioRef.current) {
+      try {
+        audioRef.current = new Audio();
+        audioRef.current.volume = volume / 100;
+      } catch (e) {
+        console.warn("Sonic engine initialization deferred.");
+      }
+    }
+
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleTimeUpdate = () => {
+      if (audio.duration) {
+        const p = (audio.currentTime / audio.duration) * 100;
+        setProgressState(p);
+      }
+    };
+
+    const handleEnded = () => {
+      nextTrack();
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [volume]);
 
   useEffect(() => {
     refreshMusicVault();
@@ -356,30 +325,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
     if (isPlaying) {
       audioRef.current.play().catch(e => console.error("Sonic engine stall:", e));
-      // Log stream handshake
       recordSongStream(currentTrack.id);
     } else {
       audioRef.current.pause();
     }
   }, [currentTrack, isPlaying, recordSongStream]);
-
-  const forYouSongs = useMemo(() => {
-    const boosted = globalSongs.filter(s => s.isBoosted);
-    const regular = globalSongs.filter(s => !s.isBoosted);
-    const result: Track[] = [];
-    
-    let bIdx = 0;
-    let rIdx = 0;
-    while(rIdx < regular.length || bIdx < boosted.length) {
-      for(let i=0; i<2 && rIdx < regular.length; i++) {
-        result.push(regular[rIdx++]);
-      }
-      if(bIdx < boosted.length) {
-        result.push(boosted[bIdx++]);
-      }
-    }
-    return result;
-  }, [globalSongs]);
 
   const nextTrack = useCallback(() => {
     if (queue.length === 0) return;
@@ -390,10 +340,17 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setCurrentTrackState(track);
     setProgressState(0);
     setIsPlayingState(true);
-    if (audioRef.current) {
-      audioRef.current.src = track.audioUrl || "";
-      audioRef.current.currentTime = 0;
-    }
+  }, [queue, currentTrack, triggerHaptic]);
+
+  const prevTrack = useCallback(() => {
+    if (queue.length === 0) return;
+    triggerHaptic(10);
+    const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
+    const prevIndex = (currentIndex - 1 + queue.length) % queue.length;
+    const track = queue[prevIndex];
+    setCurrentTrackState(track);
+    setProgressState(0);
+    setIsPlayingState(true);
   }, [queue, currentTrack, triggerHaptic]);
 
   const setTrack = useCallback((track: Track) => {
@@ -404,10 +361,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setProgressState(0);
     setReactionsState([]);
     setIsExpandedState(true);
-    if (audioRef.current) {
-      audioRef.current.src = track.audioUrl || "";
-      audioRef.current.currentTime = 0;
-    }
   }, [queue, triggerHaptic]);
 
   const addToQueue = useCallback((track: Track) => {
@@ -425,31 +378,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setProgressState(0);
     setReactionsState([]);
     setIsExpandedState(true);
-    if (audioRef.current) {
-      audioRef.current.src = track.audioUrl || "";
-      audioRef.current.currentTime = 0;
-    }
   }, [triggerHaptic]);
 
   const togglePlay = useCallback(() => { 
     triggerHaptic(10); 
     setIsPlayingState(prev => !prev); 
   }, [triggerHaptic]);
-
-  const prevTrack = useCallback(() => {
-    if (queue.length === 0) return;
-    triggerHaptic(10);
-    const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
-    const prevIndex = (currentIndex - 1 + queue.length) % queue.length;
-    const track = queue[prevIndex];
-    setCurrentTrackState(track);
-    setProgressState(0);
-    setIsPlayingState(true);
-    if (audioRef.current) {
-      audioRef.current.src = track.audioUrl || "";
-      audioRef.current.currentTime = 0;
-    }
-  }, [queue, currentTrack, triggerHaptic]);
 
   const toggleLike = useCallback(async (track: Track) => {
     const trackId = track.id;
@@ -506,11 +440,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   }, [pendingDownloadTask]);
 
-  const isTrackLiked = useCallback((trackId: string | number) => likedSongIds.has(trackId), [likedSongIds]);
-  const isTrackUnliked = useCallback((trackId: string | number) => unlikedSongIds.has(trackId), [unlikedSongIds]);
-  const isTrackDownloaded = useCallback((trackId: string | number) => downloadedSongIds.has(trackId), [downloadedSongIds]);
-  const isCollectionLiked = useCallback((id: string | number) => likedCollectionIds.has(id), [likedCollectionIds]);
-
   const publishTrack = useCallback(async (newTrack: any) => {
     try {
       const docData = {
@@ -524,7 +453,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         likes: 0,
         unlikes: 0,
         comments: 0,
-        isBoosted: false
+        isBoosted: false,
+        artistFollowers: newTrack.artistFollowers || 0
       };
       await databases.createDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ID.unique(), docData);
       await refreshMusicVault();
@@ -542,7 +472,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         cover: albumData.cover,
         year: albumData.year,
         tracks: albumData.tracks,
-        totalStreams: "0"
+        totalStreams: "0",
+        songs: JSON.stringify(albumData.songs)
       };
       await databases.createDocument(APPWRITE_DATABASE_ID, ALBUMS_COLLECTION_ID, ID.unique(), docData);
       await refreshMusicVault();
@@ -572,9 +503,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }).then(() => refreshMusicVault());
   }, [refreshMusicVault]);
 
-  const openCreatePlaylist = useCallback((track?: Track) => { triggerHaptic(10); setTrackForNewPlaylistState(track || null); setIsCreatePlaylistOpenState(true); }, [triggerHaptic]);
-  const closeCreatePlaylist = useCallback(() => { setIsCreatePlaylistOpenState(false); setTrackForNewPlaylistState(null); }, []);
-  
   const confirmCreatePlaylist = useCallback(async (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => {
     triggerHaptic(30);
     try {
@@ -588,11 +516,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         description: data.description
       });
       await refreshMusicVault();
-      closeCreatePlaylist();
+      setIsCreatePlaylistOpenState(false);
+      setTrackForNewPlaylistState(null);
     } catch (e: any) {
       throw new Error(e.message);
     }
-  }, [trackForNewPlaylist, triggerHaptic, refreshMusicVault, closeCreatePlaylist]);
+  }, [trackForNewPlaylist, triggerHaptic, refreshMusicVault]);
 
   const addTrackToPlaylist = useCallback((playlistId: string | number, track: Track) => { 
     triggerHaptic(15); 
@@ -604,71 +533,53 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }).then(() => refreshMusicVault());
   }, [globalPlaylists, triggerHaptic, refreshMusicVault]);
 
-  const addReaction = useCallback((emoji: string) => {
-    triggerHaptic(5);
-    const id = Date.now();
-    const newReaction = { id, emoji, x: Math.random() * 80 + 10 };
-    setReactionsState((prev) => [...prev, newReaction]);
-    setTimeout(() => setReactionsState((prev) => prev.filter((r) => r.id !== id)), 2500);
-  }, [triggerHaptic]);
+  const isTrackLiked = useCallback((trackId: string | number) => likedSongIds.has(trackId), [likedSongIds]);
+  const isTrackUnliked = useCallback((trackId: string | number) => unlikedSongIds.has(trackId), [unlikedSongIds]);
+  const isTrackDownloaded = useCallback((trackId: string | number) => downloadedSongIds.has(trackId), [downloadedSongIds]);
+  const isCollectionLiked = useCallback((id: string | number) => likedCollectionIds.has(id), [likedCollectionIds]);
 
-  const clearPlayer = useCallback(() => { 
-    triggerHaptic(5); 
-    setIsPlayingState(false); 
-    setCurrentTrackState(null); 
-    setIsExpandedState(false); 
-    setProgressState(0); 
-    localStorage.removeItem('vimore_last_track');
-    localStorage.removeItem('vimore_sonic_position');
-  }, [triggerHaptic]);
-
-  const openCaptureStudio = useCallback((track?: Track) => { triggerHaptic(25); setCaptureTrackState(track || null); setIsCaptureStudioOpenState(true); }, [triggerHaptic]);
-  const closeCaptureStudio = useCallback(() => { triggerHaptic(10); setIsCaptureStudioOpenState(false); setCaptureTrackState(null); }, [triggerHaptic]);
-
-  const setIsExpanded = useCallback((expanded: boolean) => setIsExpandedState(expanded), []);
-  const setSelectedAlbum = useCallback((album: Album | null) => setSelectedAlbumState(album), []);
-  const setSelectedPlaylist = useCallback((playlist: Playlist | null) => setSelectedPlaylistState(playlist), []);
-  const setProgress = useCallback((progress: number) => {
-    setProgressState(progress);
-    if (audioRef.current && audioRef.current.duration) {
-      audioRef.current.currentTime = (progress / 100) * audioRef.current.duration;
-    }
-  }, []);
-  const setVolume = useCallback((volume: number) => {
-    setVolumeState(volume);
-    if (audioRef.current) audioRef.current.volume = volume / 100;
-  }, []);
-  const setCaptureTrack = useCallback((track: Track | null) => setCaptureTrackState(track), []);
-
-  const likedTracks = useMemo(() => {
-    return globalSongs.filter(s => likedSongIds.has(s.id));
-  }, [globalSongs, likedSongIds]);
-
-  const userPlaylists = useMemo(() => globalPlaylists.filter(p => p.creator === "John Doe"), [globalPlaylists]);
-  const userSongs = useMemo(() => globalSongs.filter(s => s.artistUsername === "johndoe_creative"), [globalSongs]);
-  const userAlbums = useMemo(() => globalAlbums.filter(a => a.artistUsername === "johndoe_creative"), [globalAlbums]);
-
-  const contextValue = useMemo(() => ({
-    currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, forYouSongs, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, 
-    likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats,
-    isAdPortalOpen, adDuration, adUrl: AD_URL, triggerDownloadWithAd, onAdComplete,
-    isCreatePlaylistOpen, trackForNewPlaylist,
-    isCaptureStudioOpen, captureTrack, openCaptureStudio, closeCaptureStudio, setCaptureTrack,
-    setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, clearPlayer, 
+  const value = {
+    currentTrack, queue, globalSongs, globalAlbums, globalPlaylists,
+    forYouSongs: globalSongs.slice(0, 10), // Simplified for prototype
+    isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions,
+    likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds,
+    likedTracks: globalSongs.filter(s => likedSongIds.has(s.id)),
+    userPlaylists: globalPlaylists.filter(p => p.creator === "John Doe"),
+    userSongs: globalSongs.filter(s => s.artistUsername === "johndoe_creative"),
+    userAlbums: globalAlbums.filter(a => a.artistUsername === "johndoe_creative"),
+    isCreatePlaylistOpen, trackForNewPlaylist, trackStats,
+    isAdPortalOpen, adDuration, adUrl: AD_URL,
+    triggerDownloadWithAd, onAdComplete,
+    isCaptureStudioOpen, captureTrack,
+    openCaptureStudio: (track?: Track) => { triggerHaptic(25); setCaptureTrackState(track || null); setIsCaptureStudioOpenState(true); },
+    closeCaptureStudio: () => { triggerHaptic(10); setIsCaptureStudioOpenState(false); setCaptureTrackState(null); },
+    setCaptureTrack: setCaptureTrackState,
+    setTrack, togglePlay, nextTrack, prevTrack, 
+    setIsExpanded: setIsExpandedState, 
+    setSelectedAlbum: setSelectedAlbumState, 
+    setSelectedPlaylist: setSelectedPlaylistState, 
+    setProgress: (p: number) => { setProgressState(p); if(audioRef.current) audioRef.current.currentTime = (p/100) * audioRef.current.duration; },
+    setVolume: (v: number) => { setVolumeState(v); if(audioRef.current) audioRef.current.volume = v/100; },
+    addReaction: (emoji: string) => {
+      triggerHaptic(5);
+      const id = Date.now();
+      const newReaction = { id, emoji, x: Math.random() * 80 + 10 };
+      setReactionsState((prev) => [...prev, newReaction]);
+      setTimeout(() => setReactionsState((prev) => prev.filter((r) => r.id !== id)), 2500);
+    },
+    clearPlayer: () => { setIsPlayingState(false); setCurrentTrackState(null); setIsExpandedState(false); },
     toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked,
     playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack,
-    openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic, refreshMusicVault, recordSongStream
-  }), [currentTrack, queue, globalSongs, globalAlbums, globalPlaylists, forYouSongs, isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions, likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds, likedTracks, userPlaylists, userSongs, userAlbums, trackStats, isAdPortalOpen, adDuration, isCreatePlaylistOpen, trackForNewPlaylist, isCaptureStudioOpen, captureTrack, triggerHaptic, setTrack, togglePlay, nextTrack, prevTrack, setIsExpanded, setSelectedAlbum, setSelectedPlaylist, setProgress, setVolume, addReaction, clearPlayer, toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked, playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack, openCreatePlaylist, closeCreatePlaylist, confirmCreatePlaylist, addTrackToPlaylist, refreshMusicVault, recordSongStream]);
+    openCreatePlaylist: (t?: Track) => { setTrackForNewPlaylistState(t || null); setIsCreatePlaylistOpenState(true); },
+    closeCreatePlaylist: () => { setIsCreatePlaylistOpenState(false); setTrackForNewPlaylistState(null); },
+    confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic, refreshMusicVault, recordSongStream
+  };
 
-  return (
-    <MusicContext.Provider value={contextValue}>
-      {children}
-    </MusicContext.Provider>
-  );
+  return <MusicContext.Provider value={value}>{children}</MusicContext.Provider>;
 }
 
 export function useMusic() {
   const context = useContext(MusicContext);
-  if (context === undefined) throw new Error('useMusic must be used within a MusicProvider');
+  if (!context) throw new Error('useMusic must be used within a MusicProvider');
   return context;
 }
