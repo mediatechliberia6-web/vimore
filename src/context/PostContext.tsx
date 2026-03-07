@@ -349,7 +349,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [posts, setPostsState] = useState<Post[]>([]);
   const [isLoading, setIsLoadingState] = useState(true);
   const [settings, setSettingsState] = useState<AppSettings>(INITIAL_SETTINGS);
-  const [gatewaySettings, setGatewaySettingsState] = useState({ orangeName: "MTL Official", orangeNumber: "+231778451835", mtnName: "MTL Official", mtnNumber: "+231881234567" });
+  
+  // DETETERMINISTIC FALLBACK: Calibrated defaults for Orange Money and MTN MoMo
+  const [gatewaySettings, setGatewaySettingsState] = useState({ 
+    orangeName: "Amos Kortu", 
+    orangeNumber: "+231778451835", 
+    mtnName: "Amos Kortu", 
+    mtnNumber: "+231889322188" 
+  });
+
   const [clusters, setClustersState] = useState<Cluster[]>([]);
   const [connections, setConnectionsState] = useState<Connection[]>([]);
   const [stories, setStoriesState] = useState<any[]>([]);
@@ -472,7 +480,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         mtnNumber: doc.mtnNumber
       });
     } catch (e) {
-      console.warn("Global settings node silent. Using local defaults.");
+      console.warn("Global settings node silent. Using default Amos Kortu frequency.");
     }
   }, []);
 
