@@ -350,7 +350,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoadingState] = useState(true);
   const [settings, setSettingsState] = useState<AppSettings>(INITIAL_SETTINGS);
   
-  // DETETERMINISTIC FALLBACK: Calibrated defaults for Orange Money and MTN MoMo
   const [gatewaySettings, setGatewaySettingsState] = useState({ 
     orangeName: "Amos Kortu", 
     orangeNumber: "+231778451835", 
@@ -480,7 +479,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         mtnNumber: doc.mtnNumber
       });
     } catch (e) {
-      console.warn("Global settings node silent. Using default Amos Kortu frequency.");
+      console.warn("Global settings node silent. Using fallback frequency.");
     }
   }, []);
 
@@ -565,7 +564,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const response = await databases.listDocuments(
         APPWRITE_DATABASE_ID,
         COMMENTS_COLLECTION_ID,
-        [Query.equal('postId', postId), Query.limit(100)]
+        [Query.equal('postId', postId), Query.limit(100), Query.orderAsc('timestamp')]
       );
       
       const mappedComments: PostComment[] = response.documents.map(doc => ({
@@ -579,16 +578,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
         timestamp: doc.timestamp || 0
       }));
 
-      const sortedComments = mappedComments.sort((a, b) => a.timestamp - b.timestamp);
-
-      const topLevel = sortedComments.filter(c => !c.parentId);
+      const topLevel = mappedComments.filter(c => !c.parentId);
       topLevel.forEach(parent => {
-        parent.replies = sortedComments.filter(c => c.parentId === parent.id);
+        parent.replies = mappedComments.filter(c => c.parentId === parent.id);
       });
 
       setPostsState(prev => prev.map(p => p.id === postId ? { ...p, commentNodes: topLevel } : p));
     } catch (e) {
-      console.warn("Linguistic sync for comments failed:", e);
+      console.warn("Linguistic sync for comments failed. Index may be missing.");
     }
   }, []);
 
@@ -597,47 +594,48 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, [Query.orderDesc('$createdAt'), Query.limit(50)]);
       const now = Date.now();
       
-      const feedPosts = response.documents.map(doc => {
-        let isBoosted = doc.isBoosted || false;
+      setPostsState(prevPosts => {
+        const commentCache = new Map(prevPosts.map(p => [p.id, p.commentNodes]));
         
-        if (isBoosted) {
-          const hasExpired = doc.boostExpiry && doc.boostExpiry < now;
-          const hasReachedLimit = doc.boostCurrentViews >= (doc.boostTargetViews || 1);
+        return response.documents.map(doc => {
+          let isBoosted = doc.isBoosted || false;
           
-          if (hasExpired || hasReachedLimit) {
-            isBoosted = false;
-            databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, doc.$id, { isBoosted: false });
+          if (isBoosted) {
+            const hasExpired = doc.boostExpiry && doc.boostExpiry < now;
+            const hasReachedLimit = doc.boostCurrentViews >= (doc.boostTargetViews || 1);
+            if (hasExpired || hasReachedLimit) {
+              isBoosted = false;
+              databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, doc.$id, { isBoosted: false });
+            }
           }
-        }
 
-        return {
-          id: doc.$id,
-          user: typeof doc.user === 'string' ? JSON.parse(doc.user) : doc.user,
-          content: doc.content,
-          image: doc.image,
-          images: doc.images ? JSON.parse(doc.images) : [],
-          videoUrl: doc.videoUrl,
-          time: new Date(doc.$createdAt).toLocaleDateString(),
-          likes: doc.likes || 0,
-          unlikes: doc.unlikes || 0,
-          comments: doc.comments || 0,
-          shares: doc.shares || 0,
-          views: doc.views || 0,
-          viewers: doc.viewers || [],
-          theme: doc.theme,
-          language: doc.language,
-          isLocked: doc.isLocked,
-          unlockPrice: doc.unlockPrice,
-          isBoosted,
-          boostTargetViews: doc.boostTargetViews,
-          boostCurrentViews: doc.boostCurrentViews,
-          boostExpiry: doc.boostExpiry,
-          poll: doc.poll ? JSON.parse(doc.poll) : undefined,
-          commentNodes: []
-        };
-      }) as Post[];
-
-      setPostsState(feedPosts);
+          return {
+            id: doc.$id,
+            user: typeof doc.user === 'string' ? JSON.parse(doc.user) : doc.user,
+            content: doc.content,
+            image: doc.image,
+            images: doc.images ? JSON.parse(doc.images) : [],
+            videoUrl: doc.videoUrl,
+            time: new Date(doc.$createdAt).toLocaleDateString(),
+            likes: doc.likes || 0,
+            unlikes: doc.unlikes || 0,
+            comments: doc.comments || 0,
+            shares: doc.shares || 0,
+            views: doc.views || 0,
+            viewers: doc.viewers || [],
+            theme: doc.theme,
+            language: doc.language,
+            isLocked: doc.isLocked,
+            unlockPrice: doc.unlockPrice,
+            isBoosted,
+            boostTargetViews: doc.boostTargetViews,
+            boostCurrentViews: doc.boostCurrentViews,
+            boostExpiry: doc.boostExpiry,
+            poll: doc.poll ? JSON.parse(doc.poll) : undefined,
+            commentNodes: commentCache.get(doc.$id) || []
+          } as Post;
+        });
+      });
     } catch (error) {}
   }, []);
 
@@ -664,7 +662,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (post.isBoosted) {
         const newBoostViews = (post.boostCurrentViews || 0) + 1;
         updates.boostCurrentViews = newBoostViews;
-        
         if (newBoostViews >= (post.boostTargetViews || 1)) {
           updates.isBoosted = false;
         }
@@ -675,7 +672,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       
       setPostsState(prev => prev.map(p => p.id === postId ? { 
         ...p, 
-        views: newTotalViews,
+        views: newTotalViews, 
         viewers: updatedViewers,
         boostCurrentViews: updates.boostCurrentViews || p.boostCurrentViews,
         isBoosted: updates.isBoosted !== undefined ? updates.isBoosted : p.isBoosted
@@ -795,16 +792,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const normalizedUsername = username.toLowerCase().trim();
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', normalizedUsername)]);
-      
-      if (response.documents.length === 0) {
-        const nameResponse = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('name', username)]);
-        if (nameResponse.documents.length > 0) {
-          const profile = nameResponse.documents[0];
-          return { id: profile.$id, name: profile.name, username: profile.username, avatar: profile.avatar, isVerified: profile.isVerified, followers: profile.followers, following: profile.following, posts: profile.posts, bio: profile.bio, category: profile.category, role: profile.role, goldBalance: profile.goldBalance, diamondBalance: profile.diamondBalance, starBalance: profile.starBalance, referralCount: profile.referralCount, hasEverBeenVerified: profile.hasEverBeenVerified, dateOfBirth: profile.dateOfBirth, nationality: profile.nationality, gender: profile.gender } as User;
-        }
-        return null;
-      }
-      
+      if (response.documents.length === 0) return null;
       const profile = response.documents[0];
       return { id: profile.$id, name: profile.name, username: profile.username, avatar: profile.avatar, isVerified: profile.isVerified, followers: profile.followers, following: profile.following, posts: profile.posts, bio: profile.bio, category: profile.category, role: profile.role, goldBalance: profile.goldBalance, diamondBalance: profile.diamondBalance, starBalance: profile.starBalance, referralCount: profile.referralCount, hasEverBeenVerified: profile.hasEverBeenVerified, dateOfBirth: profile.dateOfBirth, nationality: profile.nationality, gender: profile.gender } as User;
     } catch (e) { return null; }
@@ -822,7 +810,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       setWithdrawalHistoryState(withdraws.documents);
       setPaymentRequestsState(payments.documents);
       setStaffState(profiles.documents.filter(p => p.role && p.role !== 'USER'));
-      setConnectionsState(profiles.documents.map(p => ({ ...p, id: p.$id, isGroup: false } as any)));
       setAuditLogsState(logs.documents);
       await Promise.all([refreshCampaigns(), refreshSafety(), refreshResolution()]);
     } catch (e) {}
@@ -968,7 +955,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateCurrentUser = useCallback(async (data: Partial<User>) => {
-    if (!currentUser.id) throw new Error("Handshake Failed: Identity signature (ID) missing.");
+    if (!currentUser.id) throw new Error("Identity signature missing.");
     try {
       await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, currentUser.id, data);
       setCurrentUserState(prev => ({ ...prev, ...data }));
@@ -991,17 +978,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const userId = currentUser.id;
     if (!userId) return;
     const isCurrentlyLiked = likedPostIds.has(postId);
-    const isCurrentlyUnliked = unlikedPostIds.has(postId);
     const post = posts.find(p => p.id === postId);
     if (!post) return;
     triggerHaptic(20);
     setLikedPostIdsState(prev => { const next = new Set(prev); if (isCurrentlyLiked) next.delete(postId); else next.add(postId); return next; });
-    if (!isCurrentlyLiked && isCurrentlyUnliked) setUnlikedPostIdsState(prev => { const next = new Set(prev); next.delete(postId); return next; });
     setPostsState(prev => prev.map(p => {
       if (p.id !== postId) return p;
-      let newLikes = isCurrentlyLiked ? Math.max(0, p.likes - 1) : p.likes + 1;
-      let newUnlikes = (!isCurrentlyLiked && isCurrentlyUnliked) ? Math.max(0, p.unlikes - 1) : p.unlikes;
-      return { ...p, likes: newLikes, unlikes: newUnlikes };
+      return { ...p, likes: isCurrentlyLiked ? Math.max(0, p.likes - 1) : p.likes + 1 };
     }));
     try {
       if (isCurrentlyLiked) {
@@ -1010,47 +993,29 @@ export function PostProvider({ children }: { children: ReactNode }) {
         await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { likes: Math.max(0, post.likes - 1) });
       } else {
         await databases.createDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, ID.unique(), { postId, userId });
-        const updateData: any = { likes: post.likes + 1 };
-        if (isCurrentlyUnliked) updateData.unlikes = Math.max(0, post.unlikes - 1);
-        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, updateData);
+        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { likes: post.likes + 1 });
         const recipientId = post.user.id || (post.user as any).$id;
         if (recipientId && recipientId !== currentUser.id) {
           try { await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), { type: 'POST', title: 'New Vibe Pulse', content: `**${currentUser.name}** liked your post: "${post.content.slice(0, 30)}..."`, recipientId, avatar: currentUser.avatar, postId: postId, isRead: false, timestamp: Date.now() }); } catch (notifErr) {}
         }
       }
     } catch (e: any) { refreshFeed(); }
-  }, [currentUser.id, currentUser.name, currentUser.avatar, likedPostIds, unlikedPostIds, posts, triggerHaptic, refreshFeed]);
+  }, [currentUser.id, currentUser.name, currentUser.avatar, likedPostIds, posts, triggerHaptic, refreshFeed]);
 
   const toggleUnlikePost = useCallback(async (postId: string) => {
-    const userId = currentUser.id;
-    if (!userId) return;
     const post = posts.find(p => p.id === postId);
     if (!post) return;
-    const isCurrentlyLiked = likedPostIds.has(postId);
     const isCurrentlyUnliked = unlikedPostIds.has(postId);
     triggerHaptic(15);
     setUnlikedPostIdsState(prev => { const next = new Set(prev); if (isCurrentlyUnliked) next.delete(postId); else next.add(postId); return next; });
-    if (!isCurrentlyUnliked && isCurrentlyLiked) setLikedPostIdsState(prev => { const next = new Set(prev); next.delete(postId); return next; });
     setPostsState(prev => prev.map(p => {
       if (p.id !== postId) return p;
-      let newUnlikes = isCurrentlyUnliked ? Math.max(0, p.unlikes - 1) : p.unlikes + 1;
-      let newLikes = (!isCurrentlyUnliked && isCurrentlyLiked) ? Math.max(0, p.likes - 1) : p.likes;
-      return { ...p, unlikes: newUnlikes, likes: newLikes };
+      return { ...p, unlikes: isCurrentlyUnliked ? Math.max(0, p.unlikes - 1) : p.unlikes + 1 };
     }));
     try {
-      if (isCurrentlyUnliked) {
-        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { unlikes: Math.max(0, post.unlikes - 1) });
-      } else {
-        const updateData: any = { unlikes: post.unlikes + 1 };
-        if (isCurrentlyLiked) {
-          updateData.likes = Math.max(0, post.likes - 1);
-          const response = await databases.listDocuments(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, [Query.equal('postId', postId), Query.equal('userId', userId)]);
-          if (response.documents.length > 0) await databases.deleteDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, response.documents[0].$id);
-        }
-        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, updateData);
-      }
+      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { unlikes: isCurrentlyUnliked ? Math.max(0, post.unlikes - 1) : post.unlikes + 1 });
     } catch (e: any) { refreshFeed(); }
-  }, [currentUser.id, likedPostIds, unlikedPostIds, posts, triggerHaptic, refreshFeed]);
+  }, [unlikedPostIds, posts, triggerHaptic, refreshFeed]);
 
   const toggleSavePost = useCallback((postId: string) => {
     triggerHaptic(5);
@@ -1103,9 +1068,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
           try { await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), { type: 'POST', title: 'New Comment', content: `**${currentUser.name}** commented on your vibe: "${text.slice(0, 30)}..."`, recipientId, avatar: currentUser.avatar, postId: postId, isRead: false, timestamp: Date.now() }); } catch (notifErr) {}
         }
       }
-      await refreshFeed(); await fetchComments(postId);
+      await fetchComments(postId);
     } catch (e: any) { throw new Error(e.message); }
-  }, [currentUser, posts, refreshFeed, fetchComments]);
+  }, [currentUser, posts, fetchComments]);
 
   const addReply = useCallback(async (postId: string, commentId: string, text: string) => { 
     if (!currentUser.id) return;
@@ -1113,9 +1078,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await databases.createDocument(APPWRITE_DATABASE_ID, COMMENTS_COLLECTION_ID, ID.unique(), { postId, userId: currentUser.id, user: JSON.stringify(currentUser), text, parentId: commentId, timestamp: Date.now() }); 
       const post = posts.find(p => p.id === postId);
       if (post) await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { comments: (post.comments || 0) + 1 });
-      await refreshFeed(); await fetchComments(postId);
+      await fetchComments(postId);
     } catch (e: any) { throw new Error(e.message); }
-  }, [currentUser, posts, refreshFeed, fetchComments]);
+  }, [currentUser, posts, fetchComments]);
 
   const setSearchOpen = useCallback((open: boolean) => { triggerHaptic(5); setIsSearchOpenState(open); }, [triggerHaptic]);
   const setSelectedChatId = useCallback((id: string | null) => { triggerHaptic(5); setSelectedChatIdState(id); }, [triggerHaptic]);
@@ -1144,11 +1109,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const voteOnPostPoll = useCallback(async (postId: string, optionIndex: number) => {
     const post = posts.find(p => p.id === postId);
     if (!post || !post.poll || !currentUser.username) return;
-
     const poll = { ...post.poll };
     const voters = poll.voters || {};
     const previousVote = voters[currentUser.username];
-
     if (previousVote === optionIndex) {
       poll.options[optionIndex].votes = Math.max(0, poll.options[optionIndex].votes - 1);
       delete voters[currentUser.username];
@@ -1162,18 +1125,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
       voters[currentUser.username] = optionIndex;
       poll.totalVotes += 1;
     }
-
     poll.voters = voters;
-
     try {
       setPostsState(prev => prev.map(p => p.id === postId ? { ...p, poll } : p));
-      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, {
-        poll: JSON.stringify(poll)
-      });
+      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { poll: JSON.stringify(poll) });
       triggerHaptic(20);
-    } catch (e) {
-      refreshFeed();
-    }
+    } catch (e) { refreshFeed(); }
   }, [posts, currentUser.username, refreshFeed, triggerHaptic]);
 
   const toggleMuteUser = useCallback((username: string) => { setMutedUserNamesState(prev => { if (prev.includes(username)) return prev.filter(u => u !== username); return [...prev, username]; }); }, []);
@@ -1182,25 +1139,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
   
   const updateGatewaySettings = useCallback(async (data: any) => {
     try {
-      await databases.updateDocument(
-        APPWRITE_DATABASE_ID,
-        PLATFORM_SETTINGS_COLLECTION_ID,
-        GLOBAL_CONFIG_ID,
-        data
-      );
+      await databases.updateDocument(APPWRITE_DATABASE_ID, PLATFORM_SETTINGS_COLLECTION_ID, GLOBAL_CONFIG_ID, data);
       setGatewaySettingsState(data);
     } catch (e) {
       try {
-        await databases.createDocument(
-          APPWRITE_DATABASE_ID,
-          PLATFORM_SETTINGS_COLLECTION_ID,
-          GLOBAL_CONFIG_ID,
-          data
-        );
+        await databases.createDocument(APPWRITE_DATABASE_ID, PLATFORM_SETTINGS_COLLECTION_ID, GLOBAL_CONFIG_ID, data);
         setGatewaySettingsState(data);
-      } catch (err) {
-        console.error("Gateway sync failed:", err);
-      }
+      } catch (err) { console.error("Gateway sync failed:", err); }
     }
   }, []);
   
@@ -1209,225 +1154,93 @@ export function PostProvider({ children }: { children: ReactNode }) {
   
   const createPaymentRequest = useCallback(async (screenshot: string) => {
     if (!pendingTransaction || !currentUser.id) return;
-
     try {
       const file = dataURLtoFile(screenshot, `payment_${Date.now()}.jpg`);
       const screenshotUrl = await uploadMedia(file);
-
-      await databases.createDocument(
-        APPWRITE_DATABASE_ID,
-        PAYMENTS_COLLECTION_ID,
-        ID.unique(),
-        {
-          userId: currentUser.id,
-          username: currentUser.username,
-          packageName: pendingTransaction.packageName,
-          packageId: pendingTransaction.packageId,
-          amount: parseFloat(pendingTransaction.amount),
-          currency: pendingTransaction.currency,
-          code: pendingTransaction.code,
-          screenshot: screenshotUrl,
-          status: 'PENDING',
-          timestamp: Date.now(),
-          type: pendingTransaction.type
-        }
-      );
-
+      await databases.createDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, ID.unique(), { userId: currentUser.id, username: currentUser.username, packageName: pendingTransaction.packageName, packageId: pendingTransaction.packageId, amount: parseFloat(pendingTransaction.amount), currency: pendingTransaction.currency, code: pendingTransaction.code, screenshot: screenshotUrl, status: 'PENDING', timestamp: Date.now(), type: pendingTransaction.type });
       setPendingTransactionState(null);
       if (currentUser.role && currentUser.role !== 'USER') await refreshAdminData();
-    } catch (e: any) {
-      console.error("Payment sync aborted:", e.message);
-      throw new Error("Could not transmit payment pulse.");
-    }
+    } catch (e: any) { throw new Error("Could not transmit payment pulse."); }
   }, [pendingTransaction, currentUser, uploadMedia, refreshAdminData]);
 
   const approvePaymentRequest = useCallback(async (id: string) => {
     try {
       const payment = paymentRequests.find(p => p.$id === id);
       if (!payment) return;
-
       await databases.updateDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, id, { status: 'APPROVED' });
-
-      const userRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
-        Query.equal('username', payment.username)
-      ]);
-
+      const userRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', payment.username)]);
       if (userRes.documents.length > 0) {
         const userDoc = userRes.documents[0];
         const isGold = payment.type === 'Gold';
         const field = isGold ? 'goldBalance' : 'diamondBalance';
-        
-        const creditValue = payment.packageId === 'g1' ? 200 : 
-                           payment.packageId === 'g2' ? 500 : 
-                           payment.packageId === 'g3' ? 1000 : 
-                           payment.packageId === 'g4' ? 3000 :
-                           payment.packageId === 'd1' ? 25 : 
-                           payment.packageId === 'd2' ? 50 : 100;
-
-        await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userDoc.$id, {
-          [field]: (userDoc[field] || 0) + creditValue
-        });
-
-        await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), {
-          type: 'SYSTEM',
-          title: 'Vault Sync Complete',
-          content: `Your deposit for **${payment.packageName}** is confirmed. **+${creditValue} ${isGold ? 'Gold' : 'Diamonds'}** materialized in your vault.`,
-          recipientId: userDoc.$id,
-          isRead: false,
-          timestamp: Date.now()
-        });
+        const creditValue = payment.packageId === 'g1' ? 200 : payment.packageId === 'g2' ? 500 : payment.packageId === 'g3' ? 1000 : payment.packageId === 'g4' ? 3000 : payment.packageId === 'd1' ? 25 : payment.packageId === 'd2' ? 50 : 100;
+        await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userDoc.$id, { [field]: (userDoc[field] || 0) + creditValue });
+        await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), { type: 'SYSTEM', title: 'Vault Sync Complete', content: `Your deposit for **${payment.packageName}** is confirmed. **+${creditValue} ${isGold ? 'Gold' : 'Diamonds'}** materialized in your vault.`, recipientId: userDoc.$id, isRead: false, timestamp: Date.now() });
       }
-
       await refreshAdminData();
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
-    }
+    } catch (e: any) { toast({ variant: "destructive", title: "Handshake Failed", description: e.message }); }
   }, [paymentRequests, refreshAdminData, toast]);
 
   const rejectPaymentRequest = useCallback(async (id: string) => {
     try {
       const payment = paymentRequests.find(p => p.$id === id);
       if (!payment) return;
-
       await databases.updateDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, id, { status: 'REJECTED' });
-
-      const userRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
-        Query.equal('username', payment.username)
-      ]);
-
+      const userRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', payment.username)]);
       if (userRes.documents.length > 0) {
         const userDoc = userRes.documents[0];
-        await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), {
-          type: 'SYSTEM',
-          title: 'Handshake Rejected',
-          content: `Your deposit proof for **${payment.packageName}** was rejected by the auditor node. Please verify your receipt and resync.`,
-          recipientId: userDoc.$id,
-          isRead: false,
-          timestamp: Date.now()
-        });
+        await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), { type: 'SYSTEM', title: 'Handshake Rejected', content: `Your deposit proof for **${payment.packageName}** was rejected.`, recipientId: userDoc.$id, isRead: false, timestamp: Date.now() });
       }
-
       await refreshAdminData();
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Audit Error", description: e.message });
-    }
+    } catch (e: any) { toast({ variant: "destructive", title: "Audit Error", description: e.message }); }
   }, [paymentRequests, refreshAdminData, toast]);
 
   const recordWithdrawal = useCallback(async (node: any) => {
-    try {
-      await databases.createDocument(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, ID.unique(), {
-        ...node,
-        userId: currentUser.id
-      });
-    } catch (e: any) { console.error("Withdrawal record failed:", e.message); }
+    try { await databases.createDocument(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, ID.unique(), { ...node, userId: currentUser.id }); } catch (e: any) { console.error("Withdrawal record failed:", e.message); }
   }, [currentUser.id]);
 
   const processWithdrawal = useCallback(async (id: string, status: 'APPROVED' | 'REJECTED') => {
     try {
       const withdrawal = withdrawalHistory.find(w => w.$id === id);
       if (!withdrawal) return;
-
       await databases.updateDocument(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, id, { status });
-
-      const userRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
-        Query.equal('username', withdrawal.username)
-      ]);
-
+      const userRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', withdrawal.username)]);
       if (userRes.documents.length > 0) {
         const userDoc = userRes.documents[0];
-        
         if (status === 'REJECTED') {
           const balanceKey = withdrawal.currency === 'GOLD' ? 'goldBalance' : 'diamondBalance';
-          await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userDoc.$id, {
-            [balanceKey]: (userDoc[balanceKey] || 0) + withdrawal.amount
-          });
+          await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userDoc.$id, { [balanceKey]: (userDoc[balanceKey] || 0) + withdrawal.amount });
         }
-
-        await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), {
-          type: 'SYSTEM',
-          title: status === 'APPROVED' ? 'Withdrawal Materialized' : 'Withdrawal Aborted',
-          content: status === 'APPROVED' 
-            ? `Your withdrawal of **${withdrawal.payoutCurrency} ${withdrawal.payoutAmount.toFixed(2)}** has been processed successfully.`
-            : `Your withdrawal request was rejected. Energy nodes have been returned to your vault.`,
-          recipientId: userDoc.$id,
-          isRead: false,
-          timestamp: Date.now()
-        });
+        await databases.createDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, ID.unique(), { type: 'SYSTEM', title: status === 'APPROVED' ? 'Withdrawal Materialized' : 'Withdrawal Aborted', content: status === 'APPROVED' ? `Your withdrawal of **${withdrawal.payoutCurrency} ${withdrawal.payoutAmount.toFixed(2)}** has been processed.` : `Your withdrawal request was rejected.`, recipientId: userDoc.$id, isRead: false, timestamp: Date.now() });
       }
-
       await refreshAdminData();
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Process Error", description: e.message });
-    }
+    } catch (e: any) { toast({ variant: "destructive", title: "Process Error", description: e.message }); }
   }, [withdrawalHistory, refreshAdminData, toast]);
 
   const triggerReferralPulse = useCallback((referralCode?: string) => {}, []);
   
   const verifyUser = useCallback(async (cost: number, currency: 'DIAMOND' | 'STAR') => {
     try {
-      await executeVaultTransaction({
-        cost,
-        currency,
-        isPlatformService: true,
-        description: 'Verification Signature Upgrade'
-      });
-      
+      await executeVaultTransaction({ cost, currency, isPlatformService: true, description: 'Verification Signature Upgrade' });
       const expiry = Date.now() + (30 * 24 * 60 * 60 * 1000);
-      await updateCurrentUser({ 
-        isVerified: true, 
-        hasEverBeenVerified: true, 
-        verificationExpiry: expiry 
-      });
-      
-      toast({ title: "Signature Materialized", description: "Your purple badge is now active for 30 days." });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
-    }
+      await updateCurrentUser({ isVerified: true, hasEverBeenVerified: true, verificationExpiry: expiry });
+      toast({ title: "Signature Materialized", description: "Badge active for 30 days." });
+    } catch (e: any) { toast({ variant: "destructive", title: "Vault Sync Error", description: e.message }); }
   }, [executeVaultTransaction, updateCurrentUser, toast]);
 
   const processGiftTransaction = useCallback(async (cost: number, currency: 'GOLD' | 'DIAMOND') => {
     if (!targetUserForGift) return;
-    try {
-      await executeVaultTransaction({
-        cost,
-        currency,
-        recipientUsername: targetUserForGift.username,
-        description: `Digital Gift Pulse to @${targetUserForGift.username}`
-      });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
-    }
+    try { await executeVaultTransaction({ cost, currency, recipientUsername: targetUserForGift.username, description: `Digital Gift Pulse to @${targetUserForGift.username}` }); } catch (e: any) { toast({ variant: "destructive", title: "Vault Sync Error", description: e.message }); }
   }, [executeVaultTransaction, targetUserForGift, toast]);
 
   const unlockPost = useCallback(async (postId: string, cost: number) => {
     const post = posts.find(p => p.id === postId);
     if (!post) return;
-    
-    try {
-      await executeVaultTransaction({
-        cost,
-        currency: 'GOLD',
-        recipientUsername: post.user.username,
-        description: `Locked Post Handshake — Post Node: ${postId}`
-      });
-      setUnlockedPostIdsState(prev => new Set(prev).add(postId));
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
-    }
+    try { await executeVaultTransaction({ cost, currency: 'GOLD', recipientUsername: post.user.username, description: `Locked Post Handshake — Post Node: ${postId}` }); setUnlockedPostIdsState(prev => new Set(prev).add(postId)); } catch (e: any) { toast({ variant: "destructive", title: "Vault Sync Error", description: e.message }); }
   }, [executeVaultTransaction, posts, toast]);
 
   const subscribeToCreator = useCallback(async (username: string, cost: number) => {
-    try {
-      await executeVaultTransaction({
-        cost,
-        currency: 'DIAMOND',
-        recipientUsername: username,
-        description: `Premium Loop Subscription to @${username}`
-      });
-      setActiveSubscriptionsState(prev => new Set(prev).add(username));
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
-    }
+    try { await executeVaultTransaction({ cost, currency: 'DIAMOND', recipientUsername: username, description: `Premium Loop Subscription to @${username}` }); setActiveSubscriptionsState(prev => new Set(prev).add(username)); } catch (e: any) { toast({ variant: "destructive", title: "Vault Sync Error", description: e.message }); }
   }, [executeVaultTransaction, toast]);
 
   const cancelSubscription = useCallback(async (username: string) => { setActiveSubscriptionsState(prev => { const next = new Set(prev); next.delete(username); return next; }); }, []);
@@ -1435,33 +1248,20 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const recordAdHandshake = useCallback((revenue: number) => {}, []);
   const updateIntelligence = useCallback((data: any) => { setIntelligenceMetricsState(prev => ({ ...prev, ...data })); }, []);
   const incrementShareCount = useCallback(async (postId: string) => {}, []);
-  
-  const createCluster = useCallback(async (name: string, members: any[]) => {
-    try {
-      await databases.createDocument(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID, ID.unique(), { name, adminUsername: currentUser.username, members: JSON.stringify(members) });
-      await refreshClusters();
-    } catch (e: any) { throw new Error(e.message); }
-  }, [currentUser.username, refreshClusters]);
-
+  const createCluster = useCallback(async (name: string, members: any[]) => { try { await databases.createDocument(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID, ID.unique(), { name, adminUsername: currentUser.username, members: JSON.stringify(members) }); await refreshClusters(); } catch (e: any) { throw new Error(e.message); } }, [currentUser.username, refreshClusters]);
   const addMemberToCluster = useCallback(async (clusterId: string, member: any) => {}, []);
   const leaveCluster = useCallback(async (clusterId: string) => {}, []);
   
   const promoteUser = useCallback(async (username: string, role: 'FINANCIAL' | 'MODERATOR') => {
     const user = connections.find(c => c.username === username);
     if (!user) return;
-    try {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id || user.id!, { role });
-      await refreshAdminData();
-    } catch (e) {}
+    try { await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id || user.id!, { role }); await refreshAdminData(); } catch (e) {}
   }, [connections, refreshAdminData]);
 
   const demoteUser = useCallback(async (username: string) => {
     const user = connections.find(c => c.username === username);
     if (!user) return;
-    try {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id || user.id!, { role: 'USER' });
-      await refreshAdminData();
-    } catch (e) {}
+    try { await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id || user.id!, { role: 'USER' }); await refreshAdminData(); } catch (e) {}
   }, [connections, refreshAdminData]);
 
   const initiateCall = useCallback(async (contact: any, type: CallType) => {
@@ -1471,7 +1271,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const doc = await databases.createDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, ID.unique(), { callerId: currentUser.username, callerName: currentUser.name, callerAvatar: currentUser.avatar, receiverId: contact.username, type, status: 'ringing', channelName, token, startTime: Date.now() });
       activeCallIdRef.current = doc.$id;
       setCallState({ type, status: 'outgoing', contact, channelName, token, startTime: Date.now(), callId: doc.$id });
-    } catch (e) { toast({ variant: "destructive", title: "Handshake Failed", description: "Node transmission aborted." }); }
+    } catch (e) { toast({ variant: "destructive", title: "Handshake Failed" }); }
   }, [currentUser, toast]);
 
   const receiveCall = useCallback((contact: any, type: CallType, channelName: string, token: string, callId: string) => { activeCallIdRef.current = callId; setCallState({ type, status: 'incoming', contact, channelName, token, callId }); }, []);
@@ -1491,95 +1291,26 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addCampaign = useCallback(async (data: any) => {
-    try {
-      await databases.createDocument(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID, ID.unique(), {
-        ...data,
-        isActive: true,
-        clicks: 0,
-        impressions: 0
-      });
-      await refreshCampaigns();
-    } catch (e: any) { throw new Error(e.message); }
+    try { await databases.createDocument(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID, ID.unique(), { ...data, isActive: true, clicks: 0, impressions: 0 }); await refreshCampaigns(); } catch (e: any) { throw new Error(e.message); }
   }, [refreshCampaigns]);
 
-  const deleteCampaign = useCallback(async (id: string) => {
-    try {
-      await databases.deleteDocument(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID, id);
-      await refreshCampaigns();
-    } catch (e: any) { throw new Error(e.message); }
-  }, [refreshCampaigns]);
-
-  const toggleCampaignStatus = useCallback(async (id: string) => {
-    const campaign = campaigns.find(c => c.id === id);
-    if (!campaign) return;
-    try {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID, id, { isActive: !campaign.isActive });
-      await refreshCampaigns();
-    } catch (e: any) { throw new Error(e.message); }
-  }, [campaigns, refreshCampaigns]);
-
-  const recordCampaignClick = useCallback(async (id: string) => {
-    const campaign = campaigns.find(c => c.id === id);
-    if (!campaign) return;
-    try {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID, id, { clicks: (campaign.clicks || 0) + 1 });
-      await refreshCampaigns();
-    } catch (e) {}
-  }, [campaigns, refreshCampaigns]);
+  const deleteCampaign = useCallback(async (id: string) => { try { await databases.deleteDocument(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID, id); await refreshCampaigns(); } catch (e: any) { throw new Error(e.message); } }, [refreshCampaigns]);
+  const toggleCampaignStatus = useCallback(async (id: string) => { const campaign = campaigns.find(c => c.id === id); if (!campaign) return; try { await databases.updateDocument(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID, id, { isActive: !campaign.isActive }); await refreshCampaigns(); } catch (e: any) { throw new Error(e.message); } }, [campaigns, refreshCampaigns]);
+  const recordCampaignClick = useCallback(async (id: string) => { const campaign = campaigns.find(c => c.id === id); if (!campaign) return; try { await databases.updateDocument(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID, id, { clicks: (campaign.clicks || 0) + 1 }); await refreshCampaigns(); } catch (e) {} }, [campaigns, refreshCampaigns]);
   
   const boostNode = useCallback(async (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'REEL' | 'SONIC') => {
     try {
-      await executeVaultTransaction({
-        cost,
-        currency,
-        isPlatformService: true,
-        description: `Content Boost Pulse for ${type} Node: ${nodeId}`
-      });
-
+      await executeVaultTransaction({ cost, currency, isPlatformService: true, description: `Content Boost Pulse for ${type}` });
       const collectionId = type === 'SONIC' ? SONGS_COLLECTION_ID : POSTS_COLLECTION_ID;
-
-      await databases.updateDocument(APPWRITE_DATABASE_ID, collectionId, nodeId, {
-        isBoosted: true,
-        boostTargetViews: targetViews,
-        boostCurrentViews: 0,
-        boostExpiry: Date.now() + (durationDays * 24 * 60 * 60 * 1000)
-      });
-
+      await databases.updateDocument(APPWRITE_DATABASE_ID, collectionId, nodeId, { isBoosted: true, boostTargetViews: targetViews, boostCurrentViews: 0, boostExpiry: Date.now() + (durationDays * 24 * 60 * 60 * 1000) });
       if (type !== 'SONIC') await refreshFeed();
-      
-      toast({ title: "Boost Materialized", description: "Campaign strategy synchronized with network discover stream." });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Boost Error", description: e.message });
-    }
+      toast({ title: "Boost Materialized" });
+    } catch (e: any) { toast({ variant: "destructive", title: "Boost Error", description: e.message }); }
   }, [executeVaultTransaction, refreshFeed, toast]);
 
-  const updateUserIdentity = useCallback(async (userId: string, data: Partial<User>) => {
-    try {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, data);
-      await refreshAdminData();
-      toast({ title: "Identity Re-calibrated" });
-    } catch (e: any) { toast({ variant: "destructive", title: "Sync Failed", description: e.message }); }
-  }, [refreshAdminData, toast]);
-
-  const handleReportAction = useCallback(async (reportId: string, action: 'BAN' | 'DELETE' | 'DISMISS') => {
-    try {
-      const report = reports.find(r => r.$id === reportId);
-      if (!report) return;
-      if (action === 'DELETE') await databases.deleteDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, report.postId);
-      if (action === 'BAN') await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, report.targetUserId, { role: 'USER', isVerified: false }); 
-      await databases.deleteDocument(APPWRITE_DATABASE_ID, REPORTS_COLLECTION_ID, reportId);
-      await refreshAdminData();
-      toast({ title: `Node Neutralized: ${action}` });
-    } catch (e: any) { toast({ variant: "destructive", title: "Sync Failed", description: e.message }); }
-  }, [reports, refreshAdminData, toast]);
-
-  const handleTicketAction = useCallback(async (ticketId: string, status: 'PENDING' | 'RESOLVED') => {
-    try {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, TICKETS_COLLECTION_ID, ticketId, { status });
-      await refreshAdminData();
-      toast({ title: "Ticket Status Synchronized" });
-    } catch (e: any) { toast({ variant: "destructive", title: "Sync Failed", description: e.message }); }
-  }, [refreshAdminData, toast]);
+  const updateUserIdentity = useCallback(async (userId: string, data: Partial<User>) => { try { await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, data); await refreshAdminData(); toast({ title: "Identity Re-calibrated" }); } catch (e: any) { toast({ variant: "destructive", title: "Sync Failed" }); } }, [refreshAdminData, toast]);
+  const handleReportAction = useCallback(async (reportId: string, action: 'BAN' | 'DELETE' | 'DISMISS') => { try { const report = reports.find(r => r.$id === reportId); if (!report) return; if (action === 'DELETE') await databases.deleteDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, report.postId); if (action === 'BAN') await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, report.targetUserId, { role: 'USER', isVerified: false }); await databases.deleteDocument(APPWRITE_DATABASE_ID, REPORTS_COLLECTION_ID, reportId); await refreshAdminData(); toast({ title: `Node Neutralized` }); } catch (e: any) { toast({ variant: "destructive", title: "Sync Failed" }); } }, [reports, refreshAdminData, toast]);
+  const handleTicketAction = useCallback(async (ticketId: string, status: 'PENDING' | 'RESOLVED') => { try { await databases.updateDocument(APPWRITE_DATABASE_ID, TICKETS_COLLECTION_ID, ticketId, { status }); await refreshAdminData(); toast({ title: "Ticket Status Synchronized" }); } catch (e: any) { toast({ variant: "destructive", title: "Sync Failed" }); } }, [refreshAdminData, toast]);
 
   const isPostLiked = useCallback((postId: string) => likedPostIds.has(postId), [likedPostIds]);
   const isPostUnliked = useCallback((postId: string) => unlikedPostIds.has(postId), [unlikedPostIds]);
