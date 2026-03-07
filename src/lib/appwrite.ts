@@ -1,16 +1,16 @@
 import { Client, Account, Databases, Storage, ID, Query } from 'appwrite';
 
 /**
- * @fileOverview ViMore Appwrite Handshake
- * Initializes the connection to the live Appwrite backend node.
+ * @fileOverview ViMore Appwrite Handshake (Self-Hosted)
+ * Initializes the connection to the custom Command Core.
  * 
  * Vault Info:
- * - Bucket: vimore_storge (ID: all_media)
- * - Database: vimore_prod (ID: 69a2cffd00320dcd64bc)
+ * - Bucket: storge_prod (ID: storgeprod)
+ * - Database: vimore_prod (ID: vimoreprod)
  */
 
-export const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
-export const project = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore';
+export const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'http://46.225.183.141/v1';
+export const project = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '69ac515c000f2db8defe';
 
 const client = new Client()
     .setEndpoint(endpoint)
@@ -20,8 +20,11 @@ export const account = new Account(client);
 export const databases = new Databases(client);
 export const storage = new Storage(client);
 
-export const APPWRITE_DATABASE_ID = '69a2cffd00320dcd64bc';
-export const APPWRITE_BUCKET_ID = 'all_media'; 
+// High-Velocity IDs for Self-Hosted Instance
+export const APPWRITE_DATABASE_ID = 'vimoreprod';
+export const APPWRITE_BUCKET_ID = 'storgeprod'; 
+
+// Collection Logic
 export const POSTS_COLLECTION_ID = 'posts';
 export const LIKES_COLLECTION_ID = 'likes';
 export const UNLIKES_COLLECTION_ID = 'unlikes';
