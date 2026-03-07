@@ -488,11 +488,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e) {}
   }, []);
 
+  const refreshUserReactions = useCallback(async (userId: string) => {
+    try {
+      const [likesRes, unlikesRes] = await Promise.all([
+        databases.listDocuments(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, [Query.equal('userId', userId), Query.limit(100)]),
+        databases.listDocuments(APPWRITE_DATABASE_ID, UNLIKES_COLLECTION_ID, [Query.equal('userId', userId), Query.limit(100)])
+      ]);
+      setLikedPostIdsState(new Set(likesRes.documents.map(d => d.postId)));
+      setUnlikedPostIdsState(new Set(unlikesRes.documents.map(d => d.postId)));
+    } catch (e) {
+      console.warn("Reaction audit handshake failed.");
+    }
+  }, []);
+
   // --- CONTENT HUB LOGIC ---
   const addPost = useCallback(async (postData: any) => {
     if (!currentUser.id) return;
     try {
-      // Minimal Identity Handshake: Ensuring payload size is optimized for vault attributes
       const minimalUser = {
         name: currentUser.name,
         username: currentUser.username,
@@ -550,6 +562,146 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e) {}
   }, [currentUser.id, posts]);
 
+  // --- INTERACTION HANDSHAKES ---
+  const toggleLikePost = useCallback(async (postId: string) => {
+    if (!currentUser.id) return;
+    triggerHaptic(20);
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    const isAlreadyLiked = likedPostIds.has(postId);
+    const isAlreadyUnliked = unlikedPostIds.has(postId);
+
+    try {
+      let finalLikes = post.likes;
+      let finalUnlikes = post.unlikes;
+
+      if (isAlreadyLiked) {
+        // UNDO LIKE
+        const res = await databases.listDocuments(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, [Query.equal('postId', postId), Query.equal('userId', currentUser.id)]);
+        for (const doc of res.documents) await databases.deleteDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, doc.$id);
+        finalLikes = Math.max(0, finalLikes - 1);
+        setLikedPostIdsState(prev => { const n = new Set(prev); n.delete(postId); return n; });
+      } else {
+        // ADD LIKE
+        await databases.createDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, ID.unique(), { postId, userId: currentUser.id });
+        finalLikes += 1;
+        setLikedPostIdsState(prev => { const n = new Set(prev); n.add(postId); return n; });
+
+        // SWAP: IF UNLIKED, REMOVE UNLIKE
+        if (isAlreadyUnliked) {
+          const res = await databases.listDocuments(APPWRITE_DATABASE_ID, UNLIKES_COLLECTION_ID, [Query.equal('postId', postId), Query.equal('userId', currentUser.id)]);
+          for (const doc of res.documents) await databases.deleteDocument(APPWRITE_DATABASE_ID, UNLIKES_COLLECTION_ID, doc.$id);
+          finalUnlikes = Math.max(0, finalUnlikes - 1);
+          setUnlikedPostIdsState(prev => { const n = new Set(prev); n.delete(postId); return n; });
+        }
+      }
+
+      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { likes: finalLikes, unlikes: finalUnlikes });
+      setPostsState(prev => prev.map(p => p.id === postId ? { ...p, likes: finalLikes, unlikes: finalUnlikes } : p));
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Reaction Pulse Failed", description: e.message });
+    }
+  }, [currentUser.id, posts, likedPostIds, unlikedPostIds, triggerHaptic, toast]);
+
+  const toggleUnlikePost = useCallback(async (postId: string) => {
+    if (!currentUser.id) return;
+    triggerHaptic(15);
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    const isAlreadyLiked = likedPostIds.has(postId);
+    const isAlreadyUnliked = unlikedPostIds.has(postId);
+
+    try {
+      let finalLikes = post.likes;
+      let finalUnlikes = post.unlikes;
+
+      if (isAlreadyUnliked) {
+        // UNDO UNLIKE
+        const res = await databases.listDocuments(APPWRITE_DATABASE_ID, UNLIKES_COLLECTION_ID, [Query.equal('postId', postId), Query.equal('userId', currentUser.id)]);
+        for (const doc of res.documents) await databases.deleteDocument(APPWRITE_DATABASE_ID, UNLIKES_COLLECTION_ID, doc.$id);
+        finalUnlikes = Math.max(0, finalUnlikes - 1);
+        setUnlikedPostIdsState(prev => { const n = new Set(prev); n.delete(postId); return n; });
+      } else {
+        // ADD UNLIKE
+        await databases.createDocument(APPWRITE_DATABASE_ID, UNLIKES_COLLECTION_ID, ID.unique(), { postId, userId: currentUser.id });
+        finalUnlikes += 1;
+        setUnlikedPostIdsState(prev => { const n = new Set(prev); n.add(postId); return n; });
+
+        // SWAP: IF LIKED, REMOVE LIKE
+        if (isAlreadyLiked) {
+          const res = await databases.listDocuments(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, [Query.equal('postId', postId), Query.equal('userId', currentUser.id)]);
+          for (const doc of res.documents) await databases.deleteDocument(APPWRITE_DATABASE_ID, LIKES_COLLECTION_ID, doc.$id);
+          finalLikes = Math.max(0, finalLikes - 1);
+          setLikedPostIdsState(prev => { const n = new Set(prev); n.delete(postId); return n; });
+        }
+      }
+
+      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { likes: finalLikes, unlikes: finalUnlikes });
+      setPostsState(prev => prev.map(p => p.id === postId ? { ...p, likes: finalLikes, unlikes: finalUnlikes } : p));
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Reaction Pulse Failed", description: e.message });
+    }
+  }, [currentUser.id, posts, likedPostIds, unlikedPostIds, triggerHaptic, toast]);
+
+  const addComment = useCallback(async (postId: string, text: string) => {
+    if (!currentUser.id) return;
+    try {
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+
+      const docData = {
+        postId,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userAvatar: currentUser.avatar,
+        text,
+        timestamp: Date.now()
+      };
+
+      await databases.createDocument(APPWRITE_DATABASE_ID, COMMENTS_COLLECTION_ID, ID.unique(), docData);
+      
+      const newCount = (post.comments || 0) + 1;
+      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { comments: newCount });
+      
+      setPostsState(prev => prev.map(p => p.id === postId ? { ...p, comments: newCount } : p));
+      await fetchComments(postId);
+      toast({ title: "Comment Materialized" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
+    }
+  }, [currentUser, posts, fetchComments, toast]);
+
+  const addReply = useCallback(async (postId: string, parentId: string, text: string) => {
+    if (!currentUser.id) return;
+    try {
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+
+      const docData = {
+        postId,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userAvatar: currentUser.avatar,
+        text,
+        timestamp: Date.now(),
+        parentId
+      };
+
+      await databases.createDocument(APPWRITE_DATABASE_ID, COMMENTS_COLLECTION_ID, ID.unique(), docData);
+      
+      const newCount = (post.comments || 0) + 1;
+      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { comments: newCount });
+      
+      setPostsState(prev => prev.map(p => p.id === postId ? { ...p, comments: newCount } : p));
+      await fetchComments(postId);
+      toast({ title: "Reply Synchronized" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
+    }
+  }, [currentUser, posts, fetchComments, toast]);
+
   // --- AUTH HANDSHAKES ---
   const checkSession = useCallback(async () => {
     try {
@@ -584,13 +736,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
         referredBy: profile.referredBy
       });
       
-      await Promise.all([refreshFeed(), refreshStories(), refreshProfiles(), refreshClusters()]);
+      await Promise.all([refreshFeed(), refreshStories(), refreshProfiles(), refreshClusters(), refreshUserReactions(user.$id)]);
     } catch (error) { 
       setCurrentUserState(INITIAL_USER); 
     } finally { 
       setIsLoadingState(false); 
     }
-  }, [refreshFeed, refreshStories, refreshProfiles, refreshClusters]);
+  }, [refreshFeed, refreshStories, refreshProfiles, refreshClusters, refreshUserReactions]);
 
   const login = useCallback(async (email: string, password: string) => {
     try { 
@@ -647,13 +799,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e: any) { throw new Error(e.message); }
   }, [currentUser.id]);
 
-  // --- REMAINING HANDSHAKES (Phase 4-10 Skeletons) ---
-  const toggleLikePost = useCallback(async (postId: string) => {}, []);
-  const toggleUnlikePost = useCallback(async (postId: string) => {}, []);
-  const toggleSavePost = useCallback((postId: string) => {}, []);
+  // --- REMAINING HANDSHAKES (Skeletons for Phase 5-10) ---
+  const toggleSavePost = useCallback((postId: string) => {
+    triggerHaptic(5);
+    setSavedPostIdsState(prev => { const n = new Set(prev); if(n.has(postId)) n.delete(postId); else n.add(postId); return n; });
+  }, [triggerHaptic]);
+
   const toggleFollowUser = useCallback(async (username: string) => {}, []);
-  const addComment = useCallback(async (postId: string, text: string) => {}, []);
-  const addReply = useCallback(async (postId: string, parentId: string, text: string) => {}, []);
   const addStory = useCallback(async (segment: any) => {}, []);
 
   const contextValue = useMemo(() => ({
@@ -668,7 +820,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     addComment, addReply, addStory, voteOnStoryPoll: async (s: string, seg: string, o: number) => {}, voteOnPostPoll: async (p: string, o: number) => {}, toggleMuteUser: (u: string) => {}, togglePinPost: async (id: string) => {}, archivePost: async (id: string) => {},
     updateGatewaySettings: async (d: any) => {}, addAuditLog: async (a: string, d: string) => {}, approvePaymentRequest: async (id: string) => {}, rejectPaymentRequest: async (id: string) => {}, createPaymentRequest: async (s: string) => {}, initiateCall: async (c: any, t: CallType) => {}, acceptCall: async () => {}, endCall: async () => {}, refreshAdminData: async () => {}, promoteUser: async (u: string, r: any) => {}, demoteUser: async (u: string) => {}, addCampaign: async (d: any) => {}, deleteCampaign: async (id: string) => {}, toggleCampaignStatus: async (id: string) => {}, recordCampaignClick: async (id: string) => {}, boostNode: async (n: string, t: number, d: number, c: number, cur: any, type: any) => {}, verifyUser: async (c: number, cur: any) => {}, processGiftTransaction: async (c: number, cur: any) => {}, unlockPost: async (id: string, c: number) => {}, subscribeToCreator: async (u: string, c: number) => {}, cancelSubscription: (u: string) => {}, recordView, recordStoryView: async (id: string) => {}, updateUserIdentity: async (id: string, d: any) => {}, handleReportAction: async (id: string, a: any) => {}, handleTicketAction: async (id: string, s: any) => {},
     fetchProfileByUsername: async (u: string) => { return null; }, fetchComments, refreshProfiles, refreshClusters, refreshFeed, recordWithdrawal: async (n: any) => {}, receiveCall: (c: any, t: CallType, ch: string, tk: string, id: string) => {}, initiateTransaction: (d: any) => {}, cancelTransaction: () => {}
-  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, login, signup, logout, checkSession, uploadMedia, toggleLikePost, toggleUnlikePost, triggerHaptic, fetchComments, addComment, addReply, recordView, resendVerification, updateCurrentUser, addPost, deletePost, toggleSavePost, toggleFollowUser]);
+  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, login, signup, logout, checkSession, uploadMedia, toggleLikePost, toggleUnlikePost, triggerHaptic, fetchComments, addComment, addReply, recordView, resendVerification, updateCurrentUser, addPost, deletePost, toggleSavePost]);
 
   useEffect(() => { checkSession(); }, [checkSession]);
 
