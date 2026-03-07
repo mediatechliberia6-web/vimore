@@ -390,24 +390,47 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [paymentRequests, setPaymentRequestsState] = useState<any[]>([]);
   const [pendingTransaction, setPendingTransactionState] = useState<any>(null);
 
+  // --- UTILITY NODES ---
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
       window.navigator.vibrate(intensity);
     }
   }, []);
 
-  // --- REFRESH NODES (Phase 3 Prep) ---
+  const uploadMedia = useCallback(async (file: File) => {
+    try {
+      const response = await storage.createFile(APPWRITE_BUCKET_ID, ID.unique(), file);
+      return `${endpoint}/storage/buckets/${APPWRITE_BUCKET_ID}/files/${response.$id}/view?project=${project}`;
+    } catch (e: any) { throw new Error(e.message); }
+  }, []);
+
+  // --- REFRESH FUNCTIONS ---
   const refreshFeed = useCallback(async () => {
     try {
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, [Query.orderDesc('$createdAt'), Query.limit(50)]);
       setPostsState(response.documents.map(doc => ({
-        id: doc.$id, user: typeof doc.user === 'string' ? JSON.parse(doc.user) : doc.user, content: doc.content, image: doc.image,
-        images: doc.images ? JSON.parse(doc.images) : [], videoUrl: doc.videoUrl,
-        time: new Date(doc.$createdAt).toLocaleDateString(), likes: doc.likes || 0, unlikes: doc.unlikes || 0,
-        comments: doc.comments || 0, shares: doc.shares || 0, views: doc.views || 0, viewers: doc.viewers || [],
-        theme: doc.theme, language: doc.language, isLocked: doc.isLocked, unlockPrice: doc.unlockPrice,
-        isBoosted: doc.isBoosted, boostTargetViews: doc.boostTargetViews, boostCurrentViews: doc.boostCurrentViews,
-        boostExpiry: doc.boostExpiry, poll: doc.poll ? JSON.parse(doc.poll) : undefined
+        id: doc.$id, 
+        user: typeof doc.user === 'string' ? JSON.parse(doc.user) : doc.user, 
+        content: doc.content, 
+        image: doc.image,
+        images: doc.images ? JSON.parse(doc.images) : [], 
+        videoUrl: doc.videoUrl,
+        time: new Date(doc.$createdAt).toLocaleDateString(), 
+        likes: doc.likes || 0, 
+        unlikes: doc.unlikes || 0,
+        comments: doc.comments || 0, 
+        shares: doc.shares || 0, 
+        views: doc.views || 0, 
+        viewers: doc.viewers || [],
+        theme: doc.theme, 
+        language: doc.language, 
+        isLocked: doc.isLocked, 
+        unlockPrice: doc.unlockPrice,
+        isBoosted: doc.isBoosted, 
+        boostTargetViews: doc.boostTargetViews, 
+        boostCurrentViews: doc.boostCurrentViews,
+        boostExpiry: doc.boostExpiry, 
+        poll: doc.poll ? JSON.parse(doc.poll) : undefined
       } as Post)));
     } catch (error) {}
   }, []);
@@ -425,8 +448,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID);
       setClustersState(response.documents.map(doc => ({
-        id: doc.$id, name: doc.name, adminUsername: doc.adminUsername,
-        members: JSON.parse(doc.members || '[]'), isGroup: true
+        id: doc.$id, 
+        name: doc.name, 
+        adminUsername: doc.adminUsername,
+        members: JSON.parse(doc.members || '[]'), 
+        isGroup: true
       } as Cluster)));
     } catch (e) {}
   }, []);
@@ -436,9 +462,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const now = Date.now();
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, [Query.greaterThan('expiresAt', now)]);
       setStoriesState(response.documents.map(doc => ({
-        id: doc.$id, user: typeof doc.user === 'string' ? JSON.parse(doc.user) : doc.user,
+        id: doc.$id, 
+        user: typeof doc.user === 'string' ? JSON.parse(doc.user) : doc.user,
         segments: typeof doc.segments === 'string' ? JSON.parse(doc.segments) : doc.segments,
-        isCloseFriends: doc.isCloseFriends, viewCount: doc.viewCount || 0, viewers: doc.viewers || []
+        isCloseFriends: doc.isCloseFriends, 
+        viewCount: doc.viewCount || 0, 
+        viewers: doc.viewers || []
       })));
     } catch (e) {}
   }, []);
@@ -447,14 +476,81 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const res = await databases.listDocuments(APPWRITE_DATABASE_ID, COMMENTS_COLLECTION_ID, [Query.equal('postId', postId), Query.orderAsc('timestamp'), Query.limit(100)]);
       setActiveComments(res.documents.map(doc => ({
-        id: doc.$id, userId: doc.userId, userName: doc.userName, userAvatar: doc.userAvatar, text: doc.text,
+        id: doc.$id, 
+        userId: doc.userId, 
+        userName: doc.userName, 
+        userAvatar: doc.userAvatar, 
+        text: doc.text,
         time: new Date(doc.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        parentId: doc.parentId, timestamp: doc.timestamp
+        parentId: doc.parentId, 
+        timestamp: doc.timestamp
       })));
     } catch (e) {}
   }, []);
 
-  // --- AUTH NODES (PHASE 2 MATERIALIZATION) ---
+  // --- CONTENT HUB LOGIC ---
+  const addPost = useCallback(async (postData: any) => {
+    if (!currentUser.id) return;
+    try {
+      // Minimal Identity Handshake: Ensuring payload size is optimized for vault attributes
+      const minimalUser = {
+        name: currentUser.name,
+        username: currentUser.username,
+        avatar: currentUser.avatar,
+        isVerified: currentUser.isVerified
+      };
+
+      const docData = {
+        user: JSON.stringify(minimalUser),
+        content: postData.content || "",
+        image: postData.image || "",
+        images: JSON.stringify(postData.images || []),
+        videoUrl: postData.videoUrl || "",
+        likes: 0,
+        unlikes: 0,
+        comments: 0,
+        views: 0,
+        viewers: [],
+        isLocked: postData.isLocked || false,
+        unlockPrice: postData.unlockPrice || 0,
+        poll: postData.poll ? JSON.stringify(postData.poll) : "",
+        theme: postData.theme || "",
+        language: postData.language || "en",
+        isBoosted: false
+      };
+
+      await databases.createDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, ID.unique(), docData);
+      await refreshFeed();
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
+    }
+  }, [currentUser, refreshFeed, toast]);
+
+  const deletePost = useCallback(async (postId: string) => {
+    try {
+      await databases.deleteDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId);
+      setPostsState(prev => prev.filter(p => p.id !== postId));
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Purge Failed", description: e.message });
+    }
+  }, [toast]);
+
+  const recordView = useCallback(async (postId: string) => {
+    if (!currentUser.id) return;
+    const post = posts.find(p => p.id === postId);
+    if (!post || (post.viewers && post.viewers.includes(currentUser.id))) return;
+
+    try {
+      const updatedViewers = [...(post.viewers || []), currentUser.id];
+      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, {
+        views: (post.views || 0) + 1,
+        viewers: updatedViewers
+      });
+      setPostsState(prev => prev.map(p => p.id === postId ? { ...p, views: p.views + 1, viewers: updatedViewers } : p));
+    } catch (e) {}
+  }, [currentUser.id, posts]);
+
+  // --- AUTH HANDSHAKES ---
   const checkSession = useCallback(async () => {
     try {
       const user = await account.get();
@@ -462,7 +558,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       try { 
         profile = await databases.getDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id); 
       } catch (e) { 
-        // Fallback Handshake: Profile Node missing
         profile = { name: user.name, username: user.email.split('@')[0], avatar: INITIAL_USER.avatar, role: 'USER' }; 
       }
       
@@ -501,19 +596,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try { 
       await account.createEmailPasswordSession(email, password); 
       await checkSession(); 
-    } catch (e: any) { 
-      throw new Error(e.message); 
-    }
+    } catch (e: any) { throw new Error(e.message); }
   }, [checkSession]);
 
   const signup = useCallback(async (data: any) => {
     try {
       const userId = ID.unique();
       const referrer = typeof window !== 'undefined' ? localStorage.getItem("vimore_referrer") : null;
-
       await account.create(userId, data.email, data.password, data.name);
-      
-      // Materialize Profile Document
       await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, {
         name: data.name, 
         username: data.username, 
@@ -529,16 +619,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
         isVerified: false,
         referredBy: referrer || undefined
       });
-
       await login(data.email, data.password);
-      
-      // Identity Pulse: Emit verification link
       await account.createVerification(window.location.origin + '/auth/verify');
-      
       if (referrer) localStorage.removeItem("vimore_referrer");
-    } catch (e: any) { 
-      throw new Error(e.message); 
-    }
+    } catch (e: any) { throw new Error(e.message); }
   }, [login]);
 
   const logout = useCallback(async () => {
@@ -552,9 +636,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const resendVerification = useCallback(async () => {
     try {
       await account.createVerification(window.location.origin + '/auth/verify');
-    } catch (e: any) {
-      throw new Error(e.message);
-    }
+    } catch (e: any) { throw new Error(e.message); }
   }, []);
 
   const updateCurrentUser = useCallback(async (data: Partial<User>) => {
@@ -562,29 +644,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, currentUser.id, data);
       setCurrentUserState(prev => ({ ...prev, ...data }));
-    } catch (e: any) {
-      throw new Error(e.message);
-    }
+    } catch (e: any) { throw new Error(e.message); }
   }, [currentUser.id]);
 
-  const uploadMedia = useCallback(async (file: File) => {
-    try {
-      const response = await storage.createFile(APPWRITE_BUCKET_ID, ID.unique(), file);
-      return `${endpoint}/storage/buckets/${APPWRITE_BUCKET_ID}/files/${response.$id}/view?project=${project}`;
-    } catch (e: any) { throw new Error(e.message); }
-  }, []);
-
-  // --- LOGIC HANDSHAKES (Phase 2 Skeletons) ---
+  // --- REMAINING HANDSHAKES (Phase 4-10 Skeletons) ---
   const toggleLikePost = useCallback(async (postId: string) => {}, []);
   const toggleUnlikePost = useCallback(async (postId: string) => {}, []);
   const toggleSavePost = useCallback((postId: string) => {}, []);
   const toggleFollowUser = useCallback(async (username: string) => {}, []);
-  const addPost = useCallback(async (post: any) => {}, []);
-  const deletePost = useCallback(async (postId: string) => {}, []);
   const addComment = useCallback(async (postId: string, text: string) => {}, []);
   const addReply = useCallback(async (postId: string, parentId: string, text: string) => {}, []);
   const addStory = useCallback(async (segment: any) => {}, []);
-  const recordView = useCallback(async (postId: string) => {}, []);
 
   const contextValue = useMemo(() => ({
     currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, referralLink: "http://vimore.network/join/" + currentUser.username, pendingTransaction, activeSubscriptions,
