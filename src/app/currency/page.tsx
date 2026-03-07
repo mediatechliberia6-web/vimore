@@ -27,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useNotifications } from "@/context/NotificationContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -54,6 +55,7 @@ export default function CurrencyHub() {
   const { currentUser, initiateTransaction, pendingTransaction, cancelTransaction, triggerHaptic, createPaymentRequest, gatewaySettings } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
+  const { t } = useTranslation();
   const { toast } = useToast();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -374,6 +376,16 @@ export default function CurrencyHub() {
               )}
             </TabsContent>
           </Tabs>
+
+          <BannerAdNode />
+
+          <footer className="pt-12 pb-20 flex flex-col items-center gap-4 opacity-30">
+            <div className="flex items-center gap-2">
+              <Zap className="h-3 w-3 text-primary" />
+              <span className="text-[9px] font-black uppercase tracking-[0.4em] text-foreground">ViMore Vault v1.5.0</span>
+            </div>
+            <p className="text-[8px] font-bold uppercase tracking-widest italic text-muted-foreground">{t('branding_mtl')}</p>
+          </footer>
 
           <BannerAdNode />
 
