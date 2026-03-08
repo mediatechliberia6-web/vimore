@@ -1,6 +1,6 @@
 'use server';
 
-import { createAdminClient, APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, ID } from '@/lib/appwrite';
+import { createAdminClient, APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, VERIFICATION_CODES_COLLECTION_ID, ID, Query } from '@/lib/appwrite';
 import { cookies } from 'next/headers';
 
 /**
@@ -74,6 +74,69 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
 }
 
 /**
+ * Server-Side Handshake: OTP Generation
+ * Materializes code in vault and transmits via Brevo.
+ */
+export async function sendVerificationCodeAction(identifier: string, type: 'EMAIL' | 'PHONE') {
+  const { databases } = createAdminClient();
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = Date.now() + (2 * 60 * 1000); // 2 minute temporal pulse
+
+  try {
+    // 1. Archive in vault
+    await databases.createDocument(
+      APPWRITE_DATABASE_ID,
+      VERIFICATION_CODES_COLLECTION_ID,
+      ID.unique(),
+      { identifier, code, expiresAt, type }
+    );
+
+    // 2. Transmit via Brevo
+    await sendCodeViaBrevo({ identifier, code, type });
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error("OTP_PULSE_ERROR:", error.message);
+    // If 404, the collection verification_codes might be missing in Appwrite console
+    throw new Error(error.message || "Failed to emit OTP pulse.");
+  }
+}
+
+/**
+ * Server-Side Handshake: OTP Verification
+ */
+export async function verifyCodeAction(identifier: string, code: string) {
+  const { databases } = createAdminClient();
+
+  try {
+    const res = await databases.listDocuments(
+      APPWRITE_DATABASE_ID,
+      VERIFICATION_CODES_COLLECTION_ID,
+      [
+        Query.equal('identifier', identifier),
+        Query.equal('code', code),
+        Query.greaterThan('expiresAt', Date.now())
+      ]
+    );
+
+    if (res.total > 0) {
+      // Burn the code node after successful handshake
+      await databases.deleteDocument(
+        APPWRITE_DATABASE_ID,
+        VERIFICATION_CODES_COLLECTION_ID,
+        res.documents[0].$id
+      );
+      return { success: true };
+    }
+    
+    return { success: false, message: "Invalid or expired signature." };
+  } catch (error: any) {
+    console.error("VERIFY_PULSE_ERROR:", error.message);
+    return { success: false, message: error.message };
+  }
+}
+
+/**
  * Server-Side Handshake: Signup
  * Creates the auth node and identity profile in one atomic pulse.
  */
@@ -125,15 +188,12 @@ export async function loginServerAction(identifier: string, p: string) {
     if (!identifier.includes('@')) {
       // Find associated email for phone node
       const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
-        (await import('@/lib/appwrite')).Query.equal('phone', identifier)
+        Query.equal('phone', identifier)
       ]);
       if (res.total === 0) throw new Error("Phone node not found.");
       emailNode = res.documents[0].email;
     }
 
-    // Creating session server-side is not enough for the client SDK to pick it up immediately
-    // without passing the secret back. For now, we return the email for the client to proceed
-    // or we'd handle session tokens manually.
     return { success: true, email: emailNode };
   } catch (e: any) {
     throw new Error(e.message || "Login handshake failed.");
