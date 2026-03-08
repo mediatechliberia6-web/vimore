@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 /**
  * @fileOverview ViMore Authentication & Identity Engine
  * Handles secure identity pulses and Brevo transmissions.
+ * Hardened to return result objects instead of throwing to prevent Server Component crashes.
  */
 
 const BREVO_API_KEY = 'xsmtpsib-e312d724da435dfd9439e137787bcabd6e79177df29486e94988a942f1dca779-u4blpxru9peb8UCN';
@@ -42,7 +43,7 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Email pulse failed.");
+        return { success: false, message: error.message || "Email pulse failed." };
       }
     } else {
       const response = await fetch('https://api.brevo.com/v3/transactionalSMS/sms', {
@@ -62,14 +63,13 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "SMS pulse failed.");
+        return { success: false, message: error.message || "SMS pulse failed." };
       }
     }
 
     return { success: true };
   } catch (error: any) {
-    console.error("BREVO_PROTOCOL_ERROR:", error.message);
-    throw new Error(error.message);
+    return { success: false, message: error.message };
   }
 }
 
@@ -92,13 +92,11 @@ export async function sendVerificationCodeAction(identifier: string, type: 'EMAI
     );
 
     // 2. Transmit via Brevo
-    await sendCodeViaBrevo({ identifier, code, type });
+    const transmission = await sendCodeViaBrevo({ identifier, code, type });
     
-    return { success: true };
+    return transmission;
   } catch (error: any) {
-    console.error("OTP_PULSE_ERROR:", error.message);
-    // If 404, the collection verification_codes might be missing in Appwrite console
-    throw new Error(error.message || "Failed to emit OTP pulse.");
+    return { success: false, message: error.message || "Failed to emit OTP pulse." };
   }
 }
 
@@ -131,7 +129,6 @@ export async function verifyCodeAction(identifier: string, code: string) {
     
     return { success: false, message: "Invalid or expired signature." };
   } catch (error: any) {
-    console.error("VERIFY_PULSE_ERROR:", error.message);
     return { success: false, message: error.message };
   }
 }
@@ -164,16 +161,16 @@ export async function signupServerAction(d: any) {
       starBalance: 0,
       referralCount: 0,
       isVerified: false,
-      referredBy: d.referredBy,
-      email: d.email,
-      phone: d.phone
+      referredBy: d.referredBy || '',
+      email: d.email || emailNode,
+      phone: d.phone || ''
     });
 
     return { success: true, userId };
   } catch (e: any) {
     // Cleanup if partially created
     try { await account.delete(userId); } catch (err) {}
-    throw new Error(e.message || "Signup handshake failed.");
+    return { success: false, message: e.message || "Signup handshake failed." };
   }
 }
 
@@ -190,12 +187,12 @@ export async function loginServerAction(identifier: string, p: string) {
       const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
         Query.equal('phone', identifier)
       ]);
-      if (res.total === 0) throw new Error("Phone node not found.");
+      if (res.total === 0) return { success: false, message: "Phone node not found in registry." };
       emailNode = res.documents[0].email;
     }
 
     return { success: true, email: emailNode };
   } catch (e: any) {
-    throw new Error(e.message || "Login handshake failed.");
+    return { success: false, message: e.message || "Login handshake failed." };
   }
 }
