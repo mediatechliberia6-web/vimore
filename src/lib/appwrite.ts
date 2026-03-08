@@ -1,12 +1,9 @@
+
 import { Client, Account, Databases, Storage, ID, Query } from 'appwrite';
 
 /**
- * @fileOverview ViMore Appwrite Handshake (Self-Hosted)
+ * @fileOverview ViMore Appwrite Handshake (Environment Secured)
  * Initializes the connection to the custom Command Core.
- * 
- * Vault Info:
- * - Bucket: storge_prod (ID: storgeprod)
- * - Database: vimore_prod (ID: vimoreprod)
  */
 
 export const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'http://46.225.183.141/v1';

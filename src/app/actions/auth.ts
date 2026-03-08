@@ -4,14 +4,14 @@
 /**
  * @fileOverview ViMore Brevo Handshake Engine
  * Handles the transmission of 6-digit temporal codes via Email or SMS.
- * Hardened for Phase 10 with live API credentials.
+ * Hardened for Phase 10 with environment variable security.
  */
 
-const BREVO_API_KEY = process.env.BREVO_API_KEY || 'xsmtpsib-e312d724da435dfd9439e137787bcabd6e79177df29486e94988a942f1dca779-u4blpxru9peb8UCN';
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
 
 export async function sendCodeViaBrevo(input: { identifier: string, code: string, type: 'EMAIL' | 'PHONE' }) {
   if (!BREVO_API_KEY) {
-    throw new Error("AI PROTOCOL ERROR: BREVO_API_KEY node is missing.");
+    throw new Error("AI PROTOCOL ERROR: BREVO_API_KEY node is missing from the environment vault.");
   }
 
   const { identifier, code, type } = input;

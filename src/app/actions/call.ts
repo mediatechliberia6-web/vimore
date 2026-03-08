@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -8,7 +9,7 @@
 import { RtcTokenBuilder, RtcRole } from 'agora-token';
 import { AGORA_APP_ID } from '@/lib/agora';
 
-const APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE || 'ef792758166f413c962ede45ddd8fe89';
+const APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE;
 
 export async function generateAgoraToken(channelName: string, uid: string | number) {
   if (!APP_CERTIFICATE) {
