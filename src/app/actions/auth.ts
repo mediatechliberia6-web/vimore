@@ -7,7 +7,7 @@
  * Hardened for Phase 10 with live API credentials.
  */
 
-const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const BREVO_API_KEY = process.env.BREVO_API_KEY || 'xsmtpsib-e312d724da435dfd9439e137787bcabd6e79177df29486e94988a942f1dca779-u4blpxru9peb8UCN';
 
 export async function sendCodeViaBrevo(input: { identifier: string, code: string, type: 'EMAIL' | 'PHONE' }) {
   if (!BREVO_API_KEY) {
@@ -30,11 +30,14 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
           to: [{ email: identifier }],
           subject: `${code} is your ViMore Verification Code`,
           htmlContent: `
-            <div style="font-family: sans-serif; padding: 40px; background: #F2ECF7; border-radius: 20px;">
-              <h1 style="color: #9940E5; text-transform: uppercase; font-style: italic;">ViMore Sync</h1>
-              <p style="font-size: 16px; color: #333;">Your spatial verification code is:</p>
-              <div style="font-size: 48px; font-weight: 900; letter-spacing: 10px; color: #9940E5; padding: 20px 0;">${code}</div>
+            <div style="font-family: sans-serif; padding: 40px; background: #F2ECF7; border-radius: 20px; border: 2px solid #9940E5;">
+              <h1 style="color: #9940E5; text-transform: uppercase; font-style: italic; letter-spacing: -1px;">ViMore Sync</h1>
+              <p style="font-size: 16px; color: #333; font-weight: bold;">Your spatial verification code is:</p>
+              <div style="font-size: 48px; font-weight: 900; letter-spacing: 10px; color: #9940E5; padding: 20px 0; font-family: monospace;">${code}</div>
               <p style="font-size: 12px; color: #666; text-transform: uppercase;">Valid for 2 minutes only. Do not share this signature.</p>
+              <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 10px; color: #999;">
+                SENT BY MEDIA TECH LIBERIA COMMAND CORE
+              </div>
             </div>
           `
         })
@@ -56,8 +59,8 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
         body: JSON.stringify({
           type: 'transactional',
           sender: 'ViMore',
-          recipient: identifier,
-          content: `${code} is your ViMore sync code. Valid for 2 mins.`
+          recipient: identifier, // E.164 format expected
+          content: `${code} is your ViMore sync code. Valid for 2 mins. MTL Core.`
         })
       });
 
