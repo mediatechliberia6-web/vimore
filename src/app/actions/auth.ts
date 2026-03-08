@@ -1,16 +1,17 @@
+
 'use server';
 
 /**
  * @fileOverview ViMore Brevo Handshake Engine
  * Handles the transmission of 6-digit temporal codes via Email or SMS.
+ * Hardened for Phase 10 with live API credentials.
  */
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 
 export async function sendCodeViaBrevo(input: { identifier: string, code: string, type: 'EMAIL' | 'PHONE' }) {
   if (!BREVO_API_KEY) {
-    console.warn("BREVO_API_KEY node is missing. Simulated pulse initiated.");
-    return { success: true, message: "Pulse simulated (No API Key)." };
+    throw new Error("AI PROTOCOL ERROR: BREVO_API_KEY node is missing.");
   }
 
   const { identifier, code, type } = input;
@@ -39,9 +40,12 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
         })
       });
 
-      if (!response.ok) throw new Error("Email pulse failed.");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Email pulse failed.");
+      }
     } else {
-      // SMS Pulse logic
+      // SMS Pulse logic using Brevo Transactional SMS
       const response = await fetch('https://api.brevo.com/v3/transactionalSMS/sms', {
         method: 'POST',
         headers: {
@@ -57,7 +61,10 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
         })
       });
 
-      if (!response.ok) throw new Error("SMS pulse failed.");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "SMS pulse failed.");
+      }
     }
 
     return { success: true };
