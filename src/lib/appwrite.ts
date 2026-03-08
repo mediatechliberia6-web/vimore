@@ -1,13 +1,12 @@
-
 import { Client, Account, Databases, Storage, ID, Query } from 'appwrite';
 
 /**
- * @fileOverview ViMore Appwrite Handshake (Environment Secured)
+ * @fileOverview ViMore Appwrite Handshake (Hardcoded Nodes)
  * Initializes the connection to the custom Command Core.
  */
 
-export const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'http://46.225.183.141/v1';
-export const project = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '69ac515c000f2db8defe';
+export const endpoint = 'http://46.225.183.141/v1';
+export const project = '69ac515c000f2db8defe';
 
 const client = new Client()
     .setEndpoint(endpoint)
