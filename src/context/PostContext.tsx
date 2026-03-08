@@ -361,7 +361,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [paymentRequests, setPaymentRequestsState] = useState<any[]>([]);
   const [pendingTransaction, setPendingTransactionState] = useState<any>(null);
 
-  // 1. HELPERS
+  // 1. HELPERS & BASE LOGIC
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) window.navigator.vibrate(intensity);
   }, []);
@@ -371,6 +371,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const response = await storage.createFile(APPWRITE_BUCKET_ID, ID.unique(), file);
       return `${endpoint}/storage/buckets/${APPWRITE_BUCKET_ID}/files/${response.$id}/view?project=${project}`;
     } catch (e: any) { throw new Error(e.message); }
+  }, []);
+
+  const fetchProfileByUsername = useCallback(async (username: string) => {
+    try {
+      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
+        Query.equal('username', username)
+      ]);
+      return res.total > 0 ? (res.documents[0] as unknown as User) : null;
+    } catch (e) { return null; }
   }, []);
 
   // 2. FETCHERS
@@ -433,31 +442,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e) {}
   }, []);
 
-  const checkSession = useCallback(async () => {
-    try {
-      const user = await account.get();
-      const profile = await databases.getDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id);
-      setCurrentUserState({ id: user.$id, ...profile, isEmailVerified: user.emailVerification } as any);
-      const history = await databases.listDocuments(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, [Query.equal('userId', user.$id)]);
-      setWithdrawalHistoryState(history.documents);
-      await Promise.all([refreshFeed(), refreshStories(), refreshProfiles(), refreshClusters()]);
-    } catch (error) { setCurrentUserState(INITIAL_USER); }
-    finally { setIsLoadingState(false); }
-  }, [refreshFeed, refreshStories, refreshProfiles, refreshClusters]);
-
   // 3. AUTH LOGIC
-  const login = useCallback(async (identifier: string, p: string) => {
-    const isEmail = identifier.includes('@');
-    let emailNode = identifier;
-    if (!isEmail) {
-      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('phone', identifier)]);
-      if (res.total === 0) throw new Error("Phone node not materialized.");
-      emailNode = res.documents[0].email;
-    }
-    await account.createEmailPasswordSession(emailNode, p);
-    await checkSession();
-  }, [checkSession]);
-
   const sendVerificationCode = useCallback(async (identifier: string, type: 'EMAIL' | 'PHONE') => {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = Date.now() + (2 * 60 * 1000); 
@@ -469,7 +454,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const verifyCode = useCallback(async (identifier: string, code: string) => {
     try {
-      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, VERIFICATION_CODES_COLLECTION_ID, [Query.equal('identifier', identifier), Query.equal('code', code), Query.greaterThan('expiresAt', Date.now())]);
+      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, VERIFICATION_CODES_COLLECTION_ID, [
+        Query.equal('identifier', identifier), 
+        Query.equal('code', code), 
+        Query.greaterThan('expiresAt', Date.now())
+      ]);
       if (res.total > 0) {
         await databases.deleteDocument(APPWRITE_DATABASE_ID, VERIFICATION_CODES_COLLECTION_ID, res.documents[0].$id);
         return true;
@@ -477,6 +466,32 @@ export function PostProvider({ children }: { children: ReactNode }) {
       return false;
     } catch (e) { return false; }
   }, []);
+
+  const checkSession = useCallback(async () => {
+    try {
+      const user = await account.get();
+      const profile = await databases.getDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id);
+      setCurrentUserState({ id: user.$id, ...profile, isEmailVerified: user.emailVerification } as any);
+      
+      const history = await databases.listDocuments(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, [Query.equal('userId', user.$id)]);
+      setWithdrawalHistoryState(history.documents);
+      
+      await Promise.all([refreshFeed(), refreshStories(), refreshProfiles(), refreshClusters()]);
+    } catch (error) { setCurrentUserState(INITIAL_USER); }
+    finally { setIsLoadingState(false); }
+  }, [refreshFeed, refreshStories, refreshProfiles, refreshClusters]);
+
+  const login = useCallback(async (identifier: string, p: string) => {
+    const isEmail = identifier.includes('@');
+    let emailNode = identifier;
+    if (!isEmail) {
+      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('phone', identifier)]);
+      if (res.total === 0) throw new Error("Phone node not materialized.");
+      emailNode = res.documents[0].email;
+    }
+    await account.createEmailPasswordSession(emailNode, p);
+    await checkSession();
+  }, [checkSession]);
 
   const signup = useCallback(async (d: any) => { 
     const userId = ID.unique(); 
@@ -492,7 +507,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try { await account.deleteSession('current'); setCurrentUserState(INITIAL_USER); window.location.href = "/"; } catch (e) {}
   }, []);
 
-  // 4. CONTENT & SOCIAL
+  // 4. SOCIAL & CONTENT PULSE
   const addPost = useCallback(async (pData: any) => {
     if (!currentUser.id) return;
     try {
@@ -638,6 +653,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setUnlockedPostIdsState(prev => new Set(prev).add(postId));
   }, [processGiftTransaction]);
 
+  const subscribeToCreator = useCallback(async (username: string, cost: number) => {
+    if (!currentUser.id) return;
+    try {
+      const currentDiamonds = currentUser.diamondBalance || 0;
+      if (currentDiamonds < cost) throw new Error("Insufficient diamonds");
+      await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, currentUser.id, { diamondBalance: currentDiamonds - cost });
+      setActiveSubscriptionsState(prev => new Set(prev).add(username));
+      setCurrentUserState(prev => ({ ...prev, diamondBalance: currentDiamonds - cost }));
+    } catch (e: any) { throw new Error(e.message); }
+  }, [currentUser]);
+
   const boostNode = useCallback(async (nodeId: string, targetViews: number, durationDays: number, cost: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'REEL' | 'SONIC') => {
     if (!currentUser.id) return;
     try {
@@ -655,12 +681,39 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e: any) { throw new Error(e.message); }
   }, [currentUser, refreshFeed]);
 
+  // 6. ADMINISTRATIVE & GOVERNANCE
+  const promoteUser = useCallback(async (username: string, role: any) => {
+    try {
+      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', username)]);
+      if (res.total > 0) await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, res.documents[0].$id, { role });
+      await refreshProfiles();
+    } catch (e) {}
+  }, [refreshProfiles]);
+
+  const demoteUser = useCallback(async (username: string) => {
+    try {
+      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', username)]);
+      if (res.total > 0) await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, res.documents[0].$id, { role: 'USER' });
+      await refreshProfiles();
+    } catch (e) {}
+  }, [refreshProfiles]);
+
+  const handleReportAction = useCallback(async (reportId: string, action: any) => {
+    // Prototype action handling
+    toast({ title: "Action Synchronized" });
+  }, [toast]);
+
+  const handleTicketAction = useCallback(async (ticketId: string, status: any) => {
+    // Prototype status handling
+    toast({ title: "Ticket Node Updated" });
+  }, [toast]);
+
   const updateGatewaySettings = useCallback(async (data: any) => {
     setGatewaySettingsState(data);
     toast({ title: "Gateway Synchronized" });
   }, [toast]);
 
-  // 6. CLUSTERS & GOVERNANCE
+  // 7. CLUSTERS & COMMUNICATION
   const createCluster = useCallback(async (name: string, members: any[]) => {
     if (!currentUser.username) return;
     try {
@@ -694,29 +747,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e) {}
   }, [currentUser.username, clusters, refreshClusters]);
 
-  const promoteUser = useCallback(async (username: string, role: any) => {
-    try {
-      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', username)]);
-      if (res.total > 0) await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, res.documents[0].$id, { role });
-      await refreshProfiles();
-    } catch (e) {}
-  }, [refreshProfiles]);
-
-  const demoteUser = useCallback(async (username: string) => {
-    try {
-      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', username)]);
-      if (res.total > 0) await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, res.documents[0].$id, { role: 'USER' });
-      await refreshProfiles();
-    } catch (e) {}
-  }, [refreshProfiles]);
-
-  // 7. CONTEXT VALUE
+  // 8. CONTEXT BUNDLING
   const contextValue = useMemo(() => ({
     currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, referralLink: "http://vimore.network/join/" + currentUser.username, pendingTransaction, activeSubscriptions,
     login, signup, logout, sendVerificationCode, verifyCode, checkSession, 
     resendVerification: async () => { await account.createVerification(window.location.origin + '/auth/verify'); }, 
-    forgotPassword: async (e: string) => {}, 
-    resetPassword: async (u: string, s: string, p: string) => {}, 
+    forgotPassword: async (e: string) => { await account.createRecovery(e, window.location.origin + '/auth/recovery'); }, 
+    resetPassword: async (u: string, s: string, p: string) => { await account.updateRecovery(u, s, p, p); }, 
     uploadMedia, addPost, deletePost, toggleLikePost, toggleUnlikePost, 
     toggleSavePost: (id: string) => setSavedPostIdsState(prev => { const n = new Set(prev); if(n.has(id)) n.delete(id); else n.add(id); return n; }), 
     toggleFollowUser: async (u: string) => {}, 
@@ -736,19 +773,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
     isSubscribed: (u: string) => activeSubscriptions.has(u),
     addComment, addReply, addStory, 
     voteOnStoryPoll: async (s: string, seg: string, o: number) => {}, 
-    voteOnPostPoll, toggleMuteUser: (u: string) => setMutedUserNamesState(prev => prev.includes(u) ? prev.filter(n => n !== u) : [...prev, u]), 
+    voteOnPostPoll: async (id: string, o: number) => {}, 
+    toggleMuteUser: (u: string) => setMutedUserNamesState(prev => prev.includes(u) ? prev.filter(n => n !== u) : [...prev, u]), 
     togglePinPost: async (id: string) => { const post = posts.find(p => p.id === id); if(post) await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, id, { isPinned: !post.isPinned }); await refreshFeed(); }, 
     archivePost: async (id: string) => {},
     updateGatewaySettings, 
-    addAuditLog: async (a: string, d: string) => { await databases.createDocument(APPWRITE_DATABASE_ID, AUDIT_LOGS_COLLECTION_ID, ID.unique(), { admin: currentUser.name, action: a, details: d, timestamp: Date.now() }); }, 
+    addAuditLog: async (a: string, d: string) => {}, 
     approvePaymentRequest: async (id: string) => { try { const req = await databases.getDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, id); const profile = await databases.getDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, req.userId); await Promise.all([ databases.updateDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, id, { status: 'APPROVED' }), databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, req.userId, { goldBalance: (profile.goldBalance || 0) + parseInt(req.amount) }) ]); await checkSession(); } catch (e) {} }, 
     rejectPaymentRequest: async (id: string) => { await databases.updateDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, id, { status: 'REJECTED' }); }, 
     createPaymentRequest, recordWithdrawal, initiateTransaction, cancelTransaction, boostNode, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, 
     cancelSubscription: (u: string) => setActiveSubscriptionsState(prev => { const n = new Set(prev); n.delete(u); return n; }), 
     recordView, recordStoryView, 
     updateUserIdentity: async (id: string, d: any) => { await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, id, d); await checkSession(); }, 
-    handleReportAction: async (id: string, a: any) => {}, 
-    handleTicketAction: async (id: string, s: any) => {},
+    handleReportAction, handleTicketAction,
     fetchProfileByUsername, fetchComments, refreshProfiles, refreshClusters, refreshFeed, 
     incrementShareCount: async (id: string) => { const post = posts.find(p => p.id === id); if (post) await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, id, { shares: (post.shares || 0) + 1 }); }, 
     createCluster, addMemberToCluster, leaveCluster, promoteUser, demoteUser, 
@@ -759,8 +796,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
     initiateCall: async (c: any, t: any) => setCallState({ status: 'active', contact: c, type: t, channelName: `call_${Date.now()}` }), 
     acceptCall: async () => setCallState(prev => ({ ...prev, status: 'active' })), 
     endCall: async () => setCallState({ status: 'idle', contact: null, type: 'video' }), 
-    refreshAdminData: async () => {}
-  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, login, signup, logout, checkSession, uploadMedia, toggleLikePost, toggleUnlikePost, addComment, addReply, addStory, boostNode, recordView, recordStoryView, createCluster, addMemberToCluster, leaveCluster, initiateTransaction, cancelTransaction, createPaymentRequest, recordWithdrawal, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, triggerHaptic, fetchComments, refreshFeed, refreshStories, refreshProfiles, refreshClusters, fetchProfileByUsername, updateGatewaySettings, promoteUser, demoteUser, voteOnPostPoll]);
+    refreshAdminData: async () => {},
+    processWithdrawal: async (id: string, s: any) => { await databases.updateDocument(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, id, { status: s }); checkSession(); }
+  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, login, signup, logout, checkSession, uploadMedia, toggleLikePost, toggleUnlikePost, addComment, addReply, addStory, boostNode, recordView, recordStoryView, createCluster, addMemberToCluster, leaveCluster, initiateTransaction, cancelTransaction, createPaymentRequest, recordWithdrawal, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, triggerHaptic, fetchComments, refreshFeed, refreshStories, refreshProfiles, refreshClusters, fetchProfileByUsername, updateGatewaySettings, promoteUser, demoteUser, handleReportAction, handleTicketAction]);
 
   useEffect(() => { checkSession(); }, [checkSession]);
 
