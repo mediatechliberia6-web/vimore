@@ -1,9 +1,11 @@
 'use server';
 
+import { createAdminClient, APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, ID } from '@/lib/appwrite';
+import { cookies } from 'next/headers';
+
 /**
- * @fileOverview ViMore Brevo Handshake Engine
- * Handles the transmission of 6-digit temporal codes via Email or SMS.
- * Reverted to hardcoded credentials for immediate sync.
+ * @fileOverview ViMore Authentication & Identity Engine
+ * Handles secure identity pulses and Brevo transmissions.
  */
 
 const BREVO_API_KEY = 'xsmtpsib-e312d724da435dfd9439e137787bcabd6e79177df29486e94988a942f1dca779-u4blpxru9peb8UCN';
@@ -43,7 +45,6 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
         throw new Error(error.message || "Email pulse failed.");
       }
     } else {
-      // SMS Pulse logic using Brevo Transactional SMS
       const response = await fetch('https://api.brevo.com/v3/transactionalSMS/sms', {
         method: 'POST',
         headers: {
@@ -54,7 +55,7 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
         body: JSON.stringify({
           type: 'transactional',
           sender: 'ViMore',
-          recipient: identifier, // E.164 format expected
+          recipient: identifier,
           content: `${code} is your ViMore sync code. Valid for 2 mins. MTL Core.`
         })
       });
@@ -69,5 +70,72 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
   } catch (error: any) {
     console.error("BREVO_PROTOCOL_ERROR:", error.message);
     throw new Error(error.message);
+  }
+}
+
+/**
+ * Server-Side Handshake: Signup
+ * Creates the auth node and identity profile in one atomic pulse.
+ */
+export async function signupServerAction(d: any) {
+  const { account, databases } = createAdminClient();
+  const userId = ID.unique();
+  const safePhone = d.phone ? d.phone.replace(/[^0-9]/g, '') : '';
+  const emailNode = d.email || `${safePhone}@vimore.net`;
+
+  try {
+    // 1. Create Auth Node
+    await account.create(userId, emailNode, d.password, d.name);
+
+    // 2. Materialize Identity Profile
+    await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, {
+      name: d.name,
+      username: d.username,
+      avatar: "https://picsum.photos/seed/guest/400/400",
+      dateOfBirth: d.dob,
+      nationality: d.nationality,
+      gender: d.gender,
+      role: 'USER',
+      goldBalance: 0,
+      diamondBalance: 0,
+      starBalance: 0,
+      referralCount: 0,
+      isVerified: false,
+      referredBy: d.referredBy,
+      email: d.email,
+      phone: d.phone
+    });
+
+    return { success: true, userId };
+  } catch (e: any) {
+    // Cleanup if partially created
+    try { await account.delete(userId); } catch (err) {}
+    throw new Error(e.message || "Signup handshake failed.");
+  }
+}
+
+/**
+ * Server-Side Handshake: Login
+ */
+export async function loginServerAction(identifier: string, p: string) {
+  const { account, databases } = createAdminClient();
+  let emailNode = identifier;
+
+  try {
+    if (!identifier.includes('@')) {
+      // Find associated email for phone node
+      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
+        (await import('@/lib/appwrite')).Query.equal('phone', identifier)
+      ]);
+      if (res.total === 0) throw new Error("Phone node not found.");
+      emailNode = res.documents[0].email;
+    }
+
+    // Creating session server-side is not enough for the client SDK to pick it up immediately
+    // without passing the secret back. For now, we return the email for the client to proceed
+    // or we'd handle session tokens manually.
+    return { success: true, email: emailNode };
+  } catch (e: any) {
+    throw new Error(e.message || "Login handshake failed.");
   }
 }

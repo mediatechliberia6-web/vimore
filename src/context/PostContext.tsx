@@ -37,7 +37,7 @@ import client, {
   project
 } from '@/lib/appwrite';
 import { useToast } from "@/hooks/use-toast";
-import { sendCodeViaBrevo } from '@/app/actions/auth';
+import { sendCodeViaBrevo, signupServerAction, loginServerAction } from '@/app/actions/auth';
 
 // --- TYPES ---
 
@@ -374,17 +374,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e: any) { throw new Error(e.message); }
   }, []);
 
-  const addAuditLog = useCallback(async (action: string, details: string) => {
-    try {
-      await databases.createDocument(APPWRITE_DATABASE_ID, AUDIT_LOGS_COLLECTION_ID, ID.unique(), {
-        admin: currentUser.username,
-        action,
-        details,
-        timestamp: Date.now()
-      });
-    } catch (e) {}
-  }, [currentUser.username]);
-
   const refreshFeed = useCallback(async () => {
     try {
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, [Query.orderDesc('$createdAt'), Query.limit(100)]);
@@ -442,49 +431,46 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e) {}
   }, []);
 
-  const fetchComments = useCallback(async (postId: string) => {
+  const checkSession = useCallback(async () => {
     try {
-      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, COMMENTS_COLLECTION_ID, [Query.equal('postId', postId), Query.orderAsc('timestamp')]);
-      setActiveComments(res.documents.map(d => ({ id: d.$id, userId: d.userId, userName: d.userName, userAvatar: d.userAvatar, text: d.text, parentId: d.parentId, timestamp: d.timestamp, time: new Date(d.timestamp).toLocaleTimeString() } as PostComment)));
-    } catch (e) {}
-  }, []);
-
-  const fetchProfileByUsername = useCallback(async (username: string) => {
-    try {
-      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', username)]);
-      return res.total > 0 ? (res.documents[0] as any) : null;
-    } catch (e) { return null; }
-  }, []);
+      const user = await account.get();
+      const profile = await databases.getDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id);
+      setCurrentUserState({ id: user.$id, ...profile, isEmailVerified: user.emailVerification } as any);
+      
+      const [history, pReqs, follows] = await Promise.all([
+        databases.listDocuments(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, [Query.equal('userId', user.$id)]),
+        databases.listDocuments(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, [Query.equal('userId', user.$id)]),
+        databases.listDocuments(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, [Query.equal('followerId', user.$id)])
+      ]);
+      
+      setWithdrawalHistoryState(history.documents);
+      setPaymentRequestsState(pReqs.documents);
+      setFollowingUsernamesState(new Set(follows.documents.map(f => f.followingUsername)));
+      
+      await Promise.all([refreshFeed(), refreshStories(), refreshProfiles(), refreshClusters()]);
+    } catch (error) { 
+      setCurrentUserState(INITIAL_USER); 
+    } finally { 
+      setIsLoadingState(false); 
+    }
+  }, [refreshFeed, refreshStories, refreshProfiles, refreshClusters]);
 
   const login = useCallback(async (identifier: string, p: string) => {
-    const isEmail = identifier.includes('@');
-    let emailNode = identifier;
-    if (!isEmail) {
-      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('phone', identifier)]);
-      if (res.total === 0) throw new Error("Phone node not materialized.");
-      emailNode = res.documents[0].email;
-    }
-    await account.createEmailPasswordSession(emailNode, p);
-    await checkSession();
-  }, []);
+    try {
+      const res = await loginServerAction(identifier, p);
+      await account.createEmailPasswordSession(res.email, p);
+      await checkSession();
+    } catch (e: any) { throw new Error(e.message); }
+  }, [checkSession]);
 
   const signup = useCallback(async (d: any) => { 
-    const userId = ID.unique(); 
-    const safePhone = d.phone ? d.phone.replace(/[^0-9]/g, '') : '';
-    const emailNode = d.email || `${safePhone}@vimore.net`;
-    
     try {
-      await account.create(userId, emailNode, d.password, d.name);
-      await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, { 
-        name: d.name, username: d.username, avatar: INITIAL_USER.avatar, dateOfBirth: d.dob, nationality: d.nationality, gender: d.gender, role: 'USER', goldBalance: 0, diamondBalance: 0, starBalance: 0, referralCount: 0, isVerified: false, referredBy: localStorage.getItem("vimore_referrer") || undefined, email: d.email, phone: d.phone 
-      });
+      const res = await signupServerAction({ ...d, referredBy: localStorage.getItem("vimore_referrer") });
+      const emailNode = d.email || `${d.phone.replace(/[^0-9]/g, '')}@vimore.net`;
       await account.createEmailPasswordSession(emailNode, d.password);
       await checkSession();
-    } catch (e: any) {
-      await account.deleteSession('current').catch(() => {});
-      throw new Error(e.message || "Signup handshake failed.");
-    }
-  }, []);
+    } catch (e: any) { throw new Error(e.message); }
+  }, [checkSession]);
 
   const logout = useCallback(async () => {
     try { 
@@ -517,30 +503,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       return false;
     } catch (e) { return false; }
   }, []);
-
-  const checkSession = useCallback(async () => {
-    try {
-      const user = await account.get();
-      const profile = await databases.getDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id);
-      setCurrentUserState({ id: user.$id, ...profile, isEmailVerified: user.emailVerification } as any);
-      
-      const [history, pReqs, follows] = await Promise.all([
-        databases.listDocuments(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, [Query.equal('userId', user.$id)]),
-        databases.listDocuments(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, [Query.equal('userId', user.$id)]),
-        databases.listDocuments(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, [Query.equal('followerId', user.$id)])
-      ]);
-      
-      setWithdrawalHistoryState(history.documents);
-      setPaymentRequestsState(pReqs.documents);
-      setFollowingUsernamesState(new Set(follows.documents.map(f => f.followingUsername)));
-      
-      await Promise.all([refreshFeed(), refreshStories(), refreshProfiles(), refreshClusters()]);
-    } catch (error) { 
-      setCurrentUserState(INITIAL_USER); 
-    } finally { 
-      setIsLoadingState(false); 
-    }
-  }, [refreshFeed, refreshStories, refreshProfiles, refreshClusters]);
 
   const addPost = useCallback(async (pData: any) => {
     if (!currentUser.id) return;
@@ -586,6 +548,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const toggleSavePost = useCallback((id: string) => {
     setSavedPostIdsState(prev => { const n = new Set(prev); if(n.has(id)) n.delete(id); else n.add(id); return n; });
+  }, []);
+
+  const fetchComments = useCallback(async (postId: string) => {
+    try {
+      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, COMMENTS_COLLECTION_ID, [Query.equal('postId', postId), Query.orderAsc('timestamp')]);
+      setActiveComments(res.documents.map(d => ({ id: d.$id, userId: d.userId, userName: d.userName, userAvatar: d.userAvatar, text: d.text, parentId: d.parentId, timestamp: d.timestamp, time: new Date(d.timestamp).toLocaleTimeString() } as PostComment)));
+    } catch (e) {}
   }, []);
 
   const addComment = useCallback(async (postId: string, text: string) => {
@@ -975,6 +944,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const closeGiftHub = useCallback(() => {
     setIsGiftHubOpenState(false);
   }, []);
+
+  const fetchProfileByUsername = useCallback(async (username: string) => {
+    try {
+      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', username)]);
+      return res.total > 0 ? (res.documents[0] as any) : null;
+    } catch (e) { return null; }
+  }, []);
+
+  const addAuditLog = useCallback(async (action: string, details: string) => {
+    try {
+      await databases.createDocument(APPWRITE_DATABASE_ID, AUDIT_LOGS_COLLECTION_ID, ID.unique(), {
+        admin: currentUser.username,
+        action,
+        details,
+        timestamp: Date.now()
+      });
+    } catch (e) {}
+  }, [currentUser.username]);
 
   const contextValue = useMemo(() => ({
     currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, referralLink: "http://vimore.network/join/" + currentUser.username, pendingTransaction, activeSubscriptions,
