@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -231,7 +232,7 @@ interface PostContextType {
   login: (identifier: string, p: string) => Promise<{ success: boolean; message?: string }>;
   signup: (d: any) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
-  sendVerificationCode: (identifier: string, type: 'EMAIL' | 'PHONE') => Promise<void>;
+  sendVerificationCode: (identifier: string, type: 'EMAIL' | 'PHONE') => Promise<{ success: boolean; message?: string }>;
   verifyCode: (identifier: string, code: string) => Promise<boolean>;
   checkSession: () => Promise<void>;
   resendVerification: () => Promise<void>;
@@ -318,7 +319,7 @@ const INITIAL_USER: User = {
 };
 
 const INITIAL_SETTINGS: AppSettings = {
-  theme: 'light', hapticIntensity: 50, isGhostMode: false, playbackQuality: 'standard', fontScale: 1, isAutoFollowEnabled: true, activeSoundSet: 'cyberpunk', isBiometricActive: false, taggingPrivacy: 'everyone', discoveryVisibility: 'everyone', showReadReceipts: true, legacyContact: null, isSilenceActive: false, silenceStart: "22:00", silenceEnd: "07:00", defaultStream: 'foryou', goldRate: 0.01, diamondRate: 0.25, ldMultiplier: 190, isReelsEnabled: true, isMusicEnabled: true, isGiftingEnabled: true, isReelsEnabled: true, isMusicEnabled: true, isGiftingEnabled: true, isAiVerificationActive: true, isSensitivityFilterActive: false, isFreeMode: false
+  theme: 'light', hapticIntensity: 50, isGhostMode: false, playbackQuality: 'standard', fontScale: 1, isAutoFollowEnabled: true, activeSoundSet: 'cyberpunk', isBiometricActive: false, taggingPrivacy: 'everyone', discoveryVisibility: 'everyone', showReadReceipts: true, legacyContact: null, isSilenceActive: false, silenceStart: "22:00", silenceEnd: "07:00", defaultStream: 'foryou', goldRate: 0.01, diamondRate: 0.25, ldMultiplier: 190, isReelsEnabled: true, isMusicEnabled: true, isGiftingEnabled: true, isAiVerificationActive: true, isSensitivityFilterActive: false, isFreeMode: false
 };
 
 export function PostProvider({ children }: { children: ReactNode }) {
@@ -501,8 +502,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const sendVerificationCode = useCallback(async (identifier: string, type: 'EMAIL' | 'PHONE') => {
     try {
       const res = await sendVerificationCodeAction(identifier, type);
-      if (!res.success) throw new Error(res.message);
-    } catch (e: any) { throw new Error(e.message); }
+      return res; // Returns result object directly
+    } catch (e: any) { 
+      return { success: false, message: String(e.message || e) };
+    }
   }, []);
 
   const signup = useCallback(async (d: any) => { 
@@ -517,11 +520,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
       // 3. Emit OTP Pulse via Brevo
       const identifier = d.email || d.phone;
       const type = d.email ? 'EMAIL' : 'PHONE';
-      await sendVerificationCode(identifier, type);
+      const otpRes = await sendVerificationCode(identifier, type);
       
       // 4. Final Handshake
       await checkSession();
-      return { success: true };
+      return { 
+        success: otpRes.success, 
+        message: otpRes.success ? undefined : `Identity Created, but OTP failed: ${otpRes.message}` 
+      };
     } catch (e: any) {
       return { success: false, message: String(e.message || e) };
     }

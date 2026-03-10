@@ -13,6 +13,7 @@ const BREVO_API_KEY = 'xsmtpsib-e312d724da435dfd9439e137787bcabd6e79177df29486e9
 
 /**
  * Materializes a transmission pulse to the user via Brevo.
+ * Hardened to handle non-JSON responses and network timeouts.
  */
 export async function sendCodeViaBrevo(input: { identifier: string, code: string, type: 'EMAIL' | 'PHONE' }) {
   const { identifier, code, type } = input;
@@ -41,15 +42,20 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
               </div>
             </div>
           `
-        })
+        }),
+        signal: AbortSignal.timeout(10000) // 10s timeout pulse
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        return { 
-          success: false, 
-          message: `Brevo SMTP Rejection: ${error.message || response.statusText}` 
-        };
+        const text = await response.text();
+        let msg = response.statusText;
+        try {
+          const json = JSON.parse(text);
+          msg = json.message || msg;
+        } catch (e) {
+          msg = text.slice(0, 100) || msg;
+        }
+        return { success: false, message: `Brevo SMTP Node Rejection: ${msg}` };
       }
     } else {
       const response = await fetch('https://api.brevo.com/v3/transactionalSMS/sms', {
@@ -64,21 +70,19 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
           sender: 'ViMore',
           recipient: identifier,
           content: `${code} is your ViMore sync code. Valid for 2 mins. MTL Core.`
-        })
+        }),
+        signal: AbortSignal.timeout(10000)
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        return { 
-          success: false, 
-          message: `Brevo SMS Rejection: ${error.message || response.statusText}` 
-        };
+        const text = await response.text();
+        return { success: false, message: `Brevo SMS Node Rejection: ${text.slice(0, 100)}` };
       }
     }
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, message: `Transmission Failure: ${String(error.message || error)}` };
+    return { success: false, message: `Brevo Transmission Failure (Network/Timeout): ${String(error.message || error)}` };
   }
 }
 
@@ -105,7 +109,7 @@ export async function sendVerificationCodeAction(identifier: string, type: 'EMAI
   } catch (error: any) {
     return { 
       success: false, 
-      message: `Vault Rejection (OTP): ${String(error.message || error)}` 
+      message: `Vault Rejection (OTP Archival): ${String(error.message || error)}` 
     };
   }
 }
@@ -174,7 +178,7 @@ export async function signupServerAction(d: any) {
 
     return { success: true, userId, email: emailNode };
   } catch (e: any) {
-    return { success: false, message: `Vault Rejection (Profile): ${String(e.message || e)}` };
+    return { success: false, message: `Vault Rejection (Profile Creation): ${String(e.message || e)}` };
   }
 }
 
@@ -196,6 +200,6 @@ export async function loginServerAction(identifier: string, p: string) {
 
     return { success: true, email: emailNode };
   } catch (e: any) {
-    return { success: false, message: `Vault Rejection (Login): ${String(e.message || e)}` };
+    return { success: false, message: `Vault Rejection (Credential Handshake): ${String(e.message || e)}` };
   }
 }
