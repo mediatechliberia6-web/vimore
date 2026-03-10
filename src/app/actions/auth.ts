@@ -45,10 +45,9 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
 
       if (!response.ok) {
         const error = await response.json();
-        console.error("BREVO EMAIL REJECTION:", error);
         return { 
           success: false, 
-          message: `Brevo Pulse Rejected: ${error.message || response.statusText}` 
+          message: `Brevo SMTP Rejection: ${error.message || response.statusText}` 
         };
       }
     } else {
@@ -69,18 +68,16 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
 
       if (!response.ok) {
         const error = await response.json();
-        console.error("BREVO SMS REJECTION:", error);
         return { 
           success: false, 
-          message: `Brevo SMS Rejected: ${error.message || response.statusText}` 
+          message: `Brevo SMS Rejection: ${error.message || response.statusText}` 
         };
       }
     }
 
     return { success: true };
   } catch (error: any) {
-    console.error("TRANSMISSION PROTOCOL EXCEPTION:", error);
-    return { success: false, message: `Identity dispatch failed: ${error.message}` };
+    return { success: false, message: `Transmission Failure: ${error.message}` };
   }
 }
 
@@ -93,6 +90,7 @@ export async function sendVerificationCodeAction(identifier: string, type: 'EMAI
   const expiresAt = Date.now() + (2 * 60 * 1000); 
 
   try {
+    // 1. Vault Archival
     await databases.createDocument(
       APPWRITE_DATABASE_ID,
       VERIFICATION_CODES_COLLECTION_ID,
@@ -100,13 +98,13 @@ export async function sendVerificationCodeAction(identifier: string, type: 'EMAI
       { identifier, code, expiresAt, type }
     );
 
+    // 2. Emission
     const transmission = await sendCodeViaBrevo({ identifier, code, type });
     return transmission;
   } catch (error: any) {
-    console.error("OTP HANDSHAKE CRITICAL FAILURE:", error);
     return { 
       success: false, 
-      message: `Vault Handshake Rejected: ${error.message || "Unknown error"}.` 
+      message: `Vault Rejection (OTP): ${error.message || "Could not archive verification node."}` 
     };
   }
 }
@@ -132,7 +130,7 @@ export async function verifyCodeAction(identifier: string, code: string) {
       return { success: true };
     }
     
-    return { success: false, message: "Invalid or expired signature." };
+    return { success: false, message: "Invalid or expired signature pulse." };
   } catch (error: any) {
     return { success: false, message: `Vault Query Failure: ${error.message}` };
   }
@@ -140,6 +138,7 @@ export async function verifyCodeAction(identifier: string, code: string) {
 
 /**
  * Materializes a new identity node in the network.
+ * RETURNS: SERIALIZABLE OBJECT ONLY.
  */
 export async function signupServerAction(d: any) {
   const { account, databases } = createAdminClient();
@@ -148,8 +147,10 @@ export async function signupServerAction(d: any) {
   const emailNode = d.email || `${safePhone}@vimore.net`;
 
   try {
+    // 1. Create Auth Identity
     await account.create(userId, emailNode, d.password, d.name);
 
+    // 2. Materialize Profile Node (18 Attributes Verified)
     await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, {
       name: d.name,
       username: d.username,
@@ -164,17 +165,17 @@ export async function signupServerAction(d: any) {
       starBalance: 0,
       referralCount: 0,
       referredBy: d.referredBy || '',
-      bio: "",
+      bio: d.bio || "",
       nationality: d.nationality || "Other",
       gender: d.gender || "Other",
       dateOfBirth: d.dob || "",
       joinDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     });
 
-    return { success: true, userId };
+    return { success: true, userId, email: emailNode };
   } catch (e: any) {
-    console.error("SIGNUP HANDSHAKE FAILURE:", e.message);
-    return { success: false, message: `Identity Materialization Failed: ${e.message}` };
+    // Return ONLY a serializable string to prevent NextJS Render Errors
+    return { success: false, message: `Vault Rejection (Profile): ${e.message}` };
   }
 }
 
@@ -196,7 +197,6 @@ export async function loginServerAction(identifier: string, p: string) {
 
     return { success: true, email: emailNode };
   } catch (e: any) {
-    console.error("LOGIN HANDSHAKE FAILURE:", e.message);
-    return { success: false, message: `Login Pulse Failed: ${e.message}` };
+    return { success: false, message: `Vault Rejection (Login): ${e.message}` };
   }
 }

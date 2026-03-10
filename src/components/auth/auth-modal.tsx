@@ -104,10 +104,11 @@ export function AuthModal() {
     }
 
     setIsLoading(true);
+    setAuthError(null);
     triggerHaptic(30);
     
     try {
-      // PHASE 1: MATERIALIZE IDENTITY (Account Creation)
+      // 1. Materialize Identity (Server creates Auth + Profile)
       const sanitizedUsername = username.toLowerCase().trim().replace(/\s+/g, '_');
       await signup({
         email: identifier.includes('@') ? identifier : undefined,
@@ -120,10 +121,11 @@ export function AuthModal() {
         gender
       });
 
-      // PHASE 2: SWITCH TO VERIFY (OTP screen)
+      // 2. Transition to Verify (signup function in context triggers sendVerificationCode)
       setMode('verify');
-      toast({ title: "Identity Created", description: "Verification code emitted." });
+      toast({ title: "Identity Materialized", description: "Verification code emitted." });
     } catch (error: any) {
+      // Reveal exact reason from Appwrite
       setAuthError(error.message);
     } finally {
       setIsLoading(false);
@@ -140,7 +142,7 @@ export function AuthModal() {
       const isValid = await verifyCode(identifier, otp);
       if (isValid) {
         toast({ title: "Node Materialized", description: "Welcome to the network cluster." });
-        setMode('login'); // Close modal logic
+        setMode('login'); // Triggers context refresh and close
       } else {
         throw new Error("Signature verification failed. Code invalid or expired.");
       }

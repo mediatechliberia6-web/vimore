@@ -504,18 +504,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const signup = useCallback(async (d: any) => { 
     try {
+      // 1. Materialize Account & Profile
       const res = await signupServerAction({ ...d, referredBy: localStorage.getItem("vimore_referrer") });
       if (!res.success) throw new Error(res.message);
       
-      const emailNode = d.email || `${d.phone.replace(/[^0-9]/g, '')}@vimore.net`;
-      await account.createEmailPasswordSession(emailNode, d.password);
+      // 2. Establish Session
+      await account.createEmailPasswordSession(res.email!, d.password);
       
+      // 3. Emit OTP Pulse via Brevo
       const identifier = d.email || d.phone;
       const type = d.email ? 'EMAIL' : 'PHONE';
       await sendVerificationCode(identifier, type);
       
+      // 4. Final Handshake
       await checkSession();
-    } catch (e: any) { throw new Error(e.message); }
+    } catch (e: any) {
+      // Stringify error to prevent Red Render Error in NextJS
+      throw new Error(String(e.message || e));
+    }
   }, [checkSession, sendVerificationCode]);
 
   const logout = useCallback(async () => {
