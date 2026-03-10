@@ -34,7 +34,7 @@ export const BUCKET_PAYMENTS = 'payments_payout'; // Payment screenshots (3-day 
 export const BUCKET_REEL = 'reel'; // High-velocity video reels
 export const BUCKET_IMAGES = 'images'; // Standard profile and post visuals
 
-// Collection Logic nodes (All 20 verified)
+// Collection Logic nodes (Verified)
 export const PROFILES_COLLECTION_ID = 'profiles';
 export const FOLLOWS_COLLECTION_ID = 'follows';
 export const POSTS_COLLECTION_ID = 'posts';
@@ -43,7 +43,6 @@ export const UNLIKES_COLLECTION_ID = 'unlikes';
 export const COMMENTS_COLLECTION_ID = 'comments';
 export const MESSAGES_COLLECTION_ID = 'messages';
 export const CLUSTERS_COLLECTION_ID = 'clusters';
-export const VERIFICATION_CODES_COLLECTION_ID = 'verification_codes';
 export const WITHDRAWALS_COLLECTION_ID = 'withdrawals';
 export const PAYMENTS_COLLECTION_ID = 'payments';
 export const STORIES_COLLECTION_ID = 'stories';

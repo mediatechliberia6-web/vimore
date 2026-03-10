@@ -1,9 +1,10 @@
+
 'use client';
 
 /**
  * @fileOverview ViMore Core Context Node (Self-Hosted Master)
  * Manages identity, content, economy, and communication handshakes.
- * Finalized for project: vimore | db: vimoreprod | buckets: 6 specialized.
+ * Direct-Entry Protocol Active: Verification steps removed.
  */
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
@@ -41,7 +42,7 @@ import client, {
   project
 } from '@/lib/appwrite';
 import { useToast } from "@/hooks/use-toast";
-import { signupServerAction, loginServerAction, sendVerificationCodeAction, verifyCodeAction } from '@/app/actions/auth';
+import { signupServerAction, loginServerAction } from '@/app/actions/auth';
 import { dataURLtoFile } from '@/lib/utils';
 
 // --- TYPES ---
@@ -231,10 +232,7 @@ interface PostContextType {
   login: (identifier: string, p: string) => Promise<{ success: boolean; message?: string }>;
   signup: (d: any) => Promise<{ success: boolean; accountCreated?: boolean; message?: string }>;
   logout: () => Promise<void>;
-  sendVerificationCode: (identifier: string, type: 'EMAIL' | 'PHONE') => Promise<{ success: boolean; message?: string }>;
-  verifyCode: (identifier: string, code: string) => Promise<boolean>;
   checkSession: () => Promise<void>;
-  resendVerification: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (userId: string, secret: string, password: string) => Promise<void>;
   uploadMedia: (file: File, bucketId: string) => Promise<string>;
@@ -465,7 +463,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const user = await account.get();
       const profile = await databases.getDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, user.$id);
-      setCurrentUserState({ id: user.$id, ...profile, isEmailVerified: user.emailVerification } as any);
+      setCurrentUserState({ id: user.$id, ...profile, isEmailVerified: true } as any);
       
       const history = await databases.listDocuments(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, [Query.equal('userId', user.$id)]);
       const pReqs = await databases.listDocuments(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, [Query.equal('userId', user.$id)]);
@@ -498,20 +496,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, [checkSession]);
 
-  const sendVerificationCode = useCallback(async (identifier: string, type: 'EMAIL' | 'PHONE') => {
-    try {
-      const res = await sendVerificationCodeAction(identifier, type);
-      return res; // Returns result object directly
-    } catch (e: any) { 
-      return { success: false, message: String(e.message || e) };
-    }
-  }, []);
-
   const signup = useCallback(async (d: any) => { 
-    let accountCreated = false;
-    let identifier = d.email || d.phone;
-    let type = d.email ? 'EMAIL' : 'PHONE';
-
     try {
       // 1. Materialize Account & Profile
       const res = await signupServerAction({ ...d, referredBy: localStorage.getItem("vimore_referrer") });
@@ -520,35 +505,25 @@ export function PostProvider({ children }: { children: ReactNode }) {
         return { success: false, accountCreated: false, message: res.message };
       }
 
-      // Transition hint for UI
-      accountCreated = true;
+      // 2. Establish Session (Client Side)
+      await account.createEmailPasswordSession(res.email!, d.password);
       
-      // 2. Try to Establish Session (Client Side)
-      try {
-        await account.createEmailPasswordSession(res.email!, d.password);
-      } catch (sessionErr) {
-        console.warn("Session pulse deferred. User will need to manually log in if OTP emission fails.");
-      }
-      
-      // 3. Emit OTP Pulse via Brevo
-      const otpRes = await sendVerificationCode(identifier, type);
-      
-      // 4. Final state sync
+      // 3. Final state sync
       await checkSession();
 
       return { 
-        success: otpRes.success, 
+        success: true, 
         accountCreated: true,
-        message: otpRes.success ? "Identity materialized. Verify code now." : `Identity created, but OTP failed: ${otpRes.message}` 
+        message: "Identity materialized successfully." 
       };
     } catch (e: any) {
       return { 
         success: false, 
-        accountCreated, 
+        accountCreated: false, 
         message: String(e.message || e) 
       };
     }
-  }, [checkSession, sendVerificationCode]);
+  }, [checkSession]);
 
   const logout = useCallback(async () => {
     try { 
@@ -557,17 +532,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       window.location.href = "/"; 
     } catch (e) {}
   }, []);
-
-  const verifyCode = useCallback(async (identifier: string, code: string) => {
-    try {
-      const res = await verifyCodeAction(identifier, code);
-      if (res.success) {
-        // Refresh session to pick up verification status
-        await checkSession();
-      }
-      return res.success;
-    } catch (e) { return false; }
-  }, [checkSession]);
 
   const addPost = useCallback(async (pData: any) => {
     if (!currentUser.id) return;
@@ -757,8 +721,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const recordWithdrawal = useCallback(async (node: any) => {
     if (!currentUser.id) return;
     try {
-      await databases.createDocument(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, ID.unique(), { userId: currentUser.id, ...node });
-      setWithdrawalHistoryState(prev => [node, ...prev]);
+      await databases.createDocument(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, ID.unique(), { userId: currentUser.id, ...node, status: 'PENDING' });
+      setWithdrawalHistoryState(prev => [{...node, status: 'PENDING'}, ...prev]);
     } catch (e: any) { throw new Error(e.message); }
   }, [currentUser]);
 
@@ -982,7 +946,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setMutedUserNamesState(prev => prev.includes(u) ? prev.filter(n => n !== u) : [...prev, u]);
   }, []);
 
-  const resendVerification = useCallback(async () => { await account.createVerification(window.location.origin + '/auth/verify'); }, []);
+  const resendVerification = useCallback(async () => { /* No-op in Direct Entry */ }, []);
   const forgotPassword = useCallback(async (email: string) => { await account.createRecovery(email, window.location.origin + '/auth/recovery'); }, []);
   const resetPassword = useCallback(async (u: string, s: string, p: string) => { await account.updateRecovery(u, s, p, p); }, []);
 
@@ -1008,7 +972,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const contextValue = useMemo(() => ({
     currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, referralLink: "http://vimore.network/join/" + currentUser.username, pendingTransaction, activeSubscriptions,
-    login, signup, logout, sendVerificationCode, verifyCode, checkSession, resendVerification, forgotPassword, resetPassword, uploadMedia, addPost, deletePost, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, updateCurrentUser, updateSettings, updateGatewaySettings, setSearchOpen: setIsSearchOpenState, setSelectedChatId: setSelectedChatIdState, setSelectedPostId: setSelectedPostIdState, setSelectedImageUrl: setSelectedImageUrlState, setSelectedVideoUrl: setSelectedVideoUrlState, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, triggerHaptic, isPostLiked: (id: string) => likedPostIds.has(id), isPostUnliked: (id: string) => unlikedPostIds.has(id), isPostSaved: (id: string) => savedPostIds.has(id), isPostUnlocked: (id: string) => unlockedPostIds.has(id), isFollowing: (u: string) => followingUsernames.has(u), isSubscribed: (u: string) => activeSubscriptions.has(u), addComment, addReply, addStory, boostNode, recordView, recordStoryView, createCluster, addMemberToCluster, leaveCluster, initiateTransaction, cancelTransaction, createPaymentRequest, recordWithdrawal, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, fetchComments, refreshFeed, refreshStories, refreshProfiles, refreshClusters, fetchProfileByUsername, promoteUser, demoteUser, voteOnPostPoll, cancelSubscription, incrementShareCount, toggleMuteUser, togglePinPost, archivePost, addAuditLog, approvePaymentRequest, rejectPaymentRequest, processWithdrawal, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, initiateCall, acceptCall, endCall, refreshAdminData, updateUserIdentity, handleReportAction, handleTicketAction, voteOnStoryPoll
+    login, signup, logout, checkSession, resendVerification, forgotPassword, resetPassword, uploadMedia, addPost, deletePost, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, updateCurrentUser, updateSettings, updateGatewaySettings, setSearchOpen: setIsSearchOpenState, setSelectedChatId: setSelectedChatIdState, setSelectedPostId: setSelectedPostIdState, setSelectedImageUrl: setSelectedImageUrlState, setSelectedVideoUrl: setSelectedVideoUrlState, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, triggerHaptic, isPostLiked: (id: string) => likedPostIds.has(id), isPostUnliked: (id: string) => unlikedPostIds.has(id), isPostSaved: (id: string) => savedPostIds.has(id), isPostUnlocked: (id: string) => unlockedPostIds.has(id), isFollowing: (u: string) => followingUsernames.has(u), isSubscribed: (u: string) => activeSubscriptions.has(u), addComment, addReply, addStory, boostNode, recordView, recordStoryView, createCluster, addMemberToCluster, leaveCluster, initiateTransaction, cancelTransaction, createPaymentRequest, recordWithdrawal, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, fetchComments, refreshFeed, refreshStories, refreshProfiles, refreshClusters, fetchProfileByUsername, promoteUser, demoteUser, voteOnPostPoll, cancelSubscription, incrementShareCount, toggleMuteUser, togglePinPost, archivePost, addAuditLog, approvePaymentRequest, rejectPaymentRequest, processWithdrawal, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, initiateCall, acceptCall, endCall, refreshAdminData, updateUserIdentity, handleReportAction, handleTicketAction, voteOnStoryPoll
   }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, login, signup, logout, checkSession, resendVerification, forgotPassword, resetPassword, uploadMedia, addPost, deletePost, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, updateCurrentUser, updateSettings, updateGatewaySettings, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, triggerHaptic, addComment, addReply, addStory, boostNode, recordView, recordStoryView, createCluster, addMemberToCluster, leaveCluster, initiateTransaction, cancelTransaction, createPaymentRequest, recordWithdrawal, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, fetchComments, refreshFeed, refreshStories, refreshProfiles, refreshClusters, fetchProfileByUsername, promoteUser, demoteUser, voteOnPostPoll, cancelSubscription, incrementShareCount, toggleMuteUser, togglePinPost, archivePost, addAuditLog, approvePaymentRequest, rejectPaymentRequest, processWithdrawal, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, initiateCall, acceptCall, endCall, refreshAdminData, updateUserIdentity, handleReportAction, handleTicketAction, setActiveStoryIndex, voteOnStoryPoll]);
 
   useEffect(() => { checkSession(); }, [checkSession]);

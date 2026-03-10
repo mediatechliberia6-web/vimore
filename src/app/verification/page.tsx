@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -27,18 +28,16 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
 export default function VerificationHub() {
-  const { currentUser, verifyUser, triggerHaptic, resendVerification } = usePosts();
+  const { currentUser, verifyUser, triggerHaptic } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
   const { toast } = useToast();
 
   const [currencyChoice, setCurrencyChoice] = useState<'DIAMOND' | 'STAR'>('DIAMOND');
   const [isVerifying, setIsVerifying] = useState(false);
-  const [isResending, setIsResending] = useState(false);
 
   const isPlayerActive = currentTrack && !isExpanded;
   const isFirstTime = !currentUser.hasEverBeenVerified;
-  const isEmailPulseActive = currentUser.isEmailVerified;
 
   const pricing = useMemo(() => {
     if (isFirstTime) {
@@ -52,25 +51,7 @@ export default function VerificationHub() {
     ? (currentUser.diamondBalance || 0) >= pricing.diamond 
     : (currentUser.starBalance || 0) >= pricing.star;
 
-  const handleResendEmail = async () => {
-    setIsResending(true);
-    triggerHaptic(10);
-    try {
-      await resendVerification();
-      toast({ title: "Email Pulse Re-emitted", description: "Check your inbox for the verification link." });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Sync Failed" });
-    } finally {
-      setIsResending(false);
-    }
-  };
-
   const handleVerificationRequest = async () => {
-    if (!isEmailPulseActive) {
-      toast({ variant: "destructive", title: "Handshake Required", description: "You must synchronize your email node before materializing a signature." });
-      return;
-    }
-
     if (!hasBalance) {
       triggerHaptic(50);
       toast({ 
@@ -85,8 +66,7 @@ export default function VerificationHub() {
     triggerHaptic(20);
 
     try {
-      // VI-MORE PAYMENT VERIFICATION SYSTEM (PHASE 3)
-      // Deterministic handshake: No AI audit required. 
+      // VI-MORE PAYMENT VERIFICATION SYSTEM
       await verifyUser(currentCost, currencyChoice);
       
       // SYNC SIGNAL
@@ -152,32 +132,6 @@ export default function VerificationHub() {
         isPlayerActive ? "pt-[80px]" : "pt-4"
       )}>
         
-        {/* Email Verification Requirement Card */}
-        {!isEmailPulseActive && (
-          <section className="bg-red-500/10 border-2 border-red-500/20 rounded-[2.5rem] p-8 space-y-6 animate-in shake-vibe">
-            <div className="flex items-center gap-4">
-              <div className="h-14 w-14 rounded-2xl bg-red-500 flex items-center justify-center text-white shadow-xl shadow-red-500/20">
-                <Mail className="h-7 w-7" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-xl font-black italic uppercase tracking-tighter text-red-500">Identity Guard</h3>
-                <p className="text-[10px] font-bold text-red-500/60 uppercase tracking-widest">Email Handshake Required</p>
-              </div>
-            </div>
-            <p className="text-sm font-medium leading-relaxed text-red-500/80">
-              You must synchronize your email node before materializing spatial authority (Purple Signature). 
-            </p>
-            <Button 
-              className="w-full h-12 rounded-xl bg-red-500 text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg shadow-red-500/20"
-              onClick={handleResendEmail}
-              disabled={isResending}
-            >
-              {isResending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-              {isResending ? "EMITTING PULSE..." : "Send Verification Email"}
-            </Button>
-          </section>
-        )}
-
         {/* Profile Signature Preview */}
         <section className="text-center space-y-6">
           <div className="relative inline-block group">
@@ -200,7 +154,7 @@ export default function VerificationHub() {
         </section>
 
         {/* Pricing Protocol Selection */}
-        <section className={cn("space-y-6 transition-opacity", !isEmailPulseActive && "opacity-40 pointer-events-none")}>
+        <section className="space-y-6">
           <div className="flex flex-col items-center gap-2">
             <Badge variant="outline" className="border-primary/20 text-primary text-[10px] font-black uppercase tracking-[0.3em] px-4 py-1">
               {isFirstTime ? 'Initial Handshake' : 'Temporal Renewal'}
@@ -269,19 +223,17 @@ export default function VerificationHub() {
           <Button 
             className={cn(
               "w-full h-16 rounded-[1.75rem] font-black italic uppercase tracking-[0.3em] text-lg shadow-2xl transition-all active:scale-[0.98]",
-              hasBalance && !isVerifying && isEmailPulseActive
+              hasBalance && !isVerifying
                 ? "bg-primary text-white shadow-primary/20 hover:translate-y-[-2px] hover:shadow-primary/30" 
                 : "bg-secondary text-muted-foreground/40 cursor-not-allowed"
             )}
-            disabled={!hasBalance || isVerifying || currentUser.isVerified || !isEmailPulseActive}
+            disabled={!hasBalance || isVerifying || currentUser.isVerified}
             onClick={handleVerificationRequest}
           >
             {isVerifying ? (
               <><Loader2 className="mr-3 h-6 w-6 animate-spin" /> SYNCING VAULT...</>
             ) : currentUser.isVerified ? (
               <><CheckCircle2 className="mr-3 h-6 w-6" /> SIGNATURE ACTIVE</>
-            ) : !isEmailPulseActive ? (
-              <><Mail className="mr-3 h-6 w-6" /> SYNC EMAIL FIRST</>
             ) : (
               <><Zap className="mr-3 h-6 w-6" /> UPGRADE IDENTITY</>
             )}

@@ -1,35 +1,25 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { 
   Zap, 
   Mail, 
   Lock, 
-  ArrowRight, 
   Loader2, 
   ShieldCheck, 
   AtSign, 
   User,
-  Sparkles,
-  ChevronRight,
   Globe,
   Calendar,
-  Users,
-  CheckCircle2,
-  MailQuestion,
-  X,
-  ArrowLeft,
-  Check,
-  RefreshCw,
   AlertTriangle,
-  Smartphone
+  Smartphone,
+  ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { usePosts } from "@/context/PostContext";
-import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -38,10 +28,10 @@ const NATIONALITIES = [
 ];
 
 export function AuthModal() {
-  const { currentUser, login, signup, sendVerificationCode, verifyCode, triggerHaptic } = usePosts();
+  const { currentUser, login, signup, triggerHaptic } = usePosts();
   const { toast } = useToast();
   
-  const [mode, setMode] = useState<"login" | "signup" | "verify" | "forgot">("login");
+  const [mode, setMode] = useState<"login" | "signup">("login");
   const [signupStep, setSignupStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -51,15 +41,14 @@ export function AuthModal() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
-  const [otp, setOtp] = useState("");
   
   // Identity Nodes State
   const [dob, setDob] = useState("");
   const [nationality, setNationality] = useState("Liberian");
   const [gender, setGender] = useState<'Male' | 'Female'>('Male');
 
-  // Terminal Handshake: Modal stays open if verified state is required or signup not started
-  if (currentUser?.id && currentUser.username !== 'guest_node' && mode !== 'verify') return null;
+  // Terminal Handshake
+  if (currentUser?.id && currentUser.username !== 'guest_node') return null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,7 +101,6 @@ export function AuthModal() {
     triggerHaptic(30);
     
     try {
-      // 1. Materialize Identity
       const sanitizedUsername = username.toLowerCase().trim().replace(/\s+/g, '_');
       const res = await signup({
         email: identifier.includes('@') ? identifier : undefined,
@@ -125,59 +113,13 @@ export function AuthModal() {
         gender
       });
 
-      if (res.success || res.accountCreated) {
-        setMode('verify');
-        if (res.success) {
-          toast({ title: "Identity Materialized", description: "Verification code emitted." });
-        } else {
-          setAuthError(res.message);
-          toast({ variant: "destructive", title: "Partial Handshake", description: "Account created but OTP failed. You can retry on next screen." });
-        }
+      if (res.success) {
+        toast({ title: "Identity Materialized", description: "Welcome to the network." });
       } else {
         setAuthError(res.message || "Identity node creation rejected.");
       }
     } catch (error: any) {
       setAuthError(String(error.message || error));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setAuthError(null);
-    triggerHaptic(30);
-
-    try {
-      const isValid = await verifyCode(identifier, otp);
-      if (isValid) {
-        toast({ title: "Node Materialized", description: "Welcome to the network cluster." });
-        setMode('login'); // Triggers context refresh and close
-      } else {
-        setAuthError("Signature verification failed. Code invalid or expired.");
-      }
-    } catch (error: any) {
-      setAuthError(String(error.message || error));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleResend = async () => {
-    setIsLoading(true);
-    setAuthError(null);
-    triggerHaptic(10);
-    try {
-      const type = identifier.includes('@') ? 'EMAIL' : 'PHONE';
-      const res = await sendVerificationCode(identifier, type);
-      if (res.success) {
-        toast({ title: "Pulse Re-emitted", description: "A new code has been transmitted." });
-      } else {
-        setAuthError(res.message);
-      }
-    } catch (e: any) {
-      setAuthError(String(e.message || e));
     } finally {
       setIsLoading(false);
     }
@@ -216,7 +158,7 @@ export function AuthModal() {
             </div>
           )}
 
-          {mode === 'login' && (
+          {mode === 'login' ? (
             <form onSubmit={handleLogin} className="space-y-6 animate-in slide-in-from-bottom-4">
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -227,16 +169,14 @@ export function AuthModal() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center px-1"><Label className="text-[10px] font-black uppercase text-white/40">Security Signature</Label></div>
+                  <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Security Signature</Label>
                   <div className="relative"><Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" /><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 pl-11 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="••••••••" /></div>
                 </div>
               </div>
               <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sync Identity"}</Button>
               <div className="text-center"><button type="button" onClick={() => { setMode('signup'); setSignupStep(1); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Materialize New Identity</button></div>
             </form>
-          )}
-
-          {mode === 'signup' && (
+          ) : (
             <form onSubmit={handleSignupInit} className="space-y-6 animate-in slide-in-from-bottom-4">
               {signupStep === 1 ? (
                 <div className="space-y-4">
@@ -280,29 +220,10 @@ export function AuthModal() {
             </form>
           )}
 
-          {mode === 'verify' && (
-            <form onSubmit={handleVerifyOTP} className="space-y-8 animate-in zoom-in-95 duration-500 text-center">
-              <div className="space-y-2">
-                <div className="h-16 w-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mx-auto mb-4 animate-pulse"><CheckCircle2 className="h-8 w-8" /></div>
-                <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Identity Created</h3>
-                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Verify ID: {identifier}</p>
-              </div>
-              <div className="space-y-4">
-                <Input value={otp} onChange={(e) => setOtp(e.target.value)} maxLength={6} className="h-16 bg-white/5 border-none rounded-2xl text-white text-3xl font-black tracking-[0.5em] text-center" placeholder="XXXXXX" />
-                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex flex-col gap-2">
-                  <p className="text-[9px] font-bold text-primary/60 uppercase">Check your nodes. Valid for 2 mins.</p>
-                  <button type="button" onClick={handleResend} disabled={isLoading} className="text-[10px] font-black text-primary underline uppercase tracking-widest hover:text-primary/80 disabled:opacity-50">Resend Code</button>
-                </div>
-              </div>
-              <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Node"}</Button>
-              <button type="button" onClick={() => { setMode('login'); setSignupStep(1); setAuthError(null); }} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-primary">Cancel & Discard</button>
-            </form>
-          )}
-
         </div>
 
         <footer className="w-full flex flex-col items-center gap-4 opacity-40">
-          <div className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-primary" /><span className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Brevo Sync Cluster v1.5</span></div>
+          <div className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-primary" /><span className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Command Cluster v1.5</span></div>
           <p className="text-[9px] font-bold text-white uppercase tracking-widest text-center">ViMore Logic • Automated Identity Vault</p>
         </footer>
       </div>

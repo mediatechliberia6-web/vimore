@@ -1,35 +1,25 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo } from "react";
 import { 
   ArrowLeft, 
   Coins, 
   Gem, 
   TrendingUp, 
-  Info, 
   ShieldCheck, 
   ChevronRight,
   Wallet,
   ArrowDownToLine,
-  BarChart3,
   PieChart as PieIcon,
-  HelpCircle,
   Zap,
-  Globe,
-  Star,
   CheckCircle2,
   Lock,
   History,
   Building2,
   Smartphone,
-  Check,
   X,
   Loader2,
-  Clock,
-  ShieldAlert,
-  Mail,
-  AlertTriangle,
   FileText,
   CircleDashed
 } from "lucide-react";
@@ -52,11 +42,6 @@ import {
   ResponsiveContainer, 
   Tooltip as RechartsTooltip 
 } from "recharts";
-import { 
-  ChartContainer, 
-  ChartTooltip, 
-  ChartTooltipContent 
-} from "@/components/ui/chart";
 import { useToast } from "@/hooks/use-toast";
 import { BiometricGate } from "@/components/layout/biometric-gate";
 import { BannerAdNode } from "@/components/ad/banner-ad-node";
@@ -66,27 +51,8 @@ const REVENUE_DATA = [
   { name: "Subscriptions", value: 35, color: "hsl(var(--accent))" },
 ];
 
-const QUALIFICATIONS = [
-  { 
-    title: "Locked Vibe Protocol", 
-    requirement: "10,000+ Followers", 
-    benefit: "Monetize posts & reels with Gold gates.",
-    icon: Lock,
-    color: "text-amber-500",
-    bg: "bg-amber-500/10"
-  },
-  { 
-    title: "Diamond Loyalty Loop", 
-    requirement: "50,000+ Followers", 
-    benefit: "Materialize monthly Diamond subscriptions.",
-    icon: Gem,
-    color: "text-cyan-500",
-    bg: "bg-cyan-500/10"
-  },
-];
-
 export default function EarningsPage() {
-  const { currentUser, triggerHaptic, withdrawalHistory, recordWithdrawal, processGiftTransaction, settings, resendVerification } = usePosts();
+  const { currentUser, triggerHaptic, withdrawalHistory, recordWithdrawal, processGiftTransaction, settings } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
   const { t } = useTranslation();
@@ -113,7 +79,6 @@ export default function EarningsPage() {
   ], [settings]);
 
   // PORTAL STATE
-  const [step, setStep] = useState<"form" | "authorize">("form");
   const [payoutMethod, setPayoutMethod] = useState<"ORANGE" | "MTN" | null>(null);
   const [accountName, setAccountName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
@@ -149,11 +114,11 @@ export default function EarningsPage() {
     return rawAmount > 0 && rawAmount <= balance;
   }, [withdrawCurrency, rawAmount, currentUser]);
 
-  const canProceedToVerify = payoutMethod && accountName && accountNumber && amount && hasEnoughBalance;
+  const canProceed = payoutMethod && accountName && accountNumber && amount && hasEnoughBalance;
 
   // HANDLERS
   const handleInitiateHandshake = async () => {
-    if (!canProceedToVerify) return;
+    if (!canProceed) return;
     setIsSubmitting(true);
     triggerHaptic(50);
     
@@ -169,7 +134,6 @@ export default function EarningsPage() {
         currency: withdrawCurrency,
         payoutAmount: calculation.finalPayout,
         payoutCurrency: payoutCurrency,
-        status: 'AWAITING_EMAIL_SIGNATURE' as const,
         timestamp: Date.now(),
         accountName,
         accountNumber
@@ -178,22 +142,19 @@ export default function EarningsPage() {
       // 2. Archive record in vault
       await recordWithdrawal(historyNode);
 
-      // 3. Emit Official Appwrite Identity Link
-      await resendVerification();
-
-      setStep("authorize");
-      
       addSignal({
         type: 'SYSTEM',
-        title: 'Authorization Required',
-        content: `Please check your email to sign the withdrawal request for **${payoutCurrency} ${calculation.finalPayout.toFixed(2)}**.`,
+        title: 'Withdrawal Pending',
+        content: `Your request for **${payoutCurrency} ${calculation.finalPayout.toFixed(2)}** is being processed by the financial cluster.`,
         image: "https://picsum.photos/seed/secure/100/100"
       });
 
       toast({
-        title: "Authorization Link Emitted",
-        description: "Node created. Check your email to finalize the handshake."
+        title: "Request Transmitted",
+        description: "Your financial node is now pending review."
       });
+      setIsPortalOpen(false);
+      resetPortal();
     } catch (e: any) {
       toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
     } finally {
@@ -202,7 +163,6 @@ export default function EarningsPage() {
   };
 
   const resetPortal = () => {
-    setStep("form");
     setPayoutMethod(null);
     setAccountName("");
     setAccountNumber("");
@@ -373,9 +333,9 @@ export default function EarningsPage() {
                   <div className="flex items-center gap-4">
                     <div className={cn(
                       "h-12 w-12 rounded-2xl flex items-center justify-center",
-                      node.status === 'PENDING' || node.status === 'AWAITING_EMAIL_SIGNATURE' ? "bg-amber-500/10 text-amber-500" : "bg-green-500/10 text-green-500"
+                      node.status === 'PENDING' ? "bg-amber-500/10 text-amber-500" : "bg-green-500/10 text-green-500"
                     )}>
-                      {node.status === 'PENDING' || node.status === 'AWAITING_EMAIL_SIGNATURE' ? <CircleDashed className="h-6 w-6 animate-spin" /> : <CheckCircle2 className="h-6 w-6" />}
+                      {node.status === 'PENDING' ? <CircleDashed className="h-6 w-6 animate-spin" /> : <CheckCircle2 className="h-6 w-6" />}
                     </div>
                     <div className="flex flex-col">
                       <p className="text-sm font-bold">{node.payoutCurrency} {node.payoutAmount.toFixed(2)}</p>
@@ -389,9 +349,9 @@ export default function EarningsPage() {
                   <div className="flex flex-col items-end">
                     <Badge className={cn(
                       "font-black text-[8px] uppercase tracking-tighter border-none h-5 px-3",
-                      node.status === 'PENDING' || node.status === 'AWAITING_EMAIL_SIGNATURE' ? "bg-amber-500/10 text-amber-500" : "bg-green-500/10 text-green-500"
+                      node.status === 'PENDING' ? "bg-amber-500/10 text-amber-500" : "bg-green-500/10 text-green-500"
                     )}>
-                      {node.status === 'AWAITING_EMAIL_SIGNATURE' ? 'AWAITING AUTH' : node.status}
+                      {node.status}
                     </Badge>
                     <span className="text-[9px] text-muted-foreground uppercase mt-1">{new Date(node.timestamp).toLocaleDateString()}</span>
                   </div>
@@ -421,106 +381,103 @@ export default function EarningsPage() {
 
             <main className="flex-1 overflow-y-auto p-6 sm:p-12">
               <div className="max-w-xl mx-auto space-y-10">
-                
-                {step === 'form' ? (
-                  <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500">
-                    <section className="space-y-6">
-                      <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 text-center">Select Payout Node</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        <button 
-                          onClick={() => { triggerHaptic(10); setPayoutMethod("ORANGE"); }}
+                <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500">
+                  <section className="space-y-6">
+                    <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 text-center">Select Payout Node</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button 
+                        onClick={() => { triggerHaptic(10); setPayoutMethod("ORANGE"); }}
+                        className={cn(
+                          "h-24 rounded-3xl border-2 flex flex-col items-center justify-center gap-2 transition-all group",
+                          payoutMethod === "ORANGE" ? "bg-orange-500 border-orange-400 text-white shadow-xl shadow-orange-500/20" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
+                        )}
+                      >
+                        <Smartphone className="h-6 w-6" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Orange Money</span>
+                      </button>
+                      <button 
+                        onClick={() => { triggerHaptic(10); setPayoutMethod("MTN"); }}
+                        className={cn(
+                          "h-24 rounded-3xl border-2 flex flex-col items-center justify-center gap-2 transition-all group",
+                          payoutMethod === "MTN" ? "bg-yellow-500 border-yellow-400 text-black shadow-xl shadow-yellow-500/20" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
+                        )}
+                      >
+                        <Building2 className="h-6 w-6" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">MTN Momo</span>
+                      </button>
+                    </div>
+                  </section>
+
+                  <section className="space-y-6 bg-white/5 border border-white/10 p-8 rounded-[2.5rem]">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Account Identity (Name)</Label>
+                        <Input 
+                          placeholder="Registered account holder name" 
+                          className="h-14 bg-white/5 border-none rounded-2xl text-white font-bold"
+                          value={accountName}
+                          onChange={(e) => setAccountName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Node Number (Phone)</Label>
+                        <Input 
+                          placeholder="+231 77/88..." 
+                          className="h-14 bg-white/5 border-none rounded-2xl text-white font-bold"
+                          value={accountNumber}
+                          onChange={(e) => setAccountNumber(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-white/5" />
+
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Source Energy</Label>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => setWithdrawCurrency("GOLD")}
+                            className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", withdrawCurrency === 'GOLD' ? "bg-amber-500 text-white" : "bg-white/5 text-white/40")}
+                          >GOLD</button>
+                          <button 
+                            onClick={() => setWithdrawCurrency("DIAMOND")}
+                            className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", withdrawCurrency === 'DIAMOND' ? "bg-cyan-500 text-white" : "bg-white/5 text-white/40")}
+                          >DIAMOND</button>
+                        </div>
+                      </div>
+                      <div className="relative">
+                        <Input 
+                          type="number"
+                          placeholder="Amount to withdraw..." 
                           className={cn(
-                            "h-24 rounded-3xl border-2 flex flex-col items-center justify-center gap-2 transition-all group",
-                            payoutMethod === "ORANGE" ? "bg-orange-500 border-orange-400 text-white shadow-xl shadow-orange-500/20" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
+                            "h-20 bg-white/5 border-none rounded-[1.5rem] text-3xl font-black italic uppercase tracking-tighter text-white px-8",
+                            !hasEnoughBalance && rawAmount > 0 && "text-red-500"
                           )}
-                        >
-                          <Smartphone className="h-6 w-6" />
-                          <span className="text-[10px] font-black uppercase tracking-widest">Orange Money</span>
-                        </button>
-                        <button 
-                          onClick={() => { triggerHaptic(10); setPayoutMethod("MTN"); }}
-                          className={cn(
-                            "h-24 rounded-3xl border-2 flex flex-col items-center justify-center gap-2 transition-all group",
-                            payoutMethod === "MTN" ? "bg-yellow-500 border-yellow-400 text-black shadow-xl shadow-yellow-500/20" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
-                          )}
-                        >
-                          <Building2 className="h-6 w-6" />
-                          <span className="text-[10px] font-black uppercase tracking-widest">MTN Momo</span>
-                        </button>
-                      </div>
-                    </section>
-
-                    <section className="space-y-6 bg-white/5 border border-white/10 p-8 rounded-[2.5rem]">
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Account Identity (Name)</Label>
-                          <Input 
-                            placeholder="Registered account holder name" 
-                            className="h-14 bg-white/5 border-none rounded-2xl text-white font-bold"
-                            value={accountName}
-                            onChange={(e) => setAccountName(e.target.value)}
-                          />
+                          value={amount}
+                          onChange={(e) => setAmount(e.target.value)}
+                        />
+                        <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                          {withdrawCurrency === 'GOLD' ? <Coins className="h-6 w-6 text-amber-500" /> : <Gem className="h-6 w-6 text-cyan-500" />}
                         </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Node Number (Phone)</Label>
-                          <Input 
-                            placeholder="+231 77/88..." 
-                            className="h-14 bg-white/5 border-none rounded-2xl text-white font-bold"
-                            value={accountNumber}
-                            onChange={(e) => setAccountNumber(e.target.value)}
-                          />
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-white/5" />
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Payout Asset</Label>
+                        <div className="flex gap-2">
+                          <button onClick={() => setPayoutCurrency("USD")} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", payoutCurrency === 'USD' ? "bg-white text-black" : "bg-white/5 text-white/40")}>USD ($)</button>
+                          <button onClick={() => setPayoutCurrency("LD")} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", payoutCurrency === 'LD' ? "bg-white text-black" : "bg-white/5 text-white/40")}>LD (L$)</button>
                         </div>
                       </div>
 
-                      <div className="h-px bg-white/5" />
-
-                      <div className="space-y-6">
+                      <div className="bg-black/40 rounded-3xl p-6 space-y-4 border border-white/5">
                         <div className="flex items-center justify-between">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Source Energy</Label>
-                          <div className="flex gap-2">
-                            <button 
-                              onClick={() => setWithdrawCurrency("GOLD")}
-                              className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", withdrawCurrency === 'GOLD' ? "bg-amber-500 text-white" : "bg-white/5 text-white/40")}
-                            >GOLD</button>
-                            <button 
-                              onClick={() => setWithdrawCurrency("DIAMOND")}
-                              className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", withdrawCurrency === 'DIAMOND' ? "bg-cyan-500 text-white" : "bg-white/5 text-white/40")}
-                            >DIAMOND</button>
-                          </div>
-                        </div>
-                        <div className="relative">
-                          <Input 
-                            type="number"
-                            placeholder="Amount to withdraw..." 
-                            className={cn(
-                              "h-20 bg-white/5 border-none rounded-[1.5rem] text-3xl font-black italic uppercase tracking-tighter text-white px-8",
-                              !hasEnoughBalance && rawAmount > 0 && "text-red-500"
-                            )}
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                          />
-                          <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                            {withdrawCurrency === 'GOLD' ? <Coins className="h-6 w-6 text-amber-500" /> : <Gem className="h-6 w-6 text-cyan-500" />}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="h-px bg-white/5" />
-
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Payout Asset</Label>
-                          <div className="flex gap-2">
-                            <button onClick={() => setPayoutCurrency("USD")} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", payoutCurrency === 'USD' ? "bg-white text-black" : "bg-white/5 text-white/40")}>USD ($)</button>
-                            <button onClick={() => setPayoutCurrency("LD")} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", payoutCurrency === 'LD' ? "bg-white text-black" : "bg-white/5 text-white/40")}>LD (L$)</button>
-                          </div>
-                        </div>
-
-                        <div className="bg-black/40 rounded-3xl p-6 space-y-4 border border-white/5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-black uppercase text-white tracking-[0.2em]">Final Payout</span>
-                            <span className="text-2xl font-black italic text-primary">{payoutCurrency === 'USD' ? '$' : 'L$'} {calculation.finalPayout.toFixed(2)}</span>
-                          </div>
+                          <span className="text-xs font-black uppercase text-white tracking-[0.2em]">Final Payout</span>
+                          <span className="text-2xl font-black italic text-primary">{payoutCurrency === 'USD' ? '$' : 'L$'} {calculation.finalPayout.toFixed(2)}</span>
                         </div>
                       </div>
                     </section>
@@ -528,46 +485,15 @@ export default function EarningsPage() {
                     <Button 
                       className={cn(
                         "w-full h-20 rounded-[2rem] font-black italic uppercase tracking-[0.3em] text-xl shadow-2xl transition-all active:scale-95",
-                        canProceedToVerify && !isSubmitting ? "bg-primary text-white shadow-primary/20" : "bg-white/5 text-white/20 cursor-not-allowed"
+                        canProceed && !isSubmitting ? "bg-primary text-white shadow-primary/20" : "bg-white/5 text-white/20 cursor-not-allowed"
                       )}
                       onClick={handleInitiateHandshake}
-                      disabled={!canProceedToVerify || isSubmitting}
+                      disabled={!canProceed || isSubmitting}
                     >
                       {isSubmitting ? <><Loader2 className="mr-3 h-6 w-6 animate-spin" /> SYNCING...</> : "Submit for Review"}
                     </Button>
                   </div>
-                ) : (
-                  <div className="space-y-10 animate-in zoom-in-95 duration-500 text-center">
-                    <div className="relative inline-block">
-                      <div className="absolute -inset-4 bg-primary/20 blur-2xl rounded-full animate-pulse" />
-                      <div className="h-24 w-24 bg-primary rounded-[2.5rem] flex items-center justify-center text-white shadow-2xl relative z-10">
-                        <Mail className="h-10 w-10" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h3 className="text-3xl font-black italic uppercase tracking-tighter text-white">Authorization Required</h3>
-                      <p className="text-sm text-white/40 font-medium uppercase tracking-widest max-w-xs mx-auto">
-                        An identity authorization link has been emitted to your registered email node.
-                      </p>
-                    </div>
-
-                    <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-10 space-y-6">
-                      <div className="flex items-center justify-center gap-3 text-primary animate-pulse">
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Awaiting Signature Pulse...</span>
-                      </div>
-                      <p className="text-xs text-white/60 leading-relaxed font-medium uppercase tracking-tight">
-                        Click the secure link in your email to finalize this financial handshake. This portal will update automatically upon sync.
-                      </p>
-                    </div>
-
-                    <Button variant="ghost" className="text-white/40 font-black uppercase text-[10px] tracking-widest" onClick={() => setIsPortalOpen(false)}>
-                      Back to Hub
-                    </Button>
-                  </div>
-                )}
-
+                </div>
               </div>
             </main>
           </div>
