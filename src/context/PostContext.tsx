@@ -395,14 +395,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
         comments: doc.comments || 0, 
         shares: doc.shares || 0, 
         views: doc.views || 0, 
-        viewers: doc.viewers || [], 
+        viewers: doc.viewers ? JSON.parse(doc.viewers) : [], 
         isLocked: doc.isLocked, 
         unlockPrice: doc.unlockPrice, 
         isBoosted: doc.isBoosted, 
         boostTargetViews: doc.boostTargetViews, 
         boostCurrentViews: doc.boostCurrentViews, 
         boostExpiry: doc.boostExpiry, 
-        poll: doc.poll ? JSON.parse(doc.poll) : undefined
+        poll: doc.poll ? JSON.parse(doc.poll) : undefined,
+        collaborator: doc.collaborator ? JSON.parse(doc.collaborator) : undefined
       } as Post)));
     } catch (e) {}
   }, []);
@@ -412,7 +413,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const now = Date.now();
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, [Query.greaterThan('expiresAt', now)]);
       setStoriesState(response.documents.map(doc => ({ 
-        id: doc.$id, user: typeof doc.user === 'string' ? JSON.parse(doc.user) : doc.user, segments: typeof doc.segments === 'string' ? JSON.parse(doc.segments) : doc.segments, viewCount: doc.viewCount || 0, viewers: doc.viewers || []
+        id: doc.$id, user: typeof doc.user === 'string' ? JSON.parse(doc.user) : doc.user, segments: typeof doc.segments === 'string' ? JSON.parse(doc.segments) : doc.segments, viewCount: doc.viewCount || 0, viewers: doc.viewers ? JSON.parse(doc.viewers) : []
       })));
     } catch (e) {}
   }, []);
@@ -522,7 +523,20 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (!currentUser.id) return;
     try {
       const minimalUser = { name: currentUser.name, username: currentUser.username, avatar: currentUser.avatar, isVerified: currentUser.isVerified, followers: currentUser.followers };
-      await databases.createDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, ID.unique(), { ...pData, user: JSON.stringify(minimalUser), likes: 0, unlikes: 0, comments: 0, shares: 0, views: 0, viewers: [] });
+      const docData = { 
+        ...pData, 
+        user: JSON.stringify(minimalUser), 
+        images: JSON.stringify(pData.images || []),
+        poll: pData.poll ? JSON.stringify(pData.poll) : undefined,
+        collaborator: pData.collaborator ? JSON.stringify(pData.collaborator) : undefined,
+        likes: 0, 
+        unlikes: 0, 
+        comments: 0, 
+        shares: 0, 
+        views: 0, 
+        viewers: JSON.stringify([]) 
+      };
+      await databases.createDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, ID.unique(), docData);
       await refreshFeed();
     } catch (e: any) { throw new Error(e.message); }
   }, [currentUser, refreshFeed]);
@@ -602,7 +616,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const expiresAt = Date.now() + (24 * 60 * 60 * 1000);
       const minimalUser = { name: currentUser.name, username: currentUser.username, avatar: currentUser.avatar };
-      await databases.createDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, ID.unique(), { user: JSON.stringify(minimalUser), segments: JSON.stringify([segment]), expiresAt, viewCount: 0, viewers: [] });
+      await databases.createDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, ID.unique(), { 
+        user: JSON.stringify(minimalUser), 
+        segments: JSON.stringify([segment]), 
+        expiresAt, 
+        viewCount: 0, 
+        viewers: JSON.stringify([]) 
+      });
       await refreshStories();
     } catch (e: any) { throw new Error(e.message); }
   }, [currentUser, refreshStories]);
@@ -778,7 +798,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (!post || (post.viewers || []).includes(currentUser.id)) return;
     try {
       const updatedViewers = [...(post.viewers || []), currentUser.id];
-      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { views: (post.views || 0) + 1, viewers: updatedViewers });
+      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { 
+        views: (post.views || 0) + 1, 
+        viewers: JSON.stringify(updatedViewers) 
+      });
     } catch (e) {}
   }, [currentUser.id, posts]);
 
@@ -788,7 +811,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (!story || (story.viewers || []).includes(currentUser.id)) return;
     try {
       const updatedViewers = [...(story.viewers || []), currentUser.id];
-      await databases.updateDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, storyId, { viewCount: (story.viewCount || 0) + 1, viewers: updatedViewers });
+      await databases.updateDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, storyId, { 
+        viewCount: (story.viewCount || 0) + 1, 
+        viewers: JSON.stringify(updatedViewers) 
+      });
       await refreshStories();
     } catch (e) {}
   }, [currentUser.id, stories, refreshStories]);
