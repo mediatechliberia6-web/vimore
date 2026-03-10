@@ -364,7 +364,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [paymentRequests, setPaymentRequestsState] = useState<any[]>([]);
   const [pendingTransaction, setPendingTransactionState] = useState<any>(null);
 
-  // --- LOGIC NODES (Stabilized Constants) ---
+  // --- LOGIC NODES ---
 
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
@@ -495,15 +495,28 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e: any) { throw new Error(e.message); }
   }, [checkSession]);
 
+  const sendVerificationCode = useCallback(async (identifier: string, type: 'EMAIL' | 'PHONE') => {
+    try {
+      const res = await sendVerificationCodeAction(identifier, type);
+      if (!res.success) throw new Error(res.message);
+    } catch (e: any) { throw new Error(e.message); }
+  }, []);
+
   const signup = useCallback(async (d: any) => { 
     try {
       const res = await signupServerAction({ ...d, referredBy: localStorage.getItem("vimore_referrer") });
       if (!res.success) throw new Error(res.message);
+      
       const emailNode = d.email || `${d.phone.replace(/[^0-9]/g, '')}@vimore.net`;
       await account.createEmailPasswordSession(emailNode, d.password);
+      
+      const identifier = d.email || d.phone;
+      const type = d.email ? 'EMAIL' : 'PHONE';
+      await sendVerificationCode(identifier, type);
+      
       await checkSession();
     } catch (e: any) { throw new Error(e.message); }
-  }, [checkSession]);
+  }, [checkSession, sendVerificationCode]);
 
   const logout = useCallback(async () => {
     try { 
@@ -511,13 +524,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       setCurrentUserState(INITIAL_USER); 
       window.location.href = "/"; 
     } catch (e) {}
-  }, []);
-
-  const sendVerificationCode = useCallback(async (identifier: string, type: 'EMAIL' | 'PHONE') => {
-    try {
-      const res = await sendVerificationCodeAction(identifier, type);
-      if (!res.success) throw new Error(res.message);
-    } catch (e: any) { throw new Error(e.message); }
   }, []);
 
   const verifyCode = useCallback(async (identifier: string, code: string) => {
@@ -646,7 +652,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const createCluster = useCallback(async (name: string, members: any[]) => {
     if (!currentUser.username) return;
     try {
-      const memberList = [...members.map(m => ({ name: m.name, username: m.username, avatar: m.avatar })), { name: currentUser.name, username: currentUser.username, avatar: currentUser.avatar }];
+      const memberList = [...members.map(m => ({ name: m.name, username: m.username, avatar: m.avatar })), { name: currentUser.name, username: currentUser.username, avatar: currentUser.username }];
       await databases.createDocument(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID, ID.unique(), { name, adminUsername: currentUser.username, members: JSON.stringify(memberList) });
       await refreshClusters();
     } catch (e: any) { throw new Error(e.message); }

@@ -52,7 +52,6 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
         };
       }
     } else {
-      // Brevo Transactional SMS Protocol
       const response = await fetch('https://api.brevo.com/v3/transactionalSMS/sms', {
         method: 'POST',
         headers: {
@@ -91,12 +90,9 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
 export async function sendVerificationCodeAction(identifier: string, type: 'EMAIL' | 'PHONE') {
   const { databases } = createAdminClient();
   const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = Date.now() + (2 * 60 * 1000); // 2 minute temporal pulse
+  const expiresAt = Date.now() + (2 * 60 * 1000); 
 
   try {
-    console.log(`VAULT AUDIT: Archiving OTP for ${identifier} in ${VERIFICATION_CODES_COLLECTION_ID}...`);
-    
-    // 1. Archive the signature in the self-hosted vault
     await databases.createDocument(
       APPWRITE_DATABASE_ID,
       VERIFICATION_CODES_COLLECTION_ID,
@@ -104,17 +100,13 @@ export async function sendVerificationCodeAction(identifier: string, type: 'EMAI
       { identifier, code, expiresAt, type }
     );
 
-    console.log("VAULT AUDIT: Signature archived. Dispatching Brevo pulse...");
-
-    // 2. Emit the pulse via Brevo Dispatcher
     const transmission = await sendCodeViaBrevo({ identifier, code, type });
     return transmission;
   } catch (error: any) {
     console.error("OTP HANDSHAKE CRITICAL FAILURE:", error);
-    // Expose the exact Appwrite error message to the UI
     return { 
       success: false, 
-      message: `Vault Handshake Rejected: ${error.message || "Unknown error"}. Ensure 'verification_codes' attributes match: identifier(string), code(string), expiresAt(int), type(string).` 
+      message: `Vault Handshake Rejected: ${error.message || "Unknown error"}.` 
     };
   }
 }
@@ -156,10 +148,8 @@ export async function signupServerAction(d: any) {
   const emailNode = d.email || `${safePhone}@vimore.net`;
 
   try {
-    // 1. Create Auth Account
     await account.create(userId, emailNode, d.password, d.name);
 
-    // 2. Create Identity Profile in profiles collection
     await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, {
       name: d.name,
       username: d.username,
@@ -196,7 +186,6 @@ export async function loginServerAction(identifier: string, p: string) {
   let emailNode = identifier;
 
   try {
-    // Phone-to-Email resolution handshake
     if (!identifier.includes('@')) {
       const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
         Query.equal('phone', identifier)

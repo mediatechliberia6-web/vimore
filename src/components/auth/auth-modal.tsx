@@ -57,8 +57,8 @@ export function AuthModal() {
   const [nationality, setNationality] = useState("Liberian");
   const [gender, setGender] = useState<'Male' | 'Female'>('Male');
 
-  // Terminal Handshake: Only show if the node is not materialized
-  if (currentUser?.id && currentUser.username !== 'guest_node') return null;
+  // Terminal Handshake: Modal stays open if verified state is required or signup not started
+  if (currentUser?.id && currentUser.username !== 'guest_node' && mode !== 'verify') return null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,15 +82,15 @@ export function AuthModal() {
     
     if (signupStep === 1) {
       if (!identifier.includes('@') && !/^\d+$/.test(identifier.replace(/\+/g, ''))) {
-        toast({ variant: "destructive", title: "Invalid Node", description: "Email or Phone pulse required." });
+        setAuthError("Email or Phone pulse required.");
         return;
       }
       if (password.length < 8) {
-        toast({ variant: "destructive", title: "Weak Signature", description: "Password must be 8+ characters." });
+        setAuthError("Security signature too weak. (Min 8 chars)");
         return;
       }
       if (!name.trim() || !username.trim()) {
-        toast({ variant: "destructive", title: "Missing Data" });
+        setAuthError("All nodes must be filled.");
         return;
       }
       setSignupStep(2);
@@ -99,7 +99,7 @@ export function AuthModal() {
     }
 
     if (!dob) {
-      toast({ variant: "destructive", title: "Arrival Date Required" });
+      setAuthError("Arrival date required for synchronization.");
       return;
     }
 
@@ -107,10 +107,22 @@ export function AuthModal() {
     triggerHaptic(30);
     
     try {
-      const type = identifier.includes('@') ? 'EMAIL' : 'PHONE';
-      await sendVerificationCode(identifier, type);
+      // PHASE 1: MATERIALIZE IDENTITY (Account Creation)
+      const sanitizedUsername = username.toLowerCase().trim().replace(/\s+/g, '_');
+      await signup({
+        email: identifier.includes('@') ? identifier : undefined,
+        phone: !identifier.includes('@') ? identifier : undefined,
+        password,
+        name,
+        username: sanitizedUsername,
+        dob,
+        nationality,
+        gender
+      });
+
+      // PHASE 2: SWITCH TO VERIFY (OTP screen)
       setMode('verify');
-      toast({ title: "OTP Emitted", description: "Check your email or phone for the 6-digit signature." });
+      toast({ title: "Identity Created", description: "Verification code emitted." });
     } catch (error: any) {
       setAuthError(error.message);
     } finally {
@@ -121,27 +133,16 @@ export function AuthModal() {
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setAuthError(null);
     triggerHaptic(30);
 
     try {
       const isValid = await verifyCode(identifier, otp);
       if (isValid) {
-        const sanitizedUsername = username.toLowerCase().trim().replace(/\s+/g, '_');
-        const isEmail = identifier.includes('@');
-        
-        await signup({
-          email: isEmail ? identifier : undefined,
-          phone: !isEmail ? identifier : undefined,
-          password,
-          name,
-          username: sanitizedUsername,
-          dob,
-          nationality,
-          gender
-        });
         toast({ title: "Node Materialized", description: "Welcome to the network cluster." });
+        setMode('login'); // Close modal logic
       } else {
-        throw new Error("Invalid or expired code.");
+        throw new Error("Signature verification failed. Code invalid or expired.");
       }
     } catch (error: any) {
       setAuthError(error.message);
@@ -177,7 +178,10 @@ export function AuthModal() {
           {authError && (
             <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-start gap-3 animate-in shake-vibe">
               <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-              <p className="text-[11px] font-bold text-destructive uppercase leading-tight tracking-tight">{authError}</p>
+              <div className="flex flex-col">
+                <span className="text-[9px] font-black text-destructive uppercase tracking-widest mb-1">VAULT REJECTION</span>
+                <p className="text-[11px] font-bold text-destructive uppercase leading-tight tracking-tight">{authError}</p>
+              </div>
             </div>
           )}
 
@@ -240,8 +244,8 @@ export function AuthModal() {
                   </div>
                 </div>
               )}
-              <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Send OTP"}</Button>
-              <div className="text-center"><button type="button" onClick={() => { setMode('login'); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Back to Sync</button></div>
+              <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : signupStep === 1 ? "Next Protocol" : "Materialize Identity"}</Button>
+              <div className="text-center"><button type="button" onClick={() => { setMode('login'); setSignupStep(1); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Back to Sync</button></div>
             </form>
           )}
 
@@ -249,15 +253,15 @@ export function AuthModal() {
             <form onSubmit={handleVerifyOTP} className="space-y-8 animate-in zoom-in-95 duration-500 text-center">
               <div className="space-y-2">
                 <div className="h-16 w-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mx-auto mb-4 animate-pulse"><CheckCircle2 className="h-8 w-8" /></div>
-                <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Enter OTP</h3>
-                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Sent to: {identifier}</p>
+                <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Identity Created</h3>
+                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Post-Creation OTP Sent to: {identifier}</p>
               </div>
               <div className="space-y-4">
                 <Input value={otp} onChange={(e) => setOtp(e.target.value)} maxLength={6} className="h-16 bg-white/5 border-none rounded-2xl text-white text-3xl font-black tracking-[0.5em] text-center" placeholder="XXXXXX" />
-                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10"><p className="text-[9px] font-bold text-primary/60 uppercase">Valid for 2 minutes. Sync now.</p></div>
+                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10"><p className="text-[9px] font-bold text-primary/60 uppercase">Check your nodes. Valid for 2 mins.</p></div>
               </div>
               <Button type="submit" disabled={isLoading || otp.length < 6} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Node"}</Button>
-              <button type="button" onClick={() => setMode('signup')} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-primary">Change Identifier</button>
+              <button type="button" onClick={() => { setMode('signup'); setSignupStep(1); }} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-primary">Cancel & Discard</button>
             </form>
           )}
 
@@ -265,7 +269,7 @@ export function AuthModal() {
 
         <footer className="w-full flex flex-col items-center gap-4 opacity-40">
           <div className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-primary" /><span className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Brevo Sync Cluster v1.5</span></div>
-          <p className="text-[9px] font-bold text-white uppercase tracking-widest text-center">ViMore Logic • Automated OTP Node</p>
+          <p className="text-[9px] font-bold text-white uppercase tracking-widest text-center">ViMore Logic • Automated Identity Vault</p>
         </footer>
       </div>
     </div>
