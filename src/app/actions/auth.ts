@@ -1,3 +1,4 @@
+
 'use server';
 
 import { createAdminClient, APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, VERIFICATION_CODES_COLLECTION_ID, ID, Query } from '@/lib/appwrite';
@@ -149,7 +150,7 @@ export async function signupServerAction(d: any) {
     // 1. Create Auth Identity
     await account.create(userId, emailNode, d.password, d.name);
 
-    // 2. Materialize Profile Node (18 Attributes Verified)
+    // 2. Materialize Profile Node
     await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, {
       name: d.name,
       username: d.username,
@@ -173,7 +174,6 @@ export async function signupServerAction(d: any) {
 
     return { success: true, userId, email: emailNode };
   } catch (e: any) {
-    // Return ONLY a serializable string to prevent NextJS Render Errors
     return { success: false, message: `Vault Rejection (Profile): ${String(e.message || e)}` };
   }
 }

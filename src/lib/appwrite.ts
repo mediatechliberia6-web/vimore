@@ -1,4 +1,6 @@
+
 import { Client, Account, Databases, Storage, ID, Query } from 'appwrite';
+import * as sdk from 'node-appwrite';
 
 /**
  * @fileOverview ViMore Appwrite Handshake (Self-Hosted Node)
@@ -7,9 +9,9 @@ import { Client, Account, Databases, Storage, ID, Query } from 'appwrite';
 
 export const endpoint = 'https://mediatechliberia.online/v1';
 export const project = 'vimore';
-export const apiKey = 'standard_f4e50c5273182665455c97f6a72b6c082f918c2c2afd2eaefde3576e8167419d69b36ac00ed89aeb0f706d961f0fa63e0dfbbe289582bc809eb75ba895ff5e8fab4f17142bcd0e195d00414093400db9039591d02053862e258a05c03a01fc0dfb4531ee2b44de329497ee80a5934b7dc2061e5290a999ccfe60fe58e9541034';
+export const apiKey = 'standard_8a1cb610c756f68ae87e9d82b74e58999ff7e45f28315b96b5ed217809b6f5275f03f745de795a0caed1cbbc3b377c24eb52b868ed910a0c9c930855961da108128afcfe448163c0c9a6b91a122a5582fdc9809b1588b03f003e5e6d1b9acea8c9ba46fb9b7082433e82e4e814c2d991fd562b35fc5db77d897901f7566876d0';
 
-// Client-side instance (for sessions and real-time synchronization)
+// Client-side instance (for browser sessions and real-time synchronization)
 const client = new Client()
     .setEndpoint(endpoint)
     .setProject(project);
@@ -56,17 +58,18 @@ export const AUDIT_LOGS_COLLECTION_ID = 'audit_logs';
 
 /**
  * Materializes an Administrative Client for Server-Side Handshakes.
+ * Uses node-appwrite SDK to prevent function errors.
  */
 export const createAdminClient = () => {
-  const adminClient = new Client()
+  const adminClient = new sdk.Client()
     .setEndpoint(endpoint)
     .setProject(project)
     .setKey(apiKey);
     
   return {
-    get account() { return new Account(adminClient); },
-    get databases() { return new Databases(adminClient); },
-    get storage() { return new Storage(adminClient); }
+    get account() { return new sdk.Account(adminClient); },
+    get databases() { return new sdk.Databases(adminClient); },
+    get storage() { return new sdk.Storage(adminClient); }
   };
 };
 
