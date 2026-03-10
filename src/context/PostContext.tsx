@@ -230,7 +230,7 @@ interface PostContextType {
   pendingTransaction: any;
   activeSubscriptions: Set<string>;
   login: (identifier: string, p: string) => Promise<{ success: boolean; message?: string }>;
-  signup: (d: any) => Promise<{ success: boolean; message?: string }>;
+  signup: (d: any) => Promise<{ success: boolean; accountCreated?: boolean; message?: string }>;
   logout: () => Promise<void>;
   sendVerificationCode: (identifier: string, type: 'EMAIL' | 'PHONE') => Promise<{ success: boolean; message?: string }>;
   verifyCode: (identifier: string, code: string) => Promise<boolean>;
@@ -509,27 +509,45 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signup = useCallback(async (d: any) => { 
+    let accountCreated = false;
+    let identifier = d.email || d.phone;
+    let type = d.email ? 'EMAIL' : 'PHONE';
+
     try {
       // 1. Materialize Account & Profile
       const res = await signupServerAction({ ...d, referredBy: localStorage.getItem("vimore_referrer") });
-      if (!res.success) return { success: false, message: res.message };
       
-      // 2. Establish Session
-      await account.createEmailPasswordSession(res.email!, d.password);
+      if (!res.success) {
+        return { success: false, accountCreated: false, message: res.message };
+      }
+
+      // Transition hint for UI
+      accountCreated = true;
+      
+      // 2. Try to Establish Session (Client Side)
+      try {
+        await account.createEmailPasswordSession(res.email!, d.password);
+      } catch (sessionErr) {
+        console.warn("Session pulse deferred. User will need to manually log in if OTP emission fails.");
+      }
       
       // 3. Emit OTP Pulse via Brevo
-      const identifier = d.email || d.phone;
-      const type = d.email ? 'EMAIL' : 'PHONE';
       const otpRes = await sendVerificationCode(identifier, type);
       
-      // 4. Final Handshake
+      // 4. Final state sync
       await checkSession();
+
       return { 
         success: otpRes.success, 
-        message: otpRes.success ? undefined : `Identity Created, but OTP failed: ${otpRes.message}` 
+        accountCreated: true,
+        message: otpRes.success ? "Identity materialized. Verify code now." : `Identity created, but OTP failed: ${otpRes.message}` 
       };
     } catch (e: any) {
-      return { success: false, message: String(e.message || e) };
+      return { 
+        success: false, 
+        accountCreated, 
+        message: String(e.message || e) 
+      };
     }
   }, [checkSession, sendVerificationCode]);
 

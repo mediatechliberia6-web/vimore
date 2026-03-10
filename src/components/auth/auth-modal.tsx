@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -111,7 +112,7 @@ export function AuthModal() {
     triggerHaptic(30);
     
     try {
-      // 1. Materialize Identity (Server creates Auth + Profile)
+      // 1. Materialize Identity
       const sanitizedUsername = username.toLowerCase().trim().replace(/\s+/g, '_');
       const res = await signup({
         email: identifier.includes('@') ? identifier : undefined,
@@ -124,9 +125,14 @@ export function AuthModal() {
         gender
       });
 
-      if (res.success) {
+      if (res.success || res.accountCreated) {
         setMode('verify');
-        toast({ title: "Identity Materialized", description: "Verification code emitted." });
+        if (res.success) {
+          toast({ title: "Identity Materialized", description: "Verification code emitted." });
+        } else {
+          setAuthError(res.message);
+          toast({ variant: "destructive", title: "Partial Handshake", description: "Account created but OTP failed. You can retry on next screen." });
+        }
       } else {
         setAuthError(res.message || "Identity node creation rejected.");
       }
@@ -153,6 +159,25 @@ export function AuthModal() {
       }
     } catch (error: any) {
       setAuthError(String(error.message || error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setIsLoading(true);
+    setAuthError(null);
+    triggerHaptic(10);
+    try {
+      const type = identifier.includes('@') ? 'EMAIL' : 'PHONE';
+      const res = await sendVerificationCode(identifier, type);
+      if (res.success) {
+        toast({ title: "Pulse Re-emitted", description: "A new code has been transmitted." });
+      } else {
+        setAuthError(res.message);
+      }
+    } catch (e: any) {
+      setAuthError(String(e.message || e));
     } finally {
       setIsLoading(false);
     }
@@ -260,14 +285,17 @@ export function AuthModal() {
               <div className="space-y-2">
                 <div className="h-16 w-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mx-auto mb-4 animate-pulse"><CheckCircle2 className="h-8 w-8" /></div>
                 <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Identity Created</h3>
-                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Post-Creation OTP Sent to: {identifier}</p>
+                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Verify ID: {identifier}</p>
               </div>
               <div className="space-y-4">
                 <Input value={otp} onChange={(e) => setOtp(e.target.value)} maxLength={6} className="h-16 bg-white/5 border-none rounded-2xl text-white text-3xl font-black tracking-[0.5em] text-center" placeholder="XXXXXX" />
-                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10"><p className="text-[9px] font-bold text-primary/60 uppercase">Check your nodes. Valid for 2 mins.</p></div>
+                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex flex-col gap-2">
+                  <p className="text-[9px] font-bold text-primary/60 uppercase">Check your nodes. Valid for 2 mins.</p>
+                  <button type="button" onClick={handleResend} disabled={isLoading} className="text-[10px] font-black text-primary underline uppercase tracking-widest hover:text-primary/80 disabled:opacity-50">Resend Code</button>
+                </div>
               </div>
               <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Node"}</Button>
-              <button type="button" onClick={() => { setMode('signup'); setSignupStep(1); }} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-primary">Cancel & Discard</button>
+              <button type="button" onClick={() => { setMode('login'); setSignupStep(1); setAuthError(null); }} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-primary">Cancel & Discard</button>
             </form>
           )}
 

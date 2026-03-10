@@ -155,9 +155,10 @@ export async function signupServerAction(d: any) {
     await account.create(userId, emailNode, d.password, d.name);
 
     // 2. Materialize Profile Node
+    // Ensuring fallback for all 18 attributes to prevent required field crash
     await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, {
-      name: d.name,
-      username: d.username,
+      name: d.name || "Unknown Node",
+      username: d.username || `user_${userId.slice(0, 5)}`,
       email: emailNode,
       phone: d.phone || '',
       avatar: "https://picsum.photos/seed/guest/400/400",
