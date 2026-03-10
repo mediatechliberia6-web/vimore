@@ -55,7 +55,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import client, { databases, APPWRITE_DATABASE_ID, MESSAGES_COLLECTION_ID, ID } from "@/lib/appwrite";
+import client, { databases, APPWRITE_DATABASE_ID, MESSAGES_COLLECTION_ID, ID, BUCKET_VOICENOTE, BUCKET_IMAGES, BUCKET_REEL } from "@/lib/appwrite";
 import { Query } from "appwrite";
 import {
   AlertDialog,
@@ -208,6 +208,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
     if (!currentUser.id) return;
 
+    // REAL-TIME HANDSHAKE SUBSCRIPTION
     const unsubscribe = client.subscribe(
       `databases.${APPWRITE_DATABASE_ID}.collections.${MESSAGES_COLLECTION_ID}.documents`,
       (response) => {
@@ -271,9 +272,15 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       if (finalMediaUrl.startsWith('blob:')) {
         const response = await fetch(finalMediaUrl);
         const blob = await response.blob();
+        
+        // INTELLIGENT BUCKET DISPATCHING
+        let targetBucket = BUCKET_IMAGES;
+        if (type === 'voice') targetBucket = BUCKET_VOICENOTE;
+        else if (type === 'video') targetBucket = BUCKET_REEL;
+
         const extension = type === 'voice' ? 'webm' : (type === 'video' ? 'mp4' : 'jpg');
         const file = new File([blob], `msg_media_${Date.now()}.${extension}`, { type: blob.type });
-        finalMediaUrl = await uploadMedia(file);
+        finalMediaUrl = await uploadMedia(file, targetBucket);
       }
 
       const docData = {
