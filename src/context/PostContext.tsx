@@ -364,7 +364,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [paymentRequests, setPaymentRequestsState] = useState<any[]>([]);
   const [pendingTransaction, setPendingTransactionState] = useState<any>(null);
 
-  // --- 2. LOGIC CONSTANTS (TDZ SAFE) ---
+  // --- 2. LOGIC CONSTANTS ---
 
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
@@ -413,7 +413,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const now = Date.now();
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, [Query.greaterThan('expiresAt', now)]);
       setStoriesState(response.documents.map(doc => ({ 
-        id: doc.$id, user: typeof doc.user === 'string' ? JSON.parse(doc.user) : doc.user, segments: typeof doc.segments === 'string' ? JSON.parse(doc.segments) : doc.segments, viewCount: doc.viewCount || 0, viewers: doc.viewers ? JSON.parse(doc.viewers) : []
+        id: doc.$id, 
+        user: typeof doc.user === 'string' ? JSON.parse(doc.user) : doc.user, 
+        segments: typeof doc.segments === 'string' ? JSON.parse(doc.segments) : doc.segments, 
+        viewCount: doc.viewCount || 0, 
+        viewers: doc.viewers ? JSON.parse(doc.viewers) : []
       })));
     } catch (e) {}
   }, []);
@@ -461,7 +465,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const history = await databases.listDocuments(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, [Query.equal('userId', user.$id)]);
       const pReqs = await databases.listDocuments(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, [Query.equal('userId', user.$id)]);
       
-      // Social Sync Pulse
       const followingRes = await databases.listDocuments(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, [Query.equal('followerId', user.$id)]);
       const followersRes = await databases.listDocuments(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, [Query.equal('followingUsername', profile.username)]);
       
@@ -614,7 +617,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const addStory = useCallback(async (segment: any) => {
     if (!currentUser.id) return;
     try {
-      const expiresAt = Date.now() + (24 * 60 * 60 * 1000);
+      // 48-Hour Temporal Pulse: Node materializes for exactly 2 days
+      const expiresAt = Date.now() + (48 * 60 * 60 * 1000);
       const minimalUser = { name: currentUser.name, username: currentUser.username, avatar: currentUser.avatar };
       await databases.createDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, ID.unique(), { 
         user: JSON.stringify(minimalUser), 
