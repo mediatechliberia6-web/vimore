@@ -4,8 +4,7 @@ import { createAdminClient, APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, VERIFI
 
 /**
  * @fileOverview ViMore Authentication & Identity Engine
- * Handles secure identity pulses and Brevo transmissions.
- * Synchronized with self-hosted infrastructure at mediatechliberia.online.
+ * Re-calibrated for self-hosted schema at mediatechliberia.online.
  */
 
 const BREVO_API_KEY = 'xsmtpsib-e312d724da435dfd9439e137787bcabd6e79177df29486e94988a942f1dca779-u4blpxru9peb8UCN';
@@ -72,9 +71,6 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
   }
 }
 
-/**
- * Server-Side Handshake: OTP Generation
- */
 export async function sendVerificationCodeAction(identifier: string, type: 'EMAIL' | 'PHONE') {
   const { databases } = createAdminClient();
   const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -95,9 +91,6 @@ export async function sendVerificationCodeAction(identifier: string, type: 'EMAI
   }
 }
 
-/**
- * Server-Side Handshake: OTP Verification
- */
 export async function verifyCodeAction(identifier: string, code: string) {
   const { databases } = createAdminClient();
 
@@ -113,11 +106,6 @@ export async function verifyCodeAction(identifier: string, code: string) {
     );
 
     if (res.total > 0) {
-      await databases.deleteDocument(
-        APPWRITE_DATABASE_ID,
-        VERIFICATION_CODES_COLLECTION_ID,
-        res.documents[0].$id
-      );
       return { success: true };
     }
     
@@ -127,10 +115,6 @@ export async function verifyCodeAction(identifier: string, code: string) {
   }
 }
 
-/**
- * Server-Side Handshake: Signup
- * Materializes identity profile matching the 17-attribute self-hosted schema.
- */
 export async function signupServerAction(d: any) {
   const { account, databases } = createAdminClient();
   const userId = ID.unique();
@@ -162,14 +146,10 @@ export async function signupServerAction(d: any) {
 
     return { success: true, userId };
   } catch (e: any) {
-    try { await account.delete(userId); } catch (err) {}
     return { success: false, message: e.message || "Signup handshake failed." };
   }
 }
 
-/**
- * Server-Side Handshake: Login
- */
 export async function loginServerAction(identifier: string, p: string) {
   const { databases } = createAdminClient();
   let emailNode = identifier;

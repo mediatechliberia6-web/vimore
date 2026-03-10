@@ -1,10 +1,9 @@
-
 'use client';
 
 /**
- * @fileOverview ViMore Core Context Node
+ * @fileOverview ViMore Core Context Node (Self-Hosted Master)
  * Manages identity, content, economy, and communication handshakes.
- * Reconciled for total reference integrity and high-velocity synchronization.
+ * Finalized for project: vimore | db: vimoreprod | buckets: 6 specialized.
  */
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
@@ -325,7 +324,7 @@ const INITIAL_SETTINGS: AppSettings = {
 export function PostProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   
-  // --- 1. STATE NODES ---
+  // --- STATE NODES ---
   const [currentUser, setCurrentUserState] = useState<User>(INITIAL_USER);
   const [posts, setPostsState] = useState<Post[]>([]);
   const [activeComments, setActiveComments] = useState<PostComment[]>([]);
@@ -365,7 +364,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [paymentRequests, setPaymentRequestsState] = useState<any[]>([]);
   const [pendingTransaction, setPendingTransactionState] = useState<any>(null);
 
-  // --- 2. LOGIC CONSTANTS ---
+  // --- LOGIC NODES (Stabilized Constants) ---
 
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
@@ -444,9 +443,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const refreshAdminData = useCallback(async () => {
     try {
-      // 72-Hour Temporal Filter: Archive visibility limit for payments
       const threeDaysAgo = Date.now() - (72 * 60 * 60 * 1000);
-
       const [camps, reps, tix, logs, pays, withs] = await Promise.all([
         databases.listDocuments(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID),
         databases.listDocuments(APPWRITE_DATABASE_ID, REPORTS_COLLECTION_ID),
@@ -540,12 +537,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         images: JSON.stringify(pData.images || []),
         poll: pData.poll ? JSON.stringify(pData.poll) : undefined,
         collaborator: pData.collaborator ? JSON.stringify(pData.collaborator) : undefined,
-        likes: 0, 
-        unlikes: 0, 
-        comments: 0, 
-        shares: 0, 
-        views: 0, 
-        viewers: JSON.stringify([]) 
+        likes: 0, unlikes: 0, comments: 0, shares: 0, views: 0, viewers: JSON.stringify([]) 
       };
       await databases.createDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, ID.unique(), docData);
       await refreshFeed();
@@ -625,15 +617,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const addStory = useCallback(async (segment: any) => {
     if (!currentUser.id) return;
     try {
-      // 48-Hour Temporal Pulse: Node materializes for exactly 2 days
       const expiresAt = Date.now() + (48 * 60 * 60 * 1000);
       const minimalUser = { name: currentUser.name, username: currentUser.username, avatar: currentUser.avatar };
       await databases.createDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, ID.unique(), { 
-        user: JSON.stringify(minimalUser), 
-        segments: JSON.stringify([segment]), 
-        expiresAt, 
-        viewCount: 0, 
-        viewers: JSON.stringify([]) 
+        user: JSON.stringify(minimalUser), segments: JSON.stringify([segment]), expiresAt, viewCount: 0, viewers: JSON.stringify([]) 
       });
       await refreshStories();
     } catch (e: any) { throw new Error(e.message); }
@@ -689,20 +676,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e) {}
   }, [currentUser.username, clusters, refreshClusters]);
 
-  const initiateTransaction = useCallback((data: any) => {
-    setPendingTransactionState(data);
-  }, []);
-
-  const cancelTransaction = useCallback(() => {
-    setPendingTransactionState(null);
-  }, []);
+  const initiateTransaction = useCallback((data: any) => { setPendingTransactionState(data); }, []);
+  const cancelTransaction = useCallback(() => { setPendingTransactionState(null); }, []);
 
   const createPaymentRequest = useCallback(async (screenshot: string) => {
     if (!currentUser.id || !pendingTransaction) return;
     try {
       const file = dataURLtoFile(screenshot, `payment_${Date.now()}.jpg`);
       const vaultUrl = await uploadMedia(file, BUCKET_PAYMENTS);
-      
       await databases.createDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, ID.unique(), {
         userId: currentUser.id, username: currentUser.username, packageName: pendingTransaction.packageName, amount: pendingTransaction.amount, currency: pendingTransaction.currency, screenshot: vaultUrl, code: pendingTransaction.code, status: 'PENDING', timestamp: Date.now()
       });
@@ -716,7 +697,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const amount = parseFloat(req.amount);
       const balanceKey = req.packageName.toLowerCase().includes('diamond') ? 'diamondBalance' : 'goldBalance';
       const currentBalance = userProfile[balanceKey] || 0;
-      
       await Promise.all([
         databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, req.userId, { [balanceKey]: currentBalance + amount }),
         databases.updateDocument(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, id, { status: 'APPROVED' })
@@ -811,8 +791,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const updatedViewers = [...(post.viewers || []), currentUser.id];
       await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, { 
-        views: (post.views || 0) + 1, 
-        viewers: JSON.stringify(updatedViewers) 
+        views: (post.views || 0) + 1, viewers: JSON.stringify(updatedViewers) 
       });
     } catch (e) {}
   }, [currentUser.id, posts]);
@@ -824,8 +803,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const updatedViewers = [...(story.viewers || []), currentUser.id];
       await databases.updateDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, storyId, { 
-        viewCount: (story.viewCount || 0) + 1, 
-        viewers: JSON.stringify(updatedViewers) 
+        viewCount: (story.viewCount || 0) + 1, viewers: JSON.stringify(updatedViewers) 
       });
       await refreshStories();
     } catch (e) {}
@@ -874,13 +852,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setCallState({ type, status: 'outgoing', contact, channelName: `call_${Date.now()}` });
   }, []);
 
-  const acceptCall = useCallback(async () => {
-    setCallState(prev => ({ ...prev, status: 'active' }));
-  }, []);
-
-  const endCall = useCallback(async (duration?: string) => {
-    setCallState({ type: 'audio', status: 'idle', contact: null });
-  }, []);
+  const acceptCall = useCallback(async () => { setCallState(prev => ({ ...prev, status: 'active' })); }, []);
+  const endCall = useCallback(async () => { setCallState({ type: 'audio', status: 'idle', contact: null }); }, []);
 
   const togglePinPost = useCallback(async (postId: string) => {
     const post = posts.find(p => p.id === postId);
@@ -923,13 +896,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } 
   }, [currentUser.id]);
 
-  const updateSettings = useCallback((d: Partial<AppSettings>) => {
-    setSettingsState(prev => ({...prev, ...d}));
-  }, []);
-
-  const updateGatewaySettings = useCallback(async (d: any) => {
-    setGatewaySettingsState(d);
-  }, []);
+  const updateSettings = useCallback((d: Partial<AppSettings>) => { setSettingsState(prev => ({...prev, ...d})); }, []);
+  const updateGatewaySettings = useCallback(async (d: any) => { setGatewaySettingsState(d); }, []);
 
   const updateUserIdentity = useCallback(async (userId: string, data: Partial<User>) => {
     try {
@@ -957,10 +925,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const addAuditLog = useCallback(async (action: string, details: string) => {
     try {
       await databases.createDocument(APPWRITE_DATABASE_ID, AUDIT_LOGS_COLLECTION_ID, ID.unique(), {
-        admin: currentUser.username,
-        action,
-        details,
-        timestamp: Date.now()
+        admin: currentUser.username, action, details, timestamp: Date.now()
       });
     } catch (e) {}
   }, [currentUser.username]);
@@ -975,46 +940,34 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setMutedUserNamesState(prev => prev.includes(u) ? prev.filter(n => n !== u) : [...prev, u]);
   }, []);
 
-  const resendVerification = useCallback(async () => { 
-    await account.createVerification(window.location.origin + '/auth/verify'); 
-  }, []);
+  const resendVerification = useCallback(async () => { await account.createVerification(window.location.origin + '/auth/verify'); }, []);
+  const forgotPassword = useCallback(async (email: string) => { await account.createRecovery(email, window.location.origin + '/auth/recovery'); }, []);
+  const resetPassword = useCallback(async (u: string, s: string, p: string) => { await account.updateRecovery(u, s, p, p); }, []);
 
-  const forgotPassword = useCallback(async (email: string) => { 
-    await account.createRecovery(email, window.location.origin + '/auth/recovery'); 
-  }, []);
+  const openCommentHub = useCallback((id: string) => { setActiveCommentPostIdState(id); fetchComments(id); }, [fetchComments]);
+  const closeCommentHub = useCallback(() => { setActiveCommentPostIdState(null); }, []);
+  const openGiftHub = useCallback((u: any) => { setTargetUserForGiftState(u); setIsGiftHubOpenState(true); }, []);
+  const closeGiftHub = useCallback(() => { setIsGiftHubOpenState(false); }, []);
+  const setActiveStoryIndex = useCallback((idx: number | null) => { setActiveStoryIndexState(idx); }, []);
 
-  const resetPassword = useCallback(async (u: string, s: string, p: string) => { 
-    await account.updateRecovery(u, s, p, p); 
-  }, []);
+  const voteOnStoryPoll = useCallback(async (storyId: string, segmentId: string, optionIndex: number) => {
+    const story = stories.find(s => s.id === storyId);
+    if (!story) return;
+    const segments = [...story.segments];
+    const segmentIdx = segments.findIndex(seg => seg.id === segmentId);
+    if (segmentIdx === -1 || !segments[segmentIdx].poll) return;
+    
+    segments[segmentIdx].poll.options[optionIndex].votes += 1;
+    await databases.updateDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, storyId, { segments: JSON.stringify(segments) });
+    await refreshStories();
+  }, [stories, refreshStories]);
 
-  const openCommentHub = useCallback((id: string) => {
-    setActiveCommentPostIdState(id);
-    fetchComments(id);
-  }, [fetchComments]);
-
-  const closeCommentHub = useCallback(() => {
-    setActiveCommentPostIdState(null);
-  }, []);
-
-  const openGiftHub = useCallback((u: any) => {
-    setTargetUserForGiftState(u);
-    setIsGiftHubOpenState(true);
-  }, []);
-
-  const closeGiftHub = useCallback(() => {
-    setIsGiftHubOpenState(false);
-  }, []);
-
-  const setActiveStoryIndex = useCallback((idx: number | null) => {
-    setActiveStoryIndexState(idx);
-  }, []);
-
-  // --- 3. CONTEXT PROVIDER VALUE ---
+  // --- CONTEXT PROVIDER VALUE ---
 
   const contextValue = useMemo(() => ({
     currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, referralLink: "http://vimore.network/join/" + currentUser.username, pendingTransaction, activeSubscriptions,
-    login, signup, logout, sendVerificationCode, verifyCode, checkSession, resendVerification, forgotPassword, resetPassword, uploadMedia, addPost, deletePost, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, updateCurrentUser, updateSettings, updateGatewaySettings, setSearchOpen: setIsSearchOpenState, setSelectedChatId: setSelectedChatIdState, setSelectedPostId: setSelectedPostIdState, setSelectedImageUrl: setSelectedImageUrlState, setSelectedVideoUrl: setSelectedVideoUrlState, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, triggerHaptic, isPostLiked: (id: string) => likedPostIds.has(id), isPostUnliked: (id: string) => unlikedPostIds.has(id), isPostSaved: (id: string) => savedPostIds.has(id), isPostUnlocked: (id: string) => unlockedPostIds.has(id), isFollowing: (u: string) => followingUsernames.has(u), isSubscribed: (u: string) => activeSubscriptions.has(u), addComment, addReply, addStory, boostNode, recordView, recordStoryView, createCluster, addMemberToCluster, leaveCluster, initiateTransaction, cancelTransaction, createPaymentRequest, recordWithdrawal, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, fetchComments, refreshFeed, refreshStories, refreshProfiles, refreshClusters, fetchProfileByUsername, promoteUser, demoteUser, voteOnPostPoll, cancelSubscription, incrementShareCount, toggleMuteUser, togglePinPost, archivePost, addAuditLog, approvePaymentRequest, rejectPaymentRequest, processWithdrawal, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, initiateCall, acceptCall, endCall, refreshAdminData, updateUserIdentity, handleReportAction, handleTicketAction, voteOnStoryPoll: async () => {}
-  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, login, signup, logout, checkSession, resendVerification, forgotPassword, resetPassword, uploadMedia, addPost, deletePost, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, updateCurrentUser, updateSettings, updateGatewaySettings, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, triggerHaptic, addComment, addReply, addStory, boostNode, recordView, recordStoryView, createCluster, addMemberToCluster, leaveCluster, initiateTransaction, cancelTransaction, createPaymentRequest, recordWithdrawal, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, fetchComments, refreshFeed, refreshStories, refreshProfiles, refreshClusters, fetchProfileByUsername, promoteUser, demoteUser, voteOnPostPoll, cancelSubscription, incrementShareCount, toggleMuteUser, togglePinPost, archivePost, addAuditLog, approvePaymentRequest, rejectPaymentRequest, processWithdrawal, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, initiateCall, acceptCall, endCall, refreshAdminData, updateUserIdentity, handleReportAction, handleTicketAction, setActiveStoryIndex]);
+    login, signup, logout, sendVerificationCode, verifyCode, checkSession, resendVerification, forgotPassword, resetPassword, uploadMedia, addPost, deletePost, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, updateCurrentUser, updateSettings, updateGatewaySettings, setSearchOpen: setIsSearchOpenState, setSelectedChatId: setSelectedChatIdState, setSelectedPostId: setSelectedPostIdState, setSelectedImageUrl: setSelectedImageUrlState, setSelectedVideoUrl: setSelectedVideoUrlState, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, setActiveStoryIndex, triggerHaptic, isPostLiked: (id: string) => likedPostIds.has(id), isPostUnliked: (id: string) => unlikedPostIds.has(id), isPostSaved: (id: string) => savedPostIds.has(id), isPostUnlocked: (id: string) => unlockedPostIds.has(id), isFollowing: (u: string) => followingUsernames.has(u), isSubscribed: (u: string) => activeSubscriptions.has(u), addComment, addReply, addStory, boostNode, recordView, recordStoryView, createCluster, addMemberToCluster, leaveCluster, initiateTransaction, cancelTransaction, createPaymentRequest, recordWithdrawal, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, fetchComments, refreshFeed, refreshStories, refreshProfiles, refreshClusters, fetchProfileByUsername, promoteUser, demoteUser, voteOnPostPoll, cancelSubscription, incrementShareCount, toggleMuteUser, togglePinPost, archivePost, addAuditLog, approvePaymentRequest, rejectPaymentRequest, processWithdrawal, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, initiateCall, acceptCall, endCall, refreshAdminData, updateUserIdentity, handleReportAction, handleTicketAction, voteOnStoryPoll
+  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, login, signup, logout, checkSession, resendVerification, forgotPassword, resetPassword, uploadMedia, addPost, deletePost, toggleLikePost, toggleUnlikePost, toggleSavePost, toggleFollowUser, updateCurrentUser, updateSettings, updateGatewaySettings, openCommentHub, closeCommentHub, openGiftHub, closeGiftHub, triggerHaptic, addComment, addReply, addStory, boostNode, recordView, recordStoryView, createCluster, addMemberToCluster, leaveCluster, initiateTransaction, cancelTransaction, createPaymentRequest, recordWithdrawal, verifyUser, processGiftTransaction, unlockPost, subscribeToCreator, fetchComments, refreshFeed, refreshStories, refreshProfiles, refreshClusters, fetchProfileByUsername, promoteUser, demoteUser, voteOnPostPoll, cancelSubscription, incrementShareCount, toggleMuteUser, togglePinPost, archivePost, addAuditLog, approvePaymentRequest, rejectPaymentRequest, processWithdrawal, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, initiateCall, acceptCall, endCall, refreshAdminData, updateUserIdentity, handleReportAction, handleTicketAction, setActiveStoryIndex, voteOnStoryPoll]);
 
   useEffect(() => { checkSession(); }, [checkSession]);
 

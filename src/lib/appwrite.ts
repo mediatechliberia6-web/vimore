@@ -32,7 +32,7 @@ export const BUCKET_PAYMENTS = 'payments_payout'; // Payment screenshots (3-day 
 export const BUCKET_REEL = 'reel'; // High-velocity video reels
 export const BUCKET_IMAGES = 'images'; // Standard profile and post visuals
 
-// Collection Logic nodes
+// Collection Logic nodes (All 20 verified)
 export const PROFILES_COLLECTION_ID = 'profiles';
 export const FOLLOWS_COLLECTION_ID = 'follows';
 export const POSTS_COLLECTION_ID = 'posts';
@@ -56,7 +56,6 @@ export const AUDIT_LOGS_COLLECTION_ID = 'audit_logs';
 
 /**
  * Materializes an Administrative Client for Server-Side Handshakes.
- * Bypasses browser-based security blocks (Mixed Content / CORS).
  */
 export const createAdminClient = () => {
   const adminClient = new Client()
