@@ -45,7 +45,11 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
 
       if (!response.ok) {
         const error = await response.json();
-        return { success: false, message: error.message || "Email pulse failed." };
+        console.error("BREVO EMAIL REJECTION:", error);
+        return { 
+          success: false, 
+          message: `Brevo Pulse Rejected: ${error.message || response.statusText}` 
+        };
       }
     } else {
       // Brevo Transactional SMS Protocol
@@ -66,13 +70,18 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
 
       if (!response.ok) {
         const error = await response.json();
-        return { success: false, message: error.message || "SMS pulse failed." };
+        console.error("BREVO SMS REJECTION:", error);
+        return { 
+          success: false, 
+          message: `Brevo SMS Rejected: ${error.message || response.statusText}` 
+        };
       }
     }
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, message: error.message };
+    console.error("TRANSMISSION PROTOCOL EXCEPTION:", error);
+    return { success: false, message: `Identity dispatch failed: ${error.message}` };
   }
 }
 
@@ -85,6 +94,8 @@ export async function sendVerificationCodeAction(identifier: string, type: 'EMAI
   const expiresAt = Date.now() + (2 * 60 * 1000); // 2 minute temporal pulse
 
   try {
+    console.log(`VAULT AUDIT: Archiving OTP for ${identifier} in ${VERIFICATION_CODES_COLLECTION_ID}...`);
+    
     // 1. Archive the signature in the self-hosted vault
     await databases.createDocument(
       APPWRITE_DATABASE_ID,
@@ -93,12 +104,18 @@ export async function sendVerificationCodeAction(identifier: string, type: 'EMAI
       { identifier, code, expiresAt, type }
     );
 
+    console.log("VAULT AUDIT: Signature archived. Dispatching Brevo pulse...");
+
     // 2. Emit the pulse via Brevo Dispatcher
     const transmission = await sendCodeViaBrevo({ identifier, code, type });
     return transmission;
   } catch (error: any) {
-    console.error("OTP HANDSHAKE ERROR:", error.message);
-    return { success: false, message: error.message || "Failed to emit OTP pulse." };
+    console.error("OTP HANDSHAKE CRITICAL FAILURE:", error);
+    // Expose the exact Appwrite error message to the UI
+    return { 
+      success: false, 
+      message: `Vault Handshake Rejected: ${error.message || "Unknown error"}. Ensure 'verification_codes' attributes match: identifier(string), code(string), expiresAt(int), type(string).` 
+    };
   }
 }
 
@@ -125,7 +142,7 @@ export async function verifyCodeAction(identifier: string, code: string) {
     
     return { success: false, message: "Invalid or expired signature." };
   } catch (error: any) {
-    return { success: false, message: error.message };
+    return { success: false, message: `Vault Query Failure: ${error.message}` };
   }
 }
 
@@ -167,7 +184,7 @@ export async function signupServerAction(d: any) {
     return { success: true, userId };
   } catch (e: any) {
     console.error("SIGNUP HANDSHAKE FAILURE:", e.message);
-    return { success: false, message: e.message || "Signup handshake failed." };
+    return { success: false, message: `Identity Materialization Failed: ${e.message}` };
   }
 }
 
@@ -191,6 +208,6 @@ export async function loginServerAction(identifier: string, p: string) {
     return { success: true, email: emailNode };
   } catch (e: any) {
     console.error("LOGIN HANDSHAKE FAILURE:", e.message);
-    return { success: false, message: e.message || "Login handshake failed." };
+    return { success: false, message: `Login Pulse Failed: ${e.message}` };
   }
 }
