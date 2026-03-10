@@ -1,12 +1,11 @@
 'use server';
 
 import { createAdminClient, APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, VERIFICATION_CODES_COLLECTION_ID, ID, Query } from '@/lib/appwrite';
-import { cookies } from 'next/headers';
 
 /**
  * @fileOverview ViMore Authentication & Identity Engine
  * Handles secure identity pulses and Brevo transmissions.
- * Hardened to return result objects instead of throwing to prevent Server Component crashes.
+ * Synchronized with self-hosted infrastructure at mediatechliberia.online.
  */
 
 const BREVO_API_KEY = 'xsmtpsib-e312d724da435dfd9439e137787bcabd6e79177df29486e94988a942f1dca779-u4blpxru9peb8UCN';
@@ -75,7 +74,6 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
 
 /**
  * Server-Side Handshake: OTP Generation
- * Materializes code in vault and transmits via Brevo.
  */
 export async function sendVerificationCodeAction(identifier: string, type: 'EMAIL' | 'PHONE') {
   const { databases } = createAdminClient();
@@ -83,7 +81,6 @@ export async function sendVerificationCodeAction(identifier: string, type: 'EMAI
   const expiresAt = Date.now() + (2 * 60 * 1000); // 2 minute temporal pulse
 
   try {
-    // 1. Archive in vault
     await databases.createDocument(
       APPWRITE_DATABASE_ID,
       VERIFICATION_CODES_COLLECTION_ID,
@@ -91,9 +88,7 @@ export async function sendVerificationCodeAction(identifier: string, type: 'EMAI
       { identifier, code, expiresAt, type }
     );
 
-    // 2. Transmit via Brevo
     const transmission = await sendCodeViaBrevo({ identifier, code, type });
-    
     return transmission;
   } catch (error: any) {
     return { success: false, message: error.message || "Failed to emit OTP pulse." };
@@ -118,7 +113,6 @@ export async function verifyCodeAction(identifier: string, code: string) {
     );
 
     if (res.total > 0) {
-      // Burn the code node after successful handshake
       await databases.deleteDocument(
         APPWRITE_DATABASE_ID,
         VERIFICATION_CODES_COLLECTION_ID,
@@ -135,7 +129,7 @@ export async function verifyCodeAction(identifier: string, code: string) {
 
 /**
  * Server-Side Handshake: Signup
- * Creates the auth node and identity profile in one atomic pulse.
+ * Materializes identity profile matching the 17-attribute self-hosted schema.
  */
 export async function signupServerAction(d: any) {
   const { account, databases } = createAdminClient();
@@ -144,31 +138,30 @@ export async function signupServerAction(d: any) {
   const emailNode = d.email || `${safePhone}@vimore.net`;
 
   try {
-    // 1. Create Auth Node
     await account.create(userId, emailNode, d.password, d.name);
 
-    // 2. Materialize Identity Profile
     await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, {
       name: d.name,
       username: d.username,
+      email: emailNode,
+      phone: d.phone || '',
       avatar: "https://picsum.photos/seed/guest/400/400",
-      dateOfBirth: d.dob,
-      nationality: d.nationality,
-      gender: d.gender,
+      cover: "",
       role: 'USER',
+      isVerified: false,
       goldBalance: 0,
       diamondBalance: 0,
       starBalance: 0,
       referralCount: 0,
-      isVerified: false,
       referredBy: d.referredBy || '',
-      email: d.email || emailNode,
-      phone: d.phone || ''
+      bio: "",
+      nationality: d.nationality || "Other",
+      gender: d.gender || "Other",
+      dateOfBirth: d.dob || ""
     });
 
     return { success: true, userId };
   } catch (e: any) {
-    // Cleanup if partially created
     try { await account.delete(userId); } catch (err) {}
     return { success: false, message: e.message || "Signup handshake failed." };
   }
@@ -178,12 +171,11 @@ export async function signupServerAction(d: any) {
  * Server-Side Handshake: Login
  */
 export async function loginServerAction(identifier: string, p: string) {
-  const { account, databases } = createAdminClient();
+  const { databases } = createAdminClient();
   let emailNode = identifier;
 
   try {
     if (!identifier.includes('@')) {
-      // Find associated email for phone node
       const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
         Query.equal('phone', identifier)
       ]);

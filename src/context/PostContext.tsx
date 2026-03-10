@@ -364,7 +364,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [paymentRequests, setPaymentRequestsState] = useState<any[]>([]);
   const [pendingTransaction, setPendingTransactionState] = useState<any>(null);
 
-  // --- 2. CALLBACK MATERIALIZATION ---
+  // --- 2. LOGIC CONSTANTS (TDZ SAFE) ---
 
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
@@ -459,11 +459,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
       
       const history = await databases.listDocuments(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, [Query.equal('userId', user.$id)]);
       const pReqs = await databases.listDocuments(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, [Query.equal('userId', user.$id)]);
-      const follows = await databases.listDocuments(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, [Query.equal('followerId', user.$id)]);
+      
+      // Social Sync Pulse
+      const followingRes = await databases.listDocuments(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, [Query.equal('followerId', user.$id)]);
+      const followersRes = await databases.listDocuments(APPWRITE_DATABASE_ID, FOLLOWS_COLLECTION_ID, [Query.equal('followingUsername', profile.username)]);
       
       setWithdrawalHistoryState(history.documents);
       setPaymentRequestsState(pReqs.documents);
-      setFollowingUsernamesState(new Set(follows.documents.map(f => f.followingUsername)));
+      setFollowingUsernamesState(new Set(followingRes.documents.map(f => f.followingUsername)));
+      setFollowerUsernamesState(new Set(followersRes.documents.map(f => f.followerUsername)));
       
       await Promise.all([refreshFeed(), refreshStories(), refreshProfiles(), refreshClusters()]);
     } catch (error) { 
