@@ -69,6 +69,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
+import { BUCKET_IMAGES, BUCKET_REEL } from "@/lib/appwrite";
 
 interface CreatePostModalProps {
   children: React.ReactNode;
@@ -248,8 +249,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     
     try {
       const uploadedUrls = [];
+      const bucketId = mediaType === 'video' ? BUCKET_REEL : BUCKET_IMAGES;
+      
       for (const file of stagedFiles) {
-        const url = await uploadMedia(file);
+        const url = await uploadMedia(file, bucketId);
         uploadedUrls.push(url);
       }
 
@@ -437,7 +440,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             <Textarea ref={textareaRef} placeholder={isLimitedType ? "Short vibe... (150 chars max)" : "What's on your mind? (2000 chars max)"} className={cn("border-none focus-visible:ring-0 text-2xl resize-none p-0 min-h-[160px] bg-transparent text-center", selectedTheme.id !== "none" ? "text-white placeholder:text-white/60" : "text-foreground")} value={content} onChange={(e) => setContent(e.target.value)} autoFocus />
             
             {isLocked && (
-              <div className="w-full max-w-sm mt-8 p-6 bg-black/20 backdrop-blur-md rounded-[2rem] border border-white/10 space-y-6 animate-in zoom-in-95">
+              <div className="w-full max-w-sm mt-8 p-6 bg-black/20 backdrop-blur-md rounded-[2.5rem] border border-white/10 space-y-6 animate-in zoom-in-95">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Coins className="h-4 w-4 text-amber-500" />

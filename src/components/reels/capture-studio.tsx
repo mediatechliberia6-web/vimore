@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
@@ -32,6 +31,7 @@ import { usePosts } from "@/context/PostContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatBytes } from "@/lib/utils";
 import Image from "next/image";
+import { BUCKET_REEL } from "@/lib/appwrite";
 
 const FILTERS = [
   { id: "none", label: "Pure", class: "" },
@@ -120,7 +120,7 @@ export function CaptureStudio() {
       console.error("Studio source error:", error);
       closeCaptureStudio();
     }
-  }, [cameraMode, closeCaptureStudio]);
+  }, [cameraMode, closeCaptureStudio, stream]);
 
   useEffect(() => {
     if (isCaptureStudioOpen && !recordedUrl) {
@@ -129,7 +129,7 @@ export function CaptureStudio() {
     return () => {
       if (stream) stream.getTracks().forEach(t => t.stop());
     };
-  }, [isCaptureStudioOpen, cameraMode, recordedUrl]);
+  }, [isCaptureStudioOpen, cameraMode, recordedUrl, startCamera, stream]);
 
   const resetStudio = () => {
     setIsRecording(false);
@@ -203,7 +203,7 @@ export function CaptureStudio() {
     try {
       // Identity Node Fetch: Materialize the blob as a file signature
       const file = new File([recordedBlob], `reel_${Date.now()}.mp4`, { type: recordedBlob.type });
-      const vaultUrl = await uploadMedia(file);
+      const vaultUrl = await uploadMedia(file, BUCKET_REEL);
 
       addPost({
         user: currentUser,
@@ -219,6 +219,11 @@ export function CaptureStudio() {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleFlipCamera = () => {
+    triggerHaptic(10);
+    setCameraMode(prev => prev === "user" ? "environment" : "user");
   };
 
   if (!isCaptureStudioOpen) return null;

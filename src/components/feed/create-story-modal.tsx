@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { X, Image as ImageIcon, Clapperboard, Type, Check, Palette, Filter, Send, Trash2, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { BUCKET_STORIES } from "@/lib/appwrite";
 
 const FILTERS = [
   { id: "none", label: "None", class: "" },
@@ -60,7 +61,7 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
     try {
       let finalImageUrl = "";
       if (selectedFile) {
-        finalImageUrl = await uploadMedia(selectedFile);
+        finalImageUrl = await uploadMedia(selectedFile, BUCKET_STORIES);
       }
 
       await addStory({
@@ -115,7 +116,7 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
                 <button onClick={() => videoInputRef.current?.click()} className="flex items-center gap-6 p-6 bg-zinc-900 border border-white/5 rounded-[2rem] hover:bg-zinc-800 transition-all group"><div className="h-14 w-14 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform"><Clapperboard className="h-7 w-7" /></div><div className="text-left"><p className="text-lg font-bold text-white">Video</p><p className="text-xs text-zinc-500">Max 1 minute clip</p></div></button>
                 <button onClick={() => setStep('text')} className="flex items-center gap-6 p-6 bg-zinc-900 border border-white/5 rounded-[2rem] hover:bg-zinc-800 transition-all group"><div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform"><Type className="h-7 w-7" /></div><div className="text-left"><p className="text-lg font-bold text-white">Text Story</p><p className="text-xs text-zinc-500">Type what's on your mind</p></div></button>
               </div>
-              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" multiple onChange={(e) => handleMediaUpload(e, 'image')} />
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleMediaUpload(e, 'image')} />
               <input type="file" ref={videoInputRef} className="hidden" accept="video/*" onChange={(e) => handleMediaUpload(e, 'video')} />
             </div>
           ) : step === 'text' ? (

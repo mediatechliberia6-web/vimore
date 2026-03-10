@@ -81,6 +81,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { BUCKET_IMAGES } from "@/lib/appwrite";
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -220,7 +221,7 @@ export default function MyProfilePage() {
     try {
       const fileName = refiningMode === 'avatar' ? 'avatar.jpg' : 'cover.jpg';
       const file = dataURLtoFile(refinedDataUrl, fileName);
-      const vaultUrl = await uploadMedia(file);
+      const vaultUrl = await uploadMedia(file, BUCKET_IMAGES);
       
       // 1. Update Identity Node
       await updateCurrentUser({ [refiningMode]: vaultUrl });

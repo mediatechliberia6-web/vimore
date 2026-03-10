@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -36,6 +35,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useMusic, Track, Album } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
+import { BUCKET_MUSIC, BUCKET_IMAGES } from "@/lib/appwrite";
 
 interface TrackSlot {
   id: number;
@@ -160,11 +160,11 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
     toast({ title: "Vault Archival Initiated", description: "Materializing high-fidelity sonic nodes..." });
     
     try {
-      const coverUrl = coverFile ? await uploadMedia(coverFile) : "https://picsum.photos/seed/single/600/600";
+      const coverUrl = coverFile ? await uploadMedia(coverFile, BUCKET_IMAGES) : "https://picsum.photos/seed/single/600/600";
 
       if (projectType === "single") {
         const slot = tracks[0];
-        const audioUrl = slot.file ? await uploadMedia(slot.file) : "";
+        const audioUrl = slot.file ? await uploadMedia(slot.file, BUCKET_MUSIC) : "";
 
         await publishTrack({
           title: projectTitle,
@@ -178,7 +178,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
       } else {
         const albumSongs: Track[] = [];
         for (const slot of tracks.filter(t => t.file)) {
-          const audioUrl = await uploadMedia(slot.file!);
+          const audioUrl = await uploadMedia(slot.file!, BUCKET_MUSIC);
           albumSongs.push({
             id: `song-${Date.now()}-${slot.id}`,
             title: slot.title,
@@ -443,7 +443,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
                       id={`file-${track.id}`} 
                       className="hidden" 
                       accept="audio/*" 
-                      onChange={(e) => handleTrackFileUpload(track.id, e)} 
+                      onChange={(e) => { handleTrackFileUpload(track.id, e); }} 
                     />
                   </div>
 
