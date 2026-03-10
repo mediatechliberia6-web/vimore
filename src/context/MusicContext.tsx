@@ -1,8 +1,24 @@
 'use client';
 
+/**
+ * @fileOverview ViMore Sonic Context Node
+ * Manages music playback, discovery, and studio publishing.
+ * Synchronized with self-hosted Appwrite infrastructure.
+ */
+
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef, useMemo } from 'react';
 import { saveFileToDevice } from '@/lib/utils';
-import client, { databases, APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ALBUMS_COLLECTION_ID, PLAYLISTS_COLLECTION_ID, Query, ID } from '@/lib/appwrite';
+import client, { 
+  databases, 
+  APPWRITE_DATABASE_ID, 
+  SONGS_COLLECTION_ID, 
+  ALBUMS_COLLECTION_ID, 
+  PLAYLISTS_COLLECTION_ID, 
+  Query, 
+  ID,
+  BUCKET_MUSIC,
+  BUCKET_IMAGES
+} from '@/lib/appwrite';
 
 export interface Comment {
   id: string | number;
@@ -161,7 +177,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [trackForNewPlaylist, setTrackForNewPlaylistState] = useState<Track | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const isInitialMount = useRef(true);
 
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
@@ -508,7 +523,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     try {
       await databases.createDocument(APPWRITE_DATABASE_ID, PLAYLISTS_COLLECTION_ID, ID.unique(), {
         title: data.title,
-        creator: "John Doe",
+        creator: "Guest",
         cover: data.cover || trackForNewPlaylist?.cover || "https://picsum.photos/seed/playlist/400/400",
         totalStreams: "0",
         songs: JSON.stringify(trackForNewPlaylist ? [trackForNewPlaylist] : []),
@@ -540,13 +555,13 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const value = {
     currentTrack, queue, globalSongs, globalAlbums, globalPlaylists,
-    forYouSongs: globalSongs.slice(0, 10), // Simplified for prototype
+    forYouSongs: globalSongs.slice(0, 10), 
     isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions,
     likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds,
     likedTracks: globalSongs.filter(s => likedSongIds.has(s.id)),
-    userPlaylists: globalPlaylists.filter(p => p.creator === "John Doe"),
-    userSongs: globalSongs.filter(s => s.artistUsername === "johndoe_creative"),
-    userAlbums: globalAlbums.filter(a => a.artistUsername === "johndoe_creative"),
+    userPlaylists: globalPlaylists.filter(p => p.creator === "Guest"),
+    userSongs: globalSongs.filter(s => s.artistUsername === "guest_node"),
+    userAlbums: globalAlbums.filter(a => a.artistUsername === "guest_node"),
     isCreatePlaylistOpen, trackForNewPlaylist, trackStats,
     isAdPortalOpen, adDuration, adUrl: AD_URL,
     triggerDownloadWithAd, onAdComplete,
