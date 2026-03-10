@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -443,16 +444,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const refreshAdminData = useCallback(async () => {
     try {
-      const [camps, reps, tix, logs] = await Promise.all([
+      // 72-Hour Temporal Filter: Archive visibility limit for payments
+      const threeDaysAgo = Date.now() - (72 * 60 * 60 * 1000);
+
+      const [camps, reps, tix, logs, pays, withs] = await Promise.all([
         databases.listDocuments(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID),
         databases.listDocuments(APPWRITE_DATABASE_ID, REPORTS_COLLECTION_ID),
         databases.listDocuments(APPWRITE_DATABASE_ID, TICKETS_COLLECTION_ID),
-        databases.listDocuments(APPWRITE_DATABASE_ID, AUDIT_LOGS_COLLECTION_ID, [Query.orderDesc('timestamp'), Query.limit(50)])
+        databases.listDocuments(APPWRITE_DATABASE_ID, AUDIT_LOGS_COLLECTION_ID, [Query.orderDesc('timestamp'), Query.limit(50)]),
+        databases.listDocuments(APPWRITE_DATABASE_ID, PAYMENTS_COLLECTION_ID, [Query.greaterThan('timestamp', threeDaysAgo)]),
+        databases.listDocuments(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, [Query.orderDesc('timestamp')])
       ]);
       setCampaignsState(camps.documents);
       setReportsState(reps.documents);
       setTicketsState(tix.documents);
       setAuditLogsState(logs.documents);
+      setPaymentRequestsState(pays.documents);
+      setWithdrawalHistoryState(withs.documents);
     } catch (e) {}
   }, []);
 
