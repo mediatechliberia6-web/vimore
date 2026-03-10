@@ -228,8 +228,8 @@ interface PostContextType {
   referralLink: string;
   pendingTransaction: any;
   activeSubscriptions: Set<string>;
-  login: (identifier: string, p: string) => Promise<void>;
-  signup: (d: any) => Promise<void>;
+  login: (identifier: string, p: string) => Promise<{ success: boolean; message?: string }>;
+  signup: (d: any) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
   sendVerificationCode: (identifier: string, type: 'EMAIL' | 'PHONE') => Promise<void>;
   verifyCode: (identifier: string, code: string) => Promise<boolean>;
@@ -318,7 +318,7 @@ const INITIAL_USER: User = {
 };
 
 const INITIAL_SETTINGS: AppSettings = {
-  theme: 'light', hapticIntensity: 50, isGhostMode: false, playbackQuality: 'standard', fontScale: 1, isAutoFollowEnabled: true, activeSoundSet: 'cyberpunk', isBiometricActive: false, taggingPrivacy: 'everyone', discoveryVisibility: 'everyone', showReadReceipts: true, legacyContact: null, isSilenceActive: false, silenceStart: "22:00", silenceEnd: "07:00", defaultStream: 'foryou', goldRate: 0.01, diamondRate: 0.25, ldMultiplier: 190, isReelsEnabled: true, isMusicEnabled: true, isGiftingEnabled: true, isAiVerificationActive: true, isSensitivityFilterActive: false, isFreeMode: false
+  theme: 'light', hapticIntensity: 50, isGhostMode: false, playbackQuality: 'standard', fontScale: 1, isAutoFollowEnabled: true, activeSoundSet: 'cyberpunk', isBiometricActive: false, taggingPrivacy: 'everyone', discoveryVisibility: 'everyone', showReadReceipts: true, legacyContact: null, isSilenceActive: false, silenceStart: "22:00", silenceEnd: "07:00", defaultStream: 'foryou', goldRate: 0.01, diamondRate: 0.25, ldMultiplier: 190, isReelsEnabled: true, isMusicEnabled: true, isGiftingEnabled: true, isReelsEnabled: true, isMusicEnabled: true, isGiftingEnabled: true, isAiVerificationActive: true, isSensitivityFilterActive: false, isFreeMode: false
 };
 
 export function PostProvider({ children }: { children: ReactNode }) {
@@ -489,10 +489,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (identifier: string, p: string) => {
     try {
       const res = await loginServerAction(identifier, p);
-      if (!res.success) throw new Error(res.message);
+      if (!res.success) return { success: false, message: res.message };
       await account.createEmailPasswordSession(res.email!, p);
       await checkSession();
-    } catch (e: any) { throw new Error(e.message); }
+      return { success: true };
+    } catch (e: any) { 
+      return { success: false, message: String(e.message || e) };
+    }
   }, [checkSession]);
 
   const sendVerificationCode = useCallback(async (identifier: string, type: 'EMAIL' | 'PHONE') => {
@@ -506,7 +509,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       // 1. Materialize Account & Profile
       const res = await signupServerAction({ ...d, referredBy: localStorage.getItem("vimore_referrer") });
-      if (!res.success) throw new Error(res.message);
+      if (!res.success) return { success: false, message: res.message };
       
       // 2. Establish Session
       await account.createEmailPasswordSession(res.email!, d.password);
@@ -518,9 +521,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
       
       // 4. Final Handshake
       await checkSession();
+      return { success: true };
     } catch (e: any) {
-      // Stringify error to prevent Red Render Error in NextJS
-      throw new Error(String(e.message || e));
+      return { success: false, message: String(e.message || e) };
     }
   }, [checkSession, sendVerificationCode]);
 
@@ -658,7 +661,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const createCluster = useCallback(async (name: string, members: any[]) => {
     if (!currentUser.username) return;
     try {
-      const memberList = [...members.map(m => ({ name: m.name, username: m.username, avatar: m.avatar })), { name: currentUser.name, username: currentUser.username, avatar: currentUser.username }];
+      const memberList = [...members.map(m => ({ name: m.name, username: m.username, avatar: m.avatar })), { name: currentUser.name, username: currentUser.username, avatar: currentUser.avatar }];
       await databases.createDocument(APPWRITE_DATABASE_ID, CLUSTERS_COLLECTION_ID, ID.unique(), { name, adminUsername: currentUser.username, members: JSON.stringify(memberList) });
       await refreshClusters();
     } catch (e: any) { throw new Error(e.message); }

@@ -77,7 +77,7 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, message: `Transmission Failure: ${error.message}` };
+    return { success: false, message: `Transmission Failure: ${String(error.message || error)}` };
   }
 }
 
@@ -85,11 +85,11 @@ export async function sendCodeViaBrevo(input: { identifier: string, code: string
  * Generates and archives a verification signature before emission.
  */
 export async function sendVerificationCodeAction(identifier: string, type: 'EMAIL' | 'PHONE') {
-  const { databases } = createAdminClient();
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = Date.now() + (2 * 60 * 1000); 
-
   try {
+    const { databases } = createAdminClient();
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + (2 * 60 * 1000); 
+
     // 1. Vault Archival
     await databases.createDocument(
       APPWRITE_DATABASE_ID,
@@ -104,7 +104,7 @@ export async function sendVerificationCodeAction(identifier: string, type: 'EMAI
   } catch (error: any) {
     return { 
       success: false, 
-      message: `Vault Rejection (OTP): ${error.message || "Could not archive verification node."}` 
+      message: `Vault Rejection (OTP): ${String(error.message || error)}` 
     };
   }
 }
@@ -113,9 +113,8 @@ export async function sendVerificationCodeAction(identifier: string, type: 'EMAI
  * Validates a temporal signature against the vault.
  */
 export async function verifyCodeAction(identifier: string, code: string) {
-  const { databases } = createAdminClient();
-
   try {
+    const { databases } = createAdminClient();
     const res = await databases.listDocuments(
       APPWRITE_DATABASE_ID,
       VERIFICATION_CODES_COLLECTION_ID,
@@ -132,7 +131,7 @@ export async function verifyCodeAction(identifier: string, code: string) {
     
     return { success: false, message: "Invalid or expired signature pulse." };
   } catch (error: any) {
-    return { success: false, message: `Vault Query Failure: ${error.message}` };
+    return { success: false, message: `Vault Query Failure: ${String(error.message || error)}` };
   }
 }
 
@@ -141,12 +140,12 @@ export async function verifyCodeAction(identifier: string, code: string) {
  * RETURNS: SERIALIZABLE OBJECT ONLY.
  */
 export async function signupServerAction(d: any) {
-  const { account, databases } = createAdminClient();
-  const userId = ID.unique();
-  const safePhone = d.phone ? d.phone.replace(/[^0-9]/g, '') : '';
-  const emailNode = d.email || `${safePhone}@vimore.net`;
-
   try {
+    const { account, databases } = createAdminClient();
+    const userId = ID.unique();
+    const safePhone = d.phone ? d.phone.replace(/[^0-9]/g, '') : '';
+    const emailNode = d.email || `${safePhone}@vimore.net`;
+
     // 1. Create Auth Identity
     await account.create(userId, emailNode, d.password, d.name);
 
@@ -175,7 +174,7 @@ export async function signupServerAction(d: any) {
     return { success: true, userId, email: emailNode };
   } catch (e: any) {
     // Return ONLY a serializable string to prevent NextJS Render Errors
-    return { success: false, message: `Vault Rejection (Profile): ${e.message}` };
+    return { success: false, message: `Vault Rejection (Profile): ${String(e.message || e)}` };
   }
 }
 
@@ -183,10 +182,10 @@ export async function signupServerAction(d: any) {
  * Validates login credentials and returns the primary email node.
  */
 export async function loginServerAction(identifier: string, p: string) {
-  const { databases } = createAdminClient();
-  let emailNode = identifier;
-
   try {
+    const { databases } = createAdminClient();
+    let emailNode = identifier;
+
     if (!identifier.includes('@')) {
       const res = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [
         Query.equal('phone', identifier)
@@ -197,6 +196,6 @@ export async function loginServerAction(identifier: string, p: string) {
 
     return { success: true, email: emailNode };
   } catch (e: any) {
-    return { success: false, message: `Vault Rejection (Login): ${e.message}` };
+    return { success: false, message: `Vault Rejection (Login): ${String(e.message || e)}` };
   }
 }

@@ -66,11 +66,14 @@ export function AuthModal() {
     setAuthError(null);
     triggerHaptic(20);
     try {
-      await login(identifier, password);
-      toast({ title: "Identity Synced" });
+      const res = await login(identifier, password);
+      if (res.success) {
+        toast({ title: "Identity Synced" });
+      } else {
+        setAuthError(res.message || "Credential handshake rejected.");
+      }
     } catch (error: any) {
-      setAuthError(error.message);
-      toast({ variant: "destructive", title: "Handshake Failed", description: error.message });
+      setAuthError(String(error.message || error));
     } finally {
       setIsLoading(false);
     }
@@ -110,7 +113,7 @@ export function AuthModal() {
     try {
       // 1. Materialize Identity (Server creates Auth + Profile)
       const sanitizedUsername = username.toLowerCase().trim().replace(/\s+/g, '_');
-      await signup({
+      const res = await signup({
         email: identifier.includes('@') ? identifier : undefined,
         phone: !identifier.includes('@') ? identifier : undefined,
         password,
@@ -121,12 +124,14 @@ export function AuthModal() {
         gender
       });
 
-      // 2. Transition to Verify (signup function in context triggers sendVerificationCode)
-      setMode('verify');
-      toast({ title: "Identity Materialized", description: "Verification code emitted." });
+      if (res.success) {
+        setMode('verify');
+        toast({ title: "Identity Materialized", description: "Verification code emitted." });
+      } else {
+        setAuthError(res.message || "Identity node creation rejected.");
+      }
     } catch (error: any) {
-      // Reveal exact reason from Appwrite
-      setAuthError(error.message);
+      setAuthError(String(error.message || error));
     } finally {
       setIsLoading(false);
     }
@@ -144,11 +149,10 @@ export function AuthModal() {
         toast({ title: "Node Materialized", description: "Welcome to the network cluster." });
         setMode('login'); // Triggers context refresh and close
       } else {
-        throw new Error("Signature verification failed. Code invalid or expired.");
+        setAuthError("Signature verification failed. Code invalid or expired.");
       }
     } catch (error: any) {
-      setAuthError(error.message);
-      toast({ variant: "destructive", title: "Handshake Failed", description: error.message });
+      setAuthError(String(error.message || error));
     } finally {
       setIsLoading(false);
     }
@@ -262,7 +266,7 @@ export function AuthModal() {
                 <Input value={otp} onChange={(e) => setOtp(e.target.value)} maxLength={6} className="h-16 bg-white/5 border-none rounded-2xl text-white text-3xl font-black tracking-[0.5em] text-center" placeholder="XXXXXX" />
                 <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10"><p className="text-[9px] font-bold text-primary/60 uppercase">Check your nodes. Valid for 2 mins.</p></div>
               </div>
-              <Button type="submit" disabled={isLoading || otp.length < 6} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Node"}</Button>
+              <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Node"}</Button>
               <button type="button" onClick={() => { setMode('signup'); setSignupStep(1); }} className="text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-primary">Cancel & Discard</button>
             </form>
           )}
