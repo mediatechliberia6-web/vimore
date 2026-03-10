@@ -1,4 +1,3 @@
-
 'use server';
 
 import { createAdminClient, APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, VERIFICATION_CODES_COLLECTION_ID, ID, Query } from '@/lib/appwrite';
@@ -154,6 +153,11 @@ export async function signupServerAction(d: any) {
     // 1. Create Auth Identity
     await account.create(userId, emailNode, d.password, d.name);
 
+    // 1.5 Determine Role (Sovereignty Handshake)
+    // Check if any profiles exist in the vault yet.
+    const existingProfiles = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
+    const role = existingProfiles.total === 0 ? 'SUPER' : 'USER';
+
     // 2. Materialize Profile Node
     // Ensuring fallback for all 18 attributes to prevent required field crash
     await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, {
@@ -163,7 +167,7 @@ export async function signupServerAction(d: any) {
       phone: d.phone || '',
       avatar: "https://picsum.photos/seed/guest/400/400",
       cover: "",
-      role: 'USER',
+      role: role,
       isVerified: false,
       goldBalance: 0,
       diamondBalance: 0,

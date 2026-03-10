@@ -1,4 +1,3 @@
-
 'use client';
 
 /**
@@ -562,9 +561,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const verifyCode = useCallback(async (identifier: string, code: string) => {
     try {
       const res = await verifyCodeAction(identifier, code);
+      if (res.success) {
+        // Refresh session to pick up verification status
+        await checkSession();
+      }
       return res.success;
     } catch (e) { return false; }
-  }, []);
+  }, [checkSession]);
 
   const addPost = useCallback(async (pData: any) => {
     if (!currentUser.id) return;
