@@ -499,35 +499,41 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const signup = useCallback(async (d: any) => { 
     try {
-      // 1. Trigger Server-Side Node Creation
-      const res = await signupServerAction({ 
-        ...d, 
-        referredBy: localStorage.getItem("vimore_referrer") 
+      const sanitizedUsername = d.username.toLowerCase().trim().replace(/\s+/g, '_');
+      
+      // CALL SERVER ACTION WITH PLAIN OBJECT
+      const res = await signupServerAction({
+        email: d.email,
+        phone: d.phone,
+        password: d.password,
+        name: d.name,
+        username: sanitizedUsername,
+        dob: d.dob,
+        nationality: d.nationality,
+        gender: d.gender
       });
 
-      // 2. Handle Handshake Response
       if (!res.success) {
         return { success: false, accountCreated: false, message: res.message };
       }
 
-      // 3. Establish Session Pulse
+      // If successful, establish session pulse
       try {
         await account.createEmailPasswordSession(res.email!, d.password);
       } catch (sessErr: any) {
-        return { success: true, accountCreated: true, message: "Account created but session handshake delayed. Please login manually." };
+        // Logged account created but session handshake delayed
       }
 
-      // 4. Trigger OTP Emission
+      // Trigger initial OTP pulse
       try {
-        await sendVerificationCodeAction(d.email || res.phone!);
-      } catch (otpErr: any) {
-        console.warn("OTP Pulse delayed.");
-      }
+        await sendVerificationCodeAction(d.email || d.phone!);
+      } catch (otpErr: any) {}
 
       await checkSession();
-      return { success: true, accountCreated: true, message: "Identity materialized. Verification signature transmitted." };
+      return { success: true, accountCreated: true };
     } catch (e: any) {
-      return { success: false, accountCreated: false, message: `Logic Break: ${String(e.message || e)}` };
+      console.error("[CLIENT SIGNUP ERROR]", e.message);
+      return { success: false, accountCreated: false, message: `Handshake Interrupt: ${String(e.message || e)}` };
     }
   }, [checkSession]);
 

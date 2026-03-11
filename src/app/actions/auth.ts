@@ -38,6 +38,7 @@ export async function sendVerificationCodeAction(identifier: string) {
 
     return { success: true };
   } catch (e: any) {
+    console.error("[VAULT ERROR] sendVerificationCode:", e.message);
     return { success: false, message: `Vault Pulse Error: ${String(e.message || e)}` };
   }
 }
@@ -65,20 +66,22 @@ export async function verifyCodeAction(identifier: string, code: string) {
 
     return { success: true };
   } catch (e: any) {
+    console.error("[VAULT ERROR] verifyCode:", e.message);
     return { success: false, message: `Handshake Failed: ${String(e.message || e)}` };
   }
 }
 
 /**
  * Materializes a new identity node in the network.
+ * Wrapped in a terminal try/catch to prevent Next.js 15 serialization crashes.
  */
-export async function signupServerAction(d: any) {
+export async function signupServerAction(inputData: any) {
   try {
     const { account, databases } = createAdminClient();
     const userId = ID.unique();
     
     // 1. Phone Calibration (No-Zero Protocol)
-    let safePhone = d.phone ? d.phone.replace(/[^0-9+]/g, '') : '';
+    let safePhone = inputData.phone ? inputData.phone.replace(/[^0-9+]/g, '') : '';
     if (safePhone.startsWith('+')) {
       const countryCode = safePhone.slice(0, 4);
       const numberPart = safePhone.slice(4);
@@ -87,12 +90,13 @@ export async function signupServerAction(d: any) {
       }
     }
 
-    const emailNode = d.email || `${safePhone.replace('+', '')}@vimore.net`;
+    const emailNode = inputData.email || `${safePhone.replace('+', '')}@vimore.net`;
 
     // 2. Auth Node Creation
     try {
-      await account.create(userId, emailNode, d.password, d.name);
+      await account.create(userId, emailNode, inputData.password, inputData.name);
     } catch (authErr: any) {
+      console.error("[AUTH ERROR]", authErr.message);
       return { success: false, message: `Auth Rejection: ${String(authErr.message || authErr)}` };
     }
 
@@ -106,26 +110,25 @@ export async function signupServerAction(d: any) {
     }
 
     // 4. Deep Profile Sanitization & Archival
-    // We wrap this specifically to catch Schema Violations without crashing Next.js serialization
     try {
       const profilePayload = {
-        name: String(d.name || "Unknown Node"),
-        username: String(d.username || `user_${userId.slice(0, 5)}`),
+        name: String(inputData.name || "Unknown Node"),
+        username: String(inputData.username || `user_${userId.slice(0, 5)}`),
         email: String(emailNode),
         phone: String(safePhone),
-        avatar: String(d.avatar || "https://picsum.photos/seed/guest/400/400"),
-        cover: String(d.cover || ""),
+        avatar: String(inputData.avatar || "https://picsum.photos/seed/guest/400/400"),
+        cover: String(inputData.cover || ""),
         role: String(role),
         isVerified: false,
         goldBalance: 0,
         diamondBalance: 0,
         starBalance: 0,
         referralCount: 0,
-        referredBy: String(d.referredBy || ""),
-        bio: String(d.bio || ""),
-        nationality: String(d.nationality || "Other"),
-        gender: String(d.gender || "Other"),
-        dateOfBirth: String(d.dob || ""),
+        referredBy: inputData.referredBy ? String(inputData.referredBy) : null,
+        bio: String(inputData.bio || ""),
+        nationality: String(inputData.nationality || "Other"),
+        gender: String(inputData.gender || "Other"),
+        dateOfBirth: String(inputData.dob || ""),
         joinDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
         isEmailVerified: false
       };
@@ -134,14 +137,15 @@ export async function signupServerAction(d: any) {
       
       return { success: true, userId, email: emailNode, phone: safePhone };
     } catch (dbErr: any) {
-      // THE CLEAN CATCH: Returning a simple string prevents the _formData crash
+      console.error("[DATABASE SCHEMA ERROR]", dbErr.message, dbErr.response);
       return { 
         success: false, 
         message: `Vault Schema Rejection: ${String(dbErr.message || dbErr)}` 
       };
     }
-  } catch (e: any) {
-    return { success: false, message: `Terminal Logic Break: ${String(e.message || e)}` };
+  } catch (terminalErr: any) {
+    console.error("[TERMINAL ACTION ERROR]", terminalErr.message);
+    return { success: false, message: `System Core Failure: ${String(terminalErr.message || terminalErr)}` };
   }
 }
 
@@ -163,6 +167,7 @@ export async function loginServerAction(identifier: string, p: string) {
 
     return { success: true, email: emailNode };
   } catch (e: any) {
+    console.error("[VAULT ERROR] login:", e.message);
     return { success: false, message: String(e.message || e) };
   }
 }
