@@ -11,7 +11,6 @@ import { createAdminClient, APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, VERIFI
 
 /**
  * Materializes a new 6-digit verification code in the vault.
- * Expires in 2 minutes.
  */
 export async function sendVerificationCodeAction(identifier: string) {
   try {

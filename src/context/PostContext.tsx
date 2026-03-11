@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -499,43 +500,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const signup = useCallback(async (d: any) => { 
     try {
-      const sanitizedUsername = d.username.toLowerCase().trim().replace(/\s+/g, '_');
-      
-      // CALL SERVER ACTION WITH PLAIN OBJECT
-      const res = await signupServerAction({
-        email: d.email,
-        phone: d.phone,
-        password: d.password,
-        name: d.name,
-        username: sanitizedUsername,
-        dob: d.dob,
-        nationality: d.nationality,
-        gender: d.gender
-      });
+      const res = await signupServerAction(d);
 
-      if (!res.success) {
-        return { success: false, accountCreated: false, message: res.message };
+      if (!res || !res.success) {
+        return { success: false, message: res?.message || "Identity materialization stalled." };
       }
 
-      // If successful, establish session pulse
-      try {
-        await account.createEmailPasswordSession(res.email!, d.password);
-      } catch (sessErr: any) {
-        // Logged account created but session handshake delayed
-      }
-
-      // Trigger initial OTP pulse
-      try {
-        await sendVerificationCodeAction(d.email || d.phone!);
-      } catch (otpErr: any) {}
-
-      await checkSession();
-      return { success: true, accountCreated: true };
+      // Important: Success signal received.
+      return { success: true, ...res };
     } catch (e: any) {
-      console.error("[CLIENT SIGNUP ERROR]", e.message);
-      return { success: false, accountCreated: false, message: `Handshake Interrupt: ${String(e.message || e)}` };
+      console.error("[SIGNUP HANDSHAKE ERROR]", e);
+      return { success: false, message: "System core encountered a ghost error. Retrying sync..." };
     }
-  }, [checkSession]);
+  }, []);
 
   const logout = useCallback(async () => {
     try { 

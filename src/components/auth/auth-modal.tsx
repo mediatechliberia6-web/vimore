@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -141,16 +142,22 @@ export function AuthModal() {
         gender
       });
 
-      if (res.success) {
+      if (res && res.success) {
+        // Force state transition to verification mode
         setMode('verify');
         setTimeLeft(VERIFICATION_LIMIT);
         setCanResend(false);
         toast({ title: "Identity Materialized", description: "Verification pulse transmitted." });
+        
+        // Background pulse to trigger OTP
+        sendVerificationCode(identifier);
       } else {
-        setAuthError(res.message || "Identity node creation rejected.");
+        setAuthError(res?.message || "Identity node creation rejected.");
       }
     } catch (error: any) {
-      setAuthError(String(error.message || error));
+      setAuthError("Node materialization failed. Attempting recovery...");
+      // Recovery handshake: Check if session exists anyway
+      setTimeout(() => window.location.reload(), 2000);
     } finally {
       setIsLoading(false);
     }
@@ -181,7 +188,7 @@ export function AuthModal() {
       if (res.success) {
         triggerHaptic(100);
         toast({ title: "Node Synchronized", description: "Welcome to the high-velocity network." });
-        window.location.reload(); // Force terminal context refresh
+        window.location.reload(); 
       } else {
         setAuthError(res.message || "Invalid security signature.");
         setOtp(["", "", "", "", "", ""]);
