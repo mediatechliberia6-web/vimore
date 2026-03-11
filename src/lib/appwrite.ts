@@ -54,6 +54,7 @@ export const SONGS_COLLECTION_ID = 'songs';
 export const ALBUMS_COLLECTION_ID = 'albums';
 export const PLAYLISTS_COLLECTION_ID = 'playlists';
 export const AUDIT_LOGS_COLLECTION_ID = 'audit_logs';
+export const VERIFICATION_CODES_COLLECTION_ID = 'verification_codes';
 
 /**
  * Materializes an Administrative Client for Server-Side Handshakes.

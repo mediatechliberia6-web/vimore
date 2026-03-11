@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   Zap, 
   Mail, 
@@ -14,7 +14,10 @@ import {
   Calendar,
   AlertTriangle,
   Smartphone,
-  ArrowLeft
+  ArrowLeft,
+  CheckCircle2,
+  Clock,
+  RefreshCcw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,17 +30,19 @@ const NATIONALITIES = [
   "Liberian", "American", "Nigerian", "Ghanian", "Guinean", "Sierra Leonean", "Ivory Coast", "European", "Asian", "Other"
 ];
 
+const VERIFICATION_LIMIT = 120; // 2 minutes
+
 export function AuthModal() {
-  const { currentUser, login, signup, triggerHaptic } = usePosts();
+  const { currentUser, login, signup, sendVerificationCode, verifyCode, triggerHaptic } = usePosts();
   const { toast } = useToast();
   
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "verify">("login");
   const [signupStep, setSignupStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   
   // Auth Form State
-  const [identifier, setIdentifier] = useState(""); // Email or Phone
+  const [identifier, setIdentifier] = useState(""); 
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
@@ -47,8 +52,25 @@ export function AuthModal() {
   const [nationality, setNationality] = useState("Liberian");
   const [gender, setGender] = useState<'Male' | 'Female'>('Male');
 
+  // Verification State
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [timeLeft, setTimeLeft] = useState(VERIFICATION_LIMIT);
+  const [canResend, setCanResend] = useState(false);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Timer Effect
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (mode === 'verify' && timeLeft > 0) {
+      timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+    } else if (timeLeft === 0) {
+      setCanResend(true);
+    }
+    return () => clearInterval(timer);
+  }, [mode, timeLeft]);
+
   // Terminal Handshake
-  if (currentUser?.id && currentUser.username !== 'guest_node') return null;
+  if (currentUser?.id && currentUser.username !== 'guest_node' && currentUser.isEmailVerified) return null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,8 +96,15 @@ export function AuthModal() {
     setAuthError(null);
     
     if (signupStep === 1) {
-      if (!identifier.includes('@') && !/^\d+$/.test(identifier.replace(/\+/g, ''))) {
-        setAuthError("Email or Phone pulse required.");
+      const isEmail = identifier.includes('@');
+      const isPhone = /^\+?\d+$/.test(identifier.replace(/[-\s]/g, ''));
+
+      if (!isEmail && !isPhone) {
+        setAuthError("Invalid identifier pulse.");
+        return;
+      }
+      if (isPhone && !identifier.startsWith('+')) {
+        setAuthError("Include country code (e.g. +231)");
         return;
       }
       if (password.length < 8) {
@@ -114,7 +143,10 @@ export function AuthModal() {
       });
 
       if (res.success) {
-        toast({ title: "Identity Materialized", description: "Welcome to the network." });
+        setMode('verify');
+        setTimeLeft(VERIFICATION_LIMIT);
+        setCanResend(false);
+        toast({ title: "Identity Materialized", description: "Verification pulse transmitted." });
       } else {
         setAuthError(res.message || "Identity node creation rejected.");
       }
@@ -123,6 +155,65 @@ export function AuthModal() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    const newOtp = [...otp];
+    newOtp[index] = value.slice(-1);
+    setOtp(newOtp);
+
+    if (value && index < 5) {
+      otpRefs.current[index + 1]?.focus();
+    }
+
+    if (newOtp.every(digit => digit !== "") && index === 5) {
+      handleVerify(newOtp.join(""));
+    }
+  };
+
+  const handleVerify = async (code: string) => {
+    setIsLoading(true);
+    triggerHaptic(30);
+    setAuthError(null);
+
+    try {
+      const res = await verifyCode(identifier, code);
+      if (res.success) {
+        triggerHaptic(100);
+        toast({ title: "Node Synchronized", description: "Welcome to the high-velocity network." });
+        window.location.reload(); // Force terminal context refresh
+      } else {
+        setAuthError(res.message || "Invalid security signature.");
+        setOtp(["", "", "", "", "", ""]);
+        otpRefs.current[0]?.focus();
+      }
+    } catch (e: any) {
+      setAuthError(e.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!canResend) return;
+    triggerHaptic(15);
+    setIsLoading(true);
+    try {
+      const res = await sendVerificationCode(identifier);
+      if (res.success) {
+        setTimeLeft(VERIFICATION_LIMIT);
+        setCanResend(false);
+        toast({ title: "New Pulse Transmitted" });
+      }
+    } catch (e) {}
+    setIsLoading(false);
+  };
+
+  const formatTime = (s: number) => {
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -142,7 +233,9 @@ export function AuthModal() {
           </div>
           <div className="space-y-1">
             <h1 className="text-4xl font-black italic uppercase tracking-tighter text-white">ViMore</h1>
-            <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.4em]">High-Velocity Identity Hub</p>
+            <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.4em]">
+              {mode === 'verify' ? "Security Handshake Active" : "High-Velocity Identity Hub"}
+            </p>
           </div>
         </header>
 
@@ -176,7 +269,7 @@ export function AuthModal() {
               <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sync Identity"}</Button>
               <div className="text-center"><button type="button" onClick={() => { setMode('signup'); setSignupStep(1); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Materialize New Identity</button></div>
             </form>
-          ) : (
+          ) : mode === 'signup' ? (
             <form onSubmit={handleSignupInit} className="space-y-6 animate-in slide-in-from-bottom-4">
               {signupStep === 1 ? (
                 <div className="space-y-4">
@@ -184,7 +277,11 @@ export function AuthModal() {
                     <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="Identity Label" /></div>
                     <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Username</Label><Input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, '_'))} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="signature_id" /></div>
                   </div>
-                  <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Email or Phone</Label><Input value={identifier} onChange={(e) => setIdentifier(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="sync@vimore.com or +231..." /></div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Email or Phone</Label>
+                    <Input value={identifier} onChange={(e) => setIdentifier(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="e.g. +231778451835 (no zero)" />
+                    <p className="text-[8px] font-bold text-white/20 uppercase ml-1">Include country code and skip the leading zero.</p>
+                  </div>
                   <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Password</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="••••••••" /></div>
                 </div>
               ) : (
@@ -218,6 +315,52 @@ export function AuthModal() {
               <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : signupStep === 1 ? "Next Protocol" : "Materialize Identity"}</Button>
               <div className="text-center"><button type="button" onClick={() => { setMode('login'); setSignupStep(1); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Back to Sync</button></div>
             </form>
+          ) : (
+            <div className="space-y-8 animate-in zoom-in-95 duration-500">
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl font-black italic uppercase tracking-tight text-white">Check your Device</h2>
+                <p className="text-xs text-white/40 font-medium">We transmitted a 6-digit security signature to **{identifier}**. Enter it to synchronize.</p>
+              </div>
+
+              <div className="flex justify-between gap-2">
+                {otp.map((digit, i) => (
+                  <input
+                    key={i}
+                    ref={(el) => (otpRefs.current[i] = el)}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(i, e.target.value)}
+                    onKeyDown={(e) => e.key === 'Backspace' && !otp[i] && i > 0 && otpRefs.current[i - 1]?.focus()}
+                    className="w-full h-14 bg-white/5 border-none rounded-xl text-center text-xl font-black text-white focus:ring-2 ring-primary transition-all"
+                  />
+                ))}
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Clock className="h-3 w-3 animate-pulse" />
+                    <span className="text-[10px] font-black uppercase tracking-widest tabular-nums">{formatTime(timeLeft)} Remaining</span>
+                  </div>
+                  <button 
+                    disabled={!canResend || isLoading} 
+                    onClick={handleResend}
+                    className={cn("text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1", canResend ? "text-primary hover:text-primary/80" : "text-white/20")}
+                  >
+                    <RefreshCcw className="h-3 w-3" /> Resend Pulse
+                  </button>
+                </div>
+                
+                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex gap-3">
+                  <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                  <p className="text-[9px] font-bold text-primary/60 uppercase leading-relaxed tracking-tighter">
+                    Signature valid for 2 minutes. Failure to sync within this window requires a new pulse.
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
 
         </div>
