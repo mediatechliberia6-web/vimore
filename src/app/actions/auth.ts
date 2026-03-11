@@ -31,16 +31,14 @@ export async function sendVerificationCodeAction(identifier: string) {
     await databases.createDocument(APPWRITE_DATABASE_ID, VERIFICATION_CODES_COLLECTION_ID, ID.unique(), {
       identifier,
       code,
-      expiresAt
+      expiresAt: Number(expiresAt)
     });
 
-    // NOTE: In this custom flow, the code is archived in the vault.
-    // For this prototype, the code is successfully archived and can be retrieved by the verify pulse.
     console.log(`[IDENTITY HANDSHAKE] Verification code for ${identifier}: ${code}`);
 
     return { success: true };
   } catch (e: any) {
-    return { success: false, message: String(e.message || e) };
+    return { success: false, message: `Vault Pulse Error: ${String(e.message || e)}` };
   }
 }
 
@@ -67,7 +65,7 @@ export async function verifyCodeAction(identifier: string, code: string) {
 
     return { success: true };
   } catch (e: any) {
-    return { success: false, message: String(e.message || e) };
+    return { success: false, message: `Handshake Failed: ${String(e.message || e)}` };
   }
 }
 
@@ -79,11 +77,10 @@ export async function signupServerAction(d: any) {
     const { account, databases } = createAdminClient();
     const userId = ID.unique();
     
-    // NO-ZERO PHONE CALIBRATION
-    // Example: +2310778... becomes +231778...
+    // 1. Phone Calibration (No-Zero Protocol)
     let safePhone = d.phone ? d.phone.replace(/[^0-9+]/g, '') : '';
     if (safePhone.startsWith('+')) {
-      const countryCode = safePhone.slice(0, 4); // Assuming +231 or similar 3-digit CC
+      const countryCode = safePhone.slice(0, 4);
       const numberPart = safePhone.slice(4);
       if (numberPart.startsWith('0')) {
         safePhone = countryCode + numberPart.slice(1);
@@ -92,39 +89,59 @@ export async function signupServerAction(d: any) {
 
     const emailNode = d.email || `${safePhone.replace('+', '')}@vimore.net`;
 
-    // 1. Create Auth Identity
-    await account.create(userId, emailNode, d.password, d.name);
+    // 2. Auth Node Creation
+    try {
+      await account.create(userId, emailNode, d.password, d.name);
+    } catch (authErr: any) {
+      return { success: false, message: `Auth Rejection: ${String(authErr.message || authErr)}` };
+    }
 
-    // 1.5 Determine Role (Sovereignty Handshake)
-    const existingProfiles = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
-    const role = existingProfiles.total === 0 ? 'SUPER' : 'USER';
+    // 3. Sovereignty Handshake (SUPER check)
+    let role = 'USER';
+    try {
+      const existingProfiles = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
+      if (existingProfiles.total === 0) role = 'SUPER';
+    } catch (e) {
+      console.warn("Governance node query stalled, defaulting to USER role.");
+    }
 
-    // 2. Materialize Profile Node
-    await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, {
-      name: d.name || "Unknown Node",
-      username: d.username || `user_${userId.slice(0, 5)}`,
-      email: emailNode,
-      phone: safePhone,
-      avatar: "https://picsum.photos/seed/guest/400/400",
-      cover: "",
-      role: role,
-      isVerified: false,
-      goldBalance: 0,
-      diamondBalance: 0,
-      starBalance: 0,
-      referralCount: 0,
-      referredBy: d.referredBy || '',
-      bio: d.bio || "",
-      nationality: d.nationality || "Other",
-      gender: d.gender || "Other",
-      dateOfBirth: d.dob || "",
-      joinDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-      isEmailVerified: false // Locked until OTP sync
-    });
+    // 4. Deep Profile Sanitization & Archival
+    // We wrap this specifically to catch Schema Violations without crashing Next.js serialization
+    try {
+      const profilePayload = {
+        name: String(d.name || "Unknown Node"),
+        username: String(d.username || `user_${userId.slice(0, 5)}`),
+        email: String(emailNode),
+        phone: String(safePhone),
+        avatar: String(d.avatar || "https://picsum.photos/seed/guest/400/400"),
+        cover: String(d.cover || ""),
+        role: String(role),
+        isVerified: false,
+        goldBalance: 0,
+        diamondBalance: 0,
+        starBalance: 0,
+        referralCount: 0,
+        referredBy: String(d.referredBy || ""),
+        bio: String(d.bio || ""),
+        nationality: String(d.nationality || "Other"),
+        gender: String(d.gender || "Other"),
+        dateOfBirth: String(d.dob || ""),
+        joinDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        isEmailVerified: false
+      };
 
-    return { success: true, userId, email: emailNode, phone: safePhone };
+      await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, profilePayload);
+      
+      return { success: true, userId, email: emailNode, phone: safePhone };
+    } catch (dbErr: any) {
+      // THE CLEAN CATCH: Returning a simple string prevents the _formData crash
+      return { 
+        success: false, 
+        message: `Vault Schema Rejection: ${String(dbErr.message || dbErr)}` 
+      };
+    }
   } catch (e: any) {
-    return { success: false, message: String(e.message || e) };
+    return { success: false, message: `Terminal Logic Break: ${String(e.message || e)}` };
   }
 }
 
