@@ -1,75 +1,13 @@
 
 'use server';
 
-import { createAdminClient, APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, VERIFICATION_CODES_COLLECTION_ID, ID, Query } from '@/lib/appwrite';
+import { createAdminClient, APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, ID, Query } from '@/lib/appwrite';
 
 /**
  * @fileOverview ViMore Authentication & Identity Engine
- * Optimized for Appwrite-Native Verification.
+ * Optimized for Instant Entry (No Verification).
  * Targets self-hosted infrastructure at mediatechliberia.online.
  */
-
-/**
- * Materializes a new 6-digit verification code in the vault.
- */
-export async function sendVerificationCodeAction(identifier: string) {
-  try {
-    const { databases } = createAdminClient();
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + (2 * 60 * 1000); // 2 minutes
-
-    // 1. Purge existing codes for this identifier
-    const existing = await databases.listDocuments(APPWRITE_DATABASE_ID, VERIFICATION_CODES_COLLECTION_ID, [
-      Query.equal('identifier', identifier)
-    ]);
-    
-    for (const doc of existing.documents) {
-      await databases.deleteDocument(APPWRITE_DATABASE_ID, VERIFICATION_CODES_COLLECTION_ID, doc.$id);
-    }
-
-    // 2. Archive new temporal node
-    await databases.createDocument(APPWRITE_DATABASE_ID, VERIFICATION_CODES_COLLECTION_ID, ID.unique(), {
-      identifier,
-      code,
-      expiresAt: Number(expiresAt)
-    });
-
-    console.log(`[IDENTITY HANDSHAKE] Verification code for ${identifier}: ${code}`);
-
-    return { success: true };
-  } catch (e: any) {
-    console.error("[VAULT ERROR] sendVerificationCode:", e.message);
-    return { success: false, message: `Vault Pulse Error: ${String(e.message || e)}` };
-  }
-}
-
-/**
- * Validates a temporal security signature against the vault.
- */
-export async function verifyCodeAction(identifier: string, code: string) {
-  try {
-    const { databases } = createAdminClient();
-    const now = Date.now();
-
-    const response = await databases.listDocuments(APPWRITE_DATABASE_ID, VERIFICATION_CODES_COLLECTION_ID, [
-      Query.equal('identifier', identifier),
-      Query.equal('code', code),
-      Query.greaterThan('expiresAt', now)
-    ]);
-
-    if (response.total === 0) {
-      return { success: false, message: "Invalid or Expired Signature." };
-    }
-
-    // Handshake valid: Cleanup the used code
-    await databases.deleteDocument(APPWRITE_DATABASE_ID, VERIFICATION_CODES_COLLECTION_ID, response.documents[0].$id);
-
-    return { success: true };
-  } catch (e: any) {
-    console.error("[VAULT ERROR] verifyCode:", e.message);
-    return { success: false, message: `Handshake Failed: ${String(e.message || e)}` };
-  }
-}
 
 /**
  * Materializes a new identity node in the network.
@@ -139,7 +77,7 @@ export async function signupServerAction(inputData: any) {
         gender: String(inputData.gender || "Other"),
         dateOfBirth: String(inputData.dob || ""),
         joinDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-        isEmailVerified: false
+        isEmailVerified: true // INSTANT ACCESS PROTOCOL: New nodes are verified by default
       };
 
       await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, profilePayload);
