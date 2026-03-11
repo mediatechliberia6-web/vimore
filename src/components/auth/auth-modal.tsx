@@ -47,7 +47,7 @@ export function AuthModal() {
   const [gender, setGender] = useState<'Male' | 'Female'>('Male');
 
   // Terminal Handshake: Modal disappears when user is authenticated
-  if (currentUser?.id && currentUser.username !== 'guest_node' && currentUser.isEmailVerified) return null;
+  if (currentUser?.id && currentUser.username !== 'guest_node') return null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,11 +77,7 @@ export function AuthModal() {
       const isPhone = /^\+?\d+$/.test(identifier.replace(/[-\s]/g, ''));
 
       if (!isEmail && !isPhone) {
-        setAuthError("Invalid identifier pulse.");
-        return;
-      }
-      if (isPhone && !identifier.startsWith('+')) {
-        setAuthError("Include country code (e.g. +231)");
+        setAuthError("Invalid identifier pulse. Use Email or Phone (+231...).");
         return;
       }
       if (password.length < 8) {
@@ -108,7 +104,9 @@ export function AuthModal() {
     
     try {
       const sanitizedUsername = username.toLowerCase().trim().replace(/\s+/g, '_');
-      const res = await signup({
+      
+      // UNIFIED IDENTITY PULSE: Construct a plain JavaScript object
+      const signupPayload = {
         email: identifier.includes('@') ? identifier : undefined,
         phone: !identifier.includes('@') ? identifier : undefined,
         password,
@@ -116,18 +114,20 @@ export function AuthModal() {
         username: sanitizedUsername,
         dob,
         nationality,
-        gender
-      });
+        gender,
+        referredBy: localStorage.getItem('vimore_referrer') || undefined
+      };
+
+      const res = await signup(signupPayload);
 
       if (res && res.success) {
         toast({ title: "Welcome to ViMore", description: "Identity node materialized successfully." });
-        // The modal will auto-close via the logic at line 42 because PostContext signup calls login()
       } else {
         setAuthError(res?.message || "Identity node creation rejected.");
       }
     } catch (error: any) {
-      setAuthError("Node materialization failed. Attempting recovery...");
-      setTimeout(() => window.location.reload(), 2000);
+      console.error("[SIGNUP ERROR]", error);
+      setAuthError("The Next.js router encountered a serialization stall. Please try logging in if your account was created.");
     } finally {
       setIsLoading(false);
     }
@@ -194,8 +194,7 @@ export function AuthModal() {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Email or Phone</Label>
-                    <Input value={identifier} onChange={(e) => setIdentifier(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="e.g. +231778451835 (no zero)" />
-                    <p className="text-[8px] font-bold text-white/20 uppercase ml-1">Include country code and skip the leading zero.</p>
+                    <Input value={identifier} onChange={(e) => setIdentifier(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="e.g. +231..." />
                   </div>
                   <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Password</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="••••••••" /></div>
                 </div>

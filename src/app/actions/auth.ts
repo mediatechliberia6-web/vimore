@@ -4,76 +4,68 @@
 import { createAdminClient, APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, ID, Query } from '@/lib/appwrite';
 
 /**
- * @fileOverview ViMore Authentication & Identity Engine
- * Optimized for Next.js 15 Native FormData Handshake.
- * Targets self-hosted infrastructure at mediatechliberia.online.
+ * @fileOverview ViMore Unified Identity Pulse (Server-Side)
+ * Optimized for Next.js 15 Plain Object Handshake.
+ * Materializes identity nodes in the self-hosted MTL Command Core.
  */
 
-/**
- * Materializes a new identity node in the network using FormData.
- * Returns a plain serializable object to prevent Next.js router crashes.
- */
-export async function signupServerAction(formData: FormData) {
+export async function signupServerAction(input: {
+  email?: string;
+  phone?: string;
+  password: string;
+  name: string;
+  username: string;
+  dob: string;
+  nationality: string;
+  gender: string;
+  referredBy?: string;
+}) {
   try {
     const { users, databases } = createAdminClient();
     const userId = ID.unique();
     
-    // Extract nodes from FormData
-    const name = formData.get('name') as string;
-    const username = formData.get('username') as string;
-    const email = formData.get('email') as string;
-    const phone = formData.get('phone') as string;
-    const password = formData.get('password') as string;
-    const dob = formData.get('dob') as string;
-    const nationality = formData.get('nationality') as string;
-    const gender = formData.get('gender') as string;
-    const referredBy = formData.get('referredBy') as string;
+    // 1. Attribute Normalization
+    const emailNode = input.email || `${input.phone?.replace('+', '') || userId}@vimore.net`;
+    const safePhone = input.phone || undefined;
+    const safeReferrer = input.referredBy && input.referredBy.trim() !== "" ? input.referredBy : null;
 
-    // 1. Phone Calibration (No-Zero Protocol)
-    let safePhone = phone ? phone.replace(/[^0-9+]/g, '') : '';
-    if (safePhone.startsWith('+')) {
-      const countryCode = safePhone.slice(0, 4); // Assume 4 digit code like +231
-      const numberPart = safePhone.slice(4);
-      if (numberPart.startsWith('0')) {
-        safePhone = countryCode + numberPart.slice(1);
-      }
-    }
-
-    const emailNode = email || `${safePhone.replace('+', '')}@vimore.net`;
-
-    // 2. Sovereignty Handshake (SUPER check)
+    // 2. Sovereignty Handshake (SUPER node check)
     let role = 'USER';
     try {
-      const existingProfiles = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
+      const existingProfiles = await databases.listDocuments(
+        APPWRITE_DATABASE_ID, 
+        PROFILES_COLLECTION_ID, 
+        [Query.limit(1)]
+      );
       if (existingProfiles.total === 0) {
         role = 'SUPER';
-        console.log("[SOVEREIGNTY] First node detected. Assigning SUPER role.");
+        console.log("[SOVEREIGNTY] Inaugural node detected. Assigning SUPER authority.");
       }
     } catch (e) {
-      console.warn("Governance node query stalled, defaulting to USER role.");
+      console.warn("Governance query stalled, defaulting to USER node.");
     }
 
-    // 3. Auth Node Creation (Administrative Users Service)
+    // 3. Administrative Identity Creation
     try {
       await users.create(
         userId,
         emailNode,
-        safePhone || undefined,
-        password,
-        name
+        safePhone,
+        input.password,
+        input.name
       );
     } catch (authErr: any) {
       console.error("[AUTH ERROR]", authErr.message);
-      return { success: false, message: `Auth Rejection: ${String(authErr.message || authErr)}` };
+      return { success: false, message: `Vault Rejection: ${String(authErr.message)}` };
     }
 
     // 4. Deep Profile Archival
     try {
       const profilePayload = {
-        name: String(name || "Unknown Node"),
-        username: String(username || `user_${userId.slice(0, 5)}`),
+        name: String(input.name),
+        username: String(input.username).toLowerCase().replace(/\s+/g, '_'),
         email: String(emailNode),
-        phone: String(safePhone),
+        phone: String(input.phone || ""),
         avatar: "https://picsum.photos/seed/guest/400/400",
         cover: "",
         role: String(role),
@@ -82,34 +74,38 @@ export async function signupServerAction(formData: FormData) {
         diamondBalance: 0,
         starBalance: 0,
         referralCount: 0,
-        referredBy: referredBy || null,
+        referredBy: safeReferrer,
         bio: "",
-        nationality: String(nationality || "Other"),
-        gender: String(gender || "Other"),
-        dateOfBirth: String(dob || ""),
+        nationality: String(input.nationality || "Other"),
+        gender: String(input.gender || "Other"),
+        dateOfBirth: String(input.dob || ""),
         joinDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
         isEmailVerified: true // INSTANT ACCESS PROTOCOL
       };
 
-      await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, profilePayload);
+      await databases.createDocument(
+        APPWRITE_DATABASE_ID, 
+        PROFILES_COLLECTION_ID, 
+        userId, 
+        profilePayload
+      );
       
       return { success: true, userId };
     } catch (dbErr: any) {
       console.error("[DATABASE SCHEMA ERROR]", dbErr.message);
+      // Attempt to purge the orphan auth node if archival fails
+      try { await users.delete(userId); } catch (e) {}
       return { 
         success: false, 
-        message: `Vault Schema Rejection: ${String(dbErr.message || dbErr)}` 
+        message: `Profile Archival Stalled: ${String(dbErr.message)}` 
       };
     }
   } catch (terminalErr: any) {
     console.error("[TERMINAL ACTION ERROR]", terminalErr.message);
-    return { success: false, message: "System Core Failure during handshake." };
+    return { success: false, message: "System core failed to stabilize the handshake." };
   }
 }
 
-/**
- * Validates login credentials and returns the primary email node.
- */
 export async function loginServerAction(identifier: string, p: string) {
   try {
     const { databases } = createAdminClient();

@@ -229,7 +229,7 @@ interface PostContextType {
   pendingTransaction: any;
   activeSubscriptions: Set<string>;
   login: (identifier: string, p: string) => Promise<{ success: boolean; message?: string }>;
-  signup: (d: any) => Promise<{ success: boolean; accountCreated?: boolean; message?: string }>;
+  signup: (d: any) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
   checkSession: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
@@ -306,7 +306,6 @@ interface PostContextType {
   updateUserIdentity: (userId: string, data: Partial<User>) => Promise<void>;
   handleReportAction: (reportId: string, action: any) => Promise<void>;
   handleTicketAction: (ticketId: string, status: any) => Promise<void>;
-  voteOnStoryPoll: (storyId: string, segmentId: string, optionIndex: number) => Promise<void>;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -496,28 +495,22 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, [checkSession]);
 
-  const signup = useCallback(async (d: any) => { 
+  const signup = useCallback(async (signupData: any) => { 
     try {
-      // Transition to FormData for Next.js 15 Native Handshake
-      const formData = new FormData();
-      Object.keys(d).forEach(key => {
-        if (d[key] !== undefined && d[key] !== null) {
-          formData.append(key, d[key]);
-        }
-      });
-
-      const res = await signupServerAction(formData);
+      // UNIFIED IDENTITY PULSE: Direct Plain Object Handshake
+      const res = await signupServerAction(signupData);
       
       if (res && res.success) {
-        // Instant Login Pulse
-        await login(d.email || d.phone, d.password);
+        // Instant Identity Handover: Perform Login Pulse
+        const loginIdentifier = signupData.email || signupData.phone;
+        await login(loginIdentifier, signupData.password);
         return { success: true };
       } else {
         return { success: false, message: res?.message || "Identity materialization stalled." };
       }
     } catch (e: any) {
       console.error("[SIGNUP HANDSHAKE ERROR]", e);
-      return { success: false, message: "System core encountered a serialization error." };
+      return { success: false, message: "System core failed to stabilize the return trip." };
     }
   }, [login]);
 
