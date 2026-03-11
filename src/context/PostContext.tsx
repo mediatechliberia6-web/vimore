@@ -1,4 +1,3 @@
-
 'use client';
 
 /**
@@ -35,6 +34,7 @@ import client, {
   TICKETS_COLLECTION_ID,
   SONGS_COLLECTION_ID,
   AUDIT_LOGS_COLLECTION_ID,
+  VERIFICATION_CODES_COLLECTION_ID,
   Query,
   storage,
   endpoint,
@@ -499,33 +499,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const signup = useCallback(async (d: any) => { 
     try {
-      // 1. Materialize Account & Profile
       const res = await signupServerAction({ ...d, referredBy: localStorage.getItem("vimore_referrer") });
-      
-      if (!res.success) {
-        return { success: false, accountCreated: false, message: res.message };
-      }
-
-      // 2. Establish Session (Client Side)
+      if (!res.success) return { success: false, accountCreated: false, message: res.message };
       await account.createEmailPasswordSession(res.email!, d.password);
-      
-      // 3. Trigger OTP Pulse immediately after session
       await sendVerificationCodeAction(d.email || res.phone!);
-
-      // 4. Update UI context without full reload to maintain state
       await checkSession();
-
-      return { 
-        success: true, 
-        accountCreated: true,
-        message: "Identity materialized. OTP transmitted." 
-      };
+      return { success: true, accountCreated: true, message: "Identity materialized. OTP transmitted." };
     } catch (e: any) {
-      return { 
-        success: false, 
-        accountCreated: false, 
-        message: String(e.message || e) 
-      };
+      return { success: false, accountCreated: false, message: String(e.message || e) };
     }
   }, [checkSession]);
 
@@ -550,7 +531,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const res = await verifyCodeAction(identifier, code);
       if (res.success) {
-        // Vault flip: unlock features
         if (currentUser.id) {
           await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, currentUser.id, { isEmailVerified: true });
           setCurrentUserState(prev => ({ ...prev, isEmailVerified: true }));

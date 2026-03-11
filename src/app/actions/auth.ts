@@ -1,4 +1,3 @@
-
 'use server';
 
 import { createAdminClient, APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, VERIFICATION_CODES_COLLECTION_ID, ID, Query } from '@/lib/appwrite';
@@ -35,8 +34,8 @@ export async function sendVerificationCodeAction(identifier: string) {
       expiresAt
     });
 
-    // NOTE: In a production environment, this is where you would call your SMS/Email provider.
-    // For this prototype, the code is successfully archived in the Appwrite vault.
+    // NOTE: In this custom flow, the code is archived in the vault.
+    // For this prototype, the code is successfully archived and can be retrieved by the verify pulse.
     console.log(`[IDENTITY HANDSHAKE] Verification code for ${identifier}: ${code}`);
 
     return { success: true };
