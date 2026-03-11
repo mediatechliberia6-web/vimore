@@ -479,19 +479,19 @@ export default function EarningsPage() {
                           <span className="text-2xl font-black italic text-primary">{payoutCurrency === 'USD' ? '$' : 'L$'} {calculation.finalPayout.toFixed(2)}</span>
                         </div>
                       </div>
-                    </section>
+                    </div>
+                  </section>
 
-                    <Button 
-                      className={cn(
-                        "w-full h-20 rounded-[2rem] font-black italic uppercase tracking-[0.3em] text-xl shadow-2xl transition-all active:scale-95",
-                        canProceed && !isSubmitting ? "bg-primary text-white shadow-primary/20" : "bg-white/5 text-white/20 cursor-not-allowed"
-                      )}
-                      onClick={handleInitiateHandshake}
-                      disabled={!canProceed || isSubmitting}
-                    >
-                      {isSubmitting ? <><Loader2 className="mr-3 h-6 w-6 animate-spin" /> SYNCING...</> : "Submit for Review"}
-                    </Button>
-                  </div>
+                  <Button 
+                    className={cn(
+                      "w-full h-20 rounded-[2rem] font-black italic uppercase tracking-[0.3em] text-xl shadow-2xl transition-all active:scale-95",
+                      canProceed && !isSubmitting ? "bg-primary text-white shadow-primary/20" : "bg-white/5 text-white/20 cursor-not-allowed"
+                    )}
+                    onClick={handleInitiateHandshake}
+                    disabled={!canProceed || isSubmitting}
+                  >
+                    {isSubmitting ? <><Loader2 className="mr-3 h-6 w-6 animate-spin" /> SYNCING...</> : "Submit for Review"}
+                  </Button>
                 </div>
               </div>
             </main>
