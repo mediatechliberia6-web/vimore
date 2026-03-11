@@ -498,16 +498,26 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const signup = useCallback(async (d: any) => { 
     try {
-      const res = await signupServerAction(d);
-      if (!res || !res.success) {
+      // Transition to FormData for Next.js 15 Native Handshake
+      const formData = new FormData();
+      Object.keys(d).forEach(key => {
+        if (d[key] !== undefined && d[key] !== null) {
+          formData.append(key, d[key]);
+        }
+      });
+
+      const res = await signupServerAction(formData);
+      
+      if (res && res.success) {
+        // Instant Login Pulse
+        await login(d.email || d.phone, d.password);
+        return { success: true };
+      } else {
         return { success: false, message: res?.message || "Identity materialization stalled." };
       }
-      // INSTANT ACCESS: Auto-login after signup
-      await login(d.email || d.phone, d.password);
-      return { success: true, ...res };
     } catch (e: any) {
       console.error("[SIGNUP HANDSHAKE ERROR]", e);
-      return { success: false, message: "System core encountered a ghost error." };
+      return { success: false, message: "System core encountered a serialization error." };
     }
   }, [login]);
 

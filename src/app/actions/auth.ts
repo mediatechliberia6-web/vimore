@@ -5,21 +5,32 @@ import { createAdminClient, APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, ID, Qu
 
 /**
  * @fileOverview ViMore Authentication & Identity Engine
- * Optimized for Instant Entry (No Verification).
+ * Optimized for Next.js 15 Native FormData Handshake.
  * Targets self-hosted infrastructure at mediatechliberia.online.
  */
 
 /**
- * Materializes a new identity node in the network.
- * Wrapped in a terminal try/catch to prevent Next.js 15 serialization crashes.
+ * Materializes a new identity node in the network using FormData.
+ * Returns a plain serializable object to prevent Next.js router crashes.
  */
-export async function signupServerAction(inputData: any) {
+export async function signupServerAction(formData: FormData) {
   try {
     const { users, databases } = createAdminClient();
     const userId = ID.unique();
     
+    // Extract nodes from FormData
+    const name = formData.get('name') as string;
+    const username = formData.get('username') as string;
+    const email = formData.get('email') as string;
+    const phone = formData.get('phone') as string;
+    const password = formData.get('password') as string;
+    const dob = formData.get('dob') as string;
+    const nationality = formData.get('nationality') as string;
+    const gender = formData.get('gender') as string;
+    const referredBy = formData.get('referredBy') as string;
+
     // 1. Phone Calibration (No-Zero Protocol)
-    let safePhone = inputData.phone ? inputData.phone.replace(/[^0-9+]/g, '') : '';
+    let safePhone = phone ? phone.replace(/[^0-9+]/g, '') : '';
     if (safePhone.startsWith('+')) {
       const countryCode = safePhone.slice(0, 4); // Assume 4 digit code like +231
       const numberPart = safePhone.slice(4);
@@ -28,7 +39,7 @@ export async function signupServerAction(inputData: any) {
       }
     }
 
-    const emailNode = inputData.email || `${safePhone.replace('+', '')}@vimore.net`;
+    const emailNode = email || `${safePhone.replace('+', '')}@vimore.net`;
 
     // 2. Sovereignty Handshake (SUPER check)
     let role = 'USER';
@@ -48,41 +59,41 @@ export async function signupServerAction(inputData: any) {
         userId,
         emailNode,
         safePhone || undefined,
-        inputData.password,
-        inputData.name
+        password,
+        name
       );
     } catch (authErr: any) {
       console.error("[AUTH ERROR]", authErr.message);
       return { success: false, message: `Auth Rejection: ${String(authErr.message || authErr)}` };
     }
 
-    // 4. Deep Profile Sanitization & Archival
+    // 4. Deep Profile Archival
     try {
       const profilePayload = {
-        name: String(inputData.name || "Unknown Node"),
-        username: String(inputData.username || `user_${userId.slice(0, 5)}`),
+        name: String(name || "Unknown Node"),
+        username: String(username || `user_${userId.slice(0, 5)}`),
         email: String(emailNode),
         phone: String(safePhone),
-        avatar: String(inputData.avatar || "https://picsum.photos/seed/guest/400/400"),
-        cover: String(inputData.cover || ""),
+        avatar: "https://picsum.photos/seed/guest/400/400",
+        cover: "",
         role: String(role),
         isVerified: false,
         goldBalance: 0,
         diamondBalance: 0,
         starBalance: 0,
         referralCount: 0,
-        referredBy: inputData.referredBy ? String(inputData.referredBy) : null,
-        bio: String(inputData.bio || ""),
-        nationality: String(inputData.nationality || "Other"),
-        gender: String(inputData.gender || "Other"),
-        dateOfBirth: String(inputData.dob || ""),
+        referredBy: referredBy || null,
+        bio: "",
+        nationality: String(nationality || "Other"),
+        gender: String(gender || "Other"),
+        dateOfBirth: String(dob || ""),
         joinDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-        isEmailVerified: true // INSTANT ACCESS PROTOCOL: New nodes are verified by default
+        isEmailVerified: true // INSTANT ACCESS PROTOCOL
       };
 
       await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, userId, profilePayload);
       
-      return { success: true, userId, email: emailNode, phone: safePhone };
+      return { success: true, userId };
     } catch (dbErr: any) {
       console.error("[DATABASE SCHEMA ERROR]", dbErr.message);
       return { 
@@ -92,7 +103,7 @@ export async function signupServerAction(inputData: any) {
     }
   } catch (terminalErr: any) {
     console.error("[TERMINAL ACTION ERROR]", terminalErr.message);
-    return { success: false, message: `System Core Failure: ${String(terminalErr.message || terminalErr)}` };
+    return { success: false, message: "System Core Failure during handshake." };
   }
 }
 
