@@ -9,7 +9,7 @@ import * as sdk from 'node-appwrite';
 
 export const endpoint = 'https://mediatechliberia.online/v1';
 export const project = 'vimore';
-export const apiKey = 'standard_8a1cb610c756f68ae87e9d82b74e58999ff7e45f28315b96b5ed217809b6f5275f03f745de795a0caed1cbbc3b377c24eb52b868ed910a0c9c930855961da108128afcfe448163c0c9a6b91a122a5582fdc9809b1588b03f003e5e6d1b9acea8c9ba46fb9b7082433e82e4e814c2d991fd562b35fc5db77d897901f7566876d0';
+export const apiKey = 'standard_ed0a2edcb142d023bb8304c123411f3bca032ab812ecfd916b3e44cec91f8d0af43ef4ea8d41da5814ee4338720ff340d06a5ba6aed44a545b342f3e41c1569e5cf0c043b7c7171563eba88520edc6baca09af735b9054550bfd704cb461880ce121686a73eee20303799c9fb2e55863befbaddbc5e66f5b9eaeeb852e9b5198';
 
 // Client-side instance (for browser sessions and real-time synchronization)
 const client = new Client()
@@ -69,7 +69,8 @@ export const createAdminClient = () => {
   return {
     get account() { return new sdk.Account(adminClient); },
     get databases() { return new sdk.Databases(adminClient); },
-    get storage() { return new sdk.Storage(adminClient); }
+    get storage() { return new sdk.Storage(adminClient); },
+    get users() { return new sdk.Users(adminClient); }
   };
 };
 

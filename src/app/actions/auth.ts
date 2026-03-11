@@ -1,3 +1,4 @@
+
 'use server';
 
 import { createAdminClient, APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, VERIFICATION_CODES_COLLECTION_ID, ID, Query } from '@/lib/appwrite';
@@ -77,13 +78,13 @@ export async function verifyCodeAction(identifier: string, code: string) {
  */
 export async function signupServerAction(inputData: any) {
   try {
-    const { account, databases } = createAdminClient();
+    const { users, databases } = createAdminClient();
     const userId = ID.unique();
     
     // 1. Phone Calibration (No-Zero Protocol)
     let safePhone = inputData.phone ? inputData.phone.replace(/[^0-9+]/g, '') : '';
     if (safePhone.startsWith('+')) {
-      const countryCode = safePhone.slice(0, 4);
+      const countryCode = safePhone.slice(0, 4); // Assume 4 digit code like +231
       const numberPart = safePhone.slice(4);
       if (numberPart.startsWith('0')) {
         safePhone = countryCode + numberPart.slice(1);
@@ -92,21 +93,30 @@ export async function signupServerAction(inputData: any) {
 
     const emailNode = inputData.email || `${safePhone.replace('+', '')}@vimore.net`;
 
-    // 2. Auth Node Creation
-    try {
-      await account.create(userId, emailNode, inputData.password, inputData.name);
-    } catch (authErr: any) {
-      console.error("[AUTH ERROR]", authErr.message);
-      return { success: false, message: `Auth Rejection: ${String(authErr.message || authErr)}` };
-    }
-
-    // 3. Sovereignty Handshake (SUPER check)
+    // 2. Sovereignty Handshake (SUPER check)
     let role = 'USER';
     try {
       const existingProfiles = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
-      if (existingProfiles.total === 0) role = 'SUPER';
+      if (existingProfiles.total === 0) {
+        role = 'SUPER';
+        console.log("[SOVEREIGNTY] First node detected. Assigning SUPER role.");
+      }
     } catch (e) {
       console.warn("Governance node query stalled, defaulting to USER role.");
+    }
+
+    // 3. Auth Node Creation (Administrative Users Service)
+    try {
+      await users.create(
+        userId,
+        emailNode,
+        safePhone || undefined,
+        inputData.password,
+        inputData.name
+      );
+    } catch (authErr: any) {
+      console.error("[AUTH ERROR]", authErr.message);
+      return { success: false, message: `Auth Rejection: ${String(authErr.message || authErr)}` };
     }
 
     // 4. Deep Profile Sanitization & Archival
@@ -137,7 +147,7 @@ export async function signupServerAction(inputData: any) {
       
       return { success: true, userId, email: emailNode, phone: safePhone };
     } catch (dbErr: any) {
-      console.error("[DATABASE SCHEMA ERROR]", dbErr.message, dbErr.response);
+      console.error("[DATABASE SCHEMA ERROR]", dbErr.message);
       return { 
         success: false, 
         message: `Vault Schema Rejection: ${String(dbErr.message || dbErr)}` 
