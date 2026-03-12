@@ -80,6 +80,7 @@ export interface Post {
   isBoosted?: boolean;
   boostTargetViews?: number;
   boostCurrentViews?: number;
+  commentNodes?: PostComment[];
 }
 
 export interface PostComment {
@@ -105,6 +106,7 @@ export interface Cluster {
 export interface Connection extends User {
   followsYou?: boolean;
   isGroup: false;
+  isOnline?: boolean;
 }
 
 export type CallType = 'video' | 'audio';
@@ -115,6 +117,7 @@ export interface CallState {
   status: CallStatus;
   contact: any | null;
   channelName?: string;
+  token?: string;
 }
 
 interface PostContextType {
@@ -160,7 +163,7 @@ interface PostContextType {
   signup: (d: any) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
   checkSession: () => Promise<void>;
-  uploadMedia: (file: File, bucketId: string) => Promise<string>;
+  uploadMedia: (file: File, bucketId?: string) => Promise<string>;
   addPost: (post: any) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
   toggleLikePost: (postId: string) => Promise<void>;
@@ -332,7 +335,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const checkSession = useCallback(async () => {
-    setConnectionsState(MOCK_USERS.map(u => ({ ...u, isGroup: false } as Connection)));
+    setConnectionsState(MOCK_USERS.map(u => ({ ...u, isGroup: false, isOnline: true } as Connection)));
     setClustersState([{ id: 'c1', name: 'Design Hub', adminUsername: 'arivera', members: MOCK_USERS, isGroup: true }]);
     await refreshFeed();
     await refreshStories();
@@ -374,51 +377,51 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const toggleLikePost = useCallback(async (id: string) => {
     triggerHaptic(20);
-    setLikedPostIdsState(prev => {
-      const isLiked = prev.has(id);
-      const newLiked = new Set(prev);
+    const isLiked = likedPostIds.has(id);
+    const isUnliked = unlikedPostIds.has(id);
+
+    if (isLiked) {
+      setLikedPostIdsState(prev => { const n = new Set(prev); n.delete(id); return n; });
+      setPostsState(posts => posts.map(p => p.id === id ? { ...p, likes: Math.max(0, p.likes - 1) } : p));
+    } else {
+      setLikedPostIdsState(prev => { const n = new Set(prev); n.add(id); return n; });
       
-      if (isLiked) {
-        newLiked.delete(id);
-        setPostsState(posts => posts.map(p => p.id === id ? { ...p, likes: p.likes - 1 } : p));
+      if (isUnliked) {
+        setUnlikedPostIdsState(prev => { const n = new Set(prev); n.delete(id); return n; });
+        setPostsState(posts => posts.map(p => p.id === id ? { 
+          ...p, 
+          likes: p.likes + 1, 
+          unlikes: Math.max(0, p.unlikes - 1) 
+        } : p));
       } else {
-        newLiked.add(id);
         setPostsState(posts => posts.map(p => p.id === id ? { ...p, likes: p.likes + 1 } : p));
-        // Mutual exclusion: Clear unlike
-        setUnlikedPostIdsState(uPrev => {
-          const un = new Set(uPrev);
-          un.delete(id);
-          return un;
-        });
       }
-      return newLiked;
-    });
-  }, [triggerHaptic]);
+    }
+  }, [likedPostIds, unlikedPostIds, triggerHaptic]);
 
   const toggleUnlikePost = useCallback(async (id: string) => {
     triggerHaptic(10);
-    setUnlikedPostIdsState(prev => {
-      const isUnliked = prev.has(id);
-      const newUnliked = new Set(prev);
-      
-      if (isUnliked) {
-        newUnliked.delete(id);
+    const isLiked = likedPostIds.has(id);
+    const isUnliked = unlikedPostIds.has(id);
+
+    if (isUnliked) {
+      setUnlikedPostIdsState(prev => { const n = new Set(prev); n.delete(id); return n; });
+      setPostsState(posts => posts.map(p => p.id === id ? { ...p, unlikes: Math.max(0, p.unlikes - 1) } : p));
+    } else {
+      setUnlikedPostIdsState(prev => { const n = new Set(prev); n.add(id); return n; });
+
+      if (isLiked) {
+        setLikedPostIdsState(prev => { const n = new Set(prev); n.delete(id); return n; });
+        setPostsState(posts => posts.map(p => p.id === id ? { 
+          ...p, 
+          unlikes: p.unlikes + 1, 
+          likes: Math.max(0, p.likes - 1) 
+        } : p));
       } else {
-        newUnliked.add(id);
-        // Mutual exclusion: Clear like and decrement count
-        setLikedPostIdsState(lPrev => {
-          if (lPrev.has(id)) {
-            const nl = new Set(lPrev);
-            nl.delete(id);
-            setPostsState(posts => posts.map(p => p.id === id ? { ...p, likes: p.likes - 1 } : p));
-            return nl;
-          }
-          return lPrev;
-        });
+        setPostsState(posts => posts.map(p => p.id === id ? { ...p, unlikes: p.unlikes + 1 } : p));
       }
-      return newUnliked;
-    });
-  }, [triggerHaptic]);
+    }
+  }, [likedPostIds, unlikedPostIds, triggerHaptic]);
 
   const toggleFollowUser = useCallback(async (username: string) => {
     setFollowingUsernamesState(prev => { const n = new Set(prev); if(n.has(username)) n.delete(username); else n.add(username); return n; });
