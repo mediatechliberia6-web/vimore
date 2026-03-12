@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -7,7 +8,6 @@
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { signupServerAction, loginServerAction } from '@/app/actions/auth';
 
 // --- TYPES ---
 
@@ -244,8 +244,21 @@ const MOCK_USERS: User[] = [
   { id: 'u3', name: "Marcus Stone", username: "mstone", avatar: "https://picsum.photos/seed/3/400/400", isVerified: false, role: 'USER', followers: "4.1k", following: 800, category: "Visual Storyteller", bio: "Capturing the network pulse through pixels." }
 ];
 
-const INITIAL_USER: User = {
-  id: 'guest', name: "Guest Node", username: "guest_node", avatar: "https://picsum.photos/seed/guest/400/400", isVerified: false, role: 'USER', goldBalance: 500, diamondBalance: 20, starBalance: 15000
+const MASTER_USER: User = {
+  id: 'u-master', 
+  name: "Amos B. Kortu", 
+  username: "amos_mtl", 
+  avatar: "https://picsum.photos/seed/amos/400/400", 
+  isVerified: true, 
+  role: 'SUPER', 
+  goldBalance: 12500, 
+  diamondBalance: 450, 
+  starBalance: 85000,
+  followers: "1.2M",
+  following: 12,
+  posts: 142,
+  category: "Network Architect",
+  bio: "Master Node at ViMore Network. Synchronizing spatial logic."
 };
 
 const INITIAL_SETTINGS: AppSettings = {
@@ -255,7 +268,7 @@ const INITIAL_SETTINGS: AppSettings = {
 export function PostProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   
-  const [currentUser, setCurrentUserState] = useState<User>(INITIAL_USER);
+  const [currentUser, setCurrentUserState] = useState<User>(MASTER_USER);
   const [posts, setPostsState] = useState<Post[]>([]);
   const [activeComments, setActiveComments] = useState<PostComment[]>([]);
   const [isLoading, setIsLoadingState] = useState(true);
@@ -265,7 +278,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [connections, setConnectionsState] = useState<Connection[]>([]);
   const [stories, setStoriesState] = useState<any[]>([]);
   
-  // Missing State Nodes for Prototype Stability
   const [auditLogs] = useState<any[]>([]);
   const [staff] = useState<any[]>([]);
   const [adStats] = useState({ revenue: 142.50, handshakes: 1204 });
@@ -277,7 +289,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [tickets] = useState<any[]>([]);
   
   const [mutedUserNames, setMutedUserNamesState] = useState<string[]>([]);
-  const [activeSubscriptions] = useState<Set<string>>(new Set());
   const [likedPostIds, setLikedPostIdsState] = useState<Set<string>>(new Set());
   const [unlikedPostIds, setUnlikedPostIdsState] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIdsState] = useState<Set<string>>(new Set());
@@ -321,8 +332,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const checkSession = useCallback(async () => {
-    const savedUser = localStorage.getItem('vimore_proto_user');
-    if (savedUser) setCurrentUserState(JSON.parse(savedUser));
     setConnectionsState(MOCK_USERS.map(u => ({ ...u, isGroup: false } as Connection)));
     setClustersState([{ id: 'c1', name: 'Design Hub', adminUsername: 'arivera', members: MOCK_USERS, isGroup: true }]);
     await refreshFeed();
@@ -333,22 +342,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => { checkSession(); }, [checkSession]);
 
   const login = useCallback(async (identifier: string, p: string) => {
-    const user = { ...INITIAL_USER, username: identifier.split('@')[0], name: identifier.split('@')[0] };
-    setCurrentUserState(user);
-    localStorage.setItem('vimore_proto_user', JSON.stringify(user));
     return { success: true };
   }, []);
 
   const signup = useCallback(async (data: any) => {
-    const user = { ...INITIAL_USER, ...data, id: 'u-' + Date.now(), isEmailVerified: true };
-    setCurrentUserState(user);
-    localStorage.setItem('vimore_proto_user', JSON.stringify(user));
     return { success: true };
   }, []);
 
   const logout = useCallback(async () => {
-    localStorage.removeItem('vimore_proto_user');
-    setCurrentUserState(INITIAL_USER);
     window.location.reload();
   }, []);
 
@@ -372,13 +373,52 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleLikePost = useCallback(async (id: string) => {
-    setLikedPostIdsState(prev => { const n = new Set(prev); if(n.has(id)) n.delete(id); else n.add(id); return n; });
-    setPostsState(prev => prev.map(p => p.id === id ? { ...p, likes: likedPostIds.has(id) ? p.likes - 1 : p.likes + 1 } : p));
-  }, [likedPostIds]);
+    triggerHaptic(20);
+    setLikedPostIdsState(prev => {
+      const isLiked = prev.has(id);
+      const newLiked = new Set(prev);
+      
+      if (isLiked) {
+        newLiked.delete(id);
+        setPostsState(posts => posts.map(p => p.id === id ? { ...p, likes: p.likes - 1 } : p));
+      } else {
+        newLiked.add(id);
+        setPostsState(posts => posts.map(p => p.id === id ? { ...p, likes: p.likes + 1 } : p));
+        // Mutual exclusion: Clear unlike
+        setUnlikedPostIdsState(uPrev => {
+          const un = new Set(uPrev);
+          un.delete(id);
+          return un;
+        });
+      }
+      return newLiked;
+    });
+  }, [triggerHaptic]);
 
   const toggleUnlikePost = useCallback(async (id: string) => {
-    setUnlikedPostIdsState(prev => { const n = new Set(prev); if(n.has(id)) n.delete(id); else n.add(id); return n; });
-  }, []);
+    triggerHaptic(10);
+    setUnlikedPostIdsState(prev => {
+      const isUnliked = prev.has(id);
+      const newUnliked = new Set(prev);
+      
+      if (isUnliked) {
+        newUnliked.delete(id);
+      } else {
+        newUnliked.add(id);
+        // Mutual exclusion: Clear like and decrement count
+        setLikedPostIdsState(lPrev => {
+          if (lPrev.has(id)) {
+            const nl = new Set(lPrev);
+            nl.delete(id);
+            setPostsState(posts => posts.map(p => p.id === id ? { ...p, likes: p.likes - 1 } : p));
+            return nl;
+          }
+          return lPrev;
+        });
+      }
+      return newUnliked;
+    });
+  }, [triggerHaptic]);
 
   const toggleFollowUser = useCallback(async (username: string) => {
     setFollowingUsernamesState(prev => { const n = new Set(prev); if(n.has(username)) n.delete(username); else n.add(username); return n; });

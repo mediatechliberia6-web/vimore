@@ -19,7 +19,6 @@ import { FontScaleWrapper } from "@/components/layout/font-scale-wrapper";
 import { CommentHub } from "@/components/post/comment-hub";
 import { GiftHub } from "@/components/post/gift-hub";
 import { IncomingCallOverlay } from "@/components/layout/incoming-call-overlay";
-import { AuthModal } from "@/components/auth/auth-modal";
 import { AppLoadingGate } from "@/components/layout/app-loading-gate";
 import { DiagnosticErrorBoundary } from "@/components/layout/diagnostic-error-boundary";
 import NextTopLoader from 'nextjs-toploader';
@@ -87,7 +86,6 @@ export default function RootLayout({
                       <CommentHub />
                       <GiftHub />
                       <IncomingCallOverlay />
-                      <AuthModal />
                       <Toaster />
                     </AppLoadingGate>
                   </DiagnosticErrorBoundary>

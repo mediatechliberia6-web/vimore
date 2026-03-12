@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -33,9 +34,7 @@ export function StoryViewer() {
   const [reactions, setReactions] = useState<FloatingReaction[]>([]);
   const [votedSegmentId, setVotedSegmentId] = useState<string | null>(null);
   
-  const startTime = useRef<number | null>(null);
   const requestRef = useRef<number | null>(null);
-  const pausedTime = useRef<number>(0);
   const hasRecordedCurrentSegment = useRef<string | null>(null);
 
   const activeStory = activeStoryIndex !== null ? stories[activeStoryIndex] : null;
@@ -45,8 +44,6 @@ export function StoryViewer() {
     setActiveStoryIndex(null);
     setSegmentIndex(0);
     setProgress(0);
-    startTime.current = null;
-    pausedTime.current = 0;
     setReactions([]);
     setVotedSegmentId(null);
     hasRecordedCurrentSegment.current = null;
@@ -58,15 +55,11 @@ export function StoryViewer() {
     if (segmentIndex < activeStory.segments.length - 1) {
       setSegmentIndex(prev => prev + 1);
       setProgress(0);
-      startTime.current = null;
-      pausedTime.current = 0;
       setVotedSegmentId(null);
     } else if (activeStoryIndex !== null && activeStoryIndex < stories.length - 1) {
       setActiveStoryIndex(activeStoryIndex + 1);
       setSegmentIndex(0);
       setProgress(0);
-      startTime.current = null;
-      pausedTime.current = 0;
       setVotedSegmentId(null);
     } else {
       handleClose();
@@ -79,44 +72,17 @@ export function StoryViewer() {
     if (segmentIndex > 0) {
       setSegmentIndex(prev => prev - 1);
       setProgress(0);
-      startTime.current = null;
-      pausedTime.current = 0;
       setVotedSegmentId(null);
     } else if (activeStoryIndex !== null && activeStoryIndex > 0) {
       const prevStory = stories[activeStoryIndex - 1];
       setActiveStoryIndex(activeStoryIndex - 1);
       setSegmentIndex(prevStory.segments.length - 1);
       setProgress(0);
-      startTime.current = null;
-      pausedTime.current = 0;
       setVotedSegmentId(null);
     } else {
       setProgress(0);
-      startTime.current = null;
-      pausedTime.current = 0;
     }
   }, [activeStory, segmentIndex, activeStoryIndex, stories, setActiveStoryIndex]);
-
-  const animate = useCallback((time: number) => {
-    if (startTime.current === null) {
-      startTime.current = time;
-    }
-
-    if (!isPaused) {
-      const elapsed = time - (startTime.current || 0);
-      const newProgress = Math.min((elapsed / STORY_DURATION) * 100, 100);
-      
-      setProgress(newProgress);
-
-      if (newProgress >= 100) {
-        nextSegment();
-        return;
-      }
-      requestRef.current = requestAnimationFrame(animate);
-    } else {
-      pausedTime.current = time - (startTime.current || 0);
-    }
-  }, [isPaused, nextSegment]);
 
   // View Pulse Handshake
   useEffect(() => {
@@ -127,17 +93,37 @@ export function StoryViewer() {
   }, [activeStory, isOwner, recordStoryView]);
 
   useEffect(() => {
-    if (activeStoryIndex !== null && !isPaused) {
-      startTime.current = performance.now() - (progress / 100 * STORY_DURATION);
-      requestRef.current = requestAnimationFrame(animate);
-    } else {
+    if (activeStoryIndex === null) return;
+
+    if (isPaused) {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      return;
     }
+
+    // Capture current progress to resume correctly
+    const currentProgress = progress;
+    const startTime = performance.now() - (currentProgress / 100 * STORY_DURATION);
+
+    const animate = (time: number) => {
+      const elapsed = time - startTime;
+      const nextProgress = Math.min((elapsed / STORY_DURATION) * 100, 100);
+      
+      setProgress(nextProgress);
+
+      if (nextProgress >= 100) {
+        nextSegment();
+      } else {
+        requestRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    requestRef.current = requestAnimationFrame(animate);
     
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [activeStoryIndex, isPaused, animate, segmentIndex, progress]);
+    // progress is EXCLUDED from dependencies to prevent recursive update loops
+  }, [activeStoryIndex, segmentIndex, isPaused, nextSegment]);
 
   const handleTap = (e: React.MouseEvent | React.TouchEvent) => {
     if (isPaused) return;
