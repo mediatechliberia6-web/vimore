@@ -1,32 +1,13 @@
+
 'use client';
 
 /**
- * @fileOverview ViMore Sonic Context Node
- * Manages music playback, discovery, and studio publishing.
- * Synchronized with self-hosted Appwrite infrastructure.
+ * @fileOverview ViMore Sonic Context Node (Prototype Edition)
+ * Manages playback using local mock data without Appwrite dependency.
  */
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef, useMemo } from 'react';
 import { saveFileToDevice } from '@/lib/utils';
-import client, { 
-  databases, 
-  APPWRITE_DATABASE_ID, 
-  SONGS_COLLECTION_ID, 
-  ALBUMS_COLLECTION_ID, 
-  PLAYLISTS_COLLECTION_ID, 
-  Query, 
-  ID,
-  BUCKET_MUSIC,
-  BUCKET_IMAGES
-} from '@/lib/appwrite';
-
-export interface Comment {
-  id: string | number;
-  user: string;
-  avatar: string;
-  text: string;
-  time: string;
-}
 
 export interface Track {
   id: string | number;
@@ -40,11 +21,7 @@ export interface Track {
   streams?: string;
   likes?: number;
   unlikes?: number;
-  comments?: number; 
   isBoosted?: boolean;
-  boostTargetViews?: number;
-  boostCurrentViews?: number;
-  boostExpiry?: number;
 }
 
 export interface Album {
@@ -140,7 +117,6 @@ interface MusicContextType {
   closeCreatePlaylist: () => void;
   confirmCreatePlaylist: (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => Promise<void>;
   addTrackToPlaylist: (playlistId: string | number, track: Track) => void;
-  boostTrack: (trackId: string | number, targetViews: number, durationDays: number) => void;
   triggerHaptic: (intensity?: number) => void;
   refreshMusicVault: () => Promise<void>;
   recordSongStream: (songId: string | number) => Promise<void>;
@@ -148,14 +124,19 @@ interface MusicContextType {
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
 
-const AD_URL = "https://www.effectivegatecpm.com/kry1iawb?key=8a705428be9dbe8fbb378f0520fdba4d";
+const MOCK_SONGS: Track[] = [
+  { id: 's1', title: "Midnight Pulse", artist: "Alex Rivera", artistUsername: "arivera", cover: "https://picsum.photos/seed/s1/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", duration: 180, streams: "14.2k", likes: 1204, unlikes: 2 },
+  { id: 's2', title: "Cyber Horizon", artist: "Sarah Chen", artistUsername: "schen_dev", cover: "https://picsum.photos/seed/s2/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", duration: 210, streams: "8.5k", likes: 845, unlikes: 0 },
+  { id: 's3', title: "Spatial Echo", artist: "Marcus Stone", artistUsername: "mstone", cover: "https://picsum.photos/seed/s3/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3", duration: 195, streams: "4.1k", likes: 320, unlikes: 5 },
+  { id: 's4', title: "Binary Vibe", artist: "Elena Gilbert", artistUsername: "elena_g", cover: "https://picsum.photos/seed/s4/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3", duration: 165, streams: "2.8k", likes: 150, unlikes: 1 }
+];
 
 export function MusicProvider({ children }: { children: ReactNode }) {
   const [currentTrack, setCurrentTrackState] = useState<Track | null>(null);
-  const [globalSongs, setGlobalSongsState] = useState<Track[]>([]);
+  const [globalSongs, setGlobalSongsState] = useState<Track[]>(MOCK_SONGS);
   const [globalAlbums, setGlobalAlbumsState] = useState<Album[]>([]);
   const [globalPlaylists, setGlobalPlaylistsState] = useState<Playlist[]>([]);
-  const [queue, setQueueState] = useState<Track[]>([]);
+  const [queue, setQueueState] = useState<Track[]>(MOCK_SONGS);
   const [isPlaying, setIsPlayingState] = useState(false);
   const [isExpanded, setIsExpandedState] = useState(false);
   const [selectedAlbum, setSelectedAlbumState] = useState<Album | null>(null);
@@ -164,7 +145,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [volume, setVolumeState] = useState(80);
   const [reactions, setReactionsState] = useState<MusicReaction[]>([]);
   const [isAdPortalOpen, setIsAdPortalOpenState] = useState(false);
-  const [adDuration, setAdDurationState] = useState(30);
+  const [adDuration] = useState(30);
   const [pendingDownloadTask, setPendingDownloadTask] = useState<(() => Promise<void>) | null>(null);
   const [isCaptureStudioOpen, setIsCaptureStudioOpenState] = useState(false);
   const [captureTrack, setCaptureTrackState] = useState<Track | null>(null);
@@ -184,144 +165,17 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const refreshMusicVault = useCallback(async () => {
-    try {
-      const [songDocs, albumDocs, playlistDocs] = await Promise.all([
-        databases.listDocuments(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, [Query.limit(100)]),
-        databases.listDocuments(APPWRITE_DATABASE_ID, ALBUMS_COLLECTION_ID, [Query.limit(50)]),
-        databases.listDocuments(APPWRITE_DATABASE_ID, PLAYLISTS_COLLECTION_ID, [Query.limit(50)])
-      ]);
-
-      const now = Date.now();
-
-      const songs = songDocs.documents.map(d => {
-        let isBoosted = d.isBoosted || false;
-        
-        if (isBoosted) {
-          const hasExpired = d.boostExpiry && d.boostExpiry < now;
-          const hasReachedLimit = d.boostCurrentViews >= (d.boostTargetViews || 1);
-          
-          if (hasExpired || hasReachedLimit) {
-            isBoosted = false;
-            databases.updateDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, d.$id, { isBoosted: false });
-          }
-        }
-
-        return {
-          id: d.$id,
-          title: d.title,
-          artist: d.artist,
-          cover: d.cover,
-          audioUrl: d.audioUrl,
-          duration: d.duration || 180,
-          streams: d.streams || "0",
-          likes: d.likes || 0,
-          unlikes: d.unlikes || 0,
-          comments: d.comments || 0,
-          artistUsername: d.artistUsername,
-          artistFollowers: d.artistFollowers,
-          isBoosted,
-          boostTargetViews: d.boostTargetViews,
-          boostCurrentViews: d.boostCurrentViews,
-          boostExpiry: d.boostExpiry
-        } as Track;
-      }).sort((a, b) => (b.isBoosted ? 1 : 0) - (a.isBoosted ? 1 : 0));
-
-      const albums = albumDocs.documents.map(d => ({
-        id: d.$id,
-        title: d.title,
-        artist: d.artist,
-        cover: d.cover,
-        year: d.year || "2024",
-        tracks: d.tracks || 0,
-        totalStreams: d.totalStreams || "0",
-        songs: d.songs ? JSON.parse(d.songs) : [] 
-      } as Album));
-
-      const playlists = playlistDocs.documents.map(d => ({
-        id: d.$id,
-        title: d.title,
-        creator: d.creator,
-        cover: d.cover,
-        totalStreams: d.totalStreams || "0",
-        songs: d.songs ? JSON.parse(d.songs) : [],
-        description: d.description,
-        isPrivate: d.isPrivate
-      } as Playlist));
-
-      setGlobalSongsState(songs);
-      setGlobalAlbumsState(albums);
-      setGlobalPlaylistsState(playlists);
-      
-      const statsMap: Record<string | number, { likes: number; unlikes: number }> = {};
-      songs.forEach(s => { statsMap[s.id] = { likes: s.likes || 0, unlikes: s.unlikes || 0 }; });
-      setTrackStatsState(statsMap);
-
-      if (queue.length === 0) setQueueState(songs);
-    } catch (e) {
-      console.error("Music vault handshake failed:", e);
-    }
-  }, [queue.length]);
-
-  const recordSongStream = useCallback(async (songId: string | number) => {
-    try {
-      const song = globalSongs.find(s => s.id === songId);
-      if (!song) return;
-
-      const currentStreams = parseInt(String(song.streams).replace(/,/g, '')) || 0;
-      const newStreams = currentStreams + 1;
-      const updates: any = { streams: newStreams.toString() };
-
-      if (song.isBoosted) {
-        const newBoostViews = (song.boostCurrentViews || 0) + 1;
-        updates.boostCurrentViews = newBoostViews;
-        if (newBoostViews >= (song.boostTargetViews || 1)) {
-          updates.isBoosted = false;
-        }
-      }
-
-      await databases.updateDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, songId as string, updates);
-      
-      setGlobalSongsState(prev => prev.map(s => s.id === songId ? { 
-        ...s, 
-        streams: newStreams.toString(),
-        boostCurrentViews: updates.boostCurrentViews || s.boostCurrentViews,
-        isBoosted: updates.isBoosted !== undefined ? updates.isBoosted : s.isBoosted
-      } : s));
-    } catch (e) {
-      console.warn("Stream pulse rejected by vault.");
-    }
-  }, [globalSongs]);
-
   useEffect(() => {
     if (typeof window === 'undefined') return;
-
     if (!audioRef.current) {
-      try {
-        audioRef.current = new Audio();
-        audioRef.current.volume = volume / 100;
-      } catch (e) {
-        console.warn("Sonic engine initialization deferred.");
-      }
+      audioRef.current = new Audio();
+      audioRef.current.volume = volume / 100;
     }
-
     const audio = audioRef.current;
-    if (!audio) return;
-
-    const handleTimeUpdate = () => {
-      if (audio.duration) {
-        const p = (audio.currentTime / audio.duration) * 100;
-        setProgressState(p);
-      }
-    };
-
-    const handleEnded = () => {
-      nextTrack();
-    };
-
+    const handleTimeUpdate = () => setProgressState(audio.duration ? (audio.currentTime / audio.duration) * 100 : 0);
+    const handleEnded = () => nextTrack();
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
-
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
@@ -329,265 +183,73 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   }, [volume]);
 
   useEffect(() => {
-    refreshMusicVault();
-  }, [refreshMusicVault]);
-
-  useEffect(() => {
     if (!audioRef.current || !currentTrack?.audioUrl) return;
     if (audioRef.current.src !== currentTrack.audioUrl) {
       audioRef.current.src = currentTrack.audioUrl;
       audioRef.current.load();
     }
-    if (isPlaying) {
-      audioRef.current.play().catch(e => console.error("Sonic engine stall:", e));
-      recordSongStream(currentTrack.id);
-    } else {
-      audioRef.current.pause();
-    }
-  }, [currentTrack, isPlaying, recordSongStream]);
+    if (isPlaying) audioRef.current.play().catch(() => {});
+    else audioRef.current.pause();
+  }, [currentTrack, isPlaying]);
 
   const nextTrack = useCallback(() => {
-    if (queue.length === 0) return;
-    triggerHaptic(10);
-    const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
-    const nextIndex = (currentIndex + 1) % queue.length;
-    const track = queue[nextIndex];
-    setCurrentTrackState(track);
-    setProgressState(0);
+    const idx = queue.findIndex(t => t.id === currentTrack?.id);
+    const nextIdx = (idx + 1) % queue.length;
+    setCurrentTrackState(queue[nextIdx]);
     setIsPlayingState(true);
-  }, [queue, currentTrack, triggerHaptic]);
+  }, [queue, currentTrack]);
 
   const prevTrack = useCallback(() => {
-    if (queue.length === 0) return;
-    triggerHaptic(10);
-    const currentIndex = queue.findIndex(t => t.id === currentTrack?.id);
-    const prevIndex = (currentIndex - 1 + queue.length) % queue.length;
-    const track = queue[prevIndex];
-    setCurrentTrackState(track);
-    setProgressState(0);
+    const idx = queue.findIndex(t => t.id === currentTrack?.id);
+    const prevIdx = (idx - 1 + queue.length) % queue.length;
+    setCurrentTrackState(queue[prevIdx]);
     setIsPlayingState(true);
-  }, [queue, currentTrack, triggerHaptic]);
-
-  const setTrack = useCallback((track: Track) => {
-    triggerHaptic(15);
-    if (!queue.some(t => t.id === track.id)) setQueueState([track, ...queue.filter(t => t.id !== track.id)]);
-    setCurrentTrackState(track);
-    setIsPlayingState(true);
-    setProgressState(0);
-    setReactionsState([]);
-    setIsExpandedState(true);
-  }, [queue, triggerHaptic]);
-
-  const addToQueue = useCallback((track: Track) => {
-    triggerHaptic(5);
-    if (!queue.some(t => t.id === track.id)) setQueueState(prev => [...prev, track]);
-  }, [queue, triggerHaptic]);
-
-  const playCollection = useCallback((tracks: Track[], startIndex: number = 0) => {
-    triggerHaptic(20);
-    if (tracks.length === 0) return;
-    setQueueState(tracks);
-    const track = tracks[startIndex];
-    setCurrentTrackState(track);
-    setIsPlayingState(true);
-    setProgressState(0);
-    setReactionsState([]);
-    setIsExpandedState(true);
-  }, [triggerHaptic]);
-
-  const togglePlay = useCallback(() => { 
-    triggerHaptic(10); 
-    setIsPlayingState(prev => !prev); 
-  }, [triggerHaptic]);
-
-  const toggleLike = useCallback(async (track: Track) => {
-    const trackId = track.id;
-    const isCurrentlyLiked = likedSongIds.has(trackId);
-    triggerHaptic(15);
-    try {
-      const newLikes = isCurrentlyLiked ? Math.max(0, (track.likes || 0) - 1) : (track.likes || 0) + 1;
-      await databases.updateDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, trackId as string, { likes: newLikes });
-      setLikedSongIdsState(prev => { const n = new Set(prev); if (n.has(trackId)) n.delete(trackId); else n.add(trackId); return n; });
-      await refreshMusicVault();
-    } catch (e) {}
-  }, [likedSongIds, triggerHaptic, refreshMusicVault]);
-
-  const toggleUnlike = useCallback(async (track: Track) => {
-    const trackId = track.id;
-    const isCurrentlyUnliked = unlikedSongIds.has(trackId);
-    triggerHaptic(10);
-    try {
-      const newUnlikes = isCurrentlyUnliked ? Math.max(0, (track.unlikes || 0) - 1) : (track.unlikes || 0) + 1;
-      await databases.updateDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, trackId as string, { unlikes: newUnlikes });
-      setUnlikedSongIdsState(prev => { const n = new Set(prev); if (n.has(trackId)) n.delete(trackId); else n.add(trackId); return n; });
-      await refreshMusicVault();
-    } catch (e) {}
-  }, [unlikedSongIds, triggerHaptic, refreshMusicVault]);
-
-  const toggleCollectionLike = useCallback((id: string | number) => {
-    triggerHaptic(20);
-    setLikedCollectionIdsState(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  }, [triggerHaptic]);
-
-  const simulateDownload = useCallback(async (track: Track) => {
-    if (downloadedSongIds.has(track.id)) return;
-    triggerHaptic(10);
-    if (track.audioUrl) {
-      const success = await saveFileToDevice(track.audioUrl, `${track.artist} - ${track.title}.mp3`);
-      if (success) {
-        setDownloadedSongIdsState(prev => { const n = new Set(prev); n.add(track.id); return n; });
-      }
-    }
-  }, [downloadedSongIds, triggerHaptic]);
-
-  const triggerDownloadWithAd = useCallback((type: 'single' | 'album' | 'reel', task: () => Promise<void>) => {
-    triggerHaptic(15);
-    setAdDurationState(30); 
-    setPendingDownloadTask(() => task);
-    setIsAdPortalOpenState(true);
-  }, [triggerHaptic]);
-
-  const onAdComplete = useCallback(() => {
-    setIsAdPortalOpenState(false);
-    if (pendingDownloadTask) {
-      pendingDownloadTask().catch(console.error);
-      setPendingDownloadTask(null);
-    }
-  }, [pendingDownloadTask]);
-
-  const publishTrack = useCallback(async (newTrack: any) => {
-    try {
-      const docData = {
-        title: newTrack.title,
-        artist: newTrack.artist,
-        artistUsername: newTrack.artistUsername,
-        cover: newTrack.cover,
-        audioUrl: newTrack.audioUrl,
-        duration: newTrack.duration,
-        streams: "0",
-        likes: 0,
-        unlikes: 0,
-        comments: 0,
-        isBoosted: false,
-        artistFollowers: newTrack.artistFollowers || 0
-      };
-      await databases.createDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, ID.unique(), docData);
-      await refreshMusicVault();
-    } catch (e: any) {
-      throw new Error(e.message);
-    }
-  }, [refreshMusicVault]);
-
-  const publishAlbum = useCallback(async (albumData: Album) => {
-    try {
-      const docData = {
-        title: albumData.title,
-        artist: albumData.artist,
-        artistUsername: albumData.artistUsername,
-        cover: albumData.cover,
-        year: albumData.year,
-        tracks: albumData.tracks,
-        totalStreams: "0",
-        songs: JSON.stringify(albumData.songs)
-      };
-      await databases.createDocument(APPWRITE_DATABASE_ID, ALBUMS_COLLECTION_ID, ID.unique(), docData);
-      await refreshMusicVault();
-    } catch (e: any) {
-      throw new Error(e.message);
-    }
-  }, [refreshMusicVault]);
-
-  const deleteUserTrack = useCallback((trackId: string | number) => { 
-    databases.deleteDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, trackId as string).then(() => {
-      refreshMusicVault();
-    });
-  }, [refreshMusicVault]);
-
-  const deleteUserAlbum = useCallback((albumId: string | number) => { 
-    databases.deleteDocument(APPWRITE_DATABASE_ID, ALBUMS_COLLECTION_ID, albumId as string).then(() => {
-      refreshMusicVault();
-    });
-  }, [refreshMusicVault]);
-
-  const boostTrack = useCallback((trackId: string | number, targetViews: number, durationDays: number) => {
-    databases.updateDocument(APPWRITE_DATABASE_ID, SONGS_COLLECTION_ID, trackId as string, {
-      isBoosted: true,
-      boostTargetViews: targetViews,
-      boostCurrentViews: 0,
-      boostExpiry: Date.now() + (durationDays * 24 * 60 * 60 * 1000)
-    }).then(() => refreshMusicVault());
-  }, [refreshMusicVault]);
-
-  const confirmCreatePlaylist = useCallback(async (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => {
-    triggerHaptic(30);
-    try {
-      await databases.createDocument(APPWRITE_DATABASE_ID, PLAYLISTS_COLLECTION_ID, ID.unique(), {
-        title: data.title,
-        creator: "Guest",
-        cover: data.cover || trackForNewPlaylist?.cover || "https://picsum.photos/seed/playlist/400/400",
-        totalStreams: "0",
-        songs: JSON.stringify(trackForNewPlaylist ? [trackForNewPlaylist] : []),
-        isPrivate: data.isPrivate,
-        description: data.description
-      });
-      await refreshMusicVault();
-      setIsCreatePlaylistOpenState(false);
-      setTrackForNewPlaylistState(null);
-    } catch (e: any) {
-      throw new Error(e.message);
-    }
-  }, [trackForNewPlaylist, triggerHaptic, refreshMusicVault]);
-
-  const addTrackToPlaylist = useCallback((playlistId: string | number, track: Track) => { 
-    triggerHaptic(15); 
-    const playlist = globalPlaylists.find(p => p.id === playlistId);
-    if (!playlist) return;
-    const updatedSongs = [...playlist.songs, track];
-    databases.updateDocument(APPWRITE_DATABASE_ID, PLAYLISTS_COLLECTION_ID, playlistId as string, {
-      songs: JSON.stringify(updatedSongs)
-    }).then(() => refreshMusicVault());
-  }, [globalPlaylists, triggerHaptic, refreshMusicVault]);
-
-  const isTrackLiked = useCallback((trackId: string | number) => likedSongIds.has(trackId), [likedSongIds]);
-  const isTrackUnliked = useCallback((trackId: string | number) => unlikedSongIds.has(trackId), [unlikedSongIds]);
-  const isTrackDownloaded = useCallback((trackId: string | number) => downloadedSongIds.has(trackId), [downloadedSongIds]);
-  const isCollectionLiked = useCallback((id: string | number) => likedCollectionIds.has(id), [likedCollectionIds]);
+  }, [queue, currentTrack]);
 
   const value = {
     currentTrack, queue, globalSongs, globalAlbums, globalPlaylists,
-    forYouSongs: globalSongs.slice(0, 10), 
+    forYouSongs: MOCK_SONGS, 
     isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions,
     likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds,
-    likedTracks: globalSongs.filter(s => likedSongIds.has(s.id)),
-    userPlaylists: globalPlaylists.filter(p => p.creator === "Guest"),
-    userSongs: globalSongs.filter(s => s.artistUsername === "guest_node"),
-    userAlbums: globalAlbums.filter(a => a.artistUsername === "guest_node"),
+    likedTracks: MOCK_SONGS.filter(s => likedSongIds.has(s.id)),
+    userPlaylists: [], userSongs: [], userAlbums: [],
     isCreatePlaylistOpen, trackForNewPlaylist, trackStats,
-    isAdPortalOpen, adDuration, adUrl: AD_URL,
-    triggerDownloadWithAd, onAdComplete,
+    isAdPortalOpen, adDuration, adUrl: "https://www.effectivegatecpm.com/kry1iawb",
+    triggerDownloadWithAd: (type: any, task: any) => { setIsAdPortalOpenState(true); setPendingDownloadTask(() => task); },
+    onAdComplete: () => { setIsAdPortalOpenState(false); if(pendingDownloadTask) pendingDownloadTask(); setPendingDownloadTask(null); },
     isCaptureStudioOpen, captureTrack,
-    openCaptureStudio: (track?: Track) => { triggerHaptic(25); setCaptureTrackState(track || null); setIsCaptureStudioOpenState(true); },
-    closeCaptureStudio: () => { triggerHaptic(10); setIsCaptureStudioOpenState(false); setCaptureTrackState(null); },
+    openCaptureStudio: (t?: Track) => { setCaptureTrackState(t || null); setIsCaptureStudioOpenState(true); },
+    closeCaptureStudio: () => setIsCaptureStudioOpenState(false),
     setCaptureTrack: setCaptureTrackState,
-    setTrack, togglePlay, nextTrack, prevTrack, 
+    setTrack: (t: Track) => { setCurrentTrackState(t); setIsPlayingState(true); setIsExpandedState(true); },
+    togglePlay: () => setIsPlayingState(prev => !prev),
+    nextTrack, prevTrack, 
     setIsExpanded: setIsExpandedState, 
     setSelectedAlbum: setSelectedAlbumState, 
     setSelectedPlaylist: setSelectedPlaylistState, 
     setProgress: (p: number) => { setProgressState(p); if(audioRef.current) audioRef.current.currentTime = (p/100) * audioRef.current.duration; },
     setVolume: (v: number) => { setVolumeState(v); if(audioRef.current) audioRef.current.volume = v/100; },
     addReaction: (emoji: string) => {
-      triggerHaptic(5);
       const id = Date.now();
-      const newReaction = { id, emoji, x: Math.random() * 80 + 10 };
-      setReactionsState((prev) => [...prev, newReaction]);
-      setTimeout(() => setReactionsState((prev) => prev.filter((r) => r.id !== id)), 2500);
+      setReactionsState(prev => [...prev, { id, emoji, x: Math.random() * 80 + 10 }]);
+      setTimeout(() => setReactionsState(prev => prev.filter(r => r.id !== id)), 2000);
     },
-    clearPlayer: () => { setIsPlayingState(false); setCurrentTrackState(null); setIsExpandedState(false); },
-    toggleLike, toggleUnlike, toggleCollectionLike, simulateDownload, isTrackLiked, isTrackUnliked, isTrackDownloaded, isCollectionLiked,
-    playCollection, addToQueue, publishTrack, publishAlbum, deleteUserTrack, deleteUserAlbum, boostTrack,
+    clearPlayer: () => { setIsPlayingState(false); setCurrentTrackState(null); },
+    toggleLike: (t: Track) => setLikedSongIdsState(prev => { const n = new Set(prev); if(n.has(t.id)) n.delete(t.id); else n.add(t.id); return n; }),
+    toggleUnlike: (t: Track) => setUnlikedSongIdsState(prev => { const n = new Set(prev); if(n.has(t.id)) n.delete(t.id); else n.add(t.id); return n; }),
+    toggleCollectionLike: (id: any) => setLikedCollectionIdsState(prev => { const n = new Set(prev); if(n.has(id)) n.delete(id); else n.add(id); return n; }),
+    simulateDownload: async (t: Track) => { setDownloadedSongIdsState(prev => new Set(prev).add(t.id)); },
+    isTrackLiked: (id: any) => likedSongIds.has(id),
+    isTrackUnliked: (id: any) => unlikedSongIds.has(id),
+    isTrackDownloaded: (id: any) => downloadedSongIds.has(id),
+    isCollectionLiked: (id: any) => likedCollectionIds.has(id),
+    playCollection: (ts: Track[]) => { setQueueState(ts); setCurrentTrackState(ts[0]); setIsPlayingState(true); setIsExpandedState(true); },
+    addToQueue: (t: Track) => setQueueState(prev => [...prev, t]),
+    publishTrack: async () => {}, publishAlbum: async () => {}, deleteUserTrack: () => {}, deleteUserAlbum: () => {},
     openCreatePlaylist: (t?: Track) => { setTrackForNewPlaylistState(t || null); setIsCreatePlaylistOpenState(true); },
-    closeCreatePlaylist: () => { setIsCreatePlaylistOpenState(false); setTrackForNewPlaylistState(null); },
-    confirmCreatePlaylist, addTrackToPlaylist, triggerHaptic, refreshMusicVault, recordSongStream
+    closeCreatePlaylist: () => setIsCreatePlaylistOpenState(false),
+    confirmCreatePlaylist: async () => { setIsCreatePlaylistOpenState(false); },
+    addTrackToPlaylist: () => {}, triggerHaptic, refreshMusicVault: async () => {}, recordSongStream: async () => {}
   };
 
   return <MusicContext.Provider value={value}>{children}</MusicContext.Provider>;

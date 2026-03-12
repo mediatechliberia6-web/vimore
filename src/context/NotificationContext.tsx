@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { usePosts } from '@/context/PostContext';
-import client, { databases, APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, MESSAGES_COLLECTION_ID, Query, ID } from '@/lib/appwrite';
 
 export type SignalType = 'SOCIAL' | 'SONIC' | 'POST' | 'SYSTEM';
 export type PulseCategory = 'HOME' | 'FRIENDS' | 'MUSIC' | 'REELS' | 'MESSAGES';
@@ -45,11 +44,33 @@ const SOUNDS = {
   lofi: "https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"
 };
 
-// Maximum nodes to keep in local view
-const SIGNAL_DISPLAY_LIMIT = 50;
+const INITIAL_SIGNALS: NotificationNode[] = [
+  {
+    id: 'notif-1',
+    type: 'SOCIAL',
+    title: 'New Handshake',
+    content: '**Alex Rivera** started following your pulse.',
+    time: '2h ago',
+    isRead: false,
+    recipientId: 'me',
+    avatar: 'https://picsum.photos/seed/1/100/100',
+    targetUsername: 'arivera'
+  },
+  {
+    id: 'notif-2',
+    type: 'POST',
+    title: 'Vibe Liked',
+    content: '**Sarah Chen** liked your latest digital node.',
+    time: '5h ago',
+    isRead: true,
+    recipientId: 'me',
+    image: 'https://picsum.photos/seed/p1/100/100',
+    postId: 'p1'
+  }
+];
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState<NotificationNode[]>([]);
+  const [notifications, setNotifications] = useState<NotificationNode[]>(INITIAL_SIGNALS);
   const [categoryPulses, setCategoryPulses] = useState<Record<PulseCategory, number>>({
     HOME: 0,
     FRIENDS: 0,
@@ -59,165 +80,45 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   });
   const [hasPushPermission, setHasPushPermission] = useState(false);
   const { toast } = useToast();
-  const { settings, triggerHaptic, currentUser, clusters } = usePosts();
+  const { settings, triggerHaptic, currentUser } = usePosts();
 
   const triggerSound = useCallback(() => {
     if (settings.isSilenceActive) {
       const now = new Date();
       const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      
       const isSilenced = settings.silenceStart < settings.silenceEnd 
         ? (currentTime >= settings.silenceStart && currentTime <= settings.silenceEnd)
         : (currentTime >= settings.silenceStart || currentTime <= settings.silenceEnd);
-        
       if (isSilenced) return;
     }
-
     const soundUrl = settings.activeSoundSet === 'cyberpunk' ? SOUNDS.cyberpunk : SOUNDS.lofi;
     const audio = new Audio(soundUrl);
     audio.volume = 0.4;
     audio.play().catch(() => {});
   }, [settings]);
 
-  const fetchNotifications = useCallback(async () => {
-    if (!currentUser.id) return;
-    try {
-      const response = await databases.listDocuments(
-        APPWRITE_DATABASE_ID,
-        NOTIFICATIONS_COLLECTION_ID,
-        [
-          Query.equal('recipientId', currentUser.id),
-          Query.orderDesc('$createdAt'),
-          Query.limit(SIGNAL_DISPLAY_LIMIT)
-        ]
-      );
-      
-      const nodes: NotificationNode[] = response.documents.map(doc => ({
-        id: doc.$id,
-        type: doc.type,
-        title: doc.title,
-        content: doc.content,
-        recipientId: doc.recipientId,
-        time: new Date(doc.$createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isRead: doc.isRead,
-        avatar: doc.avatar,
-        image: doc.image,
-        postId: doc.postId,
-        trackId: doc.trackId,
-        targetUsername: doc.targetUsername,
-        actionHref: doc.actionHref,
-        actionLabel: doc.actionLabel
-      }));
-      
-      setNotifications(nodes);
-    } catch (e) {
-      console.warn("Signal vault fetch failed.");
-    }
-  }, [currentUser.id]);
-
-  useEffect(() => {
-    fetchNotifications();
-
-    if (!currentUser.id || !currentUser.username) return;
-
-    // REAL-TIME NOTIFICATION HANDSHAKE
-    const notificationUnsubscribe = client.subscribe(
-      `databases.${APPWRITE_DATABASE_ID}.collections.${NOTIFICATIONS_COLLECTION_ID}.documents`,
-      (response) => {
-        const payload = response.payload as any;
-        if (payload.recipientId === currentUser.id) {
-          fetchNotifications();
-          triggerSound();
-          triggerHaptic(10);
-
-          // Update Category Pulse
-          setCategoryPulses(prev => {
-            const next = { ...prev };
-            if (payload.type === 'SOCIAL') next.FRIENDS += 1;
-            if (payload.type === 'POST') next.HOME += 1;
-            if (payload.type === 'SONIC') next.MUSIC += 1;
-            return next;
-          });
-        }
-      }
-    );
-
-    // REAL-TIME MESSAGE PULSE
-    // Calibrated to increment the header badge for 1-on-1 and Cluster messages
-    const messageUnsubscribe = client.subscribe(
-      `databases.${APPWRITE_DATABASE_ID}.collections.${MESSAGES_COLLECTION_ID}.documents`,
-      (response) => {
-        const payload = response.payload as any;
-        
-        // 1. Ignore pulses from the current identity node
-        if (payload.senderId === currentUser.username) return;
-
-        // 2. Identify if the message is intended for this node
-        // Check 1-on-1: conversationId contains username
-        const isDirect = payload.conversationId.includes(currentUser.username);
-        
-        // Check Clusters: conversationId matches a cluster ID the user belongs to
-        const isCluster = clusters.some(c => c.id === payload.conversationId);
-
-        if (isDirect || isCluster) {
-          setCategoryPulses(prev => ({ ...prev, MESSAGES: prev.MESSAGES + 1 }));
-          triggerHaptic(5);
-          triggerSound();
-        }
-      }
-    );
-
-    return () => {
-      notificationUnsubscribe();
-      messageUnsubscribe();
-    };
-  }, [currentUser.id, currentUser.username, clusters, fetchNotifications, triggerHaptic, triggerSound]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && "Notification" in window) {
-      setHasPushPermission(Notification.permission === "granted");
-    }
-  }, []);
-
   const addSignal = useCallback(async (signal: Omit<NotificationNode, 'id' | 'time' | 'isRead'>) => {
-    try {
-      await databases.createDocument(
-        APPWRITE_DATABASE_ID,
-        NOTIFICATIONS_COLLECTION_ID,
-        ID.unique(),
-        {
-          ...signal,
-          isRead: false,
-          timestamp: Date.now()
-        }
-      );
-    } catch (e) {
-      console.error("Signal transmission failed:", e);
-    }
-  }, []);
+    const newNode: NotificationNode = {
+      ...signal,
+      id: 'notif-' + Date.now(),
+      time: 'Just now',
+      isRead: false
+    };
+    setNotifications(prev => [newNode, ...prev]);
+    triggerSound();
+    triggerHaptic(10);
+  }, [triggerSound, triggerHaptic]);
 
-  const markAsRead = async (id: string) => {
+  const markAsRead = (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-    try {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, id, { isRead: true });
-    } catch (e) {}
   };
 
-  const markAllAsRead = async () => {
-    const unread = notifications.filter(n => !n.isRead);
+  const markAllAsRead = () => {
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-    try {
-      for (const n of unread) {
-        await databases.updateDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, n.id, { isRead: true });
-      }
-    } catch (e) {}
   };
 
-  const purgeSignal = async (id: string) => {
+  const purgeSignal = (id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
-    try {
-      await databases.deleteDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, id);
-    } catch (e) {}
   };
 
   const clearPulse = (category: PulseCategory) => {
@@ -225,14 +126,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   };
 
   const requestPushPermission = async () => {
-    if (!("Notification" in window)) {
-      toast({ variant: "destructive", title: "Unsupported", description: "This device doesn't support network pulses." });
-      return;
-    }
-    const permission = await Notification.requestPermission();
-    if (permission === "granted") {
-      setHasPushPermission(true);
-      toast({ title: "Authorized", description: "High-velocity push notifications enabled." });
+    if (typeof window !== 'undefined' && "Notification" in window) {
+      const permission = await Notification.requestPermission();
+      setHasPushPermission(permission === "granted");
     }
   };
 

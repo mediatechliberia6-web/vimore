@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
@@ -55,8 +54,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import client, { databases, APPWRITE_DATABASE_ID, MESSAGES_COLLECTION_ID, ID, BUCKET_VOICENOTE, BUCKET_IMAGES, BUCKET_REEL } from "@/lib/appwrite";
-import { Query } from "appwrite";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,12 +71,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 
 interface Message {
@@ -98,28 +89,6 @@ interface Message {
   isViewed?: boolean;
   isDownloaded?: boolean;
   reactions?: string[];
-  callData?: {
-    type: 'audio' | 'video';
-    status: 'started' | 'missed' | 'ended';
-    duration?: string;
-  };
-  linkData?: {
-    title: string;
-    description: string;
-    image: string;
-    url: string;
-  };
-  taggedUser?: {
-    name: string;
-    username: string;
-    avatar: string;
-    category: string;
-  };
-  workspaceData?: {
-    title: string;
-    metrics: string;
-    image: string;
-  };
 }
 
 interface ChatWindowProps {
@@ -141,104 +110,25 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
   const [addNodeSearch, setAddNodeSearch] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const conversationId = useMemo(() => {
-    if (isCluster) return (contact as Cluster).id;
-    
-    const contactUsername = (contact as Connection).username;
-    if (!currentUser.username || !contactUsername || currentUser.username === contactUsername) {
-      return null;
-    }
-    
-    return [currentUser.username, contactUsername].sort().join('_');
-  }, [isCluster, contact, currentUser.username]);
-
-  const nonClusterMembers = useMemo(() => {
-    if (!isCluster) return [];
-    const memberUsernames = new Set(((contact as Cluster).members || []).map(m => m.username));
-    return connections.filter(c => !memberUsernames.has(c.username));
-  }, [isCluster, contact, connections]);
-
-  const fetchHistory = useCallback(async () => {
-    if (!conversationId) return;
-    setIsLoadingMessages(true);
-    try {
-      const response = await databases.listDocuments(
-        APPWRITE_DATABASE_ID,
-        MESSAGES_COLLECTION_ID,
-        [
-          Query.equal('conversationId', conversationId),
-          Query.orderAsc('$createdAt'),
-          Query.limit(100)
-        ]
-      );
-      
-      const mapped = response.documents.map(doc => ({
-        id: doc.$id,
-        sender: doc.senderId === currentUser.username ? "me" as const : "them" as const,
-        senderId: doc.senderId,
-        senderName: doc.senderName,
-        senderAvatar: doc.senderAvatar,
-        text: doc.text,
-        time: new Date(doc.$createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        status: doc.status || 'sent',
-        type: doc.type || 'text',
-        mediaUrl: doc.mediaUrl,
-        voiceDuration: doc.duration,
-        isViewOnce: doc.isViewOnce,
-        isViewed: doc.isViewed,
-        isDownloaded: true,
-        reactions: doc.reactions ? JSON.parse(doc.reactions) : []
-      }));
-      
-      setMessages(mapped);
-    } catch (e) {
-      console.error("Vault history fetch failed:", e);
-    } finally {
-      setIsLoadingMessages(false);
-    }
-  }, [conversationId, currentUser.username]);
-
   useEffect(() => {
-    if (!conversationId) return;
-    fetchHistory();
-
-    if (!currentUser.id) return;
-
-    // REAL-TIME HANDSHAKE SUBSCRIPTION
-    const unsubscribe = client.subscribe(
-      `databases.${APPWRITE_DATABASE_ID}.collections.${MESSAGES_COLLECTION_ID}.documents`,
-      (response) => {
-        const payload = response.payload as any;
-        if (payload.conversationId === conversationId && payload.senderId !== currentUser.username) {
-          const incoming: Message = {
-            id: payload.$id,
-            sender: "them",
-            senderId: payload.senderId,
-            senderName: payload.senderName,
-            senderAvatar: payload.senderAvatar,
-            text: payload.text,
-            time: new Date(payload.$createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            status: payload.status,
-            type: payload.type,
-            mediaUrl: payload.mediaUrl,
-            voiceDuration: payload.duration,
-            isViewOnce: payload.isViewOnce,
-            isViewed: payload.isViewed,
-            isDownloaded: false,
-            reactions: payload.reactions ? JSON.parse(payload.reactions) : []
-          };
-          setMessages(prev => [...prev, incoming]);
-          triggerHaptic(10);
-        }
+    // Prototype: Injected History Node
+    setMessages([
+      {
+        id: 'm1',
+        sender: 'them',
+        senderId: 'arivera',
+        senderName: 'Alex Rivera',
+        text: 'Synchronizing the latest spatial nodes in the cluster. 🌍⚡',
+        time: '10:42 AM',
+        status: 'read',
+        type: 'text'
       }
-    );
-
-    return () => unsubscribe();
-  }, [conversationId, fetchHistory, currentUser.id, currentUser.username, triggerHaptic]);
+    ]);
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -247,12 +137,9 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   }, [messages, showVault]);
 
   const handleSend = async (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string }) => {
-    if (!conversationId) return;
-    
-    let finalMediaUrl = options?.mediaUrl || "";
-    const type = options?.isWorkspace ? "workspace" : (options?.mediaType || (text.includes("http") ? "link" : "text"));
-
     const optimisticId = `temp-${Date.now()}`;
+    const type = options?.isWorkspace ? "workspace" : (options?.mediaType || (text.includes("http") ? "link" : "text"));
+    
     const optimistic: Message = {
       id: optimisticId,
       sender: "me",
@@ -263,51 +150,12 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       type: type as any,
       isViewOnce: options?.isViewOnce,
       isDownloaded: true,
-      mediaUrl: finalMediaUrl,
+      mediaUrl: options?.mediaUrl,
       voiceDuration: options?.duration
     };
+    
     setMessages(prev => [...prev, optimistic]);
-
-    try {
-      if (finalMediaUrl.startsWith('blob:')) {
-        const response = await fetch(finalMediaUrl);
-        const blob = await response.blob();
-        
-        // INTELLIGENT BUCKET DISPATCHING
-        let targetBucket = BUCKET_IMAGES;
-        if (type === 'voice') targetBucket = BUCKET_VOICENOTE;
-        else if (type === 'video') targetBucket = BUCKET_REEL;
-
-        const extension = type === 'voice' ? 'webm' : (type === 'video' ? 'mp4' : 'jpg');
-        const file = new File([blob], `msg_media_${Date.now()}.${extension}`, { type: blob.type });
-        finalMediaUrl = await uploadMedia(file, targetBucket);
-      }
-
-      const docData = {
-        conversationId,
-        senderId: currentUser.username,
-        senderName: currentUser.name,
-        senderAvatar: currentUser.avatar,
-        text: text || "",
-        type,
-        mediaUrl: finalMediaUrl,
-        duration: options?.duration || "",
-        status: "sent",
-        isViewOnce: options?.isViewOnce || false,
-        isViewed: false,
-        reactions: JSON.stringify([])
-      };
-
-      await databases.createDocument(
-        APPWRITE_DATABASE_ID,
-        MESSAGES_COLLECTION_ID,
-        ID.unique(),
-        docData
-      );
-    } catch (e) {
-      toast({ variant: "destructive", title: "Sync Error", description: "Node transmission failed." });
-      setMessages(prev => prev.filter(m => m.id !== optimisticId));
-    }
+    triggerHaptic(10);
   };
 
   const handleExternalLink = (url: string) => {
@@ -375,12 +223,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                 <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary transition-colors" onClick={() => handleStartCall('audio')}><Phone className="h-5 w-5" /></Button>
               </>
             )}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className={cn("rounded-full transition-all", showVault ? "bg-primary/10 text-primary" : "text-muted-foreground")} 
-              onClick={() => { triggerHaptic(5); setShowVault(!showVault); }}
-            >
+            <Button variant="ghost" size="icon" className={cn("rounded-full transition-all", showVault ? "bg-primary/10 text-primary" : "text-muted-foreground")} onClick={() => { triggerHaptic(5); setShowVault(!showVault); }}>
               {isCluster ? <Bookmark className="h-5 w-5" /> : <InfoIcon className="h-5 w-5" />}
             </Button>
           </div>
@@ -401,14 +244,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                     <span className="text-[10px] font-black uppercase text-primary/60 tracking-widest">{msg.senderName}</span>
                   </div>
                 )}
-                <ChatBubble 
-                  {...msg} 
-                  isMe={msg.sender === "me"} 
-                  status={settings.showReadReceipts ? msg.status : 'sent'}
-                  onExternalLink={handleExternalLink}
-                  onDelete={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
-                  onDownload={(id) => setMessages(prev => prev.map(m => m.id === id ? { ...m, isDownloaded: true } : m))}
-                />
+                <ChatBubble {...msg} isMe={msg.sender === "me"} status={settings.showReadReceipts ? msg.status : 'sent'} onExternalLink={handleExternalLink} onDelete={(id) => setMessages(prev => prev.filter(m => m.id !== id))} onDownload={(id) => setMessages(prev => prev.map(m => m.id === id ? { ...m, isDownloaded: true } : m))} />
               </div>
             ))
           )}
@@ -416,20 +252,14 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
         <ChatInput onSend={handleSend} />
       </div>
 
-      <aside className={cn(
-        "h-full bg-white dark:bg-card border-l border-primary/5 transition-all duration-500 overflow-hidden flex flex-col shrink-0 relative z-30", 
-        showVault ? "w-full sm:w-[360px] opacity-100 translate-x-0" : "w-0 opacity-0 translate-x-full"
-      )}>
+      <aside className={cn("h-full bg-white dark:bg-card border-l border-primary/5 transition-all duration-500 overflow-hidden flex flex-col shrink-0 relative z-30", showVault ? "w-full sm:w-[360px] opacity-100 translate-x-0" : "w-0 opacity-0 translate-x-full")}>
         <div className="p-6 border-b border-primary/5 flex items-center justify-between shrink-0 bg-white/80 dark:bg-card/80 backdrop-blur-md">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              {isCluster ? <Bookmark className="h-5 w-5" /> : <InfoIcon className="h-5 w-5" />}
-            </div>
+            <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary">{isCluster ? <Bookmark className="h-5 w-5" /> : <InfoIcon className="h-5 w-5" />}</div>
             <h3 className="font-black italic uppercase tracking-tighter text-lg">{isCluster ? t('chat_vault') : t('chat_node_details')}</h3>
           </div>
           <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" onClick={() => setShowVault(false)}><X className="h-6 w-6" /></Button>
         </div>
-
         <ScrollArea className="flex-1">
           <div className="p-6 space-y-10 pb-20">
             {isCluster && (
@@ -439,9 +269,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                   <div className="flex items-center gap-2">
                     {isAdmin && (
                       <Dialog open={isAddNodeOpen} onOpenChange={setIsAddNodeOpen}>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg bg-primary/10 text-primary hover:bg-primary/20"><UserPlus className="h-4 w-4" /></Button>
-                        </DialogTrigger>
+                        <DialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg bg-primary/10 text-primary hover:bg-primary/20"><UserPlus className="h-4 w-4" /></Button></DialogTrigger>
                         <DialogContent className="rounded-[2rem] p-0 overflow-hidden border-primary/10">
                           <DialogHeader className="p-6 bg-primary/5 border-b border-primary/10"><DialogTitle className="text-xl font-black italic uppercase tracking-widest text-primary">Add Node to Cluster</DialogTitle></DialogHeader>
                           <div className="p-4 space-y-4">
@@ -451,7 +279,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                             </div>
                             <ScrollArea className="h-[300px]">
                               <div className="space-y-2 pr-4">
-                                {(nonClusterMembers || []).map((c) => (
+                                {(connections || []).map((c) => (
                                   <button key={c.username} onClick={() => handleAddNode(c)} className="w-full flex items-center justify-between p-3 rounded-2xl transition-all hover:bg-secondary/40">
                                     <div className="flex items-center gap-3">
                                       <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={c.avatar} /></Avatar>
@@ -481,7 +309,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                 </div>
               </section>
             )}
-
             <div className="pt-6 border-t border-primary/5 space-y-4">
               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">System Controls</h4>
               <div className="space-y-2">
