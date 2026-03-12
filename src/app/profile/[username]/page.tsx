@@ -56,6 +56,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -128,7 +129,6 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     triggerHaptic(50);
 
     try {
-      // VI-MORE PAYMENT VERIFICATION SYSTEM: Deterministic Subscription
       await subscribeToCreator(username, 20);
       
       addSignal({
@@ -245,8 +245,10 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                             </div>
                           </div>
                           <div className="space-y-2">
-                            <h2 className="text-3xl font-black italic uppercase tracking-tighter">Premium Loop</h2>
-                            <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">Materialize your VIP status with **{displayUser.name}**</p>
+                            <DialogTitle className="text-3xl font-black italic uppercase tracking-tighter">Premium Loop</DialogTitle>
+                            <DialogDescription className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
+                              Materialize your VIP status with **{displayUser.name}**
+                            </DialogDescription>
                           </div>
                           <div className="bg-secondary/40 w-full p-6 rounded-3xl border border-white/5 space-y-4">
                             <div className="flex items-center justify-between">
