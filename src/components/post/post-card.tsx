@@ -501,10 +501,10 @@ export function PostCard(props: PostCardProps) {
                       {allImages.map((img, i) => (
                         <CarouselItem key={i}>
                           <div 
-                            className={cn("relative aspect-video overflow-hidden rounded-lg cursor-pointer group/img")} 
+                            className={cn("relative overflow-hidden rounded-lg cursor-pointer group/img")} 
                             onClick={() => { triggerHaptic(15); if(isSensitiveNode){ setIsRevealedManually(true); return; } if(isCampaign) handleCampaignAction(); else setSelectedImageUrl(img); }}
                           >
-                            <Image src={img} alt="Post" fill className={cn("object-cover transition-transform group/img:scale-105", imageFilter, isSensitiveNode && "blur-3xl saturate-50")} />
+                            <img src={img} alt="Post" className={cn("w-full h-auto transition-transform group/img:scale-105", imageFilter, isSensitiveNode && "blur-3xl saturate-50")} />
                             {isSensitiveNode && (
                               <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center p-6 text-center space-y-3">
                                 <div className="h-12 w-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white"><EyeOff className="h-6 w-6" /></div>
@@ -532,12 +532,12 @@ export function PostCard(props: PostCardProps) {
               
               {videoUrl && !settings.isFreeMode && (
                 <div 
-                  className={cn("relative mt-2 rounded-lg overflow-hidden bg-black aspect-video flex items-center justify-center cursor-pointer group/vid", isShared ? "-mx-1" : "-mx-3 sm:mx-0")} 
+                  className={cn("relative mt-2 rounded-lg overflow-hidden bg-black flex items-center justify-center cursor-pointer group/vid", isShared ? "-mx-1" : "-mx-3 sm:mx-0")} 
                   onClick={handleReelClick}
                 >
                   <video 
                     src={videoUrl} 
-                    className={cn("w-full h-full object-cover", isSensitiveNode && "blur-3xl opacity-40")} 
+                    className={cn("w-full h-auto", isSensitiveNode && "blur-3xl opacity-40")} 
                     controls={false} 
                     playsInline 
                     muted={isShared} 
