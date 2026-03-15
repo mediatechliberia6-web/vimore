@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useMemo, useEffect } from "react";
@@ -210,6 +211,25 @@ export default function MyProfilePage() {
     return (typeof currentUser.following === 'number' ? currentUser.following : parseFollowerCount(currentUser.following)) + friendUsernames.size;
   }, [currentUser.following, friendUsernames.size]);
 
+  const togglePlayIntro = () => {
+    if (!currentUser?.introUrl) { 
+      toast({ title: "No Intro", description: "Upload a sonic signature in settings." }); 
+      return; 
+    }
+    triggerHaptic(15);
+    if (isPlayingIntro) { 
+      audioRef.current?.pause(); 
+      setIsPlayingIntro(false); 
+      return; 
+    }
+    if (!audioRef.current) { 
+      audioRef.current = new Audio(currentUser.introUrl); 
+      audioRef.current.onended = () => setIsPlayingIntro(false); 
+    }
+    audioRef.current.play().catch(() => { toast({ variant: "destructive", description: "Failed to stream sonic signature." }); });
+    setIsPlayingIntro(true);
+  };
+
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-background flex justify-center">
       <div className="max-w-[1440px] w-full grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[280px_1fr_360px] gap-8 px-0 md:px-4">
@@ -224,9 +244,9 @@ export default function MyProfilePage() {
             <div className="px-4 pb-4"><div className="relative inline-block -mt-16 sm:-mt-24 ml-0 sm:ml-2"><div className="relative w-32 h-32 sm:w-44 sm:h-44 group"><Avatar className="w-full h-full border-4 border-white dark:border-card shadow-xl ring-2 ring-primary/10"><AvatarImage src={currentUser.avatar} /><AvatarFallback>JD</AvatarFallback></Avatar><div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><button onClick={() => avatarInputRef.current?.click()} className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30 text-white hover:bg-white/40 transition-all"><Camera className="h-8 w-8" /></button></div><input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => { setRefiningImage(reader.result as string); setRefiningMode('avatar'); setIsRefinementOpen(true); }; reader.readAsDataURL(file); } }} /></div></div>
               <div className="mt-2 space-y-1 px-1"><div className="flex items-center flex-wrap gap-2"><div className="flex items-center gap-2"><h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{currentUser.name}</h1>{currentUser.isVerified && <CheckCircle2 className="h-6 w-6 text-primary fill-primary text-white" />}</div><Badge variant="secondary" className="bg-primary/10 text-primary border-none text-[9px] font-black h-5 px-3 uppercase tracking-widest">{currentUser.category || "Creator"}</Badge></div>
                 <div className="flex items-center gap-6 py-2">
-                  <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{friendUsernames.size}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Friends</span></div>
                   <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowers.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div>
                   <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowing.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
+                  <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{myPosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 py-6 my-4 border-y border-primary/5 bg-primary/[0.02] px-4 rounded-[2rem]"><InfoNode icon={Globe} label="Spatial Origin" value={currentUser.nationality || NATIONALITIES[0]} colorClass="bg-blue-500/10 text-blue-500" /><InfoNode icon={Users} label="Gender Signature" value={currentUser.gender || 'Male'} colorClass="bg-purple-500/10 text-purple-500" />{formattedDob && <InfoNode icon={Cake} label="Arrival Date" value={formattedDob} colorClass="bg-amber-500/10 text-amber-500" />}<InfoNode icon={Clock} label="Member Since" value={currentUser.joinDate || "Temporal Sync Active"} colorClass="bg-emerald-500/10 text-emerald-500" /></div>
                 <div className="mt-3 relative group max-w-2xl"><p className="text-[15px] leading-relaxed text-foreground flex-1">{currentUser.bio}</p></div>

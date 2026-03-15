@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, use, useMemo, useRef } from "react";
@@ -252,9 +253,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2"><h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{displayUser.name}</h1><Button variant="ghost" size="sm" className={cn("h-7 px-2 rounded-full gap-1.5 font-bold text-[11px] transition-all", isPlayingIntro ? "bg-primary text-white scale-105" : "bg-secondary/40")} onClick={togglePlayIntro}>{isPlayingIntro ? <Volume2 className="h-3.5 w-3.5 animate-pulse" /> : <Play className="h-3.5 w-3.5" />} Intro</Button></div>
                     <div className="flex items-center gap-6 py-2">
-                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{amIFriend ? 1 : 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Friends</span></div>
                       <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowers.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div>
                       <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowing.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
+                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{userPosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
                     </div>
                   </div>
                   {isEliteCreator && !isMe && (
