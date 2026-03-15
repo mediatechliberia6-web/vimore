@@ -233,7 +233,15 @@ const dictionaryRaw = {
     boost_launch: "Launch Campaign",
     boost_active: "Boosting Active",
     boost_views_reached: "Views Materialized",
-    boost_owner_only: "Creator Only Node"
+    boost_owner_only: "Creator Only Node",
+    friends_title: "Community Hub",
+    friends_add: "Add Friends",
+    friends_confirm: "Confirm Requests",
+    friends_total: "Established Friends",
+    friends_unfriend: "Unfriend Node",
+    friends_cancel: "Cancel Request",
+    friends_request_sent: "Request Sent",
+    friends_add_friend: "Add Friend"
   },
   es: {
     nav_home: "Inicio",
@@ -462,7 +470,15 @@ const dictionaryRaw = {
     boost_launch: "Lanzar Campaña",
     boost_active: "Impulso Activo",
     boost_views_reached: "Vistas Materializadas",
-    boost_owner_only: "Nodo Solo para Creador"
+    boost_owner_only: "Nodo Solo para Creador",
+    friends_title: "Centro de Comunidad",
+    friends_add: "Agregar Amigos",
+    friends_confirm: "Confirmar Solicitudes",
+    friends_total: "Amigos Establecidos",
+    friends_unfriend: "Eliminar Amigo",
+    friends_cancel: "Cancelar Solicitud",
+    friends_request_sent: "Solicitud Enviada",
+    friends_add_friend: "Agregar Amigo"
   },
   fr: {
     nav_home: "Accueil",
@@ -691,7 +707,15 @@ const dictionaryRaw = {
     boost_launch: "Lancer la Campagne",
     boost_active: "Boost Actif",
     boost_views_reached: "Vues Matérialisées",
-    boost_owner_only: "Nœud Réservé au Créateur"
+    boost_owner_only: "Nœud Réservé au Créateur",
+    friends_title: "Espace Communautaire",
+    friends_add: "Ajouter des Amis",
+    friends_confirm: "Confirmer les Invitations",
+    friends_total: "Amis Établis",
+    friends_unfriend: "Retirer l'Ami",
+    friends_cancel: "Annuler l'Invitation",
+    friends_request_sent: "Invitation Envoyée",
+    friends_add_friend: "Ajouter"
   },
   pt: {
     nav_home: "Início",
@@ -860,7 +884,7 @@ const dictionaryRaw = {
     comm_vibes: "Vibes",
     comm_sentiment: "Resumo de Sentimento",
     comm_quiet: "Silêncio neste Círculo",
-    comm_first: "Seja o primeiro a sincronizar seus pensamentos.",
+    comm_first: "Be the first to synchronize your thoughts.",
     comm_reply: "Responder",
     comm_hide_activity: "Ocultar Atividade",
     comm_view_replies: "Ver Respostas",
@@ -920,7 +944,15 @@ const dictionaryRaw = {
     boost_launch: "Lançar Campanha",
     boost_active: "Impulso Activo",
     boost_views_reached: "Visualizações Materializadas",
-    boost_owner_only: "Nó Apenas para Criador"
+    boost_owner_only: "Nó Apenas para Criador",
+    friends_title: "Central de Comunidade",
+    friends_add: "Adicionar Amigos",
+    friends_confirm: "Confirmar Solicitações",
+    friends_total: "Amigos Estabelecidos",
+    friends_unfriend: "Desfazer Amizade",
+    friends_cancel: "Cancelar Solicitação",
+    friends_request_sent: "Solicitação Enviada",
+    friends_add_friend: "Adicionar"
   },
   ar: {
     nav_home: "الرئيسية",
@@ -1018,7 +1050,7 @@ const dictionaryRaw = {
     settings_subs: "خزنة الاشتراكات",
     settings_data: "البيانات والأرشفة",
     settings_archive: "أرشفة عقدة الهوية",
-    settings_purge: "مسح ذاكرة التخزين المؤقت",
+    settings_purge: "تطهير ذاكرة التخزين المؤقت",
     admin_active_nodes: "العقد النشطة",
     admin_signatures: "التوقيعات الرقمية",
     admin_pulses: "النبضات الصوتية",
@@ -1149,7 +1181,15 @@ const dictionaryRaw = {
     boost_launch: "إطلاق الحملة",
     boost_active: "التعزيز نشط",
     boost_views_reached: "المشاهدات المتحققة",
-    boost_owner_only: "عقدة خاصة بمنشئ المحتوى"
+    boost_owner_only: "عقدة خاصة بمنشئ المحتوى",
+    friends_title: "مركز المجتمع",
+    friends_add: "إضافة أصدقاء",
+    friends_confirm: "تأكيد الطلبات",
+    friends_total: "أصدقاء حاليون",
+    friends_unfriend: "إزالة الصديق",
+    friends_cancel: "إلغاء الطلب",
+    friends_request_sent: "تم إرسال الطلب",
+    friends_add_friend: "إضافة صديق"
   },
   zh: {
     nav_home: "首页",
@@ -1265,7 +1305,7 @@ const dictionaryRaw = {
     explore_trending: "热门",
     explore_see_all_tags: "查看所有标签",
     explore_rising_stars: "新星计划",
-    explore_rising_stars_desc: "本周热门创作者",
+    explore_rising_stars_desc: "本期热门创作者",
     explore_earn_stars: "赚取星星",
     explore_growth_hub: "增长中心",
     explore_growth_hub_desc: "邀请好友赚取奖励",
@@ -1378,7 +1418,15 @@ const dictionaryRaw = {
     boost_launch: "发起推广",
     boost_active: "推广进行中",
     boost_views_reached: "已达成曝光",
-    boost_owner_only: "仅限创作者节点"
+    boost_owner_only: "仅限创作者节点",
+    friends_title: "社区中心",
+    friends_add: "添加好友",
+    friends_confirm: "确认请求",
+    friends_total: "当前好友",
+    friends_unfriend: "删除好友",
+    friends_cancel: "取消请求",
+    friends_request_sent: "请求已发送",
+    friends_add_friend: "添加好友"
   }
 };
 

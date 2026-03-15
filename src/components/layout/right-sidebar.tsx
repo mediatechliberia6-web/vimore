@@ -1,22 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { Search, TrendingUp, Users } from "lucide-react";
+import { Search, TrendingUp, Users, UserRoundPlus, Check, UserRoundX } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { usePosts } from "@/context/PostContext";
 import { useMemo } from "react";
+import { cn } from "@/lib/utils";
+import { useTranslation } from "@/context/LanguageContext";
 
 export function RightSidebar() {
-  const { currentUser, connections = [], isFollowing, toggleFollowUser, setSearchOpen } = usePosts();
+  const { currentUser, connections = [], isFriend, isRequestSent, sendFriendRequest, cancelFriendRequest, setSearchOpen } = usePosts();
+  const { t } = useTranslation();
 
   const suggestions = useMemo(() => {
     if (!connections || !Array.isArray(connections)) return [];
     return connections
-      .filter(c => !isFollowing(c.username) && c.username !== currentUser.username)
+      .filter(c => !isFriend(c.username) && !isRequestSent(c.username) && c.username !== currentUser.username)
       .slice(0, 3);
-  }, [connections, isFollowing, currentUser.username]);
+  }, [connections, isFriend, isRequestSent, currentUser.username]);
 
   const trends = [
     { tag: "BuildingInPublic", posts: "12.5k" },
@@ -43,34 +46,48 @@ export function RightSidebar() {
           <h3 className="font-headline font-bold text-lg italic uppercase tracking-tight">Discovery Nodes</h3>
         </div>
         <div className="space-y-4">
-          {suggestions.length > 0 ? suggestions.map((user) => (
-            <div key={user.username} className="flex items-center justify-between group">
-              <Link href={`/profile/${user.username}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-1 min-w-0">
-                <Avatar className="h-10 w-10 border border-primary/5 transition-transform group-hover:scale-105">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback>{user.name[0]}</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-bold text-sm leading-none truncate group-hover:underline">{user.name}</span>
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter truncate">@{user.username}</span>
-                </div>
-              </Link>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="rounded-full h-8 px-4 border-primary text-primary hover:bg-primary hover:text-white transition-all font-black text-[9px] uppercase tracking-widest"
-                onClick={() => toggleFollowUser(user.username)}
-              >
-                Connect
-              </Button>
-            </div>
-          )) : (
+          {suggestions.length > 0 ? suggestions.map((user) => {
+            const sent = isRequestSent(user.username);
+            
+            return (
+              <div key={user.username} className="flex items-center justify-between group">
+                <Link href={`/profile/${user.username}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-1 min-w-0">
+                  <Avatar className="h-10 w-10 border border-primary/5 transition-transform group-hover:scale-105">
+                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarFallback>{user.name[0]}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-sm leading-none truncate group-hover:underline">{user.name}</span>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter truncate">@{user.username}</span>
+                  </div>
+                </Link>
+                <Button 
+                  size="sm" 
+                  variant={sent ? "outline" : "default"} 
+                  className={cn(
+                    "rounded-full h-8 px-4 font-black text-[9px] uppercase tracking-widest transition-all group/hs",
+                    sent ? "border-primary/20 text-primary hover:bg-destructive hover:text-white" : "bg-primary text-white"
+                  )}
+                  onClick={() => sent ? cancelFriendRequest(user.username) : sendFriendRequest(user.username)}
+                >
+                  <span className={cn(sent && "group-hover/hs:hidden")}>
+                    {sent ? "Sent" : "Add"}
+                  </span>
+                  {sent && (
+                    <span className="hidden group-hover/hs:inline">
+                      <X className="h-3 w-3" />
+                    </span>
+                  )}
+                </Button>
+              </div>
+            );
+          }) : (
             <div className="py-4 text-center text-[10px] font-black uppercase text-muted-foreground/40">
               Vault clusters synced
             </div>
           )}
         </div>
-        <Link href="/friends?tab=suggestions" className="block w-full">
+        <Link href="/friends?tab=add" className="block w-full">
           <Button variant="ghost" className="w-full text-xs font-black uppercase text-primary hover:bg-primary/5">Show more</Button>
         </Link>
       </div>

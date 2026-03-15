@@ -22,11 +22,14 @@ import {
   UserCheck, 
   Zap, 
   Play, 
-  Bookmark, 
   Volume2, 
   UserMinus, 
   Heart,
-  ArrowRight
+  ArrowRight,
+  UserRoundCheck,
+  UserRoundPlus,
+  ShieldCheck,
+  X
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -39,27 +42,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useTranslation } from "@/context/LanguageContext";
 
-type HubTab = "followers" | "following";
+type HubTab = "add" | "confirm";
 
 function FriendsPageContent() {
-  const { connections = [], isFollowing, toggleFollowUser, currentUser } = usePosts();
+  const { connections = [], isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, currentUser } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
+  const { t } = useTranslation();
   const { toast } = useToast();
   const searchParams = useSearchParams();
   
-  const [activeTab, setActiveTab] = useState<HubTab>("followers");
+  const [activeTab, setActiveTab] = useState<HubTab>("add");
   const [searchQuery, setSearchQuery] = useState("");
   const [playingPreview, setPlayingPreview] = useState<string | null>(null);
 
   const [confirmUser, setConfirmUser] = useState<any | null>(null);
-  const [confirmType, setConfirmType] = useState<"unfollow" | "unfriend">("unfollow");
+  const [confirmType, setConfirmType] = useState<"unfriend" | "cancel">("unfriend");
 
   const isPlayerActive = currentTrack && !isExpanded;
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as HubTab;
-    if (tabParam && ["followers", "following"].includes(tabParam)) {
+    if (tabParam && ["add", "confirm"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -77,12 +82,12 @@ function FriendsPageContent() {
     if (!connections) return [];
     let list = connections.filter(c => c.username !== currentUser.username);
 
-    if (activeTab === "followers") {
-      // Inbound Pulse: Users following the current node
-      list = list.filter(c => c.followsYou);
-    } else if (activeTab === "following") {
-      // Outbound Pulse: Users the current node is following
-      list = list.filter(c => isFollowing(c.username));
+    if (activeTab === "add") {
+      // Add Friends Node: People you aren't friends with and haven't sent/received a request
+      list = list.filter(c => !isFriend(c.username) && !isRequestSent(c.username) && !isRequestReceived(c.username));
+    } else if (activeTab === "confirm") {
+      // Confirm Requests Node: Inbound pulses
+      list = list.filter(c => isRequestReceived(c.username));
     }
 
     if (searchQuery) {
@@ -94,11 +99,11 @@ function FriendsPageContent() {
     }
 
     return list;
-  }, [activeTab, connections, isFollowing, searchQuery, currentUser.username]);
+  }, [activeTab, connections, isFriend, isRequestSent, isRequestReceived, searchQuery, currentUser.username]);
 
   const tabs: { id: HubTab; label: string; icon: any }[] = [
-    { id: "followers", label: "Followers", icon: UserPlus },
-    { id: "following", label: "Following", icon: UserCheck },
+    { id: "add", label: t('friends_add'), icon: UserRoundPlus },
+    { id: "confirm", label: t('friends_confirm'), icon: UserRoundCheck },
   ];
 
   const handlePreviewSonic = (username: string, name: string) => {
@@ -117,20 +122,24 @@ function FriendsPageContent() {
   };
 
   const handleAction = (user: any) => {
-    const following = isFollowing(user.username);
-    const followsYou = user.followsYou;
+    const friend = isFriend(user.username);
+    const sent = isRequestSent(user.username);
+    const received = isRequestReceived(user.username);
 
-    if (following) {
+    if (friend) {
       triggerHaptic(15);
-      setConfirmType(followsYou ? "unfriend" : "unfollow");
+      setConfirmType("unfriend");
       setConfirmUser(user);
-    } else {
+    } else if (sent) {
+      triggerHaptic(10);
+      setConfirmType("cancel");
+      setConfirmUser(user);
+    } else if (received) {
       triggerHaptic(25);
-      toggleFollowUser(user.username);
-      toast({ 
-        title: followsYou ? "Mutual Connection!" : "Following", 
-        description: `You are now connected with ${user.name} ✨` 
-      });
+      confirmFriendRequest(user.username);
+    } else {
+      triggerHaptic(20);
+      sendFriendRequest(user.username);
     }
   };
 
@@ -140,11 +149,12 @@ function FriendsPageContent() {
       const user = { ...confirmUser };
       document.body.style.pointerEvents = 'auto';
       setConfirmUser(null);
-      toggleFollowUser(user.username);
-      toast({ 
-        title: "Network Adjusted", 
-        description: `You no longer follow ${user.name}` 
-      });
+      
+      if (confirmType === "unfriend") {
+        unfriendUser(user.username);
+      } else {
+        cancelFriendRequest(user.username);
+      }
     }
   };
 
@@ -178,15 +188,21 @@ function FriendsPageContent() {
                     <Users className="h-6 w-6 text-primary fill-primary" />
                   </div>
                 </h1>
-                <p className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">
-                  {filteredUsers.length} specialized nodes in current view
-                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">
+                    {t('friends_total')}: {currentUser.friendsCount || 0} / 7,000
+                  </span>
+                  <div className="h-1 w-1 rounded-full bg-primary/40" />
+                  <span className="text-primary text-[10px] font-black uppercase tracking-widest">
+                    {filteredUsers.length} Potential Handshakes
+                  </span>
+                </div>
               </div>
 
               <div className="relative group w-full sm:max-w-xs">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input 
-                  placeholder="Query connections..." 
+                  placeholder={t('chat_query_nodes')} 
                   className="pl-11 h-12 bg-white/40 dark:bg-white/5 backdrop-blur-md border-primary/10 rounded-2xl focus-visible:ring-primary/30 transition-all placeholder:text-muted-foreground/40"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -221,8 +237,8 @@ function FriendsPageContent() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredUsers.length > 0 ? filteredUsers.map((user, i) => {
-              const following = isFollowing(user.username);
-              const isMutual = user.followsYou && following;
+              const friend = isFriend(user.username);
+              const sent = isRequestSent(user.username);
               const isPlaying = playingPreview === user.username;
 
               return (
@@ -259,9 +275,9 @@ function FriendsPageContent() {
                               {isPlaying ? <Volume2 className="h-8 w-8 text-white animate-bounce" /> : <Play className="h-8 w-8 text-white fill-current" />}
                             </button>
                           </div>
-                          {isMutual && (
+                          {friend && (
                             <div className="absolute -bottom-1 -right-1 bg-primary text-white text-[8px] font-black uppercase px-2 py-1 rounded-full border-2 border-white dark:border-[#050505] shadow-lg">
-                              Mutual
+                              Friend
                             </div>
                           )}
                         </div>
@@ -284,16 +300,20 @@ function FriendsPageContent() {
                           size="sm"
                           className={cn(
                             "rounded-[1.25rem] h-11 px-6 font-black italic uppercase tracking-widest text-[10px] transition-all group/btn min-w-[120px] shadow-lg",
-                            !following ? "bg-primary text-white shadow-primary/20 hover:scale-105" : "bg-white/10 dark:bg-white/5 text-foreground hover:bg-destructive hover:text-white"
+                            friend ? "bg-white/10 dark:bg-white/5 text-foreground hover:bg-destructive hover:text-white" :
+                            sent ? "bg-primary/10 text-primary border border-primary/20 hover:bg-destructive hover:text-white" :
+                            "bg-primary text-white shadow-primary/20 hover:scale-105"
                           )}
                           onClick={() => handleAction(user)}
                         >
-                          <span className={cn(following && "group-hover/btn:hidden")}>
-                            {following ? <><UserCheck className="h-3.5 w-3.5 inline mr-1.5" /> Handshake</> : "Follow Back"}
+                          <span className={cn((friend || sent) && "group-hover/btn:hidden")}>
+                            {friend ? <><UserCheck className="h-3.5 w-3.5 inline mr-1.5" /> Friends</> : 
+                             sent ? <><Check className="h-3.5 w-3.5 inline mr-1.5" /> Sent</> : 
+                             activeTab === 'confirm' ? t('friends_confirm').split(' ')[0] : t('friends_add_friend')}
                           </span>
-                          {following && (
+                          {(friend || sent) && (
                             <span className="hidden group-hover/btn:inline flex items-center gap-1.5">
-                              <UserMinus className="h-3.5 w-3.5" /> Disconnect
+                              {friend ? <><UserMinus className="h-3.5 w-3.5" /> Unfriend</> : <><X className="h-3.5 w-3.5" /> Cancel</>}
                             </span>
                           )}
                         </Button>
@@ -329,14 +349,14 @@ function FriendsPageContent() {
                 <div className="space-y-2">
                   <h3 className="text-2xl font-black italic uppercase tracking-tighter">Node Cluster Silent</h3>
                   <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest max-w-xs mx-auto">
-                    {activeTab === 'followers' 
-                      ? "No inbound pulses detected. Share your referral node to attract new connections." 
-                      : "You haven't established any outbound handshakes yet."}
+                    {activeTab === 'add' 
+                      ? "All network nodes synchronized. Share your referral link to attract new connections." 
+                      : "No pending friendship pulses detected."}
                   </p>
                 </div>
-                <Link href={activeTab === 'followers' ? "/referrals" : "/explore"}>
+                <Link href={activeTab === 'add' ? "/referrals" : "/explore"}>
                   <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase text-[10px] h-12 px-10 shadow-lg">
-                    {activeTab === 'followers' ? "Expand Star Network" : "Discover New Nodes"}
+                    {activeTab === 'add' ? "Expand Star Network" : "Discover New Nodes"}
                   </Button>
                 </Link>
               </div>
@@ -363,8 +383,8 @@ function FriendsPageContent() {
             </AlertDialogTitle>
             <AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">
               {confirmType === "unfriend" 
-                ? `You'll no longer be mutual friends with @${confirmUser?.username}.`
-                : `You'll stop receiving updates and digital pulses from @${confirmUser?.username}.`}
+                ? `You'll no longer be established friends with @${confirmUser?.username}. This pulse will be purged.`
+                : `Are you sure you want to cancel your friendship request to @${confirmUser?.username}?`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6 px-4 pb-2">
@@ -373,7 +393,7 @@ function FriendsPageContent() {
               onClick={confirmRemoval}
               className="rounded-2xl h-14 font-black italic uppercase tracking-[0.2em] text-[10px] bg-destructive hover:bg-destructive/90 text-white shadow-xl shadow-destructive/20 transition-all active:scale-95"
             >
-              Confirm Removal
+              Confirm Severance
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

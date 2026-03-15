@@ -29,7 +29,12 @@ import {
   Loader2,
   ShieldCheck,
   Share2,
-  EyeOff
+  EyeOff,
+  UserRoundPlus,
+  UserRoundCheck,
+  UserRoundX,
+  X,
+  Check
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts, User } from "@/context/PostContext";
@@ -61,13 +66,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useTranslation } from "@/context/LanguageContext";
 
 export default function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const resolvedParams = use(params);
   const username = resolvedParams.username;
-  const { currentUser, posts, connections, isFollowing, isSubscribed, toggleFollowUser, subscribeToCreator, cancelSubscription, fetchProfileByUsername, settings, followerUsernames } = usePosts();
+  const { currentUser, posts, connections, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, isSubscribed, subscribeToCreator, cancelSubscription, fetchProfileByUsername, settings, followerUsernames } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { addSignal } = useNotifications();
+  const { t } = useTranslation();
   const router = useRouter();
   
   const [displayUser, setDisplayUser] = useState<User | null>(null);
@@ -84,12 +91,11 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const [deviceLanguage, setDeviceLanguage] = useState<string | null>(null);
   
   const [confirmUser, setConfirmUser] = useState<any | null>(null);
-  const [confirmType, setConfirmType] = useState<"unfollow" | "unfriend">("unfollow");
+  const [confirmType, setConfirmType] = useState<"unfriend" | "cancel">("unfriend");
 
-  const amIFollowing = isFollowing(username);
-  const followsMe = useMemo(() => {
-    return followerUsernames.has(username) || (displayUser?.id && followerUsernames.has(displayUser.id));
-  }, [followerUsernames, username, displayUser?.id]);
+  const amIFriend = isFriend(username);
+  const sent = isRequestSent(username);
+  const received = isRequestReceived(username);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -102,9 +108,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
       setIsLoadingProfile(true);
       const profile = await fetchProfileByUsername(username);
       if (profile) setDisplayUser(profile);
-      else {
-        setDisplayUser(null);
-      }
+      else setDisplayUser(null);
       setIsLoadingProfile(false);
     };
     syncProfile();
@@ -117,10 +121,23 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     return parseFollowerCount(displayUser.followers) >= 10000;
   }, [displayUser]);
 
-  const handleFollowAction = () => {
+  const handleHandshakeAction = () => {
     if (!displayUser) return;
-    if (amIFollowing) { triggerHaptic(15); setConfirmType("unfollow"); setConfirmUser(displayUser); }
-    else { triggerHaptic(20); toggleFollowUser(username); toast({ title: "Connected!", description: `You are now following ${displayUser.name} ✨` }); }
+    if (amIFriend) { 
+      triggerHaptic(15); 
+      setConfirmType("unfriend"); 
+      setConfirmUser(displayUser); 
+    } else if (sent) {
+      triggerHaptic(10);
+      setConfirmType("cancel");
+      setConfirmUser(displayUser);
+    } else if (received) {
+      triggerHaptic(25);
+      confirmFriendRequest(username);
+    } else {
+      triggerHaptic(20);
+      sendFriendRequest(username);
+    }
   };
 
   const handleSubscribeHandshake = async () => {
@@ -130,22 +147,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
     try {
       await subscribeToCreator(username, 20);
-      
-      addSignal({
-        type: 'SYSTEM',
-        title: 'Premium Pulse Active',
-        content: `You are now subscribed to **${displayUser.name}**. **-20 Diamonds** synced for the first month.`,
-        avatar: displayUser.avatar
-      });
-      
-      addSignal({
-        type: 'SOCIAL',
-        title: 'New VIP Node',
-        content: `**${currentUser.name}** just subscribed to your premium loop! **+14 Diamonds** synced to your vault.`,
-        avatar: currentUser.avatar
-      });
-      
-      toast({ title: "Loyalty Loop Active", description: "Premium signature established successfully." });
+      addSignal({ type: 'SYSTEM', title: 'Premium Pulse Active', content: `You are now subscribed to **${displayUser.name}**. **-20 Diamonds** synced.`, avatar: displayUser.avatar });
+      addSignal({ type: 'SOCIAL', title: 'New VIP Node', content: `**${currentUser.name}** just subscribed!`, avatar: currentUser.avatar });
+      toast({ title: "Loyalty Loop Active" });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
     } finally {
@@ -171,8 +175,15 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     setIsPlayingIntro(true);
   };
 
-  const confirmUnfollow = () => {
-    if (confirmUser) { triggerHaptic(30); const user = { ...confirmUser }; document.body.style.pointerEvents = 'auto'; setConfirmUser(null); toggleFollowUser(user.username); toast({ title: "Network Adjusted", description: `You no longer follow ${user.name}` }); }
+  const confirmAction = () => {
+    if (confirmUser) { 
+      triggerHaptic(30); 
+      const user = { ...confirmUser }; 
+      document.body.style.pointerEvents = 'auto'; 
+      setConfirmUser(null); 
+      if (confirmType === "unfriend") unfriendUser(user.username);
+      else cancelFriendRequest(user.username);
+    }
   };
 
   const userPosts = useMemo(() => posts.filter(p => p.user.username === username), [posts, username]);
@@ -184,20 +195,27 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   }
 
   if (!displayUser) {
-    return <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-center space-y-6"><div className="h-20 w-20 bg-secondary/30 rounded-2xl flex items-center justify-center opacity-20"><Zap className="h-10 w-10" /></div><div className="space-y-2"><h2 className="text-2xl font-black italic uppercase tracking-tighter">Node Not Materialized</h2><p className="text-muted-foreground text-sm max-w-xs uppercase font-bold">This identity signature does not exist within the ViMore network clusters.</p></div><Link href="/"><Button className="bg-primary rounded-xl font-black uppercase text-[10px] h-12 px-8">Return to Hub</Button></Link></div>;
+    return <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-center space-y-6"><div className="h-20 w-20 bg-secondary/30 rounded-2xl flex items-center justify-center opacity-20"><Zap className="h-10 w-10" /></div><div className="space-y-2"><h2 className="text-2xl font-black italic uppercase tracking-tighter">Node Not Materialized</h2><p className="text-muted-foreground text-sm max-w-xs uppercase font-bold">This identity signature does not exist.</p></div><Link href="/"><Button className="bg-primary rounded-xl font-black uppercase text-[10px] h-12 px-8">Return to Hub</Button></Link></div>;
   }
 
   const amISubscribed = isSubscribed(username);
 
-  let mainLabel = "Connect"; 
-  let btnVariant: "default" | "secondary" = "default";
+  let btnLabel = t('friends_add_friend');
+  let Icon = UserRoundPlus;
+  let variant: "default" | "secondary" | "outline" = "default";
 
-  if (amIFollowing) {
-    mainLabel = "Following";
-    btnVariant = "secondary";
-  } else if (followsMe) {
-    mainLabel = "Follow Back";
-    btnVariant = "default";
+  if (amIFriend) {
+    btnLabel = "Friends";
+    Icon = UserRoundCheck;
+    variant = "secondary";
+  } else if (sent) {
+    btnLabel = t('friends_request_sent');
+    Icon = Check;
+    variant = "outline";
+  } else if (received) {
+    btnLabel = t('friends_confirm').split(' ')[0];
+    Icon = UserPlus;
+    variant = "default";
   }
 
   return (
@@ -208,93 +226,50 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
           <header className="sticky top-0 z-50 bg-white/95 dark:bg-card/95 backdrop-blur-sm border-b border-border h-14 px-4 flex items-center justify-between">
             <div className="flex items-center gap-3"><Link href="/"><Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="h-5 w-5" /></Button></Link><div className="flex items-center gap-1"><span className="font-bold text-lg truncate">{displayUser.name}</span>{displayUser.isVerified && <CheckCircle2 className="h-4 w-4 text-primary fill-primary text-white" />}</div></div>
             <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full"><MoreHorizontal className="h-5 w-5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5">
-              {!isMe && <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => toast({ title: "Report Sent", description: "This identity node has been flagged for audit." })}><Flag className="h-4 w-4" /> Report Node</DropdownMenuItem>}
+              {!isMe && <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => toast({ title: "Report Sent" })}><Flag className="h-4 w-4" /> Report Node</DropdownMenuItem>}
               <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); navigator.clipboard.writeText(window.location.href); toast({ title: "Link Copied" }); }}><Share2 className="h-4 w-4" /> Share Profile</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
           </header>
           <div className="relative">
             <div className="relative h-48 sm:h-64 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/20 overflow-hidden">
-              {settings.isFreeMode ? (
-                <div className="absolute inset-0 bg-secondary/20 flex items-center justify-center">
-                  <EyeOff className="h-10 w-10 text-muted-foreground/20" />
-                </div>
-              ) : (
-                <Image src={displayUser.cover || `https://picsum.photos/seed/cover_${username}/1200/400`} alt="Cover" fill className="object-cover dark:brightness-75" />
-              )}
+              {settings.isFreeMode ? <div className="absolute inset-0 bg-secondary/20 flex items-center justify-center"><EyeOff className="h-10 w-10 text-muted-foreground/20" /></div> : <Image src={displayUser.cover || `https://picsum.photos/seed/cover_${username}/1200/400`} alt="Cover" fill className="object-cover dark:brightness-75" />}
             </div>
             <div className="px-4 pb-4">
               <div className="relative inline-block -mt-16 sm:-mt-24 ml-0 sm:ml-2"><Avatar className="w-32 h-32 sm:w-44 sm:h-44 border-4 border-white dark:border-card shadow-xl ring-2 ring-primary/5"><AvatarImage src={displayUser.avatar} /><AvatarFallback>{displayUser.name[0]}</AvatarFallback></Avatar></div>
               <div className="mt-2 space-y-1 px-1">
                 <div className="flex items-center flex-wrap justify-between gap-4">
                   <div className="flex flex-col">
-                    <div className="flex items-center gap-2"><h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{displayUser.name}</h1><Button variant="ghost" size="sm" className={cn("h-7 px-2 rounded-full gap-1.5 font-bold text-[11px] transition-all", isPlayingIntro ? "bg-primary text-white scale-105 shadow-lg" : "bg-secondary/40")} onClick={togglePlayIntro}>{isPlayingIntro ? <Volume2 className="h-3.5 w-3.5 animate-pulse" /> : <Play className="h-3.5 w-3.5" />} Intro</Button></div>
-                    <div className="flex items-center gap-6 py-2"><div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{displayUser.followers || 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div><div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{displayUser.following || 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div><div className="flex flex-col"><span className="font-bold text-lg leading-none">{userPosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div></div>
+                    <div className="flex items-center gap-2"><h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{displayUser.name}</h1><Button variant="ghost" size="sm" className={cn("h-7 px-2 rounded-full gap-1.5 font-bold text-[11px] transition-all", isPlayingIntro ? "bg-primary text-white scale-105" : "bg-secondary/40")} onClick={togglePlayIntro}>{isPlayingIntro ? <Volume2 className="h-3.5 w-3.5 animate-pulse" /> : <Play className="h-3.5 w-3.5" />} Intro</Button></div>
+                    <div className="flex items-center gap-6 py-2">
+                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{displayUser.friendsCount || 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Friends</span></div>
+                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{displayUser.followers || 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div>
+                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{displayUser.following || 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
+                    </div>
                   </div>
                   {isEliteCreator && !isMe && (
                     <Dialog>
-                      <DialogTrigger asChild>
-                        <Button className={cn("rounded-2xl h-14 px-8 font-black italic uppercase tracking-widest text-xs gap-3 shadow-2xl transition-all active:scale-95", amISubscribed ? "bg-cyan-500/10 text-cyan-500 border border-cyan-500/20" : "bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-cyan-500/20")}>
-                          {amISubscribed ? <><CheckCircle2 className="h-5 w-5" /> Subscribed</> : <><Gem className="h-5 w-5 animate-pulse" /> Subscribe</>}
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-cyan-500/10 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-3xl sm:max-w-[400px]">
-                        <div className="p-8 space-y-8 flex flex-col items-center text-center">
-                          <div className="relative">
-                            <div className="absolute -inset-4 bg-cyan-500/20 blur-2xl rounded-full animate-pulse" />
-                            <div className="h-24 w-24 bg-cyan-500 rounded-[2rem] flex items-center justify-center text-white shadow-2xl relative z-10">
-                              <Gem className="h-12 w-12" />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <DialogTitle className="text-3xl font-black italic uppercase tracking-tighter">Premium Loop</DialogTitle>
-                            <DialogDescription className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
-                              Materialize your VIP status with **{displayUser.name}**
-                            </DialogDescription>
-                          </div>
-                          <div className="bg-secondary/40 w-full p-6 rounded-3xl border border-white/5 space-y-4">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-black uppercase text-muted-foreground">Access Fee</span>
-                              <span className="text-2xl font-black tabular-nums text-cyan-500">20 D <span className="text-[10px] text-muted-foreground/60">/ Month</span></span>
-                            </div>
-                            <div className="h-px bg-white/5" />
-                            <ul className="space-y-3 text-left">
-                              {["Exclusive high-velocity vibes", "Direct handshake priority", "Subscriber-only digital nodes"].map((benefit, i) => (
-                                <li key={i} className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-tight text-foreground/80">
-                                  <CheckCircle2 className="h-3.5 w-3.5 text-cyan-500" /> {benefit}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                          <Button 
-                            className="w-full h-16 rounded-2xl bg-cyan-600 hover:bg-cyan-700 text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl shadow-cyan-500/20 transition-all active:scale-95"
-                            onClick={handleSubscribeHandshake}
-                            disabled={isSubscribing || amISubscribed}
-                          >
-                            {isSubscribing ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : amISubscribed ? "NODE ACTIVE" : "SYNC PREMIUM"}
-                          </Button>
-                          <p className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest flex items-center gap-2">
-                            <ShieldCheck className="h-3 w-3" /> ViMore Payment Verification • 70/30 Split
-                          </p>
-                        </div>
-                      </DialogContent>
+                      <DialogTrigger asChild><Button className={cn("rounded-2xl h-14 px-8 font-black italic uppercase tracking-widest text-xs gap-3 shadow-2xl transition-all active:scale-95", amISubscribed ? "bg-cyan-500/10 text-cyan-500" : "bg-gradient-to-br from-cyan-500 to-blue-600 text-white")}>{amISubscribed ? <><CheckCircle2 className="h-5 w-5" /> Subscribed</> : <><Gem className="h-5 w-5 animate-pulse" /> Subscribe</>}</Button></DialogTrigger>
+                      <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-cyan-500/10 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-3xl sm:max-w-[400px]"><div className="p-8 space-y-8 flex flex-col items-center text-center"><div className="relative"><div className="absolute -inset-4 bg-cyan-500/20 blur-2xl rounded-full animate-pulse" /><div className="h-24 w-24 bg-cyan-500 rounded-[2rem] flex items-center justify-center text-white shadow-2xl relative z-10"><Gem className="h-12 w-12" /></div></div><div className="space-y-2"><DialogTitle className="text-3xl font-black italic uppercase tracking-tighter">Premium Loop</DialogTitle><DialogDescription className="text-sm text-muted-foreground font-medium uppercase tracking-widest">Materialize VIP status with **{displayUser.name}**</DialogDescription></div><div className="bg-secondary/40 w-full p-6 rounded-3xl border border-white/5 space-y-4"><div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase text-muted-foreground">Access Fee</span><span className="text-2xl font-black tabular-nums text-cyan-500">20 D <span className="text-[10px] text-muted-foreground/60">/ Month</span></span></div><div className="h-px bg-white/5" /><ul className="space-y-3 text-left">{["Exclusive vibes", "Direct priority", "Special nodes"].map((benefit, i) => (<li key={i} className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-tight text-foreground/80"><CheckCircle2 className="h-3.5 w-3.5 text-cyan-500" /> {benefit}</li>))}</ul></div><Button className="w-full h-16 rounded-2xl bg-cyan-600 text-white font-black italic uppercase text-lg shadow-2xl active:scale-95" onClick={handleSubscribeHandshake} disabled={isSubscribing || amISubscribed}>{isSubscribing ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : amISubscribed ? "NODE ACTIVE" : "SYNC PREMIUM"}</Button></div></DialogContent>
                     </Dialog>
                   )}
                 </div>
                 <div className="flex items-start gap-4 py-2 group"><p className="text-[15px] leading-relaxed flex-1">{translatedBio || displayUser.bio}</p>{(deviceLanguage && displayUser.language && deviceLanguage !== displayUser.language) && <Button variant="ghost" size="icon" className={cn("h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity", translatedBio && "text-primary opacity-100")} onClick={handleTranslateBio} disabled={isTranslating}>{isTranslating ? <Zap className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}</Button>}</div>
                 <div className="mt-4 flex gap-2">
                   <Button 
-                    onClick={handleFollowAction} 
+                    onClick={handleHandshakeAction} 
+                    variant={variant}
                     className={cn(
-                      "flex-1 rounded-lg gap-2 h-11 font-bold transition-all shadow-lg group/btn min-w-[120px]", 
-                      amIFollowing ? "bg-secondary text-foreground hover:bg-destructive hover:text-white" : "bg-primary text-white shadow-primary/20"
+                      "flex-1 rounded-lg gap-2 h-11 font-bold transition-all shadow-lg group/btn min-w-[140px]", 
+                      variant === "default" && "bg-primary text-white shadow-primary/20",
+                      (amIFriend || sent) && "hover:bg-destructive hover:text-white"
                     )}
                   >
-                    <span className={cn(amIFollowing && "group-hover/btn:hidden")}>
-                      {amIFollowing ? <UserCheck className="h-5 w-5 inline mr-1" /> : <UserPlus className="h-5 w-5 inline mr-1" />}
-                      {mainLabel}
+                    <span className={cn((amIFriend || sent) && "group-hover/btn:hidden")}>
+                      <Icon className="h-5 w-5 inline mr-1" />
+                      {btnLabel}
                     </span>
-                    {amIFollowing && (
+                    {(amIFriend || sent) && (
                       <span className="hidden group-hover/btn:inline flex items-center gap-2">
-                        <UserMinus className="h-5 w-5" /> Unfollow
+                        <UserRoundX className="h-5 w-5" /> {amIFriend ? "Unfriend" : "Cancel"}
                       </span>
                     )}
                   </Button>
@@ -311,7 +286,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
         </main>
         <aside className={cn("hidden lg:block sticky h-screen transition-all duration-300", isPlayerActive ? "top-16" : "top-0")}><RightSidebar /></aside>
       </div>
-      <AlertDialog open={!!confirmUser} onOpenChange={(open) => !open && setConfirmUser(null)}><AlertDialogContent className="rounded-[2rem] sm:max-w-[420px] z-[200]"><AlertDialogHeader><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-2xl">{confirmType === "unfriend" ? "Unfriend Creator?" : "Unfollow Creator?"}</AlertDialogTitle><AlertDialogDescription className="text-base font-medium leading-relaxed">Are you sure you want to {confirmType === "unfriend" ? "unfriend" : "unfollow"} <span className="font-bold text-foreground">@{confirmUser?.username}</span>? This action will adjust your community connection.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-2"><AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50 border-none">Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmUnfollow} className="rounded-xl h-12 font-black italic uppercase tracking-widest bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20">Confirm</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+      <AlertDialog open={!!confirmUser} onOpenChange={(open) => !open && setConfirmUser(null)}><AlertDialogContent className="rounded-[2rem] sm:max-w-[420px] z-[200]"><AlertDialogHeader><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-2xl">{confirmType === "cancel" ? "Cancel Request?" : "Unfriend User?"}</AlertDialogTitle><AlertDialogDescription className="text-base font-medium leading-relaxed">Are you sure you want to {confirmType === "cancel" ? "cancel your friendship request" : "unfriend"} <span className="font-bold text-foreground">@{confirmUser?.username}</span>? This action will adjust your community connection.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-2"><AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50 border-none">Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmAction} className="rounded-xl h-12 font-black italic uppercase tracking-widest bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20">Confirm</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>
   );
 }
