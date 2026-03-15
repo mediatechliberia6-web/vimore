@@ -17,7 +17,8 @@ import {
   ChevronRight,
   CheckCircle2,
   Zap,
-  ZapOff
+  ZapOff,
+  EyeOff
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -52,7 +53,7 @@ export function SubHeader() {
   const router = useRouter();
   const { setSearchOpen, currentUser = { name: "Guest", avatar: "", goldBalance: 0, diamondBalance: 0, starBalance: 0, isVerified: false }, settings, updateSettings } = usePosts();
   const { triggerHaptic } = useMusic();
-  const { categoryPulses = { HOME: 0, FRIENDS: 0, MUSIC: 0, REELS: 0 }, clearPulse } = useNotifications();
+  const { categoryPulses = { HOME: 0, FRIENDS: 0, MUSIC: 0, REELS: 0, MESSAGES: 0 }, clearPulse } = useNotifications();
   const { t } = useTranslation();
   const { toast } = useToast();
 
@@ -138,11 +139,19 @@ export function SubHeader() {
                   <p className="text-[10px] text-muted-foreground">{t('sub_wallet_pulse')}</p>
                 </div>
                 <div className="relative">
-                  <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border-2 border-primary/10 transition-transform group-hover:scale-105 shadow-sm">
+                  <Avatar className={cn(
+                    "h-8 w-8 sm:h-9 sm:w-9 border-2 transition-all duration-500 shadow-sm",
+                    settings.isGhostMode ? "border-zinc-500 opacity-60" : "border-primary/10"
+                  )}>
                     <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />
                     <AvatarFallback>{currentUser?.name?.[0] || 'V'}</AvatarFallback>
                   </Avatar>
-                  {settings.isFreeMode && (
+                  {settings.isGhostMode && (
+                    <div className="absolute -bottom-1 -right-1 bg-zinc-800 rounded-full p-0.5 border border-white dark:border-background shadow-lg">
+                      <EyeOff className="h-2.5 w-2.5 text-white" />
+                    </div>
+                  )}
+                  {settings.isFreeMode && !settings.isGhostMode && (
                     <div className="absolute -top-1 -right-1 bg-primary rounded-full p-0.5 border border-white dark:border-background">
                       <Zap className="h-2 w-2 text-white fill-current" />
                     </div>
@@ -153,7 +162,10 @@ export function SubHeader() {
             <DropdownMenuContent align="end" className="w-64 rounded-[1.5rem] p-2 shadow-2xl border-primary/10 animate-in zoom-in-95 duration-200">
               <DropdownMenuLabel className="p-3">
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('ui_identity_vault')}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('ui_identity_vault')}</span>
+                    {settings.isGhostMode && <Badge className="bg-zinc-100 text-zinc-800 border-none text-[7px] font-black h-3 px-1.5 rounded uppercase">Ghost</Badge>}
+                  </div>
                   <div className="flex items-center gap-2">
                     <span className="font-black italic uppercase tracking-tighter text-lg">{currentUser?.name}</span>
                     {currentUser?.isVerified && <CheckCircle2 className="h-3.5 w-3.5 text-primary fill-primary text-white" />}

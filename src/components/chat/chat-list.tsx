@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -175,7 +176,10 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
           sortedChats.map((item) => {
             const id = (item as any).username || item.id;
             const isSelected = selectedId === id;
+            
+            // Respect Ghost Mode Protocol
             const isOnlineVisible = (item as any).isOnline && !settings.isGhostMode;
+            
             const hasNewPulse = isSelected ? false : categoryPulses.MESSAGES > 0;
 
             return (

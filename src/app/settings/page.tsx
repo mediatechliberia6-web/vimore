@@ -188,7 +188,7 @@ export default function SettingsPage() {
   }, [connections, activeSubscriptions]);
 
   const storageData = useMemo(() => {
-    const sonicSize = downloadedSongIds.size * 10.5;
+    const sonicSize = (downloadedSongIds?.size || 0) * 10.5;
     const vibeSize = posts.filter(p => p.videoUrl).length * 15.2;
     const metaSize = (posts.length * 0.5) + (connections.length * 0.2) + 1.2;
     return [
@@ -214,7 +214,6 @@ export default function SettingsPage() {
 
       <main className={cn("max-w-2xl mx-auto p-4 sm:p-8 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32", isPlayerActive ? "pt-[80px]" : "pt-4")}>
         
-        {/* PRIVACY CHECKUP GATEWAY */}
         <section className="animate-in zoom-in-95 duration-700">
           <Link href="/settings/privacy-checkup">
             <div className="bg-gradient-to-br from-primary via-primary to-accent rounded-[2.5rem] p-8 text-white shadow-2xl shadow-primary/20 relative overflow-hidden group active:scale-[0.98] transition-all">
@@ -236,7 +235,6 @@ export default function SettingsPage() {
           </Link>
         </section>
 
-        {/* PHASE 1: AESTHETICS & ENVIRONMENT */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_appearance')}</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
@@ -323,8 +321,147 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* REST OF SECTIONS REMAIN UNCHANGED - ONLY PHASE 1 CONNECTED */}
-        
+        {/* PHASE 2: PRIVACY & SIGNATURE PROTOCOLS */}
+        <section className="space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_privacy')}</h3>
+          <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <EyeOff className="h-4 w-4 text-primary" />
+                  <p className="font-bold text-sm">{t('settings_ghost')}</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Hide your pulse from the network</p>
+              </div>
+              <Switch checked={settings.isGhostMode} onCheckedChange={(val) => handleUpdate({ isGhostMode: val })} />
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  <p className="font-bold text-sm">Read Receipts</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Let nodes know you've synced messages</p>
+              </div>
+              <Switch checked={settings.showReadReceipts} onCheckedChange={(val) => handleUpdate({ showReadReceipts: val })} />
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-primary" />
+                  <p className="font-bold text-sm">Discovery visibility</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Control node visibility</p>
+              </div>
+              <Select value={settings.discoveryVisibility} onValueChange={(val) => handleUpdate({ discoveryVisibility: val })}>
+                <SelectTrigger className="w-[120px] h-9 rounded-xl bg-secondary/20 border-none font-black text-[9px] uppercase">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="everyone" className="text-[10px] font-black uppercase">Everyone</SelectItem>
+                  <SelectItem value="mutual" className="text-[10px] font-black uppercase">Mutuals</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4 text-primary" />
+                  <p className="font-bold text-sm">Tagging protocol</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Who can tag your signature?</p>
+              </div>
+              <Select value={settings.taggingPrivacy} onValueChange={(val) => handleUpdate({ taggingPrivacy: val })}>
+                <SelectTrigger className="w-[120px] h-9 rounded-xl bg-secondary/20 border-none font-black text-[9px] uppercase">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="everyone" className="text-[10px] font-black uppercase">Everyone</SelectItem>
+                  <SelectItem value="friends" className="text-[10px] font-black uppercase">Mutuals</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-primary" />
+                    <p className="font-bold text-sm">Legacy Handshake</p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-black">Trusted node for vault management</p>
+                </div>
+                <Dialog open={isLegacySelectorOpen} onOpenChange={setIsLegacySelectorOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="h-9 px-4 rounded-xl border-primary/10 text-[9px] font-black uppercase tracking-widest gap-2">
+                      {selectedLegacyNode ? `@${selectedLegacyNode.username}` : "Assign Node"}
+                      <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="rounded-t-[2.5rem] p-0 overflow-hidden border-primary/10 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-3xl h-[60vh] flex flex-col">
+                    <DialogHeader className="p-6 bg-primary/5 border-b border-primary/10">
+                      <DialogTitle className="text-xl font-black italic uppercase tracking-widest">Select Legacy Node</DialogTitle>
+                    </DialogHeader>
+                    <div className="p-4 space-y-4 shrink-0">
+                      <div className="relative group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary" />
+                        <Input 
+                          placeholder="Query established friends..." 
+                          className="pl-10 h-12 bg-secondary/30 border-none rounded-2xl"
+                          value={legacySearch}
+                          onChange={(e) => setLegacySearch(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <ScrollArea className="flex-1 px-4">
+                      <div className="space-y-2 pb-10">
+                        {filteredConnections.length > 0 ? filteredConnections.map((c) => (
+                          <button 
+                            key={c.username} 
+                            onClick={() => { handleUpdate({ legacyContact: c.username }); setIsLegacySelectorOpen(false); }}
+                            className={cn(
+                              "w-full flex items-center justify-between p-3 rounded-2xl transition-all border",
+                              settings.legacyContact === c.username ? "bg-primary/10 border-primary/20" : "bg-transparent border-transparent hover:bg-secondary/40"
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={c.avatar} /></Avatar>
+                              <div className="text-left">
+                                <p className="font-bold text-sm leading-none">{c.name}</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-black mt-1">@{c.username}</p>
+                              </div>
+                            </div>
+                            {settings.legacyContact === c.username && <CheckCircle2 className="h-5 w-5 text-primary" />}
+                          </button>
+                        )) : (
+                          <div className="py-20 text-center opacity-40 italic text-xs uppercase">No mutual nodes found</div>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </DialogContent>
+                </Dialog>
+              </div>
+              <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 flex gap-3">
+                <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                <p className="text-[9px] font-bold text-primary/60 uppercase leading-relaxed tracking-tighter">
+                  Assigned node will receive temporal archival access if your primary signature goes inactive for 180 days.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* PHASE 4: PERFORMANCE & USER EXPERIENCE */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_ux')}</h3>
@@ -371,8 +508,12 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* OTHER SECTIONS OMITTED FOR BREVITY BUT KEPT IN FINAL FILE CONTENT */}
-        <section className="pt-10 pb-20"><Button variant="outline" className="w-full h-14 rounded-2xl border-destructive/20 text-destructive font-black italic uppercase tracking-widest text-[10px] hover:bg-destructive/5 transition-all active:scale-95 shadow-lg shadow-destructive/5" onClick={handleTotalPurge}>{t('logout')}</Button><p className="text-center text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em] mt-6">ViMore Node v1.5.0-HighVelocity</p></section>
+        <section className="pt-10 pb-20">
+          <Button variant="outline" className="w-full h-14 rounded-2xl border-destructive/20 text-destructive font-black italic uppercase tracking-widest text-[10px] hover:bg-destructive/5 transition-all active:scale-95 shadow-lg shadow-destructive/5" onClick={handleTotalPurge}>
+            {t('logout')}
+          </Button>
+          <p className="text-center text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em] mt-6">ViMore Node v1.5.0-HighVelocity</p>
+        </section>
       </main>
     </div>
   );

@@ -98,7 +98,7 @@ export function ChatBubble({
   id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, callData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete 
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
-  const { setSelectedImageUrl, setSelectedVideoUrl } = usePosts();
+  const { setSelectedImageUrl, setSelectedVideoUrl, settings } = usePosts();
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -551,7 +551,7 @@ export function ChatBubble({
               {isMe && (
                 <CheckCheck className={cn(
                   "h-3 w-3",
-                  isRead ? "text-accent" : "text-white/40"
+                  (isRead && settings.showReadReceipts) ? "text-accent" : "text-white/40"
                 )} />
               )}
             </div>
@@ -576,7 +576,7 @@ export function ChatBubble({
       </div>
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="rounded-[2.5rem] sm:max-w-[400px]">
+        <AlertDialogContent className="rounded-[2.5rem] sm:max-w-[420px]">
           <AlertDialogHeader>
             <div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4">
               <Trash2 className="h-8 w-8" />
