@@ -84,7 +84,7 @@ export default function Home() {
     }
 
     return result;
-  }, [organicSorted, boostedPosts, campaigns]);
+  }, [posts, organicSorted, campaigns]);
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#080808] flex flex-col items-center transition-colors duration-300">
@@ -125,6 +125,7 @@ export default function Home() {
                       likes={1420}
                       unlikes={0}
                       comments={0}
+                      views={0}
                       time="Now"
                     />
                   );
