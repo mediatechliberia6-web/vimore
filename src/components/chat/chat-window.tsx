@@ -48,6 +48,7 @@ import { Connection, Cluster, usePosts } from "@/context/PostContext";
 import { ChatBubble } from "./chat-bubble";
 import { ChatInput } from "./chat-input";
 import { useMusic } from "@/context/MusicContext";
+import { useNotifications } from "@/context/NotificationContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
@@ -73,62 +74,29 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
-interface Message {
-  id: string;
-  sender: "me" | "them";
-  senderName?: string;
-  senderAvatar?: string;
-  senderId: string;
-  text?: string;
-  time: string;
-  status: "sent" | "delivered" | "read";
-  type: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace" | "call";
-  mediaUrl?: string;
-  voiceDuration?: string;
-  isViewOnce?: boolean;
-  isViewed?: boolean;
-  isDownloaded?: boolean;
-  reactions?: string[];
-}
-
 interface ChatWindowProps {
   contact: Connection | Cluster;
   onBack: () => void;
 }
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
-  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections = [], addMemberToCluster, settings, uploadMedia } = usePosts();
+  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections = [], addMemberToCluster, settings, chatMessages, sendChatMessage } = usePosts();
+  const { incrementPulse } = useNotifications();
   const { t } = useTranslation();
   const { toast } = useToast();
   const router = useRouter();
   
   const isCluster = contact.isGroup === true;
+  const contactId = isCluster ? (contact as Cluster).id : (contact as Connection).username;
   const isAdmin = isCluster && (contact as Cluster).adminUsername === currentUser.username;
   
   const [showVault, setShowVault] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
   const [addNodeSearch, setAddNodeSearch] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
+  const messages = useMemo(() => chatMessages[contactId] || [], [chatMessages, contactId]);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    // Prototype: Injected History Node
-    setMessages([
-      {
-        id: 'm1',
-        sender: 'them',
-        senderId: 'arivera',
-        senderName: 'Alex Rivera',
-        text: 'Synchronizing the latest spatial nodes in the cluster. 🌍⚡',
-        time: '10:42 AM',
-        status: 'read',
-        type: 'text'
-      }
-    ]);
-  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -137,25 +105,26 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   }, [messages, showVault]);
 
   const handleSend = async (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string }) => {
-    const optimisticId = `temp-${Date.now()}`;
-    const type = options?.isWorkspace ? "workspace" : (options?.mediaType || (text.includes("http") ? "link" : "text"));
+    triggerHaptic(10);
     
-    const optimistic: Message = {
-      id: optimisticId,
-      sender: "me",
-      senderId: currentUser.username,
+    await sendChatMessage(contactId, {
       text: text || undefined,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      status: "sent",
-      type: type as any,
+      type: options?.isWorkspace ? "workspace" : (options?.mediaType || (text.includes("http") ? "link" : "text")) as any,
       isViewOnce: options?.isViewOnce,
-      isDownloaded: true,
       mediaUrl: options?.mediaUrl,
       voiceDuration: options?.duration
-    };
-    
-    setMessages(prev => [...prev, optimistic]);
-    triggerHaptic(10);
+    });
+
+    // Simulated Handshake Pulse: Materialize a reply + badge indicator
+    if (!isCluster) {
+      setTimeout(() => {
+        incrementPulse('MESSAGES');
+        toast({
+          title: "New Pulse Detected",
+          description: `@${contact.name} is typing...`
+        });
+      }, 2000);
+    }
   };
 
   const handleExternalLink = (url: string) => {
@@ -230,13 +199,16 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
         </header>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-8 scroll-smooth" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(153, 64, 22, 0.03) 1px, transparent 0)', backgroundSize: '24px 24px' }}>
-          {isLoadingMessages ? (
-            <div className="h-full flex flex-col items-center justify-center gap-4 opacity-40">
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <p className="text-[10px] font-black uppercase tracking-widest">Vault Syncing...</p>
+          {messages.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center opacity-40 p-12">
+              <div className="h-20 w-20 bg-primary/5 rounded-[2rem] flex items-center justify-center border border-dashed border-primary/20 mb-6">
+                <Zap className="h-10 w-10" />
+              </div>
+              <h3 className="text-xl font-black italic uppercase tracking-tighter">Handshake Initialized</h3>
+              <p className="text-sm font-medium mt-2">Start typing to materialize your thoughts in the network.</p>
             </div>
           ) : (
-            (messages || []).map((msg) => (
+            messages.map((msg) => (
               <div key={msg.id} id={`msg-${msg.id}`} className="flex flex-col gap-1">
                 {isCluster && !msg.isMe && msg.senderName && (
                   <div className="flex items-center gap-2 ml-2 mb-1">
@@ -244,7 +216,12 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                     <span className="text-[10px] font-black uppercase text-primary/60 tracking-widest">{msg.senderName}</span>
                   </div>
                 )}
-                <ChatBubble {...msg} isMe={msg.sender === "me"} status={settings.showReadReceipts ? msg.status : 'sent'} onExternalLink={handleExternalLink} onDelete={(id) => setMessages(prev => prev.filter(m => m.id !== id))} onDownload={(id) => setMessages(prev => prev.map(m => m.id === id ? { ...m, isDownloaded: true } : m))} />
+                <ChatBubble 
+                  {...msg} 
+                  isMe={msg.sender === "me"} 
+                  status={settings.showReadReceipts ? msg.status : 'sent'} 
+                  onExternalLink={handleExternalLink} 
+                />
               </div>
             ))
           )}

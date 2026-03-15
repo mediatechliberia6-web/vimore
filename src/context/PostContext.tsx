@@ -1,4 +1,3 @@
-
 'use client';
 
 /**
@@ -107,6 +106,26 @@ export interface Connection extends User {
   followsYou?: boolean;
   isGroup: false;
   isOnline?: boolean;
+  lastMessage?: string;
+  lastTime?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  sender: "me" | "them";
+  senderName?: string;
+  senderAvatar?: string;
+  senderId: string;
+  text?: string;
+  time: string;
+  status: "sent" | "delivered" | "read";
+  type: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace" | "call";
+  mediaUrl?: string;
+  voiceDuration?: string;
+  isViewOnce?: boolean;
+  isViewed?: boolean;
+  isDownloaded?: boolean;
+  reactions?: string[];
 }
 
 export type CallType = 'video' | 'audio';
@@ -159,6 +178,7 @@ interface PostContextType {
   referralLink: string;
   pendingTransaction: any;
   activeSubscriptions: Set<string>;
+  chatMessages: Record<string, ChatMessage[]>;
   login: (identifier: string, p: string) => Promise<{ success: boolean; message?: string }>;
   signup: (d: any) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
@@ -235,6 +255,7 @@ interface PostContextType {
   updateUserIdentity: (userId: string, data: Partial<User>) => Promise<void>;
   handleReportAction: (reportId: string, action: any) => Promise<void>;
   handleTicketAction: (ticketId: string, status: any) => Promise<void>;
+  sendChatMessage: (recipientId: string, message: Partial<ChatMessage>) => Promise<void>;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -280,6 +301,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [clusters, setClustersState] = useState<Cluster[]>([]);
   const [connections, setConnectionsState] = useState<Connection[]>([]);
   const [stories, setStoriesState] = useState<any[]>([]);
+  const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({
+    'arivera': [
+      { id: 'm1', sender: 'them', senderId: 'arivera', senderName: 'Alex Rivera', text: 'Synchronizing the latest spatial nodes in the cluster. 🌍⚡', time: '10:42 AM', status: 'read', type: 'text' }
+    ]
+  });
   
   const [auditLogs] = useState<any[]>([]);
   const [staff] = useState<any[]>([]);
@@ -335,7 +361,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const checkSession = useCallback(async () => {
-    setConnectionsState(MOCK_USERS.map(u => ({ ...u, isGroup: false, isOnline: true } as Connection)));
+    setConnectionsState(MOCK_USERS.map(u => ({ 
+      ...u, 
+      isGroup: false, 
+      isOnline: true,
+      lastMessage: u.username === 'arivera' ? "Synchronizing the latest spatial nodes..." : undefined,
+      lastTime: u.username === 'arivera' ? "10:42 AM" : undefined
+    } as Connection)));
     setClustersState([{ id: 'c1', name: 'Design Hub', adminUsername: 'arivera', members: MOCK_USERS, isGroup: true }]);
     await refreshFeed();
     await refreshStories();
@@ -436,8 +468,31 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const acceptCall = useCallback(async () => { setCallState(prev => ({ ...prev, status: 'active' })); }, []);
   const endCall = useCallback(async () => { setCallState({ type: 'audio', status: 'idle', contact: null }); }, []);
 
+  const sendChatMessage = useCallback(async (recipientId: string, message: Partial<ChatMessage>) => {
+    const newMessage: ChatMessage = {
+      id: 'm-' + Date.now(),
+      sender: 'me',
+      senderId: currentUser.username,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      status: 'sent',
+      type: 'text',
+      ...message
+    };
+
+    setChatMessages(prev => {
+      const history = prev[recipientId] || [];
+      return { ...prev, [recipientId]: [...history, newMessage] };
+    });
+
+    setConnectionsState(prev => prev.map(c => 
+      c.username === recipientId 
+        ? { ...c, lastMessage: newMessage.text || "[Media Node]", lastTime: newMessage.time }
+        : c
+    ));
+  }, [currentUser.username]);
+
   const contextValue = useMemo(() => ({
-    currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, referralLink: "http://vimore.network/join/" + currentUser.username, pendingTransaction, activeSubscriptions: new Set(),
+    currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, referralLink: "http://vimore.network/join/" + currentUser.username, pendingTransaction, activeSubscriptions: new Set(), chatMessages,
     login, signup, logout, checkSession, uploadMedia, addPost, deletePost, toggleLikePost, toggleUnlikePost, toggleSavePost: (id: string) => setSavedPostIdsState(prev => { const n = new Set(prev); if(n.has(id)) n.delete(id); else n.add(id); return n; }), toggleFollowUser, 
     updateCurrentUser: async (d: any) => { setCurrentUserState(prev => ({...prev, ...d})); }, 
     updateSettings: (d: any) => setSettingsState(prev => ({...prev, ...d})), 
@@ -453,8 +508,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     addStory: async (seg: any) => { setStoriesState(prev => [{ id: Date.now().toString(), user: currentUser, segments: [seg], viewCount: 0 }, ...prev]); },
     boostNode: async () => { toast({ title: "Boost Materialized" }); },
     recordView: async () => {}, recordStoryView: async () => {}, createCluster: async (name: string, members: any[]) => { setClustersState(prev => [{ id: Date.now().toString(), name, adminUsername: currentUser.username, members, isGroup: true }, ...prev]); }, 
-    addMemberToCluster: async () => {}, leaveCluster: async () => {}, initiateTransaction: (d: any) => setPendingTransactionState(d), cancelTransaction: () => setPendingTransactionState(null), createPaymentRequest: async () => { setPendingTransactionState(null); }, recordWithdrawal: async () => {}, verifyUser: async () => { setCurrentUserState(prev => ({...prev, isVerified: true})); }, processGiftTransaction: async (cost: number) => { setCurrentUserState(prev => ({...prev, goldBalance: (prev.goldBalance || 0) - cost})); }, unlockPost: async (id: string) => { setUnlockedPostIdsState(prev => new Set(prev).add(id)); }, subscribeToCreator: async () => {}, fetchComments: async () => {}, refreshFeed, refreshStories, refreshProfiles: async () => [], refreshClusters: async () => {}, fetchProfileByUsername: async (u: string) => MOCK_USERS.find(user => user.username === u) || null, promoteUser: async () => {}, demoteUser: async () => {}, voteOnPostPoll: async () => {}, cancelSubscription: async () => {}, incrementShareCount: async () => {}, toggleMuteUser: (u: string) => setMutedUserNamesState(prev => prev.includes(u) ? prev.filter(n => n !== u) : [...prev, u]), togglePinPost: async () => {}, archivePost: async () => {}, addAuditLog: async () => {}, approvePaymentRequest: async () => {}, rejectPaymentRequest: async () => {}, processWithdrawal: async () => {}, addCampaign: async () => {}, deleteCampaign: async () => {}, toggleCampaignStatus: async () => {}, recordCampaignClick: async () => {}, initiateCall, acceptCall, endCall, refreshAdminData: async () => {}, updateUserIdentity: async () => {}, handleReportAction: async () => {}, handleTicketAction: async () => {}, voteOnStoryPoll: async () => {}, updateGatewaySettings: async () => {}
-  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, pendingTransaction, triggerHaptic, refreshFeed, refreshStories, initiateCall, acceptCall, endCall, toast]);
+    addMemberToCluster: async () => {}, leaveCluster: async () => {}, initiateTransaction: (d: any) => setPendingTransactionState(d), cancelTransaction: () => setPendingTransactionState(null), createPaymentRequest: async () => { setPendingTransactionState(null); }, recordWithdrawal: async () => {}, verifyUser: async () => { setCurrentUserState(prev => ({...prev, isVerified: true})); }, processGiftTransaction: async (cost: number) => { setCurrentUserState(prev => ({...prev, goldBalance: (prev.goldBalance || 0) - cost})); }, unlockPost: async (id: string) => { setUnlockedPostIdsState(prev => new Set(prev).add(id)); }, subscribeToCreator: async () => {}, fetchComments: async () => {}, refreshFeed, refreshStories, refreshProfiles: async () => [], refreshClusters: async () => {}, fetchProfileByUsername: async (u: string) => MOCK_USERS.find(user => user.username === u) || null, promoteUser: async () => {}, demoteUser: async () => {}, voteOnPostPoll: async () => {}, cancelSubscription: async () => {}, incrementShareCount: async () => {}, toggleMuteUser: (u: string) => setMutedUserNamesState(prev => prev.includes(u) ? prev.filter(n => n !== u) : [...prev, u]), togglePinPost: async () => {}, archivePost: async () => {}, addAuditLog: async () => {}, approvePaymentRequest: async () => {}, rejectPaymentRequest: async () => {}, processWithdrawal: async () => {}, addCampaign: async () => {}, deleteCampaign: async () => {}, toggleCampaignStatus: async () => {}, recordCampaignClick: async () => {}, initiateCall, acceptCall, endCall, refreshAdminData: async () => {}, updateUserIdentity: async () => {}, handleReportAction: async () => {}, handleTicketAction: async () => {}, voteOnStoryPoll: async () => {}, updateGatewaySettings: async () => {}, sendChatMessage
+  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, followingUsernames, followerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, pendingTransaction, chatMessages, triggerHaptic, refreshFeed, refreshStories, initiateCall, acceptCall, endCall, toast, sendChatMessage]);
 
   return <PostContext.Provider value={contextValue}>{children}</PostContext.Provider>;
 }

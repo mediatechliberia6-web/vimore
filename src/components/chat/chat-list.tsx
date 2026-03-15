@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
+import { useNotifications } from "@/context/NotificationContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { CreateClusterModal } from "./create-cluster-modal";
@@ -34,6 +35,7 @@ interface ChatListProps {
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
   const { connections = [], clusters = [], triggerHaptic, settings, currentUser } = usePosts();
+  const { categoryPulses, clearPulse } = useNotifications();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "unread" | "broadcasts" | "clusters">("all");
@@ -54,7 +56,8 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     if (activeFilter === "clusters") {
       list = list.filter(item => item.isGroup);
     } else if (activeFilter === "unread") {
-      list = list.filter(item => false); 
+      // In a prototype, we'll simulate unread based on the categoryPulse
+      list = list.filter(item => categoryPulses.MESSAGES > 0); 
     }
 
     if (searchQuery) {
@@ -74,7 +77,13 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
       if (!aPinned && bPinned) return 1;
       return 0;
     });
-  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser.username]);
+  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser.username, categoryPulses.MESSAGES]);
+
+  const handleSelection = (id: string) => {
+    triggerHaptic(5);
+    clearPulse('MESSAGES');
+    onSelect(id);
+  };
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-card">
@@ -103,7 +112,10 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
           <Button variant={activeFilter === "all" ? "default" : "secondary"} size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest" onClick={() => { triggerHaptic(5); setActiveFilter("all"); }}>{t('ui_all')}</Button>
           <Button variant={activeFilter === "clusters" ? "default" : "secondary"} size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest gap-1.5" onClick={() => { triggerHaptic(5); setActiveFilter("clusters"); }}><Layers className="h-3 w-3" /> {t('admin_clusters')}</Button>
-          <Button variant={activeFilter === "unread" ? "default" : "secondary"} size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest" onClick={() => { triggerHaptic(5); setActiveFilter("unread"); }}>{t('ui_unread')}</Button>
+          <Button variant={activeFilter === "unread" ? "default" : "secondary"} size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest" onClick={() => { triggerHaptic(5); setActiveFilter("unread"); }}>
+            {t('ui_unread')} 
+            {categoryPulses.MESSAGES > 0 && <div className="ml-2 h-2 w-2 bg-red-500 rounded-full animate-pulse" />}
+          </Button>
         </div>
       </div>
 
@@ -113,9 +125,10 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
             const id = (item as any).username || item.id;
             const isSelected = selectedId === id;
             const isOnlineVisible = (item as any).isOnline && !settings.isGhostMode;
+            const hasNewPulse = isSelected ? false : categoryPulses.MESSAGES > 0; // Simulated pulse for prototype list
 
             return (
-              <div key={id} onClick={() => { triggerHaptic(5); onSelect(id); }} className={cn("group flex items-center gap-4 p-4 cursor-pointer transition-all border-l-4", isSelected ? "bg-primary/5 border-primary" : "hover:bg-secondary/30 border-transparent")}>
+              <div key={id} onClick={() => handleSelection(id)} className={cn("group flex items-center gap-4 p-4 cursor-pointer transition-all border-l-4", isSelected ? "bg-primary/5 border-primary" : "hover:bg-secondary/30 border-transparent")}>
                 <div className="relative shrink-0">
                   {item.isGroup ? (
                     <div className="h-12 w-12 rounded-[1rem] bg-primary/10 flex items-center justify-center relative overflow-hidden border border-primary/5">
@@ -128,12 +141,18 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
-                    <div className="flex items-center gap-2 overflow-hidden"><span className="font-bold text-sm truncate">{item.name}</span>{item.isGroup && <Badge className="bg-primary/10 text-primary border-none text-[7px] font-black h-3.5 px-1 uppercase">CLUSTER</Badge>}</div>
-                    <span className="text-[10px] font-medium text-muted-foreground">{(item as any).lastTime}</span>
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <span className={cn("font-bold text-sm truncate", hasNewPulse && "text-primary")}>{item.name}</span>
+                      {item.isGroup && <Badge className="bg-primary/10 text-primary border-none text-[7px] font-black h-3.5 px-1 uppercase">CLUSTER</Badge>}
+                    </div>
+                    <span className={cn("text-[10px] font-medium", hasNewPulse ? "text-primary" : "text-muted-foreground")}>{(item as any).lastTime}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs truncate text-muted-foreground">{(item as any).lastMessage || "No messages yet."}</p>
+                    <p className={cn("text-xs truncate", hasNewPulse ? "text-foreground font-bold" : "text-muted-foreground")}>
+                      {(item as any).lastMessage || "No messages yet."}
+                    </p>
                     {pinnedUsernames.has(id) && <Pin className="h-3 w-3 text-muted-foreground/40 rotate-45" />}
+                    {hasNewPulse && <div className="h-2 w-2 bg-primary rounded-full shadow-[0_0_8px_rgba(153,64,229,0.8)]" />}
                   </div>
                 </div>
               </div>

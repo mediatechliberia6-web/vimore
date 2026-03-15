@@ -33,6 +33,7 @@ interface NotificationContextType {
   markAllAsRead: () => void;
   purgeSignal: (id: string) => void;
   clearPulse: (category: PulseCategory) => void;
+  incrementPulse: (category: PulseCategory) => void;
   requestPushPermission: () => Promise<void>;
   hasPushPermission: boolean;
 }
@@ -79,8 +80,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     MESSAGES: 0
   });
   const [hasPushPermission, setHasPushPermission] = useState(false);
-  const { toast } = useToast();
-  const { settings, triggerHaptic, currentUser } = usePosts();
+  const { settings, triggerHaptic } = usePosts();
 
   const triggerSound = useCallback(() => {
     if (settings.isSilenceActive) {
@@ -121,9 +121,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  const clearPulse = (category: PulseCategory) => {
+  const clearPulse = useCallback((category: PulseCategory) => {
     setCategoryPulses(prev => ({ ...prev, [category]: 0 }));
-  };
+  }, []);
+
+  const incrementPulse = useCallback((category: PulseCategory) => {
+    setCategoryPulses(prev => ({ ...prev, [category]: (prev[category] || 0) + 1 }));
+    triggerSound();
+  }, [triggerSound]);
 
   const requestPushPermission = async () => {
     if (typeof window !== 'undefined' && "Notification" in window) {
@@ -144,6 +149,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       markAllAsRead,
       purgeSignal,
       clearPulse,
+      incrementPulse,
       requestPushPermission,
       hasPushPermission
     }}>
