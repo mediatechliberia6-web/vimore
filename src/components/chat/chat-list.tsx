@@ -17,7 +17,8 @@ import {
   Plus,
   Users2,
   Layers,
-  ArrowLeft
+  ArrowLeft,
+  Mail
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePosts } from "@/context/PostContext";
@@ -34,16 +35,17 @@ interface ChatListProps {
 }
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
-  const { connections = [], clusters = [], triggerHaptic, settings, currentUser } = usePosts();
+  const { connections = [], clusters = [], triggerHaptic, settings, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages } = usePosts();
   const { categoryPulses, clearPulse } = useNotifications();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "unread" | "broadcasts" | "clusters">("all");
+  const [showRequests, setShowRequests] = useState(false);
 
   const [pinnedUsernames] = useState(new Set<string>());
 
-  const sortedChats = useMemo(() => {
-    // Identity Protocol: Only message OTHER users, never yourself.
+  const { sortedChats, requestCount } = useMemo(() => {
+    // 1. Identify all conversation nodes
     const allItems = [
       ...(connections || [])
         .filter(c => c && c.username && c.username !== currentUser.username)
@@ -51,12 +53,34 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
       ...(clusters || []).map(cl => ({ ...cl, isGroup: true }))
     ];
 
-    let list = allItems;
+    // 2. Partition by Friendship and Acceptance
+    let requests: any[] = [];
+    let mains: any[] = [];
+
+    allItems.forEach(item => {
+      const id = (item as any).username || item.id;
+      const hasMessages = chatMessages[id] && chatMessages[id].length > 0;
+      
+      if (item.isGroup) {
+        mains.push(item);
+        return;
+      }
+
+      const isFriendNode = friendUsernames.has(id);
+      const isAccepted = acceptedStrangerUsernames.has(id);
+
+      if (isFriendNode || isAccepted) {
+        mains.push(item);
+      } else if (hasMessages) {
+        requests.push(item);
+      }
+    });
+
+    let list = showRequests ? requests : mains;
 
     if (activeFilter === "clusters") {
       list = list.filter(item => item.isGroup);
     } else if (activeFilter === "unread") {
-      // In a prototype, we'll simulate unread based on the categoryPulse
       list = list.filter(item => categoryPulses.MESSAGES > 0); 
     }
 
@@ -68,7 +92,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
       );
     }
 
-    return list.sort((a, b) => {
+    const sorted = list.sort((a, b) => {
       const aId = (a as any).username || (a as any).id;
       const bId = (b as any).username || (b as any).id;
       const aPinned = pinnedUsernames.has(aId);
@@ -77,12 +101,19 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
       if (!aPinned && bPinned) return 1;
       return 0;
     });
-  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser.username, categoryPulses.MESSAGES]);
+
+    return { sortedChats: sorted, requestCount: requests.length };
+  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser.username, categoryPulses.MESSAGES, friendUsernames, acceptedStrangerUsernames, chatMessages, showRequests]);
 
   const handleSelection = (id: string) => {
     triggerHaptic(5);
     clearPulse('MESSAGES');
     onSelect(id);
+  };
+
+  const handleToggleRequests = () => {
+    triggerHaptic(10);
+    setShowRequests(!showRequests);
   };
 
   return (
@@ -95,28 +126,48 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
             </Button>
           </Link>
           <div className="space-y-0.5">
-            <h2 className="text-2xl font-black italic uppercase tracking-tighter">{t('nav_messages')}</h2>
-            <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{(connections?.length || 0) + (clusters?.length || 0)} {t('chat_nodes_online')}</span>
+            <h2 className="text-2xl font-black italic uppercase tracking-tighter">
+              {showRequests ? t('chat_requests') : t('nav_messages')}
+            </h2>
+            <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">
+              {showRequests ? `${requestCount} PENDING PULSES` : `${(connections?.length || 0) + (clusters?.length || 0)} ${t('chat_nodes_online')}`}
+            </span>
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <CreateClusterModal>
-            <button className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-all active:scale-90" title={t('chat_materialize_cluster')}><Layers className="h-4 w-4" /></button>
-          </CreateClusterModal>
-          <Button variant="ghost" size="icon" className="rounded-full h-9 w-9"><Edit2 className="h-4 w-4" /></Button>
+          {requestCount > 0 && (
+            <button 
+              onClick={handleToggleRequests}
+              className={cn(
+                "relative h-9 px-4 rounded-xl flex items-center justify-center gap-2 transition-all font-black text-[9px] uppercase tracking-widest border",
+                showRequests ? "bg-primary text-white border-primary" : "bg-primary/5 text-primary border-primary/10 hover:bg-primary/10"
+              )}
+            >
+              <Mail className="h-3.5 w-3.5" />
+              {showRequests ? "Show Main" : t('chat_requests')}
+              {!showRequests && <div className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-red-500 rounded-full animate-pulse border-2 border-white dark:border-card" />}
+            </button>
+          )}
+          {!showRequests && (
+            <CreateClusterModal>
+              <button className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-all active:scale-90" title={t('chat_materialize_cluster')}><Layers className="h-4 w-4" /></button>
+            </CreateClusterModal>
+          )}
         </div>
       </div>
 
       <div className="p-4 space-y-4">
         <div className="relative group"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary" /><Input placeholder={t('chat_query_nodes')} className="pl-10 h-10 bg-secondary/30 border-none rounded-xl text-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div>
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-          <Button variant={activeFilter === "all" ? "default" : "secondary"} size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest" onClick={() => { triggerHaptic(5); setActiveFilter("all"); }}>{t('ui_all')}</Button>
-          <Button variant={activeFilter === "clusters" ? "default" : "secondary"} size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest gap-1.5" onClick={() => { triggerHaptic(5); setActiveFilter("clusters"); }}><Layers className="h-3 w-3" /> {t('admin_clusters')}</Button>
-          <Button variant={activeFilter === "unread" ? "default" : "secondary"} size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest" onClick={() => { triggerHaptic(5); setActiveFilter("unread"); }}>
-            {t('ui_unread')} 
-            {categoryPulses.MESSAGES > 0 && <div className="ml-2 h-2 w-2 bg-red-500 rounded-full animate-pulse" />}
-          </Button>
-        </div>
+        {!showRequests && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <Button variant={activeFilter === "all" ? "default" : "secondary"} size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest" onClick={() => { triggerHaptic(5); setActiveFilter("all"); }}>{t('ui_all')}</Button>
+            <Button variant={activeFilter === "clusters" ? "default" : "secondary"} size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest gap-1.5" onClick={() => { triggerHaptic(5); setActiveFilter("clusters"); }}><Layers className="h-3 w-3" /> {t('admin_clusters')}</Button>
+            <Button variant={activeFilter === "unread" ? "default" : "secondary"} size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest" onClick={() => { triggerHaptic(5); setActiveFilter("unread"); }}>
+              {t('ui_unread')} 
+              {categoryPulses.MESSAGES > 0 && <div className="ml-2 h-2 w-2 bg-red-500 rounded-full animate-pulse" />}
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-hide">
@@ -125,7 +176,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
             const id = (item as any).username || item.id;
             const isSelected = selectedId === id;
             const isOnlineVisible = (item as any).isOnline && !settings.isGhostMode;
-            const hasNewPulse = isSelected ? false : categoryPulses.MESSAGES > 0; // Simulated pulse for prototype list
+            const hasNewPulse = isSelected ? false : categoryPulses.MESSAGES > 0;
 
             return (
               <div key={id} onClick={() => handleSelection(id)} className={cn("group flex items-center gap-4 p-4 cursor-pointer transition-all border-l-4", isSelected ? "bg-primary/5 border-primary" : "hover:bg-secondary/30 border-transparent")}>
@@ -158,7 +209,14 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
               </div>
             );
           })
-        ) : <div className="p-12 text-center opacity-40"><Search className="h-8 w-8 mx-auto mb-2" /><p className="text-sm font-bold">No nodes matched query</p></div>}
+        ) : (
+          <div className="p-12 text-center opacity-40">
+            {showRequests ? <Mail className="h-8 w-8 mx-auto mb-2" /> : <Search className="h-8 w-8 mx-auto mb-2" />}
+            <p className="text-sm font-bold">
+              {showRequests ? "Vault Inbound Nodes Silent" : "No nodes matched query"}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

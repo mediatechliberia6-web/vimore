@@ -41,7 +41,9 @@ import {
   UserPlus,
   ChevronRight,
   Plus,
-  Loader2
+  Loader2,
+  Check,
+  Ban
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Connection, Cluster, usePosts } from "@/context/PostContext";
@@ -80,7 +82,7 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
-  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections = [], addMemberToCluster, settings, chatMessages, sendChatMessage } = usePosts();
+  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections = [], addMemberToCluster, settings, chatMessages, sendChatMessage, friendUsernames, acceptedStrangerUsernames, acceptMessageRequest, declineMessageRequest } = usePosts();
   const { incrementPulse } = useNotifications();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -94,6 +96,11 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
   const [addNodeSearch, setAddNodeSearch] = useState("");
+
+  const isRequest = useMemo(() => {
+    if (isCluster) return false;
+    return !friendUsernames.has(contactId) && !acceptedStrangerUsernames.has(contactId);
+  }, [isCluster, friendUsernames, acceptedStrangerUsernames, contactId]);
 
   const messages = useMemo(() => chatMessages[contactId] || [], [chatMessages, contactId]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -115,7 +122,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       voiceDuration: options?.duration
     });
 
-    // Simulated Handshake Pulse: Materialize a reply + badge indicator
     if (!isCluster) {
       setTimeout(() => {
         incrementPulse('MESSAGES');
@@ -133,7 +139,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   };
 
   const handleStartCall = (type: 'video' | 'audio') => {
-    if (isCluster) return;
+    if (isCluster || isRequest) return;
     triggerHaptic(25);
     initiateCall(contact as Connection, type);
     router.push(`/messages/call/${(contact as Connection).username}`);
@@ -156,6 +162,15 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     }
   };
 
+  const handleAccept = async () => {
+    await acceptMessageRequest(contactId);
+  };
+
+  const handleDecline = async () => {
+    await declineMessageRequest(contactId);
+    onBack();
+  };
+
   const isContactOnline = !isCluster && (contact as Connection).isOnline && !settings.isGhostMode;
 
   return (
@@ -175,18 +190,18 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                   <AvatarFallback>{contact.name[0]}</AvatarFallback>
                 </Avatar>
               )}
-              {isContactOnline && <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full animate-pulse" />}
+              {isContactOnline && !isRequest && <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full animate-pulse" />}
             </div>
             <div className="flex flex-col min-w-0 ml-1">
               <h3 className="font-bold text-sm sm:text-base truncate">{contact.name}</h3>
-              <span className={cn("text-[10px] font-black uppercase tracking-widest", isCluster ? "text-primary" : isContactOnline ? "text-green-500" : "text-muted-foreground")}>
-                {isCluster ? `${((contact as Cluster).members || []).length} ${t('chat_members_pulse')}` : isContactOnline ? t('chat_active_pulse') : t('chat_away')}
+              <span className={cn("text-[10px] font-black uppercase tracking-widest", isCluster ? "text-primary" : isContactOnline && !isRequest ? "text-green-500" : "text-muted-foreground")}>
+                {isCluster ? `${((contact as Cluster).members || []).length} ${t('chat_members_pulse')}` : isRequest ? "STRANGER PULSE" : isContactOnline ? t('chat_active_pulse') : t('chat_away')}
               </span>
             </div>
           </div>
           
           <div className="flex items-center gap-1">
-            {!isCluster && (
+            {!isCluster && !isRequest && (
               <>
                 <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary transition-colors" onClick={() => handleStartCall('video')}><VideoIcon className="h-5 w-5" /></Button>
                 <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary transition-colors" onClick={() => handleStartCall('audio')}><Phone className="h-5 w-5" /></Button>
@@ -199,6 +214,20 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
         </header>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-8 scroll-smooth" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(153, 64, 22, 0.03) 1px, transparent 0)', backgroundSize: '24px 24px' }}>
+          {isRequest && (
+            <div className="max-w-md mx-auto p-6 bg-white dark:bg-card border border-primary/10 rounded-[2rem] text-center space-y-4 animate-in zoom-in-95 duration-500 shadow-xl">
+              <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary">
+                <ShieldCheck className="h-8 w-8" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-lg font-black italic uppercase tracking-tighter">{t('chat_requests')}</h4>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">
+                  {t('chat_request_desc')}
+                </p>
+              </div>
+            </div>
+          )}
+
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center opacity-40 p-12">
               <div className="h-20 w-20 bg-primary/5 rounded-[2rem] flex items-center justify-center border border-dashed border-primary/20 mb-6">
@@ -226,7 +255,28 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             ))
           )}
         </div>
-        <ChatInput onSend={handleSend} />
+
+        {isRequest ? (
+          <div className="p-6 bg-white dark:bg-card border-t border-primary/5 z-20">
+            <div className="max-w-xl mx-auto flex gap-4">
+              <Button 
+                variant="destructive" 
+                className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] gap-2 shadow-xl shadow-destructive/10"
+                onClick={handleDecline}
+              >
+                <Ban className="h-4 w-4" /> {t('chat_decline')}
+              </Button>
+              <Button 
+                className="flex-[2] h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-widest text-[10px] gap-2 shadow-xl shadow-primary/20"
+                onClick={handleAccept}
+              >
+                <Check className="h-4 w-4" /> {t('chat_accept')}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <ChatInput onSend={handleSend} />
+        )}
       </div>
 
       <aside className={cn("h-full bg-white dark:bg-card border-l border-primary/5 transition-all duration-500 overflow-hidden flex flex-col shrink-0 relative z-30", showVault ? "w-full sm:w-[360px] opacity-100 translate-x-0" : "w-0 opacity-0 translate-x-full")}>
