@@ -172,7 +172,6 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     if (isPlayingIntro) { audioRef.current?.pause(); setIsPlayingIntro(false); return; }
     if (!audioRef.current) { audioRef.current = new Audio(displayUser.introUrl); audioRef.current.onended = () => setIsPlayingIntro(false); }
     audioRef.current.play().catch(e => { toast({ variant: "destructive", description: "Failed to stream sonic signature." }); });
-    isPlayingIntro = true;
     setIsPlayingIntro(true);
   };
 
@@ -237,7 +236,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
         <aside className={cn("hidden md:block sticky h-screen border-r border-border/50 transition-all duration-300", isPlayerActive ? "top-16" : "top-0")}><MainNav /></aside>
         <main className={cn("w-full bg-white dark:bg-card min-h-screen shadow-sm transition-all duration-300", isPlayerActive ? "pt-[64px]" : "pt-0")}>
           <header className="sticky top-0 z-50 bg-white/95 dark:bg-card/95 backdrop-blur-sm border-b border-border h-14 px-4 flex items-center justify-between">
-            <div className="flex items-center gap-3"><Link href="/"><Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="h-5 w-5" /></Button></Link><div className="flex items-center gap-1"><span className="font-bold text-lg truncate">{displayUser.name}</span>{displayUser.isVerified && <CheckCircle2 className="h-4 w-4 text-primary fill-primary text-white" />}</div></div>
+            <div className="flex items-center gap-3"><Link href="/"><Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="h-5 w-5" /></Button></Link><div className="flex items-center gap-1"><span className="font-bold text-lg truncate">{displayUser.name}</span>{displayUser.isVerified && <CheckCircle2 className="h-3 w-3 text-primary fill-primary text-white" />}</div></div>
             <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full"><MoreHorizontal className="h-5 w-5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5">
               {!isMe && <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => toast({ title: "Report Sent" })}><Flag className="h-4 w-4" /> Report Node</DropdownMenuItem>}
               <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); navigator.clipboard.writeText(window.location.href); toast({ title: "Link Copied" }); }}><Share2 className="h-4 w-4" /> Share Profile</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
