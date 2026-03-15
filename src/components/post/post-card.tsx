@@ -184,7 +184,6 @@ export function PostCard(props: PostCardProps) {
   const [isShareHubOpen, setIsShareHubOpen] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isPollExpanded, setIsPollExpanded] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const hasRecordedView = useRef(false);
@@ -221,13 +220,29 @@ export function PostCard(props: PostCardProps) {
 
   const TRUNCATE_LIMIT = 150;
   const isLimitedType = useMemo(() => !!theme || allImages.length > 0 || !!videoUrl || !!poll || !!isLocked, [theme, allImages, videoUrl, poll, isLocked]);
-  const isLongContent = useMemo(() => content.length > TRUNCATE_LIMIT && !isLimitedType, [content.length, isLimitedType]);
-
+  
   const isSensitiveNode = settings.isSensitivityFilterActive && !isRevealedManually && !isOwner && !isCampaign && (allImages.length > 0 || !!videoUrl);
 
   const handleLike = () => { triggerHaptic(20); toggleLikePost(id); };
   const handleUnlike = () => { triggerHaptic(15); toggleUnlikePost(id); };
   const handleSave = () => { triggerHaptic(5); toggleSavePost(id); toast({ description: isBookmarked ? "Removed" : "Noted ✨" }); };
+
+  const handleDelete = async () => {
+    triggerHaptic(50);
+    setIsDeleteDialogOpen(false);
+    try {
+      await deletePost(id);
+      toast({ title: "Node Purged", description: "The vibe has been removed from the network." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Purge Failed", description: e.message });
+    }
+  };
+
+  const handleVote = (optionIndex: number) => {
+    if (isShared || userVote !== null) return;
+    triggerHaptic(10);
+    voteOnPostPoll(id, optionIndex);
+  };
 
   const handleHandshakeAction = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -280,6 +295,8 @@ export function PostCard(props: PostCardProps) {
       </Button>
     );
   };
+
+  if (isHidden) return null;
 
   return (
     <>
