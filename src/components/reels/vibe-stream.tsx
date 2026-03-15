@@ -11,14 +11,14 @@ import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 
 export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
-  const { posts, followingUsernames, triggerHaptic, recordView } = usePosts();
+  const { posts, followingUsernames, triggerHaptic, recordView, seenPostIds } = usePosts();
   const searchParams = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
 
   /**
-   * REEL INTERLEAVING (2:1 RATIO)
-   * Materializes 1 Boosted Reel after every 2 Organic Reels.
+   * REEL PRIORITIZATION & INTERLEAVING (2:1 RATIO)
+   * Prioritize unseen vertical content from following, then public.
    */
   const reelsWithAds = useMemo(() => {
     const allReels = posts
@@ -54,17 +54,25 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
 
     const source = activeTab === "foryou" ? allReels : allReels.filter(reel => followingUsernames.has(reel.user.username));
     
+    // Split into organic and boosted for interleaving
     const organic = source.filter(r => !r.isBoosted);
     const boosted = source.filter(r => r.isBoosted);
+
+    // Sort organic by Seen Status Priority
+    const followingUnseen = organic.filter(r => followingUsernames.has(r.user.username) && !seenPostIds.has(r.id));
+    const publicUnseen = organic.filter(r => !followingUsernames.has(r.user.username) && !seenPostIds.has(r.id));
+    const seenNodes = organic.filter(r => seenPostIds.has(r.id));
+
+    const organicSorted = [...followingUnseen, ...publicUnseen, ...seenNodes];
     
     const result: (any)[] = [];
     let organicIdx = 0;
     let boostedIdx = 0;
 
-    while (organicIdx < organic.length) {
+    while (organicIdx < organicSorted.length) {
       // 1. Add 2 organic reels
-      for (let i = 0; i < 2 && organicIdx < organic.length; i++) {
-        result.push({ type: 'reel', data: organic[organicIdx] });
+      for (let i = 0; i < 2 && organicIdx < organicSorted.length; i++) {
+        result.push({ type: 'reel', data: organicSorted[organicIdx] });
         organicIdx++;
 
         // Add standard ad pulse occasionally
@@ -81,7 +89,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
     }
 
     return result;
-  }, [activeTab, followingUsernames, posts]);
+  }, [activeTab, followingUsernames, posts, seenPostIds]);
 
   useEffect(() => {
     const targetId = searchParams.get('id');

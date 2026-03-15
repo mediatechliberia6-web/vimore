@@ -17,11 +17,27 @@ import { Button } from "@/components/ui/button";
 import { CreateStoryModal } from "@/components/feed/create-story-modal";
 
 export default function Home() {
-  const { posts, campaigns, isLoading } = usePosts();
+  const { posts, campaigns, isLoading, followingUsernames, seenPostIds } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
   
   const isPlayerActive = currentTrack && !isExpanded;
+
+  /**
+   * UNSEEN CONTENT PRIORITIZATION HEURISTIC
+   * Tier 1: Unseen posts from nodes you follow.
+   * Tier 2: Unseen public posts from global network.
+   * Tier 3: Archive pulse (seen posts).
+   */
+  const organicSorted = useMemo(() => {
+    const regular = posts.filter(p => !p.isBoosted);
+    
+    const followingUnseen = regular.filter(p => followingUsernames.has(p.user.username) && !seenPostIds.has(p.id));
+    const publicUnseen = regular.filter(p => !followingUsernames.has(p.user.username) && !seenPostIds.has(p.id));
+    const seenNodes = regular.filter(p => seenPostIds.has(p.id));
+
+    return [...followingUnseen, ...publicUnseen, ...seenNodes];
+  }, [posts, followingUsernames, seenPostIds]);
 
   /**
    * INTERLEAVING ALGORITHM (2:1 RATIO)
@@ -30,7 +46,6 @@ export default function Home() {
   const feedItems = useMemo(() => {
     if (posts.length === 0) return [];
     
-    const organicPosts = posts.filter(p => !p.isBoosted);
     const boostedPosts = posts.filter(p => p.isBoosted);
     const activeCampaigns = campaigns.filter(c => c.isActive);
     
@@ -38,11 +53,11 @@ export default function Home() {
     let organicIdx = 0;
     let boostedIdx = 0;
 
-    // Weave the discovery stream
-    while (organicIdx < organicPosts.length) {
+    // Weave the discovery stream using the prioritized organic nodes
+    while (organicIdx < organicSorted.length) {
       // 1. Add up to 2 organic posts
-      for (let i = 0; i < 2 && organicIdx < organicPosts.length; i++) {
-        const post = organicPosts[organicIdx];
+      for (let i = 0; i < 2 && organicIdx < organicSorted.length; i++) {
+        const post = organicSorted[organicIdx];
         result.push({ type: 'post', data: post });
         organicIdx++;
 
@@ -69,7 +84,7 @@ export default function Home() {
     }
 
     return result;
-  }, [posts, campaigns]);
+  }, [organicSorted, boostedPosts, campaigns]);
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#080808] flex flex-col items-center transition-colors duration-300">
