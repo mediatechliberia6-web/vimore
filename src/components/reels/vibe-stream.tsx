@@ -6,19 +6,21 @@ import { NativeAdNode } from "@/components/ad/native-ad-node";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts, Post } from "@/context/PostContext";
 import { ReelTab } from "@/app/reels/page";
-import { Search, Sparkles } from "lucide-react";
+import { Search, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 
 export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
-  const { posts, followingUsernames, triggerHaptic, recordView, seenPostIds } = usePosts();
+  const { posts, followingUsernames, triggerHaptic, recordView, seenPostIds, isLoading } = usePosts();
   const searchParams = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
+  const observerTarget = useRef<HTMLDivElement>(null);
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
+  const [displayLimit, setDisplayLimit] = useState(16);
 
   /**
-   * REEL PRIORITIZATION & INTERLEAVING (2:1 RATIO)
-   * Prioritize unseen vertical content from following, then public.
+   * REEL PRIORITIZATION & BATCHING (2:1 RATIO)
+   * Materializes unseen vertical content from following, then public in randomized batches of 16.
    */
   const reelsWithAds = useMemo(() => {
     const allReels = posts
@@ -54,42 +56,65 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
 
     const source = activeTab === "foryou" ? allReels : allReels.filter(reel => followingUsernames.has(reel.user.username));
     
-    // Split into organic and boosted for interleaving
     const organic = source.filter(r => !r.isBoosted);
     const boosted = source.filter(r => r.isBoosted);
 
-    // Sort organic by Seen Status Priority
     const followingUnseen = organic.filter(r => followingUsernames.has(r.user.username) && !seenPostIds.has(r.id));
     const publicUnseen = organic.filter(r => !followingUsernames.has(r.user.username) && !seenPostIds.has(r.id));
     const seenNodes = organic.filter(r => seenPostIds.has(r.id));
 
-    const organicSorted = [...followingUnseen, ...publicUnseen, ...seenNodes];
+    // Shuffle helper for refresh unique-ness
+    const shuffle = (arr: any[]) => {
+      const newArr = [...arr];
+      for (let i = newArr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+      }
+      return newArr;
+    };
+
+    const organicSorted = [...shuffle(followingUnseen), ...shuffle(publicUnseen), ...shuffle(seenNodes)];
     
     const result: (any)[] = [];
     let organicIdx = 0;
     let boostedIdx = 0;
 
     while (organicIdx < organicSorted.length) {
-      // 1. Add 2 organic reels
       for (let i = 0; i < 2 && organicIdx < organicSorted.length; i++) {
         result.push({ type: 'reel', data: organicSorted[organicIdx] });
         organicIdx++;
 
-        // Add standard ad pulse occasionally
         if (organicIdx === 1 || (organicIdx > 1 && organicIdx % 6 === 0)) {
           result.push({ type: 'ad', id: `ad-reel-${organicIdx}` });
         }
       }
 
-      // 2. Add 1 boosted reel if available
       if (boostedIdx < boosted.length) {
         result.push({ type: 'reel', data: boosted[boostedIdx] });
         boostedIdx++;
       }
     }
 
-    return result;
-  }, [activeTab, followingUsernames, posts, seenPostIds]);
+    return result.slice(0, displayLimit);
+  }, [activeTab, followingUsernames, posts, seenPostIds, displayLimit]);
+
+  // Infinite Scroll Observer for Vibe Stream
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoading && reelsWithAds.length >= displayLimit) {
+          setDisplayLimit(prev => prev + 16);
+        }
+      },
+      { threshold: 0.1, rootMargin: '200px' }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => observer.disconnect();
+  }, [isLoading, reelsWithAds.length, displayLimit]);
 
   useEffect(() => {
     const targetId = searchParams.get('id');
@@ -103,7 +128,6 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
       const first = reelsWithAds[0];
       const firstId = first.type === 'ad' ? first.id : first.data.id;
       setActiveReelId(firstId);
-      // Log initial view
       if (first.type === 'reel') recordView(first.data.id);
     }
   }, [searchParams, reelsWithAds, activeReelId, recordView]);
@@ -122,7 +146,6 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
           if (id && id !== activeReelId) {
             setActiveReelId(id);
             triggerHaptic(5);
-            // Impression tracking Pulse
             const item = reelsWithAds.find(r => (r.type === 'reel' && r.data.id === id));
             if (item) recordView(id);
           }
@@ -142,18 +165,32 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
       className="flex-1 w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide bg-black"
     >
       {reelsWithAds.length > 0 ? (
-        reelsWithAds.map((item) => (
-          <div key={item.type === 'ad' ? item.id : item.data.id} data-node-id={item.type === 'ad' ? item.id : item.data.id} className="snap-start h-[100dvh] w-full relative">
-            {item.type === 'ad' ? (
-              <NativeAdNode type="reel" isActive={activeReelId === item.id} />
+        <>
+          {reelsWithAds.map((item) => (
+            <div key={item.type === 'ad' ? item.id : item.data.id} data-node-id={item.type === 'ad' ? item.id : item.data.id} className="snap-start h-[100dvh] w-full relative">
+              {item.type === 'ad' ? (
+                <NativeAdNode type="reel" isActive={activeReelId === item.id} />
+              ) : (
+                <ReelCard 
+                  {...item.data} 
+                  isActive={activeReelId === item.data.id} 
+                />
+              )}
+            </div>
+          ))}
+          
+          {/* Sentinel Node for Reels */}
+          <div ref={observerTarget} className="h-40 flex flex-col items-center justify-center bg-zinc-950 gap-4">
+            {reelsWithAds.length < 50 ? ( // Cap simulation for prototype
+              <>
+                <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Fetching Next Block</p>
+              </>
             ) : (
-              <ReelCard 
-                {...item.data} 
-                isActive={activeReelId === item.data.id} 
-              />
+              <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.5em]">Network End</p>
             )}
           </div>
-        ))
+        </>
       ) : (
         <div className="h-full w-full flex flex-col items-center justify-center text-white/40 space-y-4 px-12 text-center animate-in fade-in duration-700">
           <div className="h-16 w-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">

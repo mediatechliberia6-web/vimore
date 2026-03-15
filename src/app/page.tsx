@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { Header } from "@/components/layout/header";
 import { SubHeader } from "@/components/layout/sub-header";
 import { PostCard } from "@/components/post/post-card";
@@ -12,22 +12,24 @@ import { MainNav } from "@/components/layout/main-nav";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
-import { Rocket, Zap, Sparkles } from "lucide-react";
+import { Rocket, Zap, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreateStoryModal } from "@/components/feed/create-story-modal";
 
 export default function Home() {
   const { posts, campaigns, isLoading, followingUsernames, seenPostIds } = usePosts();
-  const { currentTrack, isExpanded } = useMusic();
+  const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
   
+  // Batch Protocol State
+  const [displayLimit, setDisplayLimit] = useState(16);
+  const observerTarget = useRef(null);
+
   const isPlayerActive = currentTrack && !isExpanded;
 
   /**
-   * UNSEEN CONTENT PRIORITIZATION HEURISTIC
-   * Tier 1: Unseen posts from nodes you follow.
-   * Tier 2: Unseen public posts from global network.
-   * Tier 3: Archive pulse (seen posts).
+   * TIERED SHUFFLE HEURISTIC
+   * Randomizes content within priority tiers to ensure every refresh feels unique.
    */
   const organicSorted = useMemo(() => {
     const regular = posts.filter(p => !p.isBoosted);
@@ -36,12 +38,22 @@ export default function Home() {
     const publicUnseen = regular.filter(p => !followingUsernames.has(p.user.username) && !seenPostIds.has(p.id));
     const seenNodes = regular.filter(p => seenPostIds.has(p.id));
 
-    return [...followingUnseen, ...publicUnseen, ...seenNodes];
+    // High-Velocity Shuffle helper
+    const shuffle = (arr: any[]) => {
+      const newArr = [...arr];
+      for (let i = newArr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+      }
+      return newArr;
+    };
+
+    return [...shuffle(followingUnseen), ...shuffle(publicUnseen), ...shuffle(seenNodes)];
   }, [posts, followingUsernames, seenPostIds]);
 
   /**
    * INTERLEAVING ALGORITHM (2:1 RATIO)
-   * Materializes 1 Boosted Post after every 2 Organic Posts.
+   * Materializes 1 Boosted Post after every 2 Organic Posts up to the current display limit.
    */
   const feedItems = useMemo(() => {
     if (posts.length === 0) return [];
@@ -53,15 +65,13 @@ export default function Home() {
     let organicIdx = 0;
     let boostedIdx = 0;
 
-    // Weave the discovery stream using the prioritized organic nodes
+    // Weave the discovery stream
     while (organicIdx < organicSorted.length) {
-      // 1. Add up to 2 organic posts
       for (let i = 0; i < 2 && organicIdx < organicSorted.length; i++) {
         const post = organicSorted[organicIdx];
         result.push({ type: 'post', data: post });
         organicIdx++;
 
-        // Interleave secondary nodes (Campaigns, Ads, Suggestions)
         if (organicIdx === 1 && activeCampaigns.length > 0) {
           result.push({ type: 'campaign', data: activeCampaigns[0] });
         }
@@ -73,18 +83,38 @@ export default function Home() {
         }
       }
 
-      // 2. Add 1 boosted post if available (The 2:1 Handshake)
       if (boostedIdx < boostedPosts.length) {
         result.push({ type: 'post', data: boostedPosts[boostedIdx] });
         boostedIdx++;
       } else if (organicIdx % 5 === 0) {
-        // Fallback to ad if no boosted content is in the stack
         result.push({ type: 'ad', id: `ad-seq-${organicIdx}` });
       }
     }
 
-    return result;
-  }, [posts, organicSorted, campaigns]);
+    return result.slice(0, displayLimit);
+  }, [posts, organicSorted, campaigns, displayLimit]);
+
+  /**
+   * INFINITE SCROLL HANDSHAKE
+   * Materializes the next batch of 16 when the sentinel node enters the viewport.
+   */
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoading && feedItems.length >= displayLimit) {
+          triggerHaptic(5);
+          setDisplayLimit(prev => prev + 16);
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => observer.disconnect();
+  }, [isLoading, feedItems.length, displayLimit, triggerHaptic]);
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#080808] flex flex-col items-center transition-colors duration-300">
@@ -107,31 +137,47 @@ export default function Home() {
           
           <div className="flex flex-col gap-1">
             {posts.length > 0 ? (
-              feedItems.map((item, idx) => {
-                if (item.type === 'ad') return <NativeAdNode key={item.id} type="banner" />;
-                if (item.type === 'suggestions') return <SuggestedFollows key={item.id} />;
-                if (item.type === 'campaign') {
-                  return (
-                    <PostCard 
-                      key={item.data.id}
-                      id={item.data.id}
-                      isCampaign={true}
-                      user={{ name: "ViMore Official", username: "vimore", avatar: "/icon.svg", isVerified: true }}
-                      content={item.data.content}
-                      image={item.data.type === 'photo' ? item.data.mediaUrl : undefined}
-                      videoUrl={item.data.type === 'video' ? item.data.mediaUrl : undefined}
-                      actionUrl={item.data.actionUrl}
-                      actionLabel={item.data.actionLabel}
-                      likes={1420}
-                      unlikes={0}
-                      comments={0}
-                      views={0}
-                      time="Now"
-                    />
-                  );
-                }
-                return <PostCard key={item.data.id} {...item.data} />;
-              })
+              <>
+                {feedItems.map((item, idx) => {
+                  if (item.type === 'ad') return <NativeAdNode key={item.id} type="banner" />;
+                  if (item.type === 'suggestions') return <SuggestedFollows key={item.id} />;
+                  if (item.type === 'campaign') {
+                    return (
+                      <PostCard 
+                        key={item.data.id}
+                        id={item.data.id}
+                        isCampaign={true}
+                        user={{ name: "ViMore Official", username: "vimore", avatar: "/icon.svg", isVerified: true }}
+                        content={item.data.content}
+                        image={item.data.type === 'photo' ? item.data.mediaUrl : undefined}
+                        videoUrl={item.data.type === 'video' ? item.data.mediaUrl : undefined}
+                        actionUrl={item.data.actionUrl}
+                        actionLabel={item.data.actionLabel}
+                        likes={1420}
+                        unlikes={0}
+                        comments={0}
+                        views={0}
+                        time="Now"
+                      />
+                    );
+                  }
+                  return <PostCard key={item.data.id} {...item.data} />;
+                })}
+                
+                {/* Sentinel Node */}
+                <div ref={observerTarget} className="h-20 flex items-center justify-center p-8">
+                  {feedItems.length < (posts.length + campaigns.length) ? (
+                    <div className="flex items-center gap-2 text-muted-foreground/40 font-black uppercase text-[10px] tracking-[0.3em]">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Materializing Next Batch...
+                    </div>
+                  ) : (
+                    <div className="text-muted-foreground/20 text-[8px] font-black uppercase tracking-[0.5em]">
+                      Network End Reached
+                    </div>
+                  )}
+                </div>
+              </>
             ) : !isLoading && (
               <div className="py-32 text-center bg-white dark:bg-card rounded-[2.5rem] border border-dashed border-primary/10 shadow-sm flex flex-col items-center justify-center space-y-6 px-12 animate-in fade-in zoom-in duration-700">
                 <div className="h-24 w-24 bg-primary/5 rounded-[2rem] flex items-center justify-center border-2 border-dashed border-primary/20">
