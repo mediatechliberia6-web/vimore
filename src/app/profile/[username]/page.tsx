@@ -71,7 +71,7 @@ import { useTranslation } from "@/context/LanguageContext";
 export default function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const resolvedParams = use(params);
   const username = resolvedParams.username;
-  const { currentUser, posts, connections, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, isSubscribed, subscribeToCreator, cancelSubscription, fetchProfileByUsername, settings, followerUsernames } = usePosts();
+  const { currentUser, posts, connections, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, isSubscribed, subscribeToCreator, cancelSubscription, fetchProfileByUsername, settings, followerUsernames, friendUsernames } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { addSignal } = useNotifications();
   const { t } = useTranslation();
@@ -172,6 +172,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     if (isPlayingIntro) { audioRef.current?.pause(); setIsPlayingIntro(false); return; }
     if (!audioRef.current) { audioRef.current = new Audio(displayUser.introUrl); audioRef.current.onended = () => setIsPlayingIntro(false); }
     audioRef.current.play().catch(e => { toast({ variant: "destructive", description: "Failed to stream sonic signature." }); });
+    isPlayingIntro = true;
     setIsPlayingIntro(true);
   };
 
@@ -189,6 +190,18 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const userPosts = useMemo(() => posts.filter(p => p.user.username === username), [posts, username]);
   const userReels = useMemo(() => userPosts.filter(p => p.videoUrl), [userPosts]);
   const mediaPosts = useMemo(() => userPosts.filter(p => p.image || p.images?.length), [userPosts]);
+
+  // Unified Pulse Metrics
+  const combinedFollowers = useMemo(() => {
+    if (!displayUser) return 0;
+    return parseFollowerCount(displayUser.followers) + (amIFriend ? 1 : 0);
+  }, [displayUser, amIFriend]);
+
+  const combinedFollowing = useMemo(() => {
+    if (!displayUser) return 0;
+    const base = typeof displayUser.following === 'number' ? displayUser.following : parseFollowerCount(displayUser.following);
+    return base + (amIFriend ? 1 : 0);
+  }, [displayUser, amIFriend]);
 
   if (isLoadingProfile) {
     return <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4"><Loader2 className="h-10 w-10 animate-spin text-primary" /><p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fetching Node Vault...</p></div>;
@@ -240,9 +253,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2"><h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{displayUser.name}</h1><Button variant="ghost" size="sm" className={cn("h-7 px-2 rounded-full gap-1.5 font-bold text-[11px] transition-all", isPlayingIntro ? "bg-primary text-white scale-105" : "bg-secondary/40")} onClick={togglePlayIntro}>{isPlayingIntro ? <Volume2 className="h-3.5 w-3.5 animate-pulse" /> : <Play className="h-3.5 w-3.5" />} Intro</Button></div>
                     <div className="flex items-center gap-6 py-2">
-                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{displayUser.friendsCount || 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Friends</span></div>
-                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{displayUser.followers || 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div>
-                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{displayUser.following || 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
+                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{amIFriend ? 1 : 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Friends</span></div>
+                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowers.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div>
+                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowing.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
                     </div>
                   </div>
                   {isEliteCreator && !isMe && (

@@ -241,7 +241,8 @@ const dictionaryRaw = {
     friends_unfriend: "Unfriend Node",
     friends_cancel: "Cancel Request",
     friends_request_sent: "Request Sent",
-    friends_add_friend: "Add Friend"
+    friends_add_friend: "Add Friend",
+    friends_my_friends: "My Friends"
   },
   es: {
     nav_home: "Inicio",
@@ -478,7 +479,8 @@ const dictionaryRaw = {
     friends_unfriend: "Eliminar Amigo",
     friends_cancel: "Cancelar Solicitud",
     friends_request_sent: "Solicitud Enviada",
-    friends_add_friend: "Agregar Amigo"
+    friends_add_friend: "Agregar Amigo",
+    friends_my_friends: "Mis Amigos"
   },
   fr: {
     nav_home: "Accueil",
@@ -715,7 +717,8 @@ const dictionaryRaw = {
     friends_unfriend: "Retirer l'Ami",
     friends_cancel: "Annuler l'Invitation",
     friends_request_sent: "Invitation Envoyée",
-    friends_add_friend: "Ajouter"
+    friends_add_friend: "Ajouter",
+    friends_my_friends: "Mes Amis"
   },
   pt: {
     nav_home: "Início",
@@ -824,7 +827,7 @@ const dictionaryRaw = {
     admin_governance: "Nó de Governança",
     explore_title: "Explorar",
     explore_search: "Buscar criadores, séries ou tags...",
-    explore_hero_badge: "Série da Semana",
+    explore_hero_badge: "Série de la Semana",
     explore_watch_now: "Assistir Agora",
     explore_go_live: "Transmitir ao Vivo",
     explore_go_live_desc: "Transmite para seus fãs instantaneamente",
@@ -952,7 +955,8 @@ const dictionaryRaw = {
     friends_unfriend: "Desfazer Amizade",
     friends_cancel: "Cancelar Solicitação",
     friends_request_sent: "Solicitação Enviada",
-    friends_add_friend: "Adicionar"
+    friends_add_friend: "Adicionar",
+    friends_my_friends: "Meus Amigos"
   },
   ar: {
     nav_home: "الرئيسية",
@@ -1189,7 +1193,8 @@ const dictionaryRaw = {
     friends_unfriend: "إزالة الصديق",
     friends_cancel: "إلغاء الطلب",
     friends_request_sent: "تم إرسال الطلب",
-    friends_add_friend: "إضافة صديق"
+    friends_add_friend: "إضافة صديق",
+    friends_my_friends: "أصدقائي"
   },
   zh: {
     nav_home: "首页",
@@ -1426,7 +1431,8 @@ const dictionaryRaw = {
     friends_unfriend: "删除好友",
     friends_cancel: "取消请求",
     friends_request_sent: "请求已发送",
-    friends_add_friend: "添加好友"
+    friends_add_friend: "添加好友",
+    friends_my_friends: "我的好友"
   }
 };
 

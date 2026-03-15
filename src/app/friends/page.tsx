@@ -29,7 +29,9 @@ import {
   UserRoundCheck,
   UserRoundPlus,
   ShieldCheck,
-  X
+  X,
+  Users2,
+  Check
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -44,10 +46,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useTranslation } from "@/context/LanguageContext";
 
-type HubTab = "add" | "confirm";
+type HubTab = "add" | "confirm" | "friends";
 
 function FriendsPageContent() {
-  const { connections = [], isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, currentUser } = usePosts();
+  const { connections = [], isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, currentUser, friendUsernames } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -64,7 +66,7 @@ function FriendsPageContent() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as HubTab;
-    if (tabParam && ["add", "confirm"].includes(tabParam)) {
+    if (tabParam && ["add", "confirm", "friends"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -83,11 +85,11 @@ function FriendsPageContent() {
     let list = connections.filter(c => c.username !== currentUser.username);
 
     if (activeTab === "add") {
-      // Add Friends Node: People you aren't friends with and haven't sent/received a request
       list = list.filter(c => !isFriend(c.username) && !isRequestSent(c.username) && !isRequestReceived(c.username));
     } else if (activeTab === "confirm") {
-      // Confirm Requests Node: Inbound pulses
       list = list.filter(c => isRequestReceived(c.username));
+    } else if (activeTab === "friends") {
+      list = list.filter(c => isFriend(c.username));
     }
 
     if (searchQuery) {
@@ -104,6 +106,7 @@ function FriendsPageContent() {
   const tabs: { id: HubTab; label: string; icon: any }[] = [
     { id: "add", label: t('friends_add'), icon: UserRoundPlus },
     { id: "confirm", label: t('friends_confirm'), icon: UserRoundCheck },
+    { id: "friends", label: t('friends_my_friends'), icon: Users2 },
   ];
 
   const handlePreviewSonic = (username: string, name: string) => {
@@ -190,11 +193,11 @@ function FriendsPageContent() {
                 </h1>
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">
-                    {t('friends_total')}: {currentUser.friendsCount || 0} / 7,000
+                    {t('friends_total')}: {friendUsernames.size} / 7,000
                   </span>
                   <div className="h-1 w-1 rounded-full bg-primary/40" />
                   <span className="text-primary text-[10px] font-black uppercase tracking-widest">
-                    {filteredUsers.length} Potential Handshakes
+                    {filteredUsers.length} Nodes in view
                   </span>
                 </div>
               </div>
@@ -218,14 +221,14 @@ function FriendsPageContent() {
                     key={tab.id}
                     onClick={() => { triggerHaptic(5); setActiveTab(tab.id); }}
                     className={cn(
-                      "flex-1 flex items-center justify-center gap-2 py-4 rounded-full text-sm font-black italic uppercase tracking-widest transition-all relative overflow-hidden group",
+                      "flex-1 flex items-center justify-center gap-2 py-4 rounded-full text-[10px] sm:text-xs font-black italic uppercase tracking-widest transition-all relative overflow-hidden group",
                       isActive 
                         ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105" 
                         : "text-muted-foreground hover:text-foreground hover:bg-white/10"
                     )}
                   >
                     <tab.icon className={cn("h-4 w-4", isActive && "fill-current")} />
-                    {tab.label}
+                    <span className="truncate">{tab.label}</span>
                     {isActive && (
                       <div className="absolute bottom-0 left-1/4 right-1/4 h-1 bg-white/40 rounded-t-full blur-sm" />
                     )}
@@ -351,7 +354,7 @@ function FriendsPageContent() {
                   <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest max-w-xs mx-auto">
                     {activeTab === 'add' 
                       ? "All network nodes synchronized. Share your referral link to attract new connections." 
-                      : "No pending friendship pulses detected."}
+                      : activeTab === 'confirm' ? "No pending friendship pulses detected." : "No established friends in vault."}
                   </p>
                 </div>
                 <Link href={activeTab === 'add' ? "/referrals" : "/explore"}>

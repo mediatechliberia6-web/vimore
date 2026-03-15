@@ -448,7 +448,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const sendFriendRequest = useCallback(async (username: string) => {
     triggerHaptic(15);
     setSentRequestUsernamesState(prev => new Set(prev).add(username));
-    // Automatically follow when sending request
+    // Unified Pulse: Automatically follow when sending request
     setFollowingUsernamesState(prev => new Set(prev).add(username));
     toast({ title: "Request Sent", description: `Signature pulse transmitted to @${username}.` });
   }, [triggerHaptic, toast]);
@@ -463,7 +463,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
     
     setReceivedRequestUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
-    // Establishing mutual follow
+    
+    // Unified Handshake: Establish mutual follow
     setFollowingUsernamesState(prev => new Set(prev).add(username));
     setFollowerUsernamesState(prev => new Set(prev).add(username));
     
@@ -476,6 +477,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const cancelFriendRequest = useCallback(async (username: string) => {
     triggerHaptic(10);
     setSentRequestUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
+    // Unified Pulse: Stop following when cancelling request
     setFollowingUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
     toast({ title: "Request Cancelled" });
   }, [triggerHaptic, toast]);
@@ -483,6 +485,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const unfriendUser = useCallback(async (username: string) => {
     triggerHaptic(30);
     setFriendUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
+    // Unified Pulse: Break follow links on unfriend
     setFollowingUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
     setFollowerUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
     setCurrentUserState(prev => ({ ...prev, friendsCount: Math.max(0, (prev.friendsCount || 0) - 1) }));
