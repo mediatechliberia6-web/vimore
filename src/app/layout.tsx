@@ -21,6 +21,7 @@ import { GiftHub } from "@/components/post/gift-hub";
 import { IncomingCallOverlay } from "@/components/layout/incoming-call-overlay";
 import { AppLoadingGate } from "@/components/layout/app-loading-gate";
 import { DiagnosticErrorBoundary } from "@/components/layout/diagnostic-error-boundary";
+import { ThemeLogic } from "@/components/layout/theme-logic";
 import NextTopLoader from 'nextjs-toploader';
 
 export const metadata: Metadata = {
@@ -70,6 +71,7 @@ export default function RootLayout({
           <LanguageProvider>
             <NotificationProvider>
               <MusicProvider>
+                <ThemeLogic />
                 <FontScaleWrapper>
                   <DiagnosticErrorBoundary title="System Core">
                     <AppLoadingGate>
