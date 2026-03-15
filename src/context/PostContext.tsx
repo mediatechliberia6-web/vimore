@@ -521,10 +521,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [triggerHaptic, toast]);
 
   const initiateCall = useCallback(async (contact: any, type: CallType) => {
-    setCallState({ type, status: 'outgoing', contact });
+    const channelName = `vimore_${currentUser.username}_${contact.username}`;
+    setCallState({ type, status: 'outgoing', contact, channelName });
     setTimeout(() => setCallState(prev => ({ ...prev, status: 'ringing' })), 1000);
     setTimeout(() => setCallState(prev => ({ ...prev, status: 'active' })), 3000);
-  }, []);
+  }, [currentUser.username]);
 
   const acceptCall = useCallback(async () => { setCallState(prev => ({ ...prev, status: 'active' })); }, []);
   const endCall = useCallback(async () => { setCallState({ type: 'audio', status: 'idle', contact: null }); }, []);

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, use } from "react";
@@ -109,6 +108,12 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
       });
 
       try {
+        if (!callState.channelName) {
+          console.error("Agora Handshake Refused: Missing channelName node.");
+          handleEndCall();
+          return;
+        }
+
         let token = callState.token;
         if (!token) {
           token = await generateAgoraToken(callState.channelName!, currentUser.id!);
