@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -84,6 +85,7 @@ import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BannerAdNode } from "@/components/ad/banner-ad-node";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 export default function SettingsPage() {
   const { settings, updateSettings, triggerHaptic, currentUser, connections, posts, savedPostIds, activeSubscriptions, cancelSubscription, seenPostIds, archiveIdentityNode, purgeVibeCache } = usePosts();
@@ -261,6 +263,8 @@ export default function SettingsPage() {
             </div>
           </div>
         </section>
+
+        <NativeAdNode type="standard" />
 
         {/* PHASE 5: EXPERIENCE HUB */}
         <section className="space-y-4">

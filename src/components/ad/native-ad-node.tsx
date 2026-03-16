@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -59,14 +60,14 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
           <body style="margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; overflow: hidden;">
             <script type="text/javascript">
               atOptions = {
-                'key' : '3eba8b91263527bd1a02399ff4d2ee8e',
+                'key' : 'dbb5c7fa11689ae615919a9aed7fca72',
                 'format' : 'iframe',
                 'height' : 90,
                 'width' : 728,
                 'params' : {}
               };
             </script>
-            <script type="text/javascript" src="//www.highperformanceformat.com/3eba8b91263527bd1a02399ff4d2ee8e/invoke.js"></script>
+            <script type="text/javascript" src="//www.highperformanceformat.com/dbb5c7fa11689ae615919a9aed7fca72/invoke.js"></script>
           </body>
         </html>
       `);
@@ -99,7 +100,7 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
 
   if (type === "standard") {
     return (
-      <div className="w-full flex justify-center py-4 animate-in fade-in duration-700 overflow-hidden">
+      <div className="w-full flex justify-center py-6 animate-in fade-in duration-700 overflow-hidden">
         <iframe 
           ref={iframeRef}
           className="w-full max-w-[728px] h-[90px] border-none bg-transparent overflow-hidden"
@@ -199,7 +200,7 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
         <div className="relative group rounded-2xl overflow-hidden bg-secondary/20 min-h-[120px] flex items-center justify-center border border-primary/5">
           <iframe 
             ref={iframeRef}
-            className="w-full min-h-[120px] border-none bg-transparent"
+            className="w-full min-h-[120px] border-none bg-transparent overflow-hidden"
             title="ViMore In-Feed Ad"
             scrolling="no"
           />

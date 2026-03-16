@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -42,6 +43,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { BannerAdNode } from "@/components/ad/banner-ad-node";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 const FILTERS = [
   { id: "all", label: "All Signals" },
@@ -299,6 +301,9 @@ export default function NotificationsPage() {
                 </div>
               )}
             </div>
+            
+            {/* Standard Global Ad Pulse */}
+            <NativeAdNode type="standard" />
           </div>
         </main>
 

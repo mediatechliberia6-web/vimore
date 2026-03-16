@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -44,6 +45,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { BiometricGate } from "@/components/layout/biometric-gate";
 import { BannerAdNode } from "@/components/ad/banner-ad-node";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 const REVENUE_DATA = [
   { name: "Locked Posts", value: 65, color: "hsl(var(--primary))" },
@@ -321,6 +323,8 @@ export default function EarningsPage() {
             </Card>
           </div>
 
+          <NativeAdNode type="standard" />
+
           <section className="space-y-4">
             <div className="flex items-center justify-between px-2">
               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">{t('earn_audit_trail')} ({t('earn_recent_history')})</h3>
@@ -382,7 +386,7 @@ export default function EarningsPage() {
               <div className="max-w-xl mx-auto space-y-10">
                 <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500">
                   <section className="space-y-6">
-                    <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 text-center">Select Payout Node</h3>
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/40 text-center">Select Payout Node</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <button 
                         onClick={() => { triggerHaptic(10); setPayoutMethod("ORANGE"); }}

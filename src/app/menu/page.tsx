@@ -1,3 +1,4 @@
+
 "use client";
 
 import { 
@@ -41,6 +42,7 @@ import { useTranslation } from "@/context/LanguageContext";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 export default function MenuPage() {
   const { currentTrack, isExpanded } = useMusic();
@@ -166,6 +168,8 @@ export default function MenuPage() {
             })}
           </div>
         </div>
+
+        <NativeAdNode type="standard" />
 
         <div className="bg-white dark:bg-card rounded-[2rem] border border-border/50 shadow-xl shadow-black/5 overflow-hidden">
           <Accordion type="single" collapsible className="w-full">
