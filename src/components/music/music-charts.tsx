@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -160,7 +161,7 @@ export function MusicCharts() {
             onClick={() => setActiveCategory(cat.id)}
             className={cn(
               "flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-[10px] sm:text-sm font-black italic uppercase tracking-widest transition-all shrink-0 border",
-              activeCategory === Resilience.id 
+              activeCategory === cat.id 
                 ? "bg-primary border-primary text-white shadow-lg shadow-primary/25 scale-105" 
                 : "bg-white/50 dark:bg-card/50 border-border hover:bg-secondary/50 text-muted-foreground"
             )}
@@ -238,7 +239,7 @@ export function MusicCharts() {
                 </div>
 
                 <div className="flex flex-col items-center justify-center gap-0.5 sm:gap-1">
-                  <Badge variant="outline" className="text-[9px] sm:text-xs font-black border-white/10 rounded-lg bg-white/5 h-6 px-2">{(likes/1000).toFixed(1)}K</Badge>
+                  <Badge variant="outline" className="text-[9px] font-black border-white/10 rounded-lg bg-white/5 h-6 px-2">{(likes/1000).toFixed(1)}K</Badge>
                 </div>
 
                 <div className="hidden sm:flex justify-center">

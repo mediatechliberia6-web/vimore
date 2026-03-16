@@ -3,6 +3,7 @@
 
 import { Play, Pause, MoreVertical, Heart, ThumbsDown, TrendingUp, Music2, Share2, Plus, Download, User, ListPlus, CheckCircle2, Loader2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useMusic, Track, Album, Playlist } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
 import Image from "next/image";
