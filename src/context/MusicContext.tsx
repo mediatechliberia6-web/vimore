@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -124,17 +125,63 @@ interface MusicContextType {
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
 
 const MOCK_SONGS: Track[] = [
-  { id: 's1', title: "Midnight Pulse", artist: "Alex Rivera", artistUsername: "arivera", cover: "https://picsum.photos/seed/s1/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", duration: 180, streams: "14.2k", likes: 1204, unlikes: 2 },
-  { id: 's2', title: "Cyber Horizon", artist: "Sarah Chen", artistUsername: "schen_dev", cover: "https://picsum.photos/seed/s2/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", duration: 210, streams: "8.5k", likes: 845, unlikes: 0 },
-  { id: 's3', title: "Spatial Echo", artist: "Marcus Stone", artistUsername: "mstone", cover: "https://picsum.photos/seed/s3/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3", duration: 195, streams: "4.1k", likes: 320, unlikes: 5 },
-  { id: 's4', title: "Binary Vibe", artist: "Elena Gilbert", artistUsername: "elena_g", cover: "https://picsum.photos/seed/s4/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3", duration: 165, streams: "2.8k", likes: 150, unlikes: 1 }
+  { id: 's1', title: "Midnight Pulse", artist: "Alex Rivera", artistUsername: "arivera", cover: "https://picsum.photos/seed/s1/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", duration: 180, streams: "1.2M", likes: 12400, unlikes: 2 },
+  { id: 's2', title: "Cyber Horizon", artist: "Sarah Chen", artistUsername: "schen_dev", cover: "https://picsum.photos/seed/s2/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", duration: 210, streams: "850K", likes: 8450, unlikes: 0 },
+  { id: 's3', title: "Spatial Echo", artist: "Marcus Stone", artistUsername: "mstone", cover: "https://picsum.photos/seed/s3/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3", duration: 195, streams: "410K", likes: 3200, unlikes: 5 },
+  { id: 's4', title: "Binary Vibe", artist: "Elena Gilbert", artistUsername: "elena_g", cover: "https://picsum.photos/seed/s4/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3", duration: 165, streams: "280K", likes: 1500, unlikes: 1 }
+];
+
+const MOCK_ALBUMS: Album[] = [
+  {
+    id: 'a1',
+    title: "Velocity One",
+    artist: "Alex Rivera",
+    artistUsername: "arivera",
+    cover: "https://picsum.photos/seed/a1/600/600",
+    year: "2024",
+    tracks: 4,
+    totalStreams: "4.2M",
+    songs: MOCK_SONGS
+  },
+  {
+    id: 'a2',
+    title: "Silicon Dreams",
+    artist: "Sarah Chen",
+    artistUsername: "schen_dev",
+    cover: "https://picsum.photos/seed/a2/600/600",
+    year: "2024",
+    tracks: 2,
+    totalStreams: "1.8M",
+    songs: [MOCK_SONGS[1], MOCK_SONGS[3]]
+  }
+];
+
+const MOCK_PLAYLISTS: Playlist[] = [
+  {
+    id: 'pl1',
+    title: "Midnight Focus",
+    creator: "amos_mtl",
+    cover: "https://picsum.photos/seed/pl1/600/600",
+    totalStreams: "12.5K",
+    songs: [MOCK_SONGS[0], MOCK_SONGS[2]],
+    description: "High-fidelity tracks for late-night building."
+  },
+  {
+    id: 'pl2',
+    title: "Afro-Spatial",
+    creator: "arivera",
+    cover: "https://picsum.photos/seed/pl2/600/600",
+    totalStreams: "84K",
+    songs: MOCK_SONGS,
+    description: "The sound of the West Africa cluster."
+  }
 ];
 
 export function MusicProvider({ children }: { children: ReactNode }) {
   const [currentTrack, setCurrentTrackState] = useState<Track | null>(null);
   const [globalSongs, setGlobalSongsState] = useState<Track[]>(MOCK_SONGS);
-  const [globalAlbums, setGlobalAlbumsState] = useState<Album[]>([]);
-  const [globalPlaylists, setGlobalPlaylistsState] = useState<Playlist[]>([]);
+  const [globalAlbums, setGlobalAlbumsState] = useState<Album[]>(MOCK_ALBUMS);
+  const [globalPlaylists, setGlobalPlaylistsState] = useState<Playlist[]>(MOCK_PLAYLISTS);
   const [queue, setQueueState] = useState<Track[]>(MOCK_SONGS);
   const [isPlaying, setIsPlayingState] = useState(false);
   const [isExpanded, setIsExpandedState] = useState(false);
@@ -193,6 +240,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const nextTrack = useCallback(() => {
     const idx = queue.findIndex(t => t.id === currentTrack?.id);
+    if (idx === -1) return;
     const nextIdx = (idx + 1) % queue.length;
     setCurrentTrackState(queue[nextIdx]);
     setIsPlayingState(true);
@@ -200,6 +248,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const prevTrack = useCallback(() => {
     const idx = queue.findIndex(t => t.id === currentTrack?.id);
+    if (idx === -1) return;
     const prevIdx = (idx - 1 + queue.length) % queue.length;
     setCurrentTrackState(queue[prevIdx]);
     setIsPlayingState(true);

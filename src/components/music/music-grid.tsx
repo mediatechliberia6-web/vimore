@@ -1,6 +1,7 @@
+
 "use client";
 
-import { Play, Pause, MoreVertical, Heart, ThumbsDown, TrendingUp, Music2, Share2, Plus, Download, User, ListPlus, CheckCircle2, Loader2 } from "lucide-react";
+import { Play, Pause, MoreVertical, Heart, ThumbsDown, TrendingUp, Music2, Share2, Plus, Download, User, ListPlus, CheckCircle2, Loader2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMusic, Track, Album, Playlist } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
@@ -304,7 +305,12 @@ export function MusicGrid({ type, items = [], title }: MusicGridProps) {
           <div className="flex items-center justify-between gap-2">
             <h3 className="font-bold text-xs sm:text-sm truncate group-hover:text-primary transition-colors">{item.title}</h3>
             {type === "song" && (
-              <span className="text-[9px] font-black text-primary/60 shrink-0">{(stats.likes / 1000).toFixed(1)}K</span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[9px] font-black text-primary/60">{(stats.likes / 1000).toFixed(1)}K</span>
+                <Badge variant="outline" className="h-4 border-primary/10 bg-primary/5 text-primary text-[7px] font-black uppercase px-1 gap-1">
+                  <Zap className="h-2 w-2" /> {item.streams || "0"}
+                </Badge>
+              </div>
             )}
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-widest">
@@ -314,7 +320,7 @@ export function MusicGrid({ type, items = [], title }: MusicGridProps) {
                   {item.artist}
                 </Link>
                 <span>•</span>
-                <span>{item.streams}</span>
+                <span>{item.duration ? `${Math.floor(item.duration/60)}:${(item.duration%60).toString().padStart(2, '0')}` : "Sync"}</span>
               </>
             )}
             {type === "album" && (
@@ -323,14 +329,14 @@ export function MusicGrid({ type, items = [], title }: MusicGridProps) {
                   {item.artist}
                 </Link>
                 <span>•</span>
-                <span>{item.tracks} Tracks</span>
+                <span className="text-primary/60">{item.totalStreams} Plays</span>
               </>
             )}
             {type === "playlist" && (
               <>
                 <span className="truncate max-w-[120px]">By <Link href={`/profile/${item.creator || 'arivera'}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline">@{item.creator || 'vimore'}</Link></span>
                 <span>•</span>
-                <span>{item.songs?.length || '0'} Tracks</span>
+                <span className="text-primary/60">{item.totalStreams} Pulse</span>
               </>
             )}
           </div>

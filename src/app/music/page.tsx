@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
@@ -185,13 +186,23 @@ function MusicPageContent() {
                   <>
                     {!searchQuery && filteredSongs.length > 0 && <MusicGrid type="hero" items={[filteredSongs[0]]} />}
                     {!searchQuery && <NativeAdNode type="standard" /> }
+                    
                     {forYouSongs.length > 0 && <MusicGrid type="song" title="For You" items={forYouSongs.slice(0, 10)} />}
+                    {!searchQuery && <NativeAdNode type="standard" /> }
+                    
                     {filteredSongs.length > 0 && <MusicGrid type="song" title={searchQuery ? t('ui_all') : t('music_trending_songs')} items={filteredSongs} />}
                     {!searchQuery && <NativeAdNode type="standard" /> }
+
+                    {/* New Releases Section */}
+                    {globalSongs.length > 0 && <MusicGrid type="song" title={t('music_new_releases')} items={[...globalSongs].reverse()} />}
+                    {!searchQuery && <NativeAdNode type="standard" /> }
+                    
                     {filteredAlbums.length > 0 && <MusicGrid type="album" title={searchQuery ? t('music_my_albums') : t('music_trending_albums')} items={filteredAlbums} />}
                     {!searchQuery && <NativeAdNode type="standard" /> }
+                    
                     {filteredPlaylists.length > 0 && <MusicGrid type="playlist" title={searchQuery ? t('music_playlists') : t('music_top_playlists')} items={filteredPlaylists} />}
                     {!searchQuery && <NativeAdNode type="standard" /> }
+                    
                     {filteredArtists.length > 0 && <MusicGrid type="artist" title={searchQuery ? t('ui_all') : t('music_trending_artists')} items={filteredArtists} />}
                   </>
                 )}

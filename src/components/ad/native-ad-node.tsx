@@ -57,7 +57,12 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
     if (type === "standard") {
       doc.write(`
         <html>
-          <body style="margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; overflow: hidden;">
+          <head>
+            <style>
+              body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; overflow: hidden; }
+            </style>
+          </head>
+          <body>
             <script type="text/javascript">
               atOptions = {
                 'key' : 'dbb5c7fa11689ae615919a9aed7fca72',
@@ -67,7 +72,7 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
                 'params' : {}
               };
             </script>
-            <script type="text/javascript" src="//www.highperformanceformat.com/dbb5c7fa11689ae615919a9aed7fca72/invoke.js"></script>
+            <script type="text/javascript" src="https://www.highperformanceformat.com/dbb5c7fa11689ae615919a9aed7fca72/invoke.js"></script>
           </body>
         </html>
       `);
@@ -101,12 +106,18 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
   if (type === "standard") {
     return (
       <div className="w-full flex justify-center py-6 animate-in fade-in duration-700 overflow-hidden">
-        <iframe 
-          ref={iframeRef}
-          className="w-full max-w-[728px] h-[90px] border-none bg-transparent overflow-hidden"
-          title="ViMore Ad Node"
-          scrolling="no"
-        />
+        <div className="relative">
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-background border border-primary/10 px-2 py-0.5 rounded-full z-10 shadow-sm">
+            <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />
+            <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Sponsored Node</span>
+          </div>
+          <iframe 
+            ref={iframeRef}
+            className="w-[728px] h-[90px] border-none bg-transparent overflow-hidden"
+            title="ViMore Ad Node"
+            scrolling="no"
+          />
+        </div>
       </div>
     );
   }
