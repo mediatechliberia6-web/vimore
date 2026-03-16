@@ -1,4 +1,3 @@
-
 'use client';
 
 /**
@@ -214,7 +213,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     likedTracks: MOCK_SONGS.filter(s => likedSongIds.has(s.id)),
     userPlaylists: [], userSongs: [], userAlbums: [],
     isCreatePlaylistOpen, trackForNewPlaylist, trackStats,
-    isAdPortalOpen, adDuration, adUrl: "https://www.effectivegatecpm.com/kry1iawb",
+    isAdPortalOpen, adDuration, adUrl: "https://www.effectivegatecpm.com/fesc8y775q?key=4754d4c5b1e8452fc8b35451795350aa",
     triggerDownloadWithAd: (type: any, task: any) => { setIsAdPortalOpenState(true); setPendingDownloadTask(() => task); },
     onAdComplete: () => { setIsAdPortalOpenState(false); if(pendingDownloadTask) pendingDownloadTask(); setPendingDownloadTask(null); },
     isCaptureStudioOpen, captureTrack,
