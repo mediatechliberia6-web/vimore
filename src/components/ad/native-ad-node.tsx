@@ -16,7 +16,8 @@ import {
   Sparkles,
   Music2,
   Plus,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,30 @@ const ViMoreAdLogo = () => (
 export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
   const { triggerHaptic, triggerDownloadWithAd } = useMusic();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [scale, setScale] = useState(1);
+
+  // SPATIAL SCALING HANDSHAKE
+  // Ensures 728x90 ads fit on mobile screens while maintaining internal script dimensions
+  useEffect(() => {
+    if (type !== "standard") return;
+
+    const calculateScale = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.offsetWidth;
+        if (containerWidth < 728) {
+          setScale(containerWidth / 728);
+        } else {
+          setScale(1);
+        }
+      }
+    };
+
+    calculateScale();
+    window.addEventListener('resize', calculateScale);
+    return () => window.removeEventListener('resize', calculateScale);
+  }, [type]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !iframeRef.current) return;
@@ -105,15 +129,27 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
 
   if (type === "standard") {
     return (
-      <div className="w-full flex justify-center py-6 animate-in fade-in duration-700 overflow-hidden">
-        <div className="relative">
-          <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-background border border-primary/10 px-2 py-0.5 rounded-full z-10 shadow-sm">
-            <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />
-            <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Sponsored Node</span>
-          </div>
+      <div ref={containerRef} className="w-full flex justify-center py-6 animate-in fade-in duration-700 overflow-hidden relative min-h-[110px]">
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-background border border-primary/10 px-2 py-0.5 rounded-full z-10 shadow-sm">
+          <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />
+          <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Sponsored Node</span>
+        </div>
+        
+        {/* SCALING WRAPPER */}
+        <div 
+          className="flex items-center justify-center transition-transform duration-500 origin-top"
+          style={{ 
+            width: '728px', 
+            height: '90px',
+            transform: `scale(${scale})`,
+            marginTop: '8px'
+          }}
+        >
           <iframe 
             ref={iframeRef}
-            className="w-[728px] h-[90px] border-none bg-transparent overflow-hidden"
+            width="728"
+            height="90"
+            className="border-none bg-transparent overflow-hidden"
             title="ViMore Ad Node"
             scrolling="no"
           />
