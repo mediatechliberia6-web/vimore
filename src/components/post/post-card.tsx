@@ -384,9 +384,29 @@ export function PostCard(props: PostCardProps) {
             {isOwner && (
               <div className="w-full mb-2">
                 {isBoosted ? (
-                  <div className="bg-primary/10 rounded-xl p-3 flex flex-col gap-2 border border-primary/20"><div className="flex items-center justify-between"><span className="text-[9px] font-black text-primary uppercase">{t('boost_active')}</span><span className="text-[9px] font-black text-primary/60">{boostCurrentViews?.toLocaleString() || 0} / {boostTargetViews?.toLocaleString()}</span></div><div className="h-1.5 w-full bg-primary/10 rounded-full overflow-hidden"><div className="h-full bg-primary animate-pulse" style={{ width: `${Math.min(((boostCurrentViews || 0) / (boostTargetViews || 1)) * 100, 100)}%` }} /></div></div>
+                  <div className="bg-primary/10 rounded-xl p-3 flex flex-col gap-2 border border-primary/20">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-3 w-3 text-primary animate-pulse" />
+                        <span className="text-[9px] font-black text-primary uppercase">{t('boost_active')}</span>
+                      </div>
+                      <span className="text-[9px] font-black text-primary/60 tabular-nums">
+                        {boostCurrentViews?.toLocaleString() || 0} / {boostTargetViews?.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-primary/10 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary transition-all duration-1000 ease-out" 
+                        style={{ width: `${Math.min(((boostCurrentViews || 0) / (boostTargetViews || 1)) * 100, 100)}%` }} 
+                      />
+                    </div>
+                  </div>
                 ) : (
-                  <BoostPortal nodeId={id} type={videoUrl ? 'REEL' : 'POST'}><Button variant="outline" className="w-full h-9 rounded-xl border-dashed border-primary/20 text-primary font-black uppercase text-[10px] gap-2"><Rocket className="h-3 w-3" />{t('boost_title')}</Button></BoostPortal>
+                  <BoostPortal nodeId={id} type={videoUrl ? 'REEL' : 'POST'}>
+                    <Button variant="outline" className="w-full h-9 rounded-xl border-dashed border-primary/20 text-primary font-black uppercase text-[10px] gap-2 hover:bg-primary/5 transition-all">
+                      <Rocket className="h-3 w-3" />{t('boost_title')}
+                    </Button>
+                  </BoostPortal>
                 )}
               </div>
             )}

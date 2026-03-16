@@ -63,7 +63,8 @@ interface ReelCardProps {
 export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares, views = 0, music, isActive, isBoosted, boostTargetViews, boostCurrentViews }: ReelCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { triggerHaptic, openCaptureStudio, triggerDownloadWithAd } = useMusic();
-  const { currentUser, openCommentHub, openGiftHub, settings } = usePosts();
+  const { currentUser, openCommentHub, openGiftHub, settings, recordView } = usePosts();
+  const { t } = useTranslation();
   const { toast } = useToast();
   
   const [isMuted, setIsMuted] = useState(false);
@@ -207,7 +208,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
       {isBoosted && (
         <div className="absolute top-20 left-6 z-[60] flex items-center gap-2 bg-gradient-to-r from-primary/80 to-accent/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 shadow-xl animate-in fade-in slide-in-from-left-4">
           <Zap className="h-3.5 w-3.5 text-white animate-pulse" />
-          <span className="text-[10px] font-black text-white uppercase tracking-widest">Sponsored Reach Node</span>
+          <span className="text-[10px] font-black text-white uppercase tracking-widest">{t('boost_active')}</span>
         </div>
       )}
 
@@ -228,13 +229,10 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         "absolute right-3 bottom-20 z-50 flex flex-col items-center gap-4 transition-all duration-700 delay-300",
         isActive ? "translate-x-0 opacity-100" : "translate-x-12 opacity-0"
       )}>
-        {isMe && (
+        {isMe && !isBoosted && (
           <BoostPortal nodeId={id} type="REEL">
-            <button className={cn(
-              "p-2.5 rounded-full backdrop-blur-xl border border-white/10 transition-all active:scale-75 shadow-lg mb-2 group",
-              isBoosted ? "bg-primary text-white border-primary/40" : "bg-black/20 text-white hover:bg-black/40"
-            )}>
-              <Rocket className={cn("h-5 w-5", isBoosted && "animate-bounce")} />
+            <button className="p-2.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white hover:bg-black/40 transition-all active:scale-75 shadow-lg mb-2">
+              <Rocket className="h-5 w-5" />
             </button>
           </BoostPortal>
         )}
@@ -321,6 +319,21 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
           "max-w-[75%] space-y-3 transition-all duration-700",
           isActive ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
         )}>
+          {isMe && isBoosted && (
+            <div className="bg-primary/20 backdrop-blur-md rounded-2xl p-3 border border-primary/20 space-y-2 pointer-events-auto animate-in slide-in-from-bottom-2">
+              <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-widest text-white">
+                <span className="flex items-center gap-1"><Rocket className="h-2 w-2" /> Reach Hub</span>
+                <span>{boostCurrentViews?.toLocaleString() || 0} / {boostTargetViews?.toLocaleString()}</span>
+              </div>
+              <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary transition-all duration-1000 ease-out" 
+                  style={{ width: `${Math.min(((boostCurrentViews || 0) / (boostTargetViews || 1)) * 100, 100)}%` }} 
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5 pointer-events-auto">
             <div className="flex items-center gap-2 relative">
               {isEligibleForGift && !isMe && (

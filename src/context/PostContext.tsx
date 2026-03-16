@@ -80,6 +80,7 @@ export interface Post {
   isBoosted?: boolean;
   boostTargetViews?: number;
   boostCurrentViews?: number;
+  boostExpiry?: number;
   commentNodes?: PostComment[];
 }
 
@@ -272,6 +273,7 @@ interface PostContextType {
   sendChatMessage: (recipientId: string, message: Partial<ChatMessage>) => Promise<void>;
   purgeVibeCache: () => Promise<void>;
   archiveIdentityNode: () => Promise<void>;
+  boostNode: (nodeId: string, promisedViews: number, duration: number, cost: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'REEL' | 'SONIC') => Promise<void>;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -487,6 +489,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
       return next;
     });
+
+    // BOOST LOGIC: Increment reach node counter
+    setPostsState(prev => prev.map(p => {
+      if (p.id === postId && p.isBoosted) {
+        const current = (p.boostCurrentViews || 0) + 1;
+        const target = p.boostTargetViews || 1;
+        const expiry = p.boostExpiry || Infinity;
+        const now = Date.now();
+
+        // Check for deactivation triggers: Reach Met or Temporal Expiry
+        if (current >= target || now >= expiry) {
+          return { ...p, boostCurrentViews: current, isBoosted: false };
+        }
+        return { ...p, boostCurrentViews: current };
+      }
+      return p;
+    }));
   }, []);
 
   const recordStoryView = useCallback(async (storyId: string) => {}, []);
@@ -592,6 +611,33 @@ export function PostProvider({ children }: { children: ReactNode }) {
     toast({ title: "Archival Complete", description: "Identity node exported to hardware." });
   }, [currentUser, settings, followingUsernames, friendUsernames, seenPostIds, triggerHaptic, toast]);
 
+  const boostNode = useCallback(async (nodeId: string, promisedViews: number, duration: number, cost: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'REEL' | 'SONIC') => {
+    triggerHaptic(50);
+    const expiry = Date.now() + (duration * 24 * 60 * 60 * 1000);
+
+    // Update Energy Balance
+    setCurrentUserState(prev => ({
+      ...prev,
+      [currency === 'DIAMOND' ? 'diamondBalance' : 'starBalance']: (prev[currency === 'DIAMOND' ? 'diamondBalance' : 'starBalance'] || 0) - cost
+    }));
+
+    // Update Node Signature in Vault
+    setPostsState(prev => prev.map(p => {
+      if (p.id === nodeId) {
+        return { 
+          ...p, 
+          isBoosted: true, 
+          boostTargetViews: promisedViews, 
+          boostCurrentViews: 0,
+          boostExpiry: expiry 
+        };
+      }
+      return p;
+    }));
+
+    toast({ title: "Boost Materialized", description: `${promisedViews.toLocaleString()} target nodes calibrated.` });
+  }, [triggerHaptic, toast]);
+
   const contextValue = useMemo(() => ({
     currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames, receivedRequestUsernames, acceptedStrangerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, referralLink: "http://vimore.network/join/" + currentUser.username, pendingTransaction, activeSubscriptions, chatMessages,
     login, signup, logout, checkSession, uploadMedia, addPost, deletePost, toggleLikePost, toggleUnlikePost, toggleSavePost: (id: string) => setSavedPostIdsState(prev => { const n = new Set(prev); if(id && prev.has(id)) n.delete(id); else if(id) n.add(id); return n; }), 
@@ -610,10 +656,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
     addComment: async (pid: string, text: string) => { setActiveComments(prev => [{ id: Date.now().toString(), userId: 'me', userName: currentUser.name, userAvatar: currentUser.avatar, text, time: "Just now", timestamp: Date.now() }, ...prev]); },
     addReply: async (pid: string, paid: string, text: string) => { setActiveComments(prev => [{ id: Date.now().toString(), userId: 'me', userName: currentUser.name, userAvatar: currentUser.avatar, text, parentId: paid, time: "Just now", timestamp: Date.now() }, ...prev]); },
     addStory: async (seg: any) => { setStoriesState(prev => [{ id: Date.now().toString(), user: currentUser, segments: [seg], viewCount: 0 }, ...prev]); },
-    boostNode: async () => { toast({ title: "Boost Materialized" }); },
+    boostNode,
     recordView, recordStoryView, createCluster: async (name: string, members: any[]) => { setClustersState(prev => [{ id: Date.now().toString(), name, adminUsername: currentUser.username, members, isGroup: true }, ...prev]); }, 
     addMemberToCluster: async () => {}, leaveCluster: async () => {}, initiateTransaction: (d: any) => setPendingTransactionState(d), cancelTransaction: () => setPendingTransactionState(null), createPaymentRequest: async () => { setPendingTransactionState(null); }, recordWithdrawal: async () => {}, verifyUser: async () => { setCurrentUserState(prev => ({...prev, isVerified: true})); }, processGiftTransaction: async (cost: number) => { setCurrentUserState(prev => ({...prev, goldBalance: (prev.goldBalance || 0) - cost})); }, unlockPost: async (id: string) => { setUnlockedPostIdsState(prev => new Set(prev).add(id)); }, subscribeToCreator: async (u: string) => { setActiveSubscriptionsState(prev => new Set(prev).add(u)); }, fetchComments: async () => {}, refreshFeed, refreshStories, refreshProfiles: async () => [], refreshClusters: async () => {}, fetchProfileByUsername: async (u: string) => MOCK_USERS.find(user => user.username === u) || null, promoteUser: async () => {}, demoteUser: async () => {}, voteOnPostPoll: async () => {}, cancelSubscription: async (u: string) => { setActiveSubscriptionsState(prev => { const n = new Set(prev); n.delete(u); return n; }); }, incrementShareCount: async () => {}, toggleMuteUser: (u: string) => setMutedUserNamesState(prev => prev.includes(u) ? prev.filter(n => n !== u) : [...prev, u]), togglePinPost: async () => {}, archivePost: async () => {}, addAuditLog: async () => {}, approvePaymentRequest: async () => {}, rejectPaymentRequest: async () => {}, processWithdrawal: async () => {}, addCampaign: async () => {}, deleteCampaign: async () => {}, toggleCampaignStatus: async () => {}, recordCampaignClick: async () => {}, initiateCall, acceptCall, endCall, refreshAdminData: async () => {}, updateUserIdentity: async () => {}, handleReportAction: async () => {}, handleTicketAction: async () => {}, voteOnStoryPoll: async () => {}, updateGatewaySettings: async () => {}, sendChatMessage, purgeVibeCache, archiveIdentityNode
-  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames, receivedRequestUsernames, acceptedStrangerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, pendingTransaction, chatMessages, activeSubscriptions, triggerHaptic, refreshFeed, refreshStories, initiateCall, acceptCall, endCall, toast, sendChatMessage, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, recordView, acceptMessageRequest, declineMessageRequest, updateSettings, purgeVibeCache, archiveIdentityNode]);
+  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames, receivedRequestUsernames, acceptedStrangerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, pendingTransaction, chatMessages, activeSubscriptions, triggerHaptic, refreshFeed, refreshStories, initiateCall, acceptCall, endCall, toast, sendChatMessage, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, recordView, acceptMessageRequest, declineMessageRequest, updateSettings, purgeVibeCache, archiveIdentityNode, boostNode]);
 
   return <PostContext.Provider value={contextValue}>{children}</PostContext.Provider>;
 }
