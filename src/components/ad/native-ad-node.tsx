@@ -74,8 +74,8 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
       doc.write(`
         <html>
           <body style="margin: 0; padding: 0; background: transparent; overflow: hidden; display: flex; justify-content: center;">
-            <div id="container-da434b4b9d70fa28431080d1f00b7b40"></div>
-            <script async="async" data-cfasync="false" src="https://pl28803356.effectivegatecpm.com/da434b4b9d70fa28431080d1f00b7b40/invoke.js"></script>
+            <div id="container-d13d860ccc8aa5337c2883a5d6f33e5f"></div>
+            <script async="async" data-cfasync="false" src="https://pl28925245.effectivegatecpm.com/d13d860ccc8aa5337c2883a5d6f33e5f/invoke.js"></script>
           </body>
         </html>
       `);
@@ -116,7 +116,7 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
         <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-black flex items-center justify-center">
           <div className="absolute inset-0 opacity-20 pointer-events-none">
             <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
-            <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[150px] rounded-full animate-pulse delay-700" />
+            <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[120px] rounded-full animate-pulse delay-700" />
           </div>
           
           <div className="relative z-10 w-full px-8 flex flex-col items-center gap-8">
