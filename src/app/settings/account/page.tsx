@@ -101,6 +101,7 @@ export default function AccountCenter() {
     setIsSyncingPassword(true);
     triggerHaptic(30);
 
+    // Simulated Vault Pulse
     setTimeout(() => {
       setIsSyncingPassword(false);
       setIsPasswordDialogOpen(false);
@@ -111,7 +112,7 @@ export default function AccountCenter() {
   };
 
   const handleToggle2FA = () => {
-    const nextState = !settings.isBiometricActive; // Using biometric as 2FA proxy for simulation
+    const nextState = !settings.isBiometricActive;
     triggerHaptic(nextState ? 25 : 10);
     updateSettings({ isBiometricActive: nextState });
     toast({ 
@@ -134,7 +135,7 @@ export default function AccountCenter() {
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300">
       <header className="sticky top-0 z-50 bg-white/80 dark:bg-card/80 backdrop-blur-md border-b border-border h-16 px-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/menu">
+          <Link href="/settings">
             <Button variant="ghost" size="icon" className="rounded-full hover:bg-secondary/80 active:scale-90 transition-all">
               <ArrowLeft className="h-6 w-6" />
             </Button>
@@ -288,21 +289,11 @@ export default function AccountCenter() {
               </div>
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">New Signature (Password)</Label>
-                <Input 
-                  type="password"
-                  value={passwords.new}
-                  onChange={(e) => setPasswords({...passwords, new: e.target.value})}
-                  className="h-12 bg-secondary/30 border-none rounded-xl"
-                />
+                <Input type="password" value={passwords.new} onChange={(e) => setPasswords({...passwords, new: e.target.value})} className="h-12 bg-secondary/30 border-none rounded-xl" />
               </div>
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Confirm Signature</Label>
-                <Input 
-                  type="password"
-                  value={passwords.confirm}
-                  onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
-                  className="h-12 bg-secondary/30 border-none rounded-xl"
-                />
+                <Input type="password" value={passwords.confirm} onChange={(e) => setPasswords({...passwords, confirm: e.target.value})} className="h-12 bg-secondary/30 border-none rounded-xl" />
               </div>
             </div>
 
@@ -314,11 +305,7 @@ export default function AccountCenter() {
             </div>
           </div>
           <DialogFooter className="p-6 pt-0">
-            <Button 
-              className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-widest gap-2 shadow-xl shadow-primary/20"
-              onClick={handleRotatePassword}
-              disabled={isSyncingPassword}
-            >
+            <Button className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-widest gap-2 shadow-xl shadow-primary/20" onClick={handleRotatePassword} disabled={isSyncingPassword}>
               {isSyncingPassword ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5 fill-current" />}
               Sync New Signature
             </Button>
@@ -340,10 +327,7 @@ export default function AccountCenter() {
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6 px-4 pb-2">
             <AlertDialogCancel className="rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] bg-secondary/50 border-none hover:bg-secondary transition-all">Abort</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleFinalPurge}
-              className="rounded-2xl h-14 font-black italic uppercase tracking-widest text-[10px] bg-destructive hover:bg-destructive/90 text-white shadow-xl shadow-destructive/20 transition-all active:scale-95"
-            >
+            <AlertDialogAction onClick={handleFinalPurge} className="rounded-2xl h-14 font-black italic uppercase tracking-widest text-[10px] bg-destructive hover:bg-destructive/90 text-white shadow-xl shadow-destructive/20 transition-all active:scale-95">
               Confirm Purge
             </AlertDialogAction>
           </AlertDialogFooter>
