@@ -46,7 +46,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useTranslation } from "@/context/LanguageContext";
-import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 type HubTab = "add" | "confirm" | "friends";
 
@@ -239,8 +238,6 @@ function FriendsPageContent() {
               })}
             </div>
           </div>
-
-          <NativeAdNode type="standard" />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredUsers.length > 0 ? filteredUsers.map((user, i) => {

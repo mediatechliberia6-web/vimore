@@ -87,8 +87,6 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { BannerAdNode } from "@/components/ad/banner-ad-node";
-import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 const CATEGORIES = [
   { id: "analytics", label: "Analytics" },
@@ -349,8 +347,6 @@ export default function ProfessionalDashboard() {
             </div>
           </section>
         )}
-
-        <NativeAdNode type="standard" />
 
         {activeCategory === 'monetization' && (
           <section className="space-y-8 animate-in fade-in duration-500">

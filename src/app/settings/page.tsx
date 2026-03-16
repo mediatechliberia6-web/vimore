@@ -84,8 +84,6 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { BannerAdNode } from "@/components/ad/banner-ad-node";
-import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 export default function SettingsPage() {
   const { settings, updateSettings, triggerHaptic, currentUser, connections, posts, savedPostIds, activeSubscriptions, cancelSubscription, seenPostIds, archiveIdentityNode, purgeVibeCache } = usePosts();
@@ -223,7 +221,7 @@ export default function SettingsPage() {
                     settings.theme === 'light' ? "bg-white dark:bg-zinc-800 text-primary shadow-md" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Sun className="h-3.5 w-3.5" /> {t('settings_theme_ivory')}
+                  <span className="h-3.5 w-3.5">☀</span> {t('settings_theme_ivory')}
                 </button>
                 <button
                   onClick={() => handleUpdate({ theme: 'dark' })}
@@ -232,7 +230,7 @@ export default function SettingsPage() {
                     settings.theme === 'dark' ? "bg-white dark:bg-zinc-800 text-primary shadow-md" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Moon className="h-3.5 w-3.5" /> {t('settings_theme_space')}
+                  <span className="h-3.5 w-3.5">🌙</span> {t('settings_theme_space')}
                 </button>
                 <button
                   onClick={() => handleUpdate({ theme: 'system' })}
@@ -241,7 +239,7 @@ export default function SettingsPage() {
                     settings.theme === 'system' ? "bg-white dark:bg-zinc-800 text-primary shadow-md" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Monitor className="h-3.5 w-3.5" /> {t('settings_theme_sync')}
+                  <span className="h-3.5 w-3.5">🖥</span> {t('settings_theme_sync')}
                 </button>
               </div>
             </div>
@@ -263,8 +261,6 @@ export default function SettingsPage() {
             </div>
           </div>
         </section>
-
-        <NativeAdNode type="standard" />
 
         {/* PHASE 5: EXPERIENCE HUB */}
         <section className="space-y-4">

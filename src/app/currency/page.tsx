@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -36,7 +37,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
 import { aiGenerateVerificationCodeAction } from "@/app/actions/ai";
 import { BiometricGate } from "@/components/layout/biometric-gate";
-import { BannerAdNode } from "@/components/ad/banner-ad-node";
 
 const GOLD_PACKAGES = [
   { id: "g1", gd: 200, priceLD: 500, priceUSD: 2.50, label: "Starter Pulse" },
@@ -377,8 +377,6 @@ export default function CurrencyHub() {
             </TabsContent>
           </Tabs>
 
-          <BannerAdNode />
-
           <footer className="pt-12 pb-20 flex flex-col items-center gap-4 opacity-30">
             <div className="flex items-center gap-2">
               <Zap className="h-3 w-3 text-primary" />
@@ -386,8 +384,6 @@ export default function CurrencyHub() {
             </div>
             <p className="text-[8px] font-bold uppercase tracking-widest italic text-muted-foreground">{t('branding_mtl')}</p>
           </footer>
-
-          <BannerAdNode />
 
           {selectedPackage && (
             <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-500 overflow-hidden">

@@ -33,8 +33,6 @@ import { useTranslation } from "@/context/LanguageContext";
 import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { BannerAdNode } from "@/components/ad/banner-ad-node";
-import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 interface ProtocolCardProps {
   id: string;
@@ -226,12 +224,6 @@ export default function HowItWorks() {
             </p>
           </div>
         </section>
-
-        {/* Standard Global Ad Pulse */}
-        <NativeAdNode type="standard" />
-
-        {/* Banner Ad Integration */}
-        <BannerAdNode />
 
         <section className="space-y-6">
           {protocols.map((p) => (

@@ -29,8 +29,6 @@ import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { BannerAdNode } from "@/components/ad/banner-ad-node";
-import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 type SearchTab = "all" | "people" | "audio" | "nodes";
 
@@ -339,12 +337,6 @@ export function SearchPortal() {
               )}
             </div>
           )}
-
-          {/* Global Standard Ad Pulse */}
-          <NativeAdNode type="standard" />
-
-          {/* Banner Ad Node Integration */}
-          <BannerAdNode />
         </div>
       </main>
 

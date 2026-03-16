@@ -44,8 +44,6 @@ import {
 } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { BiometricGate } from "@/components/layout/biometric-gate";
-import { BannerAdNode } from "@/components/ad/banner-ad-node";
-import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 const REVENUE_DATA = [
   { name: "Locked Posts", value: 65, color: "hsl(var(--primary))" },
@@ -253,8 +251,6 @@ export default function EarningsPage() {
             </Card>
           </section>
 
-          <BannerAdNode />
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="bg-white dark:bg-card border-border shadow-xl rounded-[2rem]">
               <CardHeader className="pb-0">
@@ -322,8 +318,6 @@ export default function EarningsPage() {
               </CardContent>
             </Card>
           </div>
-
-          <NativeAdNode type="standard" />
 
           <section className="space-y-4">
             <div className="flex items-center justify-between px-2">
@@ -427,7 +421,7 @@ export default function EarningsPage() {
                         <Input 
                           placeholder="+231 77/88..." 
                           className="h-14 bg-white/5 border-none rounded-2xl text-white font-bold"
-                          value={accountNumber}
+                          value={accountName}
                           onChange={(e) => setAccountNumber(e.target.value)}
                         />
                       </div>

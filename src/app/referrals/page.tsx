@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -35,7 +36,6 @@ import { useTranslation } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { BannerAdNode } from "@/components/ad/banner-ad-node";
 
 interface StarParticle {
   id: number;

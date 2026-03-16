@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { MainNav } from "@/components/layout/main-nav";
 import { Header } from "@/components/layout/header";
 import { MusicGrid } from "@/components/music/music-grid";
@@ -9,7 +9,6 @@ import { MusicNav } from "@/components/music/music-nav";
 import { MusicCharts } from "@/components/music/music-charts";
 import { MusicUpload } from "@/components/music/music-upload";
 import { CreatePlaylistModal } from "@/components/music/create-playlist-modal";
-import { NativeAdNode } from "@/components/ad/native-ad-node";
 import { useMusic, Album, Track, Playlist } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
 import { useTranslation } from "@/context/LanguageContext";
@@ -48,35 +47,7 @@ function MusicPageContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteItem, setDeleteItem] = useState<{ id: string | number, type: 'track' | 'album' } | null>(null);
   
-  const [timeSpent, setTimeSpent] = useState(0);
-  const [hasHadFirstAd, setHasHadFirstAd] = useState(false);
-  
   const isPlayerActive = currentTrack && !isExpanded;
-
-  const materializePopunder = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    triggerHaptic(20);
-    const script = document.createElement('script');
-    script.src = "https://pl28803340.effectivegatecpm.com/ea/33/17/ea33174cb87fd4e73ca39402fe522836.js";
-    script.async = true;
-    document.body.appendChild(script);
-    toast({ title: "Network Pulse Active", description: "Community vibes are synchronizing in the background." });
-    setHasHadFirstAd(true);
-    setTimeout(() => { if (document.body.contains(script)) document.body.removeChild(script); }, 30000);
-  }, [triggerHaptic, toast]);
-
-  useEffect(() => {
-    const pulseTimer = setInterval(() => setTimeSpent(prev => prev + 1), 1000);
-    return () => clearInterval(pulseTimer);
-  }, []);
-
-  useEffect(() => {
-    const currentThreshold = hasHadFirstAd ? 300 : 60; 
-    if (timeSpent >= currentThreshold) {
-      materializePopunder();
-      setTimeSpent(0);
-    }
-  }, [timeSpent, hasHadFirstAd, materializePopunder]);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -185,24 +156,11 @@ function MusicPageContent() {
                 ) : (
                   <>
                     {!searchQuery && filteredSongs.length > 0 && <MusicGrid type="hero" items={[filteredSongs[0]]} />}
-                    {!searchQuery && <NativeAdNode type="standard" /> }
-                    
                     {forYouSongs.length > 0 && <MusicGrid type="song" title="For You" items={forYouSongs.slice(0, 10)} />}
-                    {!searchQuery && <NativeAdNode type="standard" /> }
-                    
                     {filteredSongs.length > 0 && <MusicGrid type="song" title={searchQuery ? t('ui_all') : t('music_trending_songs')} items={filteredSongs} />}
-                    {!searchQuery && <NativeAdNode type="standard" /> }
-
-                    {/* New Releases Section */}
                     {globalSongs.length > 0 && <MusicGrid type="song" title={t('music_new_releases')} items={[...globalSongs].reverse()} />}
-                    {!searchQuery && <NativeAdNode type="standard" /> }
-                    
                     {filteredAlbums.length > 0 && <MusicGrid type="album" title={searchQuery ? t('music_my_albums') : t('music_trending_albums')} items={filteredAlbums} />}
-                    {!searchQuery && <NativeAdNode type="standard" /> }
-                    
                     {filteredPlaylists.length > 0 && <MusicGrid type="playlist" title={searchQuery ? t('music_playlists') : t('music_top_playlists')} items={filteredPlaylists} />}
-                    {!searchQuery && <NativeAdNode type="standard" /> }
-                    
                     {filteredArtists.length > 0 && <MusicGrid type="artist" title={searchQuery ? t('ui_all') : t('music_trending_artists')} items={filteredArtists} />}
                   </>
                 )}
@@ -228,7 +186,6 @@ function MusicPageContent() {
                       ))}
                     </div>
                   </div>
-                  <NativeAdNode type="standard" />
                 </div>
                 <div className="pt-4">
                   {libraryTab === "playlists" && (
