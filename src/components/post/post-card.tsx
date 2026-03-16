@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -39,7 +40,8 @@ import {
   UserRoundCheck,
   UserPlus,
   Check,
-  UserRoundX
+  UserRoundX,
+  Gauge
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -327,6 +329,11 @@ export function PostCard(props: PostCardProps) {
           
           {!isShared && !isCampaign && (
             <div className="flex items-center gap-0.5">
+              {settings.playbackQuality === 'pro-hd' && videoUrl && (
+                <Badge variant="outline" className="h-5 border-primary/20 bg-primary/5 text-primary text-[7px] font-black uppercase px-1.5 gap-1 mr-1">
+                  <Gauge className="h-2 w-2" /> HD
+                </Badge>
+              )}
               <Button variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isBookmarked && "text-primary")} onClick={handleSave}><Bookmark className={cn("h-4 w-4", isBookmarked && "fill-current")} /></Button>
               <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full"><MoreHorizontal className="h-5 w-5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5"><DropdownMenuItem className="gap-2" onClick={() => setIsHidden(true)}><EyeOff className="h-4 w-4" />{t('post_hide')}</DropdownMenuItem>{isOwner && <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); togglePinPost(id); }}><Pin className="h-4 w-4" />{isPinned ? t('post_unpin') : t('post_pin')}</DropdownMenuItem>}{!isOwner && <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => toast({ title: "Report Sent" })}><Flag className="h-4 w-4" />{t('post_report')}</DropdownMenuItem>}{isOwner && <><DropdownMenuSeparator /><DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" />{t('post_purge')}</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>
             </div>

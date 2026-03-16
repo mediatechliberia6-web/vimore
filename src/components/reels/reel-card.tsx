@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef, useState, useEffect } from "react";
@@ -18,7 +19,8 @@ import {
   Rocket,
   Zap,
   EyeOff,
-  Eye
+  Eye,
+  Gauge
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn, parseFollowerCount, saveFileToDevice } from "@/lib/utils";
@@ -192,6 +194,14 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
           onClick={toggleMute}
           onDoubleClick={handleDoubleClick}
         />
+      )}
+
+      {/* Playback Quality Signature */}
+      {settings.playbackQuality === 'pro-hd' && !settings.isFreeMode && (
+        <div className="absolute top-20 right-6 z-[60] flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 shadow-lg animate-in fade-in zoom-in duration-500">
+          <Gauge className="h-3 w-3 text-primary animate-pulse" />
+          <span className="text-[8px] font-black text-white uppercase tracking-widest">Pro-HD Active</span>
+        </div>
       )}
 
       {isBoosted && (

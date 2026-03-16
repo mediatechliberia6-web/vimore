@@ -1,18 +1,27 @@
+
 "use client";
 
 import { VibeStream } from "@/components/reels/vibe-stream";
 import { ArrowLeft, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/context/LanguageContext";
+import { usePosts } from "@/context/PostContext";
 
 export type ReelTab = "following" | "foryou";
 
 export default function ReelsPage() {
+  const { settings } = usePosts();
   const [activeTab, setActiveTab] = useState<ReelTab>("foryou");
   const { t } = useTranslation();
+
+  useEffect(() => {
+    if (settings.defaultStream) {
+      setActiveTab(settings.defaultStream as ReelTab);
+    }
+  }, [settings.defaultStream]);
 
   return (
     <div className="h-[100dvh] w-full bg-black overflow-hidden relative flex flex-col">

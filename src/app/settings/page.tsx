@@ -51,7 +51,9 @@ import {
   Timer,
   Eye,
   FileText,
-  ZapOff
+  ZapOff,
+  LayoutDashboard,
+  Gauge
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -91,8 +93,6 @@ export default function SettingsPage() {
   const { toast } = useToast();
   
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isArchiving, setIsArchiving] = useState(false);
-  const [isPurgingCache, setIsPurgingCache] = useState(false);
   const [isLegacySelectorOpen, setIsLegacySelectorOpen] = useState(false);
   const [legacySearch, setLegacySearch] = useState("");
 
@@ -222,6 +222,93 @@ export default function SettingsPage() {
                 <Badge className="bg-primary/5 text-primary border-primary/10 text-[10px] font-black">{Math.round(settings.fontScale * 100)}%</Badge>
               </div>
               <Slider value={[settings.fontScale]} min={0.8} max={1.4} step={0.05} onValueChange={(val) => handleUpdate({ fontScale: val[0] })} />
+            </div>
+          </div>
+        </section>
+
+        {/* PHASE 5: EXPERIENCE HUB (New Calibration) */}
+        <section className="space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Experience Hub</h3>
+          <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
+            
+            <div className="flex flex-col gap-4">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <LayoutDashboard className="h-4 w-4 text-primary" />
+                  <p className="font-bold text-sm">{t('settings_stream')}</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Initial landing node for feeds</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 bg-secondary/40 p-1.5 rounded-2xl">
+                <button
+                  onClick={() => handleUpdate({ defaultStream: 'following' })}
+                  className={cn(
+                    "flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    settings.defaultStream === 'following' ? "bg-white dark:bg-zinc-800 text-primary shadow-md" : "text-muted-foreground"
+                  )}
+                >
+                  Following
+                </button>
+                <button
+                  onClick={() => handleUpdate({ defaultStream: 'foryou' })}
+                  className={cn(
+                    "flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    settings.defaultStream === 'foryou' ? "bg-white dark:bg-zinc-800 text-primary shadow-md" : "text-muted-foreground"
+                  )}
+                >
+                  For You
+                </button>
+              </div>
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="flex flex-col gap-4">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <Gauge className="h-4 w-4 text-primary" />
+                  <p className="font-bold text-sm">{t('settings_playback')}</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-black">Tune spatial video resolution</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 bg-secondary/40 p-1.5 rounded-2xl">
+                <button
+                  onClick={() => handleUpdate({ playbackQuality: 'standard' })}
+                  className={cn(
+                    "flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    settings.playbackQuality === 'standard' ? "bg-white dark:bg-zinc-800 text-primary shadow-md" : "text-muted-foreground"
+                  )}
+                >
+                  Standard
+                </button>
+                <button
+                  onClick={() => handleUpdate({ playbackQuality: 'pro-hd' })}
+                  className={cn(
+                    "flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                    settings.playbackQuality === 'pro-hd' ? "bg-white dark:bg-zinc-800 text-primary shadow-md" : "text-muted-foreground"
+                  )}
+                >
+                  Pro-HD
+                </button>
+              </div>
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="flex items-center justify-between p-2">
+              <div className="flex items-center gap-4">
+                <div className={cn(
+                  "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
+                  settings.isFreeMode ? "bg-primary text-white" : "bg-primary/10 text-primary"
+                )}>
+                  <Zap className="h-5 w-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="font-bold text-sm">{t('settings_free_mode')}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-black">Conserve spatial energy (Data)</p>
+                </div>
+              </div>
+              <Switch checked={settings.isFreeMode} onCheckedChange={(val) => handleUpdate({ isFreeMode: val })} />
             </div>
           </div>
         </section>
