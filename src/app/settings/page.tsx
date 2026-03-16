@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -184,6 +183,25 @@ export default function SettingsPage() {
               </div>
             </div>
           </Link>
+        </section>
+
+        {/* PHASE 7: ACCOUNT LIFECYCLE & REVENUE VAULT */}
+        <section className="space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_subs')}</h3>
+          <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-2 space-y-1">
+            <Link href="/settings/subscriptions" className="flex items-center justify-between p-4 rounded-2xl hover:bg-secondary/40 transition-all group">
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-500 group-hover:scale-110 transition-transform">
+                  <Gem className="h-5 w-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="font-bold text-sm">Subscription Vault</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-black">{activeSubscriptions.size} Active Creator Loops</p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground/40" />
+            </Link>
+          </div>
         </section>
 
         {/* PHASE 1: APPEARANCE */}
