@@ -87,7 +87,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BannerAdNode } from "@/components/ad/banner-ad-node";
 
 export default function SettingsPage() {
-  const { settings, updateSettings, triggerHaptic, currentUser, connections, posts, savedPostIds, activeSubscriptions, cancelSubscription } = usePosts();
+  const { settings, updateSettings, triggerHaptic, currentUser, connections, posts, savedPostIds, activeSubscriptions, cancelSubscription, seenPostIds, archiveIdentityNode, purgeVibeCache } = usePosts();
   const { currentTrack, isExpanded, downloadedSongIds, userSongs } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -119,6 +119,24 @@ export default function SettingsPage() {
   const selectedLegacyNode = useMemo(() => {
     return connections.find(c => c.username === settings.legacyContact);
   }, [connections, settings.legacyContact]);
+
+  // Simulated Storage Pulse Calculation
+  const storageMetrics = useMemo(() => {
+    const mediaBase = (downloadedSongIds.size * 12.5) + (userSongs.length * 15); // MB
+    const cacheBase = (seenPostIds.size * 0.4); // MB
+    const notesBase = (savedPostIds.size * 0.1); // MB
+    
+    const total = mediaBase + cacheBase + notesBase;
+    const percent = (total / 2048) * 100; // Assuming 2GB vault limit
+
+    return {
+      total: total > 1024 ? `${(total/1024).toFixed(1)} GB` : `${total.toFixed(0)} MB`,
+      media: `${mediaBase.toFixed(0)} MB`,
+      cache: `${cacheBase.toFixed(0)} MB`,
+      notes: `${notesBase.toFixed(0)} MB`,
+      percent: Math.min(percent, 100)
+    };
+  }, [downloadedSongIds.size, userSongs.length, seenPostIds.size, savedPostIds.size]);
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300">
@@ -226,7 +244,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* PHASE 5: EXPERIENCE HUB (New Calibration) */}
+        {/* PHASE 5: EXPERIENCE HUB */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Experience Hub</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
@@ -309,6 +327,81 @@ export default function SettingsPage() {
                 </div>
               </div>
               <Switch checked={settings.isFreeMode} onCheckedChange={(val) => handleUpdate({ isFreeMode: val })} />
+            </div>
+          </div>
+        </section>
+
+        {/* PHASE 6: DATA & PHYSICAL ARCHIVAL */}
+        <section className="space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_data')}</h3>
+          <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
+            
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Database className="h-4 w-4 text-primary" />
+                    <p className="font-bold text-sm">Storage Pulse</p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-black">Hardware space synchronization</p>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-sm font-black italic text-primary">{storageMetrics.total} / 2 GB</span>
+                  <span className="text-[8px] font-bold text-muted-foreground uppercase">Vault Limit</span>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <Progress value={storageMetrics.percent} className="h-1.5" />
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <div className="h-1 bg-primary rounded-full" />
+                    <span className="text-[8px] font-black uppercase text-muted-foreground">Media ({storageMetrics.media})</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <div className="h-1 bg-accent rounded-full" />
+                    <span className="text-[8px] font-black uppercase text-muted-foreground">Cache ({storageMetrics.cache})</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <div className="h-1 bg-muted rounded-full" />
+                    <span className="text-[8px] font-black uppercase text-muted-foreground">Notes ({storageMetrics.notes})</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <div className="grid grid-cols-1 gap-3">
+              <Button 
+                variant="outline" 
+                className="h-16 rounded-2xl border-primary/10 bg-white dark:bg-card justify-start gap-4 px-6 group hover:bg-primary/5 transition-all"
+                onClick={() => archiveIdentityNode()}
+              >
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                  <Archive className="h-5 w-5" />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="font-bold text-sm">{t('settings_archive')}</span>
+                  <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Download full data pulse</span>
+                </div>
+                <ArrowDownToLine className="ml-auto h-4 w-4 text-muted-foreground/40" />
+              </Button>
+
+              <Button 
+                variant="outline" 
+                className="h-16 rounded-2xl border-destructive/10 bg-white dark:bg-card justify-start gap-4 px-6 group hover:bg-destructive/5 transition-all"
+                onClick={() => purgeVibeCache()}
+              >
+                <div className="h-10 w-10 rounded-xl bg-destructive/10 flex items-center justify-center text-destructive group-hover:scale-110 transition-transform">
+                  <Trash2 className="h-5 w-5" />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="font-bold text-sm text-destructive">{t('settings_purge')}</span>
+                  <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Clear discovery history</span>
+                </div>
+                <RefreshCcw className="ml-auto h-4 w-4 text-muted-foreground/40" />
+              </Button>
             </div>
           </div>
         </section>
