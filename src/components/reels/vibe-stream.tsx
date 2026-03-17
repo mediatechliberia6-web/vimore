@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRef, useState, useEffect, useMemo } from "react";
@@ -12,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 
 export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
-  const { posts, followingUsernames, triggerHaptic, recordView, seenPostIds, isLoading } = usePosts();
+  const { posts, campaigns, followingUsernames, triggerHaptic, recordView, seenPostIds, isLoading } = usePosts();
   const searchParams = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
   const observerTarget = useRef<HTMLDivElement>(null);
@@ -68,6 +67,34 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
         }
       }));
 
+    // Identify active video campaigns
+    const videoCampaigns = campaigns
+      .filter(c => c.isActive && c.type === 'video')
+      .map(c => ({
+        id: c.id,
+        videoUrl: c.mediaUrl,
+        user: {
+          name: "ViMore Official",
+          username: "vimore",
+          avatar: "/icon.svg",
+          role: "Global Node",
+          isVerified: true,
+          followers: "1.2M"
+        },
+        caption: c.content,
+        likes: 1420,
+        comments: 0,
+        shares: 0,
+        views: c.impressions || 0,
+        isBoosted: true,
+        music: {
+          id: 'camp',
+          title: c.title,
+          artist: "ViMore",
+          cover: "/icon.svg"
+        }
+      }));
+
     // Assign stable random weights
     allReels.forEach(r => {
       if (!(r.id in weights.current)) {
@@ -92,11 +119,18 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
     const result: (any)[] = [];
     let organicIdx = 0;
     let boostedIdx = 0;
+    let campaignIdx = 0;
 
     while (organicIdx < organicSorted.length) {
       for (let i = 0; i < 2 && organicIdx < organicSorted.length; i++) {
         result.push({ type: 'reel', data: organicSorted[organicIdx] });
         organicIdx++;
+
+        // Inject video campaigns at specific slots
+        if (videoCampaigns.length > 0 && (organicIdx === 1 || organicIdx % 8 === 0)) {
+          result.push({ type: 'reel', data: videoCampaigns[campaignIdx % videoCampaigns.length] });
+          campaignIdx++;
+        }
 
         if (organicIdx === 1 || (organicIdx > 1 && organicIdx % 6 === 0)) {
           result.push({ type: 'ad', id: `ad-reel-${organicIdx}` });
@@ -110,7 +144,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
     }
 
     return result.slice(0, displayLimit);
-  }, [activeTab, followingUsernames, posts, displayLimit]);
+  }, [activeTab, followingUsernames, posts, campaigns, displayLimit]);
 
   // Infinite Scroll Observer for Vibe Stream
   useEffect(() => {

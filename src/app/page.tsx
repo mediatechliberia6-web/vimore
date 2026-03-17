@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useState, useEffect, useRef } from "react";
@@ -81,6 +80,7 @@ export default function Home() {
     const result: (any)[] = [];
     let organicIdx = 0;
     let boostedIdx = 0;
+    let campaignIdx = 0;
 
     // Weave the discovery stream
     while (organicIdx < organicSorted.length) {
@@ -89,9 +89,13 @@ export default function Home() {
         result.push({ type: 'post', data: post });
         organicIdx++;
 
-        if (organicIdx === 1 && activeCampaigns.length > 0) {
-          result.push({ type: 'campaign', data: activeCampaigns[0] });
+        // Materialize Campaign Nodes at specific intervals
+        if (activeCampaigns.length > 0 && (organicIdx === 1 || organicIdx % 10 === 0)) {
+          const camp = activeCampaigns[campaignIdx % activeCampaigns.length];
+          result.push({ type: 'campaign', data: camp });
+          campaignIdx++;
         }
+
         if (organicIdx === 3) {
           result.push({ type: 'ad', id: `ad-init-${organicIdx}` });
         }
