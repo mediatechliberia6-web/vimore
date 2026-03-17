@@ -41,7 +41,6 @@ export function StoryViewer() {
   
   const requestRef = useRef<number | null>(null);
   const adRequestRef = useRef<number | null>(null);
-  const adIframeRef = useRef<HTMLIFrameElement>(null);
   const hasRecordedCurrentSegment = useRef<string | null>(null);
 
   const activeStory = activeStoryIndex !== null ? stories[activeStoryIndex] : null;
@@ -140,29 +139,6 @@ export function StoryViewer() {
       if (adRequestRef.current) cancelAnimationFrame(adRequestRef.current);
     };
   }, [isAdActive, closeAd]);
-
-  // AD INJECTION HANDSHAKE
-  useEffect(() => {
-    if (isAdActive && adIframeRef.current) {
-      const iframe = adIframeRef.current;
-      const doc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (doc) {
-        doc.open();
-        doc.write(`
-          <body style="margin: 0; padding: 0; background: #000; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-            <div id="exo-ad-container" style="width: 100%; height: 100%;"></div>
-            <script type="text/javascript">
-              // ViMore VAST Script Handshake - Materializing Visual Node
-              var exo_idzone = 5874020;
-              var exo_target = '_blank';
-            </script>
-            <script type="text/javascript" src="https://s.magsrv.com/v1/vast.php?idzone=5874020&format=script&container=exo-ad-container"></script>
-          </body>
-        `);
-        doc.close();
-      }
-    }
-  }, [isAdActive]);
 
   useEffect(() => {
     if (activeStory && !isOwner && hasRecordedCurrentSegment.current !== activeStory.id) {
@@ -289,15 +265,38 @@ export function StoryViewer() {
                 <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-accent/30 blur-[120px] rounded-full animate-pulse delay-700" />
               </div>
               
-              <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-8 space-y-8">
+              <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-0 space-y-0">
                 <iframe 
-                  ref={adIframeRef}
-                  className="w-full aspect-[9/16] border-none shadow-2xl rounded-2xl bg-zinc-900"
+                  className="w-full h-full border-none shadow-2xl bg-black"
                   title="Exoclick Vibe"
+                  allow="autoplay; fullscreen; encrypted-media; camera; microphone; focus-without-user-activation"
+                  srcDoc={`
+                    <!DOCTYPE html>
+                    <html>
+                      <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <style>
+                          body, html { margin: 0; padding: 0; background: #000; height: 100%; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+                          #container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+                        </style>
+                      </head>
+                      <body>
+                        <div id="container">
+                          <div id="exo-ad-pulse"></div>
+                          <script type="text/javascript">
+                            var exo_idzone = 5874020;
+                            var exo_target = '_blank';
+                          </script>
+                          <script type="text/javascript" src="https://s.magsrv.com/v1/vast.php?idzone=5874020&format=script&container=exo-ad-pulse"></script>
+                        </div>
+                      </body>
+                    </html>
+                  `}
                 />
                 
-                <div className="text-center space-y-2 opacity-40 animate-pulse">
-                  <Loader2 className="h-6 w-6 text-primary mx-auto animate-spin" />
+                <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center gap-4 opacity-20 transition-opacity duration-1000">
+                  <Loader2 className="h-8 w-8 text-primary animate-spin" />
                   <p className="text-[9px] font-black uppercase text-white tracking-[0.3em]">Synchronizing High-Velocity Creative</p>
                 </div>
               </div>
