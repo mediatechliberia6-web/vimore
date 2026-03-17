@@ -245,7 +245,7 @@ export function StoryViewer() {
                   <span className="text-sm font-black italic uppercase text-white tracking-widest">Sponsored Pulse</span>
                   <div className="flex items-center gap-1.5">
                     <ShieldCheck className="h-3 w-3 text-green-400" />
-                    <span className="text-[9px] font-bold text-white/40 uppercase">Exoclick Verified Node</span>
+                    <span className="text-[9px] font-bold text-white/40 uppercase">VAST Verified Node</span>
                   </div>
                 </div>
               </div>
@@ -259,17 +259,17 @@ export function StoryViewer() {
               </Button>
             </div>
 
-            <div className="flex-1 flex items-center justify-center relative overflow-hidden">
+            <div className="flex-1 flex items-center justify-center relative overflow-hidden bg-black">
               <div className="absolute inset-0 opacity-20 pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-primary/30 blur-[150px] rounded-full animate-pulse" />
                 <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-accent/30 blur-[120px] rounded-full animate-pulse delay-700" />
               </div>
               
-              <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-0 space-y-0">
+              <div className="relative z-10 w-full h-full flex items-center justify-center overflow-hidden">
                 <iframe 
                   className="w-full h-full border-none shadow-2xl bg-black"
-                  title="Exoclick Vibe"
-                  allow="autoplay; fullscreen; encrypted-media; camera; microphone; focus-without-user-activation"
+                  title="Exoclick VAST Engine"
+                  allow="autoplay; fullscreen; encrypted-media"
                   srcDoc={`
                     <!DOCTYPE html>
                     <html>
@@ -277,33 +277,36 @@ export function StoryViewer() {
                         <meta charset="UTF-8">
                         <meta name="viewport" content="width=device-width, initial-scale=1.0">
                         <style>
-                          body, html { margin: 0; padding: 0; background: #000; height: 100%; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-                          #container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+                          body, html { margin: 0; padding: 0; background: #000; height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+                          #exo-pulse-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
                         </style>
                       </head>
                       <body>
-                        <div id="container">
-                          <div id="exo-ad-pulse"></div>
-                          <script type="text/javascript">
-                            var exo_idzone = 5874020;
-                            var exo_target = '_blank';
-                          </script>
-                          <script type="text/javascript" src="https://s.magsrv.com/v1/vast.php?idzone=5874020&format=script&container=exo-ad-pulse"></script>
-                        </div>
+                        <div id="exo-pulse-container"></div>
+                        <script type="text/javascript">
+                          var atOptions = {
+                            'key' : '5874020',
+                            'format' : 'iframe',
+                            'height' : 60,
+                            'width' : 468,
+                            'params' : {}
+                          };
+                        </script>
+                        <script type="text/javascript" src="https://s.magsrv.com/v1/vast.php?idzone=5874020&format=script&container=exo-pulse-container&muted=1&autoplay=1"></script>
                       </body>
                     </html>
                   `}
                 />
                 
-                <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center gap-4 opacity-20 transition-opacity duration-1000">
-                  <Loader2 className="h-8 w-8 text-primary animate-spin" />
-                  <p className="text-[9px] font-black uppercase text-white tracking-[0.3em]">Synchronizing High-Velocity Creative</p>
+                <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center gap-4 opacity-40">
+                  <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                  <p className="text-[10px] font-black uppercase text-white tracking-[0.3em]">Synchronizing Sonic Vibe...</p>
                 </div>
               </div>
             </div>
 
-            <footer className="p-6 bg-gradient-to-t from-black to-transparent text-center">
-              <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">ViMore Logic v1.5.0 • Sponsored vibration</p>
+            <footer className="p-6 bg-gradient-to-t from-black to-transparent text-center shrink-0">
+              <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">ViMore Logic v1.5.0 • Sponsored handshake</p>
             </footer>
           </div>
         ) : (
