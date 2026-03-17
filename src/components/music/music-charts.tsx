@@ -4,20 +4,15 @@
 import { useState, useMemo } from "react";
 import { 
   TrendingUp, 
-  TrendingDown, 
-  CircleDot, 
   Play, 
-  ChevronRight, 
-  Flame,
-  Star,
-  Globe,
-  MapPin,
-  BarChart2,
-  Music2,
-  Zap
+  Globe, 
+  Star, 
+  Flame, 
+  BarChart2, 
+  Music2, 
+  Zap 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
 import { useMusic, Track } from "@/context/MusicContext";
@@ -25,7 +20,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
-import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import { ChartContainer } from "@/components/ui/chart";
 
 const CHART_CATEGORIES = [
   { id: "global", label: "Top Global", icon: Globe },
@@ -163,7 +158,7 @@ export function MusicCharts() {
         ))}
       </div>
 
-      <NativeAdNode type="standard" />
+      <NativeAdNode type="standard" id="chart-hero-sep" />
 
       {/* 3. The Ranking List */}
       <div className="bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[1.5rem] sm:rounded-[2.5rem] border border-white/10 overflow-hidden shadow-xl">
@@ -182,7 +177,7 @@ export function MusicCharts() {
             const likes = trackStats[item.id]?.likes || item.likes || 0;
 
             return (
-              <div key={item.id}>
+              <React.Fragment key={item.id}>
                 <div 
                   className={cn(
                     "grid grid-cols-[40px_1fr_50px] sm:grid-cols-[60px_1fr_120px_100px_60px] items-center gap-2 sm:gap-4 px-4 sm:px-8 py-4 sm:py-5 group hover:bg-white/5 transition-colors cursor-pointer",
@@ -242,11 +237,11 @@ export function MusicCharts() {
                   </div>
                 </div>
                 
-                {/* Interleave Ad every 3 items */}
+                {/* Interleave Ad after every 3 items with stable ID */}
                 {rank % 3 === 0 && rank < rankedSongs.length && (
-                  <NativeAdNode type="standard" />
+                  <NativeAdNode type="standard" id={`chart-rank-${rank}`} />
                 )}
-              </div>
+              </React.Fragment>
             );
           })}
         </div>

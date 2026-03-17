@@ -1,22 +1,15 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, memo } from "react";
 import { 
   MoreHorizontal, 
   Share2, 
-  ExternalLink, 
   Zap, 
-  Info,
-  ShieldCheck,
-  Heart,
-  MessageCircle,
-  Download,
-  CheckCircle2,
-  Sparkles,
-  Music2,
+  ShieldCheck, 
+  Heart, 
+  ChevronRight, 
   Plus,
-  ChevronRight,
   Loader2,
   Gauge
 } from "lucide-react";
@@ -24,9 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import { useMusic } from "@/context/MusicContext";
-import Image from "next/image";
 import { useTranslation } from "@/context/LanguageContext";
 
 interface NativeAdNodeProps {
@@ -44,21 +35,27 @@ const ViMoreAdLogo = () => (
   </div>
 );
 
-export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
+/**
+ * @fileOverview ViMore Native Ad Node (State-Locked)
+ * High-velocity advertisement node with strict memoization and initialization guards.
+ * Prevents re-render conflicts that cause ad nodes to vanish.
+ */
+const NativeAdNodeBase = ({ type, id, isActive }: NativeAdNodeProps) => {
   const { triggerHaptic, triggerDownloadWithAd } = useMusic();
   const { t } = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !iframeRef.current) return;
+    if (typeof window === "undefined" || !iframeRef.current || hasInitialized.current) return;
 
     const iframe = iframeRef.current;
     const doc = iframe.contentDocument || iframe.contentWindow?.document;
     if (!doc) return;
 
+    // STATE-LOCKED HANDSHAKE: Ensure script injection happens exactly once
     doc.open();
     if (type === "standard") {
-      // NATIVE CROP PROTOCOL: No scaling, zero sandbox restrictions for identity pulse verification
       doc.write(`
         <body style="margin: 0; padding: 0; background: transparent; overflow: hidden; display: flex; justify-content: center;">
           <script type="text/javascript">
@@ -74,7 +71,6 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
         </body>
       `);
     } else {
-      // Reel and Banner types
       doc.write(`
         <body style="margin: 0; padding: 0; background: transparent; overflow: hidden; display: flex; justify-content: center;">
           <div id="container-d13d860ccc8aa5337c2883a5d6f33e5f"></div>
@@ -83,11 +79,10 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
       `);
     }
     doc.close();
+    hasInitialized.current = true;
 
     return () => {
-      if (iframe) {
-        iframe.src = "about:blank";
-      }
+      // Maintain spatial integrity on unmount if necessary
     };
   }, [type]);
 
@@ -101,14 +96,13 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
   if (type === "standard") {
     return (
       <div className="w-full flex justify-center py-6 overflow-hidden min-h-[106px] relative">
-        {/* Spatial Node: Native Crop allows 728px to exist centered without scaling errors */}
         <div className="relative w-[728px] h-[90px] shrink-0">
           <iframe 
             ref={iframeRef}
             width="728"
             height="90"
             className="border-none bg-transparent overflow-hidden"
-            title="ViMore Standard Ad Pulse"
+            title={`ViMore-Standard-Ad-${id || 'generic'}`}
             scrolling="no"
           />
         </div>
@@ -130,7 +124,7 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
               <iframe 
                 ref={iframeRef}
                 className="w-full h-[250px] border-none bg-transparent"
-                title="ViMore Reel Ad"
+                title={`ViMore-Reel-Ad-${id || 'generic'}`}
                 scrolling="no"
               />
             </div>
@@ -157,7 +151,7 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
           </div>
           <div className="flex flex-col items-center gap-1">
             <button className="p-2.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white"><Heart className="h-5 w-5" /></button>
-            <span className="text-[9px] font-black text-white uppercase tracking-widest">AD</span>
+            <span className="text-[9px] font-black text-white drop-shadow-md uppercase tracking-widest">AD</span>
           </div>
           <button className="p-2.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white"><Share2 className="h-5 w-5" /></button>
         </div>
@@ -206,14 +200,9 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
           <iframe 
             ref={iframeRef}
             className="w-full min-h-[120px] border-none bg-transparent overflow-hidden"
-            title="ViMore In-Feed Ad"
+            title={`ViMore-Banner-Ad-${id || 'generic'}`}
             scrolling="no"
           />
-          <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-            <div className="bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/30 text-white">
-              <ExternalLink className="h-6 w-6" />
-            </div>
-          </div>
         </div>
 
         <div className="space-y-2 px-1 text-center sm:text-left">
@@ -229,14 +218,9 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
         >
           Explore Now <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-4 text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">
-            <span className="flex items-center gap-1"><Info className="h-3 w-3" /> Info</span>
-            <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3" /> Official</span>
-          </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/40"><Share2 className="h-4 w-4" /></Button>
-        </div>
       </CardFooter>
     </Card>
   );
 }
+
+export const NativeAdNode = memo(NativeAdNodeBase);

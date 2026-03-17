@@ -157,47 +157,48 @@ function MusicPageContent() {
                 ) : (
                   <>
                     {!searchQuery && filteredSongs.length > 0 && <MusicGrid type="hero" items={[filteredSongs[0]]} />}
-                    <NativeAdNode type="standard" />
+                    
+                    <NativeAdNode type="standard" id="discover-hero-sep" />
                     
                     {forYouSongs.length > 0 && (
                       <>
                         <MusicGrid type="song" title="For You" items={forYouSongs.slice(0, 10)} />
-                        <NativeAdNode type="standard" />
+                        <NativeAdNode type="standard" id="discover-foryou-sep" />
                       </>
                     )}
                     
                     {filteredSongs.length > 0 && (
                       <>
                         <MusicGrid type="song" title={searchQuery ? t('ui_all') : t('music_trending_songs')} items={filteredSongs} />
-                        <NativeAdNode type="standard" />
+                        <NativeAdNode type="standard" id="discover-trending-sep" />
                       </>
                     )}
                     
                     {globalSongs.length > 0 && (
                       <>
                         <MusicGrid type="song" title={t('music_new_releases')} items={[...globalSongs].reverse()} />
-                        <NativeAdNode type="standard" />
+                        <NativeAdNode type="standard" id="discover-new-sep" />
                       </>
                     )}
                     
                     {filteredAlbums.length > 0 && (
                       <>
                         <MusicGrid type="album" title={searchQuery ? t('music_my_albums') : t('music_trending_albums')} items={filteredAlbums} />
-                        <NativeAdNode type="standard" />
+                        <NativeAdNode type="standard" id="discover-albums-sep" />
                       </>
                     )}
                     
                     {filteredPlaylists.length > 0 && (
                       <>
                         <MusicGrid type="playlist" title={searchQuery ? t('music_playlists') : t('music_top_playlists')} items={filteredPlaylists} />
-                        <NativeAdNode type="standard" />
+                        <NativeAdNode type="standard" id="discover-playlists-sep" />
                       </>
                     )}
                     
                     {filteredArtists.length > 0 && (
                       <>
                         <MusicGrid type="artist" title={searchQuery ? t('ui_all') : t('music_trending_artists')} items={filteredArtists} />
-                        <NativeAdNode type="standard" />
+                        <NativeAdNode type="standard" id="discover-artists-sep" />
                       </>
                     )}
                   </>
@@ -226,7 +227,7 @@ function MusicPageContent() {
                   </div>
                 </div>
 
-                <NativeAdNode type="standard" />
+                <NativeAdNode type="standard" id="library-header-sep" />
 
                 <div className="pt-4">
                   {libraryTab === "playlists" && (
@@ -268,6 +269,21 @@ function MusicPageContent() {
                       )}
                     </div>
                   )}
+                  {libraryTab === "albums" && (
+                    <div className="space-y-8">
+                      <div className="flex items-center gap-2 border-b border-border/50 pb-4"><Disc3 className="h-5 w-5 text-primary" /><h3 className="font-bold text-sm uppercase tracking-widest">Discography</h3></div>
+                      {userAlbums.length === 0 ? (
+                        <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2.5rem] border border-border/50 shadow-sm animate-in zoom-in">
+                          <Disc3 className="h-12 w-12 mx-auto text-primary opacity-20" />
+                          <div className="space-y-1">
+                            <h3 className="text-xl font-black italic uppercase tracking-tighter">No Albums Materialized</h3>
+                            <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest">Curate your first album project in the studio.</p>
+                          </div>
+                          <Button className="rounded-full bg-primary text-white font-black italic uppercase tracking-widest h-10 px-8 shadow-lg shadow-primary/20" onClick={() => setActiveTab("upload")}>Enter Studio</Button>
+                        </div>
+                      ) : <MusicGrid type="album" items={userAlbums} />}
+                    </div>
+                  )}
                   {libraryTab === "downloaded" && (
                     <div className="space-y-8">
                       <div className="flex items-center gap-2 border-b border-border/50 pb-4"><Download className="h-5 w-5 text-green-500" /><h3 className="font-bold text-sm uppercase tracking-widest">{t('music_notes')}</h3></div>
@@ -292,7 +308,7 @@ function MusicPageContent() {
         </main>
       </div>
       <MusicNav activeTab={activeTab} onTabChange={setActiveTab} /><CreatePlaylistModal />
-      <AlertDialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}><AlertDialogContent className="rounded-[2.5rem] sm:max-w-[400px] bg-white/95 dark:bg-[#050505]/95 backdrop-blur-3xl border-destructive/10 shadow-2xl"><AlertDialogHeader><div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4"><Trash2 className="h-8 w-8" /></div><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">Purge Content?</AlertDialogTitle><AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">This will permanently remove your signature from the ViMore music network. All local notes will be severed.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6 px-4 pb-2"><AlertDialogCancel className="rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] bg-secondary/50 border-none hover:bg-secondary transition-all">Abort</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className="rounded-2xl h-14 font-black italic uppercase tracking-widest text-[10px] bg-destructive hover:bg-destructive/90 text-white shadow-xl shadow-destructive/20 transition-all active:scale-95">Confirm Purge</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+      <AlertDialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}><AlertDialogContent className="rounded-[2.5rem] sm:max-w-[420px] bg-white/95 dark:bg-[#050505]/95 backdrop-blur-3xl border-destructive/10 shadow-2xl"><AlertDialogHeader><div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4"><Trash2 className="h-8 w-8" /></div><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">Purge Content?</AlertDialogTitle><AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">This will permanently remove your signature from the ViMore music network. All local notes will be severed.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6 px-4 pb-2"><AlertDialogCancel className="rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] bg-secondary/50 border-none hover:bg-secondary transition-all">Abort</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className="rounded-2xl h-14 font-black italic uppercase tracking-widest text-[10px] bg-destructive hover:bg-destructive/90 text-white shadow-xl shadow-destructive/20 transition-all active:scale-95">Confirm Purge</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>
   );
 }
