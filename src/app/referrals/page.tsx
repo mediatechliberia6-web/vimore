@@ -36,6 +36,7 @@ import { useTranslation } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 interface StarParticle {
   id: number;
@@ -155,6 +156,8 @@ export default function ReferralHub() {
           </div>
         </section>
 
+        <NativeAdNode type="banner-468" id="stars-top-pulse" />
+
         <section className="space-y-6">
           <div className="bg-gradient-to-br from-primary to-accent rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[100px] rounded-full animate-pulse" />
@@ -175,6 +178,8 @@ export default function ReferralHub() {
             <Rocket className="absolute -right-8 -bottom-8 h-48 w-48 opacity-10 rotate-[-15deg]" />
           </div>
         </section>
+
+        <NativeAdNode type="banner-468" id="stars-mid-pulse" />
 
         <section className="space-y-4">
           <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2"><TrendingUp className="h-4 w-4 text-amber-500" /> {t('star_top_networkers')}</h3>
@@ -198,7 +203,10 @@ export default function ReferralHub() {
         </section>
 
         <section className="space-y-4 pb-20">
-          <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2"><History className="h-4 w-4 text-primary" /> {t('earn_recent_history')}</h3>
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2"><History className="h-4 w-4 text-primary" /> {t('earn_recent_history')}</h3>
+            <NativeAdNode type="banner-468" id="stars-bottom-pulse" />
+          </div>
           <div className="space-y-3">
             {MOCK_HISTORY.map((node) => (
               <div key={node.id} className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 p-4 rounded-2xl flex items-center justify-between">

@@ -21,7 +21,7 @@ import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
 
 interface NativeAdNodeProps {
-  type: "banner" | "reel" | "standard";
+  type: "banner" | "reel" | "standard" | "banner-468";
   id?: string;
   isActive?: boolean;
 }
@@ -55,6 +55,7 @@ const NativeAdNodeBase = ({ type, id, isActive }: NativeAdNodeProps) => {
 
     // STATE-LOCKED HANDSHAKE: Ensure script injection happens exactly once
     doc.open();
+    
     if (type === "standard") {
       doc.write(`
         <body style="margin: 0; padding: 0; background: transparent; overflow: hidden; display: flex; justify-content: center;">
@@ -70,6 +71,21 @@ const NativeAdNodeBase = ({ type, id, isActive }: NativeAdNodeProps) => {
           <script type="text/javascript" src="https://www.highperformanceformat.com/dbb5c7fa11689ae615919a9aed7fca72/invoke.js"></script>
         </body>
       `);
+    } else if (type === "banner-468") {
+      doc.write(`
+        <body style="margin: 0; padding: 0; background: transparent; overflow: hidden; display: flex; justify-content: center;">
+          <script type="text/javascript">
+            atOptions = {
+              'key' : 'beed0ad29b5a54546b811f3f5ee2224f',
+              'format' : 'iframe',
+              'height' : 60,
+              'width' : 468,
+              'params' : {}
+            };
+          </script>
+          <script type="text/javascript" src="https://www.highperformanceformat.com/beed0ad29b5a54546b811f3f5ee2224f/invoke.js"></script>
+        </body>
+      `);
     } else {
       doc.write(`
         <body style="margin: 0; padding: 0; background: transparent; overflow: hidden; display: flex; justify-content: center;">
@@ -80,10 +96,6 @@ const NativeAdNodeBase = ({ type, id, isActive }: NativeAdNodeProps) => {
     }
     doc.close();
     hasInitialized.current = true;
-
-    return () => {
-      // Maintain spatial integrity on unmount if necessary
-    };
   }, [type]);
 
   const handleLearnMore = () => {
@@ -103,6 +115,23 @@ const NativeAdNodeBase = ({ type, id, isActive }: NativeAdNodeProps) => {
             height="90"
             className="border-none bg-transparent overflow-hidden"
             title={`ViMore-Standard-Ad-${id || 'generic'}`}
+            scrolling="no"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "banner-468") {
+    return (
+      <div className="w-full flex justify-center py-4 overflow-hidden min-h-[76px] relative">
+        <div className="relative w-[468px] h-[60px] shrink-0">
+          <iframe 
+            ref={iframeRef}
+            width="468"
+            height="60"
+            className="border-none bg-transparent overflow-hidden"
+            title={`ViMore-Banner-468-${id || 'generic'}`}
             scrolling="no"
           />
         </div>

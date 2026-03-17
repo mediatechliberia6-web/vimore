@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 import { 
   Heart, 
   MessageCircle, 
@@ -196,92 +197,96 @@ export default function NotificationsPage() {
               ))}
             </div>
 
+            <NativeAdNode type="banner-468" id="notif-top-pulse" />
+
             <div className="space-y-3">
               {filteredNotifications.length > 0 ? filteredNotifications.map((node, i) => {
                 const isUnread = !node.isRead;
                 const amFollowing = node.targetUsername ? isFollowing(node.targetUsername) : false;
 
                 return (
-                  <div 
-                    key={node.id}
-                    onClick={() => handleNotificationClick(node)}
-                    className={cn(
-                      "group relative flex items-start gap-4 p-5 rounded-[2rem] transition-all cursor-pointer border-2 animate-in fade-in slide-in-from-bottom-2",
-                      isUnread 
-                        ? "bg-primary/[0.03] border-primary/10 shadow-sm" 
-                        : "bg-transparent border-transparent hover:bg-secondary/20"
-                    )}
-                    style={{ animationDelay: `${i * 50}ms` }}
-                  >
-                    <div className="relative shrink-0 pt-1">
-                      <div className="relative">
-                        <Avatar className={cn(
-                          "h-14 w-14 border-2 transition-all duration-500",
-                          isUnread ? "border-primary" : "border-white/20 group-hover:border-primary/40"
-                        )}>
-                          <AvatarImage src={node.avatar || node.image || "https://picsum.photos/seed/vimore/100/100"} />
-                          <AvatarFallback>V</AvatarFallback>
-                        </Avatar>
-                        <div className="absolute -bottom-1 -right-1 bg-white dark:bg-card p-1.5 rounded-full shadow-lg border border-primary/10">
-                          {renderIcon(node.type)}
-                        </div>
-                      </div>
-                      {isUnread && (
-                        <div className="absolute top-0 -left-1 w-2.5 h-2.5 bg-primary rounded-full animate-pulse shadow-[0_0_10px_rgba(153,64,229,0.8)]" />
+                  <React.Fragment key={node.id}>
+                    <div 
+                      onClick={() => handleNotificationClick(node)}
+                      className={cn(
+                        "group relative flex items-start gap-4 p-5 rounded-[2rem] transition-all cursor-pointer border-2 animate-in fade-in slide-in-from-bottom-2",
+                        isUnread 
+                          ? "bg-primary/[0.03] border-primary/10 shadow-sm" 
+                          : "bg-transparent border-transparent hover:bg-secondary/20"
                       )}
-                    </div>
-
-                    <div className="flex-1 min-w-0 pt-1">
-                      <div className="flex flex-col gap-1">
-                        <p className="text-sm leading-relaxed text-muted-foreground">
-                          {renderContent(node.content)}
-                        </p>
-                        <div className="flex items-center gap-3">
-                          <span className={cn("text-[10px] font-black uppercase tracking-tighter", isUnread ? "text-primary" : "text-muted-foreground/40")}>
-                            {node.time}
-                          </span>
-                          <div className="h-1 w-1 bg-muted-foreground/20 rounded-full" />
-                          <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">{node.type} SIGNAL</span>
+                      style={{ animationDelay: `${i * 50}ms` }}
+                    >
+                      <div className="relative shrink-0 pt-1">
+                        <div className="relative">
+                          <Avatar className={cn(
+                            "h-14 w-14 border-2 transition-all duration-500",
+                            isUnread ? "border-primary" : "border-white/20 group-hover:border-primary/40"
+                          )}>
+                            <AvatarImage src={node.avatar || node.image || "https://picsum.photos/seed/vimore/100/100"} />
+                            <AvatarFallback>V</AvatarFallback>
+                          </Avatar>
+                          <div className="absolute -bottom-1 -right-1 bg-white dark:bg-card p-1.5 rounded-full shadow-lg border border-primary/10">
+                            {renderIcon(node.type)}
+                          </div>
                         </div>
+                        {isUnread && (
+                          <div className="absolute top-0 -left-1 w-2.5 h-2.5 bg-primary rounded-full animate-pulse shadow-[0_0_10px_rgba(153,64,229,0.8)]" />
+                        )}
                       </div>
 
-                      {(node.actionLabel || node.postId || node.trackId || node.targetUsername) && (
-                        <div className="mt-4 flex items-center gap-2">
-                          <Button 
-                            size="sm" 
-                            className={cn(
-                              "h-9 px-6 rounded-xl font-black italic uppercase tracking-widest text-[9px] transition-all shadow-lg",
-                              isUnread ? "bg-primary text-white shadow-primary/20" : "bg-secondary text-foreground hover:bg-primary hover:text-white"
-                            )}
-                            onClick={(e) => handleActionClick(e, node)}
-                          >
-                            {node.type === 'SOCIAL' 
-                              ? (amFollowing ? <><UserCheck className="h-3 w-3 mr-1.5" /> Friend</> : "Follow Back") 
-                              : (node.actionLabel || "View Vibe")}
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-9 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-destructive"
-                            onClick={(e) => { e.stopPropagation(); triggerHaptic(5); purgeSignal(node.id); }}
-                          >
-                            Purge
-                          </Button>
+                      <div className="flex-1 min-w-0 pt-1">
+                        <div className="flex flex-col gap-1">
+                          <p className="text-sm leading-relaxed text-muted-foreground">
+                            {renderContent(node.content)}
+                          </p>
+                          <div className="flex items-center gap-3">
+                            <span className={cn("text-[10px] font-black uppercase tracking-tighter", isUnread ? "text-primary" : "text-muted-foreground/40")}>
+                              {node.time}
+                            </span>
+                            <div className="h-1 w-1 bg-muted-foreground/20 rounded-full" />
+                            <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">{node.type} SIGNAL</span>
+                          </div>
                         </div>
-                      )}
-                    </div>
 
-                    {(node.image || node.postId) && !node.avatar && (
-                      <div className="hidden sm:block relative h-16 w-16 rounded-2xl overflow-hidden shrink-0 border border-primary/10 shadow-lg transition-transform group-hover:scale-105">
-                        <Image src={node.image || "https://picsum.photos/seed/context/100/100"} alt="Context" fill className="object-cover" />
-                        {node.type === 'SONIC' && (
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                            <Music2 className="h-4 w-4 text-white" />
+                        {(node.actionLabel || node.postId || node.trackId || node.targetUsername) && (
+                          <div className="mt-4 flex items-center gap-2">
+                            <Button 
+                              size="sm" 
+                              className={cn(
+                                "h-9 px-6 rounded-xl font-black italic uppercase tracking-widest text-[9px] transition-all shadow-lg",
+                                isUnread ? "bg-primary text-white shadow-primary/20" : "bg-secondary text-foreground hover:bg-primary hover:text-white"
+                              )}
+                              onClick={(e) => handleActionClick(e, node)}
+                            >
+                              {node.type === 'SOCIAL' 
+                                ? (amFollowing ? <><UserCheck className="h-3 w-3 mr-1.5" /> Friend</> : "Follow Back") 
+                                : (node.actionLabel || "View Vibe")}
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-9 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-destructive"
+                              onClick={(e) => { e.stopPropagation(); triggerHaptic(5); purgeSignal(node.id); }}
+                            >
+                              Purge
+                            </Button>
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
+
+                      {(node.image || node.postId) && !node.avatar && (
+                        <div className="hidden sm:block relative h-16 w-16 rounded-2xl overflow-hidden shrink-0 border border-primary/10 shadow-lg transition-transform group-hover:scale-105">
+                          <Image src={node.image || "https://picsum.photos/seed/context/100/100"} alt="Context" fill className="object-cover" />
+                          {node.type === 'SONIC' && (
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                              <Music2 className="h-4 w-4 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {i === 4 && <NativeAdNode type="banner-468" id="notif-mid-pulse" />}
+                  </React.Fragment>
                 );
               }) : (
                 <div className="py-32 text-center space-y-6 animate-in fade-in zoom-in-95 duration-700">
@@ -296,6 +301,12 @@ export default function NotificationsPage() {
                 </div>
               )}
             </div>
+            
+            {filteredNotifications.length > 0 && (
+              <div className="pt-10 flex justify-center">
+                <NativeAdNode type="banner-468" id="notif-bottom-pulse" />
+              </div>
+            )}
           </div>
         </main>
 

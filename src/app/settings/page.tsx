@@ -84,6 +84,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 export default function SettingsPage() {
   const { settings, updateSettings, triggerHaptic, currentUser, connections, posts, savedPostIds, activeSubscriptions, cancelSubscription, seenPostIds, archiveIdentityNode, purgeVibeCache } = usePosts();
@@ -185,6 +186,8 @@ export default function SettingsPage() {
           </Link>
         </section>
 
+        <NativeAdNode type="banner-468" id="settings-top-pulse" />
+
         {/* PHASE 7: ACCOUNT LIFECYCLE & REVENUE VAULT */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_subs')}</h3>
@@ -261,6 +264,8 @@ export default function SettingsPage() {
             </div>
           </div>
         </section>
+
+        <NativeAdNode type="banner-468" id="settings-mid-pulse" />
 
         {/* PHASE 5: EXPERIENCE HUB */}
         <section className="space-y-4">
@@ -602,7 +607,8 @@ export default function SettingsPage() {
         </section>
 
         <section className="pt-10 pb-20">
-          <Button variant="outline" className="w-full h-14 rounded-2xl border-destructive/20 text-destructive font-black italic uppercase tracking-widest text-[10px] hover:bg-destructive/5 transition-all active:scale-95 shadow-lg shadow-destructive/5" onClick={() => window.location.href = "/"}>
+          <NativeAdNode type="banner-468" id="settings-bottom-pulse" />
+          <Button variant="outline" className="w-full h-14 rounded-2xl border-destructive/20 text-destructive font-black italic uppercase tracking-widest text-[10px] hover:bg-destructive/5 transition-all active:scale-95 shadow-lg shadow-destructive/5 mt-8" onClick={() => window.location.href = "/"}>
             {t('logout')}
           </Button>
           <p className="text-center text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em] mt-6">ViMore Node v1.5.0-HighVelocity</p>

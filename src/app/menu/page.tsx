@@ -42,6 +42,7 @@ import { useTranslation } from "@/context/LanguageContext";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 export default function MenuPage() {
   const { currentTrack, isExpanded } = useMusic();
@@ -137,6 +138,8 @@ export default function MenuPage() {
           </div>
         </Link>
 
+        <NativeAdNode type="banner-468" id="menu-top-pulse" />
+
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2">
             <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">{t('menu_shortcuts')}</h2>
@@ -167,6 +170,8 @@ export default function MenuPage() {
             })}
           </div>
         </div>
+
+        <NativeAdNode type="banner-468" id="menu-mid-pulse" />
 
         <div className="bg-white dark:bg-card rounded-[2rem] border border-border/50 shadow-xl shadow-black/5 overflow-hidden">
           <Accordion type="single" collapsible className="w-full">
@@ -208,9 +213,10 @@ export default function MenuPage() {
         </div>
 
         <div className="pt-6 space-y-6">
+          <NativeAdNode type="banner-468" id="menu-bottom-pulse" />
           <Button 
             variant="ghost" 
-            className="w-full h-14 rounded-2xl bg-white dark:bg-card border border-border/50 text-destructive font-bold flex items-center justify-center gap-3 shadow-lg shadow-black/5 hover:bg-destructive hover:text-white transition-all active:scale-95"
+            className="w-full h-14 rounded-2xl bg-white dark:bg-card border border-border/50 text-destructive font-bold flex items-center justify-center gap-3 shadow-lg shadow-black/5 hover:bg-destructive hover:text-white transition-all active:scale-95 mt-4"
             onClick={handleLogout}
           >
             <LogOut className="h-5 w-5" />

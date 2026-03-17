@@ -87,6 +87,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 const CATEGORIES = [
   { id: "analytics", label: "Analytics" },
@@ -247,6 +248,8 @@ export default function ProfessionalDashboard() {
           </div>
         </section>
 
+        <NativeAdNode type="banner-468" id="dash-top-pulse" />
+
         <ScrollArea className="w-full whitespace-nowrap">
           <div className="flex gap-3 pb-4">
             {CATEGORIES.map((cat) => (
@@ -348,6 +351,8 @@ export default function ProfessionalDashboard() {
           </section>
         )}
 
+        <NativeAdNode type="banner-468" id="dash-mid-pulse" />
+
         {activeCategory === 'monetization' && (
           <section className="space-y-8 animate-in fade-in duration-500">
             <div className="flex items-center justify-between px-2">
@@ -391,7 +396,7 @@ export default function ProfessionalDashboard() {
                     <p className="text-2xl font-black italic tracking-tighter">{activeSubscriptions.size} VIP Nodes</p>
                   </div>
                   <div className="h-10 w-10 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-500">
-                    <Gem className="h-5 w-5" />
+                    <span className="text-2xl font-black italic text-cyan-500"><Gem className="h-5 w-5" /></span>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -415,6 +420,7 @@ export default function ProfessionalDashboard() {
         )}
 
         <footer className="pt-10 pb-24 space-y-8">
+          <NativeAdNode type="banner-468" id="dash-bottom-pulse" />
           <div className="bg-primary/5 rounded-[2rem] p-6 border border-primary/10 flex gap-5 items-start">
             <div className="bg-primary/10 p-3 rounded-2xl shrink-0">
               <Info className="h-5 w-5 text-primary" />

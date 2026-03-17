@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "next/navigation";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 import { 
   Users, 
   UserPlus, 
@@ -214,6 +215,8 @@ function FriendsPageContent() {
               </div>
             </div>
 
+            <NativeAdNode type="banner-468" id="friends-top-pulse" />
+
             <div className="flex p-1.5 bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-[2rem] shadow-xl shadow-black/5">
               {tabs.map((tab) => {
                 const isActive = activeTab === tab.id;
@@ -366,6 +369,19 @@ function FriendsPageContent() {
               </div>
             )}
           </div>
+
+          <NativeAdNode type="banner-468" id="friends-mid-pulse" />
+
+          {filteredUsers.length > 6 && (
+            <div className="w-full py-10 flex flex-col items-center gap-6">
+              <NativeAdNode type="banner-468" id="friends-bottom-pulse" />
+              <Link href="/referrals">
+                <Button className="rounded-full bg-primary text-white font-black italic uppercase tracking-widest h-14 px-12 shadow-2xl shadow-primary/20 transition-all hover:scale-105 active:scale-95">
+                  <Rocket className="mr-2 h-5 w-5" /> Expand Network
+                </Button>
+              </Link>
+            </div>
+          )}
         </main>
 
         <aside className={cn(

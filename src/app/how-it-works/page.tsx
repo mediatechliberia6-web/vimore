@@ -33,6 +33,7 @@ import { useTranslation } from "@/context/LanguageContext";
 import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 interface ProtocolCardProps {
   id: string;
@@ -225,8 +226,16 @@ export default function HowItWorks() {
           </div>
         </section>
 
+        <NativeAdNode type="banner-468" id="how-top-pulse" />
+
         <section className="space-y-6">
-          {protocols.map((p) => (
+          {protocols.slice(0, 3).map((p) => (
+            <ProtocolCard key={p.id} {...p} />
+          ))}
+          
+          <NativeAdNode type="banner-468" id="how-mid-pulse" />
+          
+          {protocols.slice(3).map((p) => (
             <ProtocolCard key={p.id} {...p} />
           ))}
         </section>
@@ -254,7 +263,8 @@ export default function HowItWorks() {
         </section>
 
         <footer className="pt-10 flex flex-col items-center gap-6 opacity-40">
-          <div className="flex items-center gap-3">
+          <NativeAdNode type="banner-468" id="how-bottom-pulse" />
+          <div className="flex items-center gap-3 mt-8">
             <div className="flex flex-col items-center">
               <span className="text-[10px] font-black uppercase text-primary tracking-widest leading-none mb-1">{t('branding_amos')}</span>
               <span className="text-[8px] font-bold uppercase tracking-tighter text-muted-foreground">Founder & CEO</span>
