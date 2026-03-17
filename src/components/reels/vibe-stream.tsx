@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef, useState, useEffect, useMemo } from "react";
@@ -18,9 +19,22 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
   const [displayLimit, setDisplayLimit] = useState(16);
 
+  // Stable Sequence Refs
+  const weights = useRef<Record<string, number>>({});
+  const sessionSeen = useRef<Set<string>>(new Set());
+
+  /**
+   * SESSION SYNC: Capture initial seen status
+   */
+  useEffect(() => {
+    if (!isLoading && sessionSeen.current.size === 0) {
+      seenPostIds.forEach(id => sessionSeen.current.add(id));
+    }
+  }, [isLoading, seenPostIds]);
+
   /**
    * REEL PRIORITIZATION & BATCHING (2:1 RATIO)
-   * Materializes unseen vertical content from following, then public in randomized batches of 16.
+   * Materializes vertical content using session-stable random weighting.
    */
   const reelsWithAds = useMemo(() => {
     const allReels = posts
@@ -54,26 +68,26 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
         }
       }));
 
+    // Assign stable random weights
+    allReels.forEach(r => {
+      if (!(r.id in weights.current)) {
+        weights.current[r.id] = Math.random();
+      }
+    });
+
     const source = activeTab === "foryou" ? allReels : allReels.filter(reel => followingUsernames.has(reel.user.username));
     
     const organic = source.filter(r => !r.isBoosted);
     const boosted = source.filter(r => r.isBoosted);
 
-    const followingUnseen = organic.filter(r => followingUsernames.has(r.user.username) && !seenPostIds.has(r.id));
-    const publicUnseen = organic.filter(r => !followingUsernames.has(r.user.username) && !seenPostIds.has(r.id));
-    const seenNodes = organic.filter(r => seenPostIds.has(r.id));
+    const followingUnseen = organic.filter(r => followingUsernames.has(r.user.username) && !sessionSeen.current.has(r.id));
+    const publicUnseen = organic.filter(r => !followingUsernames.has(r.user.username) && !sessionSeen.current.has(r.id));
+    const seenNodes = organic.filter(r => sessionSeen.current.has(r.id));
 
-    // Shuffle helper for refresh unique-ness
-    const shuffle = (arr: any[]) => {
-      const newArr = [...arr];
-      for (let i = newArr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
-      }
-      return newArr;
-    };
+    // Stable Shuffle
+    const stableSort = (arr: any[]) => [...arr].sort((a, b) => weights.current[a.id] - weights.current[b.id]);
 
-    const organicSorted = [...shuffle(followingUnseen), ...shuffle(publicUnseen), ...shuffle(seenNodes)];
+    const organicSorted = [...stableSort(followingUnseen), ...stableSort(publicUnseen), ...stableSort(seenNodes)];
     
     const result: (any)[] = [];
     let organicIdx = 0;
@@ -96,7 +110,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
     }
 
     return result.slice(0, displayLimit);
-  }, [activeTab, followingUsernames, posts, seenPostIds, displayLimit]);
+  }, [activeTab, followingUsernames, posts, displayLimit]);
 
   // Infinite Scroll Observer for Vibe Stream
   useEffect(() => {

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState, useEffect, useRef } from "react";
@@ -25,31 +26,47 @@ export default function Home() {
   const [displayLimit, setDisplayLimit] = useState(16);
   const observerTarget = useRef(null);
 
+  // Stable Sequence Refs
+  const weights = useRef<Record<string, number>>({});
+  const sessionSeen = useRef<Set<string>>(new Set());
+
   const isPlayerActive = currentTrack && !isExpanded;
 
   /**
-   * TIERED SHUFFLE HEURISTIC
-   * Randomizes content within priority tiers to ensure every refresh feels unique.
+   * SESSION SYNC: Capture initial seen status to prevent group jumping
+   */
+  useEffect(() => {
+    if (!isLoading && sessionSeen.current.size === 0) {
+      seenPostIds.forEach(id => sessionSeen.current.add(id));
+    }
+  }, [isLoading, seenPostIds]);
+
+  /**
+   * TIERED STABLE SORT HEURISTIC
+   * Randomizes content once per session. Interactions (likes) will update data
+   * but will NOT trigger a re-shuffle.
    */
   const organicSorted = useMemo(() => {
     const regular = posts.filter(p => !p.isBoosted);
     
-    const followingUnseen = regular.filter(p => followingUsernames.has(p.user.username) && !seenPostIds.has(p.id));
-    const publicUnseen = regular.filter(p => !followingUsernames.has(p.user.username) && !seenPostIds.has(p.id));
-    const seenNodes = regular.filter(p => seenPostIds.has(p.id));
-
-    // High-Velocity Shuffle helper
-    const shuffle = (arr: any[]) => {
-      const newArr = [...arr];
-      for (let i = newArr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+    // Assign stable random weights to every post ID encountered
+    regular.forEach(p => {
+      if (!(p.id in weights.current)) {
+        weights.current[p.id] = Math.random();
       }
-      return newArr;
+    });
+
+    const followingUnseen = regular.filter(p => followingUsernames.has(p.user.username) && !sessionSeen.current.has(p.id));
+    const publicUnseen = regular.filter(p => !followingUsernames.has(p.user.username) && !sessionSeen.current.has(p.id));
+    const seenNodes = regular.filter(p => sessionSeen.current.has(p.id));
+
+    // Stable Shuffle helper: Sorts by the pre-assigned random weights
+    const stableSort = (arr: any[]) => {
+      return [...arr].sort((a, b) => weights.current[a.id] - weights.current[b.id]);
     };
 
-    return [...shuffle(followingUnseen), ...shuffle(publicUnseen), ...shuffle(seenNodes)];
-  }, [posts, followingUsernames, seenPostIds]);
+    return [...stableSort(followingUnseen), ...stableSort(publicUnseen), ...stableSort(seenNodes)];
+  }, [posts, followingUsernames]); // specifically excluding seenPostIds to prevent interaction jumps
 
   /**
    * INTERLEAVING ALGORITHM (2:1 RATIO)
@@ -92,7 +109,7 @@ export default function Home() {
     }
 
     return result.slice(0, displayLimit);
-  }, [posts, organicSorted, campaigns, displayLimit]);
+  }, [organicSorted, boostedPostsCount: posts.filter(p=>p.isBoosted).length, campaigns, displayLimit]);
 
   /**
    * INFINITE SCROLL HANDSHAKE
