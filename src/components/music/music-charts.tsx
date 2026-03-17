@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -243,9 +244,7 @@ export function MusicCharts() {
                 
                 {/* Interleave Ad every 3 items */}
                 {rank % 3 === 0 && rank < rankedSongs.length && (
-                  <div className="bg-white/5 border-y border-white/5">
-                    <NativeAdNode type="standard" />
-                  </div>
+                  <NativeAdNode type="standard" />
                 )}
               </div>
             );

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, Suspense } from "react";
@@ -39,7 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 function MusicPageContent() {
   const searchParams = useSearchParams();
   const { globalSongs, globalAlbums, globalPlaylists, forYouSongs, currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, userSongs, userAlbums, openCreatePlaylist, downloadedSongIds, deleteUserTrack, deleteUserAlbum, triggerHaptic } = useMusic();
-  const { connections } = usePosts();
+  const { connections, settings } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("discover");

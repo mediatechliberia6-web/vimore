@@ -48,28 +48,6 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
   const { triggerHaptic, triggerDownloadWithAd } = useMusic();
   const { t } = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-
-  // SPATIAL SCALING HANDSHAKE
-  useEffect(() => {
-    if (type !== "standard") return;
-
-    const calculateScale = () => {
-      if (containerRef.current) {
-        const containerWidth = containerRef.current.offsetWidth;
-        if (containerWidth < 728) {
-          setScale(containerWidth / 728);
-        } else {
-          setScale(1);
-        }
-      }
-    };
-
-    calculateScale();
-    window.addEventListener('resize', calculateScale);
-    return () => window.removeEventListener('resize', calculateScale);
-  }, [type]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !iframeRef.current) return;
@@ -80,9 +58,9 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
 
     doc.open();
     if (type === "standard") {
-      // Naked Protocol: No styling, direct script injection
+      // NATIVE CROP PROTOCOL: No scaling, zero sandbox restrictions for identity pulse verification
       doc.write(`
-        <body style="margin: 0; padding: 0; background: transparent; overflow: hidden;">
+        <body style="margin: 0; padding: 0; background: transparent; overflow: hidden; display: flex; justify-content: center;">
           <script type="text/javascript">
             atOptions = {
               'key' : 'dbb5c7fa11689ae615919a9aed7fca72',
@@ -122,15 +100,9 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
 
   if (type === "standard") {
     return (
-      <div ref={containerRef} className="w-full flex flex-col items-center py-6 animate-in fade-in duration-700 overflow-hidden relative min-h-[90px]">
-        <div 
-          className="flex items-center justify-center transition-transform duration-500 origin-center"
-          style={{ 
-            width: '728px', 
-            height: '90px',
-            transform: `scale(${scale})`,
-          }}
-        >
+      <div className="w-full flex justify-center py-6 overflow-hidden min-h-[106px] relative">
+        {/* Spatial Node: Native Crop allows 728px to exist centered without scaling errors */}
+        <div className="relative w-[728px] h-[90px] shrink-0">
           <iframe 
             ref={iframeRef}
             width="728"
@@ -253,7 +225,7 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
       <CardFooter className="p-3 pt-0 flex flex-col gap-3">
         <Button 
           onClick={handleLearnMore}
-          className="w-full h-12 bg-primary hover:bg-primary/90 text-white rounded-xl font-black italic uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
+          className="w-full h-12 bg-primary hover:bg-primary/90 text-white rounded-xl font-black italic uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-primary/20 transition-all active:scale-98"
         >
           Explore Now <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
