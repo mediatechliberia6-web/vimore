@@ -35,6 +35,7 @@ export const metadata: Metadata = {
   },
   other: {
     "6a97888e-site-verification": "078f262e3dacd42dc814159e1a856c2d",
+    "Delegate-CH": "Sec-CH-UA https://s.magsrv.com; Sec-CH-UA-Mobile https://s.magsrv.com; Sec-CH-UA-Arch https://s.magsrv.com; Sec-CH-UA-Model https://s.magsrv.com; Sec-CH-UA-Platform https://s.magsrv.com; Sec-CH-UA-Platform-Version https://s.magsrv.com; Sec-CH-UA-Bitness https://s.magsrv.com; Sec-CH-UA-Full-Version-List https://s.magsrv.com; Sec-CH-UA-Full-Version https://s.magsrv.com;",
   },
 };
 
