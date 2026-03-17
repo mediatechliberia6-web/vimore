@@ -109,7 +109,7 @@ export default function Home() {
     }
 
     return result.slice(0, displayLimit);
-  }, [organicSorted, boostedPostsCount: posts.filter(p=>p.isBoosted).length, campaigns, displayLimit]);
+  }, [organicSorted, posts, campaigns, displayLimit]);
 
   /**
    * INFINITE SCROLL HANDSHAKE

@@ -28,6 +28,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { ShareHub } from "@/components/post/share-hub";
 import { BoostPortal } from "@/components/post/boost-portal";
 import { useToast } from "@/hooks/use-toast";
