@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { 
   TrendingUp, 
   Play, 
@@ -125,7 +124,7 @@ export function MusicCharts() {
 
               <Button 
                 size="lg" 
-                className="rounded-full bg-white text-black font-black px-8 sm:px-10 h-11 sm:h-14 hover:scale-105 transition-transform gap-2 text-xs sm:text-base"
+                className="rounded-full bg-white text-black font-black px-8 sm:px-10 h-11 sm:h-14 hover:scale-105 transition-transform gap-2 text-xs sm:base"
                 onClick={() => setTrack(topSong)}
               >
                 <Play className="h-4 w-4 sm:h-6 sm:w-6 fill-current" /> PLAY NOW
