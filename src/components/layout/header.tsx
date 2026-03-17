@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -69,7 +70,7 @@ export function Header() {
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
             <MessageCircle className="h-5 w-5" />
           </Button>
-          {/* Messages Badge Removed per user request */}
+          <PulseBadge count={categoryPulses.MESSAGES} />
         </Link>
         
         <Link href="/profile" className="hidden sm:block ml-2 group">
