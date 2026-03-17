@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ShieldCheck, Fingerprint, Lock, Zap, Loader2, CheckCircle2, Eye, ShieldAlert } from "lucide-react";
+import { ShieldCheck, Fingerprint, Lock, Zap, Loader2, CheckCircle2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
@@ -13,30 +13,28 @@ interface BiometricGateProps {
 }
 
 export function BiometricGate({ children, title }: BiometricGateProps) {
-  const { settings } = usePosts();
-  const { triggerHaptic } = useMusic();
+  const { settings, verifyHardwareBiometrics, triggerHaptic } = usePosts();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanComplete, setScanComplete] = useState(false);
   const [error, setError] = useState(false);
 
-  // If biometric vault is disabled, bypass the gate entirely
-  if (!settings.isBiometricActive) return <>{children}</>;
+  // If biometric vault is disabled or not enrolled, bypass the gate
+  if (!settings.isBiometricActive || !settings.isHardwareEnrolled) return <>{children}</>;
 
   // If already authenticated during this session/mount, show content
   if (isAuthenticated) return <>{children}</>;
 
-  const handleAuthenticate = () => {
+  const handleAuthenticate = async () => {
     if (isScanning) return;
     
     setError(false);
     setIsScanning(true);
     triggerHaptic(20);
 
-    // Simulate High-Velocity Biometric Handshake
-    setTimeout(() => {
-      // 95% success rate for simulation
-      const success = Math.random() > 0.05;
+    try {
+      // REAL HARDWARE HANDSHAKE
+      const success = await verifyHardwareBiometrics();
       
       if (success) {
         setScanComplete(true);
@@ -50,7 +48,11 @@ export function BiometricGate({ children, title }: BiometricGateProps) {
         setError(true);
         triggerHaptic(100);
       }
-    }, 2000);
+    } catch (e) {
+      setIsScanning(false);
+      setError(true);
+      triggerHaptic(100);
+    }
   };
 
   return (
@@ -72,53 +74,68 @@ export function BiometricGate({ children, title }: BiometricGateProps) {
             </div>
           </div>
           <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white">Vault Identity Check</h1>
-          <p className="text-white/40 text-sm font-medium">Authentication required to materialize the **{title}** node.</p>
+          <p className="text-white/40 text-sm font-medium">Touch the sensor to verify your signature for **{title}**.</p>
         </header>
 
-        <main className="relative py-10">
-          {/* The Scanner Node */}
+        <main className="relative py-10 w-full flex flex-col items-center">
+          {/* Tecno-style Optical Scanner Node */}
           <div 
             className={cn(
-              "relative h-48 w-48 rounded-[3rem] border-2 transition-all duration-500 flex items-center justify-center cursor-pointer group",
-              isScanning ? "border-primary shadow-[0_0_40px_rgba(153,64,229,0.3)]" : 
+              "relative h-48 w-48 rounded-full border-2 transition-all duration-500 flex items-center justify-center cursor-pointer group",
+              isScanning ? "border-cyan-400 shadow-[0_0_60px_rgba(34,211,238,0.4)] scale-110" : 
               scanComplete ? "border-green-500 bg-green-500/10" :
-              error ? "border-destructive animate-shake" : "border-white/10 hover:border-primary/40 bg-white/5"
+              error ? "border-destructive animate-shake" : "border-white/10 hover:border-cyan-400/40 bg-white/5 shadow-inner"
             )}
             onClick={handleAuthenticate}
           >
-            {/* Visual Pulses */}
+            {/* Optical Sensor Glow (Neon Cyan) */}
+            <div className={cn(
+              "absolute inset-2 rounded-full blur-md transition-opacity duration-500",
+              isScanning ? "bg-cyan-400/40 opacity-100 animate-pulse" : "bg-cyan-400/5 opacity-0 group-hover:opacity-100"
+            )} />
+
+            {/* Ripple Effects */}
             {isScanning && (
               <>
-                <div className="absolute inset-0 bg-primary/20 rounded-[3rem] animate-ping" />
-                <div className="absolute inset-4 border border-primary/40 rounded-[2.5rem] animate-pulse" />
-                <div className="absolute top-0 left-0 right-0 h-1 bg-primary shadow-[0_0_15px_rgba(153,64,229,1)] animate-[scan_2s_ease-in-out_infinite] z-20" />
+                <div className="absolute inset-0 bg-cyan-400/20 rounded-full animate-ping" />
+                <div className="absolute inset-4 border-2 border-cyan-400/40 rounded-full animate-pulse" />
+                {/* Horizontal Laser Line */}
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,1)] animate-[scan_1.5s_infinite] z-20" />
               </>
             )}
 
             <div className="relative z-10 flex flex-col items-center gap-4">
               {scanComplete ? (
                 <CheckCircle2 className="h-16 w-16 text-green-500 animate-in zoom-in duration-300" />
-              ) : isScanning ? (
-                <Loader2 className="h-16 w-16 text-primary animate-spin" />
               ) : error ? (
                 <ShieldAlert className="h-16 w-16 text-destructive" />
               ) : (
-                <Fingerprint className="h-16 w-16 text-white/20 group-hover:text-primary transition-colors" />
+                <div className={cn(
+                  "relative transition-all duration-500",
+                  isScanning ? "text-cyan-400" : "text-white/20 group-hover:text-cyan-400"
+                )}>
+                  <Fingerprint className="h-20 w-20" />
+                  {isScanning && (
+                    <div className="absolute inset-0 text-cyan-400 animate-pulse">
+                      <Fingerprint className="h-20 w-20" />
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
 
           {/* Verification Status */}
-          <div className="absolute -bottom-16 left-0 right-0">
+          <div className="mt-16">
             <span className={cn(
-              "text-[10px] font-black uppercase tracking-[0.3em] transition-all",
-              isScanning ? "text-primary animate-pulse" : 
+              "text-[10px] font-black uppercase tracking-[0.4em] transition-all",
+              isScanning ? "text-cyan-400 animate-pulse" : 
               scanComplete ? "text-green-500" :
               error ? "text-destructive" : "text-white/20"
             )}>
-              {isScanning ? "Scanning Signature..." : 
-               scanComplete ? "Verified" : 
-               error ? "Handshake Failed - Retry" : "Touch Sensor to Sync"}
+              {isScanning ? "SYNCHRONIZING..." : 
+               scanComplete ? "ACCESS GRANTED" : 
+               error ? "HANDSHAKE REJECTED" : "TOUCH TO SCAN"}
             </span>
           </div>
         </main>
@@ -126,17 +143,18 @@ export function BiometricGate({ children, title }: BiometricGateProps) {
         <footer className="w-full pt-12 space-y-4">
           <Button 
             className={cn(
-              "w-full h-14 rounded-2xl font-black italic uppercase tracking-[0.2em] transition-all",
-              isScanning || scanComplete ? "bg-primary/20 text-white/40 cursor-not-allowed" : "bg-white text-black hover:bg-zinc-200"
+              "w-full h-16 rounded-[2rem] font-black italic uppercase tracking-[0.2em] transition-all",
+              isScanning || scanComplete ? "bg-white/5 text-white/20 cursor-not-allowed" : "bg-white text-black hover:bg-zinc-200 shadow-2xl"
             )}
             onClick={handleAuthenticate}
             disabled={isScanning || scanComplete}
           >
-            {isScanning ? "Verifying..." : "Launch Handshake"}
+            {isScanning ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Fetching Key...</> : "Verify Identity"}
           </Button>
-          <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">
-            Identity guarded by ViMore Pro-HD Security Cluster
-          </p>
+          <div className="flex items-center justify-center gap-2 text-[9px] font-black text-white/20 uppercase tracking-widest">
+            <ShieldCheck className="h-3 w-3" />
+            Hardware Handshake Secure • ViMore Vault v1.5
+          </div>
         </footer>
       </div>
 

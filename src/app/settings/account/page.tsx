@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -50,7 +49,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function AccountCenter() {
-  const { currentUser, updateCurrentUser, triggerHaptic, settings, updateSettings } = usePosts();
+  const { currentUser, updateCurrentUser, triggerHaptic, settings, updateSettings, enrollHardwareBiometrics } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -74,6 +73,7 @@ export default function AccountCenter() {
 
   // Deactivation State
   const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = useState(false);
+  const [isEnrolling, setIsEnrolling] = useState(false);
 
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -111,14 +111,22 @@ export default function AccountCenter() {
     }, 2000);
   };
 
-  const handleToggle2FA = () => {
+  const handleToggle2FA = async () => {
     const nextState = !settings.isBiometricActive;
-    triggerHaptic(nextState ? 25 : 10);
-    updateSettings({ isBiometricActive: nextState });
-    toast({ 
-      title: nextState ? "Handshake Active" : "Handshake Severed", 
-      description: nextState ? "Mobile 2FA node synchronized with your hardware." : "Security vault downgraded to single-pulse." 
-    });
+    triggerHaptic(10);
+
+    if (nextState && !settings.isHardwareEnrolled) {
+      setIsEnrolling(true);
+      const success = await enrollHardwareBiometrics();
+      setIsEnrolling(false);
+      if (!success) return;
+    } else {
+      updateSettings({ isBiometricActive: nextState });
+      toast({ 
+        title: nextState ? "Handshake Active" : "Handshake Severed", 
+        description: nextState ? "Mobile 2FA node synchronized with your hardware." : "Security vault downgraded to single-pulse." 
+      });
+    }
   };
 
   const handleFinalPurge = () => {
@@ -229,17 +237,18 @@ export default function AccountCenter() {
                 settings.isBiometricActive && "border-green-500/20 bg-green-500/5"
               )}
               onClick={handleToggle2FA}
+              disabled={isEnrolling}
             >
               <div className={cn(
                 "h-10 w-10 rounded-xl flex items-center justify-center transition-all group-hover:scale-110",
                 settings.isBiometricActive ? "bg-green-500 text-white" : "bg-green-500/10 text-green-500"
               )}>
-                <Fingerprint className="h-5 w-5" />
+                {isEnrolling ? <Loader2 className="h-5 w-5 animate-spin" /> : <Fingerprint className="h-5 w-5" />}
               </div>
               <div className="flex flex-col items-start">
-                <span className="font-bold text-sm">Two-Pulse Auth</span>
+                <span className="font-bold text-sm">Hardware Biometrics</span>
                 <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-                  {settings.isBiometricActive ? "Active Protection" : "Enable 2FA security"}
+                  {isEnrolling ? "Synchronizing..." : settings.isBiometricActive ? "Active Protection" : "Enable 2FA security"}
                 </span>
               </div>
               <div className={cn(

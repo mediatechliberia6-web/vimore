@@ -2,7 +2,7 @@
 
 /**
  * @fileOverview ViMore Core Context Node (Prototype Edition)
- * Manages local identity, content, and economy with enhanced Friendship Handshake Protocol.
+ * Manages local identity, content, and economy with real WebAuthn Biometric Handshake.
  */
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
@@ -19,6 +19,7 @@ export interface AppSettings {
   isAutoFollowEnabled: boolean;
   activeSoundSet: 'cyberpunk' | 'lofi';
   isBiometricActive: boolean;
+  isHardwareEnrolled: boolean;
   taggingPrivacy: 'everyone' | 'friends';
   discoveryVisibility: 'everyone' | 'mutual';
   showReadReceipts: boolean;
@@ -273,6 +274,8 @@ interface PostContextType {
   purgeVibeCache: () => Promise<void>;
   archiveIdentityNode: () => Promise<void>;
   boostNode: (nodeId: string, promisedViews: number, duration: number, cost: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'REEL' | 'SONIC') => Promise<void>;
+  enrollHardwareBiometrics: () => Promise<boolean>;
+  verifyHardwareBiometrics: () => Promise<boolean>;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -304,7 +307,7 @@ const MASTER_USER: User = {
 };
 
 const INITIAL_SETTINGS: AppSettings = {
-  theme: 'light', hapticIntensity: 50, isGhostMode: false, playbackQuality: 'standard', fontScale: 1, isAutoFollowEnabled: true, activeSoundSet: 'cyberpunk', isBiometricActive: false, taggingPrivacy: 'everyone', discoveryVisibility: 'everyone', showReadReceipts: true, legacyContact: null, isSilenceActive: false, silenceStart: "22:00", silenceEnd: "07:00", defaultStream: 'foryou', goldRate: 0.01, diamondRate: 0.25, ldMultiplier: 190, isReelsEnabled: true, isMusicEnabled: true, isGiftingEnabled: true, isAiVerificationActive: true, isSensitivityFilterActive: false, isFreeMode: false
+  theme: 'light', hapticIntensity: 50, isGhostMode: false, playbackQuality: 'standard', fontScale: 1, isAutoFollowEnabled: true, activeSoundSet: 'cyberpunk', isBiometricActive: false, isHardwareEnrolled: false, taggingPrivacy: 'everyone', discoveryVisibility: 'everyone', showReadReceipts: true, legacyContact: null, isSilenceActive: false, silenceStart: "22:00", silenceEnd: "07:00", defaultStream: 'foryou', goldRate: 0.01, diamondRate: 0.25, ldMultiplier: 190, isReelsEnabled: true, isMusicEnabled: true, isGiftingEnabled: true, isAiVerificationActive: true, isSensitivityFilterActive: false, isFreeMode: false
 };
 
 const FRIEND_LIMIT = 7000;
@@ -640,6 +643,68 @@ export function PostProvider({ children }: { children: ReactNode }) {
     toast({ title: "Boost Materialized", description: `${promisedViews.toLocaleString()} target nodes calibrated.` });
   }, [triggerHaptic, toast]);
 
+  const enrollHardwareBiometrics = useCallback(async () => {
+    if (!window.PublicKeyCredential) {
+      toast({ variant: "destructive", title: "Hardware Logic Error", description: "Biometrics not supported on this browser." });
+      return false;
+    }
+
+    try {
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
+
+      const userId = new Uint8Array(16);
+      window.crypto.getRandomValues(userId);
+
+      const credentialOptions: PublicKeyCredentialCreationOptions = {
+        challenge,
+        rp: { name: "ViMore Network", id: window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname },
+        user: {
+          id: userId,
+          name: currentUser.username,
+          displayName: currentUser.name
+        },
+        pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+        authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+        timeout: 60000
+      };
+
+      const credential = await navigator.credentials.create({ publicKey: credentialOptions });
+      if (credential) {
+        updateSettings({ isHardwareEnrolled: true, isBiometricActive: true });
+        toast({ title: "Signature Archived", description: "Your hardware identity is now linked." });
+        return true;
+      }
+      return false;
+    } catch (e: any) {
+      console.error("Biometric Enrollment Error:", e);
+      toast({ variant: "destructive", title: "Handshake Rejected", description: "Biometric setup was cancelled or failed." });
+      return false;
+    }
+  }, [currentUser, updateSettings, toast]);
+
+  const verifyHardwareBiometrics = useCallback(async () => {
+    if (!settings.isHardwareEnrolled) return false;
+
+    try {
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
+
+      const assertionOptions: PublicKeyCredentialRequestOptions = {
+        challenge,
+        timeout: 60000,
+        userVerification: "required",
+        rpId: window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname
+      };
+
+      const assertion = await navigator.credentials.get({ publicKey: assertionOptions });
+      return !!assertion;
+    } catch (e) {
+      console.error("Verification Error:", e);
+      return false;
+    }
+  }, [settings.isHardwareEnrolled]);
+
   const addCampaign = useCallback(async (data: any) => {
     const newCampaign = {
       ...data,
@@ -683,8 +748,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     addStory: async (seg: any) => { setStoriesState(prev => [{ id: Date.now().toString(), user: currentUser, segments: [seg], viewCount: 0 }, ...prev]); },
     boostNode,
     recordView, recordStoryView, createCluster: async (name: string, members: any[]) => { setClustersState(prev => [{ id: Date.now().toString(), name, adminUsername: currentUser.username, members, isGroup: true }, ...prev]); }, 
-    addMemberToCluster: async () => {}, leaveCluster: async () => {}, initiateTransaction: (d: any) => setPendingTransactionState(d), cancelTransaction: () => setPendingTransactionState(null), createPaymentRequest: async () => { setPendingTransactionState(null); }, recordWithdrawal: async () => {}, verifyUser: async () => { setCurrentUserState(prev => ({...prev, isVerified: true})); }, processGiftTransaction: async (cost: number) => { setCurrentUserState(prev => ({...prev, goldBalance: (prev.goldBalance || 0) - cost})); }, unlockPost: async (id: string) => { setUnlockedPostIdsState(prev => new Set(prev).add(id)); }, subscribeToCreator: async (u: string) => { setActiveSubscriptionsState(prev => new Set(prev).add(u)); }, fetchComments: async () => {}, refreshFeed, refreshStories, refreshProfiles: async () => [], refreshClusters: async () => {}, fetchProfileByUsername: async (u: string) => MOCK_USERS.find(user => user.username === u) || null, promoteUser: async () => {}, demoteUser: async () => {}, voteOnPostPoll: async () => {}, cancelSubscription: async (u: string) => { setActiveSubscriptionsState(prev => { const n = new Set(prev); n.delete(u); return n; }); }, incrementShareCount: async () => {}, toggleMuteUser: (u: string) => setMutedUserNamesState(prev => prev.includes(u) ? prev.filter(n => n !== u) : [...prev, u]), togglePinPost: async () => {}, archivePost: async () => {}, addAuditLog: async () => {}, approvePaymentRequest: async () => {}, rejectPaymentRequest: async () => {}, processWithdrawal: async () => {}, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, initiateCall, acceptCall, endCall, refreshAdminData: async () => {}, updateUserIdentity: async () => {}, handleReportAction: async () => {}, handleTicketAction: async () => {}, voteOnStoryPoll: async () => {}, updateGatewaySettings: async () => {}, sendChatMessage, purgeVibeCache, archiveIdentityNode
-  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames, receivedRequestUsernames, acceptedStrangerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, pendingTransaction, chatMessages, activeSubscriptions, triggerHaptic, refreshFeed, refreshStories, initiateCall, acceptCall, endCall, toast, sendChatMessage, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, recordView, acceptMessageRequest, declineMessageRequest, updateSettings, purgeVibeCache, archiveIdentityNode, boostNode, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick]);
+    addMemberToCluster: async () => {}, leaveCluster: async () => {}, initiateTransaction: (d: any) => setPendingTransactionState(d), cancelTransaction: () => setPendingTransactionState(null), createPaymentRequest: async () => { setPendingTransactionState(null); }, recordWithdrawal: async () => {}, verifyUser: async () => { setCurrentUserState(prev => ({...prev, isVerified: true})); }, processGiftTransaction: async (cost: number) => { setCurrentUserState(prev => ({...prev, goldBalance: (prev.goldBalance || 0) - cost})); }, unlockPost: async (id: string) => { setUnlockedPostIdsState(prev => new Set(prev).add(id)); }, subscribeToCreator: async (u: string) => { setActiveSubscriptionsState(prev => new Set(prev).add(u)); }, fetchComments: async () => {}, refreshFeed, refreshStories, refreshProfiles: async () => [], refreshClusters: async () => {}, fetchProfileByUsername: async (u: string) => MOCK_USERS.find(user => user.username === u) || null, promoteUser: async () => {}, demoteUser: async () => {}, voteOnPostPoll: async () => {}, cancelSubscription: async (u: string) => { setActiveSubscriptionsState(prev => { const n = new Set(prev); n.delete(u); return n; }); }, incrementShareCount: async () => {}, toggleMuteUser: (u: string) => setMutedUserNamesState(prev => prev.includes(u) ? prev.filter(n => n !== u) : [...prev, u]), togglePinPost: async () => {}, archivePost: async () => {}, addAuditLog: async () => {}, approvePaymentRequest: async () => {}, rejectPaymentRequest: async () => {}, processWithdrawal: async () => {}, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick, initiateCall, acceptCall, endCall, refreshAdminData: async () => {}, updateUserIdentity: async () => {}, handleReportAction: async () => {}, handleTicketAction: async () => {}, voteOnStoryPoll: async () => {}, updateGatewaySettings: async () => {}, sendChatMessage, purgeVibeCache, archiveIdentityNode, enrollHardwareBiometrics, verifyHardwareBiometrics
+  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames, receivedRequestUsernames, acceptedStrangerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, pendingTransaction, chatMessages, activeSubscriptions, triggerHaptic, refreshFeed, refreshStories, initiateCall, acceptCall, endCall, toast, sendChatMessage, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, recordView, acceptMessageRequest, declineMessageRequest, updateSettings, purgeVibeCache, archiveIdentityNode, boostNode, enrollHardwareBiometrics, verifyHardwareBiometrics, addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick]);
 
   return <PostContext.Provider value={contextValue}>{children}</PostContext.Provider>;
 }
