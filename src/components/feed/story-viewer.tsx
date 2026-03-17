@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye, BellOff, VolumeX, EyeOff, Zap, ShieldCheck, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -42,6 +41,7 @@ export function StoryViewer() {
   
   const requestRef = useRef<number | null>(null);
   const adRequestRef = useRef<number | null>(null);
+  const adIframeRef = useRef<HTMLIFrameElement>(null);
   const hasRecordedCurrentSegment = useRef<string | null>(null);
 
   const activeStory = activeStoryIndex !== null ? stories[activeStoryIndex] : null;
@@ -79,11 +79,9 @@ export function StoryViewer() {
       setProgress(0);
       setVotedSegmentId(null);
     } else {
-      // End of current user's story. Update session counter.
       const nextSeenCount = storiesSeenInSession + 1;
       setStoriesSeenInSession(nextSeenCount);
 
-      // Check for Interstitial Pulse (every 2 stories)
       if (nextSeenCount % 2 === 0 && activeStoryIndex !== null && activeStoryIndex < stories.length - 1) {
         setIsAdActive(true);
         setAdProgress(0);
@@ -99,7 +97,7 @@ export function StoryViewer() {
   }, [activeStory, segmentIndex, activeStoryIndex, stories.length, setActiveStoryIndex, handleClose, storiesSeenInSession]);
 
   const prevSegment = useCallback(() => {
-    if (isAdActive) return; // Prevent navigation while ad is initializing if needed, but requested skippable
+    if (isAdActive) return;
     if (!activeStory) return;
 
     if (segmentIndex > 0) {
@@ -143,7 +141,29 @@ export function StoryViewer() {
     };
   }, [isAdActive, closeAd]);
 
-  // View Pulse Handshake
+  // AD INJECTION HANDSHAKE
+  useEffect(() => {
+    if (isAdActive && adIframeRef.current) {
+      const iframe = adIframeRef.current;
+      const doc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (doc) {
+        doc.open();
+        doc.write(`
+          <body style="margin: 0; padding: 0; background: #000; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+            <div id="exo-ad-container" style="width: 100%; height: 100%;"></div>
+            <script type="text/javascript">
+              // ViMore VAST Script Handshake - Materializing Visual Node
+              var exo_idzone = 5874020;
+              var exo_target = '_blank';
+            </script>
+            <script type="text/javascript" src="https://s.magsrv.com/v1/vast.php?idzone=5874020&format=script&container=exo-ad-container"></script>
+          </body>
+        `);
+        doc.close();
+      }
+    }
+  }, [isAdActive]);
+
   useEffect(() => {
     if (activeStory && !isOwner && hasRecordedCurrentSegment.current !== activeStory.id) {
       recordStoryView(activeStory.id);
@@ -180,7 +200,7 @@ export function StoryViewer() {
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [activeStoryIndex, segmentIndex, isPaused, nextSegment, isAdActive]);
+  }, [activeStoryIndex, segmentIndex, isPaused, nextSegment, isAdActive, progress]);
 
   const handleTap = (e: React.MouseEvent | React.TouchEvent) => {
     if (isPaused || isAdActive) return;
@@ -197,12 +217,7 @@ export function StoryViewer() {
 
   const addReaction = (emoji: string) => {
     const id = Date.now();
-    const newReaction = {
-      id,
-      emoji,
-      x: Math.random() * 60 + 20,
-    };
-    setReactions(prev => [...prev, newReaction]);
+    setReactions(prev => [...prev, { id, emoji, x: Math.random() * 60 + 20 }]);
     setTimeout(() => {
       setReactions(prev => prev.filter(r => r.id !== id));
     }, 2000);
@@ -213,7 +228,6 @@ export function StoryViewer() {
   const handlePollVote = (e: React.MouseEvent, optionIndex: number) => {
     e.stopPropagation();
     if (!activeStory || !currentSegment || votedSegmentId === currentSegment.id || isOwner) return;
-    
     voteOnStoryPoll(activeStory.id, currentSegment.id, optionIndex);
     setVotedSegmentId(currentSegment.id);
   };
@@ -236,9 +250,7 @@ export function StoryViewer() {
     >
       <div className="relative w-full max-w-[500px] h-full sm:h-[90vh] sm:rounded-2xl overflow-hidden bg-zinc-900 shadow-2xl flex flex-col">
         {isAdActive ? (
-          /* AD INTERSTITIAL UI */
           <div className="relative flex-1 bg-black flex flex-col animate-in fade-in duration-500">
-            {/* Ad Progress Bar */}
             <div className="absolute top-4 left-4 right-4 z-[60] px-1">
               <div className="h-1 w-full bg-white/20 rounded-full overflow-hidden">
                 <div 
@@ -248,7 +260,6 @@ export function StoryViewer() {
               </div>
             </div>
 
-            {/* Ad Header */}
             <div className="absolute top-8 left-0 right-0 z-50 px-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/20 backdrop-blur-md">
@@ -272,7 +283,6 @@ export function StoryViewer() {
               </Button>
             </div>
 
-            {/* Ad Video Container */}
             <div className="flex-1 flex items-center justify-center relative overflow-hidden">
               <div className="absolute inset-0 opacity-20 pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-primary/30 blur-[150px] rounded-full animate-pulse" />
@@ -280,9 +290,8 @@ export function StoryViewer() {
               </div>
               
               <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-8 space-y-8">
-                {/* VAST Integration Iframe */}
                 <iframe 
-                  src="https://s.magsrv.com/v1/vast.php?idzone=5874020" 
+                  ref={adIframeRef}
                   className="w-full aspect-[9/16] border-none shadow-2xl rounded-2xl bg-zinc-900"
                   title="Exoclick Vibe"
                 />
@@ -299,9 +308,7 @@ export function StoryViewer() {
             </footer>
           </div>
         ) : (
-          /* STANDARD STORY UI */
           <DiagnosticErrorBoundary title="Story Pulse">
-            {/* Progress Bars */}
             <div className="absolute top-4 left-4 right-4 z-[60] flex gap-1.5 px-1">
               {activeStory.segments.map((_, i) => (
                 <div key={i} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
@@ -316,7 +323,6 @@ export function StoryViewer() {
               ))}
             </div>
 
-            {/* Header */}
             <div className={cn(
               "absolute top-8 left-0 right-0 z-50 px-6 flex items-start justify-between transition-opacity duration-300",
               isPaused ? "opacity-0" : "opacity-100"
@@ -385,7 +391,6 @@ export function StoryViewer() {
               </div>
             </div>
 
-            {/* Media Container */}
             <div 
               className={cn(
                 "relative flex-1 cursor-pointer select-none flex items-center justify-center overflow-hidden",
@@ -437,7 +442,6 @@ export function StoryViewer() {
                 </>
               )}
 
-              {/* Draggable Text Overlays */}
               {currentSegment.textOverlays?.map((overlay, i) => (
                 <div 
                   key={i}
@@ -456,7 +460,6 @@ export function StoryViewer() {
                 </div>
               ))}
 
-              {/* Poll Sticker */}
               {currentSegment.poll && (
                 <div 
                   className="absolute z-40 w-[240px] bg-white rounded-2xl p-4 shadow-2xl animate-in zoom-in duration-300"
@@ -495,7 +498,6 @@ export function StoryViewer() {
                 </div>
               )}
 
-              {/* Floating Reactions */}
               {reactions.map((r) => (
                 <div
                   key={r.id}
@@ -507,7 +509,6 @@ export function StoryViewer() {
               ))}
             </div>
 
-            {/* Interaction Bar */}
             <div className={cn(
               "absolute bottom-0 left-0 right-0 p-6 pt-12 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300",
               isPaused ? "opacity-0" : "opacity-100"
@@ -566,7 +567,6 @@ export function StoryViewer() {
           </DiagnosticErrorBoundary>
         )}
 
-        {/* Navigation Arrows */}
         <div className={cn("hidden sm:block", isAdActive && "opacity-0 pointer-events-none")}>
           <Button 
             variant="ghost" 
