@@ -33,6 +33,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'ViMore',
   },
+  other: {
+    "6a97888e-site-verification": "078f262e3dacd42dc814159e1a856c2d",
+  },
 };
 
 export const viewport: Viewport = {
