@@ -120,11 +120,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "gateway" | "campaigns" | "infrastructure" | "resolution" | "logs";
+type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "campaigns" | "infrastructure" | "resolution" | "logs";
 type EconomySubTab = "outbound" | "inbound";
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, reports, tickets, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, gatewaySettings, updateGatewaySettings, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus, updateUserIdentity, handleReportAction, handleTicketAction, uploadMedia } = usePosts();
+  const { withdrawalHistory, paymentRequests, reports, tickets, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, updateIntelligence, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus, updateUserIdentity, handleReportAction, handleTicketAction, uploadMedia } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   
@@ -143,7 +143,6 @@ export default function AdminDashboard() {
 
   const [govSearch, setGovSearch] = useState("");
   const [idSearch, setIdSearch] = useState("");
-  const [gatewayForm, setGatewayForm] = useState(gatewaySettings);
   const hasLoggedBreach = useRef(false);
 
   // Campaign Form State
@@ -182,9 +181,9 @@ export default function AdminDashboard() {
   );
 
   const availableTabs = useMemo(() => {
-    if (isSuper) return ["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "gateway", "campaigns", "infrastructure", "resolution", "logs"] as AdminTab[];
+    if (isSuper) return ["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "campaigns", "infrastructure", "resolution", "logs"] as AdminTab[];
     const tabs: AdminTab[] = ["pulse", "logs"];
-    if (isFinancial) tabs.push("economy", "gateway", "infrastructure");
+    if (isFinancial) tabs.push("economy", "infrastructure");
     if (isModerator) tabs.push("intelligence", "velocity", "identity", "safety", "campaigns", "resolution");
     return tabs;
   }, [isSuper, isFinancial, isModerator]);
@@ -248,12 +247,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleSaveGateway = () => {
-    triggerHaptic(50);
-    updateGatewaySettings(gatewayForm);
-    toast({ title: "Gateway Synchronized" });
-  };
-
   const handleAnalyzeSentiment = async () => {
     setIsAnalyzingVibe(true);
     triggerHaptic(30);
@@ -308,7 +301,6 @@ export default function AdminDashboard() {
     identity: { label: "Identity", icon: UserPlus },
     safety: { label: "Safety", icon: ShieldAlert },
     governance: { label: "Governance", icon: Sliders },
-    gateway: { label: "Gateway", icon: Settings },
     campaigns: { label: "Campaigns", icon: Megaphone },
     infrastructure: { label: "Infras", icon: Database },
     resolution: { label: "Resol", icon: Hammer },
@@ -380,7 +372,7 @@ export default function AdminDashboard() {
         </div>
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-hide">
-          {(["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "gateway", "campaigns", "infrastructure", "resolution", "logs"] as AdminTab[]).map((tab) => {
+          {(["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "campaigns", "infrastructure", "resolution", "logs"] as AdminTab[]).map((tab) => {
             if (!availableTabs.includes(tab)) return null;
             const Icon = TABS_DATA[tab].icon;
             const isActive = activeTab === tab;
@@ -664,23 +656,6 @@ export default function AdminDashboard() {
                   </div>
                 </Card>
               </div>
-            </div>
-          )}
-
-          {activeTab === 'gateway' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
-              <div className="space-y-1 px-2"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Gateway Logic</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Platform Financial Node Calibration</p></div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-8 shadow-xl">
-                  <div className="flex items-center gap-4"><div className="h-14 w-14 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500"><Smartphone className="h-8 w-8" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter">Orange Money Node</h4><p className="text-[10px] font-bold text-muted-foreground uppercase">Inbound collection point</p></div></div>
-                  <div className="space-y-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Account Identity (Name)</Label><Input value={gatewayForm.orangeName} onChange={(e) => setGatewayForm({...gatewayForm, orangeName: e.target.value})} className="h-14 bg-secondary/30 border-none rounded-2xl font-bold" /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Node Number</Label><Input value={gatewayForm.orangeNumber} onChange={(e) => setGatewayForm({...gatewayForm, orangeNumber: e.target.value})} className="h-14 bg-secondary/30 border-none rounded-2xl font-bold" /></div></div>
-                </Card>
-                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-8 shadow-xl">
-                  <div className="flex items-center gap-4"><div className="h-14 w-14 rounded-2xl bg-yellow-500/10 flex items-center justify-center text-yellow-500"><Building2 className="h-8 w-8" /></div><div><h4 className="text-xl font-black italic uppercase tracking-tighter">MTN Momo Node</h4><p className="text-[10px] font-bold text-muted-foreground uppercase">Inbound collection point</p></div></div>
-                  <div className="space-y-4"><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Account Identity (Name)</Label><Input value={gatewayForm.mtnName} onChange={(e) => setGatewayForm({...gatewayForm, mtnName: e.target.value})} className="h-14 bg-secondary/30 border-none rounded-2xl font-bold" /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Node Number</Label><Input value={gatewayForm.mtnNumber} onChange={(e) => setGatewayForm({...gatewayForm, mtnNumber: e.target.value})} className="h-14 bg-secondary/30 border-none rounded-2xl font-bold" /></div></div>
-                </Card>
-              </div>
-              <div className="flex justify-center pt-10"><Button onClick={handleSaveGateway} className="h-16 px-12 rounded-3xl bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl shadow-primary/20 transition-all hover:scale-105 active:scale-95">Synchronize Gateways</Button></div>
             </div>
           )}
 

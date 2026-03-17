@@ -232,7 +232,6 @@ interface PostContextType {
   toggleMuteUser: (username: string) => void;
   togglePinPost: (postId: string) => Promise<void>;
   archivePost: (postId: string) => Promise<void>;
-  updateGatewaySettings: (data: any) => Promise<void>;
   addAuditLog: (action: string, details: string) => Promise<void>;
   initiateTransaction: (data: any) => void;
   cancelTransaction: () => void;
@@ -310,6 +309,14 @@ const INITIAL_SETTINGS: AppSettings = {
 
 const FRIEND_LIMIT = 7000;
 
+// OFFICIAL FINANCIAL SIGNATURES
+const OFFICIAL_GATEWAY = {
+  orangeName: "Amos Kortu",
+  orangeNumber: "+231778451835",
+  mtnName: "Amos Kortu",
+  mtnNumber: "+231889322188"
+};
+
 export function PostProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   
@@ -318,7 +325,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [activeComments, setActiveComments] = useState<PostComment[]>([]);
   const [isLoading, setIsLoadingState] = useState(true);
   const [settings, setSettingsState] = useState<AppSettings>(INITIAL_SETTINGS);
-  const [gatewaySettings] = useState({ orangeName: "Prototype Admin", orangeNumber: "+23100000000", mtnName: "Prototype Admin", mtnNumber: "+23100000000" });
   const [clusters, setClustersState] = useState<Cluster[]>([]);
   const [connections, setConnectionsState] = useState<Connection[]>([]);
   const [stories, setStoriesState] = useState<any[]>([]);
@@ -490,7 +496,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       return next;
     });
 
-    // BOOST LOGIC: Increment reach node counter
     setPostsState(prev => prev.map(p => {
       if (p.id === postId && p.isBoosted) {
         const current = (p.boostCurrentViews || 0) + 1;
@@ -498,7 +503,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
         const expiry = p.boostExpiry || Infinity;
         const now = Date.now();
 
-        // Check for deactivation triggers: Reach Met or Temporal Expiry
         if (current >= target || now >= expiry) {
           return { ...p, boostCurrentViews: current, isBoosted: false };
         }
@@ -615,13 +619,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
     triggerHaptic(50);
     const expiry = Date.now() + (duration * 24 * 60 * 60 * 1000);
 
-    // Update Energy Balance
     setCurrentUserState(prev => ({
       ...prev,
       [currency === 'DIAMOND' ? 'diamondBalance' : 'starBalance']: (prev[currency === 'DIAMOND' ? 'diamondBalance' : 'starBalance'] || 0) - cost
     }));
 
-    // Update Node Signature in Vault
     setPostsState(prev => prev.map(p => {
       if (p.id === nodeId) {
         return { 
@@ -639,7 +641,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [triggerHaptic, toast]);
 
   const contextValue = useMemo(() => ({
-    currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames, receivedRequestUsernames, acceptedStrangerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, referralLink: "https://www.vimore.cfd/join/" + currentUser.username, pendingTransaction, activeSubscriptions, chatMessages,
+    currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames, receivedRequestUsernames, acceptedStrangerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings: OFFICIAL_GATEWAY, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, referralLink: "https://www.vimore.cfd/join/" + currentUser.username, pendingTransaction, activeSubscriptions, chatMessages,
     login, signup, logout, checkSession, uploadMedia, addPost, deletePost, toggleLikePost, toggleUnlikePost, toggleSavePost: (id: string) => setSavedPostIdsState(prev => { const n = new Set(prev); if(id && prev.has(id)) n.delete(id); else if(id) n.add(id); return n; }), 
     updateCurrentUser: async (d: any) => { setCurrentUserState(prev => ({...prev, ...d})); }, 
     updateSettings, 
@@ -659,7 +661,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     boostNode,
     recordView, recordStoryView, createCluster: async (name: string, members: any[]) => { setClustersState(prev => [{ id: Date.now().toString(), name, adminUsername: currentUser.username, members, isGroup: true }, ...prev]); }, 
     addMemberToCluster: async () => {}, leaveCluster: async () => {}, initiateTransaction: (d: any) => setPendingTransactionState(d), cancelTransaction: () => setPendingTransactionState(null), createPaymentRequest: async () => { setPendingTransactionState(null); }, recordWithdrawal: async () => {}, verifyUser: async () => { setCurrentUserState(prev => ({...prev, isVerified: true})); }, processGiftTransaction: async (cost: number) => { setCurrentUserState(prev => ({...prev, goldBalance: (prev.goldBalance || 0) - cost})); }, unlockPost: async (id: string) => { setUnlockedPostIdsState(prev => new Set(prev).add(id)); }, subscribeToCreator: async (u: string) => { setActiveSubscriptionsState(prev => new Set(prev).add(u)); }, fetchComments: async () => {}, refreshFeed, refreshStories, refreshProfiles: async () => [], refreshClusters: async () => {}, fetchProfileByUsername: async (u: string) => MOCK_USERS.find(user => user.username === u) || null, promoteUser: async () => {}, demoteUser: async () => {}, voteOnPostPoll: async () => {}, cancelSubscription: async (u: string) => { setActiveSubscriptionsState(prev => { const n = new Set(prev); n.delete(u); return n; }); }, incrementShareCount: async () => {}, toggleMuteUser: (u: string) => setMutedUserNamesState(prev => prev.includes(u) ? prev.filter(n => n !== u) : [...prev, u]), togglePinPost: async () => {}, archivePost: async () => {}, addAuditLog: async () => {}, approvePaymentRequest: async () => {}, rejectPaymentRequest: async () => {}, processWithdrawal: async () => {}, addCampaign: async () => {}, deleteCampaign: async () => {}, toggleCampaignStatus: async () => {}, recordCampaignClick: async () => {}, initiateCall, acceptCall, endCall, refreshAdminData: async () => {}, updateUserIdentity: async () => {}, handleReportAction: async () => {}, handleTicketAction: async () => {}, voteOnStoryPoll: async () => {}, updateGatewaySettings: async () => {}, sendChatMessage, purgeVibeCache, archiveIdentityNode
-  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames, receivedRequestUsernames, acceptedStrangerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, pendingTransaction, chatMessages, activeSubscriptions, triggerHaptic, refreshFeed, refreshStories, initiateCall, acceptCall, endCall, toast, sendChatMessage, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, recordView, acceptMessageRequest, declineMessageRequest, updateSettings, purgeVibeCache, archiveIdentityNode, boostNode]);
+  }), [currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames, receivedRequestUsernames, acceptedStrangerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, pendingTransaction, chatMessages, activeSubscriptions, triggerHaptic, refreshFeed, refreshStories, initiateCall, acceptCall, endCall, toast, sendChatMessage, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, recordView, acceptMessageRequest, declineMessageRequest, updateSettings, purgeVibeCache, archiveIdentityNode, boostNode]);
 
   return <PostContext.Provider value={contextValue}>{children}</PostContext.Provider>;
 }

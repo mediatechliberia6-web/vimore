@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -20,7 +19,8 @@ import {
   CreditCard,
   Building2,
   Loader2,
-  Sparkles
+  Sparkles,
+  Smartphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -421,7 +421,7 @@ export default function CurrencyHub() {
                           paymentMethod === "ORANGE" ? "bg-orange-500 border-orange-400 text-white shadow-xl shadow-orange-500/20" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
                         )}
                       >
-                        <Building2 className="h-6 w-6" />
+                        <Smartphone className="h-6 w-6" />
                         <span className="text-[10px] font-black uppercase tracking-widest">Orange Money</span>
                       </button>
                       <button 
