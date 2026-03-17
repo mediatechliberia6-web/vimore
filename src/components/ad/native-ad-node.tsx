@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -79,36 +80,28 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
 
     doc.open();
     if (type === "standard") {
+      // Naked Protocol: No styling, direct script injection
       doc.write(`
-        <html>
-          <head>
-            <style>
-              body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; overflow: hidden; }
-            </style>
-          </head>
-          <body>
-            <script type="text/javascript">
-              atOptions = {
-                'key' : 'dbb5c7fa11689ae615919a9aed7fca72',
-                'format' : 'iframe',
-                'height' : 90,
-                'width' : 728,
-                'params' : {}
-              };
-            </script>
-            <script type="text/javascript" src="https://www.highperformanceformat.com/dbb5c7fa11689ae615919a9aed7fca72/invoke.js"></script>
-          </body>
-        </html>
+        <body style="margin: 0; padding: 0; background: transparent; overflow: hidden;">
+          <script type="text/javascript">
+            atOptions = {
+              'key' : 'dbb5c7fa11689ae615919a9aed7fca72',
+              'format' : 'iframe',
+              'height' : 90,
+              'width' : 728,
+              'params' : {}
+            };
+          </script>
+          <script type="text/javascript" src="https://www.highperformanceformat.com/dbb5c7fa11689ae615919a9aed7fca72/invoke.js"></script>
+        </body>
       `);
     } else {
       // Reel and Banner types
       doc.write(`
-        <html>
-          <body style="margin: 0; padding: 0; background: transparent; overflow: hidden; display: flex; justify-content: center;">
-            <div id="container-d13d860ccc8aa5337c2883a5d6f33e5f"></div>
-            <script async="async" data-cfasync="false" src="https://pl28925245.effectivegatecpm.com/d13d860ccc8aa5337c2883a5d6f33e5f/invoke.js"></script>
-          </body>
-        </html>
+        <body style="margin: 0; padding: 0; background: transparent; overflow: hidden; display: flex; justify-content: center;">
+          <div id="container-d13d860ccc8aa5337c2883a5d6f33e5f"></div>
+          <script async="async" data-cfasync="false" src="https://pl28925245.effectivegatecpm.com/d13d860ccc8aa5337c2883a5d6f33e5f/invoke.js"></script>
+        </body>
       `);
     }
     doc.close();
@@ -129,9 +122,9 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
 
   if (type === "standard") {
     return (
-      <div ref={containerRef} className="w-full flex flex-col items-center py-4 animate-in fade-in duration-700 overflow-hidden relative min-h-[100px]">
+      <div ref={containerRef} className="w-full flex flex-col items-center py-6 animate-in fade-in duration-700 overflow-hidden relative min-h-[90px]">
         <div 
-          className="flex items-center justify-center transition-transform duration-500 origin-top"
+          className="flex items-center justify-center transition-transform duration-500 origin-center"
           style={{ 
             width: '728px', 
             height: '90px',
