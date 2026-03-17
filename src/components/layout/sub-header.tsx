@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -106,7 +105,7 @@ export function SubHeader() {
               >
                 <div className="relative">
                   <item.icon className={cn("w-5 h-5", isActive ? "scale-110" : "group-hover:scale-110 transition-transform")} />
-                  {!isActive && <PulseBadge count={pulseCount} />}
+                  {/* Category Badges Removed per user request */}
                 </div>
                 <span className="hidden sm:inline text-sm">{item.label}</span>
                 {isActive && (
