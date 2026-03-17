@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -80,7 +79,6 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
 
     doc.open();
     if (type === "standard") {
-      // BRAND NEW INJECTION: Explicit atOptions Handshake
       doc.write(`
         <html>
           <head>
@@ -131,12 +129,7 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
 
   if (type === "standard") {
     return (
-      <div ref={containerRef} className="w-full flex flex-col items-center py-6 animate-in fade-in duration-700 overflow-hidden relative min-h-[110px]">
-        <div className="flex items-center gap-1.5 bg-background border border-primary/10 px-2 py-0.5 rounded-full z-10 shadow-sm mb-2">
-          <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />
-          <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Sponsored Node</span>
-        </div>
-        
+      <div ref={containerRef} className="w-full flex flex-col items-center py-4 animate-in fade-in duration-700 overflow-hidden relative min-h-[100px]">
         <div 
           className="flex items-center justify-center transition-transform duration-500 origin-top"
           style={{ 
@@ -164,7 +157,7 @@ export function NativeAdNode({ type, id, isActive }: NativeAdNodeProps) {
         <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-black flex items-center justify-center">
           <div className="absolute inset-0 opacity-20 pointer-events-none">
             <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
-            <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[120px] rounded-full animate-pulse delay-700" />
+            <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/10 blur-[120px] rounded-full animate-pulse delay-700" />
           </div>
           
           <div className="relative z-10 w-full px-8 flex flex-col items-center gap-8">

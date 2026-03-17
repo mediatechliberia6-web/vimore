@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -40,19 +39,13 @@ function Sparkline({ data, color }: { data: number[], color: string }) {
       <ChartContainer config={{ val: { label: "Stream Trend", color } }}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData}>
-            <defs>
-              <linearGradient id={`gradient-${color}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={color} stopOpacity={0} />
-              </linearGradient>
-            </defs>
             <Area
               type="monotone"
               dataKey="val"
               stroke={color}
               strokeWidth={2}
               fillOpacity={1}
-              fill={`url(#gradient-${color})`}
+              fill="transparent"
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -68,7 +61,6 @@ export function MusicCharts() {
   const rankedSongs = useMemo(() => {
     if (!globalSongs || globalSongs.length === 0) return [];
     
-    // Deterministic Logic: Priority 1: isBoosted, Priority 2: Likes
     return [...globalSongs].sort((a, b) => {
       if (a.isBoosted && !b.isBoosted) return -1;
       if (!a.isBoosted && b.isBoosted) return 1;
@@ -151,8 +143,6 @@ export function MusicCharts() {
         </div>
       )}
 
-      <NativeAdNode type="standard" />
-
       {/* 2. Chart Navigation */}
       <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-4 scrollbar-hide px-1">
         {CHART_CATEGORIES.map((cat) => (
@@ -172,6 +162,8 @@ export function MusicCharts() {
         ))}
       </div>
 
+      <NativeAdNode type="standard" />
+
       {/* 3. The Ranking List */}
       <div className="bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[1.5rem] sm:rounded-[2.5rem] border border-white/10 overflow-hidden shadow-xl">
         <div className="grid grid-cols-[40px_1fr_50px] sm:grid-cols-[60px_1fr_120px_100px_60px] gap-2 sm:gap-4 px-4 sm:px-8 py-4 sm:py-6 text-[8px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] border-b border-white/5">
@@ -189,64 +181,72 @@ export function MusicCharts() {
             const likes = trackStats[item.id]?.likes || item.likes || 0;
 
             return (
-              <div 
-                key={item.id} 
-                className={cn(
-                  "grid grid-cols-[40px_1fr_50px] sm:grid-cols-[60px_1fr_120px_100px_60px] items-center gap-2 sm:gap-4 px-4 sm:px-8 py-4 sm:py-5 group hover:bg-white/5 transition-colors cursor-pointer",
-                  isCurrent && "bg-primary/5"
+              <div key={item.id}>
+                <div 
+                  className={cn(
+                    "grid grid-cols-[40px_1fr_50px] sm:grid-cols-[60px_1fr_120px_100px_60px] items-center gap-2 sm:gap-4 px-4 sm:px-8 py-4 sm:py-5 group hover:bg-white/5 transition-colors cursor-pointer",
+                    isCurrent && "bg-primary/5"
+                  )}
+                  onClick={() => setTrack(item)}
+                >
+                  <div className="flex flex-col items-center gap-0.5 sm:gap-1">
+                    <span className={cn(
+                      "text-lg sm:text-xl font-black italic tracking-tighter",
+                      rank === 1 ? "text-primary scale-110 sm:scale-125" : "text-foreground"
+                    )}>
+                      {rank.toString().padStart(2, '0')}
+                    </span>
+                    {rank < 5 && <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-green-500" />}
+                  </div>
+
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <div className="relative h-10 w-10 sm:h-14 sm:w-14 rounded-lg sm:rounded-xl overflow-hidden shadow-lg shrink-0">
+                      <img src={item.cover} alt={item.title} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Play className="h-4 w-4 sm:h-6 sm:w-6 text-white fill-current" />
+                      </div>
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn(
+                          "font-black italic uppercase tracking-tight truncate text-xs sm:text-base",
+                          isCurrent ? "text-primary" : "text-foreground"
+                        )}>
+                          {item.title}
+                        </span>
+                        {item.isBoosted && <Zap className="h-2.5 w-2.5 text-primary fill-current animate-pulse" />}
+                      </div>
+                      <Link 
+                        href={`/profile/${item.artistUsername || 'vimore'}`} 
+                        className="text-[10px] sm:text-xs font-bold text-muted-foreground hover:text-primary transition-colors truncate"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {item.artist}
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div className="hidden sm:flex justify-center">
+                    <Sparkline data={[20, 25, 30, 45, 50, 65, 80]} color="#9940E5" />
+                  </div>
+
+                  <div className="flex flex-col items-center justify-center gap-0.5 sm:gap-1">
+                    <Badge variant="outline" className="text-[9px] font-black border-white/10 rounded-lg bg-white/5 h-6 px-2">{(likes/1000).toFixed(1)}K</Badge>
+                  </div>
+
+                  <div className="hidden sm:flex justify-center">
+                    <Button variant="ghost" size="icon" className="rounded-xl hover:bg-primary/10 hover:text-primary">
+                      <BarChart2 className="h-5 w-5" />
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Interleave Ad every 3 items */}
+                {rank % 3 === 0 && rank < rankedSongs.length && (
+                  <div className="bg-white/5 border-y border-white/5">
+                    <NativeAdNode type="standard" />
+                  </div>
                 )}
-                onClick={() => setTrack(item)}
-              >
-                <div className="flex flex-col items-center gap-0.5 sm:gap-1">
-                  <span className={cn(
-                    "text-lg sm:text-xl font-black italic tracking-tighter",
-                    rank === 1 ? "text-primary scale-110 sm:scale-125" : "text-foreground"
-                  )}>
-                    {rank.toString().padStart(2, '0')}
-                  </span>
-                  {rank < 5 && <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-green-500" />}
-                </div>
-
-                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                  <div className="relative h-10 w-10 sm:h-14 sm:w-14 rounded-lg sm:rounded-xl overflow-hidden shadow-lg shrink-0">
-                    <img src={item.cover} alt={item.title} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Play className="h-4 w-4 sm:h-6 sm:w-6 text-white fill-current" />
-                    </div>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className={cn(
-                        "font-black italic uppercase tracking-tight truncate text-xs sm:text-base",
-                        isCurrent ? "text-primary" : "text-foreground"
-                      )}>
-                        {item.title}
-                      </span>
-                      {item.isBoosted && <Zap className="h-2.5 w-2.5 text-primary fill-current animate-pulse" />}
-                    </div>
-                    <Link 
-                      href={`/profile/${item.artistUsername || 'vimore'}`} 
-                      className="text-[10px] sm:text-xs font-bold text-muted-foreground hover:text-primary transition-colors truncate"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {item.artist}
-                    </Link>
-                  </div>
-                </div>
-
-                <div className="hidden sm:flex justify-center">
-                  <Sparkline data={[20, 25, 30, 45, 50, 65, 80]} color="#9940E5" />
-                </div>
-
-                <div className="flex flex-col items-center justify-center gap-0.5 sm:gap-1">
-                  <Badge variant="outline" className="text-[9px] font-black border-white/10 rounded-lg bg-white/5 h-6 px-2">{(likes/1000).toFixed(1)}K</Badge>
-                </div>
-
-                <div className="hidden sm:flex justify-center">
-                  <Button variant="ghost" size="icon" className="rounded-xl hover:bg-primary/10 hover:text-primary">
-                    <BarChart2 className="h-5 w-5" />
-                  </Button>
-                </div>
               </div>
             );
           })}

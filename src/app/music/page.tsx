@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, Suspense } from "react";
@@ -9,6 +8,7 @@ import { MusicNav } from "@/components/music/music-nav";
 import { MusicCharts } from "@/components/music/music-charts";
 import { MusicUpload } from "@/components/music/music-upload";
 import { CreatePlaylistModal } from "@/components/music/create-playlist-modal";
+import { NativeAdNode } from "@/components/ad/native-ad-node";
 import { useMusic, Album, Track, Playlist } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
 import { useTranslation } from "@/context/LanguageContext";
@@ -141,7 +141,7 @@ function MusicPageContent() {
           </div>
           <div className="px-4 sm:px-10 py-6 sm:py-10">
             {activeTab === "discover" && (
-              <div className="space-y-10 sm:space-y-16 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+              <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
                 {!hasResults ? (
                   <div className="py-20 text-center space-y-6 bg-white/40 dark:bg-card/40 rounded-[2.5rem] border border-dashed border-primary/10 animate-in zoom-in duration-500">
                     <div className="h-20 w-20 bg-secondary/30 rounded-full flex items-center justify-center mx-auto">
@@ -156,12 +156,49 @@ function MusicPageContent() {
                 ) : (
                   <>
                     {!searchQuery && filteredSongs.length > 0 && <MusicGrid type="hero" items={[filteredSongs[0]]} />}
-                    {forYouSongs.length > 0 && <MusicGrid type="song" title="For You" items={forYouSongs.slice(0, 10)} />}
-                    {filteredSongs.length > 0 && <MusicGrid type="song" title={searchQuery ? t('ui_all') : t('music_trending_songs')} items={filteredSongs} />}
-                    {globalSongs.length > 0 && <MusicGrid type="song" title={t('music_new_releases')} items={[...globalSongs].reverse()} />}
-                    {filteredAlbums.length > 0 && <MusicGrid type="album" title={searchQuery ? t('music_my_albums') : t('music_trending_albums')} items={filteredAlbums} />}
-                    {filteredPlaylists.length > 0 && <MusicGrid type="playlist" title={searchQuery ? t('music_playlists') : t('music_top_playlists')} items={filteredPlaylists} />}
-                    {filteredArtists.length > 0 && <MusicGrid type="artist" title={searchQuery ? t('ui_all') : t('music_trending_artists')} items={filteredArtists} />}
+                    <NativeAdNode type="standard" />
+                    
+                    {forYouSongs.length > 0 && (
+                      <>
+                        <MusicGrid type="song" title="For You" items={forYouSongs.slice(0, 10)} />
+                        <NativeAdNode type="standard" />
+                      </>
+                    )}
+                    
+                    {filteredSongs.length > 0 && (
+                      <>
+                        <MusicGrid type="song" title={searchQuery ? t('ui_all') : t('music_trending_songs')} items={filteredSongs} />
+                        <NativeAdNode type="standard" />
+                      </>
+                    )}
+                    
+                    {globalSongs.length > 0 && (
+                      <>
+                        <MusicGrid type="song" title={t('music_new_releases')} items={[...globalSongs].reverse()} />
+                        <NativeAdNode type="standard" />
+                      </>
+                    )}
+                    
+                    {filteredAlbums.length > 0 && (
+                      <>
+                        <MusicGrid type="album" title={searchQuery ? t('music_my_albums') : t('music_trending_albums')} items={filteredAlbums} />
+                        <NativeAdNode type="standard" />
+                      </>
+                    )}
+                    
+                    {filteredPlaylists.length > 0 && (
+                      <>
+                        <MusicGrid type="playlist" title={searchQuery ? t('music_playlists') : t('music_top_playlists')} items={filteredPlaylists} />
+                        <NativeAdNode type="standard" />
+                      </>
+                    )}
+                    
+                    {filteredArtists.length > 0 && (
+                      <>
+                        <MusicGrid type="artist" title={searchQuery ? t('ui_all') : t('music_trending_artists')} items={filteredArtists} />
+                        <NativeAdNode type="standard" />
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -187,6 +224,9 @@ function MusicPageContent() {
                     </div>
                   </div>
                 </div>
+
+                <NativeAdNode type="standard" />
+
                 <div className="pt-4">
                   {libraryTab === "playlists" && (
                     <div className="space-y-8">
@@ -211,7 +251,7 @@ function MusicPageContent() {
                           <Zap className="h-12 w-12 mx-auto text-primary opacity-20" />
                           <div className="space-y-1">
                             <h3 className="text-xl font-black italic uppercase tracking-tighter">Your Catalog is Empty</h3>
-                            <p className="text-muted-foreground text-sm uppercase font-bold tracking-widest">Launch your first single in the high-velocity studio.</p>
+                            <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest">Launch your first single in the high-velocity studio.</p>
                           </div>
                           <Button className="rounded-full bg-primary text-white font-black italic uppercase tracking-widest h-10 px-8 shadow-lg shadow-primary/20" onClick={() => setActiveTab("upload")}>Enter Studio</Button>
                         </div>
