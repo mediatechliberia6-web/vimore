@@ -52,7 +52,7 @@ export default function MenuPage() {
   const { toast } = useToast();
   const isPlayerActive = currentTrack && !isExpanded;
 
-  const isAdmin = currentUser.role && currentUser.role !== 'USER';
+  const isAdmin = currentUser?.role && currentUser.role !== 'USER';
 
   const handleLogout = async () => {
     triggerHaptic(100);
@@ -107,27 +107,27 @@ export default function MenuPage() {
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Avatar className="h-16 w-16 border-4 border-white dark:border-card ring-2 ring-primary/20">
-                  <AvatarImage src={currentUser.avatar} />
-                  <AvatarFallback>JD</AvatarFallback>
+                  <AvatarImage src={currentUser?.avatar} />
+                  <AvatarFallback>V</AvatarFallback>
                 </Avatar>
                 <div className="absolute -bottom-1 -right-1 bg-primary text-white p-1 rounded-full border-2 border-white dark:border-card">
                   <Sparkles className="h-3 w-3" />
                 </div>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-xl tracking-tight text-foreground">{currentUser.name}</span>
+                <span className="font-bold text-xl tracking-tight text-foreground">{currentUser?.name || "Guest"}</span>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase">
                     <Coins className="h-3 w-3 text-amber-500" />
-                    {currentUser.goldBalance || 0} GD
+                    {currentUser?.goldBalance || 0} GD
                   </div>
                   <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase">
                     <Gem className="h-3 w-3 text-cyan-500" />
-                    {currentUser.diamondBalance || 0} D
+                    {currentUser?.diamondBalance || 0} D
                   </div>
                   <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase">
                     <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                    {currentUser.starBalance || 0} STAR
+                    {currentUser?.starBalance || 0} STAR
                   </div>
                 </div>
               </div>

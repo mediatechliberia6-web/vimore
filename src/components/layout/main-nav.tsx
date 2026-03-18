@@ -25,7 +25,7 @@ export function MainNav() {
   const { settings, currentUser } = usePosts();
   const { t } = useTranslation();
 
-  const isAdmin = currentUser.role && currentUser.role !== 'USER';
+  const isAdmin = currentUser?.role && currentUser.role !== 'USER';
 
   const navItems: { icon: any; label: string; href: string; badge?: number; category?: PulseCategory; isHidden?: boolean }[] = [
     { icon: Home, label: t('nav_home'), href: "/", category: "HOME" },

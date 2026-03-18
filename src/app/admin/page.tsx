@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -128,7 +129,7 @@ export default function AdminDashboard() {
   const { t } = useTranslation();
   const { toast } = useToast();
   
-  const userRole = currentUser.role || 'USER';
+  const userRole = currentUser?.role || 'USER';
   const isSuper = userRole === 'SUPER';
   const isFinancial = userRole === 'FINANCIAL';
   const isModerator = userRole === 'MODERATOR';
@@ -160,7 +161,7 @@ export default function AdminDashboard() {
   const campInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isUnauthorized && !hasLoggedBreach.current) {
+    if (isUnauthorized && !hasLoggedBreach.current && currentUser?.username) {
       addAuditLog("UNAUTHORIZED_CORE_ACCESS_ATTEMPT", `Standard user node @${currentUser.username} attempted to synchronize with the Command Core.`);
       hasLoggedBreach.current = true;
     }
@@ -168,7 +169,7 @@ export default function AdminDashboard() {
     if (!isUnauthorized) {
       refreshAdminData();
     }
-  }, [isUnauthorized, refreshAdminData, addAuditLog, currentUser.username]);
+  }, [isUnauthorized, refreshAdminData, addAuditLog, currentUser?.username]);
 
   const pendingWithdrawals = useMemo(() => 
     withdrawalHistory.filter(w => w.status === 'PENDING' || w.status === 'AWAITING_EMAIL_SIGNATURE'), 
@@ -404,7 +405,7 @@ export default function AdminDashboard() {
               <span className="text-sm sm:text-lg font-black italic uppercase tracking-tighter">Cluster: ViMore-Main-Alpha</span>
             </div>
           </div>
-          <Avatar className="h-10 w-10 border-2 border-primary/20"><AvatarImage src={currentUser.avatar} /></Avatar>
+          <Avatar className="h-10 w-10 border-2 border-primary/20"><AvatarImage src={currentUser?.avatar} /></Avatar>
         </header>
 
         <div className="p-4 sm:p-10 space-y-10 pb-32">
@@ -572,7 +573,7 @@ export default function AdminDashboard() {
             <div className="space-y-10 animate-in fade-in duration-500">
               <div className="flex items-center justify-between px-2">
                 <div className="space-y-1"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Identity Registry</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Global Network Node Verification</p></div>
-                <div className="relative w-64"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Query identities..." className="h-10 pl-9 bg-secondary/30 border-none rounded-xl" value={idSearch} onChange={(e) => setIdSearch(e.target.value)} /></div>
+                <div className="relative w-64"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Query identities..." className="h-10 pl-9 bg-secondary/30 border-none rounded-xl" value={idSearch} onChange={(e) => setSearchOpen(true)} /></div>
               </div>
               <Card className="bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl">
                 <div className="overflow-x-auto">
@@ -648,7 +649,7 @@ export default function AdminDashboard() {
                           <tr key={s.username} className="hover:bg-secondary/10 transition-colors">
                             <td className="px-8 py-5"><div className="flex items-center gap-3"><Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={s.avatar} /></Avatar><div className="flex flex-col"><span className="font-bold text-sm">{s.name}</span><span className="text-[10px] font-black text-muted-foreground uppercase">@{s.username}</span></div></div></td>
                             <td className="px-8 py-5"><Badge className={cn("font-black text-[8px] uppercase tracking-widest px-3 h-5", s.role === 'SUPER' ? "bg-primary text-white" : s.role === 'FINANCIAL' ? "bg-amber-500/10 text-amber-500" : "bg-blue-500/10 text-blue-500")}>{s.role}</Badge></td>
-                            <td className="px-8 py-5 text-right">{s.username !== currentUser.username ? <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive rounded-xl" onClick={() => handleDemote(s.username)}><UserMinus className="h-4 w-4" /></Button> : <Badge variant="outline" className="text-[8px] font-black uppercase opacity-40">PRIMARY</Badge>}</td>
+                            <td className="px-8 py-5 text-right">{s.username !== currentUser?.username ? <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive rounded-xl" onClick={() => handleDemote(s.username)}><UserMinus className="h-4 w-4" /></Button> : <Badge variant="outline" className="text-[8px] font-black uppercase opacity-40">PRIMARY</Badge>}</td>
                           </tr>
                         ))}
                       </tbody>
