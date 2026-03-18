@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -17,9 +18,9 @@ export function RightSidebar() {
   const suggestions = useMemo(() => {
     if (!connections || !Array.isArray(connections)) return [];
     return connections
-      .filter(c => !isFriend(c.username) && !isRequestSent(c.username) && c.username !== currentUser.username)
+      .filter(c => !isFriend(c.username) && !isRequestSent(c.username) && c.username !== currentUser?.username)
       .slice(0, 3);
-  }, [connections, isFriend, isRequestSent, currentUser.username]);
+  }, [connections, isFriend, isRequestSent, currentUser?.username]);
 
   const trends = [
     { tag: "BuildingInPublic", posts: "12.5k" },
