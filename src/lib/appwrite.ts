@@ -35,7 +35,10 @@ export const POSTS_COLLECTION_ID = 'posts';
 export const COMMENTS_COLLECTION_ID = 'comments';
 export const CONNECTIONS_COLLECTION_ID = 'connections';
 export const NOTIFICATIONS_COLLECTION_ID = 'notifications';
-export const CLUSTERS_COLLECTION_ID = 'clusters';
+export const MUSIC_COLLECTION_ID = 'music';
+export const ALBUMS_COLLECTION_ID = 'albums';
+export const PLAYLISTS_COLLECTION_ID = 'playlists';
+export const STORIES_COLLECTION_ID = 'stories';
 export const MESSAGES_COLLECTION_ID = 'messages';
 
 export default client;

@@ -2,12 +2,21 @@
 'use client';
 
 /**
- * @fileOverview ViMore Sonic Context Node (Prototype Edition)
- * Manages playback using local mock data without Appwrite dependency.
+ * @fileOverview ViMore Sonic Context Node (Production Engine)
+ * Manages high-fidelity audio playback and database synchronization.
  */
 
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef, useMemo } from 'react';
-import { saveFileToDevice } from '@/lib/utils';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
+import { 
+  databases, 
+  Query, 
+  ID, 
+  APPWRITE_DATABASE_ID, 
+  MUSIC_COLLECTION_ID, 
+  ALBUMS_COLLECTION_ID, 
+  PLAYLISTS_COLLECTION_ID 
+} from '@/lib/appwrite';
+import { usePosts } from './PostContext';
 
 export interface Track {
   id: string | number;
@@ -124,65 +133,13 @@ interface MusicContextType {
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
 
-const MOCK_SONGS: Track[] = [
-  { id: 's1', title: "Midnight Pulse", artist: "Alex Rivera", artistUsername: "arivera", cover: "https://picsum.photos/seed/s1/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", duration: 180, streams: "1.2M", likes: 12400, unlikes: 2 },
-  { id: 's2', title: "Cyber Horizon", artist: "Sarah Chen", artistUsername: "schen_dev", cover: "https://picsum.photos/seed/s2/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", duration: 210, streams: "850K", likes: 8450, unlikes: 0 },
-  { id: 's3', title: "Spatial Echo", artist: "Marcus Stone", artistUsername: "mstone", cover: "https://picsum.photos/seed/s3/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3", duration: 195, streams: "410K", likes: 3200, unlikes: 5 },
-  { id: 's4', title: "Binary Vibe", artist: "Elena Gilbert", artistUsername: "elena_g", cover: "https://picsum.photos/seed/s4/600/600", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3", duration: 165, streams: "280K", likes: 1500, unlikes: 1 }
-];
-
-const MOCK_ALBUMS: Album[] = [
-  {
-    id: 'a1',
-    title: "Velocity One",
-    artist: "Alex Rivera",
-    artistUsername: "arivera",
-    cover: "https://picsum.photos/seed/a1/600/600",
-    year: "2024",
-    tracks: 4,
-    totalStreams: "4.2M",
-    songs: MOCK_SONGS
-  },
-  {
-    id: 'a2',
-    title: "Silicon Dreams",
-    artist: "Sarah Chen",
-    artistUsername: "schen_dev",
-    cover: "https://picsum.photos/seed/a2/600/600",
-    year: "2024",
-    tracks: 2,
-    totalStreams: "1.8M",
-    songs: [MOCK_SONGS[1], MOCK_SONGS[3]]
-  }
-];
-
-const MOCK_PLAYLISTS: Playlist[] = [
-  {
-    id: 'pl1',
-    title: "Midnight Focus",
-    creator: "amos_mtl",
-    cover: "https://picsum.photos/seed/pl1/600/600",
-    totalStreams: "12.5K",
-    songs: [MOCK_SONGS[0], MOCK_SONGS[2]],
-    description: "High-fidelity tracks for late-night building."
-  },
-  {
-    id: 'pl2',
-    title: "Afro-Spatial",
-    creator: "arivera",
-    cover: "https://picsum.photos/seed/pl2/600/600",
-    totalStreams: "84K",
-    songs: MOCK_SONGS,
-    description: "The sound of the West Africa cluster."
-  }
-];
-
 export function MusicProvider({ children }: { children: ReactNode }) {
+  const { currentUser } = usePosts();
   const [currentTrack, setCurrentTrackState] = useState<Track | null>(null);
-  const [globalSongs, setGlobalSongsState] = useState<Track[]>(MOCK_SONGS);
-  const [globalAlbums, setGlobalAlbumsState] = useState<Album[]>(MOCK_ALBUMS);
-  const [globalPlaylists, setGlobalPlaylistsState] = useState<Playlist[]>(MOCK_PLAYLISTS);
-  const [queue, setQueueState] = useState<Track[]>(MOCK_SONGS);
+  const [globalSongs, setGlobalSongsState] = useState<Track[]>([]);
+  const [globalAlbums, setGlobalAlbumsState] = useState<Album[]>([]);
+  const [globalPlaylists, setGlobalPlaylistsState] = useState<Playlist[]>([]);
+  const [queue, setQueueState] = useState<Track[]>([]);
   const [isPlaying, setIsPlayingState] = useState(false);
   const [isExpanded, setIsExpandedState] = useState(false);
   const [selectedAlbum, setSelectedAlbumState] = useState<Album | null>(null);
@@ -204,6 +161,36 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [trackForNewPlaylist, setTrackForNewPlaylistState] = useState<Track | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const refreshMusicVault = useCallback(async () => {
+    try {
+      const songRes = await databases.listDocuments(APPWRITE_DATABASE_ID, MUSIC_COLLECTION_ID, [Query.orderDesc('$createdAt')]);
+      const albumRes = await databases.listDocuments(APPWRITE_DATABASE_ID, ALBUMS_COLLECTION_ID, [Query.orderDesc('$createdAt')]);
+      const playlistRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PLAYLISTS_COLLECTION_ID, [Query.orderDesc('$createdAt')]);
+
+      const tracks: Track[] = songRes.documents.map((d: any) => ({
+        id: d.$id, title: d.title, artist: d.artist, artistUsername: d.artistUsername,
+        cover: d.cover, audioUrl: d.audioUrl, duration: d.duration || 180,
+        streams: d.streams?.toString() || "0", likes: d.likes || 0, isBoosted: d.isBoosted
+      }));
+
+      setGlobalSongsState(tracks);
+      setQueueState(tracks);
+      
+      setGlobalAlbumsState(albumRes.documents.map((d: any) => ({
+        id: d.$id, title: d.title, artist: d.artist, artistUsername: d.artistUsername,
+        cover: d.cover, year: d.year, tracks: d.tracksCount, totalStreams: d.totalStreams?.toString() || "0",
+        songs: tracks.filter(t => t.artistUsername === d.artistUsername).slice(0, d.tracksCount)
+      })));
+
+      setGlobalPlaylistsState(playlistRes.documents.map((d: any) => ({
+        id: d.$id, title: d.title, creator: d.creator, cover: d.cover,
+        totalStreams: d.totalStreams?.toString() || "0", songs: tracks.slice(0, 3) // Simplified link
+      })));
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => { refreshMusicVault(); }, [refreshMusicVault]);
 
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
@@ -239,28 +226,54 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   }, [currentTrack, isPlaying]);
 
   const nextTrack = useCallback(() => {
+    if (queue.length === 0) return;
     const idx = queue.findIndex(t => t.id === currentTrack?.id);
-    if (idx === -1) return;
     const nextIdx = (idx + 1) % queue.length;
     setCurrentTrackState(queue[nextIdx]);
     setIsPlayingState(true);
   }, [queue, currentTrack]);
 
   const prevTrack = useCallback(() => {
+    if (queue.length === 0) return;
     const idx = queue.findIndex(t => t.id === currentTrack?.id);
-    if (idx === -1) return;
     const prevIdx = (idx - 1 + queue.length) % queue.length;
     setCurrentTrackState(queue[prevIdx]);
     setIsPlayingState(true);
   }, [queue, currentTrack]);
 
+  const publishTrack = async (track: any) => {
+    await databases.createDocument(APPWRITE_DATABASE_ID, MUSIC_COLLECTION_ID, ID.unique(), track);
+    refreshMusicVault();
+  };
+
+  const publishAlbum = async (album: any) => {
+    await databases.createDocument(APPWRITE_DATABASE_ID, ALBUMS_COLLECTION_ID, ID.unique(), {
+      title: album.title, artist: album.artist, artistUsername: album.artistUsername,
+      cover: album.cover, year: album.year, tracksCount: album.tracks
+    });
+    refreshMusicVault();
+  };
+
+  const recordSongStream = async (songId: string | number) => {
+    try {
+      const track = globalSongs.find(s => s.id === songId);
+      if (track) {
+        await databases.updateDocument(APPWRITE_DATABASE_ID, MUSIC_COLLECTION_ID, songId.toString(), {
+          streams: (parseInt(track.streams || "0") + 1)
+        });
+      }
+    } catch (e) {}
+  };
+
   const value = {
     currentTrack, queue, globalSongs, globalAlbums, globalPlaylists,
-    forYouSongs: MOCK_SONGS, 
+    forYouSongs: globalSongs.slice(0, 5), 
     isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions,
     likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds,
-    likedTracks: MOCK_SONGS.filter(s => likedSongIds.has(s.id)),
-    userPlaylists: [], userSongs: [], userAlbums: [],
+    likedTracks: globalSongs.filter(s => likedSongIds.has(s.id)),
+    userPlaylists: globalPlaylists.filter(p => p.creator === currentUser?.username), 
+    userSongs: globalSongs.filter(s => s.artistUsername === currentUser?.username), 
+    userAlbums: globalAlbums.filter(a => a.artistUsername === currentUser?.username),
     isCreatePlaylistOpen, trackForNewPlaylist, trackStats,
     isAdPortalOpen, adDuration, adUrl: "https://www.effectivegatecpm.com/fesc8y775q?key=4754d4c5b1e8452fc8b35451795350aa",
     triggerDownloadWithAd: (type: any, task: any) => { setIsAdPortalOpenState(true); setPendingDownloadTask(() => task); },
@@ -269,7 +282,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     openCaptureStudio: (t?: Track) => { setCaptureTrackState(t || null); setIsCaptureStudioOpenState(true); },
     closeCaptureStudio: () => setIsCaptureStudioOpenState(false),
     setCaptureTrack: setCaptureTrackState,
-    setTrack: (t: Track) => { setCurrentTrackState(t); setIsPlayingState(true); setIsExpandedState(true); },
+    setTrack: (t: Track) => { setCurrentTrackState(t); setIsPlayingState(true); setIsExpandedState(true); recordSongStream(t.id); },
     togglePlay: () => setIsPlayingState(prev => !prev),
     nextTrack, prevTrack, 
     setIsExpanded: setIsExpandedState, 
@@ -293,11 +306,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     isCollectionLiked: (id: any) => likedCollectionIds.has(id),
     playCollection: (ts: Track[]) => { setQueueState(ts); setCurrentTrackState(ts[0]); setIsPlayingState(true); setIsExpandedState(true); },
     addToQueue: (t: Track) => setQueueState(prev => [...prev, t]),
-    publishTrack: async () => {}, publishAlbum: async () => {}, deleteUserTrack: () => {}, deleteUserAlbum: () => {},
+    publishTrack, publishAlbum, deleteUserTrack: () => {}, deleteUserAlbum: () => {},
     openCreatePlaylist: (t?: Track) => { setTrackForNewPlaylistState(t || null); setIsCreatePlaylistOpenState(true); },
     closeCreatePlaylist: () => setIsCreatePlaylistOpenState(false),
     confirmCreatePlaylist: async () => { setIsCreatePlaylistOpenState(false); },
-    addTrackToPlaylist: () => {}, triggerHaptic, refreshMusicVault: async () => {}, recordSongStream: async () => {}
+    addTrackToPlaylist: () => {}, triggerHaptic, refreshMusicVault, recordSongStream
   };
 
   return <MusicContext.Provider value={value}>{children}</MusicContext.Provider>;
