@@ -128,8 +128,7 @@ export default function CurrencyHub() {
       addSignal({
         type: 'SYSTEM',
         title: 'Review Node Active',
-        content: `Your receipt for **${pendingTransaction?.packageName}** is now in the review cluster. We will notify you upon approval.`,
-        image: uploadedScreenshot || undefined
+        content: `Your receipt for **${pendingTransaction?.packageName}** is now in the review cluster. We will notify you upon approval.`
       });
 
       toast({
@@ -165,16 +164,16 @@ export default function CurrencyHub() {
             <div className="flex flex-col items-end">
               <div className="flex items-center gap-1.5">
                 <Coins className="h-3 w-3 text-amber-500" />
-                <span className="text-xs font-bold">{currentUser.goldBalance || 0}</span>
+                <span className="text-xs font-bold">{currentUser?.goldBalance || 0}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Gem className="h-3 w-3 text-cyan-500" />
-                <span className="text-xs font-bold">{currentUser.diamondBalance || 0}</span>
+                <span className="text-xs font-bold">{currentUser?.diamondBalance || 0}</span>
               </div>
             </div>
             <Avatar className="h-9 w-9 border-2 border-primary/10">
-              <AvatarImage src={currentUser.avatar} />
-              <AvatarFallback>JD</AvatarFallback>
+              <AvatarImage src={currentUser?.avatar} />
+              <AvatarFallback>V</AvatarFallback>
             </Avatar>
           </div>
         </header>
@@ -400,7 +399,6 @@ export default function CurrencyHub() {
 
               <main className="flex-1 overflow-y-auto p-6 sm:p-12">
                 <div className="max-w-md mx-auto space-y-10">
-                  
                   <div className="bg-red-500/10 border-2 border-red-500/20 rounded-[2.5rem] p-8 text-center space-y-4">
                     <div className="h-16 w-16 bg-red-500 rounded-2xl flex items-center justify-center mx-auto shadow-2xl shadow-red-500/20">
                       <AlertTriangle className="h-8 w-8 text-white" />

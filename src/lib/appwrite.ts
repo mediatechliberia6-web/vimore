@@ -1,4 +1,3 @@
-
 import { Client, Account, Databases, Storage, ID, Query } from 'appwrite';
 
 /**
@@ -23,7 +22,6 @@ export { ID, Query };
 // BUCKET HANDSHAKES
 export const BUCKET_IMAGES = 'images';
 export const BUCKET_REEL = 'reels';
-export const BUCKET_MUSIC = 'music';
 export const BUCKET_STORIES = 'stories';
 export const BUCKET_PAYMENTS = 'payments';
 export const BUCKET_IDENTITY = 'identity';
@@ -42,5 +40,7 @@ export const STORIES_COLLECTION_ID = 'stories';
 export const MESSAGES_COLLECTION_ID = 'messages';
 export const CAMPAIGNS_COLLECTION_ID = 'campaigns';
 export const AUDIT_LOGS_COLLECTION_ID = 'audit_logs';
+export const PAYMENT_REQUESTS_COLLECTION_ID = 'payment_requests';
+export const WITHDRAWALS_COLLECTION_ID = 'withdrawals';
 
 export default client;
