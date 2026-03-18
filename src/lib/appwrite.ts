@@ -25,6 +25,7 @@ export const BUCKET_REEL = 'reels';
 export const BUCKET_STORIES = 'stories';
 export const BUCKET_PAYMENTS = 'payments';
 export const BUCKET_IDENTITY = 'identity';
+export const BUCKET_MUSIC = 'music';
 
 // DATABASE HANDSHAKES
 export const APPWRITE_DATABASE_ID = 'vimoreprod';
@@ -42,5 +43,6 @@ export const CAMPAIGNS_COLLECTION_ID = 'campaigns';
 export const AUDIT_LOGS_COLLECTION_ID = 'audit_logs';
 export const PAYMENT_REQUESTS_COLLECTION_ID = 'payment_requests';
 export const WITHDRAWALS_COLLECTION_ID = 'withdrawals';
+export const CALLS_COLLECTION_ID = 'calls'; // New collection for signaling
 
 export default client;

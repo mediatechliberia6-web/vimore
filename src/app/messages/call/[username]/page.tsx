@@ -2,26 +2,16 @@
 
 import { useState, useEffect, useRef, use } from "react";
 import { 
-  X, 
   Mic, 
   MicOff, 
   Video, 
   VideoOff, 
   PhoneOff, 
-  RefreshCw, 
   Zap, 
-  ShieldCheck, 
-  Maximize2, 
-  Minimize2,
   Volume2,
   VolumeX,
-  MoreHorizontal,
-  Sparkles,
-  Camera,
-  Heart,
   ChevronLeft,
-  Loader2,
-  Radio
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,14 +19,11 @@ import { useMusic } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { AGORA_APP_ID } from "@/lib/agora";
-import { generateAgoraToken } from "@/app/actions/call";
 import type { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IRemoteUser, IRemoteVideoTrack } from "agora-rtc-sdk-ng";
 
 export default function CallPage({ params }: { params: Promise<{ username: string }> }) {
   const resolvedParams = use(params);
-  const username = resolvedParams.username;
   const router = useRouter();
   const { triggerHaptic } = useMusic();
   const { currentUser, callState, endCall } = usePosts();
@@ -55,7 +42,6 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
   const remoteVideoRef = useRef<HTMLDivElement>(null);
 
   const isAudioCall = callState.type === 'audio';
-  const isOutgoing = callState.status === 'outgoing' || callState.status === 'ringing';
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -84,7 +70,6 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
 
   useEffect(() => {
     const initAgora = async () => {
-      // 1. Handshake Protocol: Only proceed if status is 'active'
       if (callState.status !== 'active') return;
 
       const AgoraRTC = (await import("agora-rtc-sdk-ng")).default;
@@ -108,23 +93,12 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
       });
 
       try {
-        if (!callState.channelName) {
-          console.error("Agora Handshake Refused: Missing channelName node.");
+        if (!callState.channelName || !callState.token) {
           handleEndCall();
           return;
         }
 
-        let token = callState.token;
-        if (!token) {
-          token = await generateAgoraToken(callState.channelName!, currentUser.id!);
-        }
-
-        await client.join(
-          AGORA_APP_ID, 
-          callState.channelName || "", 
-          token || null, 
-          null
-        );
+        await client.join(AGORA_APP_ID, callState.channelName, callState.token, null);
 
         const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
         localTracksRef.current = { audio: audioTrack, video: videoTrack };
@@ -137,8 +111,8 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
         setIsConnecting(false);
         triggerHaptic(50);
       } catch (e) {
-        console.error("Agora Handshake Failure:", e);
-        setTimeout(() => { if (isConnecting) handleEndCall(); }, 5000);
+        console.error("Agora Error:", e);
+        handleEndCall();
       }
     };
 
@@ -151,7 +125,7 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
       localTracksRef.current.video?.close();
       agoraClientRef.current?.leave();
     };
-  }, [callState.status, callState.channelName, callState.token, isAudioCall, triggerHaptic, currentUser.id]);
+  }, [callState.status, callState.channelName, callState.token, isAudioCall, triggerHaptic]);
 
   const handleEndCall = () => {
     triggerHaptic(100);
@@ -175,49 +149,32 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
   };
 
   return (
-    <div className="fixed inset-0 z-[500] bg-black flex flex-col overflow-hidden select-none touch-none">
+    <div className="fixed inset-0 z-[500] bg-black flex flex-col overflow-hidden">
       <div className="absolute inset-0 z-0 bg-zinc-950">
-        {(isConnecting || callState.status === 'outgoing' || callState.status === 'ringing') ? (
+        {isConnecting ? (
           <div className="w-full h-full flex flex-col items-center justify-center space-y-8">
             <div className="relative">
               <div className="absolute -inset-12 bg-primary/20 blur-3xl rounded-full animate-pulse" />
-              <div className="relative h-32 w-32 rounded-full border-4 border-primary/20 p-1 animate-[spin_4s_linear_infinite]">
-                <div className="h-full w-full rounded-full border-t-4 border-primary shadow-[0_0_20px_rgba(153,64,229,0.5)]" />
-              </div>
-              <Avatar className="absolute inset-0 h-32 w-32 border-4 border-white/10">
+              <Loader2 className="h-24 w-24 text-primary animate-spin" />
+              <Avatar className="absolute inset-4 h-16 w-16">
                 <AvatarImage src={callState.contact?.avatar} />
-                <AvatarFallback>V</AvatarFallback>
               </Avatar>
             </div>
-            <div className="text-center space-y-2">
-              <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">
-                {callState.status === 'active' ? 'Synchronizing Node' : 'Ringing...'}
-              </h2>
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Agora Edge Handshake Active</p>
-            </div>
+            <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">Synchronizing Node...</h2>
           </div>
         ) : (
           <div className="relative w-full h-full">
             {remoteUserJoined && !isAudioCall ? (
-              <div ref={remoteVideoRef} className="w-full h-full animate-in fade-in duration-1000 bg-black" />
+              <div ref={remoteVideoRef} className="w-full h-full bg-black" />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center space-y-12">
-                <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
-                  <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
-                  <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[150px] rounded-full animate-pulse delay-700" />
-                </div>
-                
-                <div className="relative">
-                  <Avatar className="h-48 w-48 border-4 border-white/10 shadow-2xl relative z-10">
-                    <AvatarImage src={callState.contact?.avatar} />
-                    <AvatarFallback>V</AvatarFallback>
-                  </Avatar>
-                </div>
-
-                <div className="text-center space-y-2 z-10 px-6">
-                  <h3 className="text-3xl font-black italic uppercase tracking-tighter text-white">{callState.contact?.name}</h3>
-                  <div className="flex items-center justify-center gap-2 text-primary font-black uppercase tracking-[0.2em] text-[10px] animate-pulse">
-                    <Volume2 className="h-3 w-3" /> Spatial Link Established
+                <Avatar className="h-48 w-48 border-4 border-primary shadow-2xl">
+                  <AvatarImage src={callState.contact?.avatar} />
+                </Avatar>
+                <div className="text-center space-y-2">
+                  <h3 className="text-3xl font-black italic uppercase text-white">{callState.contact?.name}</h3>
+                  <div className="flex items-center justify-center gap-2 text-primary animate-pulse font-black uppercase text-xs">
+                    <Volume2 className="h-4 w-4" /> Link Active
                   </div>
                 </div>
               </div>
@@ -228,28 +185,26 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
 
       {!isAudioCall && !isConnecting && (
         <div className={cn(
-          "absolute top-24 right-6 z-50 w-32 sm:w-44 aspect-[9/16] rounded-[2.5rem] overflow-hidden shadow-2xl ring-2 ring-white/10 transition-all",
-          isVideoOff && "opacity-0 scale-90"
+          "absolute top-24 right-6 z-50 w-32 aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/10 transition-all",
+          isVideoOff && "opacity-0"
         )}>
           <div ref={localVideoRef} className="w-full h-full bg-zinc-900 scale-x-[-1]" />
         </div>
       )}
 
-      <header className="absolute top-0 left-0 right-0 z-50 px-6 py-8 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/20 to-transparent">
+      <header className="absolute top-0 left-0 right-0 z-50 px-6 py-8 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="rounded-full bg-black/20 backdrop-blur-md text-white border border-white/10" onClick={handleEndCall}>
+          <Button variant="ghost" size="icon" className="rounded-full bg-white/10 text-white" onClick={handleEndCall}>
             <ChevronLeft className="h-6 w-6" />
           </Button>
           <div className="flex flex-col">
-            <h1 className="text-lg font-black italic uppercase tracking-tighter text-white truncate max-w-[120px]">{callState.contact?.name}</h1>
-            <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em] animate-pulse">
-              {callState.status === 'active' ? `SYNCED: ${formatDuration(callDuration)}` : 'Handshaking...'}
-            </span>
+            <h1 className="text-lg font-black italic uppercase text-white">{callState.contact?.name}</h1>
+            <span className="text-[10px] font-black text-primary uppercase">{formatDuration(callDuration)}</span>
           </div>
         </div>
-        <div className="bg-primary/20 backdrop-blur-md border border-primary/20 rounded-full px-4 py-1.5 flex items-center gap-2">
+        <div className="bg-primary/20 border border-primary/20 rounded-full px-4 py-1.5 flex items-center gap-2">
           <Zap className="h-3 w-3 text-primary animate-pulse" />
-          <span className="text-[10px] font-black text-white uppercase tracking-widest">High-Velocity</span>
+          <span className="text-[10px] font-black text-white uppercase">Secure Sync</span>
         </div>
       </header>
 
@@ -257,7 +212,7 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
         <div className="bg-black/40 backdrop-blur-2xl border border-white/10 p-3 rounded-[3rem] flex items-center gap-4 shadow-2xl">
           <Button 
             variant="ghost" size="icon" 
-            className={cn("h-14 w-14 rounded-full transition-all", isMuted ? "bg-destructive/20 text-destructive" : "bg-white/5 text-white")}
+            className={cn("h-14 w-14 rounded-full transition-all", isMuted ? "bg-destructive text-white" : "bg-white/5 text-white")}
             onClick={toggleMute}
           >
             {isMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
@@ -266,7 +221,7 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
           {!isAudioCall && (
             <Button 
               variant="ghost" size="icon" 
-              className={cn("h-14 w-14 rounded-full transition-all", isVideoOff ? "bg-primary/20 text-primary" : "bg-white/5 text-white")}
+              className={cn("h-14 w-14 rounded-full transition-all", isVideoOff ? "bg-primary text-white" : "bg-white/5 text-white")}
               onClick={toggleVideo}
             >
               {isVideoOff ? <VideoOff className="h-6 w-6" /> : <Video className="h-6 w-6" />}
@@ -275,10 +230,7 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
 
           <div className="w-px h-8 bg-white/10 mx-1" />
 
-          <Button 
-            className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-destructive text-white hover:bg-destructive/90 shadow-xl shadow-destructive/20 transition-all active:scale-90"
-            onClick={handleEndCall}
-          >
+          <Button className="h-16 w-16 rounded-full bg-destructive text-white shadow-xl shadow-destructive/20" onClick={handleEndCall}>
             <PhoneOff className="h-8 w-8" />
           </Button>
 
