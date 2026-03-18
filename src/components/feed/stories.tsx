@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -24,11 +25,13 @@ export function Stories({ onOpenCreate }: StoriesProps) {
     // Map stories with their original indices to ensure the click handshake remains valid
     const storiesWithIndices = stories.map((story, index) => ({ story, index }));
     
+    if (!currentUser) return storiesWithIndices;
+
     const myStoryNode = storiesWithIndices.find(item => item.story.user.username === currentUser.username);
     const otherStoryNodes = storiesWithIndices.filter(item => item.story.user.username !== currentUser.username);
     
     return myStoryNode ? [myStoryNode, ...otherStoryNodes] : otherStoryNodes;
-  }, [stories, currentUser.username]);
+  }, [stories, currentUser?.username]);
 
   const handleStoryClick = (index: number) => {
     triggerHaptic(10);
@@ -46,7 +49,7 @@ export function Stories({ onOpenCreate }: StoriesProps) {
           >
             <div className="relative h-3/4 w-full overflow-hidden">
               <Image 
-                src={currentUser.avatar} 
+                src={currentUser?.avatar || "https://picsum.photos/seed/vimore/200/200"} 
                 alt="My Profile" 
                 fill 
                 className="object-cover transition-transform group-hover:scale-110" 
@@ -110,7 +113,7 @@ export function Stories({ onOpenCreate }: StoriesProps) {
                 
                 <div className="absolute bottom-2 left-2 right-2">
                   <p className="text-[10px] font-bold text-white truncate drop-shadow-md">
-                    {story.user.username === currentUser.username ? "Your Story" : story.user.name}
+                    {story.user.username === currentUser?.username ? "Your Story" : story.user.name}
                   </p>
                 </div>
               </div>

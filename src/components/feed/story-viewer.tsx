@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -44,7 +45,7 @@ export function StoryViewer() {
   const hasRecordedCurrentSegment = useRef<string | null>(null);
 
   const activeStory = activeStoryIndex !== null ? stories[activeStoryIndex] : null;
-  const isOwner = activeStory?.user.username === currentUser.username;
+  const isOwner = activeStory?.user.username === currentUser?.username;
 
   const handleClose = useCallback(() => {
     setActiveStoryIndex(null);
