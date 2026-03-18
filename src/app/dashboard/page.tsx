@@ -89,6 +89,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
+import AdminLoading from "@/app/admin/loading";
 
 const CATEGORIES = [
   { id: "analytics", label: "Analytics" },
@@ -122,6 +123,10 @@ export default function ProfessionalDashboard() {
   const [activeCategory, setActiveCategory] = useState("analytics");
   const [activeRange, setActiveRange] = useState<"7D" | "28D">("7D");
 
+  if (isLoading || !currentUser) {
+    return <AdminLoading />;
+  }
+
   const isPlayerActive = currentTrack && !isExpanded;
 
   const userPosts = useMemo(() => {
@@ -134,7 +139,6 @@ export default function ProfessionalDashboard() {
   }, [userPosts]);
 
   const projectedRevenue = useMemo(() => {
-    // Each subscriber represents a diamond pulse (usually 20 Diamonds/mo)
     const subsCount = activeSubscriptions.size;
     const baseRevenue = subsCount * 20 * settings.diamondRate;
     return baseRevenue * settings.ldMultiplier;
@@ -146,18 +150,6 @@ export default function ProfessionalDashboard() {
   };
 
   const chartData = useMemo(() => activeRange === "7D" ? GROWTH_DATA_7D : GROWTH_DATA_28D, [activeRange]);
-
-  if (isLoading || !currentUser) {
-    return (
-      <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#020202] flex flex-col items-center justify-center p-6 space-y-4">
-        <div className="relative">
-          <div className="absolute -inset-4 bg-primary/20 blur-xl rounded-full animate-pulse" />
-          <Loader2 className="h-12 w-12 text-primary animate-spin relative z-10" />
-        </div>
-        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Synchronizing Dashboard Node...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#020202] text-foreground flex flex-col transition-colors duration-500 overflow-x-hidden">
