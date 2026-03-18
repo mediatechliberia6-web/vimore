@@ -13,8 +13,9 @@ import { MainNav } from "@/components/layout/main-nav";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
-import { Rocket, Zap, Sparkles, Loader2, ShieldCheck, Globe, ArrowRight, Lock } from "lucide-react";
+import { Rocket, Zap, Sparkles, Loader2, ShieldCheck, Globe, ArrowRight, Lock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { CreateStoryModal } from "@/components/feed/create-story-modal";
 import { AuthModal } from "@/components/auth/auth-modal";
 
@@ -113,7 +114,7 @@ function LandingPage() {
           </div>
           <div className="w-px h-6 bg-primary/20" />
           <div className="flex flex-col items-center">
-            <span className="text-[10px] font-black uppercase text-primary tracking-widest leading-none mb-1">Aaron M. Tulay</span>
+            <span className="text-[10px] font-black uppercase text-primary tracking-widest checkbox-none leading-none mb-1">Aaron M. Tulay</span>
             <span className="text-[8px] font-bold uppercase tracking-tighter text-muted-foreground">Co-founder & President</span>
           </div>
         </div>
