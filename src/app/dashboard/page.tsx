@@ -41,7 +41,8 @@ import {
   Gem,
   Coins,
   ShieldAlert,
-  UserCheck
+  UserCheck,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -115,7 +116,7 @@ const GROWTH_DATA_28D = [
 ];
 
 export default function ProfessionalDashboard() {
-  const { currentUser, posts, triggerHaptic, activeSubscriptions, settings } = usePosts();
+  const { currentUser, posts, triggerHaptic, activeSubscriptions, settings, isLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { toast } = useToast();
   const [activeCategory, setActiveCategory] = useState("analytics");
@@ -123,7 +124,10 @@ export default function ProfessionalDashboard() {
 
   const isPlayerActive = currentTrack && !isExpanded;
 
-  const userPosts = useMemo(() => posts.filter(p => p.user.username === currentUser.username), [posts, currentUser.username]);
+  const userPosts = useMemo(() => {
+    if (!currentUser) return [];
+    return posts.filter(p => p.user.username === currentUser.username);
+  }, [posts, currentUser?.username]);
 
   const totalVibes = useMemo(() => {
     return userPosts.reduce((acc, p) => acc + (p.likes || 0) + (p.comments || 0) + (p.shares || 0), 0);
@@ -142,6 +146,18 @@ export default function ProfessionalDashboard() {
   };
 
   const chartData = useMemo(() => activeRange === "7D" ? GROWTH_DATA_7D : GROWTH_DATA_28D, [activeRange]);
+
+  if (isLoading || !currentUser) {
+    return (
+      <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#020202] flex flex-col items-center justify-center p-6 space-y-4">
+        <div className="relative">
+          <div className="absolute -inset-4 bg-primary/20 blur-xl rounded-full animate-pulse" />
+          <Loader2 className="h-12 w-12 text-primary animate-spin relative z-10" />
+        </div>
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Synchronizing Dashboard Node...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#020202] text-foreground flex flex-col transition-colors duration-500 overflow-x-hidden">
@@ -163,7 +179,7 @@ export default function ProfessionalDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {!currentUser.isVerified && (
+          {!currentUser?.isVerified && (
             <Link href="/verification">
               <Button size="sm" className="h-8 rounded-xl bg-primary text-white font-black italic uppercase tracking-widest text-[9px] gap-2 shadow-lg shadow-primary/20 animate-pulse">
                 <ShieldCheck className="h-3 w-3" /> Get Verified
@@ -172,7 +188,7 @@ export default function ProfessionalDashboard() {
           )}
           <Link href="/profile">
             <Avatar className="h-9 w-9 border-2 border-primary/20 shadow-lg">
-              <AvatarImage src={currentUser.avatar} />
+              <AvatarImage src={currentUser?.avatar} />
               <AvatarFallback>JD</AvatarFallback>
             </Avatar>
           </Link>
@@ -188,10 +204,10 @@ export default function ProfessionalDashboard() {
               <div className="flex items-center gap-6">
                 <div className="relative">
                   <Avatar className="h-20 w-20 border-4 border-primary/10 shadow-2xl ring-4 ring-primary/5">
-                    <AvatarImage src={currentUser.avatar} />
+                    <AvatarImage src={currentUser?.avatar} />
                     <AvatarFallback>JD</AvatarFallback>
                   </Avatar>
-                  {currentUser.isVerified && (
+                  {currentUser?.isVerified && (
                     <div className="absolute -bottom-1 -right-1 bg-primary h-7 w-7 rounded-full border-4 border-white dark:border-[#0A0A0A] flex items-center justify-center shadow-lg">
                       <CheckCircle2 className="h-3.5 w-3.5 text-white fill-current" />
                     </div>
@@ -199,19 +215,19 @@ export default function ProfessionalDashboard() {
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none">{currentUser.name}</h2>
-                    {currentUser.isVerified && <CheckCircle2 className="h-5 w-5 text-primary fill-primary text-white" />}
+                    <h2 className="text-3xl font-black italic uppercase tracking-tighter leading-none">{currentUser?.name}</h2>
+                    {currentUser?.isVerified && <CheckCircle2 className="h-5 w-5 text-primary fill-primary text-white" />}
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge className="bg-primary/10 text-primary border-none text-[9px] font-black h-5 uppercase tracking-widest px-3">
-                      {currentUser.isVerified ? 'Verified Creator' : 'Pulse Creator'}
+                      {currentUser?.isVerified ? 'Verified Creator' : 'Pulse Creator'}
                     </Badge>
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">@{currentUser.username}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">@{currentUser?.username}</span>
                   </div>
                 </div>
               </div>
               
-              {!currentUser.isVerified ? (
+              {!currentUser?.isVerified ? (
                 <Link href="/verification">
                   <div className="bg-primary/5 hover:bg-primary/10 border border-primary/20 p-4 rounded-3xl flex items-center gap-4 transition-all group/v">
                     <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-white group-hover/v:scale-110 transition-transform">
@@ -241,7 +257,7 @@ export default function ProfessionalDashboard() {
                 <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Total Vibes</p>
               </div>
               <div className="text-center space-y-1">
-                <p className="text-xl font-black italic tracking-tighter">{(currentUser.followers || 0).toLocaleString()}</p>
+                <p className="text-xl font-black italic tracking-tighter">{(currentUser?.followers || 0).toLocaleString()}</p>
                 <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Spatial Pulse</p>
               </div>
             </div>
@@ -298,7 +314,7 @@ export default function ProfessionalDashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Network Growth</span>
-                    <p className="text-2xl font-black italic tracking-tighter">{(currentUser.followers || 0).toLocaleString()} Followers</p>
+                    <p className="text-2xl font-black italic tracking-tighter">{(currentUser?.followers || 0).toLocaleString()} Followers</p>
                   </div>
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                     <TrendingUp className="h-5 w-5" />

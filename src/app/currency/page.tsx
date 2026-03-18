@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -52,7 +53,7 @@ const DIAMOND_PACKAGES = [
 ];
 
 export default function CurrencyHub() {
-  const { currentUser, initiateTransaction, pendingTransaction, cancelTransaction, triggerHaptic, createPaymentRequest, gatewaySettings } = usePosts();
+  const { currentUser, initiateTransaction, pendingTransaction, cancelTransaction, triggerHaptic, createPaymentRequest, gatewaySettings, isLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
   const { t } = useTranslation();
@@ -144,6 +145,15 @@ export default function CurrencyHub() {
       setIsUploading(false);
     }
   };
+
+  if (isLoading || !currentUser) {
+    return (
+      <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] flex flex-col items-center justify-center p-6 space-y-4">
+        <Loader2 className="h-10 w-10 text-primary animate-spin" />
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Syncing Wallet...</p>
+      </div>
+    );
+  }
 
   return (
     <BiometricGate title="Currency Hub">

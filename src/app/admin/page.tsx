@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -124,7 +125,7 @@ type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" |
 type EconomySubTab = "outbound" | "inbound";
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, reports, tickets, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus, updateUserIdentity, handleReportAction, handleTicketAction, uploadMedia } = usePosts();
+  const { withdrawalHistory, paymentRequests, reports, tickets, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus, updateUserIdentity, handleReportAction, handleTicketAction, uploadMedia, isLoading } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   
@@ -243,6 +244,15 @@ export default function AdminDashboard() {
     }
   };
 
+  if (isLoading || !currentUser) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 space-y-4">
+        <Loader2 className="h-10 w-10 text-primary animate-spin" />
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 animate-pulse">Initializing Alpha Core...</p>
+      </div>
+    );
+  }
+
   const TABS_DATA = {
     pulse: { label: "Pulse", icon: Activity },
     economy: { label: "Economy", icon: Coins },
@@ -256,15 +266,6 @@ export default function AdminDashboard() {
     resolution: { label: "Resol", icon: Hammer },
     logs: { label: "Logs", icon: FileText }
   };
-
-  const mobilePrimaryTabs: AdminTab[] = useMemo(() => {
-    const list: AdminTab[] = ["pulse", "economy", "intelligence", "safety"];
-    return list.filter(t => availableTabs.includes(t));
-  }, [availableTabs]);
-
-  const mobileRemainingTabs: AdminTab[] = useMemo(() => {
-    return availableTabs.filter(t => !mobilePrimaryTabs.includes(t));
-  }, [availableTabs, mobilePrimaryTabs]);
 
   if (isUnauthorized) {
     return (
@@ -513,10 +514,8 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
-          {/* Other tabs follow original layout logic */}
         </div>
       </main>
-      {/* Mobile Nav Overlay */}
       {selectedReceipt && (
         <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-6 animate-in fade-in duration-300">
           <Button variant="ghost" size="icon" className="absolute top-6 right-6 text-white bg-white/10 rounded-full" onClick={() => setSelectedReceipt(null)}><X className="h-6 w-6" /></Button>

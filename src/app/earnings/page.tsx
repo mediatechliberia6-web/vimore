@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -51,7 +52,7 @@ const REVENUE_DATA = [
 ];
 
 export default function EarningsPage() {
-  const { currentUser, triggerHaptic, withdrawalHistory, recordWithdrawal, processGiftTransaction, settings } = usePosts();
+  const { currentUser, triggerHaptic, withdrawalHistory, recordWithdrawal, processGiftTransaction, settings, isLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
   const { t } = useTranslation();
@@ -125,6 +126,15 @@ export default function EarningsPage() {
   };
 
   const resetPortal = () => { setPayoutMethod(null); setAccountName(""); setAccountNumber(""); setAmount(""); };
+
+  if (isLoading || !currentUser) {
+    return (
+      <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] flex flex-col items-center justify-center p-6 space-y-4">
+        <Loader2 className="h-10 w-10 text-primary animate-spin" />
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Fetching Vault Assets...</p>
+      </div>
+    );
+  }
 
   return (
     <BiometricGate title="Earnings Portal">
