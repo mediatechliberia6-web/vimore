@@ -413,7 +413,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshAdminData = useCallback(async () => {
-    if (currentUser?.role !== 'SUPER' && currentUser?.role !== 'FINANCIAL' && currentUser?.role !== 'MODERATOR') return;
     try {
       const campRes = await databases.listDocuments(APPWRITE_DATABASE_ID, CAMPAIGNS_COLLECTION_ID, [Query.orderDesc('timestamp')]);
       setCampaignsState(campRes.documents);
@@ -424,11 +423,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const withRes = await databases.listDocuments(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, [Query.orderDesc('timestamp'), Query.limit(50)]);
       setWithdrawalHistory(withRes.documents);
 
-      // Audit logs and Staff nodes
       const auditRes = await databases.listDocuments(APPWRITE_DATABASE_ID, AUDIT_LOGS_COLLECTION_ID, [Query.orderDesc('timestamp'), Query.limit(100)]);
       setAuditLogs(auditRes.documents);
     } catch (e) {}
-  }, [currentUser]);
+  }, []);
 
   const refreshConnections = useCallback(async () => {
     if (!currentUser) return;
@@ -474,23 +472,47 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const signup = useCallback(async (data: any) => {
     try {
-      const profilesRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
-      const isFirstUser = profilesRes.total === 0;
-      const role = isFirstUser ? 'SUPER' : 'USER';
+      // Alpha Node Check: Count users to assign SUPER role if first user
+      let isFirstUser = false;
+      try {
+        const profilesRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
+        isFirstUser = profilesRes.total === 0;
+      } catch (e) {
+        // If collection doesn't exist yet, we assume first user
+        isFirstUser = true;
+      }
 
+      const role = isFirstUser ? 'SUPER' : 'USER';
       const base = data.name.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
       const finalUsername = `${base}_${Math.floor(1000 + Math.random() * 9000)}`;
       const email = data.email || `${finalUsername}@vimore.cfd`;
       
       const sessionUser = await account.create(ID.unique(), email, data.password, data.name);
-      await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, ID.unique(), {
-        id: sessionUser.$id, name: data.name, username: finalUsername, avatar: "https://picsum.photos/seed/" + finalUsername + "/200/200",
-        gender: data.gender, nationality: data.nationality, dateOfBirth: data.dob, goldBalance: 0, diamondBalance: 0, starBalance: 0, referralCount: 0,
-        isVerified: false, hasEverBeenVerified: false, role, joinDate: new Date().toISOString()
+      
+      // Use sessionUser.$id as Document ID for a 1:1 handshake
+      await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, sessionUser.$id, {
+        id: sessionUser.$id, 
+        name: data.name, 
+        username: finalUsername, 
+        avatar: "https://picsum.photos/seed/" + finalUsername + "/200/200",
+        gender: data.gender, 
+        nationality: data.nationality, 
+        dateOfBirth: data.dob, 
+        goldBalance: 0, 
+        diamondBalance: 0, 
+        starBalance: 0, 
+        referralCount: 0,
+        isVerified: false, 
+        hasEverBeenVerified: false, 
+        role, 
+        joinDate: new Date().toISOString()
       });
+
       await login(email, data.password);
       return { success: true };
-    } catch (error: any) { return { success: false, message: error.message }; }
+    } catch (error: any) { 
+      return { success: false, message: error.message }; 
+    }
   }, [login]);
 
   const logout = useCallback(async () => {
