@@ -39,7 +39,6 @@ export function AuthModal() {
   const [identifier, setIdentifier] = useState(""); 
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [username, setUsername] = useState("");
   
   // Identity Nodes State
   const [dob, setDob] = useState("");
@@ -84,8 +83,8 @@ export function AuthModal() {
         setAuthError("Security signature too weak. (Min 8 chars)");
         return;
       }
-      if (!name.trim() || !username.trim()) {
-        setAuthError("All nodes must be filled.");
+      if (!name.trim()) {
+        setAuthError("Identity label (Name) is required.");
         return;
       }
       setSignupStep(2);
@@ -103,15 +102,12 @@ export function AuthModal() {
     triggerHaptic(30);
     
     try {
-      const sanitizedUsername = username.toLowerCase().trim().replace(/\s+/g, '_');
-      
       // UNIFIED IDENTITY PULSE: Construct a plain JavaScript object
       const signupPayload = {
         email: identifier.includes('@') ? identifier : undefined,
         phone: !identifier.includes('@') ? identifier : undefined,
         password,
         name,
-        username: sanitizedUsername,
         dob,
         nationality,
         gender,
@@ -188,9 +184,14 @@ export function AuthModal() {
             <form onSubmit={handleSignupInit} className="space-y-6 animate-in slide-in-from-bottom-4">
               {signupStep === 1 ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="Identity Label" /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-white/40 ml-1">Username</Label><Input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, '_'))} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="signature_id" /></div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Name</Label>
+                    <Input 
+                      value={name} 
+                      onChange={(e) => setName(e.target.value)} 
+                      className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" 
+                      placeholder="Your Full Name" 
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Email or Phone</Label>

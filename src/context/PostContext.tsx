@@ -322,7 +322,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
   const [campaigns, setCampaignsState] = useState<any[]>([]);
   
-  // Interaction Sets
   const [likedPostIds, setLikedPostIdsState] = useState<Set<string>>(new Set());
   const [unlikedPostIds, setUnlikedPostIdsState] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIdsState] = useState<Set<string>>(new Set());
@@ -337,7 +336,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [acceptedStrangerUsernames, setAcceptedStrangerUsernames] = useState<Set<string>>(new Set());
   const [activeSubscriptions, setActiveSubscriptionsState] = useState<Set<string>>(new Set());
 
-  // UI States
   const [selectedPostId, setSelectedPostIdState] = useState<string | null>(null);
   const [selectedChatId, setSelectedChatIdState] = useState<string | null>(null);
   const [selectedImageUrl, setSelectedImageUrlState] = useState<string | null>(null);
@@ -350,7 +348,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [callState, setCallState] = useState<CallState>({ type: 'video', status: 'idle', contact: null });
   const [pendingTransaction, setPendingTransactionState] = useState<any>(null);
 
-  // Unimplemented Admin Hooks
   const [auditLogs] = useState<any[]>([]);
   const [staff] = useState<any[]>([]);
   const [adStats] = useState({ revenue: 0, handshakes: 0 });
@@ -372,7 +369,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const sessionUser = await account.get();
       if (sessionUser) {
-        // Fetch extended profile node from database
         const profileDocs = await databases.listDocuments(
           APPWRITE_DATABASE_ID,
           PROFILES_COLLECTION_ID,
@@ -383,11 +379,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
           const profile = profileDocs.documents[0] as any;
           setCurrentUserState({
             ...profile,
-            id: profile.id, // mapped from stored id attribute
+            id: profile.id,
             isEmailVerified: sessionUser.emailVerification
           });
         } else {
-          // No profile node found, logout to clean session
           await account.deleteSession('current');
           setCurrentUserState(null);
         }
@@ -412,13 +407,42 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, [checkSession]);
 
+  /**
+   * High-Velocity Identity Signature Forge
+   * Ensures every materialized username is 100% unique in the global cluster.
+   */
+  const generateUniqueUsername = async (name: string): Promise<string> => {
+    const base = name.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    let isUnique = false;
+    let finalUsername = "";
+    
+    while (!isUnique) {
+      const suffix = Math.floor(1000 + Math.random() * 9000); 
+      finalUsername = `${base}_${suffix}`;
+      
+      const existing = await databases.listDocuments(
+        APPWRITE_DATABASE_ID,
+        PROFILES_COLLECTION_ID,
+        [Query.equal('username', finalUsername), Query.limit(1)]
+      );
+      
+      if (existing.total === 0) {
+        isUnique = true;
+      }
+    }
+    return finalUsername;
+  };
+
   const signup = useCallback(async (data: any) => {
     try {
-      const email = data.email || `${data.username}@vimore.cfd`;
-      // 1. Create Core Identity
+      // 1. Generate Unique Signature
+      const finalUsername = await generateUniqueUsername(data.name);
+      const email = data.email || `${finalUsername}@vimore.cfd`;
+      
+      // 2. Create Core Identity
       const sessionUser = await account.create(ID.unique(), email, data.password, data.name);
       
-      // 2. Archive extended profile in vault
+      // 3. Archive extended profile in vault
       await databases.createDocument(
         APPWRITE_DATABASE_ID,
         PROFILES_COLLECTION_ID,
@@ -426,8 +450,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         {
           id: sessionUser.$id,
           name: data.name,
-          username: data.username,
-          avatar: "https://picsum.photos/seed/" + data.username + "/200/200",
+          username: finalUsername,
+          avatar: "https://picsum.photos/seed/" + finalUsername + "/200/200",
           gender: data.gender,
           nationality: data.nationality,
           dateOfBirth: data.dob,
@@ -442,7 +466,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         }
       );
 
-      // 3. Auto-Login
+      // 4. Auto-Login
       await login(email, data.password);
       return { success: true };
     } catch (error: any) {
@@ -484,7 +508,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, [currentUser, toast]);
 
-  // STUBS for other Phase transitions
   const updateSettings = useCallback((data: Partial<AppSettings>) => {
     setSettingsState(prev => {
       const next = { ...prev, ...data };
