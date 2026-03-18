@@ -1,37 +1,41 @@
 
+import { Client, Account, Databases, Storage, ID, Query } from 'appwrite';
+
 /**
- * @fileOverview ViMore Prototype Vault Stubs
- * Backend services decommissioned. Local Hardware Pulse active.
+ * @fileOverview ViMore Appwrite Vault Configuration
+ * Project ID: vimore
+ * Endpoint: https://mediatechliberia.online/v1
+ * Database ID: vimoreprod
  */
 
-export const endpoint = 'prototype';
-export const project = 'vimore';
-export const apiKey = 'prototype_key';
+const client = new Client();
 
-export const ID = {
-  unique: () => Math.random().toString(36).substring(2, 12).toUpperCase()
-};
+client
+    .setEndpoint('https://mediatechliberia.online/v1')
+    .setProject('vimore');
 
-export const Query = {
-  equal: (a: any, b: any) => ({ a, b }),
-  orderDesc: (a: any) => ({ a }),
-  limit: (a: any) => ({ a }),
-  greaterThan: (a: any, b: any) => ({ a, b })
-};
+export const account = new Account(client);
+export const databases = new Databases(client);
+export const storage = new Storage(client);
 
-export const BUCKET_VOICENOTE = 'voicenote';
+export { ID, Query };
+
+// BUCKET HANDSHAKES
+export const BUCKET_IMAGES = 'images';
+export const BUCKET_REEL = 'reels';
 export const BUCKET_MUSIC = 'music';
 export const BUCKET_STORIES = 'stories';
 export const BUCKET_PAYMENTS = 'payments';
-export const BUCKET_REEL = 'reel';
-export const BUCKET_IMAGES = 'images';
+export const BUCKET_IDENTITY = 'identity';
 
-export const APPWRITE_DATABASE_ID = 'local_vault';
+// DATABASE HANDSHAKES
+export const APPWRITE_DATABASE_ID = 'vimoreprod';
 export const PROFILES_COLLECTION_ID = 'profiles';
 export const POSTS_COLLECTION_ID = 'posts';
 export const COMMENTS_COLLECTION_ID = 'comments';
-export const MESSAGES_COLLECTION_ID = 'messages';
-export const CLUSTERS_COLLECTION_ID = 'clusters';
+export const CONNECTIONS_COLLECTION_ID = 'connections';
 export const NOTIFICATIONS_COLLECTION_ID = 'notifications';
+export const CLUSTERS_COLLECTION_ID = 'clusters';
+export const MESSAGES_COLLECTION_ID = 'messages';
 
-export default {};
+export default client;
