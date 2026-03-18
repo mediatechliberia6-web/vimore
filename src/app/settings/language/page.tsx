@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -12,6 +13,7 @@ import { LanguageCode } from "@/lib/dictionary";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import ProfileLoading from "@/app/profile/loading";
 
 const LANGUAGES = [
   { id: "en" as LanguageCode, name: "English", native: "International", flag: "🇺🇸" },
@@ -23,13 +25,17 @@ const LANGUAGES = [
 ];
 
 export default function LanguageHub() {
-  const { triggerHaptic, updateCurrentUser } = usePosts();
+  const { triggerHaptic, updateCurrentUser, currentUser, isLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { language, setLanguage, t } = useTranslation();
   const { toast } = useToast();
   const [autoTranslate, setAutoTranslate] = useState(true);
 
   const isPlayerActive = currentTrack && !isExpanded;
+
+  if (isLoading || !currentUser) {
+    return <ProfileLoading />;
+  }
 
   const handleLanguageSelect = (langId: LanguageCode) => {
     triggerHaptic(10);

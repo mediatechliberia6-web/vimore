@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -47,19 +48,30 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import ProfileLoading from "@/app/profile/loading";
 
 export default function AccountCenter() {
-  const { currentUser, updateCurrentUser, triggerHaptic, settings, updateSettings, enrollHardwareBiometrics } = usePosts();
+  const { currentUser, updateCurrentUser, triggerHaptic, settings, updateSettings, enrollHardwareBiometrics, isLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
   
   const [formData, setFormData] = useState({
-    name: currentUser.name,
-    username: currentUser.username,
+    name: "",
+    username: "",
     email: "amos@mediatech.lib",
     phone: "+231 77 845 1835"
   });
+
+  useEffect(() => {
+    if (currentUser) {
+      setFormData(prev => ({
+        ...prev,
+        name: currentUser.name || "",
+        username: currentUser.username || "",
+      }));
+    }
+  }, [currentUser]);
 
   // Password Rotation State
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
@@ -84,6 +96,10 @@ export default function AccountCenter() {
       }
     }
   }, [isPasswordDialogOpen, isDeactivateDialogOpen]);
+
+  if (isLoading || !currentUser) {
+    return <ProfileLoading />;
+  }
 
   const handleSave = () => {
     triggerHaptic(25);

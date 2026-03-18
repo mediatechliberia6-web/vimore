@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -37,9 +38,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import ProfileLoading from "@/app/profile/loading";
 
 export default function SubscriptionsVault() {
-  const { currentUser, connections, activeSubscriptions, cancelSubscription, triggerHaptic } = usePosts();
+  const { currentUser, connections, activeSubscriptions, cancelSubscription, triggerHaptic, isLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -50,8 +52,13 @@ export default function SubscriptionsVault() {
   const isPlayerActive = currentTrack && !isExpanded;
 
   const subscribedCreators = useMemo(() => {
+    if (!currentUser || !connections) return [];
     return connections.filter(c => activeSubscriptions.has(c.username));
-  }, [connections, activeSubscriptions]);
+  }, [connections, activeSubscriptions, currentUser]);
+
+  if (isLoading || !currentUser) {
+    return <ProfileLoading />;
+  }
 
   const handleCancelRequest = (username: string) => {
     triggerHaptic(15);

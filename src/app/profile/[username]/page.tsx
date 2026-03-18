@@ -81,7 +81,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const [displayUser, setDisplayUser] = useState<User | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   
-  const isMe = username === currentUser.username;
+  const isMe = currentUser && username === currentUser.username;
   const isPlayerActive = currentTrack && !isExpanded;
   
   const { toast } = useToast();
@@ -142,7 +142,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   };
 
   const handleSubscribeHandshake = async () => {
-    if (isSubscribing || amISubscribed || !displayUser) return;
+    if (isSubscribing || amISubscribed || !displayUser || !currentUser) return;
     setIsSubscribing(true);
     triggerHaptic(50);
 
