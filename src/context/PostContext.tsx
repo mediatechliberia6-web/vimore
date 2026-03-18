@@ -17,6 +17,7 @@ import {
   APPWRITE_DATABASE_ID, 
   PROFILES_COLLECTION_ID,
   POSTS_COLLECTION_ID,
+  COMMENTS_COLLECTION_ID,
   BUCKET_IMAGES,
   BUCKET_REEL
 } from '@/lib/appwrite';
@@ -54,7 +55,7 @@ export interface AppSettings {
 
 export interface User {
   $id?: string;
-  id?: string; // mapping for UI compatibility
+  id?: string; 
   name: string;
   username: string;
   avatar: string;
@@ -90,6 +91,7 @@ export interface Post {
   shares: number;
   views: number;
   image?: string;
+  images?: string[];
   videoUrl?: string; 
   theme?: string;
   isLocked?: boolean;
@@ -364,6 +366,80 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, [settings.hapticIntensity]);
 
+  // --- CONTENT VAULT PULSES ---
+
+  const refreshFeed = useCallback(async () => {
+    try {
+      const response = await databases.listDocuments(
+        APPWRITE_DATABASE_ID,
+        POSTS_COLLECTION_ID,
+        [Query.orderDesc('timestamp'), Query.limit(100)]
+      );
+
+      const materializedPosts: Post[] = response.documents.map((doc: any) => ({
+        id: doc.$id,
+        user: { 
+          name: doc.creatorName || "ViMore Node", 
+          username: doc.creatorUsername || "vimore",
+          avatar: doc.creatorAvatar || "/icon.svg",
+          role: "Creator"
+        },
+        content: doc.content,
+        time: new Date(doc.timestamp).toLocaleDateString(),
+        likes: doc.likes || 0,
+        unlikes: doc.unlikes || 0,
+        comments: doc.commentsCount || 0,
+        shares: doc.shares || 0,
+        views: doc.views || 0,
+        image: doc.mediaUrls?.[0],
+        images: doc.mediaUrls,
+        videoUrl: doc.type === 'video' ? doc.mediaUrls?.[0] : undefined,
+        isLocked: doc.isLocked,
+        unlockPrice: doc.unlockPrice,
+        isBoosted: doc.isBoosted,
+        boostTargetViews: doc.boostTargetViews,
+        boostCurrentViews: doc.boostCurrentViews
+      }));
+
+      setPostsState(materializedPosts);
+    } catch (e) {
+      console.error("Feed Sync Failure:", e);
+    }
+  }, []);
+
+  const fetchComments = useCallback(async (postId: string) => {
+    try {
+      const response = await databases.listDocuments(
+        APPWRITE_DATABASE_ID,
+        COMMENTS_COLLECTION_ID,
+        [Query.equal('postId', postId), Query.orderAsc('timestamp')]
+      );
+
+      const materializedComments: PostComment[] = response.documents.map((doc: any) => ({
+        id: doc.$id,
+        userId: doc.userId,
+        userName: doc.userName,
+        userAvatar: doc.userAvatar,
+        text: doc.text,
+        time: "Recently",
+        parentId: doc.parentId,
+        timestamp: new Date(doc.timestamp).getTime()
+      }));
+
+      setActiveComments(materializedComments);
+    } catch (e) {
+      console.error("Comment Sync Failure:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeCommentPostId) {
+      fetchComments(activeCommentPostId);
+    }
+  }, [activeCommentPostId, fetchComments]);
+
+  // --- IDENTITY CORE ---
+
   const checkSession = useCallback(async () => {
     setIsLoadingState(true);
     try {
@@ -382,6 +458,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
             id: profile.id,
             isEmailVerified: sessionUser.emailVerification
           });
+          refreshFeed();
         } else {
           await account.deleteSession('current');
           setCurrentUserState(null);
@@ -392,7 +469,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoadingState(false);
     }
-  }, []);
+  }, [refreshFeed]);
 
   useEffect(() => { checkSession(); }, [checkSession]);
 
@@ -407,42 +484,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, [checkSession]);
 
-  /**
-   * High-Velocity Identity Signature Forge
-   * Ensures every materialized username is 100% unique in the global cluster.
-   */
   const generateUniqueUsername = async (name: string): Promise<string> => {
     const base = name.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
     let isUnique = false;
     let finalUsername = "";
-    
     while (!isUnique) {
       const suffix = Math.floor(1000 + Math.random() * 9000); 
       finalUsername = `${base}_${suffix}`;
-      
-      const existing = await databases.listDocuments(
-        APPWRITE_DATABASE_ID,
-        PROFILES_COLLECTION_ID,
-        [Query.equal('username', finalUsername), Query.limit(1)]
-      );
-      
-      if (existing.total === 0) {
-        isUnique = true;
-      }
+      const existing = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('username', finalUsername), Query.limit(1)]);
+      if (existing.total === 0) isUnique = true;
     }
     return finalUsername;
   };
 
   const signup = useCallback(async (data: any) => {
     try {
-      // 1. Generate Unique Signature
       const finalUsername = await generateUniqueUsername(data.name);
       const email = data.email || `${finalUsername}@vimore.cfd`;
-      
-      // 2. Create Core Identity
       const sessionUser = await account.create(ID.unique(), email, data.password, data.name);
-      
-      // 3. Archive extended profile in vault
       await databases.createDocument(
         APPWRITE_DATABASE_ID,
         PROFILES_COLLECTION_ID,
@@ -465,8 +524,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
           joinDate: new Date().toISOString()
         }
       );
-
-      // 4. Auto-Login
       await login(email, data.password);
       return { success: true };
     } catch (error: any) {
@@ -494,19 +551,140 @@ export function PostProvider({ children }: { children: ReactNode }) {
         ID.unique(),
         {
           creatorId: currentUser.$id,
+          creatorName: currentUser.name,
+          creatorUsername: currentUser.username,
+          creatorAvatar: currentUser.avatar,
           content: pData.content,
           type: pData.videoUrl ? 'video' : 'photo',
           mediaUrls: pData.images || (pData.videoUrl ? [pData.videoUrl] : []),
           isLocked: pData.isLocked || false,
           unlockPrice: pData.unlockPrice || 0,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          likes: 0,
+          unlikes: 0,
+          views: 0,
+          commentsCount: 0
         }
       );
       toast({ title: "Vibe Synced" });
+      refreshFeed();
     } catch (e: any) {
       toast({ variant: "destructive", title: "Sync Failed", description: e.message });
     }
-  }, [currentUser, toast]);
+  }, [currentUser, toast, refreshFeed]);
+
+  const addComment = useCallback(async (postId: string, text: string) => {
+    if (!currentUser) return;
+    try {
+      await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        COMMENTS_COLLECTION_ID,
+        ID.unique(),
+        {
+          postId,
+          userId: currentUser.$id,
+          userName: currentUser.name,
+          userAvatar: currentUser.avatar,
+          text,
+          timestamp: new Date().toISOString()
+        }
+      );
+      // Increment count on post
+      const post = posts.find(p => p.id === postId);
+      if (post) {
+        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, {
+          commentsCount: (post.comments || 0) + 1
+        });
+      }
+      fetchComments(postId);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Discussion Error" });
+    }
+  }, [currentUser, posts, fetchComments, toast]);
+
+  const addReply = useCallback(async (postId: string, parentId: string, text: string) => {
+    if (!currentUser) return;
+    try {
+      await databases.createDocument(
+        APPWRITE_DATABASE_ID,
+        COMMENTS_COLLECTION_ID,
+        ID.unique(),
+        {
+          postId,
+          userId: currentUser.$id,
+          userName: currentUser.name,
+          userAvatar: currentUser.avatar,
+          text,
+          parentId,
+          timestamp: new Date().toISOString()
+        }
+      );
+      fetchComments(postId);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Reply Error" });
+    }
+  }, [currentUser, fetchComments, toast]);
+
+  const recordView = useCallback(async (postId: string) => {
+    if (seenPostIds.has(postId)) return;
+    try {
+      const post = posts.find(p => p.id === postId);
+      if (post) {
+        await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, {
+          views: (post.views || 0) + 1
+        });
+        setSeenPostIdsState(prev => new Set(prev).add(postId));
+      }
+    } catch (e) {}
+  }, [posts, seenPostIds]);
+
+  const toggleLikePost = useCallback(async (postId: string) => {
+    if (!currentUser) return;
+    try {
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+      
+      const isCurrentlyLiked = likedPostIds.has(postId);
+      const nextLikes = isCurrentlyLiked ? Math.max(0, post.likes - 1) : post.likes + 1;
+
+      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, {
+        likes: nextLikes
+      });
+
+      setLikedPostIdsState(prev => {
+        const next = new Set(prev);
+        if (isCurrentlyLiked) next.delete(postId);
+        else next.add(postId);
+        return next;
+      });
+
+      setPostsState(prev => prev.map(p => p.id === postId ? { ...p, likes: nextLikes } : p));
+    } catch (e) {}
+  }, [currentUser, posts, likedPostIds]);
+
+  const toggleUnlikePost = useCallback(async (postId: string) => {
+    if (!currentUser) return;
+    try {
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+      
+      const isCurrentlyUnliked = unlikedPostIds.has(postId);
+      const nextUnlikes = isCurrentlyUnliked ? Math.max(0, post.unlikes - 1) : post.unlikes + 1;
+
+      await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, postId, {
+        unlikes: nextUnlikes
+      });
+
+      setUnlikedPostIdsState(prev => {
+        const next = new Set(prev);
+        if (isCurrentlyUnliked) next.delete(postId);
+        else next.add(postId);
+        return next;
+      });
+
+      setPostsState(prev => prev.map(p => p.id === postId ? { ...p, unlikes: nextUnlikes } : p));
+    } catch (e) {}
+  }, [currentUser, posts, unlikedPostIds]);
 
   const updateSettings = useCallback((data: Partial<AppSettings>) => {
     setSettingsState(prev => {
@@ -518,7 +696,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const value = {
     currentUser, isAuthenticated: !!currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames, receivedRequestUsernames, acceptedStrangerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings: OFFICIAL_GATEWAY, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, referralLink: "https://www.vimore.cfd/join/" + (currentUser?.username || "guest"), pendingTransaction, activeSubscriptions, chatMessages,
-    login, signup, logout, checkSession, uploadMedia, addPost, deletePost: async () => {}, toggleLikePost: async () => {}, toggleUnlikePost: async () => {}, toggleSavePost: () => {}, updateCurrentUser: async () => {}, updateSettings, setSearchOpen: setIsSearchOpenState, setSelectedChatId: setSelectedChatIdState, setSelectedPostId: setSelectedPostIdState, setSelectedImageUrl: setSelectedImageUrlState, setSelectedVideoUrl: setSelectedVideoUrlState, openCommentHub: (id: string) => { setActiveCommentPostIdState(id); }, closeCommentHub: () => setActiveCommentPostIdState(null), openGiftHub: (u: any) => { setTargetUserForGiftState(u); setIsGiftHubOpenState(true); }, closeGiftHub: () => setIsGiftHubOpenState(false), setActiveStoryIndex: setActiveStoryIndexState, triggerHaptic, isPostLiked: () => false, isPostUnliked: () => false, isPostSaved: () => false, isPostUnlocked: () => false, isFollowing: () => false, isFriend: () => false, isRequestSent: () => false, isRequestReceived: () => false, sendFriendRequest: async () => {}, confirmFriendRequest: async () => {}, cancelFriendRequest: async () => {}, unfriendUser: async () => {}, acceptMessageRequest: async () => {}, declineMessageRequest: async () => {}, isSubscribed: () => false, addComment: async () => {}, addReply: async () => {}, addStory: async () => {}, voteOnStoryPoll: async () => {}, voteOnPostPoll: async () => {}, toggleMuteUser: () => {}, togglePinPost: async () => {}, archivePost: async () => {}, addAuditLog: async () => {}, approvePaymentRequest: async () => {}, rejectPaymentRequest: async () => {}, processWithdrawal: async () => {}, addCampaign: async () => {}, deleteCampaign: async () => {}, toggleCampaignStatus: async () => {}, recordCampaignClick: async () => {}, initiateCall: async () => {}, acceptCall: async () => {}, endCall: async () => {}, refreshAdminData: async () => {}, fetchProfileByUsername: async () => null, fetchComments: async () => {}, refreshProfiles: async () => [], refreshClusters: async () => {}, refreshFeed: async () => {}, recordView: async () => {}, recordStoryView: async () => {}, updateUserIdentity: async () => {}, handleReportAction: async () => {}, handleTicketAction: async () => {}, sendChatMessage: async () => {}, purgeVibeCache: async () => {}, archiveIdentityNode: async () => {}, boostNode: async () => {}, enrollHardwareBiometrics: async () => true, verifyHardwareBiometrics: async () => true
+    login, signup, logout, checkSession, uploadMedia, addPost, deletePost: async () => {}, toggleLikePost, toggleUnlikePost, toggleSavePost: () => {}, updateCurrentUser: async () => {}, updateSettings, setSearchOpen: setIsSearchOpenState, setSelectedChatId: setSelectedChatIdState, setSelectedPostId: setSelectedPostIdState, setSelectedImageUrl: setSelectedImageUrlState, setSelectedVideoUrl: setSelectedVideoUrlState, openCommentHub: (id: string) => { setActiveCommentPostIdState(id); }, closeCommentHub: () => setActiveCommentPostIdState(null), openGiftHub: (u: any) => { setTargetUserForGiftState(u); setIsGiftHubOpenState(true); }, closeGiftHub: () => setIsGiftHubOpenState(false), setActiveStoryIndex: setActiveStoryIndexState, triggerHaptic, isPostLiked: (id: string) => likedPostIds.has(id), isPostUnliked: (id: string) => unlikedPostIds.has(id), isPostSaved: (id: string) => savedPostIds.has(id), isPostUnlocked: (id: string) => unlockedPostIds.has(id), isFollowing: () => false, isFriend: () => false, isRequestSent: () => false, isRequestReceived: () => false, sendFriendRequest: async () => {}, confirmFriendRequest: async () => {}, cancelFriendRequest: async () => {}, unfriendUser: async () => {}, acceptMessageRequest: async () => {}, declineMessageRequest: async () => {}, isSubscribed: () => false, addComment, addReply, addStory: async () => {}, voteOnStoryPoll: async () => {}, voteOnPostPoll: async () => {}, toggleMuteUser: () => {}, togglePinPost: async () => {}, archivePost: async () => {}, addAuditLog: async () => {}, approvePaymentRequest: async () => {}, rejectPaymentRequest: async () => {}, processWithdrawal: async () => {}, addCampaign: async () => {}, deleteCampaign: async () => {}, toggleCampaignStatus: async () => {}, recordCampaignClick: async () => {}, initiateCall: async () => {}, acceptCall: async () => {}, endCall: async () => {}, refreshAdminData: async () => {}, fetchProfileByUsername: async () => null, fetchComments, refreshProfiles: async () => [], refreshClusters: async () => {}, refreshFeed, recordView, recordStoryView: async () => {}, updateUserIdentity: async () => {}, handleReportAction: async () => {}, handleTicketAction: async () => {}, sendChatMessage: async () => {}, purgeVibeCache: async () => {}, archiveIdentityNode: async () => {}, boostNode: async () => {}, enrollHardwareBiometrics: async () => true, verifyHardwareBiometrics: async () => true
   };
 
   return <PostContext.Provider value={value}>{children}</PostContext.Provider>;

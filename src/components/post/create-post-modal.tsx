@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -260,13 +261,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       const creationLanguage = typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en';
 
       await addPost({
-        user: currentUser,
-        collaborator: collaborator || undefined,
         content,
         language: creationLanguage,
         theme: selectedTheme.id !== "none" ? selectedTheme.class : undefined,
         images: mediaType === 'image' ? uploadedUrls : undefined,
-        image: mediaType === 'video' ? undefined : (uploadedUrls[0] || undefined),
         videoUrl: mediaType === 'video' ? uploadedUrls[0] : undefined,
         imageFilter: selectedFilter.id !== "none" ? selectedFilter.class : undefined,
         feeling: feeling || undefined,
@@ -274,13 +272,13 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         commentsDisabled,
         isLocked,
         unlockPrice: isLocked ? unlockPrice : undefined,
-        poll: isPollOpen && pollQuestion ? {
+        poll: isPollOpen && pollQuestion ? JSON.stringify({
           question: pollQuestion,
           options: pollOptions.filter(o => o.trim()).map(text => ({ text, votes: 0 })),
           voters: {},
           totalVotes: 0,
           duration: pollDuration
-        } : undefined
+        }) : undefined
       });
 
       toast({ title: "Handshake Synchronized", description: "Node materialized in the global vault." });
