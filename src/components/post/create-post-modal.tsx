@@ -163,15 +163,15 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const { toast } = useToast();
   
   const TRUNCATE_LIMIT = 150; 
-  const isEliteCreator = parseFollowerCount(currentUser.followers) >= 10000;
+  const isEliteCreator = currentUser ? parseFollowerCount(currentUser.followers) >= 10000 : false;
 
   const isLimitedType = selectedTheme.id !== "none" || selectedMedia.length > 0 || mediaType !== null || isPollOpen || isLocked;
   const currentLimit = isLimitedType ? TRUNCATE_LIMIT : 2000;
   const isOverLimit = content.length > currentLimit;
 
   const filteredTagResults = useMemo(() => {
-    let base = connections;
-    if (settings.taggingPrivacy === 'friends') base = connections.filter(c => c.followsYou && isFollowing(c.username));
+    let base = connections || [];
+    if (settings.taggingPrivacy === 'friends') base = base.filter(c => c.followsYou && isFollowing(c.username));
     if (!tagSearch.trim()) return base;
     return base.filter(c => c.name.toLowerCase().includes(tagSearch.toLowerCase()) || c.username.toLowerCase().includes(tagSearch.toLowerCase()));
   }, [connections, tagSearch, settings.taggingPrivacy, isFollowing]);
@@ -244,6 +244,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   };
 
   const handlePost = async () => {
+    if (!currentUser) return;
     setIsAiLoading(true); 
     triggerHaptic(30);
     
@@ -382,10 +383,10 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
           <div className="p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Avatar className="h-12 w-12 border border-primary/10"><AvatarImage src={currentUser.avatar} /><AvatarFallback>JD</AvatarFallback></Avatar>
+              <Avatar className="h-12 w-12 border border-primary/10"><AvatarImage src={currentUser?.avatar} /><AvatarFallback>V</AvatarFallback></Avatar>
               <div className="flex flex-col gap-0.5">
                 <div className="flex flex-wrap items-center gap-1">
-                  <p className="font-bold text-base">{currentUser.name}</p>
+                  <p className="font-bold text-base">{currentUser?.name || "Guest"}</p>
                   {feeling && <span className="text-[13px] text-muted-foreground">— is {feeling.emoji} {feeling.text}</span>}
                   {location && <span className="text-[13px] text-muted-foreground">— in <span className="font-bold text-foreground">{location}</span></span>}
                 </div>
@@ -625,7 +626,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
             <ScrollArea className="flex-1 px-4">
               <div className="space-y-2 pb-10">
-                {filteredTagResults.map((c) => (
+                {(filteredTagResults || []).map((c) => (
                   <button key={c.username} onClick={() => { triggerHaptic(10); setCollaborator(c); setIsTaggingSelectorOpen(false); }} className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-secondary/40 transition-all">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={c.avatar} /></Avatar>

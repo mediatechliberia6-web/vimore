@@ -130,7 +130,7 @@ export function MusicPlayer() {
   const isUnliked = isTrackUnliked(currentTrack.id);
   const isDownloaded = isTrackDownloaded(currentTrack.id);
   const isEligibleForGift = parseFollowerCount(currentTrack.artistFollowers) > 1000;
-  const isOwner = currentTrack.artistUsername === currentUser.username;
+  const isOwner = currentUser ? currentTrack.artistUsername === currentUser.username : false;
 
   if (!isExpanded) {
     const isHome = pathname === "/";
@@ -253,7 +253,7 @@ export function MusicPlayer() {
               ) : (
                 <div className="flex flex-col items-center gap-6 p-8 text-center">
                   <div className="relative">
-                    <div className="absolute -inset-4 bg-primary/20 blur-2xl rounded-full animate-pulse" />
+                    <div className="absolute -inset-4 bg-primary/20 blur-3xl rounded-full animate-pulse" />
                     <Avatar className="h-32 w-32 border-4 border-primary shadow-2xl relative z-10">
                       <AvatarImage src={currentTrack.cover} />
                       <AvatarFallback>V</AvatarFallback>
@@ -401,7 +401,7 @@ export function MusicPlayer() {
 
               <ScrollArea className="h-[300px] w-full rounded-2xl bg-black/5 dark:bg-white/5 p-4">
                 <div className="space-y-6">
-                  {activeComments.length > 0 ? (
+                  {(activeComments || []).length > 0 ? (
                     activeComments.map((comment) => (
                       <div key={comment.id} className="flex gap-4 group animate-in slide-in-from-bottom-2 duration-300">
                         <Link href={`/profile/${comment.userName}`} onClick={() => setIsExpanded(false)}>
@@ -434,8 +434,8 @@ export function MusicPlayer() {
               <div className="relative group pt-4 mb-10 lg:mb-0">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
                   <Avatar className="h-8 w-8 border-2 border-primary/20">
-                    <AvatarImage src={currentUser.avatar} />
-                    <AvatarFallback>JD</AvatarFallback>
+                    <AvatarImage src={currentUser?.avatar} />
+                    <AvatarFallback>V</AvatarFallback>
                   </Avatar>
                 </div>
                 <Input 

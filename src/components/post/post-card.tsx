@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -166,13 +165,13 @@ export function PostCard(props: PostCardProps) {
   const isUnliked = isPostUnliked(id);
   const isBookmarked = isPostSaved(id);
   const isUnlocked = isPostUnlocked(id);
-  const isOwner = user.username === currentUser.username;
+  const isOwner = currentUser ? user.username === currentUser.username : false;
   
   const amIFriend = isFriend(user.username);
   const sent = isRequestSent(user.username);
   const received = isRequestReceived(user.username);
 
-  const effectiveIsVerified = isOwner ? currentUser.isVerified : user.isVerified;
+  const effectiveIsVerified = isOwner ? currentUser?.isVerified : user.isVerified;
   const isEligibleForGift = parseFollowerCount(user.followers) > 1000 && settings.isGiftingEnabled;
   const isHiddenByLock = isLocked && !isUnlocked && !isOwner && !isShared;
 
@@ -192,9 +191,9 @@ export function PostCard(props: PostCardProps) {
   const { toast } = useToast();
 
   const userVote = useMemo(() => {
-    if (!poll || !poll.voters) return null;
+    if (!poll || !poll.voters || !currentUser) return null;
     return poll.voters[currentUser.username] ?? null;
-  }, [poll, currentUser.username]);
+  }, [poll, currentUser]);
 
   const rankedPollOptions = useMemo(() => {
     if (!poll) return [];
