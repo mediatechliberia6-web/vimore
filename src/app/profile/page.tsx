@@ -83,6 +83,7 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { BUCKET_IMAGES } from "@/lib/appwrite";
+import ProfileLoading from "./loading";
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -113,7 +114,7 @@ export function InfoNode({ icon: Icon, label, value, colorClass }: { icon: any, 
 }
 
 export default function MyProfilePage() {
-  const { currentUser, posts, updateCurrentUser, uploadMedia, triggerHaptic, settings, setSelectedImageUrl, addPost, friendUsernames, followingUsernames, followerUsernames } = usePosts();
+  const { currentUser, posts, updateCurrentUser, uploadMedia, triggerHaptic, settings, setSelectedImageUrl, addPost, friendUsernames, followingUsernames, followerUsernames, isLoading } = usePosts();
   const { currentTrack, isExpanded, userSongs } = useMusic();
   const { toast } = useToast();
   const router = useRouter();
@@ -128,33 +129,35 @@ export default function MyProfilePage() {
   const [isRefinementOpen, setIsRefinementOpen] = useState(false);
   const [isApplyingRefinement, setIsApplyingRefinement] = useState(false);
 
-  const isPlayerActive = currentTrack && !isExpanded;
+  const [editData, setEditData] = useState({
+    name: "",
+    category: USER_CATEGORIES[0],
+    bio: "",
+    dateOfBirth: "",
+    nationality: NATIONALITIES[0],
+    gender: 'Male'
+  });
 
+  const isPlayerActive = currentTrack && !isExpanded;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
-  const [editData, setEditData] = useState({
-    name: currentUser.name,
-    category: currentUser.category || USER_CATEGORIES[0],
-    bio: currentUser.bio || "",
-    dateOfBirth: currentUser.dateOfBirth || "",
-    nationality: currentUser.nationality || NATIONALITIES[0],
-    gender: currentUser.gender || 'Male'
-  });
-
   useEffect(() => {
-    setEditData({
-      name: currentUser.name,
-      category: currentUser.category || USER_CATEGORIES[0],
-      bio: currentUser.bio || "",
-      dateOfBirth: currentUser.dateOfBirth || "",
-      nationality: currentUser.nationality || NATIONALITIES[0],
-      gender: currentUser.gender || 'Male'
-    });
+    if (currentUser) {
+      setEditData({
+        name: currentUser.name || "",
+        category: currentUser.category || USER_CATEGORIES[0],
+        bio: currentUser.bio || "",
+        dateOfBirth: currentUser.dateOfBirth || "",
+        nationality: currentUser.nationality || NATIONALITIES[0],
+        gender: currentUser.gender || 'Male'
+      });
+    }
   }, [currentUser]);
 
   const handleSaveProfile = async () => {
+    if (!currentUser) return;
     setIsSavingProfile(true);
     triggerHaptic(25);
     try {
@@ -169,6 +172,7 @@ export default function MyProfilePage() {
   };
 
   const handleApplyRefinement = async (refinedDataUrl: string) => {
+    if (!currentUser) return;
     setIsApplyingRefinement(true);
     triggerHaptic(30);
     try {
@@ -185,7 +189,11 @@ export default function MyProfilePage() {
     }
   };
 
-  const myPosts = useMemo(() => posts.filter(p => p.user.username === currentUser.username), [posts, currentUser.username]);
+  const myPosts = useMemo(() => {
+    if (!currentUser) return [];
+    return posts.filter(p => p.user.username === currentUser.username);
+  }, [posts, currentUser?.username]);
+
   const myReels = useMemo(() => myPosts.filter(p => p.videoUrl), [myPosts]);
   
   const postedImages = useMemo(() => {
@@ -198,18 +206,19 @@ export default function MyProfilePage() {
   }, [myPosts]);
 
   const formattedDob = useMemo(() => {
-    if (!currentUser.dateOfBirth) return null;
+    if (!currentUser?.dateOfBirth) return null;
     return new Date(currentUser.dateOfBirth).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  }, [currentUser.dateOfBirth]);
+  }, [currentUser?.dateOfBirth]);
 
-  // Unified Pulse Metrics
   const combinedFollowers = useMemo(() => {
+    if (!currentUser) return 0;
     return parseFollowerCount(currentUser.followers) + friendUsernames.size;
-  }, [currentUser.followers, friendUsernames.size]);
+  }, [currentUser, friendUsernames.size]);
 
   const combinedFollowing = useMemo(() => {
+    if (!currentUser) return 0;
     return (typeof currentUser.following === 'number' ? currentUser.following : parseFollowerCount(currentUser.following)) + friendUsernames.size;
-  }, [currentUser.following, friendUsernames.size]);
+  }, [currentUser, friendUsernames.size]);
 
   const togglePlayIntro = () => {
     if (!currentUser?.introUrl) { 
@@ -229,6 +238,11 @@ export default function MyProfilePage() {
     audioRef.current.play().catch(() => { toast({ variant: "destructive", description: "Failed to stream sonic signature." }); });
     setIsPlayingIntro(true);
   };
+
+  // Handshake Guard: Prerender protection
+  if (isLoading || !currentUser) {
+    return <ProfileLoading />;
+  }
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-background flex justify-center">

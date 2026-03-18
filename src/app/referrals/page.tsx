@@ -26,9 +26,10 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
+import ProfileLoading from "../profile/loading";
 
 export default function ReferralHub() {
-  const { currentUser, referralLink, triggerHaptic } = usePosts();
+  const { currentUser, referralLink, triggerHaptic, isLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -40,19 +41,21 @@ export default function ReferralHub() {
   const isPlayerActive = currentTrack && !isExpanded;
 
   useEffect(() => {
-    const targetRef = currentUser?.referralCount || 0;
-    const targetStars = currentUser?.starBalance || 0;
-    const interval = setInterval(() => {
-      setDisplayedReferrals(prev => prev < targetRef ? prev + 1 : targetRef);
-      setDisplayedStars(prev => {
-        if (prev < targetStars) {
-          const step = Math.ceil((targetStars - prev) / 10);
-          return Math.min(prev + step, targetStars);
-        }
-        return targetStars;
-      });
-    }, 50);
-    return () => clearInterval(interval);
+    if (currentUser) {
+      const targetRef = currentUser.referralCount || 0;
+      const targetStars = currentUser.starBalance || 0;
+      const interval = setInterval(() => {
+        setDisplayedReferrals(prev => prev < targetRef ? prev + 1 : targetRef);
+        setDisplayedStars(prev => {
+          if (prev < targetStars) {
+            const step = Math.ceil((targetStars - prev) / 10);
+            return Math.min(prev + step, targetStars);
+          }
+          return targetStars;
+        });
+      }, 50);
+      return () => clearInterval(interval);
+    }
   }, [currentUser?.referralCount, currentUser?.starBalance]);
 
   const handleCopyLink = () => {
@@ -62,6 +65,11 @@ export default function ReferralHub() {
     toast({ title: "Node Synced!", description: "Referral link copied to clipboard." });
     setTimeout(() => setIsCopied(false), 2000);
   };
+
+  // Handshake Guard: Prerender protection
+  if (isLoading || !currentUser) {
+    return <ProfileLoading />;
+  }
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300 overflow-x-hidden relative">
@@ -81,7 +89,7 @@ export default function ReferralHub() {
             </div>
           </div>
         </div>
-        <Avatar className="h-9 w-9 border-2 border-primary/10"><AvatarImage src={currentUser?.avatar} /></Avatar>
+        <Avatar className="h-9 w-9 border-2 border-primary/10"><AvatarImage src={currentUser.avatar} /></Avatar>
       </header>
 
       <main className={cn("max-w-xl mx-auto p-4 sm:p-8 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500", isPlayerActive ? "pt-[80px]" : "pt-4")}>

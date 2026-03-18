@@ -26,9 +26,10 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import ProfileLoading from "../profile/loading";
 
 export default function VerificationHub() {
-  const { currentUser, verifyUser, triggerHaptic } = usePosts();
+  const { currentUser, verifyUser, triggerHaptic, isLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
   const { toast } = useToast();
@@ -37,21 +38,25 @@ export default function VerificationHub() {
   const [isVerifying, setIsVerifying] = useState(false);
 
   const isPlayerActive = currentTrack && !isExpanded;
-  const isFirstTime = !currentUser.hasEverBeenVerified;
 
   const pricing = useMemo(() => {
-    if (isFirstTime) {
+    if (!currentUser || !currentUser.hasEverBeenVerified) {
       return { diamond: 6, star: 10000 };
     }
     return { diamond: 15, star: 20000 };
-  }, [isFirstTime]);
+  }, [currentUser]);
 
   const currentCost = currencyChoice === 'DIAMOND' ? pricing.diamond : pricing.star;
-  const hasBalance = currencyChoice === 'DIAMOND' 
-    ? (currentUser.diamondBalance || 0) >= pricing.diamond 
-    : (currentUser.starBalance || 0) >= pricing.star;
+  
+  const hasBalance = useMemo(() => {
+    if (!currentUser) return false;
+    return currencyChoice === 'DIAMOND' 
+      ? (currentUser.diamondBalance || 0) >= pricing.diamond 
+      : (currentUser.starBalance || 0) >= pricing.star;
+  }, [currentUser, currencyChoice, pricing]);
 
   const handleVerificationRequest = async () => {
+    if (!currentUser) return;
     if (!hasBalance) {
       triggerHaptic(50);
       toast({ 
@@ -66,10 +71,8 @@ export default function VerificationHub() {
     triggerHaptic(20);
 
     try {
-      // VI-MORE PAYMENT VERIFICATION SYSTEM
       await verifyUser(currentCost, currencyChoice);
       
-      // SYNC SIGNAL
       addSignal({
         type: 'SYSTEM',
         title: 'Signature Materialized',
@@ -87,6 +90,11 @@ export default function VerificationHub() {
       setIsVerifying(false);
     }
   };
+
+  // Handshake Guard: Prerender protection
+  if (isLoading || !currentUser) {
+    return <ProfileLoading />;
+  }
 
   return (
     <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#050505] transition-colors duration-300 overflow-x-hidden relative">
@@ -157,7 +165,7 @@ export default function VerificationHub() {
         <section className="space-y-6">
           <div className="flex flex-col items-center gap-2">
             <Badge variant="outline" className="border-primary/20 text-primary text-[10px] font-black uppercase tracking-[0.3em] px-4 py-1">
-              {isFirstTime ? 'Initial Handshake' : 'Temporal Renewal'}
+              {!currentUser.hasEverBeenVerified ? 'Initial Handshake' : 'Temporal Renewal'}
             </Badge>
             <h3 className="text-xl font-black italic uppercase tracking-widest text-center">Materialization Cost</h3>
           </div>

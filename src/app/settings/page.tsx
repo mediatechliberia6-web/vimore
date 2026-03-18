@@ -85,9 +85,10 @@ import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
+import ProfileLoading from "../profile/loading";
 
 export default function SettingsPage() {
-  const { settings, updateSettings, triggerHaptic, currentUser, connections, posts, savedPostIds, activeSubscriptions, cancelSubscription, seenPostIds, archiveIdentityNode, purgeVibeCache } = usePosts();
+  const { settings, updateSettings, triggerHaptic, currentUser, connections, posts, savedPostIds, activeSubscriptions, cancelSubscription, seenPostIds, archiveIdentityNode, purgeVibeCache, isLoading, logout } = usePosts();
   const { currentTrack, isExpanded, downloadedSongIds, userSongs } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -137,6 +138,11 @@ export default function SettingsPage() {
       percent: Math.min(percent, 100)
     };
   }, [downloadedSongIds.size, userSongs.length, seenPostIds.size, savedPostIds.size]);
+
+  // Handshake Guard: Prerender protection
+  if (isLoading || !currentUser) {
+    return <ProfileLoading />;
+  }
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300">
@@ -188,7 +194,7 @@ export default function SettingsPage() {
 
         <NativeAdNode type="banner-468" id="settings-top-pulse" />
 
-        {/* PHASE 7: ACCOUNT LIFECYCLE & REVENUE VAULT */}
+        {/* SUBSCRIPTIONS */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_subs')}</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-2 space-y-1">
@@ -207,7 +213,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* PHASE 1: APPEARANCE */}
+        {/* APPEARANCE */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_appearance')}</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
@@ -265,9 +271,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <NativeAdNode type="banner-468" id="settings-mid-pulse" />
-
-        {/* PHASE 5: EXPERIENCE HUB */}
+        {/* EXPERIENCE HUB */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Experience Hub</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
@@ -354,7 +358,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* PHASE 6: DATA & PHYSICAL ARCHIVAL */}
+        {/* DATA & ARCHIVAL */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_data')}</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
@@ -429,7 +433,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* PHASE 3: SECURITY & VAULT */}
+        {/* SECURITY & VAULT */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_security')}</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-6">
@@ -466,7 +470,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* PHASE 4: ACOUSTIC PULSE & QUIET HOURS */}
+        {/* ACOUSTIC PULSE */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Acoustic Pulse</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
@@ -527,7 +531,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* PHASE 2: PRIVACY & SIGNATURE */}
+        {/* PRIVACY & SIGNATURE */}
         <section className="space-y-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">{t('settings_privacy')}</h3>
           <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-8">
@@ -608,7 +612,7 @@ export default function SettingsPage() {
 
         <section className="pt-10 pb-20">
           <NativeAdNode type="banner-468" id="settings-bottom-pulse" />
-          <Button variant="outline" className="w-full h-14 rounded-2xl border-destructive/20 text-destructive font-black italic uppercase tracking-widest text-[10px] hover:bg-destructive/5 transition-all active:scale-95 shadow-lg shadow-destructive/5 mt-8" onClick={() => window.location.href = "/"}>
+          <Button variant="outline" className="w-full h-14 rounded-2xl border-destructive/20 text-destructive font-black italic uppercase tracking-widest text-[10px] hover:bg-destructive/5 transition-all active:scale-95 shadow-lg shadow-destructive/5 mt-8" onClick={logout}>
             {t('logout')}
           </Button>
           <p className="text-center text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em] mt-6">ViMore Node v1.5.0-HighVelocity</p>
