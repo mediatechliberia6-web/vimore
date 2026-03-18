@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { 
   ArrowLeft, 
   Star, 
@@ -12,87 +12,36 @@ import {
   ChevronRight, 
   Trophy,
   History,
-  Sparkles,
   CheckCircle2,
   Rocket,
-  Plus,
-  MessageSquare,
-  Globe,
-  Award,
-  Crown,
-  TrendingUp,
-  Volume2,
-  X,
   Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
-import { useNotifications } from "@/context/NotificationContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
 
-interface StarParticle {
-  id: number;
-  width: string;
-  height: string;
-  top: string;
-  left: string;
-  opacity: number;
-  duration: string;
-  delay: string;
-}
-
-const MOCK_LEADERBOARD = [
-  { rank: 1, name: "Amos B. Kortu", username: "amos_mtl", referrals: 142, avatar: "https://picsum.photos/seed/amos/100/100", isVip: true },
-  { rank: 2, name: "Sarah Chen", username: "schen_dev", referrals: 89, avatar: "https://picsum.photos/seed/2/100/100", isVip: true },
-  { rank: 3, name: "Alex Rivera", username: "arivera", referrals: 64, avatar: "https://picsum.photos/seed/1/100/100", isVip: true },
-  { rank: 4, name: "Marcus Stone", username: "mstone", referrals: 42, avatar: "https://picsum.photos/seed/3/100/100", isVip: false },
-];
-
-const MOCK_HISTORY = [
-  { id: 'h1', name: "John Doe", username: "jdoe", time: "Today", avatar: "https://picsum.photos/seed/jdoe/100/100" },
-  { id: 'h2', name: "Jane Smith", username: "jsmith", time: "Yesterday", avatar: "https://picsum.photos/seed/jsmith/100/100" }
-];
-
 export default function ReferralHub() {
   const { currentUser, referralLink, triggerHaptic } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
-  const { addSignal } = useNotifications();
   const { t } = useTranslation();
   const { toast } = useToast();
   
   const [isCopied, setIsCopied] = useState(false);
   const [displayedReferrals, setDisplayedReferrals] = useState(0);
   const [displayedStars, setDisplayedStars] = useState(0);
-  const [stars, setStars] = useState<StarParticle[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(false);
 
   const isPlayerActive = currentTrack && !isExpanded;
 
   useEffect(() => {
-    const generatedStars = [...Array(20)].map((_, i) => ({
-      id: i,
-      width: Math.random() * 3 + 'px',
-      height: Math.random() * 3 + 'px',
-      top: Math.random() * 100 + '%',
-      left: Math.random() * 100 + '%',
-      opacity: Math.random() * 0.5,
-      duration: (Math.random() * 3 + 2) + 's',
-      delay: (Math.random() * 5) + 's'
-    }));
-    setStars(generatedStars);
-  }, []);
-
-  useEffect(() => {
-    const targetRef = currentUser.referralCount || 0;
-    const targetStars = currentUser.starBalance || 0;
+    const targetRef = currentUser?.referralCount || 0;
+    const targetStars = currentUser?.starBalance || 0;
     const interval = setInterval(() => {
       setDisplayedReferrals(prev => prev < targetRef ? prev + 1 : targetRef);
       setDisplayedStars(prev => {
@@ -104,7 +53,7 @@ export default function ReferralHub() {
       });
     }, 50);
     return () => clearInterval(interval);
-  }, [currentUser.referralCount, currentUser.starBalance]);
+  }, [currentUser?.referralCount, currentUser?.starBalance]);
 
   const handleCopyLink = () => {
     triggerHaptic(15);
@@ -119,9 +68,6 @@ export default function ReferralHub() {
       <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/20 blur-[120px] rounded-full animate-pulse" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-accent/20 blur-[120px] rounded-full animate-pulse delay-700" />
-        {stars.map((star) => (
-          <div key={star.id} className="absolute bg-white rounded-full animate-pulse" style={{ width: star.width, height: star.height, top: star.top, left: star.left, opacity: star.opacity, animationDuration: star.duration, animationDelay: star.delay }} />
-        ))}
       </div>
 
       <header className="sticky top-0 z-50 bg-white/80 dark:bg-card/80 backdrop-blur-md border-b border-border h-16 px-4 flex items-center justify-between">
@@ -135,7 +81,7 @@ export default function ReferralHub() {
             </div>
           </div>
         </div>
-        <Avatar className="h-9 w-9 border-2 border-primary/10"><AvatarImage src={currentUser.avatar} /></Avatar>
+        <Avatar className="h-9 w-9 border-2 border-primary/10"><AvatarImage src={currentUser?.avatar} /></Avatar>
       </header>
 
       <main className={cn("max-w-xl mx-auto p-4 sm:p-8 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500", isPlayerActive ? "pt-[80px]" : "pt-4")}>
@@ -179,47 +125,16 @@ export default function ReferralHub() {
           </div>
         </section>
 
-        <NativeAdNode type="banner-468" id="stars-mid-pulse" />
-
-        <section className="space-y-4">
-          <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2"><TrendingUp className="h-4 w-4 text-amber-500" /> {t('star_top_networkers')}</h3>
-          <div className="bg-white dark:bg-card border border-primary/10 rounded-[2.5rem] overflow-hidden shadow-xl">
-            <div className="divide-y divide-border">
-              {MOCK_LEADERBOARD.map((user) => (
-                <div key={user.username} className="p-4 flex items-center justify-between hover:bg-primary/5 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <span className="w-6 text-center text-lg font-black italic text-muted-foreground/40">{user.rank.toString().padStart(2, '0')}</span>
-                    <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={user.avatar} /></Avatar>
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-1"><span className="text-sm font-bold">{user.name}</span>{user.isVip && <CheckCircle2 className="h-3 w-3 text-primary fill-primary text-white" />}</div>
-                      <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">@{user.username}</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end"><span className="text-sm font-black italic text-primary">{user.referrals}</span><span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Nodes</span></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         <section className="space-y-4 pb-20">
           <div className="flex items-center justify-between px-1">
             <h3 className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2"><History className="h-4 w-4 text-primary" /> {t('earn_recent_history')}</h3>
-            <NativeAdNode type="banner-468" id="stars-bottom-pulse" />
           </div>
-          <div className="space-y-3">
-            {MOCK_HISTORY.map((node) => (
-              <div key={node.id} className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 p-4 rounded-2xl flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={node.avatar} /></Avatar>
-                  <div className="flex flex-col"><span className="text-sm font-bold">{node.name}</span><span className="text-[10px] text-muted-foreground font-black uppercase">@{node.username}</span></div>
-                </div>
-                <div className="flex flex-col items-end">
-                  <div className="flex items-center gap-1"><Star className="h-3 w-3 text-amber-500 fill-current" /><span className="text-[10px] font-black text-green-500">+5,000</span></div>
-                  <span className="text-[9px] text-muted-foreground uppercase font-bold">{node.time}</span>
-                </div>
-              </div>
-            ))}
+          <div className="py-20 text-center bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-dashed border-primary/10 rounded-[2.5rem] space-y-4 opacity-40">
+            <Users className="h-10 w-10 mx-auto text-primary/40" />
+            <div className="space-y-1">
+              <p className="text-sm font-black italic uppercase tracking-widest">No Recent Handshakes</p>
+              <p className="text-[10px] font-medium uppercase">Invite nodes to begin materializing Stars</p>
+            </div>
           </div>
         </section>
       </main>

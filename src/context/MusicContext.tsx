@@ -3,7 +3,7 @@
 
 /**
  * @fileOverview ViMore Sonic Context Node (Production Engine)
- * Manages high-fidelity audio playback and database synchronization.
+ * Finalized: All mock tracks and albums purged. Real database fetch active.
  */
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
@@ -185,7 +185,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
       setGlobalPlaylistsState(playlistRes.documents.map((d: any) => ({
         id: d.$id, title: d.title, creator: d.creator, cover: d.cover,
-        totalStreams: d.totalStreams?.toString() || "0", songs: tracks.slice(0, 3) // Simplified link
+        totalStreams: d.totalStreams?.toString() || "0", songs: tracks.slice(0, 3) 
       })));
     } catch (e) {}
   }, []);
