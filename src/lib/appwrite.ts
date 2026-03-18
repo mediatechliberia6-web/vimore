@@ -40,5 +40,7 @@ export const ALBUMS_COLLECTION_ID = 'albums';
 export const PLAYLISTS_COLLECTION_ID = 'playlists';
 export const STORIES_COLLECTION_ID = 'stories';
 export const MESSAGES_COLLECTION_ID = 'messages';
+export const CAMPAIGNS_COLLECTION_ID = 'campaigns';
+export const AUDIT_LOGS_COLLECTION_ID = 'audit_logs';
 
 export default client;

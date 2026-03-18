@@ -3,7 +3,7 @@
 
 /**
  * @fileOverview ViMore Sonic Context Node (Production Engine)
- * Finalized: All mock tracks and albums purged. Real database fetch active.
+ * Finalized: All mock data purged. Real database fetch active.
  */
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
