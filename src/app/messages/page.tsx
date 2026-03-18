@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -7,13 +8,14 @@ import { ChatWindow } from "@/components/chat/chat-window";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts, Connection, Cluster } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
-import { MessageSquare, Zap, Layers } from "lucide-react";
+import { MessageSquare, Zap, Layers, Loader2 } from "lucide-react";
 import { BiometricGate } from "@/components/layout/biometric-gate";
 import { DiagnosticErrorBoundary } from "@/components/layout/diagnostic-error-boundary";
+import MessagesLoading from "./loading";
 
 export default function MessagesPage() {
   const { currentTrack, isExpanded } = useMusic();
-  const { connections, clusters } = usePosts();
+  const { connections, clusters, currentUser, isLoading } = usePosts();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
 
@@ -28,7 +30,7 @@ export default function MessagesPage() {
   }, [selectedChatId]);
 
   const selectedContact = useMemo(() => {
-    if (!selectedChatId) return null;
+    if (!selectedChatId || !currentUser) return null;
     
     const conn = connections.find(c => c.username === selectedChatId);
     if (conn) return { ...conn, isGroup: false } as Connection;
@@ -37,7 +39,12 @@ export default function MessagesPage() {
     if (cluster) return { ...cluster, isGroup: true } as Cluster;
     
     return null;
-  }, [connections, clusters, selectedChatId]);
+  }, [connections, clusters, selectedChatId, currentUser]);
+
+  // Handshake Guard: Prevents prerendering null-pointers
+  if (isLoading || !currentUser) {
+    return <MessagesLoading />;
+  }
 
   return (
     <BiometricGate title="Direct Messages">

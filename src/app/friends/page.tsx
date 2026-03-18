@@ -33,7 +33,8 @@ import {
   ShieldCheck,
   X,
   Users2,
-  Check
+  Check,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -47,11 +48,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useTranslation } from "@/context/LanguageContext";
+import FriendsLoading from "./loading";
 
 type HubTab = "add" | "confirm" | "friends";
 
 function FriendsPageContent() {
-  const { connections = [], isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, currentUser, friendUsernames } = usePosts();
+  const { connections = [], isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, currentUser, friendUsernames, isLoading } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -83,7 +85,7 @@ function FriendsPageContent() {
   }, [confirmUser]);
 
   const filteredUsers = useMemo(() => {
-    if (!connections) return [];
+    if (!connections || !currentUser) return [];
     let list = connections.filter(c => c.username !== currentUser.username);
 
     if (activeTab === "add") {
@@ -103,7 +105,12 @@ function FriendsPageContent() {
     }
 
     return list;
-  }, [activeTab, connections, isFriend, isRequestSent, isRequestReceived, searchQuery, currentUser.username]);
+  }, [activeTab, connections, isFriend, isRequestSent, isRequestReceived, searchQuery, currentUser, isFriend]);
+
+  // Handshake Guard: Prevents build-time null-pointers
+  if (isLoading || !currentUser) {
+    return <FriendsLoading />;
+  }
 
   const tabs: { id: HubTab; label: string; icon: any }[] = [
     { id: "add", label: t('friends_add'), icon: UserRoundPlus },

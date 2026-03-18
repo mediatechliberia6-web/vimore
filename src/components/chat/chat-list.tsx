@@ -46,6 +46,9 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
   const [pinnedUsernames] = useState(new Set<string>());
 
   const { sortedChats, requestCount } = useMemo(() => {
+    // Handshake Guard: Handle null user during build
+    if (!currentUser) return { sortedChats: [], requestCount: 0 };
+
     // 1. Identify all conversation nodes
     const allItems = [
       ...(connections || [])
@@ -104,7 +107,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     });
 
     return { sortedChats: sorted, requestCount: requests.length };
-  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser.username, categoryPulses.MESSAGES, friendUsernames, acceptedStrangerUsernames, chatMessages, showRequests]);
+  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser, categoryPulses.MESSAGES, friendUsernames, acceptedStrangerUsernames, chatMessages, showRequests]);
 
   const handleSelection = (id: string) => {
     triggerHaptic(5);
