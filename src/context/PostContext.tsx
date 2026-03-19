@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -446,22 +447,26 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const sessionUser = await account.get();
       if (sessionUser) {
-        const profileDocs = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.equal('id', sessionUser.$id)]);
-        if (profileDocs.documents.length > 0) {
-          const profile = profileDocs.documents[0] as any;
-          setCurrentUserState({ ...profile, id: profile.id, isEmailVerified: sessionUser.emailVerification });
-          refreshFeed(); refreshStories(); refreshConnections(); refreshAdminData();
-        } else {
-          // Orphaned node logic: Auth user exists but profile doc does not
+        // DIRECT HANDSHAKE: Use getDocument instead of Query.equal('id', ...)
+        // This is index-free and 100% reliable for sessions.
+        try {
+          const profile = await databases.getDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, sessionUser.$id);
+          setCurrentUserState({ ...profile, id: profile.id, isEmailVerified: sessionUser.emailVerification } as User);
+          refreshFeed(); 
+          refreshStories(); 
+          refreshConnections(); 
+          refreshAdminData();
+        } catch (profileError: any) {
+          console.error("Profile Fetch Rejection:", profileError);
           setInitError("Identity profile not found in vault. Please log out and re-synchronize.");
-          // We don't automatically log out here so user can see error
         }
       }
     } catch (e: any) { 
       setCurrentUserState(null);
-      // Not an error, just no session
+      // No active session is not a terminal error
+    } finally { 
+      setIsLoadingState(false); 
     }
-    finally { setIsLoadingState(false); }
   }, [refreshFeed, refreshStories, refreshConnections, refreshAdminData]);
 
   useEffect(() => { checkSession(); }, [checkSession]);
@@ -494,6 +499,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       
       const sessionUser = await account.create(ID.unique(), email, data.password, data.name);
       
+      // CRITICAL: Document ID MUST match sessionUser.$id for direct fetch logic
       await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, sessionUser.$id, {
         id: sessionUser.$id, 
         name: data.name, 
