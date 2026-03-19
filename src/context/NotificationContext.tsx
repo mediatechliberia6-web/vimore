@@ -1,16 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { usePosts } from '@/context/PostContext';
-import { 
-  databases, 
-  Query, 
-  ID, 
-  APPWRITE_DATABASE_ID, 
-  NOTIFICATIONS_COLLECTION_ID,
-  default as client
-} from '@/lib/appwrite';
+import { MOCK_NOTIFICATIONS } from '@/lib/mock-data';
 
 export type SignalType = 'SOCIAL' | 'SONIC' | 'POST' | 'SYSTEM';
 export type PulseCategory = 'HOME' | 'FRIENDS' | 'MUSIC' | 'REELS' | 'MESSAGES';
@@ -27,9 +20,9 @@ export interface NotificationNode {
   image?: string;
   actionLabel?: string;
   actionHref?: string;
-  postId?: string; 
-  trackId?: string | number; 
-  targetUsername?: string; 
+  postId?: string;
+  trackId?: string | number;
+  targetUsername?: string;
 }
 
 interface NotificationContextType {
@@ -50,22 +43,22 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 const SOUNDS = {
   cyberpunk: "https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3",
-  lofi: "https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"
+  lofi: "https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3",
 };
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState<NotificationNode[]>([]);
+  const [notifications, setNotifications] = useState<NotificationNode[]>(MOCK_NOTIFICATIONS);
   const [categoryPulses, setCategoryPulses] = useState<Record<PulseCategory, number>>({
-    HOME: 0, FRIENDS: 0, MUSIC: 0, REELS: 0, MESSAGES: 0
+    HOME: 0, FRIENDS: 0, MUSIC: 0, REELS: 0, MESSAGES: 0,
   });
   const [hasPushPermission, setHasPushPermission] = useState(false);
-  const { settings, triggerHaptic, currentUser } = usePosts();
+  const { settings, triggerHaptic } = usePosts();
 
   const triggerSound = useCallback(() => {
     if (settings.isSilenceActive) {
       const now = new Date();
       const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-      const isSilenced = settings.silenceStart < settings.silenceEnd 
+      const isSilenced = settings.silenceStart < settings.silenceEnd
         ? (currentTime >= settings.silenceStart && currentTime <= settings.silenceEnd)
         : (currentTime >= settings.silenceStart || currentTime <= settings.silenceEnd);
       if (isSilenced) return;
@@ -76,73 +69,28 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     audio.play().catch(() => {});
   }, [settings]);
 
-  const refreshNotifications = useCallback(async () => {
-    if (!currentUser) return;
-    try {
-      const response = await databases.listDocuments(
-        APPWRITE_DATABASE_ID,
-        NOTIFICATIONS_COLLECTION_ID,
-        [Query.equal('recipientId', currentUser.username), Query.orderDesc('$createdAt'), Query.limit(50)]
-      );
-      setNotifications(response.documents.map((d: any) => ({
-        id: d.$id, type: d.type, title: d.title, content: d.content,
-        time: "Recently", isRead: d.isRead, recipientId: d.recipientId,
-        avatar: d.avatar, postId: d.postId, trackId: d.trackId
-      })));
-    } catch (e) {}
-  }, [currentUser]);
+  const addSignal = useCallback((signal: Omit<NotificationNode, 'id' | 'time' | 'isRead'>) => {
+    const newNotif: NotificationNode = {
+      ...signal,
+      id: 'notif_' + Date.now(),
+      time: 'Just now',
+      isRead: false,
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+    triggerSound();
+    triggerHaptic(15);
+  }, [triggerSound, triggerHaptic]);
 
-  useEffect(() => { refreshNotifications(); }, [refreshNotifications]);
-
-  useEffect(() => {
-    if (!currentUser) return;
-    const unsubscribe = client.subscribe(
-      [`databases.${APPWRITE_DATABASE_ID}.collections.${NOTIFICATIONS_COLLECTION_ID}.documents`],
-      response => {
-        if (response.events.includes('databases.*.collections.*.documents.*.create')) {
-          const payload = response.payload as any;
-          if (payload.recipientId === currentUser.username) {
-            triggerSound();
-            triggerHaptic(15);
-            refreshNotifications();
-          }
-        }
-      }
-    );
-    return () => unsubscribe();
-  }, [currentUser, triggerSound, triggerHaptic, refreshNotifications]);
-
-  const addSignal = useCallback(async (signal: Omit<NotificationNode, 'id' | 'time' | 'isRead'>) => {
-    if (!currentUser) return;
-    try {
-      await databases.createDocument(
-        APPWRITE_DATABASE_ID,
-        NOTIFICATIONS_COLLECTION_ID,
-        ID.unique(),
-        { ...signal, isRead: false, timestamp: new Date().toISOString() }
-      );
-    } catch (e) {}
-  }, [currentUser]);
-
-  const markAsRead = async (id: string) => {
-    try {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, id, { isRead: true });
-      refreshNotifications();
-    } catch (e) {}
+  const markAsRead = (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
   };
 
-  const markAllAsRead = async () => {
-    for (const n of notifications.filter(n => !n.isRead)) {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, n.id, { isRead: true });
-    }
-    refreshNotifications();
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
   };
 
-  const purgeSignal = async (id: string) => {
-    try {
-      await databases.deleteDocument(APPWRITE_DATABASE_ID, NOTIFICATIONS_COLLECTION_ID, id);
-      refreshNotifications();
-    } catch (e) {}
+  const purgeSignal = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   const clearPulse = useCallback((category: PulseCategory) => {
@@ -165,7 +113,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   return (
     <NotificationContext.Provider value={{
-      notifications, unreadCount, categoryPulses, addSignal, markAsRead, markAllAsRead, purgeSignal, clearPulse, incrementPulse, requestPushPermission, hasPushPermission
+      notifications, unreadCount, categoryPulses, addSignal, markAsRead, markAllAsRead,
+      purgeSignal, clearPulse, incrementPulse, requestPushPermission, hasPushPermission,
     }}>
       {children}
     </NotificationContext.Provider>
