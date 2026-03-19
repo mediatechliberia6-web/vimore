@@ -79,20 +79,24 @@ export function Stories({ onOpenCreate }: StoriesProps) {
               >
                 {!settings.isFreeMode && (
                   isVideo ? (
-                    <video 
-                      src={firstSegment.image} 
-                      className={cn("object-cover w-full h-full transition-transform group-hover:scale-110", firstSegment.filter)}
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
+                    firstSegment.image ? (
+                      <video 
+                        src={firstSegment.image} 
+                        className={cn("object-cover w-full h-full transition-transform group-hover:scale-110", firstSegment.filter)}
+                        muted
+                        playsInline
+                        preload="metadata"
+                      />
+                    ) : null
                   ) : (
-                    <Image 
-                      src={firstSegment.image} 
-                      alt={story.user.name} 
-                      fill 
-                      className={cn("object-cover transition-transform group-hover:scale-110", firstSegment.filter)} 
-                    />
+                    firstSegment.image ? (
+                      <Image 
+                        src={firstSegment.image} 
+                        alt={story.user.name} 
+                        fill 
+                        className={cn("object-cover transition-transform group-hover:scale-110", firstSegment.filter)} 
+                      />
+                    ) : null
                   )
                 )}
                 <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />

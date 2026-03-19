@@ -85,6 +85,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { BUCKET_IMAGES } from "@/lib/appwrite";
 import ProfileLoading from "./loading";
 
+const NATIONALITIES = [
+  "Liberian", "American", "Nigerian", "Ghanian", "Guinean", "Sierra Leonean", "Ivory Coast", "European", "Asian", "Other"
+];
+
 export function InfoNode({ icon: Icon, label, value, colorClass }: { icon: any, label: string, value: string, colorClass: string }) {
   return (
     <div className="flex items-center gap-3 group/node">
