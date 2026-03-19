@@ -160,7 +160,7 @@ export default function Home() {
   const organicSorted = useMemo(() => {
     const regular = posts.filter(p => !p.isBoosted);
     regular.forEach(p => { if (!(p.$id in weights.current)) weights.current[p.$id] = Math.random(); });
-    const followingUnseen = regular.filter(p => followingUsernames.has(p.user.username) && !sessionSeen.current.has(p.$id));
+    const followingUnseen = regular.filter(p => (followingUsernames.has(p.user.username) || p.user.username === currentUser?.username) && !sessionSeen.current.has(p.$id));
     const publicUnseen = regular.filter(p => !followingUsernames.has(p.user.username) && !sessionSeen.current.has(p.$id));
     const seenNodes = regular.filter(p => sessionSeen.current.has(p.$id));
     const stableSort = (arr: any[]) => [...arr].sort((a, b) => weights.current[a.$id] - weights.current[b.$id]);

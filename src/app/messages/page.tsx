@@ -35,7 +35,7 @@ export default function MessagesPage() {
     const conn = connections.find(c => c.username === selectedChatId);
     if (conn) return { ...conn, isGroup: false } as Connection;
     
-    const cluster = clusters.find(cl => cl.id === selectedChatId);
+    const cluster = clusters.find(cl => cl.$id === selectedChatId);
     if (cluster) return { ...cluster, isGroup: true } as Cluster;
     
     return null;

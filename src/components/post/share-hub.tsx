@@ -58,7 +58,7 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
       sharedPost: post,
       language: 'en'
     });
-    incrementShareCount(post.id);
+    incrementShareCount(post.$id);
     toast({ title: "Shared as Post", description: "Reposted to your feed." });
     onClose();
   };
@@ -76,7 +76,7 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
         color: "#FFFFFF"
       }]
     });
-    incrementShareCount(post.id);
+    incrementShareCount(post.$id);
     toast({ title: "Story Studio", description: "Vibe synced to your story rail." });
     onClose();
   };
@@ -94,7 +94,7 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
       
       try {
         // BINARY HANDSHAKE: Actual Save to Hardware
-        await saveFileToDevice(assetUrl, `vimore_node_${post.id}.${extension}`);
+        await saveFileToDevice(assetUrl, `vimore_node_${post.$id}.${extension}`);
         toast({ title: "Archival Ready", description: "Vibe saved to your hardware identity notes." });
       } catch (e) {
         console.error("Archival handshake failure", e);
@@ -110,7 +110,7 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
     setSharingTo(username);
     setTimeout(() => {
       setSharingTo(null);
-      incrementShareCount(post.id);
+      incrementShareCount(post.$id);
       toast({ title: "Node Shared", description: `Vibe launched to @${username}` });
       onClose();
     }, 800);
@@ -118,7 +118,7 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
 
   const handleCopyLink = () => {
     triggerHaptic(5);
-    navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
+    navigator.clipboard.writeText(`${window.location.origin}/post/${post.$id}`);
     toast({ title: "Link Synced", description: "Temporal URL copied to clipboard." });
     onClose();
   };

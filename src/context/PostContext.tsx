@@ -464,7 +464,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const toggleLikePost = async (id: string) => {
     setLikedPostIdsState(p => {
       const n = new Set(p);
-      if (n.has(id)) n.delete(id); else n.add(id);
+      const wasLiked = n.has(id);
+      if (wasLiked) n.delete(id); else n.add(id);
+      setPostsState(prev => prev.map(post =>
+        post.$id === id ? { ...post, likes: Math.max(0, post.likes + (wasLiked ? -1 : 1)) } : post
+      ));
       return n;
     });
     setUnlikedPostIdsState(p => { const n = new Set(p); n.delete(id); return n; });
@@ -473,7 +477,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const toggleUnlikePost = async (id: string) => {
     setUnlikedPostIdsState(p => {
       const n = new Set(p);
-      if (n.has(id)) n.delete(id); else n.add(id);
+      const wasUnliked = n.has(id);
+      if (wasUnliked) n.delete(id); else n.add(id);
+      setPostsState(prev => prev.map(post =>
+        post.$id === id ? { ...post, unlikes: Math.max(0, post.unlikes + (wasUnliked ? -1 : 1)) } : post
+      ));
       return n;
     });
     setLikedPostIdsState(p => { const n = new Set(p); n.delete(id); return n; });
@@ -495,6 +503,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         ? { ...p, comments: p.comments + 1, commentNodes: [...(p.commentNodes || []), newComment] }
         : p
     ));
+    setActiveComments(prev => [...prev, newComment]);
   };
 
   const addStory = async (segment: any) => {

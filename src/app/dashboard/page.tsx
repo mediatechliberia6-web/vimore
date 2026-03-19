@@ -48,7 +48,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { usePosts, Post } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
-import { cn } from "@/lib/utils";
+import { cn, parseFollowerCount } from "@/lib/utils";
 import Link from "next/link";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { 

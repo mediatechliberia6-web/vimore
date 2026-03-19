@@ -207,7 +207,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <p className={cn("text-xs truncate", hasNewPulse ? "text-foreground font-bold" : "text-muted-foreground")}>
-                      {(item as any).lastMessage || "No messages yet."}
+                      {chatMessages[id]?.at(-1)?.text || (item as any).lastMessage || "No messages yet."}
                     </p>
                     {pinnedUsernames.has(id) && <Pin className="h-3 w-3 text-muted-foreground/40 rotate-45" />}
                     {hasNewPulse && <div className="h-2 w-2 bg-primary rounded-full shadow-[0_0_8px_rgba(153,64,229,0.8)]" />}
