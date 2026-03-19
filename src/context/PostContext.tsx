@@ -70,6 +70,7 @@ export interface User {
   id?: string; 
   name: string;
   username: string;
+  email?: string;
   avatar: string;
   cover?: string;
   isVerified?: boolean;
@@ -182,6 +183,7 @@ interface PostContextType {
   posts: Post[];
   activeComments: PostComment[];
   isLoading: boolean;
+  initError: string | null;
   likedPostIds: Set<string>;
   unlikedPostIds: Set<string>;
   savedPostIds: Set<string>;
@@ -335,6 +337,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [posts, setPostsState] = useState<Post[]>([]);
   const [activeComments, setActiveComments] = useState<PostComment[]>([]);
   const [isLoading, setIsLoadingState] = useState(true);
+  const [initError, setInitError] = useState<string | null>(null);
   const [settings, setSettingsState] = useState<AppSettings>(INITIAL_SETTINGS);
   
   const [clusters, setClustersState] = useState<Cluster[]>([]);
@@ -439,6 +442,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const checkSession = useCallback(async () => {
     setIsLoadingState(true);
+    setInitError(null);
     try {
       const sessionUser = await account.get();
       if (sessionUser) {
@@ -448,11 +452,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
           setCurrentUserState({ ...profile, id: profile.id, isEmailVerified: sessionUser.emailVerification });
           refreshFeed(); refreshStories(); refreshConnections(); refreshAdminData();
         } else {
-          await account.deleteSession('current');
-          setCurrentUserState(null);
+          // Orphaned node logic: Auth user exists but profile doc does not
+          setInitError("Identity profile not found in vault. Please log out and re-synchronize.");
+          // We don't automatically log out here so user can see error
         }
       }
-    } catch (e) { setCurrentUserState(null); }
+    } catch (e: any) { 
+      setCurrentUserState(null);
+      // Not an error, just no session
+    }
     finally { setIsLoadingState(false); }
   }, [refreshFeed, refreshStories, refreshConnections, refreshAdminData]);
 
@@ -490,6 +498,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         id: sessionUser.$id, 
         name: data.name, 
         username: finalUsername, 
+        email: email,
         avatar: "https://picsum.photos/seed/" + finalUsername + "/200/200",
         gender: data.gender, 
         nationality: data.nationality, 
@@ -515,6 +524,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       await account.deleteSession('current');
       setCurrentUserState(null);
+      setInitError(null);
       setFollowingUsernamesState(new Set());
       setFriendUsernamesState(new Set());
       toast({ title: "Session Purged", description: "Identity node disconnected." });
@@ -741,7 +751,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const value = {
-    currentUser, isAuthenticated: !!currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames, receivedRequestUsernames, acceptedStrangerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings: OFFICIAL_GATEWAY, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, referralLink: "https://www.vimore.cfd/join/" + (currentUser?.username || "guest"), pendingTransaction, activeSubscriptions: new Set<string>(), chatMessages,
+    currentUser, isAuthenticated: !!currentUser, posts, activeComments, isLoading, initError, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames, receivedRequestUsernames, acceptedStrangerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings: OFFICIAL_GATEWAY, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, referralLink: "https://www.vimore.cfd/join/" + (currentUser?.username || "guest"), pendingTransaction, activeSubscriptions: new Set<string>(), chatMessages,
     login, signup, logout, checkSession,
     uploadMedia: async (f: File, b: string = BUCKET_IMAGES) => { const up = await storage.createFile(b, ID.unique(), f); return storage.getFileView(b, up.$id).toString(); },
     addPost, deletePost, toggleLikePost, toggleUnlikePost: async () => {}, toggleSavePost: (id: string) => setSavedPostIdsState(p => { const n = new Set(p); if(n.has(id)) n.delete(id); else n.add(id); return n; }), 
