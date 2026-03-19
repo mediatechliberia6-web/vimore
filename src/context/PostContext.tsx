@@ -4,7 +4,7 @@
 /**
  * @fileOverview ViMore Core Context Node (Production Engine)
  * High-Velocity Signaling, Economy, & Governance Protocols Active.
- * Refactored: Native $id Handshake fully materialized.
+ * Refactored: Native $id Handshake & Self-Healing Identity Node.
  */
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -455,8 +455,31 @@ export function PostProvider({ children }: { children: ReactNode }) {
           refreshConnections(); 
           refreshAdminData();
         } catch (profileError: any) {
-          console.error("Profile Fetch Rejection:", profileError);
-          setInitError("Identity profile not found in vault. Please log out and re-synchronize.");
+          console.error("Vault Rejection (checkSession):", profileError);
+          
+          if (profileError.code === 404) {
+            // SELF-HEALING PULSE: Orphaned identity detected. Attempting re-materialization.
+            try {
+              const base = sessionUser.name.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+              const healUsername = `${base}_heal_${Math.floor(1000 + Math.random() * 9000)}`;
+              
+              const healedProfile = await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, sessionUser.$id, {
+                name: sessionUser.name, 
+                username: healUsername, 
+                email: sessionUser.email,
+                avatar: "https://picsum.photos/seed/" + healUsername + "/200/200",
+                goldBalance: 0, diamondBalance: 0, starBalance: 0, referralCount: 0,
+                isVerified: false, role: 'USER', joinDate: new Date().toISOString()
+              });
+              
+              setCurrentUserState(healedProfile as any);
+              toast({ title: "Identity Re-materialized", description: "Your ghost node has been recovered." });
+            } catch (healError: any) {
+              setInitError(`Handshake Failed: Identity node is orphaned and cannot be healed. Error: ${healError.message}`);
+            }
+          } else {
+            setInitError(`Vault Handshake Failed: ${profileError.message}. Please check collection permissions.`);
+          }
         }
       }
     } catch (e: any) { 
@@ -464,7 +487,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } finally { 
       setIsLoadingState(false); 
     }
-  }, [refreshFeed, refreshStories, refreshConnections, refreshAdminData]);
+  }, [refreshFeed, refreshStories, refreshConnections, refreshAdminData, toast]);
 
   useEffect(() => { checkSession(); }, [checkSession]);
 
@@ -476,7 +499,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await account.createEmailPasswordSession(email, p);
       await checkSession();
       return { success: true };
-    } catch (error: any) { return { success: false, message: error.message }; }
+    } catch (error: any) { 
+      console.error("Vault Rejection (Login):", error);
+      return { success: false, message: error.message }; 
+    }
   }, [checkSession]);
 
   const signup = useCallback(async (data: any) => {
@@ -496,7 +522,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       
       const sessionUser = await account.create(ID.unique(), email, data.password, data.name);
       
-      // STRICT NATIVE SIGNUP: No 'id' attribute sent. Document ID is sessionUser.$id.
+      // ATOMIC HANDSHAKE: Ensure Document ID matches Auth ID
       await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, sessionUser.$id, {
         name: data.name, 
         username: finalUsername, 
@@ -518,7 +544,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await login(email, data.password);
       return { success: true };
     } catch (error: any) { 
-      return { success: false, message: error.message }; 
+      console.error("Vault Rejection (Signup):", error);
+      return { success: false, message: `Vault Handshake Failed: ${error.message}` }; 
     }
   }, [login]);
 
@@ -539,8 +566,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       await databases.updateDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, currentUser.$id, data);
       setCurrentUserState(prev => prev ? { ...prev, ...data } : null);
-    } catch (e) {}
-  }, [currentUser]);
+    } catch (e: any) {
+      console.error("Vault Rejection (UpdateProfile):", e);
+      toast({ variant: "destructive", title: "Update Rejected", description: e.message });
+    }
+  }, [currentUser, toast]);
 
   const updateSettings = (data: Partial<AppSettings>) => {
     setSettingsState(prev => ({ ...prev, ...data }));
@@ -555,8 +585,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
         userId: currentUser.$id, targetUsername, status: 'FRIEND', timestamp: new Date().toISOString()
       });
       refreshConnections();
-    } catch (e) {}
-  }, [currentUser, refreshConnections]);
+    } catch (e: any) {
+      console.error("Vault Rejection (FriendRequest):", e);
+      toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
+    }
+  }, [currentUser, refreshConnections, toast]);
 
   const unfriendUser = useCallback(async (targetUsername: string) => {
     if (!currentUser?.$id) return;
@@ -573,10 +606,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if(!currentUser?.$id) return;
     try {
       await databases.createDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, ID.unique(), {
-        ...p, creatorId: currentUser.$id, creatorName: currentUser.name, creatorUsername: currentUser.username, creatorAvatar: currentUser.avatar, timestamp: new Date().toISOString(), likes: 0, unlikes: 0, views: 0, commentsCount: 0
+        ...p, 
+        creatorId: currentUser.$id, 
+        creatorName: currentUser.name, 
+        creatorUsername: currentUser.username, 
+        creatorAvatar: currentUser.avatar, 
+        timestamp: new Date().toISOString(), 
+        likes: 0, 
+        unlikes: 0, 
+        views: 0, 
+        commentsCount: 0
       });
       refreshFeed();
-    } catch (e) {}
+    } catch (e: any) {
+      console.error("Vault Rejection (Post):", e);
+      toast({ variant: "destructive", title: "Vault Rejection", description: `Permission denied or missing attribute: ${e.message}. Ensure collection permissions are set to 'users' in console.` });
+      throw e;
+    }
   };
 
   const deletePost = async (id: string) => {
@@ -764,7 +810,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     approvePaymentRequest, rejectPaymentRequest, processWithdrawal, addCampaign, deleteCampaign, toggleCampaignStatus, promoteUser, initiateCall, acceptCall, endCall, refreshAdminData, fetchProfileByUsername: async () => null, fetchComments: async () => {}, refreshProfiles: async () => [], refreshClusters: async () => {}, refreshFeed, refreshStories, 
     recordView: async (id: string) => { const p = posts.find(p => p.$id === id); if(p) await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, id, { views: (p.views || 0) + 1 }); }, 
     recordStoryView: async (id: string) => { const s = stories.find(s => s.$id === id); if(s) await databases.updateDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, id, { viewCount: (s.viewCount || 0) + 1 }); }, 
-    updateUserIdentity: async () => {}, handleReportAction: async () => {}, handleTicketAction: async () => {}, sendChatMessage: async () => {}, purgeVibeCache: async () => {}, archiveIdentityNode: async () => {}, boostNode: async () => {}, enrollHardwareBiometrics: async () => true, verifyHardwareBiometrics: async () => true, demoteUser: async () => {}, initiateTransaction: (d: any) => setPendingTransactionState(d), cancelTransaction: () => setPendingTransactionState(null), createPaymentRequest, recordWithdrawal, verifyUser: async () => {}, processGiftTransaction: async () => {}, unlockPost: async () => {}, subscribeToCreator: async () => {}, cancelSubscription: async () => {}, incrementShareCount: async () => {}, createCluster: async () => {}, addMemberToCluster: async () => {}, leaveCluster: async () => {}, recordCampaignClick: async () => {},
+    updateUserIdentity: async () => {}, handleReportAction: async () => {}, handleTicketAction: async () => {}, sendChatMessage: async () => {}, purgeVibeCache: async () => { setSeenPostIdsState(new Set()); }, archiveIdentityNode: async () => {}, boostNode: async () => {}, enrollHardwareBiometrics: async () => true, verifyHardwareBiometrics: async () => true, demoteUser: async () => {}, initiateTransaction: (d: any) => setPendingTransactionState(d), cancelTransaction: () => setPendingTransactionState(null), createPaymentRequest, recordWithdrawal, verifyUser: async () => {}, processGiftTransaction: async () => {}, unlockPost: async () => {}, subscribeToCreator: async () => {}, cancelSubscription: async () => {}, incrementShareCount: async () => {}, createCluster: async () => {}, addMemberToCluster: async () => {}, leaveCluster: async () => {}, recordCampaignClick: async () => {},
     reports, tickets, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests
   };
 
