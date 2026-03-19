@@ -1,7 +1,7 @@
 
 "use client";
 
-import { ArrowLeft, ShieldCheck, Eye, Lock, Zap, Globe, FileText, Smartphone } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Eye, Lock, Zap, Globe, FileText, Smartphone, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useTranslation } from "@/context/LanguageContext";
