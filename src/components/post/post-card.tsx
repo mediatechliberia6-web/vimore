@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -77,7 +78,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface Comment {
-  id: string;
+  $id: string;
   user: {
     name: string;
     avatar: string;
@@ -88,7 +89,7 @@ interface Comment {
 }
 
 interface PostCardProps {
-  id: string;
+  $id: string;
   user: {
     name: string;
     username: string;
@@ -146,7 +147,7 @@ interface PostCardProps {
 
 export function PostCard(props: PostCardProps) {
   const { 
-    id, user, collaborator, content, image, images = [], imageFilter, theme, language,
+    $id, user, collaborator, content, image, images = [], imageFilter, theme, language,
     likes = 0, unlikes = 0, comments = 0, shares = 0, views = 0, time, hashtags, feeling, location, commentsDisabled, isPinned, 
     isSeries, seriesTitle, poll, isShared = false, videoUrl, sharedPost, isLocked, unlockPrice, isCampaign, actionUrl, actionLabel,
     isBoosted, boostTargetViews, boostCurrentViews
@@ -161,10 +162,10 @@ export function PostCard(props: PostCardProps) {
   const { t } = useTranslation();
   const router = useRouter();
 
-  const isLiked = isPostLiked(id);
-  const isUnliked = isPostUnliked(id);
-  const isBookmarked = isPostSaved(id);
-  const isUnlocked = isPostUnlocked(id);
+  const isLiked = isPostLiked($id);
+  const isUnliked = isPostUnliked($id);
+  const isBookmarked = isPostSaved($id);
+  const isUnlocked = isPostUnlocked($id);
   const isOwner = currentUser ? user.username === currentUser.username : false;
   
   const amIFriend = isFriend(user.username);
@@ -205,11 +206,11 @@ export function PostCard(props: PostCardProps) {
   useEffect(() => {
     if (isShared || isCampaign || hasRecordedView.current) return;
     const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => { if (entry.isIntersecting && !hasRecordedView.current) { hasRecordedView.current = true; recordView(id); } });
+      entries.forEach((entry) => { if (entry.isIntersecting && !hasRecordedView.current) { hasRecordedView.current = true; recordView($id); } });
     }, { threshold: 0.5 });
     if (cardRef.current) observer.observe(cardRef.current);
     return () => observer.disconnect();
-  }, [id, isShared, isCampaign, recordView]);
+  }, [$id, isShared, isCampaign, recordView]);
 
   useEffect(() => { if (typeof window !== 'undefined') setViewerLanguage(window.navigator.language.split('-')[0]); }, []);
 
@@ -219,20 +220,17 @@ export function PostCard(props: PostCardProps) {
     return list;
   }, [image, images]);
 
-  const TRUNCATE_LIMIT = 150;
-  const isLimitedType = useMemo(() => !!theme || allImages.length > 0 || !!videoUrl || !!poll || !!isLocked, [theme, allImages, videoUrl, poll, isLocked]);
-  
   const isSensitiveNode = settings.isSensitivityFilterActive && !isRevealedManually && !isOwner && !isCampaign && (allImages.length > 0 || !!videoUrl);
 
-  const handleLike = () => { triggerHaptic(20); toggleLikePost(id); };
-  const handleUnlike = () => { triggerHaptic(15); toggleUnlikePost(id); };
-  const handleSave = () => { triggerHaptic(5); toggleSavePost(id); toast({ description: isBookmarked ? "Removed" : "Noted ✨" }); };
+  const handleLike = () => { triggerHaptic(20); toggleLikePost($id); };
+  const handleUnlike = () => { triggerHaptic(15); toggleUnlikePost($id); };
+  const handleSave = () => { triggerHaptic(5); toggleSavePost($id); toast({ description: isBookmarked ? "Removed" : "Noted ✨" }); };
 
   const handleDelete = async () => {
     triggerHaptic(50);
     setIsDeleteDialogOpen(false);
     try {
-      await deletePost(id);
+      await deletePost($id);
       toast({ title: "Node Purged", description: "The vibe has been removed from the network." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Purge Failed", description: e.message });
@@ -242,7 +240,7 @@ export function PostCard(props: PostCardProps) {
   const handleVote = (optionIndex: number) => {
     if (isShared || userVote !== null) return;
     triggerHaptic(10);
-    voteOnPostPoll(id, optionIndex);
+    voteOnPostPoll($id, optionIndex);
   };
 
   const handleHandshakeAction = (e: React.MouseEvent) => {
@@ -334,7 +332,7 @@ export function PostCard(props: PostCardProps) {
                 </Badge>
               )}
               <Button variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isBookmarked && "text-primary")} onClick={handleSave}><Bookmark className={cn("h-4 w-4", isBookmarked && "fill-current")} /></Button>
-              <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full"><MoreHorizontal className="h-5 w-5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5"><DropdownMenuItem className="gap-2" onClick={() => setIsHidden(true)}><EyeOff className="h-4 w-4" />{t('post_hide')}</DropdownMenuItem>{isOwner && <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); togglePinPost(id); }}><Pin className="h-4 w-4" />{isPinned ? t('post_unpin') : t('post_pin')}</DropdownMenuItem>}{!isOwner && <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => toast({ title: "Report Sent" })}><Flag className="h-4 w-4" />{t('post_report')}</DropdownMenuItem>}{isOwner && <><DropdownMenuSeparator /><DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" />{t('post_purge')}</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>
+              <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full"><MoreHorizontal className="h-5 w-5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5"><DropdownMenuItem className="gap-2" onClick={() => setIsHidden(true)}><EyeOff className="h-4 w-4" />{t('post_hide')}</DropdownMenuItem>{isOwner && <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); togglePinPost($id); }}><Pin className="h-4 w-4" />{isPinned ? t('post_unpin') : t('post_pin')}</DropdownMenuItem>}{!isOwner && <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => toast({ title: "Report Sent" })}><Flag className="h-4 w-4" />{t('post_report')}</DropdownMenuItem>}{isOwner && <><DropdownMenuSeparator /><DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" />{t('post_purge')}</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>
             </div>
           )}
         </CardHeader>
@@ -346,7 +344,7 @@ export function PostCard(props: PostCardProps) {
               <div className="relative z-10 flex flex-col items-center text-center space-y-5">
                 <div className="h-16 w-16 bg-amber-500 rounded-[2rem] flex items-center justify-center text-white shadow-2xl"><Lock className="h-8 w-8" /></div>
                 <div className="space-y-2"><h3 className="text-2xl font-black italic uppercase tracking-tighter">{t('post_locked_node')}</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest max-w-[240px]">Unlock this vibe to access the hub.</p></div>
-                <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-2xl h-14 px-10 font-black italic uppercase tracking-widest text-sm shadow-xl active:scale-95 gap-3" onClick={() => unlockPost(id, unlockPrice!)} disabled={isUnlocking}>{isUnlocking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5 fill-current" />}{t('post_unlock_for')} {unlockPrice} GOLD</Button>
+                <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-2xl h-14 px-10 font-black italic uppercase tracking-widest text-sm shadow-xl active:scale-95 gap-3" onClick={() => unlockPost($id, unlockPrice!)} disabled={isUnlocking}>{isUnlocking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5 fill-current" />}{t('post_unlock_for')} {unlockPrice} GOLD</Button>
               </div>
             </div>
           ) : (
@@ -369,7 +367,7 @@ export function PostCard(props: PostCardProps) {
                 </div>
               )}
               {videoUrl && !settings.isFreeMode && (
-                <div className={cn("relative mt-2 rounded-lg overflow-hidden bg-black", isShared ? "-mx-1" : "-mx-3 sm:mx-0")} onClick={() => router.push(`/reels?id=${id}`)}>
+                <div className={cn("relative mt-2 rounded-lg overflow-hidden bg-black", isShared ? "-mx-1" : "-mx-3 sm:mx-0")} onClick={() => router.push(`/reels?id=${$id}`)}>
                   <video src={videoUrl} className="w-full h-auto" playsInline muted={isShared} autoPlay={isShared} loop={isShared} />
                   {!isShared && <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/20"><Play className="h-8 w-8 text-white fill-current" /></div>}
                 </div>
@@ -401,7 +399,7 @@ export function PostCard(props: PostCardProps) {
                     </div>
                   </div>
                 ) : (
-                  <BoostPortal nodeId={id} type={videoUrl ? 'REEL' : 'POST'}>
+                  <BoostPortal nodeId={$id} type={videoUrl ? 'REEL' : 'POST'}>
                     <Button variant="outline" className="w-full h-9 rounded-xl border-dashed border-primary/20 text-primary font-black uppercase text-[10px] gap-2 hover:bg-primary/5 transition-all">
                       <Rocket className="h-3 w-3" />{t('boost_title')}
                     </Button>
@@ -415,14 +413,14 @@ export function PostCard(props: PostCardProps) {
                 <span className={cn("flex items-center gap-1.5", isUnliked && "text-destructive")}><ThumbsDown className={cn("h-3 w-3", isUnliked && "fill-current")} />{unlikes.toLocaleString()}</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1.5 cursor-pointer hover:text-primary transition-colors" onClick={() => openCommentHub(id)}><MessageCircle className="h-3 w-3" />{comments.toLocaleString()}</span>
+                <span className="flex items-center gap-1.5 cursor-pointer hover:text-primary transition-colors" onClick={() => openCommentHub($id)}><MessageCircle className="h-3 w-3" />{comments.toLocaleString()}</span>
                 <span className="flex items-center gap-1.5"><Share2 className="h-3 w-3" />{shares.toLocaleString()}</span>
               </div>
             </div>
             <div className="flex items-center justify-between gap-1 w-full pt-1">
               <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all", isLiked ? "text-primary bg-primary/5" : "text-muted-foreground")} onClick={handleLike}><ThumbsUp className="h-4 w-4" /> {t('post_like')}</button>
               <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all", isUnliked ? "text-destructive bg-destructive/5" : "text-muted-foreground")} onClick={handleUnlike}><ThumbsDown className="h-4 w-4" /> {t('post_unlike')}</button>
-              <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground" onClick={() => openCommentHub(id)}><MessageCircle className="h-4 w-4" /> {t('post_comment')}</button>
+              <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground" onClick={() => openCommentHub($id)}><MessageCircle className="h-4 w-4" /> {t('post_comment')}</button>
               <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground" onClick={() => setIsShareHubOpen(true)}><Share2 className="h-4 w-4" /> {t('post_share')}</button>
             </div>
           </CardFooter>

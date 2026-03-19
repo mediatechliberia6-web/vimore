@@ -62,7 +62,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     let mains: any[] = [];
 
     allItems.forEach(item => {
-      const id = (item as any).username || item.id;
+      const id = (item as any).username || (item as any).$id;
       const hasMessages = chatMessages[id] && chatMessages[id].length > 0;
       
       if (item.isGroup) {
@@ -97,8 +97,8 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     }
 
     const sorted = list.sort((a, b) => {
-      const aId = (a as any).username || (a as any).id;
-      const bId = (b as any).username || (b as any).id;
+      const aId = (a as any).username || (a as any).$id;
+      const bId = (b as any).username || (b as any).$id;
       const aPinned = pinnedUsernames.has(aId);
       const bPinned = pinnedUsernames.has(bId);
       if (aPinned && !bPinned) return -1;
@@ -177,7 +177,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
       <div className="flex-1 overflow-y-auto scrollbar-hide">
         {sortedChats.length > 0 ? (
           sortedChats.map((item) => {
-            const id = (item as any).username || item.id;
+            const id = (item as any).username || (item as any).$id;
             const isSelected = selectedId === id;
             
             // Respect Ghost Mode Protocol

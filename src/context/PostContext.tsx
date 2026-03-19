@@ -4,6 +4,7 @@
 /**
  * @fileOverview ViMore Core Context Node (Production Engine)
  * High-Velocity Signaling, Economy, & Governance Protocols Active.
+ * Refactored: Native $id Handshake fully materialized.
  */
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -67,7 +68,7 @@ export interface AppSettings {
 }
 
 export interface User {
-  $id?: string;
+  $id: string;
   name: string;
   username: string;
   email?: string;
@@ -95,7 +96,7 @@ export interface User {
 }
 
 export interface Post {
-  id: string;
+  $id: string;
   user: User;
   content: string;
   time: string;
@@ -118,7 +119,7 @@ export interface Post {
 }
 
 export interface PostComment {
-  id: string;
+  $id: string;
   userId: string;
   userName: string;
   userAvatar: string;
@@ -129,7 +130,7 @@ export interface PostComment {
 }
 
 export interface Cluster {
-  id: string;
+  $id: string;
   name: string;
   adminUsername: string;
   avatar?: string;
@@ -146,7 +147,7 @@ export interface Connection extends User {
 }
 
 export interface ChatMessage {
-  id: string;
+  $id: string;
   sender: "me" | "them";
   senderName?: string;
   senderAvatar?: string;
@@ -169,7 +170,7 @@ export interface ChatMessage {
 }
 
 export interface CallState {
-  id?: string;
+  $id?: string;
   type: 'audio' | 'video';
   status: 'idle' | 'incoming' | 'outgoing' | 'active' | 'ringing';
   contact: any | null;
@@ -394,7 +395,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, [Query.orderDesc('timestamp'), Query.limit(100)]);
       setPostsState(response.documents.map((doc: any) => ({
-        id: doc.$id, 
+        $id: doc.$id, 
         user: { name: doc.creatorName, username: doc.creatorUsername, avatar: doc.creatorAvatar, role: "Creator", isVerified: doc.isVerified, followers: 0 },
         content: doc.content, time: new Date(doc.timestamp).toLocaleDateString(), likes: doc.likes || 0, unlikes: doc.unlikes || 0, comments: doc.commentsCount || 0, shares: doc.shares || 0, views: doc.views || 0,
         image: doc.mediaUrls?.[0], images: doc.mediaUrls, videoUrl: doc.type === 'video' ? doc.mediaUrls?.[0] : undefined, isLocked: doc.isLocked, unlockPrice: doc.unlockPrice, isBoosted: doc.isBoosted,
@@ -408,7 +409,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const now = new Date().toISOString();
       const response = await databases.listDocuments(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, [Query.greaterThan('expiry', now)]);
       setStoriesState(response.documents.map((doc: any) => ({
-        id: doc.$id, user: { name: doc.userName, username: doc.userUsername, avatar: doc.userAvatar },
+        $id: doc.$id, user: { name: doc.userName, username: doc.userUsername, avatar: doc.userAvatar },
         segments: JSON.parse(doc.segments), expiry: doc.expiry, isCloseFriends: doc.isCloseFriends, viewCount: doc.viewCount || 0
       })));
     } catch (e) {}
@@ -495,6 +496,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       
       const sessionUser = await account.create(ID.unique(), email, data.password, data.name);
       
+      // STRICT NATIVE SIGNUP: No 'id' attribute sent. Document ID is sessionUser.$id.
       await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, sessionUser.$id, {
         name: data.name, 
         username: finalUsername, 
@@ -706,18 +708,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const callDoc = await databases.createDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, ID.unique(), {
         callerId: currentUser.username, recipientId: contact.username, type, status: 'ringing', channelName, token, timestamp: new Date().toISOString()
       });
-      setCallState({ type, status: 'outgoing', contact, channelName, token, id: callDoc.$id });
+      setCallState({ type, status: 'outgoing', contact, channelName, token, $id: callDoc.$id });
     } catch (e) {}
   }, [currentUser]);
 
   const endCall = useCallback(async (duration?: string) => {
-    if (!callState.id) return;
+    if (!callState.$id) return;
     try {
       const status = callState.status === 'active' ? 'ended' : 'missed';
-      await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, callState.id, { status, duration });
+      await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, callState.$id, { status, duration });
       setCallState({ type: 'video', status: 'idle', contact: null });
     } catch (e) {}
-  }, [callState.id, callState.status]);
+  }, [callState.$id, callState.status]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -728,7 +730,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           const payload = response.payload as any;
           if (payload.recipientId === currentUser.username && payload.status === 'ringing') {
             setCallState({
-              id: payload.$id,
+              $id: payload.$id,
               type: payload.type,
               status: 'incoming',
               contact: { name: payload.callerId, username: payload.callerId, avatar: "" }, // Placeholder avatar
@@ -743,9 +745,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [currentUser]);
 
   const acceptCall = async () => {
-    if(!callState.id) return;
+    if(!callState.$id) return;
     try {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, callState.id, { status: 'active' });
+      await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, callState.$id, { status: 'active' });
       setCallState(prev => ({ ...prev, status: 'active' }));
     } catch (e) {}
   };
@@ -760,8 +762,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     sendFriendRequest, confirmFriendRequest: async () => {}, cancelFriendRequest: async () => {}, unfriendUser, acceptMessageRequest: async () => {}, declineMessageRequest: async () => {}, isSubscribed: () => false, 
     addComment, addReply: async () => {}, addStory, voteOnStoryPoll: async () => {}, voteOnPostPoll: async () => {}, toggleMuteUser: () => {}, togglePinPost: async () => {}, archivePost: async () => {}, addAuditLog: async () => {}, 
     approvePaymentRequest, rejectPaymentRequest, processWithdrawal, addCampaign, deleteCampaign, toggleCampaignStatus, promoteUser, initiateCall, acceptCall, endCall, refreshAdminData, fetchProfileByUsername: async () => null, fetchComments: async () => {}, refreshProfiles: async () => [], refreshClusters: async () => {}, refreshFeed, refreshStories, 
-    recordView: async (id: string) => { const p = posts.find(p => p.id === id); if(p) await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, id, { views: (p.views || 0) + 1 }); }, 
-    recordStoryView: async (id: string) => { const s = stories.find(s => s.id === id); if(s) await databases.updateDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, id, { viewCount: (s.viewCount || 0) + 1 }); }, 
+    recordView: async (id: string) => { const p = posts.find(p => p.$id === id); if(p) await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, id, { views: (p.views || 0) + 1 }); }, 
+    recordStoryView: async (id: string) => { const s = stories.find(s => s.$id === id); if(s) await databases.updateDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, id, { viewCount: (s.viewCount || 0) + 1 }); }, 
     updateUserIdentity: async () => {}, handleReportAction: async () => {}, handleTicketAction: async () => {}, sendChatMessage: async () => {}, purgeVibeCache: async () => {}, archiveIdentityNode: async () => {}, boostNode: async () => {}, enrollHardwareBiometrics: async () => true, verifyHardwareBiometrics: async () => true, demoteUser: async () => {}, initiateTransaction: (d: any) => setPendingTransactionState(d), cancelTransaction: () => setPendingTransactionState(null), createPaymentRequest, recordWithdrawal, verifyUser: async () => {}, processGiftTransaction: async () => {}, unlockPost: async () => {}, subscribeToCreator: async () => {}, cancelSubscription: async () => {}, incrementShareCount: async () => {}, createCluster: async () => {}, addMemberToCluster: async () => {}, leaveCluster: async () => {}, recordCampaignClick: async () => {},
     reports, tickets, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests
   };
