@@ -453,10 +453,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
         try {
           const profile = await databases.getDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, sessionUser.$id);
           setCurrentUserState({ ...profile, isEmailVerified: sessionUser.emailVerification } as User);
-          refreshFeed(); 
-          refreshStories(); 
-          refreshConnections(); 
-          refreshAdminData();
+          await Promise.all([
+            refreshFeed(),
+            refreshStories(),
+            refreshConnections(),
+            refreshAdminData()
+          ]);
         } catch (profileError: any) {
           console.error("Vault Rejection (checkSession):", profileError);
           
@@ -470,7 +472,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
                 name: sessionUser.name, 
                 username: healUsername, 
                 email: sessionUser.email,
-                phone: sessionUser.phone,
+                phone: sessionUser.phone || null,
                 avatar: "https://picsum.photos/seed/" + healUsername + "/200/200",
                 goldBalance: 0, diamondBalance: 0, starBalance: 0, referralCount: 0,
                 isVerified: false, role: 'USER', joinDate: new Date().toISOString()
@@ -487,6 +489,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (e: any) { 
+      // If code is 401, they just aren't logged in. Otherwise, it's an initialization failure.
+      if (e.code !== 401) {
+        setInitError(`Identity Hub Stalled: ${e.message}`);
+      }
       setCurrentUserState(null);
     } finally { 
       setIsLoadingState(false); 

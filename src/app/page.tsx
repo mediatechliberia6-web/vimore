@@ -140,8 +140,8 @@ function LandingPage() {
 }
 
 export default function Home() {
-  const { posts, campaigns, isLoading, followingUsernames, seenPostIds, isAuthenticated, currentUser } = usePosts();
-  const { currentTrack, isExpanded, triggerHaptic } = useMusic();
+  const { posts, campaigns, isLoading, initError, followingUsernames, seenPostIds, isAuthenticated, currentUser, triggerHaptic } = usePosts();
+  const { currentTrack, isExpanded } = useMusic();
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
   
   const [displayLimit, setDisplayLimit] = useState(16);
@@ -205,8 +205,19 @@ export default function Home() {
     return () => observer.disconnect();
   }, [isLoading, feedItems.length, displayLimit, triggerHaptic]);
 
-  // Phase 1 Logic: Show Landing Page if not authenticated
-  if (!isAuthenticated && !isLoading) {
+  // MANDATORY HANDSHAKE: Do not materialize feed if profile fetch is pending or failed
+  if (isLoading) {
+    return null; // Let the AppLoadingGate handle the kinetic splash
+  }
+
+  // If a critical vault error occurred, the AppLoadingGate will show it.
+  // We return null here to ensure no "broken" feed content is rendered behind the gate.
+  if (initError) {
+    return null;
+  }
+
+  // If not authenticated (no session and profile fetch finished with null), show Landing
+  if (!isAuthenticated) {
     return <LandingPage />;
   }
 
