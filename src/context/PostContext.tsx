@@ -68,7 +68,6 @@ export interface AppSettings {
 
 export interface User {
   $id?: string;
-  id?: string; 
   name: string;
   username: string;
   email?: string;
@@ -434,7 +433,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const refreshConnections = useCallback(async () => {
     if (!currentUser) return;
     try {
-      const followingRes = await databases.listDocuments(APPWRITE_DATABASE_ID, CONNECTIONS_COLLECTION_ID, [Query.equal('userId', currentUser.id!)]);
+      const followingRes = await databases.listDocuments(APPWRITE_DATABASE_ID, CONNECTIONS_COLLECTION_ID, [Query.equal('userId', currentUser.$id!)]);
       const following = new Set(followingRes.documents.map((d: any) => d.targetUsername));
       setFollowingUsernamesState(following);
       setFriendUsernamesState(following); 
@@ -447,11 +446,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const sessionUser = await account.get();
       if (sessionUser) {
-        // DIRECT HANDSHAKE: Use getDocument instead of Query.equal('id', ...)
-        // This is index-free and 100% reliable for sessions.
         try {
           const profile = await databases.getDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, sessionUser.$id);
-          setCurrentUserState({ ...profile, id: profile.id, isEmailVerified: sessionUser.emailVerification } as User);
+          setCurrentUserState({ ...profile, isEmailVerified: sessionUser.emailVerification } as User);
           refreshFeed(); 
           refreshStories(); 
           refreshConnections(); 
@@ -463,7 +460,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
     } catch (e: any) { 
       setCurrentUserState(null);
-      // No active session is not a terminal error
     } finally { 
       setIsLoadingState(false); 
     }
@@ -499,9 +495,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       
       const sessionUser = await account.create(ID.unique(), email, data.password, data.name);
       
-      // CRITICAL: Document ID MUST match sessionUser.$id for direct fetch logic
       await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, sessionUser.$id, {
-        id: sessionUser.$id, 
         name: data.name, 
         username: finalUsername, 
         email: email,
@@ -553,19 +547,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
   // --- SOCIAL ---
 
   const sendFriendRequest = useCallback(async (targetUsername: string) => {
-    if (!currentUser) return;
+    if (!currentUser?.$id) return;
     try {
       await databases.createDocument(APPWRITE_DATABASE_ID, CONNECTIONS_COLLECTION_ID, ID.unique(), {
-        userId: currentUser.id, targetUsername, status: 'FRIEND', timestamp: new Date().toISOString()
+        userId: currentUser.$id, targetUsername, status: 'FRIEND', timestamp: new Date().toISOString()
       });
       refreshConnections();
     } catch (e) {}
   }, [currentUser, refreshConnections]);
 
   const unfriendUser = useCallback(async (targetUsername: string) => {
-    if (!currentUser) return;
+    if (!currentUser?.$id) return;
     try {
-      const docs = await databases.listDocuments(APPWRITE_DATABASE_ID, CONNECTIONS_COLLECTION_ID, [Query.equal('userId', currentUser.id!), Query.equal('targetUsername', targetUsername)]);
+      const docs = await databases.listDocuments(APPWRITE_DATABASE_ID, CONNECTIONS_COLLECTION_ID, [Query.equal('userId', currentUser.$id), Query.equal('targetUsername', targetUsername)]);
       if (docs.total > 0) await databases.deleteDocument(APPWRITE_DATABASE_ID, CONNECTIONS_COLLECTION_ID, docs.documents[0].$id);
       refreshConnections();
     } catch (e) {}
@@ -574,10 +568,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   // --- CONTENT ---
 
   const addPost = async (p: any) => {
-    if(!currentUser) return;
+    if(!currentUser?.$id) return;
     try {
       await databases.createDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, ID.unique(), {
-        ...p, creatorId: currentUser.id, creatorName: currentUser.name, creatorUsername: currentUser.username, creatorAvatar: currentUser.avatar, timestamp: new Date().toISOString(), likes: 0, unlikes: 0, views: 0, commentsCount: 0
+        ...p, creatorId: currentUser.$id, creatorName: currentUser.name, creatorUsername: currentUser.username, creatorAvatar: currentUser.avatar, timestamp: new Date().toISOString(), likes: 0, unlikes: 0, views: 0, commentsCount: 0
       });
       refreshFeed();
     } catch (e) {}
@@ -599,21 +593,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const addComment = async (pId: string, t: string) => {
-    if(!currentUser) return;
+    if(!currentUser?.$id) return;
     try {
       await databases.createDocument(APPWRITE_DATABASE_ID, COMMENTS_COLLECTION_ID, ID.unique(), {
-        postId: pId, userId: currentUser.id, userName: currentUser.name, userAvatar: currentUser.avatar, text: t, timestamp: new Date().toISOString()
+        postId: pId, userId: currentUser.$id, userName: currentUser.name, userAvatar: currentUser.avatar, text: t, timestamp: new Date().toISOString()
       });
     } catch (e) {}
   };
 
   const addStory = async (segment: any) => {
-    if(!currentUser) return;
+    if(!currentUser?.$id) return;
     try {
       const segments = [segment];
       const expiry = new Date(Date.now() + 86400000).toISOString();
       await databases.createDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, ID.unique(), {
-        userId: currentUser.id, userUsername: currentUser.username, userName: currentUser.name, userAvatar: currentUser.avatar,
+        userId: currentUser.$id, userUsername: currentUser.username, userName: currentUser.name, userAvatar: currentUser.avatar,
         segments: JSON.stringify(segments), expiry, isCloseFriends: false, viewCount: 0
       });
       refreshStories();
@@ -623,10 +617,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   // --- ECONOMY ---
 
   const createPaymentRequest = async (s: string) => {
-    if(!currentUser) return;
+    if(!currentUser?.$id) return;
     try {
       await databases.createDocument(APPWRITE_DATABASE_ID, PAYMENT_REQUESTS_COLLECTION_ID, ID.unique(), {
-        userId: currentUser.id, username: currentUser.username, packageName: pendingTransaction?.packageName || "Node Package",
+        userId: currentUser.$id, username: currentUser.username, packageName: pendingTransaction?.packageName || "Node Package",
         amount: pendingTransaction?.amount || "0", currency: pendingTransaction?.currency || "LD", code: pendingTransaction?.code || "VBC-SYNC",
         screenshot: s, status: 'PENDING', timestamp: new Date().toISOString()
       });
@@ -634,10 +628,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const recordWithdrawal = async (n: any) => {
-    if(!currentUser) return;
+    if(!currentUser?.$id) return;
     try {
       await databases.createDocument(APPWRITE_DATABASE_ID, WITHDRAWALS_COLLECTION_ID, ID.unique(), {
-        ...n, userId: currentUser.id, username: currentUser.username, status: 'PENDING', timestamp: new Date().toISOString()
+        ...n, userId: currentUser.$id, username: currentUser.username, status: 'PENDING', timestamp: new Date().toISOString()
       });
     } catch (e) {}
   };
@@ -704,9 +698,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   // --- CALL PROTOCOL ---
 
   const initiateCall = useCallback(async (contact: any, type: 'audio' | 'video') => {
-    if (!currentUser) return;
+    if (!currentUser?.$id) return;
     const channelName = `vimore_call_${ID.unique()}`;
-    const token = await generateAgoraToken(channelName, currentUser.id!);
+    const token = await generateAgoraToken(channelName, currentUser.$id);
     
     try {
       const callDoc = await databases.createDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, ID.unique(), {
@@ -723,7 +717,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, callState.id, { status, duration });
       setCallState({ type: 'video', status: 'idle', contact: null });
     } catch (e) {}
-  }, [callState.id]);
+  }, [callState.id, callState.status]);
 
   useEffect(() => {
     if (!currentUser) return;
