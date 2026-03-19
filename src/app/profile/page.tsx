@@ -42,13 +42,13 @@ import {
   CheckCircle2,
   Globe,
   Users,
-  EyeOff
+  EyeOff,
+  Smartphone
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
 import Image from "next/image";
 import { cn, dataURLtoFile, parseFollowerCount } from "@/lib/utils";
-import { aiTranslatePost } from "@/app/actions/ai";
 import {
   Dialog,
   DialogContent,
@@ -85,18 +85,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { BUCKET_IMAGES } from "@/lib/appwrite";
 import ProfileLoading from "./loading";
 
-const USER_CATEGORIES = [
-  "Digital Creator",
-  "Product Architect",
-  "Visual Storyteller",
-  "Fullstack Developer",
-  "Sonic Producer"
-];
-
-const NATIONALITIES = [
-  "Liberian", "American", "Nigerian", "Ghanian", "Guinean", "Sierra Leonean", "Ivory Coast", "European", "Asian", "Other"
-];
-
 export function InfoNode({ icon: Icon, label, value, colorClass }: { icon: any, label: string, value: string, colorClass: string }) {
   return (
     <div className="flex items-center gap-3 group/node">
@@ -129,10 +117,10 @@ export default function MyProfilePage() {
 
   const [editData, setEditData] = useState({
     name: "",
-    category: USER_CATEGORIES[0],
+    category: "Digital Creator",
     bio: "",
     dateOfBirth: "",
-    nationality: NATIONALITIES[0],
+    nationality: "Liberian",
     gender: 'Male' as 'Male' | 'Female'
   });
 
@@ -145,10 +133,10 @@ export default function MyProfilePage() {
     if (currentUser) {
       setEditData({
         name: currentUser.name || "",
-        category: currentUser.category || USER_CATEGORIES[0],
+        category: currentUser.category || "Digital Creator",
         bio: currentUser.bio || "",
         dateOfBirth: currentUser.dateOfBirth || "",
-        nationality: currentUser.nationality || NATIONALITIES[0],
+        nationality: currentUser.nationality || "Liberian",
         gender: currentUser.gender || 'Male'
       });
     }
@@ -218,31 +206,11 @@ export default function MyProfilePage() {
     return (typeof currentUser.following === 'number' ? currentUser.following : parseFollowerCount(currentUser.following)) + friendUsernames.size;
   }, [currentUser, friendUsernames.size]);
 
-  const togglePlayIntro = () => {
-    if (!currentUser?.introUrl) { 
-      toast({ title: "No Intro", description: "Upload a sonic signature in settings." }); 
-      return; 
-    }
-    triggerHaptic(15);
-    if (isPlayingIntro) { 
-      audioRef.current?.pause(); 
-      setIsPlayingIntro(false); 
-      return; 
-    }
-    if (!audioRef.current) { 
-      audioRef.current = new Audio(currentUser.introUrl); 
-      audioRef.current.onended = () => setIsPlayingIntro(false); 
-    }
-    audioRef.current.play().catch(() => { toast({ variant: "destructive", description: "Failed to stream sonic signature." }); });
-    setIsPlayingIntro(true);
-  };
-
   if (isLoading) {
     return <ProfileLoading />;
   }
 
   if (!currentUser) {
-    // Failsafe Release: Return to entrance if profile node is missing
     if (typeof window !== 'undefined') router.replace('/');
     return null;
   }
@@ -296,9 +264,9 @@ export default function MyProfilePage() {
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 py-6 my-4 border-y border-primary/5 bg-primary/[0.02] px-4 rounded-[2rem]">
-                  <InfoNode icon={Globe} label="Spatial Origin" value={currentUser.nationality || NATIONALITIES[0]} colorClass="bg-blue-500/10 text-blue-500" />
+                  <InfoNode icon={Globe} label="Spatial Origin" value={currentUser.nationality || "Liberian"} colorClass="bg-blue-500/10 text-blue-500" />
                   <InfoNode icon={Users} label="Gender Signature" value={currentUser.gender || 'Male'} colorClass="bg-purple-500/10 text-purple-500" />
-                  {formattedDob && <InfoNode icon={Cake} label="Arrival Date" value={formattedDob} colorClass="bg-amber-500/10 text-amber-500" />}
+                  {currentUser.phone && <InfoNode icon={Smartphone} label="Mobile Pulse" value={currentUser.phone} colorClass="bg-green-500/10 text-green-500" />}
                   <InfoNode icon={Clock} label="Member Since" value={currentUser.joinDate ? new Date(currentUser.joinDate).toLocaleDateString() : "Temporal Sync Active"} colorClass="bg-emerald-500/10 text-emerald-500" />
                 </div>
                 
@@ -342,7 +310,7 @@ export default function MyProfilePage() {
                   <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Nationality</Label><Select value={editData.nationality} onValueChange={(val) => setEditData({ ...editData, nationality: val })}><SelectTrigger className="h-12 rounded-xl bg-secondary/20 border-none px-4"><SelectValue /></SelectTrigger><SelectContent className="rounded-xl">{NATIONALITIES.map(n => <SelectItem key={n} value={n} className="font-bold">{n}</SelectItem>)}</SelectContent></Select></div>
                   <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Gender</Label><Select value={editData.gender} onValueChange={(val: any) => setEditData({ ...editData, gender: val })}><SelectTrigger className="h-12 rounded-xl bg-secondary/20 border-none px-4"><SelectValue /></SelectTrigger><SelectContent className="rounded-xl"><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent></Select></div>
                 </div>
-                <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Role Node</Label><Select value={editData.category} onValueChange={(val) => setEditData({ ...editData, category: val })}><SelectTrigger className="h-12 rounded-xl bg-secondary/20 border-none px-4 font-bold"><SelectValue /></SelectTrigger><SelectContent className="rounded-xl">{USER_CATEGORIES.map(cat => <SelectItem key={cat} value={cat} className="font-bold">{cat}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Role Node</Label><Select value={editData.category} onValueChange={(val) => setEditData({ ...editData, category: val })}><SelectTrigger className="h-12 rounded-xl bg-secondary/20 border-none px-4 font-bold"><SelectValue /></SelectTrigger><SelectContent className="rounded-xl">{["Digital Creator", "Product Architect", "Visual Storyteller", "Fullstack Developer", "Sonic Producer"].map(cat => <SelectItem key={cat} value={cat} className="font-bold">{cat}</SelectItem>)}</SelectContent></Select></div>
                 <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Bio</Label><Textarea value={editData.bio} onChange={(e) => setEditData({ ...editData, bio: e.target.value })} className="rounded-xl bg-secondary/20 border-none min-h-[100px] resize-none" /></div>
               </div>
             </div>

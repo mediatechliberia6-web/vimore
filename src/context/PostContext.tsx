@@ -4,7 +4,7 @@
 /**
  * @fileOverview ViMore Core Context Node (Production Engine)
  * High-Velocity Signaling, Economy, & Governance Protocols Active.
- * Refactored: Native $id Handshake & Self-Healing Identity Node.
+ * Refactored: Native $id Handshake, Phone Protocol & Vault Feedback.
  */
 
 import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -55,7 +55,7 @@ export interface AppSettings {
   isSilenceActive: boolean;
   silenceStart: string;
   silenceEnd: string;
-  defaultStream: 'following' | 'foryou';
+  defaultStream: 'foryou';
   goldRate: number;
   diamondRate: number;
   ldMultiplier: number;
@@ -72,6 +72,7 @@ export interface User {
   name: string;
   username: string;
   email?: string;
+  phone?: string;
   avatar: string;
   cover?: string;
   isVerified?: boolean;
@@ -401,7 +402,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
         image: doc.mediaUrls?.[0], images: doc.mediaUrls, videoUrl: doc.type === 'video' ? doc.mediaUrls?.[0] : undefined, isLocked: doc.isLocked, unlockPrice: doc.unlockPrice, isBoosted: doc.isBoosted,
         boostTargetViews: doc.boostTargetViews, boostCurrentViews: doc.boostCurrentViews
       })));
-    } catch (e) {}
+    } catch (e: any) {
+      console.error("Feed Sync Error:", e.message);
+    }
   }, []);
 
   const refreshStories = useCallback(async () => {
@@ -467,6 +470,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
                 name: sessionUser.name, 
                 username: healUsername, 
                 email: sessionUser.email,
+                phone: sessionUser.phone,
                 avatar: "https://picsum.photos/seed/" + healUsername + "/200/200",
                 goldBalance: 0, diamondBalance: 0, starBalance: 0, referralCount: 0,
                 isVerified: false, role: 'USER', joinDate: new Date().toISOString()
@@ -522,11 +526,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
       
       const sessionUser = await account.create(ID.unique(), email, data.password, data.name);
       
-      // ATOMIC HANDSHAKE: Ensure Document ID matches Auth ID
+      // ATOMIC HANDSHAKE: Ensure Document ID matches Auth ID & Store Phone Protocol
       await databases.createDocument(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, sessionUser.$id, {
         name: data.name, 
         username: finalUsername, 
         email: email,
+        phone: data.phone || null,
         avatar: "https://picsum.photos/seed/" + finalUsername + "/200/200",
         gender: data.gender, 
         nationality: data.nationality, 
@@ -620,7 +625,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       refreshFeed();
     } catch (e: any) {
       console.error("Vault Rejection (Post):", e);
-      toast({ variant: "destructive", title: "Vault Rejection", description: `Permission denied or missing attribute: ${e.message}. Ensure collection permissions are set to 'users' in console.` });
+      toast({ variant: "destructive", title: "Vault Rejection", description: `Permission denied: ${e.message}. Check collection permissions in console.` });
       throw e;
     }
   };
@@ -779,7 +784,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
               $id: payload.$id,
               type: payload.type,
               status: 'incoming',
-              contact: { name: payload.callerId, username: payload.callerId, avatar: "" }, // Placeholder avatar
+              contact: { name: payload.callerId, username: payload.callerId, avatar: "" }, 
               channelName: payload.channelName,
               token: payload.token
             });

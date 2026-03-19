@@ -105,9 +105,10 @@ export function AuthModal() {
     triggerHaptic(30);
     
     try {
+      const isEmail = identifier.includes('@');
       const signupPayload = {
-        email: identifier.includes('@') ? identifier : undefined,
-        phone: !identifier.includes('@') ? identifier : undefined,
+        email: isEmail ? identifier : undefined,
+        phone: !isEmail ? identifier : undefined,
         password,
         name,
         dob,

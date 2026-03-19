@@ -3,7 +3,7 @@
 
 /**
  * @fileOverview ViMore Identity Pulse (Prototype Edition)
- * Simulates identity materialization with zero-latency local handshakes.
+ * Simulates identity materialization with phone-aware protocol logic.
  */
 
 export async function signupServerAction(input: {
@@ -17,7 +17,7 @@ export async function signupServerAction(input: {
   gender: string;
   referredBy?: string;
 }) {
-  console.log("[PROTOTYPE] Identity Materialized:", input.username);
+  console.log("[PROTOTYPE] Identity Materialized:", input.username, "Identifier:", input.email || input.phone);
   return { 
     success: true, 
     userId: "NODE-" + Math.random().toString(36).substring(2, 8).toUpperCase() 
@@ -28,6 +28,6 @@ export async function loginServerAction(identifier: string, p: string) {
   console.log("[PROTOTYPE] Login Handshake:", identifier);
   return { 
     success: true, 
-    email: identifier.includes('@') ? identifier : `${identifier}@vimore.net` 
+    identifier: identifier 
   };
 }
