@@ -711,6 +711,37 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch (e) {}
   }, [callState.id]);
 
+  useEffect(() => {
+    if (!currentUser) return;
+    const unsubscribe = client.subscribe(
+      [`databases.${APPWRITE_DATABASE_ID}.collections.${CALLS_COLLECTION_ID}.documents`],
+      response => {
+        if (response.events.includes('databases.*.collections.*.documents.*.create')) {
+          const payload = response.payload as any;
+          if (payload.recipientId === currentUser.username && payload.status === 'ringing') {
+            setCallState({
+              id: payload.$id,
+              type: payload.type,
+              status: 'incoming',
+              contact: { name: payload.callerId, username: payload.callerId, avatar: "" }, // Placeholder avatar
+              channelName: payload.channelName,
+              token: payload.token
+            });
+          }
+        }
+      }
+    );
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  const acceptCall = async () => {
+    if(!callState.id) return;
+    try {
+      await databases.updateDocument(APPWRITE_DATABASE_ID, CALLS_COLLECTION_ID, callState.id, { status: 'active' });
+      setCallState(prev => ({ ...prev, status: 'active' }));
+    } catch (e) {}
+  };
+
   const value = {
     currentUser, isAuthenticated: !!currentUser, posts, activeComments, isLoading, likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames, receivedRequestUsernames, acceptedStrangerUsernames, activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl, isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, settings, gatewaySettings: OFFICIAL_GATEWAY, callState, stories, campaigns, reports, tickets, mutedUserNames, connections, clusters, auditLogs, staff, adStats, intelligenceMetrics, withdrawalHistory, paymentRequests, referralLink: "https://www.vimore.cfd/join/" + (currentUser?.username || "guest"), pendingTransaction, activeSubscriptions: new Set<string>(), chatMessages,
     login, signup, logout, checkSession,
@@ -720,7 +751,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     isPostLiked: (id: string) => likedPostIds.has(id), isPostUnliked: (id: string) => unlikedPostIds.has(id), isPostSaved: (id: string) => savedPostIds.has(id), isPostUnlocked: (id: string) => unlockedPostIds.has(id), isFollowing: (u: string) => followingUsernames.has(u), isFriend: (u: string) => friendUsernames.has(u), isRequestSent: (u: string) => sentRequestUsernames.has(u), isRequestReceived: (u: string) => receivedRequestUsernames.has(u), 
     sendFriendRequest, confirmFriendRequest: async () => {}, cancelFriendRequest: async () => {}, unfriendUser, acceptMessageRequest: async () => {}, declineMessageRequest: async () => {}, isSubscribed: () => false, 
     addComment, addReply: async () => {}, addStory, voteOnStoryPoll: async () => {}, voteOnPostPoll: async () => {}, toggleMuteUser: () => {}, togglePinPost: async () => {}, archivePost: async () => {}, addAuditLog: async () => {}, 
-    approvePaymentRequest, rejectPaymentRequest, processWithdrawal, addCampaign, deleteCampaign, toggleCampaignStatus, promoteUser, initiateCall, acceptCall: async () => {}, endCall, refreshAdminData, fetchProfileByUsername: async () => null, fetchComments: async () => {}, refreshProfiles: async () => [], refreshClusters: async () => {}, refreshFeed, refreshStories, 
+    approvePaymentRequest, rejectPaymentRequest, processWithdrawal, addCampaign, deleteCampaign, toggleCampaignStatus, promoteUser, initiateCall, acceptCall, endCall, refreshAdminData, fetchProfileByUsername: async () => null, fetchComments: async () => {}, refreshProfiles: async () => [], refreshClusters: async () => {}, refreshFeed, refreshStories, 
     recordView: async (id: string) => { const p = posts.find(p => p.id === id); if(p) await databases.updateDocument(APPWRITE_DATABASE_ID, POSTS_COLLECTION_ID, id, { views: (p.views || 0) + 1 }); }, 
     recordStoryView: async (id: string) => { const s = stories.find(s => s.id === id); if(s) await databases.updateDocument(APPWRITE_DATABASE_ID, STORIES_COLLECTION_ID, id, { viewCount: (s.viewCount || 0) + 1 }); }, 
     updateUserIdentity: async () => {}, handleReportAction: async () => {}, handleTicketAction: async () => {}, sendChatMessage: async () => {}, purgeVibeCache: async () => {}, archiveIdentityNode: async () => {}, boostNode: async () => {}, enrollHardwareBiometrics: async () => true, verifyHardwareBiometrics: async () => true, demoteUser: async () => {}, initiateTransaction: (d: any) => setPendingTransactionState(d), cancelTransaction: () => setPendingTransactionState(null), createPaymentRequest, recordWithdrawal, verifyUser: async () => {}, processGiftTransaction: async () => {}, unlockPost: async () => {}, subscribeToCreator: async () => {}, cancelSubscription: async () => {}, incrementShareCount: async () => {}, createCluster: async () => {}, addMemberToCluster: async () => {}, leaveCluster: async () => {}, recordCampaignClick: async () => {},
@@ -735,3 +766,4 @@ export function usePosts() {
   if (context === undefined) throw new Error('usePosts must be used within a PostProvider');
   return context;
 }
+

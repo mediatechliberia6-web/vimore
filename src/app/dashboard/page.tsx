@@ -123,10 +123,6 @@ export default function ProfessionalDashboard() {
   const [activeCategory, setActiveCategory] = useState("analytics");
   const [activeRange, setActiveRange] = useState<"7D" | "28D">("7D");
 
-  if (isLoading || !currentUser) {
-    return <AdminLoading />;
-  }
-
   const isPlayerActive = currentTrack && !isExpanded;
 
   const userPosts = useMemo(() => {
@@ -150,6 +146,10 @@ export default function ProfessionalDashboard() {
   };
 
   const chartData = useMemo(() => activeRange === "7D" ? GROWTH_DATA_7D : GROWTH_DATA_28D, [activeRange]);
+
+  if (isLoading || !currentUser) {
+    return <AdminLoading />;
+  }
 
   return (
     <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#020202] text-foreground flex flex-col transition-colors duration-500 overflow-x-hidden">

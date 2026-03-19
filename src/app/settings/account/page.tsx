@@ -59,17 +59,18 @@ export default function AccountCenter() {
   const [formData, setFormData] = useState({
     name: "",
     username: "",
-    email: "amos@mediatech.lib",
-    phone: "+231 77 845 1835"
+    email: "",
+    phone: ""
   });
 
   useEffect(() => {
     if (currentUser) {
-      setFormData(prev => ({
-        ...prev,
+      setFormData({
         name: currentUser.name || "",
         username: currentUser.username || "",
-      }));
+        email: (currentUser as any).email || "",
+        phone: (currentUser as any).phone || ""
+      });
     }
   }, [currentUser]);
 
@@ -88,14 +89,6 @@ export default function AccountCenter() {
   const [isEnrolling, setIsEnrolling] = useState(false);
 
   const isPlayerActive = currentTrack && !isExpanded;
-
-  useEffect(() => {
-    if (!isPasswordDialogOpen && !isDeactivateDialogOpen) {
-      if (typeof document !== 'undefined') {
-        document.body.style.pointerEvents = 'auto';
-      }
-    }
-  }, [isPasswordDialogOpen, isDeactivateDialogOpen]);
 
   if (isLoading || !currentUser) {
     return <ProfileLoading />;
