@@ -70,7 +70,7 @@ export function Stories({ onOpenCreate }: StoriesProps) {
 
             return (
               <div 
-                key={story.id} 
+                key={story.$id} 
                 className={cn(
                   "relative w-28 h-48 rounded-2xl overflow-hidden shrink-0 border border-primary/5 cursor-pointer group shadow-sm transition-all hover:scale-[1.02]",
                   settings.isFreeMode ? "bg-secondary/20" : ""

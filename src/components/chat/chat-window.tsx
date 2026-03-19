@@ -238,7 +238,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             </div>
           ) : (
             messages.map((msg) => (
-              <div key={msg.id} id={`msg-${msg.id}`} className="flex flex-col gap-1">
+              <div key={msg.$id} id={`msg-${msg.$id}`} className="flex flex-col gap-1">
                 {isCluster && !msg.isMe && msg.senderName && (
                   <div className="flex items-center gap-2 ml-2 mb-1">
                     <Avatar className="h-5 w-5 border border-primary/10 shadow-sm"><AvatarImage src={msg.senderAvatar} /></Avatar>

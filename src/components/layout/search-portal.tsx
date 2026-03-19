@@ -296,8 +296,8 @@ export function SearchPortal() {
                   <div className="space-y-3">
                     {filteredResults.nodes.map((post) => (
                       <div 
-                        key={post.id}
-                        onClick={() => handleDeepLink('post', post.id)}
+                        key={post.$id}
+                        onClick={() => handleDeepLink('post', post.$id)}
                         className="p-5 bg-white/40 dark:bg-white/5 border border-white/20 rounded-[2rem] hover:bg-secondary/40 transition-all cursor-pointer group space-y-3"
                       >
                         <div className="flex items-center gap-3">

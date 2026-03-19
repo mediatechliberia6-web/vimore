@@ -86,10 +86,10 @@ export function PostPortal() {
                   {post.commentNodes && post.commentNodes.length > 0 ? (
                     post.commentNodes.map(comment => (
                       <CommentNode 
-                        key={comment.id} 
+                        key={comment.$id} 
                         comment={comment} 
-                        postId={post.id} 
-                        onReply={() => openCommentHub(post.id)} 
+                        postId={post.$id} 
+                        onReply={() => openCommentHub(post.$id)} 
                       />
                     ))
                   ) : (
@@ -122,14 +122,14 @@ export function PostPortal() {
             <Zap className="h-5 w-5 text-primary" />
           </div>
           <button 
-            onClick={() => post && openCommentHub(post.id)}
+            onClick={() => post && openCommentHub(post.$id)}
             className="flex-1 bg-secondary/30 h-12 rounded-2xl flex items-center px-6 text-sm text-muted-foreground italic font-medium hover:bg-secondary/50 transition-all text-left"
           >
             Sync your reaction to the network...
           </button>
           <Button 
             className="rounded-2xl h-12 px-6 font-black italic uppercase tracking-widest bg-primary text-white shadow-lg shadow-primary/20"
-            onClick={() => post && openCommentHub(post.id)}
+            onClick={() => post && openCommentHub(post.$id)}
           >
             REPLY
           </Button>

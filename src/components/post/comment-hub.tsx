@@ -115,7 +115,7 @@ export function CommentNode({ comment, postId, onReply, allComments, level = 0 }
             <div className="space-y-4">
               {replies.map(reply => (
                 <CommentNode 
-                  key={reply.id} 
+                  key={reply.$id} 
                   comment={reply} 
                   postId={postId} 
                   onReply={onReply} 
@@ -260,7 +260,7 @@ export function CommentHub() {
             {topLevelComments.length > 0 ? (
               topLevelComments.map(comment => (
                 <CommentNode 
-                  key={comment.id} 
+                  key={comment.$id} 
                   comment={comment} 
                   postId={activeCommentPostId} 
                   onReply={handleInitiateReply}

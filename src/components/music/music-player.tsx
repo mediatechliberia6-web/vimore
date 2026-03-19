@@ -403,7 +403,7 @@ export function MusicPlayer() {
                 <div className="space-y-6">
                   {(activeComments || []).length > 0 ? (
                     activeComments.map((comment) => (
-                      <div key={comment.id} className="flex gap-4 group animate-in slide-in-from-bottom-2 duration-300">
+                      <div key={comment.$id} className="flex gap-4 group animate-in slide-in-from-bottom-2 duration-300">
                         <Link href={`/profile/${comment.userName}`} onClick={() => setIsExpanded(false)}>
                           <Avatar className="h-10 w-10 border-2 border-primary/10 shrink-0 hover:scale-105 transition-transform">
                             <AvatarImage src={comment.userAvatar} />
