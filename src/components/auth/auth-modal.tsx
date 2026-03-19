@@ -13,7 +13,9 @@ import {
   Calendar,
   AlertTriangle,
   Smartphone,
-  ArrowLeft
+  ArrowLeft,
+  FileText,
+  Scale
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
 
 const NATIONALITIES = [
   "Liberian", "American", "Nigerian", "Ghanian", "Guinean", "Sierra Leonean", "Ivory Coast", "European", "Asian", "Other"
@@ -46,7 +49,7 @@ export function AuthModal() {
   const [gender, setGender] = useState<'Male' | 'Female'>('Male');
 
   // Terminal Handshake: Modal disappears when user is authenticated
-  if (currentUser?.id && currentUser.username !== 'guest_node') return null;
+  if (currentUser?.username && currentUser.username !== 'guest_node') return null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +105,6 @@ export function AuthModal() {
     triggerHaptic(30);
     
     try {
-      // UNIFIED IDENTITY PULSE: Construct a plain JavaScript object
       const signupPayload = {
         email: identifier.includes('@') ? identifier : undefined,
         phone: !identifier.includes('@') ? identifier : undefined,
@@ -123,7 +125,7 @@ export function AuthModal() {
       }
     } catch (error: any) {
       console.error("[SIGNUP ERROR]", error);
-      setAuthError("The Next.js router encountered a serialization stall. Please try logging in if your account was created.");
+      setAuthError("The network handshake encountered a stall. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -227,8 +229,18 @@ export function AuthModal() {
                   </div>
                 </div>
               )}
-              <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : signupStep === 1 ? "Next Protocol" : "Materialize Identity"}</Button>
-              <div className="text-center"><button type="button" onClick={() => { setMode('login'); setSignupStep(1); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">Back to Sync</button></div>
+              
+              <div className="space-y-4">
+                <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : signupStep === 1 ? "Next Protocol" : "Materialize Identity"}</Button>
+                
+                {mode === 'signup' && (
+                  <p className="text-[9px] text-white/30 text-center uppercase leading-relaxed px-4">
+                    By materializing an identity, you agree to our <Link href="/terms" className="text-white/60 hover:text-primary underline">Terms of Service</Link> and <Link href="/privacy" className="text-white/60 hover:text-primary underline">Privacy Policy</Link>.
+                  </p>
+                )}
+              </div>
+
+              <div className="text-center"><button type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setSignupStep(1); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">{mode === 'login' ? 'Materialize New Identity' : 'Back to Sync'}</button></div>
             </form>
           )}
 
@@ -236,7 +248,10 @@ export function AuthModal() {
 
         <footer className="w-full flex flex-col items-center gap-4 opacity-40">
           <div className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-primary" /><span className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Command Cluster v1.5</span></div>
-          <p className="text-[9px] font-bold text-white uppercase tracking-widest text-center">ViMore Logic • Automated Identity Vault</p>
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="text-[8px] font-black text-white/60 uppercase tracking-widest hover:text-primary transition-colors">Privacy Node</Link>
+            <Link href="/terms" className="text-[8px] font-black text-white/60 uppercase tracking-widest hover:text-primary transition-colors">Terms Node</Link>
+          </div>
         </footer>
       </div>
     </div>

@@ -25,7 +25,9 @@ import {
   LogOut,
   Languages,
   UserCog,
-  BookOpen
+  BookOpen,
+  FileText,
+  Scale
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -206,6 +208,31 @@ export default function MenuPage() {
                 <Link href="/settings/language" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-orange-500/10 transition-colors font-semibold text-[15px] text-left text-orange-600">
                   <Languages className="h-4 w-4" />
                   {t('language_hub')}
+                </Link>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="legal" className="border-none">
+              <AccordionTrigger className="px-6 py-5 hover:no-underline hover:bg-secondary/10 group">
+                <div className="flex items-center gap-4">
+                  <div className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl group-hover:scale-110 transition-transform">
+                    <BookOpen className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                  </div>
+                  <span className="font-bold text-lg tracking-tight text-foreground">Legal & Support</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-4 space-y-1">
+                <Link href="/privacy" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-secondary/50 transition-colors font-semibold text-[15px] text-left">
+                  <FileText className="h-4 w-4 text-slate-500" />
+                  Privacy Policy
+                </Link>
+                <Link href="/terms" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-secondary/50 transition-colors font-semibold text-[15px] text-left">
+                  <Scale className="h-4 w-4 text-slate-500" />
+                  Terms of Service
+                </Link>
+                <Link href="/how-it-works" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-secondary/50 transition-colors font-semibold text-[15px] text-left">
+                  <Info className="h-4 w-4 text-slate-500" />
+                  How ViMore Works
                 </Link>
               </AccordionContent>
             </AccordionItem>

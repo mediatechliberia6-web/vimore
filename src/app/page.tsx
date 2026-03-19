@@ -13,11 +13,12 @@ import { MainNav } from "@/components/layout/main-nav";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
-import { Rocket, Zap, Sparkles, Loader2, ShieldCheck, Globe, ArrowRight, Lock, CheckCircle2 } from "lucide-react";
+import { Rocket, Zap, Sparkles, Loader2, ShieldCheck, Globe, ArrowRight, Lock, CheckCircle2, FileText, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CreateStoryModal } from "@/components/feed/create-story-modal";
 import { AuthModal } from "@/components/auth/auth-modal";
+import Link from "next/link";
 
 function LandingPage() {
   const [showAuth, setShowAuth] = useState(false);
@@ -74,13 +75,19 @@ function LandingPage() {
 
         {/* The Privacy Manifesto Card */}
         <section className="max-w-2xl w-full bg-white/40 dark:bg-white/5 backdrop-blur-3xl border border-white/20 rounded-[2.5rem] p-8 sm:p-12 shadow-2xl space-y-8 text-left animate-in fade-in zoom-in-95 duration-1000 delay-500">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner">
-              <ShieldCheck className="h-6 w-6" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner">
+                <ShieldCheck className="h-6 w-6" />
+              </div>
+              <div className="flex flex-col">
+                <h3 className="text-xl font-black italic uppercase tracking-widest text-foreground">Privacy Manifesto</h3>
+                <p className="text-[10px] font-bold text-primary uppercase tracking-[0.4em]">MTL Command Core</p>
+              </div>
             </div>
-            <div className="flex flex-col">
-              <h3 className="text-xl font-black italic uppercase tracking-widest text-foreground">Privacy Manifesto</h3>
-              <p className="text-[10px] font-bold text-primary uppercase tracking-[0.4em]">MTL Command Core</p>
+            <div className="flex items-center gap-2">
+              <Link href="/privacy"><Button variant="ghost" size="sm" className="rounded-full text-[9px] font-black uppercase tracking-widest text-primary gap-2"><FileText className="h-3.5 w-3.5" /> Policy</Button></Link>
+              <Link href="/terms"><Button variant="ghost" size="sm" className="rounded-full text-[9px] font-black uppercase tracking-widest text-primary gap-2"><Scale className="h-3.5 w-3.5" /> Terms</Button></Link>
             </div>
           </div>
 
@@ -106,8 +113,14 @@ function LandingPage() {
         </section>
       </main>
 
-      <footer className="p-12 flex flex-col items-center gap-4 opacity-30 text-center relative z-10">
-        <div className="flex items-center gap-3">
+      <footer className="p-12 flex flex-col items-center gap-6 relative z-10">
+        <div className="flex items-center gap-6 opacity-40">
+          <Link href="/privacy" className="text-[10px] font-black uppercase tracking-widest hover:text-primary transition-colors">Privacy</Link>
+          <Link href="/terms" className="text-[10px] font-black uppercase tracking-widest hover:text-primary transition-colors">Terms</Link>
+          <Link href="/how-it-works" className="text-[10px] font-black uppercase tracking-widest hover:text-primary transition-colors">Manual</Link>
+        </div>
+        
+        <div className="flex items-center gap-3 opacity-30">
           <div className="flex flex-col items-center">
             <span className="text-[10px] font-black uppercase text-primary tracking-widest leading-none mb-1">Amos B. Kortu</span>
             <span className="text-[8px] font-bold uppercase tracking-tighter text-muted-foreground">Founder & CEO</span>
@@ -118,7 +131,7 @@ function LandingPage() {
             <span className="text-[8px] font-bold uppercase tracking-tighter text-muted-foreground">Co-founder & President</span>
           </div>
         </div>
-        <p className="text-[9px] font-black uppercase tracking-[0.5em] text-foreground">ViMore Node v1.5.0-SYNC • FROM MEDIA TECH LIBERIA</p>
+        <p className="text-[9px] font-black uppercase tracking-[0.5em] text-foreground opacity-20">ViMore Node v1.5.0-SYNC • FROM MEDIA TECH LIBERIA</p>
       </footer>
 
       {showAuth && <AuthModal />}
@@ -146,11 +159,11 @@ export default function Home() {
 
   const organicSorted = useMemo(() => {
     const regular = posts.filter(p => !p.isBoosted);
-    regular.forEach(p => { if (!(p.id in weights.current)) weights.current[p.id] = Math.random(); });
-    const followingUnseen = regular.filter(p => followingUsernames.has(p.user.username) && !sessionSeen.current.has(p.id));
-    const publicUnseen = regular.filter(p => !followingUsernames.has(p.user.username) && !sessionSeen.current.has(p.id));
-    const seenNodes = regular.filter(p => sessionSeen.current.has(p.id));
-    const stableSort = (arr: any[]) => [...arr].sort((a, b) => weights.current[a.id] - weights.current[b.id]);
+    regular.forEach(p => { if (!(p.$id in weights.current)) weights.current[p.$id] = Math.random(); });
+    const followingUnseen = regular.filter(p => followingUsernames.has(p.user.username) && !sessionSeen.current.has(p.$id));
+    const publicUnseen = regular.filter(p => !followingUsernames.has(p.user.username) && !sessionSeen.current.has(p.$id));
+    const seenNodes = regular.filter(p => sessionSeen.current.has(p.$id));
+    const stableSort = (arr: any[]) => [...arr].sort((a, b) => weights.current[a.$id] - weights.current[b.$id]);
     return [...stableSort(followingUnseen), ...stableSort(publicUnseen), ...stableSort(seenNodes)];
   }, [posts, followingUsernames]);
 
@@ -225,10 +238,10 @@ export default function Home() {
                   if (item.type === 'campaign') {
                     return (
                       <PostCard 
-                        key={item.data.id}
-                        id={item.data.id}
+                        key={item.data.$id}
+                        $id={item.data.$id}
                         isCampaign={true}
-                        user={{ name: "ViMore Official", username: "vimore", avatar: "/icon.svg", isVerified: true }}
+                        user={{ name: "ViMore Official", username: "vimore", avatar: "/icon.svg", isVerified: true, role: "Global Node" }}
                         content={item.data.content}
                         image={item.data.type === 'photo' ? item.data.mediaUrl : undefined}
                         videoUrl={item.data.type === 'video' ? item.data.mediaUrl : undefined}
@@ -242,7 +255,7 @@ export default function Home() {
                       />
                     );
                   }
-                  return <PostCard key={item.data.id} {...item.data} />;
+                  return <PostCard key={item.data.$id} {...item.data} />;
                 })}
                 <div ref={observerTarget} className="h-20 flex items-center justify-center p-8">
                   {feedItems.length < (posts.length + campaigns.length) ? (
