@@ -1,4 +1,3 @@
-
 'use client';
 
 /**
@@ -472,7 +471,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const signup = useCallback(async (data: any) => {
     try {
-      // Alpha Node Check: Count users to assign SUPER role if first user
       let isFirstUser = false;
       try {
         const profilesRes = await databases.listDocuments(APPWRITE_DATABASE_ID, PROFILES_COLLECTION_ID, [Query.limit(1)]);
@@ -766,4 +764,3 @@ export function usePosts() {
   if (context === undefined) throw new Error('usePosts must be used within a PostProvider');
   return context;
 }
-

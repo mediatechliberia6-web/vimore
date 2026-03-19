@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -88,11 +87,11 @@ export default function AccountCenter() {
   const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = useState(false);
   const [isEnrolling, setIsEnrolling] = useState(false);
 
-  const isPlayerActive = currentTrack && !isExpanded;
-
   if (isLoading || !currentUser) {
     return <ProfileLoading />;
   }
+
+  const isPlayerActive = currentTrack && !isExpanded;
 
   const handleSave = () => {
     triggerHaptic(25);

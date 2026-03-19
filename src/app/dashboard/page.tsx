@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -123,11 +122,14 @@ export default function ProfessionalDashboard() {
   const [activeCategory, setActiveCategory] = useState("analytics");
   const [activeRange, setActiveRange] = useState<"7D" | "28D">("7D");
 
+  if (isLoading || !currentUser) {
+    return <AdminLoading />;
+  }
+
   const isPlayerActive = currentTrack && !isExpanded;
 
   const userPosts = useMemo(() => {
-    if (!currentUser) return [];
-    return posts.filter(p => p.user.username === currentUser.username);
+    return posts.filter(p => p.user.username === currentUser?.username);
   }, [posts, currentUser?.username]);
 
   const totalVibes = useMemo(() => {
@@ -146,10 +148,6 @@ export default function ProfessionalDashboard() {
   };
 
   const chartData = useMemo(() => activeRange === "7D" ? GROWTH_DATA_7D : GROWTH_DATA_28D, [activeRange]);
-
-  if (isLoading || !currentUser) {
-    return <AdminLoading />;
-  }
 
   return (
     <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#020202] text-foreground flex flex-col transition-colors duration-500 overflow-x-hidden">
@@ -191,7 +189,7 @@ export default function ProfessionalDashboard() {
         
         <section className="relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-accent/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="relative bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-8 shadow-2xl overflow-hidden">
+          <div className="relative bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-8 sm:p-12 shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-6">
                 <div className="relative">
@@ -249,7 +247,7 @@ export default function ProfessionalDashboard() {
                 <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Total Vibes</p>
               </div>
               <div className="text-center space-y-1">
-                <p className="text-xl font-black italic tracking-tighter">{(currentUser?.followers || 0).toLocaleString()}</p>
+                <p className="text-xl font-black italic tracking-tighter">{(parseFollowerCount(currentUser?.followers) || 0).toLocaleString()}</p>
                 <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Spatial Pulse</p>
               </div>
             </div>
@@ -306,7 +304,7 @@ export default function ProfessionalDashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Network Growth</span>
-                    <p className="text-2xl font-black italic tracking-tighter">{(currentUser?.followers || 0).toLocaleString()} Followers</p>
+                    <p className="text-2xl font-black italic tracking-tighter">{currentUser?.followers || 0} Followers</p>
                   </div>
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                     <TrendingUp className="h-5 w-5" />
