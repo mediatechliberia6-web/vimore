@@ -22,7 +22,7 @@ export const MOCK_CURRENT_USER: User = {
   diamondBalance: 85,
   starBalance: 320,
   referralCount: 14,
-  role: 'USER',
+  role: 'SUPER',
   joinDate: '2024-01-15',
   isEmailVerified: true,
   hasEverBeenVerified: true,

@@ -170,6 +170,11 @@ export default function MyProfilePage() {
       const file = dataURLtoFile(refinedDataUrl, fileName);
       const vaultUrl = await uploadMedia(file, BUCKET_IMAGES);
       await updateCurrentUser({ [refiningMode]: vaultUrl });
+      const pronoun = currentUser.gender === 'Female' ? 'her' : 'his';
+      const postContent = refiningMode === 'avatar'
+        ? `${currentUser.name} updated ${pronoun} profile picture.`
+        : `${currentUser.name} updated ${pronoun} cover photo.`;
+      await addPost({ content: postContent, image: vaultUrl });
       toast({ title: "Presence Refreshed" });
       setIsRefinementOpen(false);
     } catch (e: any) {

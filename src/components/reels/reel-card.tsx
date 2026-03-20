@@ -81,10 +81,14 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
     const video = videoRef.current;
     if (!video || !videoUrl || settings.isFreeMode) return;
     if (isActive && !isManuallyPaused) {
-      video.play().catch(() => {
-        video.load();
-        video.play().catch(() => {});
-      });
+      video.currentTime = 0;
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          video.load();
+          video.play().catch(() => {});
+        });
+      }
     } else {
       video.pause();
       if (!isActive) {
@@ -203,7 +207,6 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
           loop
           muted={isMuted}
           playsInline
-          autoPlay
           onClick={handleVideoTap}
           onDoubleClick={handleDoubleClick}
         />
@@ -247,16 +250,8 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         {isMuted ? <VolumeX className="h-8 w-8 text-white" /> : <Volume2 className="h-8 w-8 text-white" />}
       </div>
 
-      <div className="absolute right-3 bottom-4 z-50 flex flex-col-reverse items-center gap-4">
-        {isMe && !isBoosted && (
-          <BoostPortal nodeId={id} type="REEL">
-            <button className="flex flex-col items-center gap-1 active:scale-90 transition-transform">
-              <Rocket className="h-6 w-6 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]" />
-            </button>
-          </BoostPortal>
-        )}
-
-        <div className="relative">
+      <div className="absolute right-3 bottom-6 z-50 flex flex-col items-center gap-4">
+        <div className="relative mb-1">
           <Link href={profileHref}>
             <Avatar className="h-11 w-11 border-2 border-white shadow-lg transition-transform active:scale-95">
               <AvatarImage src={user.avatar} />
@@ -309,12 +304,20 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
           <span className="text-[11px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">Share</span>
         </div>
 
-        <button onClick={toggleMute} className="active:scale-90 transition-transform mt-1">
+        <button onClick={toggleMute} className="active:scale-90 transition-transform">
           {isMuted
             ? <VolumeX className="h-6 w-6 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]" />
             : <Volume2 className="h-6 w-6 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]" />
           }
         </button>
+
+        {isMe && !isBoosted && (
+          <BoostPortal nodeId={id} type="REEL">
+            <button className="flex flex-col items-center gap-1 active:scale-90 transition-transform">
+              <Rocket className="h-6 w-6 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]" />
+            </button>
+          </BoostPortal>
+        )}
       </div>
 
       <div className="absolute bottom-0 left-0 right-0 p-5 pt-20 bg-gradient-to-t from-black/90 via-black/30 to-transparent pointer-events-none">

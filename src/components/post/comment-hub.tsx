@@ -202,7 +202,7 @@ export function CommentHub() {
     <Sheet open={!!activeCommentPostId} onOpenChange={(open) => !open && closeCommentHub()}>
       <SheetContent 
         side="bottom" 
-        className="rounded-t-[3rem] p-0 border-primary/10 bg-white/80 dark:bg-[#050505]/80 backdrop-blur-3xl h-[85vh] sm:h-[75vh] flex flex-col transition-all duration-500 overflow-hidden"
+        className="rounded-t-[3rem] p-0 border-primary/10 bg-white/80 dark:bg-[#050505]/80 backdrop-blur-3xl h-[85vh] sm:h-[75vh] flex flex-col transition-all duration-500 overflow-hidden z-[500]"
       >
         <div className="mx-auto w-12 h-1.5 bg-primary/20 rounded-full mt-4 mb-2 shrink-0" />
         
