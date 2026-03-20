@@ -21,7 +21,7 @@ import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
 
 interface NativeAdNodeProps {
-  type: "banner" | "reel" | "standard" | "banner-468";
+  type: "banner" | "standard" | "banner-468";
   id?: string;
   isActive?: boolean;
 }
@@ -134,68 +134,6 @@ const NativeAdNodeBase = ({ type, id, isActive }: NativeAdNodeProps) => {
             title={`ViMore-Banner-468-${id || 'generic'}`}
             scrolling="no"
           />
-        </div>
-      </div>
-    );
-  }
-
-  if (type === "reel") {
-    return (
-      <div className="relative h-[100dvh] w-full flex items-center justify-center bg-black overflow-hidden group select-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-black flex items-center justify-center">
-          <div className="absolute inset-0 opacity-20 pointer-events-none">
-            <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
-            <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/10 blur-[120px] rounded-full animate-pulse delay-700" />
-          </div>
-          
-          <div className="relative z-10 w-full px-8 flex flex-col items-center gap-8">
-            <div className="w-full min-h-[250px] flex items-center justify-center rounded-3xl overflow-hidden bg-white/5 border border-white/10">
-              <iframe 
-                ref={iframeRef}
-                className="w-full h-[250px] border-none bg-transparent"
-                title={`ViMore-Reel-Ad-${id || 'generic'}`}
-                scrolling="no"
-              />
-            </div>
-            <div className="text-center space-y-4">
-              <Badge className="bg-primary/20 text-primary border-primary/20 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full">Sponsored Node</Badge>
-              <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white">Explore New Horizons</h3>
-              <p className="text-white/60 text-sm max-w-xs mx-auto">Discover high-velocity tools curated for the ViMore community.</p>
-              <Button 
-                onClick={handleLearnMore}
-                className="bg-white text-black hover:bg-zinc-200 rounded-2xl h-14 px-10 font-black italic uppercase tracking-widest text-xs shadow-2xl transition-all active:scale-95"
-              >
-                Learn More <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <div className="absolute right-3 bottom-20 z-50 flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="h-11 w-11 rounded-xl overflow-hidden border-[1.5px] border-white/80 ring-2 ring-primary/10 shadow-xl">
-              <ViMoreAdLogo />
-            </div>
-            <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 bg-primary text-white rounded-full p-0.5 shadow-lg"><Plus className="h-2 w-2" /></div>
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <button className="p-2.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white"><Heart className="h-5 w-5" /></button>
-            <span className="text-[9px] font-black text-white drop-shadow-md uppercase tracking-widest">AD</span>
-          </div>
-          <button className="p-2.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 text-white"><Share2 className="h-5 w-5" /></button>
-        </div>
-
-        <div className="absolute bottom-0 left-0 right-0 p-5 pt-20 bg-gradient-to-t from-black/90 to-transparent pointer-events-none">
-          <div className="max-w-[75%] space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-black italic uppercase tracking-tighter text-white">ViMore Hub</span>
-              <div className="flex items-center gap-1 bg-primary/20 border border-primary/20 px-2 py-0.5 rounded-full">
-                <ShieldCheck className="h-2.5 w-2.5 text-primary fill-primary text-white" />
-                <span className="text-[8px] font-black text-white uppercase tracking-widest">Verified Ads</span>
-              </div>
-            </div>
-            <p className="text-xs text-white/80 leading-tight font-medium">Discover official ViMore recommendations.</p>
-          </div>
         </div>
       </div>
     );

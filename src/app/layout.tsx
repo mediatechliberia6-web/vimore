@@ -14,7 +14,7 @@ import { ImageViewerPortal } from "@/components/layout/image-viewer-portal";
 import { VideoViewerPortal } from "@/components/layout/video-viewer-portal";
 import { SearchPortal } from "@/components/layout/search-portal";
 import { FontScaleWrapper } from "@/components/layout/font-scale-wrapper";
-import { CommentHub, ReelCommentHub } from "@/components/post/comment-hub";
+import { CommentHub } from "@/components/post/comment-hub";
 import { GiftHub } from "@/components/post/gift-hub";
 import { IncomingCallOverlay } from "@/components/layout/incoming-call-overlay";
 import { AppLoadingGate } from "@/components/layout/app-loading-gate";
@@ -87,7 +87,6 @@ export default function RootLayout({
                       <VideoViewerPortal />
                       <SearchPortal />
                       <CommentHub />
-                      <ReelCommentHub />
                       <GiftHub />
                       <IncomingCallOverlay />
                       <Toaster />

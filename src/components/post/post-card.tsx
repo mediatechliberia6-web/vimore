@@ -189,7 +189,7 @@ function FeedVideo({ videoUrl, postId, isShared }: { videoUrl: string; postId: s
   return (
     <div
       className={cn("relative mt-2 rounded-lg overflow-hidden bg-black cursor-pointer", isShared ? "-mx-1" : "-mx-3 sm:mx-0")}
-      onClick={() => router.push(`/reels?id=${postId}`)}
+      onClick={toggleMute}
     >
       <video
         ref={videoRef}
@@ -490,7 +490,7 @@ export function PostCard(props: PostCardProps) {
                     </div>
                   </div>
                 ) : (
-                  <BoostPortal nodeId={$id} type={videoUrl ? 'REEL' : 'POST'}>
+                  <BoostPortal nodeId={$id} type='POST'>
                     <Button variant="outline" className="w-full h-9 rounded-xl border-dashed border-primary/20 text-primary font-black uppercase text-[10px] gap-2 hover:bg-primary/5 transition-all">
                       <Rocket className="h-3 w-3" />{t('boost_title')}
                     </Button>

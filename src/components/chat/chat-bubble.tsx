@@ -399,7 +399,7 @@ export function ChatBubble({
                     </div>
                     <div className="relative z-10 text-center">
                       <p className="text-xs font-black uppercase tracking-widest drop-shadow-md text-white">
-                        {isDownloading ? "Syncing Node..." : `Download ${type === 'photo' ? 'Vibe' : 'Reel'}`}
+                        {isDownloading ? "Syncing Node..." : `Download ${type === 'photo' ? 'Vibe' : 'Video'}`}
                       </p>
                       <span className="text-[9px] font-bold uppercase text-white/60 tracking-widest">High-Velocity Encrypted</span>
                     </div>

@@ -38,7 +38,6 @@ export interface AppSettings {
   goldRate: number;
   diamondRate: number;
   ldMultiplier: number;
-  isReelsEnabled: boolean;
   isMusicEnabled: boolean;
   isGiftingEnabled: boolean;
   isAiVerificationActive: boolean;
@@ -187,7 +186,6 @@ interface PostContextType {
   isGiftHubOpen: boolean;
   targetUserForGift: User | null;
   activeCommentPostId: string | null;
-  activeReelCommentPostId: string | null;
   settings: AppSettings;
   gatewaySettings: any;
   callState: CallState;
@@ -227,8 +225,6 @@ interface PostContextType {
   setSelectedVideoUrl: (url: string | null) => void;
   openCommentHub: (postId: string) => void;
   closeCommentHub: () => void;
-  openReelCommentHub: (postId: string) => void;
-  closeReelCommentHub: () => void;
   openGiftHub: (user: User) => void;
   closeGiftHub: () => void;
   setActiveStoryIndex: (index: number | null) => void;
@@ -299,7 +295,7 @@ interface PostContextType {
   sendChatMessage: (recipientId: string, message: Partial<ChatMessage>) => Promise<void>;
   purgeVibeCache: () => Promise<void>;
   archiveIdentityNode: () => Promise<void>;
-  boostNode: (nodeId: string, promisedViews: number, duration: number, cost: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'REEL' | 'SONIC') => Promise<void>;
+  boostNode: (nodeId: string, promisedViews: number, duration: number, cost: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'SONIC') => Promise<void>;
   enrollHardwareBiometrics: () => Promise<boolean>;
   verifyHardwareBiometrics: () => Promise<boolean>;
 }
@@ -312,7 +308,7 @@ const INITIAL_SETTINGS: AppSettings = {
   isHardwareEnrolled: false, taggingPrivacy: 'everyone', discoveryVisibility: 'everyone',
   showReadReceipts: true, legacyContact: null, isSilenceActive: false, silenceStart: "22:00",
   silenceEnd: "07:00", defaultStream: 'foryou', goldRate: 0.01, diamondRate: 0.25,
-  ldMultiplier: 190, isReelsEnabled: true, isMusicEnabled: true, isGiftingEnabled: true,
+  ldMultiplier: 190, isMusicEnabled: true, isGiftingEnabled: true,
   isAiVerificationActive: true, isSensitivityFilterActive: false, isFreeMode: false,
 };
 
@@ -373,7 +369,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [isGiftHubOpen, setIsGiftHubOpenState] = useState(false);
   const [targetUserForGift, setTargetUserForGiftState] = useState<User | null>(null);
   const [activeCommentPostId, setActiveCommentPostIdState] = useState<string | null>(null);
-  const [activeReelCommentPostId, setActiveReelCommentPostIdState] = useState<string | null>(null);
   const [callState, setCallState] = useState<CallState>({ type: 'video', status: 'idle', contact: null });
   const [pendingTransaction, setPendingTransactionState] = useState<any>(null);
   const [mutedUserNames, setMutedUserNames] = useState<string[]>([]);
@@ -752,7 +747,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames,
     receivedRequestUsernames, acceptedStrangerUsernames,
     activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl,
-    isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, activeReelCommentPostId,
+    isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId,
     settings, gatewaySettings: OFFICIAL_GATEWAY, callState, stories, campaigns,
     reports: [], tickets: [], mutedUserNames, connections, clusters, auditLogs,
     staff: [], adStats: { revenue: 1240, handshakes: 320 },
@@ -773,8 +768,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setSelectedVideoUrl: setSelectedVideoUrlState,
     openCommentHub: (id: string) => setActiveCommentPostIdState(id),
     closeCommentHub: () => setActiveCommentPostIdState(null),
-    openReelCommentHub: (id: string) => { setActiveReelCommentPostIdState(id); fetchComments(id); },
-    closeReelCommentHub: () => setActiveReelCommentPostIdState(null),
     openGiftHub: (u: User) => { setTargetUserForGiftState(u); setIsGiftHubOpenState(true); },
     closeGiftHub: () => setIsGiftHubOpenState(false),
     setActiveStoryIndex: setActiveStoryIndexState,

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { 
   Home, 
   Users, 
-  Clapperboard, 
   Search, 
   Music2,
   Coins,
@@ -54,7 +53,7 @@ export function SubHeader() {
   const router = useRouter();
   const { setSearchOpen, currentUser = { name: "Guest", avatar: "", goldBalance: 0, diamondBalance: 0, starBalance: 0, isVerified: false }, settings, updateSettings } = usePosts();
   const { triggerHaptic } = useMusic();
-  const { categoryPulses = { HOME: 0, FRIENDS: 0, MUSIC: 0, REELS: 0, MESSAGES: 0 }, clearPulse } = useNotifications();
+  const { categoryPulses = { HOME: 0, FRIENDS: 0, MUSIC: 0, MESSAGES: 0 }, clearPulse } = useNotifications();
   const { t } = useTranslation();
   const { toast } = useToast();
 
@@ -62,7 +61,6 @@ export function SubHeader() {
     { icon: Home, label: t('sub_home'), id: "home", href: "/", category: "HOME" },
     { icon: Users, label: t('sub_friends'), id: "friends", href: "/friends", category: "FRIENDS" },
     { icon: Music2, label: t('sub_music'), id: "music", href: "/music", category: "MUSIC" },
-    { icon: Clapperboard, label: t('sub_reels'), id: "reels", href: "/reels", category: "REELS" },
   ];
 
   const handleNav = (href: string) => {

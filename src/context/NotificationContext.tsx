@@ -6,7 +6,7 @@ import { usePosts } from '@/context/PostContext';
 import { MOCK_NOTIFICATIONS } from '@/lib/mock-data';
 
 export type SignalType = 'SOCIAL' | 'SONIC' | 'POST' | 'SYSTEM';
-export type PulseCategory = 'HOME' | 'FRIENDS' | 'MUSIC' | 'REELS' | 'MESSAGES';
+export type PulseCategory = 'HOME' | 'FRIENDS' | 'MUSIC' | 'MESSAGES';
 
 export interface NotificationNode {
   id: string;
@@ -49,7 +49,7 @@ const SOUNDS = {
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<NotificationNode[]>(MOCK_NOTIFICATIONS);
   const [categoryPulses, setCategoryPulses] = useState<Record<PulseCategory, number>>({
-    HOME: 0, FRIENDS: 0, MUSIC: 0, REELS: 0, MESSAGES: 0,
+    HOME: 0, FRIENDS: 0, MUSIC: 0, MESSAGES: 0,
   });
   const [hasPushPermission, setHasPushPermission] = useState(false);
   const { settings, triggerHaptic } = usePosts();

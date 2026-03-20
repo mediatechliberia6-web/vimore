@@ -173,7 +173,7 @@ export function ChatInput({ onSend }: ChatInputProps) {
             toast({ 
               variant: "destructive", 
               title: "Clip Too Long", 
-              description: "High-velocity sync is capped at 5 minutes per reel." 
+              description: "High-velocity sync is capped at 5 minutes per video." 
             });
             URL.revokeObjectURL(mediaUrl);
             e.target.value = "";

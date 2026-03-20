@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
 interface BoostPortalProps {
   children: React.ReactNode;
   nodeId: string;
-  type: 'POST' | 'REEL' | 'SONIC';
+  type: 'POST' | 'SONIC';
 }
 
 export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {

@@ -203,7 +203,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       URL.revokeObjectURL(objUrl);
       if (tempVideo.duration > 303) {
         triggerHaptic(25);
-        toast({ title: "Video Too Long", description: "Reels must be 5 minutes 3 seconds or shorter." });
+        toast({ title: "Video Too Long", description: "Videos must be 5 minutes 3 seconds or shorter." });
         e.target.value = '';
         return;
       }
@@ -212,7 +212,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         setIsCompressing(true);
         setCompressionProgress(0);
         
-        toast({ title: "Optimizing Reel", description: `Node size (${formatBytes(file.size)}) exceeds limit. Throttling...` });
+        toast({ title: "Optimizing Video", description: `Node size (${formatBytes(file.size)}) exceeds limit. Throttling...` });
 
         const duration = 2000;
         const interval = 50;
@@ -598,7 +598,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               <div className="flex items-center gap-4"><ImageIcon className="h-6 w-6 text-green-500" /><span className="text-base font-medium">Photo</span></div>
             </button>
             <button onClick={() => videoInputRef.current?.click()} disabled={isPollOpen || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
-              <div className="flex items-center gap-4"><Video className="h-6 w-6 text-red-500" /><span className="text-base font-medium">Upload Reel</span></div>
+              <div className="flex items-center gap-4"><Video className="h-6 w-6 text-red-500" /><span className="text-base font-medium">Upload Video</span></div>
             </button>
             <button onClick={() => toggleAction('poll')} disabled={selectedMedia.length > 0 || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
               <div className="flex items-center gap-4"><ListTodo className="h-6 w-6 text-purple-500" /><span className="text-base font-medium">Create Poll</span></div>

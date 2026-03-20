@@ -81,7 +81,7 @@ export function VideoViewerPortal() {
             <ArrowLeft className="h-6 w-6" />
           </Button>
           <div className="flex flex-col">
-            <h2 className="text-sm font-black italic uppercase tracking-widest text-white">Reel Inspector</h2>
+            <h2 className="text-sm font-black italic uppercase tracking-widest text-white">Video Inspector</h2>
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-3 w-3 text-primary" />
               <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">High-Fidelity Archival Node</span>
@@ -150,7 +150,7 @@ export function VideoViewerPortal() {
       <footer className="h-16 px-6 flex items-center justify-center bg-black/40 border-t border-white/5 shrink-0 relative z-10">
         <div className="flex items-center gap-3">
           <Zap className="h-4 w-4 text-primary animate-pulse" />
-          <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.4em]">ViMore Immersive Reel Cluster</span>
+          <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.4em]">ViMore Immersive Video Cluster</span>
         </div>
       </footer>
     </div>
