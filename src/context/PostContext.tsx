@@ -187,6 +187,7 @@ interface PostContextType {
   isGiftHubOpen: boolean;
   targetUserForGift: User | null;
   activeCommentPostId: string | null;
+  activeReelCommentPostId: string | null;
   settings: AppSettings;
   gatewaySettings: any;
   callState: CallState;
@@ -226,6 +227,8 @@ interface PostContextType {
   setSelectedVideoUrl: (url: string | null) => void;
   openCommentHub: (postId: string) => void;
   closeCommentHub: () => void;
+  openReelCommentHub: (postId: string) => void;
+  closeReelCommentHub: () => void;
   openGiftHub: (user: User) => void;
   closeGiftHub: () => void;
   setActiveStoryIndex: (index: number | null) => void;
@@ -370,6 +373,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [isGiftHubOpen, setIsGiftHubOpenState] = useState(false);
   const [targetUserForGift, setTargetUserForGiftState] = useState<User | null>(null);
   const [activeCommentPostId, setActiveCommentPostIdState] = useState<string | null>(null);
+  const [activeReelCommentPostId, setActiveReelCommentPostIdState] = useState<string | null>(null);
   const [callState, setCallState] = useState<CallState>({ type: 'video', status: 'idle', contact: null });
   const [pendingTransaction, setPendingTransactionState] = useState<any>(null);
   const [mutedUserNames, setMutedUserNames] = useState<string[]>([]);
@@ -748,7 +752,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames,
     receivedRequestUsernames, acceptedStrangerUsernames,
     activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl,
-    isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId,
+    isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId, activeReelCommentPostId,
     settings, gatewaySettings: OFFICIAL_GATEWAY, callState, stories, campaigns,
     reports: [], tickets: [], mutedUserNames, connections, clusters, auditLogs,
     staff: [], adStats: { revenue: 1240, handshakes: 320 },
@@ -769,6 +773,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setSelectedVideoUrl: setSelectedVideoUrlState,
     openCommentHub: (id: string) => setActiveCommentPostIdState(id),
     closeCommentHub: () => setActiveCommentPostIdState(null),
+    openReelCommentHub: (id: string) => { setActiveReelCommentPostIdState(id); fetchComments(id); },
+    closeReelCommentHub: () => setActiveReelCommentPostIdState(null),
     openGiftHub: (u: User) => { setTargetUserForGiftState(u); setIsGiftHubOpenState(true); },
     closeGiftHub: () => setIsGiftHubOpenState(false),
     setActiveStoryIndex: setActiveStoryIndexState,

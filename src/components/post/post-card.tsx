@@ -140,6 +140,7 @@ interface PostCardProps {
   sharedPost?: PostCardProps;
   videoUrl?: string;
   isCampaign?: boolean;
+  campaignTitle?: string;
   actionUrl?: string;
   actionLabel?: string;
   isBoosted?: boolean;
@@ -212,7 +213,7 @@ export function PostCard(props: PostCardProps) {
   const { 
     $id, user, collaborator, content, image, images = [], imageFilter, theme, language,
     likes = 0, unlikes = 0, comments = 0, shares = 0, views = 0, time, hashtags, feeling, location, commentsDisabled, isPinned, 
-    isSeries, seriesTitle, poll, isShared = false, videoUrl, sharedPost, isLocked, unlockPrice, isCampaign, actionUrl, actionLabel,
+    isSeries, seriesTitle, poll, isShared = false, videoUrl, sharedPost, isLocked, unlockPrice, isCampaign, campaignTitle, actionUrl, actionLabel,
     isBoosted, boostTargetViews, boostCurrentViews
   } = props;
 
@@ -435,6 +436,36 @@ export function PostCard(props: PostCardProps) {
             </>
           )}
         </CardContent>
+
+        {isCampaign && !isShared && (
+          <div className="px-3 pb-4 pt-2 bg-white dark:bg-card space-y-3">
+            {campaignTitle && (
+              <div className="flex items-center gap-2">
+                <Zap className="h-3 w-3 text-primary animate-pulse shrink-0" />
+                <p className="text-[11px] font-black text-primary uppercase tracking-widest truncate">{campaignTitle}</p>
+                <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black h-4 px-1.5 uppercase shrink-0">Sponsored</Badge>
+              </div>
+            )}
+            {actionUrl && (
+              <div className="flex items-center justify-between gap-3 p-3 bg-secondary/30 rounded-2xl border border-primary/10">
+                <div className="flex items-center gap-2 min-w-0">
+                  <LinkIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-[11px] text-muted-foreground truncate font-medium">{actionUrl}</span>
+                </div>
+                <a
+                  href={actionUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => { e.stopPropagation(); recordCampaignClick($id); }}
+                  className="shrink-0 inline-flex items-center gap-1.5 bg-primary text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary/90 active:scale-95 transition-all shadow-md"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  {actionLabel || 'Visit'}
+                </a>
+              </div>
+            )}
+          </div>
+        )}
 
         {!isShared && !isCampaign && (
           <CardFooter className="p-1 px-3 flex flex-col gap-1 relative bg-white dark:bg-card">

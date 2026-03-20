@@ -488,7 +488,10 @@ export default function AdminDashboard() {
                       {campaigns.map((c) => (
                         <div key={c.$id} className="p-4 bg-secondary/20 rounded-3xl border border-white/5 flex items-center gap-6 group hover:bg-secondary/30 transition-all">
                           <div className="relative h-20 w-20 rounded-2xl overflow-hidden shrink-0 shadow-lg">
-                            {c.type === 'video' ? <video src={c.mediaUrl} className="w-full h-full object-cover" muted /> : <Image src={c.mediaUrl} alt="Campaign" fill className="object-cover" />}
+                            {c.type === 'video'
+              ? (c.mediaUrl ? <video src={c.mediaUrl} className="w-full h-full object-cover" muted /> : <div className="w-full h-full bg-secondary/30 flex items-center justify-center text-xs text-muted-foreground">No Media</div>)
+              : (c.mediaUrl ? <Image src={c.mediaUrl} alt="Campaign" fill className="object-cover" /> : <div className="w-full h-full bg-secondary/30 flex items-center justify-center text-xs text-muted-foreground">No Media</div>)
+            }
                           </div>
                           <div className="flex-1 min-w-0 space-y-1">
                             <div className="flex items-center gap-2">

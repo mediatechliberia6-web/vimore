@@ -494,6 +494,11 @@ export const MOCK_CAMPAIGNS = [
   {
     $id: 'camp_001',
     title: 'Summer Boost 2024',
+    content: 'Experience the future of social networking. Join ViMore and connect with creators worldwide.',
+    type: 'photo',
+    mediaUrl: 'https://picsum.photos/seed/campaign1/800/600',
+    actionUrl: 'https://vimore.app',
+    actionLabel: 'Explore Now',
     targetUrl: 'https://vimore.app',
     budget: 500,
     isActive: true,
@@ -504,6 +509,11 @@ export const MOCK_CAMPAIGNS = [
   {
     $id: 'camp_002',
     title: 'Creator Fund Promo',
+    content: 'Earn real income doing what you love. Apply for the ViMore Creator Fund today.',
+    type: 'photo',
+    mediaUrl: 'https://picsum.photos/seed/campaign2/800/600',
+    actionUrl: 'https://vimore.app/join',
+    actionLabel: 'Apply Now',
     targetUrl: 'https://vimore.app/join',
     budget: 250,
     isActive: false,

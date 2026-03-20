@@ -261,6 +261,7 @@ export default function Home() {
                         content={item.data.content}
                         image={item.data.type === 'photo' ? item.data.mediaUrl : undefined}
                         videoUrl={item.data.type === 'video' ? item.data.mediaUrl : undefined}
+                        campaignTitle={item.data.title}
                         actionUrl={item.data.actionUrl}
                         actionLabel={item.data.actionLabel}
                         likes={1420}

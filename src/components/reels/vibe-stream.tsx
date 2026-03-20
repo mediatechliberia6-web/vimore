@@ -40,7 +40,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
     const allReels = posts
       .filter(p => p.videoUrl)
       .map(p => ({
-        id: p.id,
+        id: p.$id,
         videoUrl: p.videoUrl!,
         user: {
           name: p.user.name,
@@ -72,7 +72,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
     const videoCampaigns = campaigns
       .filter(c => c.isActive && c.type === 'video')
       .map(c => ({
-        id: c.id,
+        id: c.$id,
         videoUrl: c.mediaUrl,
         user: {
           name: "ViMore Official",
@@ -87,7 +87,11 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
         comments: 0,
         shares: 0,
         views: c.impressions || 0,
-        isBoosted: true,
+        isBoosted: false,
+        isCampaign: true,
+        campaignTitle: c.title,
+        actionUrl: c.actionUrl || c.targetUrl || '',
+        actionLabel: c.actionLabel || 'Learn More',
         music: {
           id: 'camp',
           title: c.title,

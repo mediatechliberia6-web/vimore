@@ -20,7 +20,8 @@ import {
   Eye,
   Gauge,
   Play,
-  Pause
+  Pause,
+  ExternalLink
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn, parseFollowerCount, saveFileToDevice } from "@/lib/utils";
@@ -58,12 +59,16 @@ interface ReelCardProps {
   isBoosted?: boolean;
   boostTargetViews?: number;
   boostCurrentViews?: number;
+  isCampaign?: boolean;
+  campaignTitle?: string;
+  actionUrl?: string;
+  actionLabel?: string;
 }
 
-export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares, views = 0, music, isActive, isBoosted, boostTargetViews, boostCurrentViews }: ReelCardProps) {
+export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares, views = 0, music, isActive, isBoosted, boostTargetViews, boostCurrentViews, isCampaign, campaignTitle, actionUrl, actionLabel }: ReelCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { triggerHaptic, triggerDownloadWithAd } = useMusic();
-  const { currentUser, openCommentHub, openGiftHub, settings, recordView } = usePosts();
+  const { currentUser, openReelCommentHub, openGiftHub, settings, recordView } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   
@@ -78,8 +83,13 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
   const [isShareHubOpen, setIsShareHubOpen] = useState(false);
 
   useEffect(() => {
+    const video = videoRef.current;
     if (!isActive) {
       setIsPlaying(false);
+      if (video) {
+        video.pause();
+        video.currentTime = 0;
+      }
     }
   }, [isActive]);
 
@@ -288,15 +298,17 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
           <span className="text-[11px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{formatCount(localLikes)}</span>
         </div>
 
-        <div className="flex flex-col items-center gap-1">
-          <button
-            onClick={(e) => { e.stopPropagation(); openCommentHub(id); }}
-            className="active:scale-90 transition-transform"
-          >
-            <MessageCircle className="h-7 w-7 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]" />
-          </button>
-          <span className="text-[11px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{formatCount(comments)}</span>
-        </div>
+        {!isCampaign && (
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); openReelCommentHub(id); }}
+              className="active:scale-90 transition-transform"
+            >
+              <MessageCircle className="h-7 w-7 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]" />
+            </button>
+            <span className="text-[11px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{formatCount(comments)}</span>
+          </div>
+        )}
 
         <div className="flex flex-col items-center gap-1">
           <button className="active:scale-90 transition-transform">
@@ -305,15 +317,17 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
           <span className="text-[11px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{formatCount(views)}</span>
         </div>
 
-        <div className="flex flex-col items-center gap-1">
-          <button onClick={handleDownload} disabled={isDownloading} className="active:scale-90 transition-transform">
-            {isDownloading
-              ? <Loader2 className="h-7 w-7 text-white animate-spin drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]" />
-              : <Download className="h-7 w-7 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]" />
-            }
-          </button>
-          <span className="text-[11px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">Save</span>
-        </div>
+        {!isCampaign && (
+          <div className="flex flex-col items-center gap-1">
+            <button onClick={handleDownload} disabled={isDownloading} className="active:scale-90 transition-transform">
+              {isDownloading
+                ? <Loader2 className="h-7 w-7 text-white animate-spin drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]" />
+                : <Download className="h-7 w-7 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]" />
+              }
+            </button>
+            <span className="text-[11px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">Save</span>
+          </div>
+        )}
 
         <div className="flex flex-col items-center gap-1">
           <button onClick={handleShareClick} className="active:scale-90 transition-transform">
@@ -329,7 +343,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
           }
         </button>
 
-        {isMe && !isBoosted && (
+        {isMe && !isBoosted && !isCampaign && (
           <BoostPortal nodeId={id} type="REEL">
             <button className="flex flex-col items-center gap-1 active:scale-90 transition-transform">
               <Rocket className="h-6 w-6 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]" />
@@ -375,7 +389,32 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
               </div>
             </div>
             <p className="text-[13px] sm:text-sm text-white/90 leading-tight line-clamp-2 font-medium drop-shadow-md">{caption}</p>
+
+            {isCampaign && actionUrl && (
+              <a
+                href={actionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="pointer-events-auto mt-1 inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg hover:bg-primary/90 active:scale-95 transition-all"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                {actionLabel || 'Learn More'}
+              </a>
+            )}
           </div>
+
+          {isCampaign && (
+            <div className="flex items-center gap-2 mt-2 pointer-events-none">
+              <div className="bg-primary/20 backdrop-blur-md border border-primary/30 px-3 py-1 rounded-full flex items-center gap-1.5">
+                <Zap className="h-2.5 w-2.5 text-primary animate-pulse" />
+                <span className="text-[9px] font-black text-white uppercase tracking-widest">Sponsored</span>
+              </div>
+              {campaignTitle && (
+                <span className="text-[10px] font-bold text-white/70 truncate max-w-[160px]">{campaignTitle}</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
