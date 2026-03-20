@@ -249,7 +249,7 @@ export default function Home() {
                   if (item.type === 'campaign') {
                     return (
                       <PostCard 
-                        key={item.data.$id}
+                        key={`campaign-${item.data.$id}-${idx}`}
                         $id={item.data.$id}
                         isCampaign={true}
                         user={{ name: "ViMore Official", username: "vimore", avatar: "/icon.svg", isVerified: true, role: "Global Node" }}
@@ -266,7 +266,7 @@ export default function Home() {
                       />
                     );
                   }
-                  return <PostCard key={item.data.$id} {...item.data} />;
+                  return <PostCard key={`post-${item.data.$id}`} {...item.data} />;
                 })}
                 <div ref={observerTarget} className="h-20 flex items-center justify-center p-8">
                   {feedItems.length < (posts.length + campaigns.length) ? (
