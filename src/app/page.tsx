@@ -180,9 +180,6 @@ export default function Home() {
     let organicIdx = 0; let boostedIdx = 0; let campaignIdx = 0;
     let slotCount = 0;
 
-    // Suggestions at the very top
-    result.push({ type: 'suggestions', id: 'suggested-follows-top' });
-
     while (organicIdx < organicSorted.length) {
       // Add 2 regular posts
       for (let i = 0; i < 2 && organicIdx < organicSorted.length; i++) {
@@ -191,6 +188,8 @@ export default function Home() {
         slotCount++;
         // Ad after 3rd post slot
         if (slotCount === 3) result.push({ type: 'ad', id: `ad-init-${slotCount}` });
+        // Suggestions after 8th post slot
+        if (slotCount === 8) result.push({ type: 'suggestions', id: 'suggested-follows-8' });
       }
 
       // Insert 1 campaign after every 2 posts (home feed only)

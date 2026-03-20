@@ -31,6 +31,13 @@ import { useMusic } from "@/context/MusicContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Post } from "@/context/PostContext";
 
+type ReelFeedItem = Post & {
+  isCampaignReel?: boolean;
+  campaignTitle?: string;
+  actionUrl?: string;
+  actionLabel?: string;
+};
+
 const SHARE_PLATFORMS = [
   { id: "facebook", label: "Facebook", bg: "bg-[#1877F2]", emoji: "📘" },
   { id: "messenger", label: "Messenger", bg: "bg-gradient-to-br from-blue-600 to-purple-500", emoji: "💬" },
@@ -400,7 +407,7 @@ function ReelItem({
   onOpenShare,
   onOpenComment,
 }: {
-  reel: Post;
+  reel: ReelFeedItem;
   index: number;
   isMuted: boolean;
   isActive: boolean;
@@ -488,15 +495,23 @@ function ReelItem({
         )}
       </button>
 
+      {reel.isCampaignReel && (
+        <div className="absolute top-20 left-4 z-30">
+          <span className="bg-primary/90 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">
+            Sponsored
+          </span>
+        </div>
+      )}
+
       <div className="absolute right-3 bottom-28 z-30 flex flex-col items-center gap-5">
         <div className="relative">
-          <Link href={`/profile/${reel.user.username}`}>
+          <Link href={reel.isCampaignReel ? "/" : `/profile/${reel.user.username}`}>
             <Avatar className="h-11 w-11 border-2 border-white shadow-xl">
               <AvatarImage src={reel.user.avatar} />
               <AvatarFallback>{reel.user.name[0]}</AvatarFallback>
             </Avatar>
           </Link>
-          {!isOwn && (
+          {!isOwn && !reel.isCampaignReel && (
             <button
               onClick={handleFollowToggle}
               className={cn(
@@ -517,43 +532,47 @@ function ReelItem({
           )}
         </div>
 
-        <button
-          onClick={() => {
-            triggerHaptic(20);
-            toggleLikePost(reel.$id);
-          }}
-          className="flex flex-col items-center gap-0.5 active:scale-75 transition-transform"
-        >
-          <Heart
-            className={cn(
-              "w-7 h-7 transition-all",
-              isLiked ? "text-rose-500 fill-rose-500" : "text-white"
-            )}
-          />
-          <span className="text-white text-xs font-bold drop-shadow">{fmt(displayLikes)}</span>
-        </button>
+        {!reel.isCampaignReel && (
+          <>
+            <button
+              onClick={() => {
+                triggerHaptic(20);
+                toggleLikePost(reel.$id);
+              }}
+              className="flex flex-col items-center gap-0.5 active:scale-75 transition-transform"
+            >
+              <Heart
+                className={cn(
+                  "w-7 h-7 transition-all",
+                  isLiked ? "text-rose-500 fill-rose-500" : "text-white"
+                )}
+              />
+              <span className="text-white text-xs font-bold drop-shadow">{fmt(displayLikes)}</span>
+            </button>
 
-        <button
-          onClick={() => {
-            triggerHaptic(10);
-            onOpenComment();
-          }}
-          className="flex flex-col items-center gap-0.5 active:scale-90 transition-transform"
-        >
-          <MessageCircle className="w-7 h-7 text-white" />
-          <span className="text-white text-xs font-bold drop-shadow">{fmt(reel.comments)}</span>
-        </button>
+            <button
+              onClick={() => {
+                triggerHaptic(10);
+                onOpenComment();
+              }}
+              className="flex flex-col items-center gap-0.5 active:scale-90 transition-transform"
+            >
+              <MessageCircle className="w-7 h-7 text-white" />
+              <span className="text-white text-xs font-bold drop-shadow">{fmt(reel.comments)}</span>
+            </button>
 
-        <button
-          onClick={() => {
-            triggerHaptic(10);
-            onOpenShare();
-          }}
-          className="flex flex-col items-center gap-0.5 active:scale-90 transition-transform"
-        >
-          <Share2 className="w-6 h-6 text-white" />
-          <span className="text-white text-xs font-bold drop-shadow">{fmt(reel.shares)}</span>
-        </button>
+            <button
+              onClick={() => {
+                triggerHaptic(10);
+                onOpenShare();
+              }}
+              className="flex flex-col items-center gap-0.5 active:scale-90 transition-transform"
+            >
+              <Share2 className="w-6 h-6 text-white" />
+              <span className="text-white text-xs font-bold drop-shadow">{fmt(reel.shares)}</span>
+            </button>
+          </>
+        )}
 
         <div
           className={cn(
@@ -566,33 +585,101 @@ function ReelItem({
       </div>
 
       <div className="absolute bottom-6 left-3 right-16 z-30 pointer-events-none">
-        <Link
-          href={`/profile/${reel.user.username}`}
-          className="flex items-center gap-2 mb-1.5 pointer-events-auto w-fit"
-        >
-          <span className="text-white font-black text-sm drop-shadow">@{reel.user.username}</span>
-          {reel.user.isVerified && (
-            <div className="w-4 h-4 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-              <Check className="w-2.5 h-2.5 text-white" />
+        {reel.isCampaignReel ? (
+          <>
+            <p className="text-white/50 text-[10px] font-bold uppercase tracking-widest mb-1">
+              ViMore Official
+            </p>
+            <p className="text-white font-black text-base drop-shadow mb-1">
+              {reel.campaignTitle}
+            </p>
+            <p className="text-white/80 text-sm leading-snug line-clamp-2 drop-shadow-sm mb-3">
+              {reel.content}
+            </p>
+            {reel.actionUrl && reel.actionLabel && (
+              <a
+                href={reel.actionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pointer-events-auto inline-flex items-center gap-2 bg-primary text-white text-sm font-black px-4 py-2 rounded-full shadow-lg active:scale-95 transition-transform"
+              >
+                {reel.actionLabel}
+              </a>
+            )}
+          </>
+        ) : (
+          <>
+            <Link
+              href={`/profile/${reel.user.username}`}
+              className="flex items-center gap-2 mb-1.5 pointer-events-auto w-fit"
+            >
+              <span className="text-white font-black text-sm drop-shadow">@{reel.user.username}</span>
+              {reel.user.isVerified && (
+                <div className="w-4 h-4 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                  <Check className="w-2.5 h-2.5 text-white" />
+                </div>
+              )}
+            </Link>
+            <p className="text-white/90 text-sm leading-snug line-clamp-2 drop-shadow-sm">
+              {reel.content}
+            </p>
+            <div className="flex items-center gap-1.5 mt-2">
+              <Music2 className="w-3 h-3 text-white/60 flex-shrink-0" />
+              <p className="text-white/60 text-xs truncate">Original Sound · {reel.user.name}</p>
             </div>
-          )}
-        </Link>
-        <p className="text-white/90 text-sm leading-snug line-clamp-2 drop-shadow-sm">
-          {reel.content}
-        </p>
-        <div className="flex items-center gap-1.5 mt-2">
-          <Music2 className="w-3 h-3 text-white/60 flex-shrink-0" />
-          <p className="text-white/60 text-xs truncate">Original Sound · {reel.user.name}</p>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
 export default function ReelsPage() {
-  const { posts, openCommentHub, fetchComments } = usePosts();
+  const { posts, campaigns, openCommentHub, fetchComments } = usePosts();
 
   const reels = useMemo(() => posts.filter((p) => p.videoUrl), [posts]);
+
+  const reelFeed = useMemo<ReelFeedItem[]>(() => {
+    const videoCampaigns = campaigns
+      .filter((c) => c.isActive && c.type === "video" && c.mediaUrl)
+      .map((c) => ({
+        $id: c.$id,
+        user: {
+          name: "ViMore Official",
+          username: "vimore",
+          avatar: "/icon.svg",
+          isVerified: true,
+          role: "Global Node",
+        },
+        content: c.content || c.title,
+        time: c.timestamp || "Now",
+        likes: c.impressions || 0,
+        unlikes: 0,
+        comments: 0,
+        shares: c.clicks || 0,
+        views: c.impressions || 0,
+        videoUrl: c.mediaUrl,
+        isCampaignReel: true,
+        campaignTitle: c.title,
+        actionUrl: c.actionUrl,
+        actionLabel: c.actionLabel,
+      } as ReelFeedItem));
+
+    if (videoCampaigns.length === 0) return reels as ReelFeedItem[];
+
+    const result: ReelFeedItem[] = [];
+    let reelIdx = 0;
+    let campIdx = 0;
+    while (reelIdx < reels.length) {
+      for (let i = 0; i < 2 && reelIdx < reels.length; i++) {
+        result.push(reels[reelIdx] as ReelFeedItem);
+        reelIdx++;
+      }
+      result.push(videoCampaigns[campIdx % videoCampaigns.length]);
+      campIdx++;
+    }
+    return result;
+  }, [reels, campaigns]);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
@@ -641,7 +728,7 @@ export default function ReelsPage() {
     });
 
     return () => observer.disconnect();
-  }, [reels.length, isMuted]);
+  }, [reelFeed.length, isMuted]);
 
   useEffect(() => {
     const video = videoRefs.current[activeIndex];
@@ -656,7 +743,7 @@ export default function ReelsPage() {
     [openCommentHub, fetchComments]
   );
 
-  if (reels.length === 0) {
+  if (reelFeed.length === 0) {
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-4">
         <Link
@@ -696,9 +783,9 @@ export default function ReelsPage() {
         className="h-full w-full overflow-y-scroll snap-y snap-mandatory"
         style={{ scrollbarWidth: "none" }}
       >
-        {reels.map((reel, index) => (
+        {reelFeed.map((reel, index) => (
           <ReelItem
-            key={reel.$id}
+            key={`${reel.$id}-${index}`}
             reel={reel}
             index={index}
             isMuted={isMuted}
@@ -706,8 +793,8 @@ export default function ReelsPage() {
             onVideoRef={setVideoRef(index)}
             onContainerRef={setContainerRef(index)}
             onToggleMute={() => setIsMuted((m) => !m)}
-            onOpenShare={() => setShareReel(reel)}
-            onOpenComment={() => handleOpenComment(reel.$id)}
+            onOpenShare={() => !reel.isCampaignReel && setShareReel(reel)}
+            onOpenComment={() => !reel.isCampaignReel && handleOpenComment(reel.$id)}
           />
         ))}
       </div>
