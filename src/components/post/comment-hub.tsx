@@ -50,8 +50,8 @@ export function CommentNode({ comment, postId, onReply, allComments, level = 0 }
   const [showReplies, setShowReplies] = useState(true);
 
   const replies = useMemo(() => 
-    allComments.filter(c => c.parentId === comment.id),
-    [allComments, comment.id]
+    allComments.filter(c => c.parentId === comment.$id),
+    [allComments, comment.$id]
   );
 
   const handleLike = (e: React.MouseEvent) => {

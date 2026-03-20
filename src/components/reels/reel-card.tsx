@@ -67,7 +67,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
   const { t } = useTranslation();
   const { toast } = useToast();
   
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [isManuallyPaused, setIsManuallyPaused] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -81,7 +81,10 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
     const video = videoRef.current;
     if (!video || !videoUrl || settings.isFreeMode) return;
     if (isActive && !isManuallyPaused) {
-      video.play().catch(() => {});
+      video.play().catch(() => {
+        video.load();
+        video.play().catch(() => {});
+      });
     } else {
       video.pause();
       if (!isActive) {
@@ -244,7 +247,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
         {isMuted ? <VolumeX className="h-8 w-8 text-white" /> : <Volume2 className="h-8 w-8 text-white" />}
       </div>
 
-      <div className="absolute right-3 bottom-24 z-50 flex flex-col items-center gap-5">
+      <div className="absolute right-3 bottom-4 z-50 flex flex-col-reverse items-center gap-4">
         {isMe && !isBoosted && (
           <BoostPortal nodeId={id} type="REEL">
             <button className="flex flex-col items-center gap-1 active:scale-90 transition-transform">

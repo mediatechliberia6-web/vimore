@@ -16,6 +16,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const observerTarget = useRef<HTMLDivElement>(null);
   const [activeReelId, setActiveReelId] = useState<string | null>(null);
+  const activeReelIdRef = useRef<string | null>(null);
   const [displayLimit, setDisplayLimit] = useState(16);
 
   // Stable Sequence Refs
@@ -181,6 +182,10 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
   }, [searchParams, reelsWithAds, activeReelId, recordView]);
 
   useEffect(() => {
+    activeReelIdRef.current = activeReelId;
+  }, [activeReelId]);
+
+  useEffect(() => {
     const options = {
       root: containerRef.current,
       rootMargin: "0px",
@@ -191,7 +196,8 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           const id = entry.target.getAttribute("data-node-id");
-          if (id && id !== activeReelId) {
+          if (id && id !== activeReelIdRef.current) {
+            activeReelIdRef.current = id;
             setActiveReelId(id);
             triggerHaptic(5);
             const item = reelsWithAds.find(r => (r.type === 'reel' && r.data.id === id));
@@ -205,7 +211,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
     cards?.forEach((card) => observer.observe(card));
 
     return () => observer.disconnect();
-  }, [activeReelId, triggerHaptic, reelsWithAds, recordView]);
+  }, [triggerHaptic, reelsWithAds, recordView]);
 
   return (
     <div 
