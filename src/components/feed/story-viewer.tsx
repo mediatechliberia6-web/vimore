@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye, BellOff, VolumeX, EyeOff, Zap, ShieldCheck, Loader2 } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye, BellOff, VolumeX, Volume2, EyeOff, Zap, ShieldCheck, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { usePosts, StorySegment } from "@/context/PostContext";
@@ -38,6 +38,7 @@ export function StoryViewer() {
   // AD Logic State
   const [isAdActive, setIsAdActive] = useState(false);
   const [storiesSeenInSession, setStoriesSeenInSession] = useState(0);
+  const [isVideoMuted, setIsVideoMuted] = useState(false);
   const [adProgress, setAdProgress] = useState(0);
   
   const requestRef = useRef<number | null>(null);
@@ -425,14 +426,22 @@ export function StoryViewer() {
               ) : (
                 <>
                   {currentSegment.type === 'video' ? (
-                    <video 
-                      src={currentSegment.image} 
-                      className="w-full h-full object-cover" 
-                      autoPlay 
-                      muted 
-                      loop 
-                      playsInline 
-                    />
+                    <>
+                      <video 
+                        src={currentSegment.image} 
+                        className="w-full h-full object-cover" 
+                        autoPlay 
+                        muted={isVideoMuted}
+                        loop 
+                        playsInline 
+                      />
+                      <button
+                        className="absolute bottom-24 right-4 z-30 p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white"
+                        onClick={(e) => { e.stopPropagation(); setIsVideoMuted(m => !m); }}
+                      >
+                        {isVideoMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                      </button>
+                    </>
                   ) : currentSegment.image ? (
                     <Image 
                       src={currentSegment.image} 

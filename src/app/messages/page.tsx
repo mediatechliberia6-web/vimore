@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { MainNav } from "@/components/layout/main-nav";
 import { ChatList } from "@/components/chat/chat-list";
 import { ChatWindow } from "@/components/chat/chat-window";
@@ -13,13 +14,19 @@ import { BiometricGate } from "@/components/layout/biometric-gate";
 import { DiagnosticErrorBoundary } from "@/components/layout/diagnostic-error-boundary";
 import MessagesLoading from "./loading";
 
-export default function MessagesPage() {
+function MessagesInner() {
   const { currentTrack, isExpanded } = useMusic();
   const { connections, clusters, currentUser, isLoading } = usePosts();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
+  const searchParams = useSearchParams();
 
   const isPlayerActive = currentTrack && !isExpanded;
+
+  useEffect(() => {
+    const open = searchParams.get('open');
+    if (open) setSelectedChatId(open);
+  }, [searchParams]);
 
   useEffect(() => {
     if (selectedChatId) {
@@ -41,7 +48,6 @@ export default function MessagesPage() {
     return null;
   }, [connections, clusters, selectedChatId, currentUser]);
 
-  // Handshake Guard: Prevents prerendering null-pointers
   if (isLoading || !currentUser) {
     return <MessagesLoading />;
   }
@@ -109,5 +115,13 @@ export default function MessagesPage() {
         </div>
       </div>
     </BiometricGate>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={<MessagesLoading />}>
+      <MessagesInner />
+    </Suspense>
   );
 }

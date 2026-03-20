@@ -177,7 +177,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
       const first = reelsWithAds[0];
       const firstId = first.type === 'ad' ? first.id : first.data.$id;
       setActiveReelId(firstId);
-      if (first.type === 'reel') recordView(first.data.$id);
+      if (first.type === 'reel') setTimeout(() => recordView(first.data.$id), 3000);
     }
   }, [searchParams, reelsWithAds, activeReelId, recordView]);
 
@@ -196,7 +196,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
             setActiveReelId(id);
             triggerHaptic(5);
             const item = reelsWithAds.find(r => (r.type === 'reel' && r.data.$id === id));
-            if (item) recordView(id);
+            if (item) setTimeout(() => recordView(id), 3000);
           }
         }
       });

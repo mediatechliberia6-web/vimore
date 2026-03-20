@@ -114,6 +114,8 @@ export interface Cluster {
   name: string;
   adminUsername: string;
   avatar?: string;
+  cover?: string;
+  isAddLocked?: boolean;
   members: User[];
   isGroup: true;
 }
@@ -265,9 +267,11 @@ interface PostContextType {
   subscribeToCreator: (username: string, cost: number) => Promise<void>;
   cancelSubscription: (username: string) => Promise<void>;
   incrementShareCount: (postId: string) => Promise<void>;
+  viewedPostIds: Set<string>;
   createCluster: (name: string, members: any[]) => Promise<void>;
   addMemberToCluster: (clusterId: string, member: any) => Promise<void>;
   leaveCluster: (clusterId: string) => Promise<void>;
+  updateCluster: (clusterId: string, updates: { name?: string; cover?: string; isAddLocked?: boolean }) => Promise<void>;
   promoteUser: (username: string, role: any) => Promise<void>;
   demoteUser: (username: string) => Promise<void>;
   addCampaign: (data: any) => Promise<void>;
@@ -338,6 +342,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const [likedPostIds, setLikedPostIdsState] = useState<Set<string>>(new Set());
   const [unlikedPostIds, setUnlikedPostIdsState] = useState<Set<string>>(new Set());
+  const [viewedPostIds, setViewedPostIdsState] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIdsState] = useState<Set<string>>(new Set());
   const [unlockedPostIds, setUnlockedPostIdsState] = useState<Set<string>>(new Set());
   const [seenPostIds, setSeenPostIdsState] = useState<Set<string>>(new Set());
@@ -447,10 +452,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
       content: p.content || '',
       time: 'Just now',
       likes: 0, unlikes: 0, comments: 0, shares: 0, views: 0,
-      image: p.mediaUrls?.[0],
-      videoUrl: p.type === 'video' ? p.mediaUrls?.[0] : undefined,
+      image: p.images?.[0] || p.image,
+      images: p.images,
+      videoUrl: p.videoUrl,
+      theme: p.theme,
+      imageFilter: p.imageFilter,
+      feeling: p.feeling,
+      location: p.location,
+      commentsDisabled: p.commentsDisabled,
+      poll: p.poll ? (typeof p.poll === 'string' ? JSON.parse(p.poll) : p.poll) : undefined,
       isLocked: p.isLocked,
       unlockPrice: p.unlockPrice,
+      sharedPost: p.sharedPost,
     };
     setPostsState(prev => [newPost, ...prev]);
     toast({ title: "Post published!" });
@@ -462,29 +475,31 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleLikePost = async (id: string) => {
-    setLikedPostIdsState(p => {
-      const n = new Set(p);
-      const wasLiked = n.has(id);
-      if (wasLiked) n.delete(id); else n.add(id);
-      setPostsState(prev => prev.map(post =>
-        post.$id === id ? { ...post, likes: Math.max(0, post.likes + (wasLiked ? -1 : 1)) } : post
-      ));
-      return n;
-    });
-    setUnlikedPostIdsState(p => { const n = new Set(p); n.delete(id); return n; });
+    const wasLiked = likedPostIds.has(id);
+    const wasUnliked = unlikedPostIds.has(id);
+    setLikedPostIdsState(prev => { const n = new Set(prev); if (wasLiked) n.delete(id); else n.add(id); return n; });
+    setUnlikedPostIdsState(prev => { const n = new Set(prev); n.delete(id); return n; });
+    setPostsState(prev => prev.map(post =>
+      post.$id === id ? {
+        ...post,
+        likes: Math.max(0, post.likes + (wasLiked ? -1 : 1)),
+        unlikes: wasUnliked ? Math.max(0, post.unlikes - 1) : post.unlikes,
+      } : post
+    ));
   };
 
   const toggleUnlikePost = async (id: string) => {
-    setUnlikedPostIdsState(p => {
-      const n = new Set(p);
-      const wasUnliked = n.has(id);
-      if (wasUnliked) n.delete(id); else n.add(id);
-      setPostsState(prev => prev.map(post =>
-        post.$id === id ? { ...post, unlikes: Math.max(0, post.unlikes + (wasUnliked ? -1 : 1)) } : post
-      ));
-      return n;
-    });
-    setLikedPostIdsState(p => { const n = new Set(p); n.delete(id); return n; });
+    const wasUnliked = unlikedPostIds.has(id);
+    const wasLiked = likedPostIds.has(id);
+    setUnlikedPostIdsState(prev => { const n = new Set(prev); if (wasUnliked) n.delete(id); else n.add(id); return n; });
+    setLikedPostIdsState(prev => { const n = new Set(prev); n.delete(id); return n; });
+    setPostsState(prev => prev.map(post =>
+      post.$id === id ? {
+        ...post,
+        unlikes: Math.max(0, post.unlikes + (wasUnliked ? -1 : 1)),
+        likes: wasLiked ? Math.max(0, post.likes - 1) : post.likes,
+      } : post
+    ));
   };
 
   const addComment = async (postId: string, text: string) => {
@@ -658,6 +673,35 @@ export function PostProvider({ children }: { children: ReactNode }) {
     toast({ title: "Cluster created!" });
   };
 
+  const addMemberToCluster = async (clusterId: string, member: any) => {
+    setClustersState(prev => prev.map(cl =>
+      cl.$id === clusterId ? { ...cl, members: [...cl.members, member] } : cl
+    ));
+  };
+
+  const leaveCluster = async (clusterId: string) => {
+    if (!currentUser) return;
+    const cluster = clusters.find(cl => cl.$id === clusterId);
+    if (!cluster) return;
+    if (cluster.adminUsername === currentUser.username) {
+      setClustersState(prev => prev.filter(cl => cl.$id !== clusterId));
+      toast({ title: "Cluster dissolved" });
+    } else {
+      setClustersState(prev => prev.map(cl =>
+        cl.$id === clusterId
+          ? { ...cl, members: cl.members.filter(m => m.username !== currentUser.username) }
+          : cl
+      ));
+      toast({ title: "Left cluster" });
+    }
+  };
+
+  const updateCluster = async (clusterId: string, updates: { name?: string; cover?: string; isAddLocked?: boolean }) => {
+    setClustersState(prev => prev.map(cl =>
+      cl.$id === clusterId ? { ...cl, ...updates } : cl
+    ));
+  };
+
   const createPaymentRequest = async (screenshot: string) => {
     const req = {
       $id: 'pay_' + Date.now(),
@@ -676,7 +720,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const value: PostContextType = {
     currentUser, isAuthenticated: !!currentUser, posts, activeComments, isLoading, initError,
-    likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds,
+    likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, viewedPostIds,
     followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames,
     receivedRequestUsernames, acceptedStrangerUsernames,
     activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl,
@@ -731,7 +775,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     incrementShareCount: async (id: string) => {
       setPostsState(prev => prev.map(p => p.$id === id ? { ...p, shares: p.shares + 1 } : p));
     },
-    createCluster, addMemberToCluster: async () => {}, leaveCluster: async () => {},
+    createCluster, addMemberToCluster, leaveCluster, updateCluster,
     promoteUser: async () => {}, demoteUser: async () => {},
     addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick: async () => {},
     initiateCall, acceptCall, endCall, refreshAdminData,
@@ -740,6 +784,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     refreshClusters: async () => {},
     refreshFeed, refreshStories,
     recordView: async (id: string) => {
+      if (viewedPostIds.has(id)) return;
+      setViewedPostIdsState(prev => new Set(prev).add(id));
       setPostsState(prev => prev.map(p => p.$id === id ? { ...p, views: p.views + 1 } : p));
     },
     recordStoryView: async (id: string) => {

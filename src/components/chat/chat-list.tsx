@@ -54,7 +54,9 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
       ...(connections || [])
         .filter(c => c && c.username && c.username !== currentUser.username)
         .map(c => ({ ...c, isGroup: false })),
-      ...(clusters || []).map(cl => ({ ...cl, isGroup: true }))
+      ...(clusters || [])
+        .filter(cl => cl.members && cl.members.some((m: any) => m.username === currentUser.username))
+        .map(cl => ({ ...cl, isGroup: true }))
     ];
 
     // 2. Partition by Friendship and Acceptance

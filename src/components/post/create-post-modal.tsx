@@ -196,6 +196,17 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
     if (isVideo) {
       const file = fileArray[0];
+      const objUrl = URL.createObjectURL(file);
+      const tempVideo = document.createElement('video');
+      tempVideo.src = objUrl;
+      await new Promise<void>(resolve => { tempVideo.onloadedmetadata = () => resolve(); tempVideo.load(); });
+      URL.revokeObjectURL(objUrl);
+      if (tempVideo.duration > 303) {
+        triggerHaptic(25);
+        toast({ title: "Video Too Long", description: "Reels must be 5 minutes 3 seconds or shorter." });
+        e.target.value = '';
+        return;
+      }
       if (file.size > VIDEO_SIZE_LIMIT) {
         triggerHaptic(25);
         setIsCompressing(true);

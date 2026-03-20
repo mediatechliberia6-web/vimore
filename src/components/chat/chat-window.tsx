@@ -82,20 +82,22 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
-  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections = [], addMemberToCluster, settings, chatMessages, sendChatMessage, friendUsernames, acceptedStrangerUsernames, acceptMessageRequest, declineMessageRequest } = usePosts();
+  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections = [], addMemberToCluster, updateCluster, settings, chatMessages, sendChatMessage, friendUsernames, acceptedStrangerUsernames, acceptMessageRequest, declineMessageRequest } = usePosts();
   const { incrementPulse } = useNotifications();
   const { t } = useTranslation();
   const { toast } = useToast();
   const router = useRouter();
   
   const isCluster = contact.isGroup === true;
-  const contactId = isCluster ? (contact as Cluster).id : (contact as Connection).username;
+  const contactId = isCluster ? (contact as Cluster).$id : (contact as Connection).username;
   const isAdmin = isCluster && (contact as Cluster).adminUsername === currentUser.username;
   
   const [showVault, setShowVault] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
   const [addNodeSearch, setAddNodeSearch] = useState("");
+  const [editClusterName, setEditClusterName] = useState((contact as Cluster)?.name || "");
+  const [editClusterCover, setEditClusterCover] = useState((contact as Cluster)?.cover || "");
 
   const isRequest = useMemo(() => {
     if (isCluster) return false;
@@ -148,7 +150,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const handleConfirmLeave = () => {
     if (isCluster) {
       triggerHaptic(50);
-      leaveCluster((contact as Cluster).id);
+      leaveCluster((contact as Cluster).$id);
       onBack();
     }
   };
@@ -156,7 +158,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const handleAddNode = (member: Connection) => {
     if (isCluster) {
       triggerHaptic(30);
-      addMemberToCluster((contact as Cluster).id, member);
+      addMemberToCluster((contact as Cluster).$id, member);
       toast({ title: "Node Synced", description: `@${member.username} joined cluster.` });
       setAddNodeSearch("");
     }
@@ -294,7 +296,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                 <div className="flex items-center justify-between px-1">
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{t('chat_members_pulse')}</span>
                   <div className="flex items-center gap-2">
-                    {isAdmin && (
+                    {(isAdmin || !(contact as Cluster).isAddLocked) && (
                       <Dialog open={isAddNodeOpen} onOpenChange={setIsAddNodeOpen}>
                         <DialogTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg bg-primary/10 text-primary hover:bg-primary/20"><UserPlus className="h-4 w-4" /></Button></DialogTrigger>
                         <DialogContent className="rounded-[2rem] p-0 overflow-hidden border-primary/10">
@@ -306,7 +308,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                             </div>
                             <ScrollArea className="h-[300px]">
                               <div className="space-y-2 pr-4">
-                                {(connections || []).map((c) => (
+                                {(connections || []).filter(c => friendUsernames.has(c.username) && !((contact as Cluster).members || []).some(m => m.username === c.username)).filter(c => !addNodeSearch || c.name.toLowerCase().includes(addNodeSearch.toLowerCase()) || c.username.toLowerCase().includes(addNodeSearch.toLowerCase())).map((c) => (
                                   <button key={c.username} onClick={() => handleAddNode(c)} className="w-full flex items-center justify-between p-3 rounded-2xl transition-all hover:bg-secondary/40">
                                     <div className="flex items-center gap-3">
                                       <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={c.avatar} /></Avatar>
@@ -333,6 +335,39 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                       </div>
                     </div>
                   ))}
+                </div>
+              </section>
+            )}
+            {isCluster && isAdmin && (
+              <section className="space-y-4 pt-6 border-t border-primary/5">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Cluster Settings</span>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-1">Name</label>
+                    <div className="flex gap-2">
+                      <Input value={editClusterName} onChange={(e) => setEditClusterName(e.target.value)} className="h-10 rounded-2xl bg-secondary/20 border-none text-sm font-bold" placeholder="Cluster name..." />
+                      <Button size="sm" className="h-10 rounded-2xl px-4 font-black text-[10px] uppercase" onClick={() => { updateCluster((contact as Cluster).$id, { name: editClusterName }); toast({ title: "Name updated" }); }}>Save</Button>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-1">Cover URL</label>
+                    <div className="flex gap-2">
+                      <Input value={editClusterCover} onChange={(e) => setEditClusterCover(e.target.value)} className="h-10 rounded-2xl bg-secondary/20 border-none text-sm font-bold" placeholder="Image URL..." />
+                      <Button size="sm" className="h-10 rounded-2xl px-4 font-black text-[10px] uppercase" onClick={() => { updateCluster((contact as Cluster).$id, { cover: editClusterCover }); toast({ title: "Cover updated" }); }}>Save</Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-secondary/20">
+                    <div>
+                      <p className="font-bold text-sm">Lock Adding</p>
+                      <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest">Prevent members from adding</p>
+                    </div>
+                    <button
+                      onClick={() => { updateCluster((contact as Cluster).$id, { isAddLocked: !(contact as Cluster).isAddLocked }); triggerHaptic(10); }}
+                      className={cn("w-12 h-6 rounded-full transition-all relative", (contact as Cluster).isAddLocked ? "bg-primary" : "bg-secondary")}
+                    >
+                      <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all", (contact as Cluster).isAddLocked ? "left-6" : "left-0.5")} />
+                    </button>
+                  </div>
                 </div>
               </section>
             )}

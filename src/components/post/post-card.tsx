@@ -414,6 +414,7 @@ export function PostCard(props: PostCardProps) {
               </div>
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1.5 cursor-pointer hover:text-primary transition-colors" onClick={() => openCommentHub($id)}><MessageCircle className="h-3 w-3" />{comments.toLocaleString()}</span>
+                <span className="flex items-center gap-1.5"><Eye className="h-3 w-3" />{views.toLocaleString()}</span>
                 <span className="flex items-center gap-1.5"><Share2 className="h-3 w-3" />{shares.toLocaleString()}</span>
               </div>
             </div>

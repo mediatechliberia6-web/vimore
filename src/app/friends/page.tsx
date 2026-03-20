@@ -331,7 +331,7 @@ function FriendsPageContent() {
                             </span>
                           )}
                         </Button>
-                        <Link href="/messages" className="w-full">
+                        <Link href={`/messages?open=${user.username}`} className="w-full">
                           <Button variant="ghost" className="w-full rounded-xl bg-white/40 dark:bg-white/5 h-10 text-muted-foreground hover:text-primary transition-all font-bold text-[10px] uppercase">
                             Message
                           </Button>

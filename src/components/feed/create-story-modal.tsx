@@ -41,10 +41,22 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
-  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video') => {
     const file = e.target.files?.[0];
     if (!file) return;
     triggerHaptic(10);
+    if (type === 'video') {
+      const objUrl = URL.createObjectURL(file);
+      const tempVid = document.createElement('video');
+      tempVid.src = objUrl;
+      await new Promise<void>(resolve => { tempVid.onloadedmetadata = () => resolve(); tempVid.load(); });
+      URL.revokeObjectURL(objUrl);
+      if (tempVid.duration > 80) {
+        toast({ title: "Video Too Long", description: "Story videos must be 1 minute 20 seconds or shorter." });
+        e.target.value = '';
+        return;
+      }
+    }
     setSelectedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
     setMediaType(type);
