@@ -13,7 +13,8 @@ import {
   MoreHorizontal,
   Zap,
   Loader2,
-  Bookmark
+  Bookmark,
+  CheckCircle2
 } from "lucide-react";
 import {
   Sheet,
@@ -37,17 +38,19 @@ interface ShareHubProps {
 }
 
 export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
-  const { connections, addPost, addStory, incrementShareCount, currentUser } = usePosts();
+  const { connections, addPost, addStory, incrementShareCount, currentUser, friendUsernames, sendChatMessage } = usePosts();
   const { triggerHaptic, triggerDownloadWithAd } = useMusic();
   const { toast } = useToast();
   
   const [isDownloading, setIsDownloading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sharingTo, setSharingTo] = useState<string | null>(null);
+  const [sentTo, setSentTo] = useState<Set<string>>(new Set());
 
   const filteredConnections = connections.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    c.username.toLowerCase().includes(searchQuery.toLowerCase())
+    friendUsernames.has(c.username) &&
+    (c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    c.username.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const handleRepost = () => {
@@ -105,15 +108,20 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
     });
   };
 
-  const handleDirectShare = (username: string) => {
+  const handleDirectShare = async (conn: any) => {
+    if (sharingTo || sentTo.has(conn.$id)) return;
     triggerHaptic(30);
-    setSharingTo(username);
-    setTimeout(() => {
-      setSharingTo(null);
-      incrementShareCount(post.$id);
-      toast({ title: "Node Shared", description: `Vibe launched to @${username}` });
-      onClose();
-    }, 800);
+    setSharingTo(conn.username);
+    const msgType = post.videoUrl ? 'video' : post.image ? 'photo' : 'link';
+    await sendChatMessage(conn.$id, {
+      type: msgType,
+      mediaUrl: post.videoUrl || post.image,
+      text: `Shared a post from @${post.user.username}: ${post.content.slice(0, 80)}${post.content.length > 80 ? '...' : ''}`,
+    });
+    incrementShareCount(post.$id);
+    setSentTo(prev => new Set(prev).add(conn.$id));
+    setSharingTo(null);
+    toast({ title: "Node Shared", description: `Sent to ${conn.name}` });
   };
 
   const handleCopyLink = () => {
@@ -171,19 +179,21 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
           <div className="space-y-4">
             <div className="flex items-center justify-between px-1">
               <h3 className="text-sm font-black italic uppercase tracking-widest">Direct Sync</h3>
-              <span className="text-[10px] font-bold text-muted-foreground uppercase">{connections.length} Nodes Online</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase">Friends Only</span>
             </div>
             <div className="relative group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-              <Input placeholder="Query connections..." className="h-12 bg-secondary/30 border-none rounded-2xl pl-11 focus-visible:ring-primary/20" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              <Input placeholder="Search friends..." className="h-12 bg-secondary/30 border-none rounded-2xl pl-11 focus-visible:ring-primary/20" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide px-1">
-              {filteredConnections.map((user) => (
-                <button key={user.username} onClick={() => handleDirectShare(user.username)} className="flex flex-col items-center gap-2 shrink-0 group min-w-[80px]">
+              {filteredConnections.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic py-4 px-1">No friends to share with. Add friends first.</p>
+              ) : filteredConnections.map((user) => (
+                <button key={user.username} onClick={() => handleDirectShare(user)} disabled={!!sharingTo} className="flex flex-col items-center gap-2 shrink-0 group min-w-[80px]">
                   <div className="relative">
                     <div className={cn("absolute -inset-1 rounded-full blur-sm transition-all duration-500", sharingTo === user.username ? "bg-primary animate-pulse opacity-100" : "bg-transparent opacity-0 group-hover:bg-primary/20 group-hover:opacity-100")} />
                     <Avatar className="h-14 w-14 border-2 border-white dark:border-card relative shadow-xl transition-transform group-active:scale-90"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name[0]}</AvatarFallback></Avatar>
-                    {sharingTo === user.username && <div className="absolute inset-0 flex items-center justify-center bg-primary/40 rounded-full z-10"><Loader2 className="h-6 w-6 text-white animate-spin" /></div>}
+                    {sharingTo === user.username ? <div className="absolute inset-0 flex items-center justify-center bg-primary/40 rounded-full z-10"><Loader2 className="h-6 w-6 text-white animate-spin" /></div> : sentTo.has(user.$id) ? <div className="absolute inset-0 flex items-center justify-center bg-green-500/40 rounded-full z-10"><Check className="h-5 w-5 text-white" /></div> : null}
                   </div>
                   <span className="text-[10px] font-bold text-center truncate w-full px-1">{user.name.split(' ')[0]}</span>
                 </button>

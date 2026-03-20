@@ -178,22 +178,33 @@ export default function Home() {
     const activeCampaigns = campaigns.filter(c => c.isActive);
     const result: (any)[] = [];
     let organicIdx = 0; let boostedIdx = 0; let campaignIdx = 0;
+    let slotCount = 0;
+
+    // Suggestions at the very top
+    result.push({ type: 'suggestions', id: 'suggested-follows-top' });
+
     while (organicIdx < organicSorted.length) {
+      // Add 2 regular posts
       for (let i = 0; i < 2 && organicIdx < organicSorted.length; i++) {
         result.push({ type: 'post', data: organicSorted[organicIdx] });
         organicIdx++;
-        if (activeCampaigns.length > 0 && (organicIdx === 1 || organicIdx % 10 === 0)) {
-          result.push({ type: 'campaign', data: activeCampaigns[campaignIdx % activeCampaigns.length] });
-          campaignIdx++;
-        }
-        if (organicIdx === 3) result.push({ type: 'ad', id: `ad-init-${organicIdx}` });
-        if (organicIdx === 5) result.push({ type: 'suggestions', id: `suggested-follows-${organicIdx}` });
+        slotCount++;
+        // Ad after 3rd post slot
+        if (slotCount === 3) result.push({ type: 'ad', id: `ad-init-${slotCount}` });
       }
+
+      // Insert 1 campaign after every 2 posts (home feed only)
+      if (activeCampaigns.length > 0) {
+        result.push({ type: 'campaign', data: activeCampaigns[campaignIdx % activeCampaigns.length] });
+        campaignIdx++;
+      }
+
+      // Boosted posts or periodic ads
       if (boostedIdx < boostedPosts.length) {
         result.push({ type: 'post', data: boostedPosts[boostedIdx] });
         boostedIdx++;
-      } else if (organicIdx % 5 === 0) {
-        result.push({ type: 'ad', id: `ad-seq-${organicIdx}` });
+      } else if (slotCount > 0 && slotCount % 10 === 0) {
+        result.push({ type: 'ad', id: `ad-seq-${slotCount}` });
       }
     }
     return result.slice(0, displayLimit);

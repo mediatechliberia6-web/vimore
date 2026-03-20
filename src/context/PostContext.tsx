@@ -784,7 +784,35 @@ export function PostProvider({ children }: { children: ReactNode }) {
     sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser,
     acceptMessageRequest: async () => {}, declineMessageRequest: async () => {},
     addComment, addReply, addStory,
-    voteOnStoryPoll: async () => {}, voteOnPostPoll: async () => {},
+    voteOnStoryPoll: async () => {},
+    voteOnPostPoll: async (postId: string, optionIndex: number) => {
+      if (!currentUser) return;
+      setPostsState(prev => prev.map(post => {
+        if (post.$id !== postId || !post.poll) return post;
+        const poll = { ...post.poll };
+        const voters = { ...(poll.voters || {}) };
+        const options = poll.options.map((o: any) => ({ ...o }));
+        const previousVote = voters[currentUser.username];
+
+        // Clicking the same option removes the vote
+        if (previousVote === optionIndex) {
+          delete voters[currentUser.username];
+          options[optionIndex].votes = Math.max(0, (options[optionIndex].votes || 0) - 1);
+          const totalVotes = Math.max(0, (poll.totalVotes || 0) - 1);
+          return { ...post, poll: { ...poll, options, voters, totalVotes } };
+        }
+
+        // Remove previous vote if changing
+        if (previousVote !== undefined) {
+          options[previousVote].votes = Math.max(0, (options[previousVote].votes || 0) - 1);
+        }
+
+        voters[currentUser.username] = optionIndex;
+        options[optionIndex].votes = (options[optionIndex].votes || 0) + 1;
+        const totalVotes = previousVote !== undefined ? (poll.totalVotes || 0) : (poll.totalVotes || 0) + 1;
+        return { ...post, poll: { ...poll, options, voters, totalVotes } };
+      }));
+    },
     toggleMuteUser: (u: string) => setMutedUserNames(p => p.includes(u) ? p.filter(x => x !== u) : [...p, u]),
     togglePinPost: async () => {}, archivePost: async () => {},
     addAuditLog: async (action: string, details: string) => {

@@ -302,7 +302,7 @@ export function PostCard(props: PostCardProps) {
   };
 
   const handleVote = (optionIndex: number) => {
-    if (isShared || userVote !== null) return;
+    if (isShared) return;
     triggerHaptic(10);
     voteOnPostPoll($id, optionIndex);
   };
@@ -416,12 +416,29 @@ export function PostCard(props: PostCardProps) {
               <div className={cn("leading-relaxed whitespace-pre-wrap", theme && !isShared ? "text-2xl leading-tight font-black italic uppercase tracking-tighter" : "text-foreground", isShared ? "text-xs" : "text-[13px]")}>{content}</div>
               {poll && !theme && (
                 <div className={cn("mt-3 p-4 rounded-xl border border-primary/10 bg-primary/5 space-y-3", isShared && "p-2 scale-95 origin-top-left")}>
-                  <div className="flex items-center justify-between"><h4 className={cn("font-bold", isShared ? "text-xs" : "text-sm")}>{poll.question}</h4></div>
+                  <div className="flex items-center justify-between">
+                    <h4 className={cn("font-bold", isShared ? "text-xs" : "text-sm")}>{poll.question}</h4>
+                    <span className={cn("text-muted-foreground font-bold tabular-nums", isShared ? "text-[9px]" : "text-[10px]")}>{(poll.totalVotes || 0).toLocaleString()} {poll.totalVotes === 1 ? "vote" : "votes"}</span>
+                  </div>
                   <div className="space-y-2">{rankedPollOptions.map((option, i) => {
                     const p = poll.totalVotes > 0 ? (option.votes / poll.totalVotes) * 100 : 0;
                     const isSelected = userVote === option.originalIndex;
-                    return <button key={option.originalIndex} onClick={() => !isShared && handleVote(option.originalIndex)} className={cn("w-full relative h-10 rounded-lg border overflow-hidden", isSelected ? "border-primary bg-primary/10" : "border-primary/20 bg-white/40")}><div className="absolute inset-y-0 left-0 bg-primary/30 transition-all duration-700" style={{ width: `${p}%` }} /><div className="absolute inset-0 flex items-center justify-between px-3 text-sm"><span className="font-medium">{option.text}</span><span className="font-black text-primary">{Math.round(p)}%</span></div></button>;
+                    return (
+                      <button key={option.originalIndex} onClick={() => !isShared && handleVote(option.originalIndex)} className={cn("w-full relative h-10 rounded-lg border overflow-hidden transition-all", isSelected ? "border-primary bg-primary/10" : "border-primary/20 bg-white/40 dark:bg-white/5 hover:border-primary/40")}>
+                        <div className="absolute inset-y-0 left-0 bg-primary/25 transition-all duration-700" style={{ width: `${p}%` }} />
+                        <div className="absolute inset-0 flex items-center justify-between px-3 text-sm">
+                          <div className="flex items-center gap-2">
+                            {isSelected && <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />}
+                            <span className="font-medium truncate">{option.text}</span>
+                          </div>
+                          <span className="font-black text-primary text-[11px] flex-shrink-0 ml-2">{Math.round(p)}%</span>
+                        </div>
+                      </button>
+                    );
                   })}</div>
+                  {userVote !== null && !isShared && (
+                    <p className="text-[9px] text-muted-foreground text-center font-bold uppercase tracking-widest">Tap your choice again to remove vote · Tap another to change</p>
+                  )}
                 </div>
               )}
               {allImages.length > 0 && !settings.isFreeMode && (

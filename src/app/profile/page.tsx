@@ -42,7 +42,8 @@ import {
   Globe,
   Users,
   EyeOff,
-  Smartphone
+  Smartphone,
+  Film
 } from "lucide-react";
 import Link from "next/link";
 import { usePosts } from "@/context/PostContext";
@@ -188,6 +189,10 @@ export default function MyProfilePage() {
     return posts.filter(p => p.user.username === currentUser.username);
   }, [posts, currentUser?.username]);
 
+  const myVideoPosts = useMemo(() => {
+    return myPosts.filter(p => !!p.videoUrl);
+  }, [myPosts]);
+
   const postedImages = useMemo(() => {
     const list: string[] = [];
     myPosts.forEach(p => {
@@ -287,10 +292,20 @@ export default function MyProfilePage() {
             <Tabs defaultValue="all" className="w-full mt-2">
               <TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0">
                 <TabsTrigger value="all" className="flex-1 font-bold text-sm">Posts</TabsTrigger>
+                <TabsTrigger value="reels" className="flex-1 font-bold text-sm flex items-center gap-1.5"><Film className="h-3.5 w-3.5" />Reels</TabsTrigger>
                 <TabsTrigger value="music" className="flex-1 font-bold text-sm">Music</TabsTrigger>
                 <TabsTrigger value="media" className="flex-1 font-bold text-sm">Media</TabsTrigger>
               </TabsList>
               <TabsContent value="all" className="p-4 space-y-4">{myPosts.length > 0 ? myPosts.map(post => <PostCard key={post.$id} {...post} />) : <div className="py-20 text-center opacity-40"><p className="font-bold">No active vibes</p></div>}</TabsContent>
+              <TabsContent value="reels" className="p-4 space-y-4">
+                {myVideoPosts.length > 0 ? myVideoPosts.map(post => <PostCard key={post.$id} {...post} />) : (
+                  <div className="py-20 text-center opacity-40 flex flex-col items-center gap-3">
+                    <Film className="h-10 w-10" />
+                    <p className="font-bold">No video posts yet</p>
+                    <p className="text-sm">Upload a video post to see it here</p>
+                  </div>
+                )}
+              </TabsContent>
               <TabsContent value="music" className="p-4 space-y-8">{userSongs.length > 0 ? (<div className="space-y-3">{userSongs.map(song => (<div key={song.id} className="flex items-center justify-between p-3 bg-secondary/20 rounded-2xl hover:bg-secondary/40 transition-all group"><div className="flex items-center gap-4"><div className="relative h-12 w-12 rounded-xl overflow-hidden shadow-lg">{!settings.isFreeMode ? <Image src={song.cover} alt="Song" fill className="object-cover" /> : <div className="absolute inset-0 bg-secondary/40 flex items-center justify-center"><MusicIcon className="h-5 w-5 text-muted-foreground/40" /></div>}</div><div><p className="font-bold text-sm">{song.title}</p><p className="text-[10px] text-muted-foreground uppercase font-black">{song.artist}</p></div></div><Button variant="ghost" size="icon" className="rounded-full text-primary opacity-0 group-hover:opacity-100 transition-opacity"><Play className="h-4 w-4 fill-current" /></Button></div>))}</div>) : <p className="text-center text-sm opacity-40 italic py-10">No songs published yet.</p>}</TabsContent>
               <TabsContent value="media" className="p-4"><div className="grid grid-cols-3 gap-2">{postedImages.map((url, i) => (<div key={i} onClick={() => !settings.isFreeMode && setSelectedImageUrl(url)} className={cn("aspect-square relative rounded-xl overflow-hidden shadow-lg", !settings.isFreeMode ? "cursor-pointer hover:scale-[1.02] transition-transform" : "bg-secondary/20 flex items-center justify-center")}> {!settings.isFreeMode ? <Image src={url} alt="Shared" fill className="object-cover" /> : <ImageIcon className="h-6 w-6 text-muted-foreground/20" />}</div>))}{postedImages.length === 0 && <p className="col-span-3 text-center text-xs opacity-40 py-10">No images shared in the network.</p>}</div></TabsContent>
             </Tabs>

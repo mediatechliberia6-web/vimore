@@ -237,9 +237,9 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       }
     } else {
       setMediaType('image');
-      setStagedFiles(prev => [...prev, ...fileArray].slice(0, 10));
+      setStagedFiles(prev => [...prev, ...fileArray].slice(0, 6));
       const urls = fileArray.map(file => URL.createObjectURL(file));
-      setSelectedMedia(prev => [...prev, ...urls].slice(0, 10));
+      setSelectedMedia(prev => [...prev, ...urls].slice(0, 6));
     }
     setSelectedTheme(backgroundThemes[0]);
     setShowThemeSelector(false);
@@ -348,7 +348,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   };
 
   const handleAddPollOption = () => {
-    if (pollOptions.length < 4) {
+    if (pollOptions.length < 6) {
       setPollOptions([...pollOptions, ""]);
     }
   };
@@ -509,9 +509,9 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                     )}
                   </div>
                 ))}
-                {pollOptions.length < 4 && (
+                {pollOptions.length < 6 && (
                   <Button variant="ghost" className="w-full h-11 border-2 border-dashed border-primary/10 rounded-xl text-primary font-black uppercase text-[10px] tracking-widest gap-2" onClick={handleAddPollOption}>
-                    <Plus className="h-4 w-4" /> Add Pulse Option
+                    <Plus className="h-4 w-4" /> Add Pulse Option ({pollOptions.length}/6)
                   </Button>
                 )}
               </div>
@@ -594,11 +594,11 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           )}
 
           <div className="border-t mt-4">
-            <button onClick={() => fileInputRef.current?.click()} disabled={isPollOpen || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
-              <div className="flex items-center gap-4"><ImageIcon className="h-6 w-6 text-green-500" /><span className="text-base font-medium">Photo</span></div>
+            <button onClick={() => fileInputRef.current?.click()} disabled={isPollOpen || mediaType === 'video' || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
+              <div className="flex items-center gap-4"><ImageIcon className="h-6 w-6 text-green-500" /><span className="text-base font-medium">Photo</span>{mediaType === 'image' && <span className="text-[10px] text-muted-foreground font-bold ml-auto">{selectedMedia.length}/6</span>}</div>
             </button>
-            <button onClick={() => videoInputRef.current?.click()} disabled={isPollOpen || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
-              <div className="flex items-center gap-4"><Video className="h-6 w-6 text-red-500" /><span className="text-base font-medium">Upload Video</span></div>
+            <button onClick={() => videoInputRef.current?.click()} disabled={isPollOpen || mediaType === 'image' || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
+              <div className="flex items-center gap-4"><Video className="h-6 w-6 text-red-500" /><span className="text-base font-medium">Upload Video</span><span className="text-[10px] text-muted-foreground font-bold ml-auto">1 max</span></div>
             </button>
             <button onClick={() => toggleAction('poll')} disabled={selectedMedia.length > 0 || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
               <div className="flex items-center gap-4"><ListTodo className="h-6 w-6 text-purple-500" /><span className="text-base font-medium">Create Poll</span></div>

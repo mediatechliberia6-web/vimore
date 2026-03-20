@@ -50,7 +50,7 @@ function MessagePickerSheet({
   onClose: () => void;
   onBack: () => void;
 }) {
-  const { connections, sendChatMessage, incrementShareCount } = usePosts();
+  const { connections, sendChatMessage, incrementShareCount, friendUsernames } = usePosts();
   const { triggerHaptic } = useMusic();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
@@ -62,10 +62,11 @@ function MessagePickerSheet({
       connections.filter(
         (c) =>
           !("isGroup" in c && c.isGroup) &&
+          friendUsernames.has(c.username) &&
           (c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             c.username.toLowerCase().includes(searchQuery.toLowerCase()))
       ),
-    [connections, searchQuery]
+    [connections, searchQuery, friendUsernames]
   );
 
   const handleSend = async (recipientId: string, recipientName: string) => {
@@ -148,7 +149,10 @@ function MessagePickerSheet({
             );
           })}
           {filteredConnections.length === 0 && (
-            <p className="text-center text-white/30 py-10 text-sm">No connections found</p>
+            <div className="flex flex-col items-center gap-2 py-10">
+              <p className="text-center text-white/30 text-sm">No friends found</p>
+              <p className="text-center text-white/20 text-xs">You can only share to friends</p>
+            </div>
           )}
         </div>
         {sentTo.size > 0 && (
