@@ -9,6 +9,7 @@ const dictionaryRaw = {
   en: {
     nav_home: "Home",
     nav_explore: "Explore",
+    nav_reels: "Reels",
     nav_music: "Music",
     nav_notifications: "Notifications",
     nav_messages: "Messages",
@@ -244,6 +245,7 @@ const dictionaryRaw = {
   es: {
     nav_home: "Inicio",
     nav_explore: "Explorar",
+    nav_reels: "Reels",
     nav_music: "Música",
     nav_notifications: "Notificaciones",
     nav_messages: "Mensajes",
@@ -479,6 +481,7 @@ const dictionaryRaw = {
   fr: {
     nav_home: "Accueil",
     nav_explore: "Explorer",
+    nav_reels: "Reels",
     nav_music: "Musique",
     nav_notifications: "Notifications",
     nav_messages: "Messages",
@@ -714,6 +717,7 @@ const dictionaryRaw = {
   pt: {
     nav_home: "Início",
     nav_explore: "Explorar",
+    nav_reels: "Reels",
     nav_music: "Música",
     nav_notifications: "Notificações",
     nav_messages: "Mensagens",
@@ -949,6 +953,7 @@ const dictionaryRaw = {
   ar: {
     nav_home: "الرئيسية",
     nav_explore: "استكشاف",
+    nav_reels: "ريلز",
     nav_music: "موسيقى",
     nav_notifications: "إشعارات",
     nav_messages: "رسائل",
@@ -1184,6 +1189,7 @@ const dictionaryRaw = {
   zh: {
     nav_home: "首页",
     nav_explore: "探索",
+    nav_reels: "短视频",
     nav_music: "音乐",
     nav_notifications: "通知",
     nav_messages: "消息",

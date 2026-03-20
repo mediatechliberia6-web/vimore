@@ -7,6 +7,7 @@ import {
   Users, 
   Search, 
   Music2,
+  Film,
   Coins,
   Gem, 
   Star,
@@ -60,6 +61,7 @@ export function SubHeader() {
   const navItems: { icon: any; label: string; id: string; href: string; category: PulseCategory }[] = [
     { icon: Home, label: t('sub_home'), id: "home", href: "/", category: "HOME" },
     { icon: Users, label: t('sub_friends'), id: "friends", href: "/friends", category: "FRIENDS" },
+    { icon: Film, label: t('nav_reels'), id: "reels", href: "/reels", category: "HOME" },
     { icon: Music2, label: t('sub_music'), id: "music", href: "/music", category: "MUSIC" },
   ];
 

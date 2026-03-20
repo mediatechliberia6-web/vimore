@@ -26,7 +26,8 @@ import {
   UserCog,
   BookOpen,
   FileText,
-  Scale
+  Scale,
+  Film
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -64,6 +65,7 @@ export default function MenuPage() {
 
   const menuGrid: { label: string; icon: any; color: string; bg: string; href: string; badge?: number; category?: PulseCategory; isHidden?: boolean }[] = [
     { label: t('menu_home_feed'), icon: Home, color: "text-primary", bg: "bg-primary/10", href: "/", category: "HOME" },
+    { label: t('nav_reels'), icon: Film, color: "text-rose-500", bg: "bg-rose-50", href: "/reels" },
     { label: t('menu_signals'), icon: Bell, color: "text-red-500", bg: "bg-red-50", href: "/notifications", badge: unreadCount },
     { label: t('menu_music_hub'), icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music", category: "MUSIC" },
     { label: t('menu_currency_hub'), icon: Coins, color: "text-amber-500", bg: "bg-amber-50", href: "/currency" },

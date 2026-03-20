@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, MessageCircle, PlusSquare, Compass, Menu, Music2, Bell, Activity } from "lucide-react";
+import { Home, User, MessageCircle, PlusSquare, Compass, Menu, Music2, Bell, Activity, Film } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useNotifications, PulseCategory } from "@/context/NotificationContext";
@@ -30,6 +30,7 @@ export function MainNav() {
   const navItems: { icon: any; label: string; href: string; badge?: number; category?: PulseCategory; isHidden?: boolean }[] = [
     { icon: Home, label: t('nav_home'), href: "/", category: "HOME" },
     { icon: Compass, label: t('nav_explore'), href: "/explore" },
+    { icon: Film, label: t('nav_reels'), href: "/reels" },
     { icon: Music2, label: t('nav_music'), href: "/music", category: "MUSIC", isHidden: !settings.isMusicEnabled },
     { icon: Bell, label: t('nav_notifications'), href: "/notifications", badge: unreadCount },
     { icon: MessageCircle, label: t('nav_messages'), href: "/messages", category: "MESSAGES" },

@@ -162,6 +162,7 @@ export const MOCK_POSTS: Post[] = [
     shares: 412,
     views: 28900,
     image: 'https://picsum.photos/seed/post002/800/600',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
   },
   {
     $id: 'post_003',
@@ -174,6 +175,7 @@ export const MOCK_POSTS: Post[] = [
     shares: 889,
     views: 41000,
     image: 'https://picsum.photos/seed/post003/800/600',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
   },
   {
     $id: 'post_004',
@@ -186,6 +188,7 @@ export const MOCK_POSTS: Post[] = [
     shares: 1450,
     views: 88000,
     image: 'https://picsum.photos/seed/post004/800/600',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
   },
   {
     $id: 'post_005',
@@ -198,6 +201,7 @@ export const MOCK_POSTS: Post[] = [
     shares: 670,
     views: 32000,
     image: 'https://picsum.photos/seed/post005/800/600',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
   },
   {
     $id: 'post_006',
@@ -209,6 +213,7 @@ export const MOCK_POSTS: Post[] = [
     comments: 95,
     shares: 380,
     views: 19500,
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
   },
   {
     $id: 'post_007',
