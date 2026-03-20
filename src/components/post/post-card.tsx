@@ -27,6 +27,8 @@ import {
   PlusSquare,
   Play,
   Video,
+  Volume2,
+  VolumeX,
   Gift,
   Lock,
   Zap,
@@ -143,6 +145,67 @@ interface PostCardProps {
   isBoosted?: boolean;
   boostTargetViews?: number;
   boostCurrentViews?: number;
+}
+
+function FeedVideo({ videoUrl, postId, isShared }: { videoUrl: string; postId: string; isShared: boolean }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            video.play().catch(() => {
+              video.muted = true;
+              setIsMuted(true);
+              video.play().catch(() => {});
+            });
+          } else {
+            video.pause();
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, [videoUrl]);
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const video = videoRef.current;
+    if (!video) return;
+    setIsMuted(prev => {
+      video.muted = !prev;
+      return !prev;
+    });
+  };
+
+  return (
+    <div
+      className={cn("relative mt-2 rounded-lg overflow-hidden bg-black cursor-pointer", isShared ? "-mx-1" : "-mx-3 sm:mx-0")}
+      onClick={() => router.push(`/reels?id=${postId}`)}
+    >
+      <video
+        ref={videoRef}
+        src={videoUrl}
+        className="w-full h-auto"
+        playsInline
+        loop
+        muted={isMuted}
+      />
+      <button
+        onClick={toggleMute}
+        className="absolute bottom-2 right-2 p-1.5 bg-black/50 rounded-full text-white z-10 backdrop-blur-sm transition-opacity"
+      >
+        {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+      </button>
+    </div>
+  );
 }
 
 export function PostCard(props: PostCardProps) {
@@ -367,10 +430,7 @@ export function PostCard(props: PostCardProps) {
                 </div>
               )}
               {videoUrl && !settings.isFreeMode && (
-                <div className={cn("relative mt-2 rounded-lg overflow-hidden bg-black", isShared ? "-mx-1" : "-mx-3 sm:mx-0")} onClick={() => router.push(`/reels?id=${$id}`)}>
-                  <video src={videoUrl} className="w-full h-auto" playsInline muted={isShared} autoPlay={isShared} loop={isShared} />
-                  {!isShared && <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/20"><Play className="h-8 w-8 text-white fill-current" /></div>}
-                </div>
+                <FeedVideo videoUrl={videoUrl} postId={$id} isShared={isShared} />
               )}
             </>
           )}

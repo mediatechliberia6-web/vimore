@@ -8,7 +8,6 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import { MusicPlayer } from "@/components/music/music-player";
 import { AlbumDetail } from "@/components/music/album-detail";
 import { PlaylistDetail } from "@/components/music/playlist-detail";
-import { CaptureStudio } from "@/components/reels/capture-studio";
 import { AdPortal } from "@/components/ad/ad-portal";
 import { PostPortal } from "@/components/post/post-portal";
 import { ImageViewerPortal } from "@/components/layout/image-viewer-portal";
@@ -82,7 +81,6 @@ export default function RootLayout({
                       <MusicPlayer />
                       <AlbumDetail />
                       <PlaylistDetail />
-                      <CaptureStudio />
                       <AdPortal />
                       <PostPortal />
                       <ImageViewerPortal />
