@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, startTransition, ReactNode, useMemo, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import {
@@ -513,12 +513,36 @@ export function PostProvider({ children }: { children: ReactNode }) {
       time: 'Just now',
       timestamp: Date.now(),
     };
-    setPostsState(prev => prev.map(p =>
-      p.$id === postId
-        ? { ...p, comments: p.comments + 1, commentNodes: [...(p.commentNodes || []), newComment] }
-        : p
-    ));
     setActiveComments(prev => [...prev, newComment]);
+    startTransition(() => {
+      setPostsState(prev => prev.map(p =>
+        p.$id === postId
+          ? { ...p, comments: p.comments + 1, commentNodes: [...(p.commentNodes || []), newComment] }
+          : p
+      ));
+    });
+  };
+
+  const addReply = async (postId: string, parentId: string, text: string) => {
+    if (!currentUser) return;
+    const newReply: PostComment = {
+      $id: 'reply_' + Date.now(),
+      userId: currentUser.$id,
+      userName: currentUser.name,
+      userAvatar: currentUser.avatar,
+      text,
+      time: 'Just now',
+      timestamp: Date.now(),
+      parentId,
+    };
+    setActiveComments(prev => [...prev, newReply]);
+    startTransition(() => {
+      setPostsState(prev => prev.map(p =>
+        p.$id === postId
+          ? { ...p, commentNodes: [...(p.commentNodes || []), newReply] }
+          : p
+      ));
+    });
   };
 
   const addStory = async (segment: any) => {
@@ -760,7 +784,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     isSubscribed: (u: string) => activeSubscriptions.has(u),
     sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser,
     acceptMessageRequest: async () => {}, declineMessageRequest: async () => {},
-    addComment, addReply: async () => {}, addStory,
+    addComment, addReply, addStory,
     voteOnStoryPoll: async () => {}, voteOnPostPoll: async () => {},
     toggleMuteUser: (u: string) => setMutedUserNames(p => p.includes(u) ? p.filter(x => x !== u) : [...p, u]),
     togglePinPost: async () => {}, archivePost: async () => {},

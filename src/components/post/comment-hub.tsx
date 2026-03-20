@@ -142,7 +142,7 @@ export function CommentHub() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const activePost = useMemo(() => 
-    posts.find(p => p.id === activeCommentPostId), 
+    posts.find(p => p.$id === activeCommentPostId), 
     [posts, activeCommentPostId]
   );
 
@@ -160,7 +160,7 @@ export function CommentHub() {
     
     try {
       if (replyingTo) {
-        await addReply(activeCommentPostId, replyingTo.id, currentText);
+        await addReply(activeCommentPostId, replyingTo.$id, currentText);
       } else {
         await addComment(activeCommentPostId, currentText);
       }

@@ -160,12 +160,16 @@ export default function Home() {
   const organicSorted = useMemo(() => {
     const regular = posts.filter(p => !p.isBoosted);
     regular.forEach(p => { if (!(p.$id in weights.current)) weights.current[p.$id] = Math.random(); });
-    const followingUnseen = regular.filter(p => (followingUsernames.has(p.user.username) || p.user.username === currentUser?.username) && !sessionSeen.current.has(p.$id));
+
+    const freshPosts = regular.filter(p => p.time === 'Just now');
+    const freshIds = new Set(freshPosts.map(p => p.$id));
+
+    const followingUnseen = regular.filter(p => !freshIds.has(p.$id) && (followingUsernames.has(p.user.username) || p.user.username === currentUser?.username) && !sessionSeen.current.has(p.$id));
     const followingUnseenIds = new Set(followingUnseen.map(p => p.$id));
-    const publicUnseen = regular.filter(p => !followingUsernames.has(p.user.username) && p.user.username !== currentUser?.username && !sessionSeen.current.has(p.$id) && !followingUnseenIds.has(p.$id));
-    const seenNodes = regular.filter(p => sessionSeen.current.has(p.$id));
+    const publicUnseen = regular.filter(p => !freshIds.has(p.$id) && !followingUsernames.has(p.user.username) && p.user.username !== currentUser?.username && !sessionSeen.current.has(p.$id) && !followingUnseenIds.has(p.$id));
+    const seenNodes = regular.filter(p => !freshIds.has(p.$id) && sessionSeen.current.has(p.$id));
     const stableSort = (arr: any[]) => [...arr].sort((a, b) => weights.current[a.$id] - weights.current[b.$id]);
-    return [...stableSort(followingUnseen), ...stableSort(publicUnseen), ...stableSort(seenNodes)];
+    return [...freshPosts, ...stableSort(followingUnseen), ...stableSort(publicUnseen), ...stableSort(seenNodes)];
   }, [posts, followingUsernames]);
 
   const feedItems = useMemo(() => {
