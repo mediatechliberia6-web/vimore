@@ -121,25 +121,26 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
     let organicIdx = 0;
     let boostedIdx = 0;
     let campaignIdx = 0;
+    let slotCounter = 0;
 
     while (organicIdx < organicSorted.length) {
       for (let i = 0; i < 2 && organicIdx < organicSorted.length; i++) {
-        result.push({ type: 'reel', data: organicSorted[organicIdx] });
+        result.push({ type: 'reel', data: organicSorted[organicIdx], _key: `slot-${slotCounter++}` });
         organicIdx++;
 
         // Inject video campaigns at specific slots
         if (videoCampaigns.length > 0 && (organicIdx === 1 || organicIdx % 8 === 0)) {
-          result.push({ type: 'reel', data: videoCampaigns[campaignIdx % videoCampaigns.length] });
+          result.push({ type: 'reel', data: videoCampaigns[campaignIdx % videoCampaigns.length], _key: `slot-${slotCounter++}` });
           campaignIdx++;
         }
 
         if (organicIdx === 1 || (organicIdx > 1 && organicIdx % 6 === 0)) {
-          result.push({ type: 'ad', id: `ad-reel-${organicIdx}` });
+          result.push({ type: 'ad', id: `ad-reel-${organicIdx}`, _key: `slot-${slotCounter++}` });
         }
       }
 
       if (boostedIdx < boosted.length) {
-        result.push({ type: 'reel', data: boosted[boostedIdx] });
+        result.push({ type: 'reel', data: boosted[boostedIdx], _key: `slot-${slotCounter++}` });
         boostedIdx++;
       }
     }
@@ -221,7 +222,7 @@ export function VibeStream({ activeTab }: { activeTab: ReelTab }) {
       {reelsWithAds.length > 0 ? (
         <>
           {reelsWithAds.map((item) => (
-            <div key={item.type === 'ad' ? item.id : item.data.id} data-node-id={item.type === 'ad' ? item.id : item.data.id} className="snap-start h-[100dvh] w-full relative">
+            <div key={item._key} data-node-id={item.type === 'ad' ? item.id : item.data.id} className="snap-start h-[100dvh] w-full relative">
               {item.type === 'ad' ? (
                 <NativeAdNode type="reel" isActive={activeReelId === item.id} />
               ) : (

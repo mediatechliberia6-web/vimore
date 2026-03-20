@@ -516,6 +516,28 @@ export default function AdminDashboard() {
           )}
         </div>
       </main>
+      <nav className="fixed bottom-0 left-0 right-0 md:hidden z-[200] bg-card/95 backdrop-blur-3xl border-t border-border safe-area-bottom">
+        <div className="flex overflow-x-auto scrollbar-hide py-2 px-2 gap-1">
+          {availableTabs.map((tab) => {
+            const { label, icon: Icon } = TABS_DATA[tab];
+            const isTabActive = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => { triggerHaptic(5); setActiveTab(tab); }}
+                className={cn(
+                  "flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all shrink-0 min-w-[56px]",
+                  isTabActive ? "bg-primary text-white shadow-lg" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Icon className="h-5 w-5" />
+                <span className="text-[8px] font-black uppercase tracking-wide leading-none">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
       {selectedReceipt && (
         <div className="fixed inset-0 z-[300] bg-black/95 backdrop-blur-3xl flex flex-col items-center justify-center p-6 animate-in fade-in duration-300">
           <Button variant="ghost" size="icon" className="absolute top-6 right-6 text-white bg-white/10 rounded-full" onClick={() => setSelectedReceipt(null)}><X className="h-6 w-6" /></Button>

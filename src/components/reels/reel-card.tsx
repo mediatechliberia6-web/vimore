@@ -68,7 +68,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
   const { toast } = useToast();
   
   const [isMuted, setIsMuted] = useState(false);
-  const [isManuallyPaused, setIsManuallyPaused] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
@@ -78,9 +78,15 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
   const [isShareHubOpen, setIsShareHubOpen] = useState(false);
 
   useEffect(() => {
+    if (!isActive) {
+      setIsPlaying(false);
+    }
+  }, [isActive]);
+
+  useEffect(() => {
     const video = videoRef.current;
     if (!video || !videoUrl || settings.isFreeMode) return;
-    if (isActive && !isManuallyPaused) {
+    if (isPlaying) {
       video.currentTime = 0;
       const playPromise = video.play();
       if (playPromise !== undefined) {
@@ -91,26 +97,24 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
       }
     } else {
       video.pause();
-      if (!isActive) {
-        video.currentTime = 0;
-        setIsManuallyPaused(false);
-      }
+      video.currentTime = 0;
     }
-  }, [isActive, videoUrl, settings.isFreeMode, isManuallyPaused]);
+  }, [isPlaying, videoUrl, settings.isFreeMode]);
+
+  const handleStartPlay = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    triggerHaptic(10);
+    setIsMuted(false);
+    setIsPlaying(true);
+  }, [triggerHaptic]);
 
   const handleVideoTap = useCallback(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    if (!isPlaying) return;
     triggerHaptic(5);
-    if (isManuallyPaused) {
-      setIsManuallyPaused(false);
-      setShowPlayPauseIndicator('play');
-    } else {
-      setIsManuallyPaused(true);
-      setShowPlayPauseIndicator('pause');
-    }
+    setIsPlaying(false);
+    setShowPlayPauseIndicator('pause');
     setTimeout(() => setShowPlayPauseIndicator(null), 700);
-  }, [isManuallyPaused, triggerHaptic]);
+  }, [isPlaying, triggerHaptic]);
 
   const toggleLike = () => {
     triggerHaptic(20);
@@ -125,6 +129,7 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!isPlaying) setIsPlaying(true);
     if (!isLiked) toggleLike();
     else {
       triggerHaptic(15);
@@ -199,17 +204,30 @@ export function ReelCard({ id, videoUrl, user, caption, likes, comments, shares,
           </div>
         </div>
       ) : (
-        <video
-          key={videoUrl}
-          ref={videoRef}
-          src={videoUrl}
-          className="h-full w-full object-cover"
-          loop
-          muted={isMuted}
-          playsInline
-          onClick={handleVideoTap}
-          onDoubleClick={handleDoubleClick}
-        />
+        <>
+          <video
+            key={videoUrl}
+            ref={videoRef}
+            src={videoUrl}
+            className="h-full w-full object-cover"
+            loop
+            muted={isMuted}
+            playsInline
+            onClick={handleVideoTap}
+            onDoubleClick={handleDoubleClick}
+          />
+          {!isPlaying && (
+            <button
+              onClick={handleStartPlay}
+              className="absolute inset-0 z-40 flex items-center justify-center"
+              aria-label="Play"
+            >
+              <div className="bg-black/40 backdrop-blur-sm rounded-full p-6 border border-white/20 shadow-2xl animate-in zoom-in duration-300">
+                <Play className="h-14 w-14 text-white fill-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" />
+              </div>
+            </button>
+          )}
+        </>
       )}
 
       {settings.playbackQuality === 'pro-hd' && !settings.isFreeMode && (
