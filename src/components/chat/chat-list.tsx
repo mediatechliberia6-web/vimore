@@ -98,6 +98,14 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
       );
     }
 
+    const getLastMsgTime = (id: string) => {
+      const msgs = chatMessages[id];
+      if (!msgs || msgs.length === 0) return -1;
+      const lastId = msgs[msgs.length - 1].$id || "";
+      const ts = parseInt(lastId.split("_").pop() || "0", 10);
+      return isNaN(ts) ? msgs.length : ts;
+    };
+
     const sorted = list.sort((a, b) => {
       const aId = (a as any).username || (a as any).$id;
       const bId = (b as any).username || (b as any).$id;
@@ -105,7 +113,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
       const bPinned = pinnedUsernames.has(bId);
       if (aPinned && !bPinned) return -1;
       if (!aPinned && bPinned) return 1;
-      return 0;
+      return getLastMsgTime(bId) - getLastMsgTime(aId);
     });
 
     return { sortedChats: sorted, requestCount: requests.length };

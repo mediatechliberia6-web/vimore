@@ -23,6 +23,7 @@ import {
   Plus,
   Volume2,
   Play,
+  Pause,
   Star,
   Zap,
   Languages,
@@ -35,6 +36,8 @@ import {
   Lock,
   Clock,
   Music as MusicIcon,
+  Disc3,
+  ListMusic,
   Trash2,
   Loader2,
   ImageIcon,
@@ -105,7 +108,7 @@ export function InfoNode({ icon: Icon, label, value, colorClass }: { icon: any, 
 
 export default function MyProfilePage() {
   const { currentUser, posts, updateCurrentUser, uploadMedia, triggerHaptic, settings, setSelectedImageUrl, addPost, friendUsernames, followingUsernames, followerUsernames, isLoading } = usePosts();
-  const { currentTrack, isExpanded, userSongs } = useMusic();
+  const { currentTrack, isExpanded, userSongs, userAlbums, userPlaylists, setTrack, playCollection, isPlaying } = useMusic();
   const { toast } = useToast();
   const router = useRouter();
   
@@ -306,7 +309,156 @@ export default function MyProfilePage() {
                   </div>
                 )}
               </TabsContent>
-              <TabsContent value="music" className="p-4 space-y-8">{userSongs.length > 0 ? (<div className="space-y-3">{userSongs.map(song => (<div key={song.id} className="flex items-center justify-between p-3 bg-secondary/20 rounded-2xl hover:bg-secondary/40 transition-all group"><div className="flex items-center gap-4"><div className="relative h-12 w-12 rounded-xl overflow-hidden shadow-lg">{!settings.isFreeMode ? <Image src={song.cover} alt="Song" fill className="object-cover" /> : <div className="absolute inset-0 bg-secondary/40 flex items-center justify-center"><MusicIcon className="h-5 w-5 text-muted-foreground/40" /></div>}</div><div><p className="font-bold text-sm">{song.title}</p><p className="text-[10px] text-muted-foreground uppercase font-black">{song.artist}</p></div></div><Button variant="ghost" size="icon" className="rounded-full text-primary opacity-0 group-hover:opacity-100 transition-opacity"><Play className="h-4 w-4 fill-current" /></Button></div>))}</div>) : <p className="text-center text-sm opacity-40 italic py-10">No songs published yet.</p>}</TabsContent>
+              <TabsContent value="music" className="pb-8">
+                {(userSongs.length === 0 && userAlbums.length === 0 && userPlaylists.length === 0) ? (
+                  <div className="py-20 text-center flex flex-col items-center gap-3 opacity-40">
+                    <MusicIcon className="h-12 w-12" />
+                    <p className="font-bold">No music published yet</p>
+                    <p className="text-xs">Upload tracks or albums to see them here</p>
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    {userSongs.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 px-4 pt-5 pb-3">
+                          <MusicIcon className="h-4 w-4 text-primary" />
+                          <h3 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Songs</h3>
+                          <span className="text-[10px] font-bold text-primary/60 ml-auto">{userSongs.length} tracks</span>
+                        </div>
+                        <div className="px-4 space-y-2">
+                          {userSongs.map((song, idx) => {
+                            const isActive = currentTrack?.id === song.id;
+                            return (
+                              <button
+                                key={song.id}
+                                onClick={() => playCollection(userSongs, idx)}
+                                className={cn(
+                                  "w-full flex items-center gap-3 p-3 rounded-2xl transition-all group text-left",
+                                  isActive
+                                    ? "bg-primary/10 shadow-inner shadow-primary/5"
+                                    : "bg-secondary/30 hover:bg-secondary/60"
+                                )}
+                              >
+                                <div className="relative h-12 w-12 flex-shrink-0">
+                                  <div className={cn(
+                                    "h-12 w-12 rounded-xl overflow-hidden shadow-md transition-all",
+                                    isActive && "ring-2 ring-primary shadow-[0_0_12px_rgba(153,64,229,0.5)]"
+                                  )}>
+                                    {!settings.isFreeMode ? (
+                                      <img src={song.cover} alt={song.title} className="h-full w-full object-cover" />
+                                    ) : (
+                                      <div className="h-full w-full bg-primary/10 flex items-center justify-center">
+                                        <MusicIcon className="h-5 w-5 text-primary/40" />
+                                      </div>
+                                    )}
+                                  </div>
+                                  {isActive && isPlaying && (
+                                    <div className="absolute inset-0 flex items-end justify-center gap-[2px] pb-1.5 rounded-xl bg-black/30">
+                                      {[1, 2, 3, 4].map((i) => (
+                                        <div
+                                          key={i}
+                                          className="w-[3px] bg-white rounded-full animate-bounce"
+                                          style={{ height: `${8 + (i % 3) * 4}px`, animationDelay: `${i * 0.1}s`, animationDuration: "0.6s" }}
+                                        />
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={cn("font-bold text-sm truncate", isActive && "text-primary")}>{song.title}</p>
+                                  <p className="text-[11px] text-muted-foreground font-bold truncate">{song.artist}</p>
+                                  {song.streams && (
+                                    <p className="text-[9px] text-muted-foreground/60 uppercase font-black mt-0.5">{song.streams} streams</p>
+                                  )}
+                                </div>
+                                <div className={cn(
+                                  "h-9 w-9 rounded-full flex items-center justify-center transition-all flex-shrink-0",
+                                  isActive ? "bg-primary text-white shadow-lg shadow-primary/30" : "bg-primary/10 text-primary opacity-0 group-hover:opacity-100"
+                                )}>
+                                  {isActive && isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {userAlbums.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 px-4 pb-3">
+                          <Disc3 className="h-4 w-4 text-violet-500" />
+                          <h3 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Albums</h3>
+                          <span className="text-[10px] font-bold text-violet-500/60 ml-auto">{userAlbums.length} albums</span>
+                        </div>
+                        <div className="flex gap-3 overflow-x-auto pb-2 px-4 scrollbar-hide">
+                          {userAlbums.map((album) => (
+                            <button
+                              key={album.id}
+                              onClick={() => playCollection(album.songs)}
+                              className="flex-shrink-0 w-36 group text-left"
+                            >
+                              <div className="relative h-36 w-36 rounded-2xl overflow-hidden shadow-lg mb-2 group-hover:shadow-xl transition-all group-active:scale-95">
+                                {!settings.isFreeMode ? (
+                                  <img src={album.cover} alt={album.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                ) : (
+                                  <div className="h-full w-full bg-violet-500/10 flex items-center justify-center">
+                                    <Disc3 className="h-10 w-10 text-violet-400/40" />
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <div className="h-11 w-11 bg-white rounded-full flex items-center justify-center shadow-xl">
+                                    <Play className="h-5 w-5 text-primary fill-current ml-0.5" />
+                                  </div>
+                                </div>
+                              </div>
+                              <p className="font-black text-sm truncate">{album.title}</p>
+                              <p className="text-[10px] text-muted-foreground font-bold">{album.tracks} tracks · {album.year}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {userPlaylists.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 px-4 pb-3">
+                          <ListMusic className="h-4 w-4 text-emerald-500" />
+                          <h3 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Playlists</h3>
+                          <span className="text-[10px] font-bold text-emerald-500/60 ml-auto">{userPlaylists.length} lists</span>
+                        </div>
+                        <div className="px-4 space-y-2">
+                          {userPlaylists.map((pl) => (
+                            <button
+                              key={pl.id}
+                              onClick={() => playCollection(pl.songs)}
+                              className="w-full flex items-center gap-3 p-3 bg-secondary/30 hover:bg-secondary/60 rounded-2xl transition-all group text-left"
+                            >
+                              <div className="relative h-14 w-14 rounded-xl overflow-hidden shadow-md flex-shrink-0">
+                                {!settings.isFreeMode ? (
+                                  <img src={pl.cover} alt={pl.title} className="h-full w-full object-cover" />
+                                ) : (
+                                  <div className="h-full w-full bg-emerald-500/10 flex items-center justify-center">
+                                    <ListMusic className="h-5 w-5 text-emerald-500/40" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-black text-sm truncate">{pl.title}</p>
+                                <p className="text-[11px] text-muted-foreground font-bold">{pl.songs.length} songs</p>
+                                {pl.description && <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">{pl.description}</p>}
+                              </div>
+                              <div className="h-9 w-9 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                <Play className="h-4 w-4 fill-current" />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
               <TabsContent value="media" className="p-4"><div className="grid grid-cols-3 gap-2">{postedImages.map((url, i) => (<div key={i} onClick={() => !settings.isFreeMode && setSelectedImageUrl(url)} className={cn("aspect-square relative rounded-xl overflow-hidden shadow-lg", !settings.isFreeMode ? "cursor-pointer hover:scale-[1.02] transition-transform" : "bg-secondary/20 flex items-center justify-center")}> {!settings.isFreeMode ? <Image src={url} alt="Shared" fill className="object-cover" /> : <ImageIcon className="h-6 w-6 text-muted-foreground/20" />}</div>))}{postedImages.length === 0 && <p className="col-span-3 text-center text-xs opacity-40 py-10">No images shared in the network.</p>}</div></TabsContent>
             </Tabs>
           </div>

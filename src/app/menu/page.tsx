@@ -49,12 +49,18 @@ import { NativeAdNode } from "@/components/ad/native-ad-node";
 export default function MenuPage() {
   const { currentTrack, isExpanded } = useMusic();
   const { unreadCount, categoryPulses, clearPulse } = useNotifications();
-  const { currentUser, triggerHaptic, logout } = usePosts();
+  const { currentUser, triggerHaptic, logout, chatMessages, receivedRequestUsernames } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   const isPlayerActive = currentTrack && !isExpanded;
 
   const isAdmin = currentUser?.role && currentUser.role !== 'USER';
+
+  const unseenMsgCount = Object.values(chatMessages || {}).reduce((total, msgs) => {
+    return total + msgs.filter((m: any) => m.sender === "them" && m.status !== "read").length;
+  }, 0);
+
+  const pendingFriendRequests = receivedRequestUsernames?.size || 0;
 
   const handleLogout = async () => {
     triggerHaptic(100);
@@ -63,16 +69,16 @@ export default function MenuPage() {
     }
   };
 
-  const menuGrid: { label: string; icon: any; color: string; bg: string; href: string; badge?: number; category?: PulseCategory; isHidden?: boolean }[] = [
+  const menuGrid: { label: string; icon: any; color: string; bg: string; href: string; badge?: number; category?: PulseCategory; isHidden?: boolean; dotOnly?: boolean }[] = [
     { label: t('menu_home_feed'), icon: Home, color: "text-primary", bg: "bg-primary/10", href: "/", category: "HOME" },
-    { label: t('nav_reels'), icon: Film, color: "text-rose-500", bg: "bg-rose-50", href: "/reels" },
+    { label: t('nav_reels'), icon: Film, color: "text-rose-500", bg: "bg-rose-50", href: "/reels", dotOnly: true },
     { label: t('menu_signals'), icon: Bell, color: "text-red-500", bg: "bg-red-50", href: "/notifications", badge: unreadCount },
-    { label: t('menu_music_hub'), icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music", category: "MUSIC" },
+    { label: t('menu_music_hub'), icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music", dotOnly: true },
     { label: t('menu_currency_hub'), icon: Coins, color: "text-amber-500", bg: "bg-amber-50", href: "/currency" },
     { label: t('menu_earnings_hub'), icon: TrendingUp, color: "text-green-500", bg: "bg-green-50", href: "/earnings" },
     { label: t('menu_star_network'), icon: Star, color: "text-yellow-500", bg: "bg-yellow-50", href: "/referrals" },
-    { label: t('menu_community'), icon: Users, color: "text-emerald-500", bg: "bg-emerald-50", href: "/friends", category: "FRIENDS" },
-    { label: t('menu_messages'), icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages", category: "MESSAGES" },
+    { label: t('menu_community'), icon: Users, color: "text-emerald-500", bg: "bg-emerald-50", href: "/friends", badge: pendingFriendRequests },
+    { label: t('menu_messages'), icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages", badge: unseenMsgCount },
     { label: t('menu_how_it_works'), icon: BookOpen, color: "text-rose-500", bg: "bg-rose-50", href: "/how-it-works" },
     { label: t('menu_command_core'), icon: Activity, color: "text-indigo-500", bg: "bg-indigo-50", href: "/admin", isHidden: !isAdmin },
   ];
@@ -149,7 +155,7 @@ export default function MenuPage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             {menuGrid.filter(i => !i.isHidden).map((item) => {
-              const displayBadge = item.category ? categoryPulses[item.category] : item.badge;
+              const displayBadge = item.badge ?? (item.category ? categoryPulses[item.category] : 0);
               
               return (
                 <Link 
@@ -162,7 +168,10 @@ export default function MenuPage() {
                     <item.icon className={cn("h-6 w-6", item.color)} />
                   </div>
                   <span className="font-bold text-[15px] tracking-tight text-foreground">{item.label}</span>
-                  {displayBadge && displayBadge > 0 && (
+                  {item.dotOnly && (
+                    <div className="absolute top-4 right-4 h-2.5 w-2.5 bg-primary rounded-full shadow-[0_0_8px_rgba(153,64,229,0.8)]" />
+                  )}
+                  {!item.dotOnly && displayBadge > 0 && (
                     <div className="absolute top-4 right-4 bg-primary text-white text-[10px] font-black h-6 w-6 min-w-[24px] rounded-full flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
                       {displayBadge > 9 ? '9+' : displayBadge}
                     </div>

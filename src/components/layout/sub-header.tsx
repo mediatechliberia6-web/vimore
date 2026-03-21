@@ -52,9 +52,10 @@ const PulseBadge = ({ count }: { count: number }) => {
 export function SubHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { setSearchOpen, currentUser = { name: "Guest", avatar: "", goldBalance: 0, diamondBalance: 0, starBalance: 0, isVerified: false }, settings, updateSettings } = usePosts();
+  const { setSearchOpen, currentUser = { name: "Guest", avatar: "", goldBalance: 0, diamondBalance: 0, starBalance: 0, isVerified: false }, settings, updateSettings, receivedRequestUsernames } = usePosts();
   const { triggerHaptic } = useMusic();
   const { categoryPulses = { HOME: 0, FRIENDS: 0, MUSIC: 0, MESSAGES: 0 }, clearPulse } = useNotifications();
+  const pendingRequests = receivedRequestUsernames?.size || 0;
   const { t } = useTranslation();
   const { toast } = useToast();
 
@@ -92,6 +93,9 @@ export function SubHeader() {
             const isActive = isLinkActive || isHomeActive;
             const pulseCount = categoryPulses?.[item.category] || 0;
 
+            const showDot = (item.id === "reels" || item.id === "music");
+            const friendBadge = item.id === "friends" ? pendingRequests : 0;
+
             return (
               <Link
                 key={item.id}
@@ -106,7 +110,10 @@ export function SubHeader() {
               >
                 <div className="relative">
                   <item.icon className={cn("w-5 h-5", isActive ? "scale-110" : "group-hover:scale-110 transition-transform")} />
-                  {item.category === 'FRIENDS' && pulseCount > 0 && <PulseBadge count={pulseCount} />}
+                  {showDot && (
+                    <div className="absolute -top-0.5 -right-0.5 h-2 w-2 bg-primary rounded-full shadow-[0_0_6px_rgba(153,64,229,0.9)]" />
+                  )}
+                  {friendBadge > 0 && <PulseBadge count={friendBadge} />}
                 </div>
                 <span className="hidden sm:inline text-sm">{item.label}</span>
                 {isActive && (

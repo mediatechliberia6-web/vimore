@@ -11,6 +11,7 @@ import { useNotifications } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
+import { useMemo } from "react";
 
 const PulseBadge = ({ count }: { count: number }) => {
   if (!count || count <= 0) return null;
@@ -23,8 +24,15 @@ const PulseBadge = ({ count }: { count: number }) => {
 
 export function Header() {
   const { unreadCount = 0, categoryPulses = { MESSAGES: 0, HOME: 0 }, clearPulse } = useNotifications();
-  const { setSearchOpen, currentUser = { name: "Guest", avatar: "" } } = usePosts();
+  const { setSearchOpen, currentUser = { name: "Guest", avatar: "" }, chatMessages } = usePosts();
   const { t } = useTranslation();
+
+  const unseenMsgCount = useMemo(() => {
+    if (!chatMessages) return 0;
+    return Object.values(chatMessages).reduce((total, msgs) => {
+      return total + msgs.filter(m => m.sender === "them" && m.status !== "read").length;
+    }, 0);
+  }, [chatMessages]);
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-primary/10 px-4 py-2 flex items-center justify-between shadow-sm">
@@ -67,10 +75,10 @@ export function Header() {
         </Link>
 
         <Link href="/messages" className="relative group" onClick={() => clearPulse('MESSAGES')}>
-          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
+          <Button variant="ghost" size="icon" className={cn("rounded-full bg-secondary/50 transition-all", unseenMsgCount > 0 && "text-primary bg-primary/5")}>
             <MessageCircle className="h-5 w-5" />
           </Button>
-          <PulseBadge count={categoryPulses.MESSAGES} />
+          <PulseBadge count={unseenMsgCount} />
         </Link>
         
         <Link href="/profile" className="hidden sm:block ml-2 group">
@@ -84,7 +92,7 @@ export function Header() {
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50" aria-label="Open menu">
             <Menu className="h-5 w-5" />
           </Button>
-          <PulseBadge count={(unreadCount || 0) + Object.values(categoryPulses || {}).reduce((a, b) => a + b, 0)} />
+          <PulseBadge count={(unreadCount || 0) + unseenMsgCount + Object.values(categoryPulses || {}).reduce((a, b) => a + b, 0)} />
         </Link>
       </div>
     </header>

@@ -22,6 +22,7 @@ import {
   Film,
   PlusSquare,
   X,
+  Users,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -635,7 +636,7 @@ function ReelItem({
 }
 
 export default function ReelsPage() {
-  const { posts, campaigns, openCommentHub, fetchComments } = usePosts();
+  const { posts, campaigns, openCommentHub, fetchComments, friendUsernames, followingUsernames } = usePosts();
 
   const reels = useMemo(() => posts.filter((p) => p.videoUrl), [posts]);
 
@@ -684,6 +685,16 @@ export default function ReelsPage() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [shareReel, setShareReel] = useState<Post | null>(null);
+  const [reelTab, setReelTab] = useState<"foryou" | "following">("foryou");
+
+  const followingReelFeed = useMemo<ReelFeedItem[]>(() => {
+    const friendSet = new Set([...(friendUsernames || []), ...(followingUsernames || [])]);
+    return reels
+      .filter((r) => friendSet.has(r.user.username))
+      .map((r) => r as ReelFeedItem);
+  }, [reels, friendUsernames, followingUsernames]);
+
+  const activeFeed = reelTab === "following" ? followingReelFeed : reelFeed;
 
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const containerRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -728,7 +739,7 @@ export default function ReelsPage() {
     });
 
     return () => observer.disconnect();
-  }, [reelFeed.length, isMuted]);
+  }, [activeFeed.length, isMuted]);
 
   useEffect(() => {
     const video = videoRefs.current[activeIndex];
@@ -743,7 +754,7 @@ export default function ReelsPage() {
     [openCommentHub, fetchComments]
   );
 
-  if (reelFeed.length === 0) {
+  if (activeFeed.length === 0 && reelTab === "foryou") {
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-4">
         <Link
@@ -770,10 +781,18 @@ export default function ReelsPage() {
             <ArrowLeft className="w-5 h-5 text-white" />
           </Link>
           <div className="flex items-center gap-5 pointer-events-auto">
-            <button className="text-white font-black text-sm pb-0.5 border-b-2 border-white">
+            <button
+              onClick={() => { setReelTab("foryou"); setActiveIndex(0); }}
+              className={cn("font-black text-sm pb-0.5 border-b-2 transition-all", reelTab === "foryou" ? "text-white border-white" : "text-white/40 border-transparent")}
+            >
               For You
             </button>
-            <button className="text-white/50 font-bold text-sm">Following</button>
+            <button
+              onClick={() => { setReelTab("following"); setActiveIndex(0); }}
+              className={cn("font-black text-sm pb-0.5 border-b-2 transition-all", reelTab === "following" ? "text-white border-white" : "text-white/40 border-transparent")}
+            >
+              Following
+            </button>
           </div>
           <div className="w-9" />
         </div>
@@ -783,20 +802,28 @@ export default function ReelsPage() {
         className="h-full w-full overflow-y-scroll snap-y snap-mandatory"
         style={{ scrollbarWidth: "none" }}
       >
-        {reelFeed.map((reel, index) => (
-          <ReelItem
-            key={`${reel.$id}-${index}`}
-            reel={reel}
-            index={index}
-            isMuted={isMuted}
-            isActive={activeIndex === index}
-            onVideoRef={setVideoRef(index)}
-            onContainerRef={setContainerRef(index)}
-            onToggleMute={() => setIsMuted((m) => !m)}
-            onOpenShare={() => !reel.isCampaignReel && setShareReel(reel)}
-            onOpenComment={() => !reel.isCampaignReel && handleOpenComment(reel.$id)}
-          />
-        ))}
+        {activeFeed.length === 0 && reelTab === "following" ? (
+          <div className="h-full flex flex-col items-center justify-center gap-4 text-center px-8">
+            <Users className="w-16 h-16 text-white/20" />
+            <p className="text-white/60 font-bold text-lg">No reels from friends yet</p>
+            <p className="text-white/30 text-sm">Add friends or follow people to see their reels here</p>
+          </div>
+        ) : (
+          activeFeed.map((reel, index) => (
+            <ReelItem
+              key={`${reel.$id}-${index}`}
+              reel={reel}
+              index={index}
+              isMuted={isMuted}
+              isActive={activeIndex === index}
+              onVideoRef={setVideoRef(index)}
+              onContainerRef={setContainerRef(index)}
+              onToggleMute={() => setIsMuted((m) => !m)}
+              onOpenShare={() => !reel.isCampaignReel && setShareReel(reel)}
+              onOpenComment={() => !reel.isCampaignReel && handleOpenComment(reel.$id)}
+            />
+          ))
+        )}
       </div>
 
       {shareReel && (
