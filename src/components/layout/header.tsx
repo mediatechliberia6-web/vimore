@@ -24,7 +24,7 @@ const PulseBadge = ({ count }: { count: number }) => {
 
 export function Header() {
   const { unreadCount = 0, categoryPulses = { MESSAGES: 0, HOME: 0 }, clearPulse } = useNotifications();
-  const { setSearchOpen, currentUser = { name: "Guest", avatar: "" }, chatMessages } = usePosts();
+  const { setSearchOpen, currentUser = { name: "Guest", avatar: "" }, chatMessages, settings } = usePosts();
   const { t } = useTranslation();
 
   const unseenMsgCount = useMemo(() => {
@@ -83,7 +83,7 @@ export function Header() {
         
         <Link href="/profile" className="hidden sm:block ml-2 group">
           <Avatar className="h-9 w-9 border-2 border-primary/10 transition-transform group-hover:scale-105">
-            <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />
+            {!settings?.isFreeMode && <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />}
             <AvatarFallback>{currentUser?.name?.[0] || 'V'}</AvatarFallback>
           </Avatar>
         </Link>

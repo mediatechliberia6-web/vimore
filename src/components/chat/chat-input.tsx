@@ -19,6 +19,7 @@ import {
   Trash2
 } from "lucide-react";
 import { useMusic } from "@/context/MusicContext";
+import { usePosts } from "@/context/PostContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -42,6 +43,7 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const [recordedBlobUrl, setRecordedBlobUrl] = useState<string | null>(null);
   const [isViewOnceEnabled, setIsViewOnceEnabled] = useState(false);
   const { triggerHaptic } = useMusic();
+  const { settings } = usePosts();
   const { toast } = useToast();
   
   const inputRef = useRef<HTMLInputElement>(null);

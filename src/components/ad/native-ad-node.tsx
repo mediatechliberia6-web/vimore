@@ -19,6 +19,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
+import { usePosts } from "@/context/PostContext";
 
 interface NativeAdNodeProps {
   type: "banner" | "standard" | "banner-468";
@@ -43,10 +44,12 @@ const ViMoreAdLogo = () => (
 const NativeAdNodeBase = ({ type, id, isActive }: NativeAdNodeProps) => {
   const { triggerHaptic, triggerDownloadWithAd } = useMusic();
   const { t } = useTranslation();
+  const { settings } = usePosts();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const hasInitialized = useRef(false);
 
   useEffect(() => {
+    if (settings.isFreeMode) return;
     if (typeof window === "undefined" || !iframeRef.current || hasInitialized.current) return;
 
     const iframe = iframeRef.current;
