@@ -389,6 +389,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { checkSession(); }, [checkSession]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const credId = localStorage.getItem('vimore_biometric_cred_id');
+    if (credId) {
+      setSettingsState(prev => ({ ...prev, isHardwareEnrolled: true }));
+    }
+  }, []);
+
   const login = useCallback(async (identifier: string, _p: string) => {
     setIsLoadingState(true);
     await new Promise(r => setTimeout(r, 600));
@@ -871,8 +879,67 @@ export function PostProvider({ children }: { children: ReactNode }) {
     purgeVibeCache: async () => setSeenPostIdsState(new Set()),
     archiveIdentityNode: async () => {},
     boostNode: async () => {},
-    enrollHardwareBiometrics: async () => true,
-    verifyHardwareBiometrics: async () => true,
+    enrollHardwareBiometrics: async (): Promise<boolean> => {
+      if (typeof window === 'undefined' || !window.PublicKeyCredential) return false;
+      try {
+        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        if (!available) return false;
+        const challenge = crypto.getRandomValues(new Uint8Array(32));
+        const userId = crypto.getRandomValues(new Uint8Array(16));
+        const credential = await navigator.credentials.create({
+          publicKey: {
+            challenge,
+            rp: { name: "ViMore", id: window.location.hostname },
+            user: {
+              id: userId,
+              name: currentUserState?.username || "vimore-user",
+              displayName: currentUserState?.name || "ViMore User",
+            },
+            pubKeyCredParams: [
+              { type: "public-key", alg: -7 },
+              { type: "public-key", alg: -257 },
+            ],
+            authenticatorSelection: {
+              authenticatorAttachment: "platform",
+              userVerification: "required",
+              requireResidentKey: false,
+            },
+            timeout: 60000,
+          },
+        }) as PublicKeyCredential | null;
+        if (credential) {
+          const credId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+          localStorage.setItem('vimore_biometric_cred_id', credId);
+          setSettingsState(prev => ({ ...prev, isBiometricActive: true, isHardwareEnrolled: true }));
+          return true;
+        }
+        return false;
+      } catch {
+        return false;
+      }
+    },
+    verifyHardwareBiometrics: async (): Promise<boolean> => {
+      if (typeof window === 'undefined' || !window.PublicKeyCredential) return false;
+      try {
+        const challenge = crypto.getRandomValues(new Uint8Array(32));
+        const credIdBase64 = localStorage.getItem('vimore_biometric_cred_id');
+        const allowCredentials: PublicKeyCredentialDescriptor[] = credIdBase64
+          ? [{ type: "public-key", id: Uint8Array.from(atob(credIdBase64), c => c.charCodeAt(0)), transports: ["internal" as AuthenticatorTransport] }]
+          : [];
+        const credential = await navigator.credentials.get({
+          publicKey: {
+            challenge,
+            timeout: 60000,
+            userVerification: "required",
+            rpId: window.location.hostname,
+            allowCredentials,
+          },
+        });
+        return credential !== null;
+      } catch {
+        return false;
+      }
+    },
   };
 
   return <PostContext.Provider value={value}>{children}</PostContext.Provider>;

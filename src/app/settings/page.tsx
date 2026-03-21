@@ -88,7 +88,7 @@ import { NativeAdNode } from "@/components/ad/native-ad-node";
 import ProfileLoading from "../profile/loading";
 
 export default function SettingsPage() {
-  const { settings, updateSettings, triggerHaptic, currentUser, connections, posts, savedPostIds, activeSubscriptions, cancelSubscription, seenPostIds, archiveIdentityNode, purgeVibeCache, isLoading, logout } = usePosts();
+  const { settings, updateSettings, triggerHaptic, currentUser, connections, posts, savedPostIds, activeSubscriptions, cancelSubscription, seenPostIds, archiveIdentityNode, purgeVibeCache, isLoading, logout, enrollHardwareBiometrics } = usePosts();
   const { currentTrack, isExpanded, downloadedSongIds, userSongs } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -96,6 +96,7 @@ export default function SettingsPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLegacySelectorOpen, setIsLegacySelectorOpen] = useState(false);
   const [legacySearch, setLegacySearch] = useState("");
+  const [isEnrollingBiometric, setIsEnrollingBiometric] = useState(false);
 
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -111,6 +112,33 @@ export default function SettingsPage() {
   const handleUpdate = (data: any) => { 
     triggerHaptic(10); 
     updateSettings(data); 
+  };
+
+  const handleBiometricToggle = async (val: boolean) => {
+    triggerHaptic(10);
+    if (!val) {
+      updateSettings({ isBiometricActive: false });
+      toast({ title: "Biometric Disabled", description: "Messages and Earnings are no longer locked." });
+      return;
+    }
+    if (settings.isHardwareEnrolled) {
+      updateSettings({ isBiometricActive: true });
+      toast({ title: "Biometric Enabled", description: "Messages and Earnings are now protected." });
+      return;
+    }
+    setIsEnrollingBiometric(true);
+    try {
+      const success = await enrollHardwareBiometrics();
+      if (!success) {
+        toast({ variant: "destructive", title: "Enrollment Failed", description: "Device biometric/PIN not available or was denied. Try from Account Settings." });
+      } else {
+        toast({ title: "Biometric Vault Active", description: "Messages and Earnings are now protected by your device." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Enrollment Error", description: "Could not reach device authenticator." });
+    } finally {
+      setIsEnrollingBiometric(false);
+    }
   };
 
   const filteredConnections = useMemo(() => {
@@ -458,14 +486,16 @@ export default function SettingsPage() {
                   "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
                   settings.isBiometricActive ? "bg-green-500 text-white" : "bg-primary/10 text-primary"
                 )}>
-                  <Fingerprint className="h-5 w-5" />
+                  {isEnrollingBiometric ? <Loader2 className="h-5 w-5 animate-spin" /> : <Fingerprint className="h-5 w-5" />}
                 </div>
                 <div className="space-y-0.5">
                   <p className="font-bold text-sm">{t('settings_biometric')}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase font-black">Secure hubs with hardware signature</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-black">
+                    {isEnrollingBiometric ? "Registering device..." : settings.isBiometricActive ? "Messages & Earnings locked" : "Secure hubs with hardware signature"}
+                  </p>
                 </div>
               </div>
-              <Switch checked={settings.isBiometricActive} onCheckedChange={(val) => handleUpdate({ isBiometricActive: val })} />
+              <Switch checked={settings.isBiometricActive} onCheckedChange={handleBiometricToggle} disabled={isEnrollingBiometric} />
             </div>
           </div>
         </section>
