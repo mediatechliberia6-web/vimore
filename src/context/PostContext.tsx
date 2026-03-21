@@ -15,6 +15,9 @@ import {
   MOCK_WITHDRAWALS,
   MOCK_AUDIT_LOGS,
   MOCK_USERS,
+  MOCK_REPORTS,
+  MOCK_TICKETS,
+  MOCK_STAFF,
 } from '@/lib/mock-data';
 
 export interface AppSettings {
@@ -338,6 +341,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [paymentRequests, setPaymentRequests] = useState<any[]>(MOCK_PAYMENT_REQUESTS);
   const [withdrawalHistory, setWithdrawalHistory] = useState<any[]>(MOCK_WITHDRAWALS);
   const [auditLogs, setAuditLogs] = useState<any[]>(MOCK_AUDIT_LOGS);
+  const [reports, setReports] = useState<any[]>(MOCK_REPORTS);
+  const [tickets, setTickets] = useState<any[]>(MOCK_TICKETS);
+  const [staff, setStaff] = useState<any[]>(MOCK_STAFF);
 
   const [likedPostIds, setLikedPostIdsState] = useState<Set<string>>(new Set());
   const [unlikedPostIds, setUnlikedPostIdsState] = useState<Set<string>>(new Set());
@@ -781,8 +787,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl,
     isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId,
     settings, gatewaySettings: OFFICIAL_GATEWAY, callState, stories, campaigns,
-    reports: [], tickets: [], mutedUserNames, connections, clusters, auditLogs,
-    staff: [], adStats: { revenue: 1240, handshakes: 320 },
+    reports, tickets, mutedUserNames, connections, clusters, auditLogs,
+    staff, adStats: { revenue: 1240, handshakes: 320 },
     intelligenceMetrics: { sentiment: 88, velocity: 'HIGH' },
     withdrawalHistory, paymentRequests,
     referralLink: "https://www.vimore.app/join/" + (currentUser?.username || "guest"),
@@ -859,7 +865,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
       setPostsState(prev => prev.map(p => p.$id === id ? { ...p, shares: p.shares + 1 } : p));
     },
     createCluster, addMemberToCluster, leaveCluster, updateCluster,
-    promoteUser: async () => {}, demoteUser: async () => {},
+    promoteUser: async (username: string, role: any) => {
+      setStaff(prev => {
+        const existing = prev.find((s: any) => s.username === username);
+        if (existing) return prev.map((s: any) => s.username === username ? { ...s, role } : s);
+        const user = MOCK_USERS.find(u => u.username === username) || connections.find(c => c.username === username);
+        if (user) return [...prev, { ...user, role }];
+        return prev;
+      });
+    },
+    demoteUser: async (username: string) => {
+      setStaff(prev => prev.filter((s: any) => s.username !== username));
+    },
     addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick: async () => {},
     initiateCall, acceptCall, endCall, refreshAdminData,
     fetchProfileByUsername, fetchComments,
@@ -874,7 +891,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
     recordStoryView: async (id: string) => {
       setStoriesState(prev => prev.map(s => s.$id === id ? { ...s, viewCount: (s.viewCount || 0) + 1 } : s));
     },
-    updateUserIdentity: async () => {}, handleReportAction: async () => {}, handleTicketAction: async () => {},
+    updateUserIdentity: async (userId: string, data: Partial<User>) => {
+      setStaff(prev => prev.map((s: any) => s.$id === userId ? { ...s, ...data } : s));
+    },
+    handleReportAction: async (reportId: string, action: any) => {
+      setReports(prev => prev.map((r: any) => r.$id === reportId ? { ...r, status: action } : r));
+    },
+    handleTicketAction: async (ticketId: string, status: any) => {
+      setTickets(prev => prev.map((t: any) => t.$id === ticketId ? { ...t, status } : t));
+    },
     sendChatMessage,
     purgeVibeCache: async () => setSeenPostIdsState(new Set()),
     archiveIdentityNode: async () => {},
