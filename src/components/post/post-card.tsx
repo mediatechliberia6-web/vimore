@@ -408,7 +408,7 @@ export function PostCard(props: PostCardProps) {
               <div className="relative z-10 flex flex-col items-center text-center space-y-5">
                 <div className="h-16 w-16 bg-amber-500 rounded-[2rem] flex items-center justify-center text-white shadow-2xl"><Lock className="h-8 w-8" /></div>
                 <div className="space-y-2"><h3 className="text-2xl font-black italic uppercase tracking-tighter">{t('post_locked_node')}</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest max-w-[240px]">Unlock this vibe to access the hub.</p></div>
-                <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-2xl h-14 px-10 font-black italic uppercase tracking-widest text-sm shadow-xl active:scale-95 gap-3" onClick={() => unlockPost($id, unlockPrice!)} disabled={isUnlocking}>{isUnlocking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5 fill-current" />}{t('post_unlock_for')} {unlockPrice} GOLD</Button>
+                <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-2xl h-14 px-10 font-black italic uppercase tracking-widest text-sm shadow-xl active:scale-95 gap-3" onClick={async () => { setIsUnlocking(true); try { await unlockPost($id, unlockPrice!); } catch (e: any) { toast({ variant: "destructive", title: "Unlock Failed", description: e.message }); } finally { setIsUnlocking(false); } }} disabled={isUnlocking}>{isUnlocking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5 fill-current" />}{t('post_unlock_for')} {unlockPrice} GOLD</Button>
               </div>
             </div>
           ) : (

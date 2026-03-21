@@ -595,16 +595,29 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const unlockPost = useCallback(async (postId: string, cost: number) => {
     if (!currentUser) return;
+    const balance = currentUser.goldBalance || 0;
+    if (balance < cost) {
+      throw new Error(`Insufficient Gold balance. You need ${cost} Gold but only have ${balance}.`);
+    }
+    const creatorShare = Math.floor(cost * 0.7);
+    const platformFee = cost - creatorShare;
     setUnlockedPostIdsState(p => new Set(p).add(postId));
-    setCurrentUserState(prev => prev ? { ...prev, goldBalance: (prev.goldBalance || 0) - cost } : null);
-    toast({ title: "Post unlocked!" });
+    setCurrentUserState(prev => prev ? { ...prev, goldBalance: balance - cost } : null);
+    toast({ title: "Post unlocked!", description: `${creatorShare} Gold sent to creator · ${platformFee} platform fee` });
   }, [currentUser, toast]);
 
   const subscribeToCreator = useCallback(async (username: string, cost: number) => {
+    if (!currentUser) return;
+    const balance = currentUser.diamondBalance || 0;
+    if (balance < cost) {
+      throw new Error(`Insufficient Diamond balance. You need ${cost} Diamonds but only have ${balance}.`);
+    }
+    const creatorShare = Math.floor(cost * 0.7);
+    const platformFee = cost - creatorShare;
     setActiveSubscriptionsState(p => new Set(p).add(username));
-    setCurrentUserState(prev => prev ? { ...prev, diamondBalance: (prev.diamondBalance || 0) - cost } : null);
-    toast({ title: "Subscribed!", description: `You are now subscribed to ${username}` });
-  }, [toast]);
+    setCurrentUserState(prev => prev ? { ...prev, diamondBalance: balance - cost } : null);
+    toast({ title: "Subscribed!", description: `${creatorShare} Diamonds sent to @${username} · ${platformFee} platform fee` });
+  }, [currentUser, toast]);
 
   const cancelSubscription = useCallback(async (username: string) => {
     setActiveSubscriptionsState(p => { const n = new Set(p); n.delete(username); return n; });
@@ -612,14 +625,25 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [toast]);
 
   const processGiftTransaction = useCallback(async (cost: number, currency: 'GOLD' | 'DIAMOND') => {
+    if (!currentUser) throw new Error("Not logged in");
+    const goldBal = currentUser.goldBalance || 0;
+    const diamondBal = currentUser.diamondBalance || 0;
+    if (currency === 'GOLD' && goldBal < cost) {
+      throw new Error(`Insufficient Gold balance. You need ${cost} Gold but only have ${goldBal}. Top up your vault to continue.`);
+    }
+    if (currency === 'DIAMOND' && diamondBal < cost) {
+      throw new Error(`Insufficient Diamond balance. You need ${cost} Diamonds but only have ${diamondBal}. Top up your vault to continue.`);
+    }
+    const creatorShare = Math.floor(cost * 0.7);
+    const platformFee = cost - creatorShare;
     setCurrentUserState(prev => {
       if (!prev) return null;
       return currency === 'GOLD'
-        ? { ...prev, goldBalance: (prev.goldBalance || 0) - cost }
-        : { ...prev, diamondBalance: (prev.diamondBalance || 0) - cost };
+        ? { ...prev, goldBalance: goldBal - cost }
+        : { ...prev, diamondBalance: diamondBal - cost };
     });
-    toast({ title: "Gift sent! 🎁" });
-  }, [toast]);
+    toast({ title: "Gift sent!", description: `${creatorShare} ${currency} sent to creator · ${platformFee} platform fee` });
+  }, [currentUser, toast]);
 
   const verifyUser = useCallback(async (cost: number, currency: 'DIAMOND' | 'STAR') => {
     setCurrentUserState(prev => {

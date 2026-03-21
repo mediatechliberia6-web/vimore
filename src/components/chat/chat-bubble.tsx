@@ -384,7 +384,25 @@ export function ChatBubble({
 
             {!isViewOnce && (type === "photo" || type === "video") && mediaUrl && (
               <div className="relative aspect-square sm:aspect-video min-w-[240px] rounded-xl overflow-hidden mb-1 bg-secondary/20">
-                {showMediaPlaceholder ? (
+                {settings.isFreeMode ? (
+                  <div className={cn(
+                    "absolute inset-0 flex flex-col items-center justify-center gap-3 p-4",
+                    isMe ? "bg-primary/20" : "bg-secondary/40"
+                  )}>
+                    <div className={cn(
+                      "h-12 w-12 rounded-2xl flex items-center justify-center",
+                      isMe ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
+                    )}>
+                      {type === "video" ? <VideoIcon className="h-6 w-6" /> : <ImageIcon className="h-6 w-6" />}
+                    </div>
+                    <div className="text-center">
+                      <p className={cn("text-[10px] font-black uppercase tracking-widest", isMe ? "text-white/80" : "text-foreground")}>Free Mode is On</p>
+                      <p className={cn("text-[9px] font-bold uppercase mt-0.5", isMe ? "text-white/50" : "text-muted-foreground")}>
+                        Can&apos;t see {type === "video" ? "video" : "photo"}
+                      </p>
+                    </div>
+                  </div>
+                ) : showMediaPlaceholder ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 group/download cursor-pointer" onClick={handleDownload}>
                     <div className="absolute inset-0 bg-black/10 backdrop-blur-md" />
                     <div className={cn(
@@ -477,36 +495,51 @@ export function ChatBubble({
             )}
 
             {type === "voice" && (
-              <div className="px-4 py-3 flex items-center gap-4 min-w-[220px]">
-                <button 
-                  onClick={toggleVoice}
-                  className={cn(
-                    "h-10 w-10 rounded-full flex items-center justify-center transition-all",
-                    isMe ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
-                  )}
-                >
-                  {isPlayingVoice ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
-                </button>
-                <div className="flex-1 flex items-center gap-1 h-6">
-                  {voiceWaveHeights.map((height, i) => (
-                    <div 
-                      key={i} 
-                      className={cn(
-                        "w-1 rounded-full transition-all duration-300",
-                        isMe ? "bg-white/40" : "bg-primary/30",
-                        isPlayingVoice && "animate-pulse"
-                      )}
-                      style={{ height: `${height}%`, animationDelay: `${i * 100}ms` }}
-                    />
-                  ))}
+              settings.isFreeMode ? (
+                <div className="px-4 py-3 flex items-center gap-3 min-w-[220px]">
+                  <div className={cn(
+                    "h-10 w-10 rounded-full flex items-center justify-center",
+                    isMe ? "bg-white/20 text-white/50" : "bg-primary/10 text-primary/50"
+                  )}>
+                    <Mic className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className={cn("text-[10px] font-black uppercase tracking-widest", isMe ? "text-white/70" : "text-foreground")}>Free Mode is On</p>
+                    <p className={cn("text-[9px] font-bold uppercase", isMe ? "text-white/40" : "text-muted-foreground")}>Can&apos;t play voice message</p>
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-0.5">
-                  <Mic className={cn("h-4 w-4 opacity-40", isMe ? "text-white" : "text-primary")} />
-                  <span className={cn("text-[8px] font-black tabular-nums uppercase min-w-[30px] text-right", isMe ? "text-white/60" : "text-primary/60")}>
-                    {isPlayingVoice ? formatDisplayTime(elapsedTime) : voiceDuration}
-                  </span>
+              ) : (
+                <div className="px-4 py-3 flex items-center gap-4 min-w-[220px]">
+                  <button 
+                    onClick={toggleVoice}
+                    className={cn(
+                      "h-10 w-10 rounded-full flex items-center justify-center transition-all",
+                      isMe ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
+                    )}
+                  >
+                    {isPlayingVoice ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
+                  </button>
+                  <div className="flex-1 flex items-center gap-1 h-6">
+                    {voiceWaveHeights.map((height, i) => (
+                      <div 
+                        key={i} 
+                        className={cn(
+                          "w-1 rounded-full transition-all duration-300",
+                          isMe ? "bg-white/40" : "bg-primary/30",
+                          isPlayingVoice && "animate-pulse"
+                        )}
+                        style={{ height: `${height}%`, animationDelay: `${i * 100}ms` }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <Mic className={cn("h-4 w-4 opacity-40", isMe ? "text-white" : "text-primary")} />
+                    <span className={cn("text-[8px] font-black tabular-nums uppercase min-w-[30px] text-right", isMe ? "text-white/60" : "text-primary/60")}>
+                      {isPlayingVoice ? formatDisplayTime(elapsedTime) : voiceDuration}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )
             )}
 
             {type === "tag" && taggedUser && (
