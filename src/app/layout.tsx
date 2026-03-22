@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { headers } from 'next/headers';
 import { Toaster } from "@/components/ui/toaster";
 import { PostProvider } from "@/context/PostContext";
 import { MusicProvider } from "@/context/MusicContext";
@@ -20,6 +21,7 @@ import { IncomingCallOverlay } from "@/components/layout/incoming-call-overlay";
 import { AppLoadingGate } from "@/components/layout/app-loading-gate";
 import { DiagnosticErrorBoundary } from "@/components/layout/diagnostic-error-boundary";
 import { ThemeLogic } from "@/components/layout/theme-logic";
+import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
 import NextTopLoader from 'nextjs-toploader';
 
 export const metadata: Metadata = {
@@ -44,11 +46,15 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headersList = await headers();
+  const nextUrl = headersList.get('x-invoke-path') || headersList.get('x-pathname') || '';
+  const isFreeModeRoute = nextUrl.startsWith('/free-mode');
+
   return (
     <html lang="en">
       <head>
@@ -58,6 +64,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased bg-background text-foreground">
+        <ServiceWorkerRegister />
         <NextTopLoader 
           color="#9940E5" 
           initialPosition={0.08} 
@@ -76,21 +83,28 @@ export default function RootLayout({
                 <ThemeLogic />
                 <FontScaleWrapper>
                   <DiagnosticErrorBoundary title="System Core">
-                    <AppLoadingGate>
-                      {children}
-                      <MusicPlayer />
-                      <AlbumDetail />
-                      <PlaylistDetail />
-                      <AdPortal />
-                      <PostPortal />
-                      <ImageViewerPortal />
-                      <VideoViewerPortal />
-                      <SearchPortal />
-                      <CommentHub />
-                      <GiftHub />
-                      <IncomingCallOverlay />
-                      <Toaster />
-                    </AppLoadingGate>
+                    {isFreeModeRoute ? (
+                      <>
+                        {children}
+                        <Toaster />
+                      </>
+                    ) : (
+                      <AppLoadingGate>
+                        {children}
+                        <MusicPlayer />
+                        <AlbumDetail />
+                        <PlaylistDetail />
+                        <AdPortal />
+                        <PostPortal />
+                        <ImageViewerPortal />
+                        <VideoViewerPortal />
+                        <SearchPortal />
+                        <CommentHub />
+                        <GiftHub />
+                        <IncomingCallOverlay />
+                        <Toaster />
+                      </AppLoadingGate>
+                    )}
                   </DiagnosticErrorBoundary>
                 </FontScaleWrapper>
               </MusicProvider>

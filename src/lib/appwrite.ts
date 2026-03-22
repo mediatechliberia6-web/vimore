@@ -1,5 +1,18 @@
 // Backend removed — prototype mode. All data is served from mock-data.ts.
 // These constants are kept as stubs so existing component imports do not break.
+//
+// SHARED AUTH COOKIE CONFIGURATION (for when real Appwrite is connected):
+//   When creating an Appwrite session (account.createEmailPasswordSession),
+//   set the session cookie domain to ".vimore.cfd" so it is automatically
+//   shared between vimore.cfd and free.vimore.cfd.
+//   In node-appwrite (server side), configure the Client with:
+//     client.setEndpoint(process.env.APPWRITE_ENDPOINT!)
+//           .setProject(process.env.APPWRITE_PROJECT_ID!)
+//           .setKey(process.env.APPWRITE_API_KEY!);
+//   On the client side, the Appwrite Web SDK stores session cookies scoped to
+//   the API endpoint domain. To achieve cross-subdomain sharing, proxy all
+//   Appwrite requests through /api/appwrite/* on vimore.cfd and set
+//   Set-Cookie with Domain=.vimore.cfd from that proxy route.
 
 export const BUCKET_IMAGES = 'images';
 export const BUCKET_REEL = 'reels';

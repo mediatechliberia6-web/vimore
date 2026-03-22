@@ -2,25 +2,46 @@
 
 import { usePosts } from "@/context/PostContext";
 import { KineticSplashScreen } from "./kinetic-splash-screen";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/auth/"];
+const PUBLIC_PATHS = ["/login", "/signup", "/auth/", "/free-mode"];
+
+function getActivePath(hookPath: string | null): string {
+  if (typeof window !== 'undefined' && window.location.pathname) {
+    return window.location.pathname;
+  }
+  if (hookPath) return hookPath;
+  return '';
+}
+
+function isPublicActivePath(path: string): boolean {
+  return PUBLIC_PATHS.some((p) => path.startsWith(p));
+}
 
 export function AppLoadingGate({ children }: { children: React.ReactNode }) {
   const { isLoading, initError, logout, triggerHaptic, currentUser } = usePosts();
-  const [isVisible, setIsVisible] = useState(true);
-  const [shouldRenderSplash, setShouldRenderSplash] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
-  const isPublicPath = PUBLIC_PATHS.some(p => pathname?.startsWith(p));
+  const mountedPath = useRef(getActivePath(pathname));
+  useEffect(() => {
+    const p = getActivePath(pathname);
+    if (p) mountedPath.current = p;
+  }, [pathname]);
+
+  const activePath = getActivePath(pathname) || mountedPath.current;
+  const isPublicPath = isPublicActivePath(activePath);
+
+  const [isVisible, setIsVisible] = useState(true);
+  const [shouldRenderSplash, setShouldRenderSplash] = useState(true);
 
   useEffect(() => {
-    if (isPublicPath) {
+    const current = getActivePath(pathname) || mountedPath.current;
+    if (isPublicActivePath(current)) {
       setIsVisible(false);
       setShouldRenderSplash(false);
       return;
@@ -32,14 +53,13 @@ export function AppLoadingGate({ children }: { children: React.ReactNode }) {
       }, 2200);
       return () => clearTimeout(timer);
     }
-  }, [isLoading, initError, isPublicPath]);
+  }, [isLoading, initError, pathname]);
 
   useEffect(() => {
     if (!isLoading && !currentUser) {
-      const isPublic = PUBLIC_PATHS.some(p => pathname?.startsWith(p));
-      if (!isPublic) {
-        router.replace("/login");
-      }
+      const current = getActivePath(pathname) || mountedPath.current;
+      if (!current || isPublicActivePath(current)) return;
+      router.replace('/login');
     }
   }, [isLoading, currentUser, pathname, router]);
 
@@ -49,9 +69,11 @@ export function AppLoadingGate({ children }: { children: React.ReactNode }) {
     window.location.reload();
   };
 
+  const showSplash = !isPublicPath && shouldRenderSplash;
+
   return (
     <>
-      {shouldRenderSplash && (
+      {showSplash && (
         <div className={cn(
           "fixed inset-0 z-[9999] transition-opacity duration-500 ease-in-out",
           isVisible ? "opacity-100" : "opacity-0 pointer-events-none"

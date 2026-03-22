@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNotifications } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
 import { useTranslation } from "@/context/LanguageContext";
+import { ModeSwitcher } from "@/components/layout/mode-switcher";
 import { cn } from "@/lib/utils";
 import { useMemo } from "react";
 
@@ -87,6 +88,8 @@ export function Header() {
             <AvatarFallback>{currentUser?.name?.[0] || 'V'}</AvatarFallback>
           </Avatar>
         </Link>
+
+        <ModeSwitcher />
 
         <Link href="/menu" className="lg:hidden relative">
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50" aria-label="Open menu">
