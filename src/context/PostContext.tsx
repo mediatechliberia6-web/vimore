@@ -389,8 +389,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const checkSession = useCallback(async () => {
     setIsLoadingState(true);
     await new Promise(r => setTimeout(r, 300));
-    setCurrentUserState(MOCK_CURRENT_USER);
-    setPostsState(MOCK_POSTS);
+    const hasSession = typeof window !== 'undefined' && localStorage.getItem('vimore_session') === 'active';
+    if (hasSession) {
+      setCurrentUserState(MOCK_CURRENT_USER);
+      setPostsState(MOCK_POSTS);
+    }
     setIsLoadingState(false);
   }, []);
 
@@ -407,6 +410,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (identifier: string, _p: string) => {
     setIsLoadingState(true);
     await new Promise(r => setTimeout(r, 600));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vimore_session', 'active');
+    }
     setCurrentUserState(MOCK_CURRENT_USER);
     setPostsState(MOCK_POSTS);
     setIsLoadingState(false);
@@ -417,15 +423,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const signup = useCallback(async (data: any) => {
     setIsLoadingState(true);
     await new Promise(r => setTimeout(r, 800));
+    const base = (data.name || 'user').toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).join('');
+    const random = Math.floor(100 + Math.random() * 900);
+    const generatedUsername = data.username || `${base}${random}`;
     const newUser: User = {
       ...MOCK_CURRENT_USER,
       name: data.name || MOCK_CURRENT_USER.name,
-      username: data.username || MOCK_CURRENT_USER.username,
+      username: generatedUsername,
       email: data.email,
       goldBalance: 0,
       diamondBalance: 0,
       starBalance: 0,
     };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vimore_session', 'active');
+    }
     setCurrentUserState(newUser);
     setPostsState(MOCK_POSTS);
     setIsLoadingState(false);
@@ -434,9 +446,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [toast]);
 
   const logout = useCallback(async () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('vimore_session');
+    }
     setCurrentUserState(null);
     toast({ title: "Signed out", description: "See you next time!" });
-    router.push("/");
+    router.push("/login");
   }, [router, toast]);
 
   const updateCurrentUser = useCallback(async (data: Partial<User>) => {

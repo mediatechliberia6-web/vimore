@@ -3,31 +3,45 @@
 import { usePosts } from "@/context/PostContext";
 import { KineticSplashScreen } from "./kinetic-splash-screen";
 import { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-/**
- * @fileOverview ViMore App Loading Gate
- * Manages the transition between the kinetic splash screen and the application hub.
- * Calibrated: Materializes the branded splash on every hardware refresh/entry pulse.
- */
+const PUBLIC_PATHS = ["/login", "/signup", "/auth/"];
 
 export function AppLoadingGate({ children }: { children: React.ReactNode }) {
-  const { isLoading, initError, logout, triggerHaptic } = usePosts();
+  const { isLoading, initError, logout, triggerHaptic, currentUser } = usePosts();
   const [isVisible, setIsVisible] = useState(true);
   const [shouldRenderSplash, setShouldRenderSplash] = useState(true);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const isPublicPath = PUBLIC_PATHS.some(p => pathname?.startsWith(p));
 
   useEffect(() => {
+    if (isPublicPath) {
+      setIsVisible(false);
+      setShouldRenderSplash(false);
+      return;
+    }
     if (!isLoading && !initError) {
-      // Data Handshake Complete: Initiate high-velocity fade out
       const timer = setTimeout(() => {
         setIsVisible(false);
         setTimeout(() => setShouldRenderSplash(false), 600);
       }, 2200);
       return () => clearTimeout(timer);
     }
-  }, [isLoading, initError]);
+  }, [isLoading, initError, isPublicPath]);
+
+  useEffect(() => {
+    if (!isLoading && !currentUser) {
+      const isPublic = PUBLIC_PATHS.some(p => pathname?.startsWith(p));
+      if (!isPublic) {
+        router.replace("/login");
+      }
+    }
+  }, [isLoading, currentUser, pathname, router]);
 
   const handleReset = async () => {
     triggerHaptic(50);
@@ -79,8 +93,9 @@ export function AppLoadingGate({ children }: { children: React.ReactNode }) {
         </div>
       )}
       <div className={cn(
-        "flex-1 flex flex-col transition-opacity duration-1000 ease-out",
-        isVisible ? "opacity-0" : "opacity-100"
+        "flex-1 flex flex-col",
+        !isPublicPath && "transition-opacity duration-1000 ease-out",
+        (isPublicPath || !isVisible) ? "opacity-100" : "opacity-0"
       )}>
         {children}
       </div>
