@@ -527,17 +527,22 @@ export default function CurrencyHub() {
             </div>
           )}
 
+          <div className="max-w-2xl mx-auto px-4 sm:px-8 pb-8">
+            <button
+              onClick={() => { triggerHaptic(10); setIsTicketOpen(true); }}
+              className="w-full flex items-center gap-4 bg-white dark:bg-card border border-primary/10 rounded-[2rem] p-5 shadow-lg shadow-black/5 hover:border-primary/30 hover:shadow-xl transition-all active:scale-[0.98] group"
+            >
+              <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
+                <HelpCircle className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex flex-col items-start text-left">
+                <span className="text-sm font-black italic uppercase tracking-tight text-foreground">Contact Support</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Submit a help ticket</span>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground ml-auto group-hover:text-primary transition-colors" />
+            </button>
+          </div>
         </main>
-
-        <div className="max-w-xl mx-auto px-4 pb-8 mt-2">
-          <button
-            onClick={() => { triggerHaptic(5); setIsTicketOpen(true); }}
-            className="w-full flex items-center justify-center gap-2 py-3 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
-          >
-            <HelpCircle className="h-4 w-4" />
-            Having trouble? Contact Support
-          </button>
-        </div>
 
         {isTicketOpen && (
           <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-300 overflow-hidden">
