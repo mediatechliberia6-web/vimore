@@ -21,7 +21,9 @@ import {
   X,
   Loader2,
   FileText,
-  CircleDashed
+  CircleDashed,
+  HelpCircle,
+  Send
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,7 +54,7 @@ const REVENUE_DATA = [
 ];
 
 export default function EarningsPage() {
-  const { currentUser, triggerHaptic, withdrawalHistory, recordWithdrawal, processGiftTransaction, settings, isLoading } = usePosts();
+  const { currentUser, triggerHaptic, withdrawalHistory, recordWithdrawal, processGiftTransaction, submitTicket, settings, isLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
   const { t } = useTranslation();
@@ -67,6 +69,25 @@ export default function EarningsPage() {
     const totalUSD = (gold * settings.goldRate) + (diamond * settings.diamondRate);
     return { totalUSD, totalLD: totalUSD * settings.ldMultiplier };
   }, [currentUser, settings.goldRate, settings.diamondRate, settings.ldMultiplier]);
+
+  const [isTicketOpen, setIsTicketOpen] = useState(false);
+  const [ticketSubject, setTicketSubject] = useState("");
+  const [ticketCategory, setTicketCategory] = useState("Finance");
+  const [ticketMessage, setTicketMessage] = useState("");
+  const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
+
+  const handleSubmitTicket = async () => {
+    if (!ticketSubject.trim() || !ticketMessage.trim()) return;
+    setIsSubmittingTicket(true);
+    try {
+      await submitTicket({ subject: ticketSubject, message: ticketMessage, category: ticketCategory, priority: 'HIGH' });
+      toast({ title: "Ticket Submitted", description: "Our team will review your issue shortly." });
+      setIsTicketOpen(false);
+      setTicketSubject(""); setTicketMessage(""); setTicketCategory("Finance");
+    } finally {
+      setIsSubmittingTicket(false);
+    }
+  };
 
   const [payoutMethod, setPayoutMethod] = useState<"ORANGE" | "MTN" | null>(null);
   const [accountName, setAccountName] = useState("");
@@ -191,6 +212,10 @@ export default function EarningsPage() {
           <section className="space-y-4">
             <div className="flex items-center justify-between px-2">
               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">{t('earn_audit_trail')}</h3>
+              <button onClick={() => { triggerHaptic(5); setIsTicketOpen(true); }} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">
+                <HelpCircle className="h-3.5 w-3.5" />
+                Contact Support
+              </button>
             </div>
             <div className="space-y-3">
               {withdrawalHistory.length > 0 ? withdrawalHistory.map((node) => (
@@ -239,6 +264,45 @@ export default function EarningsPage() {
                   <div className="bg-black/40 rounded-3xl p-6 flex items-center justify-between border border-white/5"><span className="text-xs font-black uppercase text-white tracking-widest">Final Payout</span><span className="text-2xl font-black italic text-primary">{payoutCurrency === 'USD' ? '$' : 'L$'} {calculation.finalPayout.toFixed(2)}</span></div>
                 </section>
                 <Button className={cn("w-full h-20 rounded-[2rem] font-black italic uppercase tracking-[0.3em] text-xl shadow-2xl transition-all", canProceed && !isSubmitting ? "bg-primary text-white" : "bg-white/5 text-white/20 cursor-not-allowed")} onClick={handleInitiateHandshake} disabled={!canProceed || isSubmitting}>{isSubmitting ? "SYNCING..." : "Submit Request"}</Button>
+              </div>
+            </main>
+          </div>
+        )}
+        {isTicketOpen && (
+          <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-300 overflow-hidden">
+            <header className="h-20 px-6 flex items-center justify-between shrink-0 bg-black/40 border-b border-white/5">
+              <Button variant="ghost" size="icon" className="text-white bg-white/5 rounded-full" onClick={() => setIsTicketOpen(false)}><X className="h-6 w-6" /></Button>
+              <div className="flex flex-col items-center">
+                <h2 className="text-sm font-black italic uppercase tracking-widest text-white">Support Ticket</h2>
+                <span className="text-[10px] font-bold text-primary uppercase">Earnings Help Node</span>
+              </div>
+              <div className="w-10" />
+            </header>
+            <main className="flex-1 overflow-y-auto p-6 sm:p-12">
+              <div className="max-w-xl mx-auto space-y-6 animate-in slide-in-from-bottom-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Subject</label>
+                  <input value={ticketSubject} onChange={e => setTicketSubject(e.target.value)} placeholder="Describe your issue..." className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-white/20" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Category</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Finance', 'Technical', 'Identity', 'Rewards', 'Other'].map(cat => (
+                      <button key={cat} onClick={() => setTicketCategory(cat)} className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all", ticketCategory === cat ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-white/5 text-white/40 hover:bg-white/10")}>{cat}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Message</label>
+                  <textarea value={ticketMessage} onChange={e => setTicketMessage(e.target.value)} placeholder="Provide details about your issue..." rows={5} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none placeholder:text-white/20" />
+                </div>
+                <Button
+                  className={cn("w-full h-16 rounded-[2rem] font-black italic uppercase tracking-[0.3em] text-lg transition-all gap-3", ticketSubject && ticketMessage && !isSubmittingTicket ? "bg-primary text-white shadow-2xl shadow-primary/20" : "bg-white/5 text-white/20 cursor-not-allowed")}
+                  onClick={handleSubmitTicket}
+                  disabled={!ticketSubject || !ticketMessage || isSubmittingTicket}
+                >
+                  {isSubmittingTicket ? <><Loader2 className="h-5 w-5 animate-spin" /> Submitting...</> : <><Send className="h-5 w-5" /> Submit Ticket</>}
+                </Button>
               </div>
             </main>
           </div>

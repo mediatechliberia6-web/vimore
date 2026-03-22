@@ -596,12 +596,12 @@ export const MOCK_WITHDRAWALS = [
 ];
 
 export const MOCK_AUDIT_LOGS = [
-  { $id: 'log_001', action: 'POST_DELETED', details: 'Spam content removed', timestamp: new Date(Date.now() - 86400000).toISOString() },
-  { $id: 'log_002', action: 'USER_VERIFIED', details: 'maya_chen verified by admin', timestamp: new Date(Date.now() - 86400000 * 3).toISOString() },
-  { $id: 'log_003', action: 'WITHDRAWAL_APPROVED', details: 'Withdrawal wd_001 approved for maya_chen — USD 12.00', timestamp: new Date(Date.now() - 86400000 * 2).toISOString() },
-  { $id: 'log_004', action: 'CAMPAIGN_LAUNCHED', details: 'Global campaign "Summer Sonic Pulse" materialized in discovery stream', timestamp: new Date(Date.now() - 3600000 * 5).toISOString() },
-  { $id: 'log_005', action: 'USER_BANNED', details: 'Account spammer_bot99 suspended for repeated policy violations', timestamp: new Date(Date.now() - 3600000 * 8).toISOString() },
-  { $id: 'log_006', action: 'SETTINGS_UPDATED', details: 'Registration toggle enabled by super admin alex_rivers', timestamp: new Date(Date.now() - 3600000 * 12).toISOString() },
+  { $id: 'log_001', action: 'POST_DELETED', details: 'Spam content removed', performedBy: 'alex_rivers', performedByAvatar: 'https://picsum.photos/seed/alex_rivers/200/200', timestamp: new Date(Date.now() - 86400000).toISOString() },
+  { $id: 'log_002', action: 'USER_VERIFIED', details: 'maya_chen verified by admin', performedBy: 'alex_rivers', performedByAvatar: 'https://picsum.photos/seed/alex_rivers/200/200', timestamp: new Date(Date.now() - 86400000 * 3).toISOString() },
+  { $id: 'log_003', action: 'WITHDRAWAL_APPROVED', details: 'Withdrawal wd_001 approved for maya_chen — USD 12.00', performedBy: 'alex_rivers', performedByAvatar: 'https://picsum.photos/seed/alex_rivers/200/200', timestamp: new Date(Date.now() - 86400000 * 2).toISOString() },
+  { $id: 'log_004', action: 'CAMPAIGN_LAUNCHED', details: 'Global campaign "Summer Sonic Pulse" materialized in discovery stream', performedBy: 'alex_rivers', performedByAvatar: 'https://picsum.photos/seed/alex_rivers/200/200', timestamp: new Date(Date.now() - 3600000 * 5).toISOString() },
+  { $id: 'log_005', action: 'USER_BANNED', details: 'Account spammer_bot99 suspended for repeated policy violations', performedBy: 'alex_rivers', performedByAvatar: 'https://picsum.photos/seed/alex_rivers/200/200', timestamp: new Date(Date.now() - 3600000 * 8).toISOString() },
+  { $id: 'log_006', action: 'SETTINGS_UPDATED', details: 'Registration toggle enabled by super admin alex_rivers', performedBy: 'alex_rivers', performedByAvatar: 'https://picsum.photos/seed/alex_rivers/200/200', timestamp: new Date(Date.now() - 3600000 * 12).toISOString() },
 ];
 
 export const MOCK_REPORTS = [

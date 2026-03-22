@@ -121,11 +121,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "campaigns" | "infrastructure" | "resolution" | "logs";
+type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "campaigns" | "infrastructure" | "resolution" | "logs" | "staff";
 type EconomySubTab = "outbound" | "inbound";
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, reports, tickets, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus, updateUserIdentity, handleReportAction, handleTicketAction, uploadMedia, isLoading } = usePosts();
+  const { withdrawalHistory, paymentRequests, reports, tickets, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus, updateUserIdentity, handleReportAction, handleTicketAction, submitTicket, uploadMedia, isLoading } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   
@@ -144,6 +144,7 @@ export default function AdminDashboard() {
 
   const [govSearch, setGovSearch] = useState("");
   const [idSearch, setIdSearch] = useState("");
+  const [staffSearch, setStaffSearch] = useState("");
   const hasLoggedBreach = useRef(false);
 
   // Campaign Form State
@@ -181,7 +182,7 @@ export default function AdminDashboard() {
   );
 
   const availableTabs = useMemo(() => {
-    if (isSuper) return ["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "campaigns", "infrastructure", "resolution", "logs"] as AdminTab[];
+    if (isSuper) return ["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "campaigns", "infrastructure", "resolution", "logs", "staff"] as AdminTab[];
     const tabs: AdminTab[] = ["pulse", "logs"];
     if (isFinancial) tabs.push("economy", "infrastructure");
     if (isModerator) tabs.push("intelligence", "velocity", "identity", "safety", "campaigns", "resolution");
@@ -264,7 +265,8 @@ export default function AdminDashboard() {
     campaigns: { label: "Campaigns", icon: Megaphone },
     infrastructure: { label: "Infras", icon: Database },
     resolution: { label: "Resol", icon: Hammer },
-    logs: { label: "Logs", icon: FileText }
+    logs: { label: "Logs", icon: FileText },
+    staff: { label: "Staff", icon: Users }
   };
 
   if (isUnauthorized) {
@@ -889,7 +891,7 @@ export default function AdminDashboard() {
               <Card className="bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
-                    <thead><tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20"><th className="px-8 py-4">Action</th><th className="px-8 py-4">Details</th><th className="px-8 py-4">Timestamp</th></tr></thead>
+                    <thead><tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20"><th className="px-8 py-4">Action</th><th className="px-8 py-4">Details</th><th className="px-8 py-4">Performed By</th><th className="px-8 py-4">Timestamp</th></tr></thead>
                     <tbody className="divide-y divide-border">
                       {auditLogs.length > 0 ? auditLogs.map((log: any) => (
                         <tr key={log.$id} className="hover:bg-secondary/10 transition-colors">
@@ -901,14 +903,152 @@ export default function AdminDashboard() {
                               "border-border text-muted-foreground"
                             )}>{log.action.replace(/_/g, ' ')}</Badge>
                           </td>
-                          <td className="px-8 py-5"><p className="text-xs text-muted-foreground max-w-[320px] truncate">{log.details || '—'}</p></td>
+                          <td className="px-8 py-5"><p className="text-xs text-muted-foreground max-w-[280px] truncate">{log.details || '—'}</p></td>
+                          <td className="px-8 py-5">
+                            <div className="flex items-center gap-2 whitespace-nowrap">
+                              <Avatar className="h-6 w-6 border border-primary/10">
+                                <AvatarImage src={log.performedByAvatar} />
+                                <AvatarFallback className="text-[8px]">{log.performedBy?.[0]?.toUpperCase() || '?'}</AvatarFallback>
+                              </Avatar>
+                              <span className="text-[10px] font-black text-foreground">@{log.performedBy || 'system'}</span>
+                            </div>
+                          </td>
                           <td className="px-8 py-5 whitespace-nowrap"><span className="text-[10px] font-black text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</span></td>
                         </tr>
-                      )) : (<tr><td colSpan={3} className="py-24 text-center opacity-40 italic text-xs uppercase">No audit entries found</td></tr>)}
+                      )) : (<tr><td colSpan={4} className="py-24 text-center opacity-40 italic text-xs uppercase">No audit entries found</td></tr>)}
                     </tbody>
                   </table>
                 </div>
               </Card>
+            </div>
+          )}
+
+          {activeTab === 'staff' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
+                <div className="space-y-1">
+                  <h3 className="text-3xl font-black italic uppercase tracking-tighter">Staff Management</h3>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Assign & Manage Admin Roles</p>
+                </div>
+                <Badge className="bg-violet-500/10 text-violet-400 border-none font-black uppercase self-start sm:self-auto">{staff.length} Active Staff</Badge>
+              </div>
+
+              <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 shadow-xl space-y-6">
+                <h4 className="text-xs font-black uppercase tracking-[0.25em] text-muted-foreground">Search & Assign Role</h4>
+                <div className="relative">
+                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <input
+                    value={staffSearch}
+                    onChange={e => setStaffSearch(e.target.value)}
+                    placeholder="Search username..."
+                    className="w-full h-14 bg-secondary/30 border border-border rounded-2xl pl-12 pr-5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+                {staffSearch.trim().length >= 2 && (() => {
+                  const query = staffSearch.trim().toLowerCase();
+                  const results = connections.filter(c =>
+                    c.username?.toLowerCase().includes(query) || c.name?.toLowerCase().includes(query)
+                  ).slice(0, 5);
+                  return results.length > 0 ? (
+                    <div className="space-y-3">
+                      {results.map((user: any) => (
+                        <div key={user.$id} className="flex items-center justify-between bg-secondary/20 border border-border rounded-2xl p-4 gap-4">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Avatar className="h-10 w-10 border-2 border-primary/10 shrink-0">
+                              <AvatarImage src={user.avatar} />
+                              <AvatarFallback>{user.name?.[0]}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold truncate">{user.name}</p>
+                              <p className="text-[10px] font-black text-muted-foreground">@{user.username}</p>
+                            </div>
+                            {user.role && user.role !== 'USER' && (
+                              <Badge className="text-[9px] font-black uppercase border-none bg-primary/10 text-primary shrink-0">{user.role}</Badge>
+                            )}
+                          </div>
+                          <div className="flex gap-2 shrink-0">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-[10px] font-black uppercase rounded-xl border-violet-500/30 text-violet-400 hover:bg-violet-500 hover:text-white transition-all"
+                              onClick={async () => {
+                                await promoteUser(user.username, 'MODERATOR');
+                                addAuditLog('STAFF_PROMOTED', `@${user.username} promoted to MODERATOR`);
+                                toast({ title: "Role Assigned", description: `@${user.username} is now a Moderator` });
+                              }}
+                            >Moderator</Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-[10px] font-black uppercase rounded-xl border-green-500/30 text-green-400 hover:bg-green-500 hover:text-white transition-all"
+                              onClick={async () => {
+                                await promoteUser(user.username, 'FINANCIAL');
+                                addAuditLog('STAFF_PROMOTED', `@${user.username} promoted to FINANCIAL`);
+                                toast({ title: "Role Assigned", description: `@${user.username} is now Financial Admin` });
+                              }}
+                            >Financial</Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center py-6 text-xs text-muted-foreground uppercase font-black opacity-50">No matching users found</p>
+                  );
+                })()}
+              </Card>
+
+              <div className="space-y-4">
+                <h4 className="text-xs font-black uppercase tracking-[0.25em] text-muted-foreground px-2">Active Staff Roster</h4>
+                {staff.length > 0 ? (
+                  <Card className="bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left">
+                        <thead><tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20"><th className="px-8 py-4">Staff Member</th><th className="px-8 py-4">Role</th><th className="px-8 py-4">Assigned</th><th className="px-8 py-4">Action</th></tr></thead>
+                        <tbody className="divide-y divide-border">
+                          {staff.map((member: any) => (
+                            <tr key={member.$id || member.username} className="hover:bg-secondary/10 transition-colors">
+                              <td className="px-8 py-5">
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-9 w-9 border border-primary/10">
+                                    <AvatarImage src={member.avatar} />
+                                    <AvatarFallback>{member.name?.[0]}</AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="text-sm font-bold">{member.name}</p>
+                                    <p className="text-[10px] font-black text-muted-foreground">@{member.username}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-8 py-5">
+                                <Badge className={cn("text-[9px] font-black uppercase border-none",
+                                  member.role === 'MODERATOR' ? "bg-violet-500/10 text-violet-400" :
+                                  member.role === 'FINANCIAL' ? "bg-green-500/10 text-green-400" :
+                                  "bg-primary/10 text-primary"
+                                )}>{member.role}</Badge>
+                              </td>
+                              <td className="px-8 py-5"><span className="text-[10px] font-black text-muted-foreground">{member.assignedAt ? new Date(member.assignedAt).toLocaleDateString() : '—'}</span></td>
+                              <td className="px-8 py-5">
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="text-[10px] font-black uppercase rounded-xl h-8 px-4"
+                                  onClick={async () => {
+                                    await demoteUser(member.username);
+                                    addAuditLog('STAFF_REMOVED', `@${member.username} removed from staff roster`);
+                                    toast({ title: "Staff Removed", description: `@${member.username} has been demoted to User` });
+                                  }}
+                                >Remove</Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                ) : (
+                  <div className="py-16 text-center bg-white/40 dark:bg-white/5 border border-dashed border-primary/10 rounded-[2.5rem] opacity-40 uppercase text-xs font-black">No staff assigned yet</div>
+                )}
+              </div>
             </div>
           )}
         </div>

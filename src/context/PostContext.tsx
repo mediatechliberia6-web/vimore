@@ -295,6 +295,7 @@ interface PostContextType {
   updateUserIdentity: (userId: string, data: Partial<User>) => Promise<void>;
   handleReportAction: (reportId: string, action: any) => Promise<void>;
   handleTicketAction: (ticketId: string, status: any) => Promise<void>;
+  submitTicket: (data: { subject: string; message: string; category: string; priority?: string }) => Promise<void>;
   sendChatMessage: (recipientId: string, message: Partial<ChatMessage>) => Promise<void>;
   purgeVibeCache: () => Promise<void>;
   archiveIdentityNode: () => Promise<void>;
@@ -772,6 +773,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       amount: pendingTransaction?.amount || '0',
       currency: pendingTransaction?.currency || 'USD',
       code: pendingTransaction?.code || 'VBC-MOCK',
+      screenshot,
       status: 'PENDING',
       timestamp: new Date().toISOString(),
     };
@@ -854,7 +856,28 @@ export function PostProvider({ children }: { children: ReactNode }) {
     toggleMuteUser: (u: string) => setMutedUserNames(p => p.includes(u) ? p.filter(x => x !== u) : [...p, u]),
     togglePinPost: async () => {}, archivePost: async () => {},
     addAuditLog: async (action: string, details: string) => {
-      setAuditLogs(prev => [{ $id: 'log_' + Date.now(), action, details, timestamp: new Date().toISOString() }, ...prev]);
+      setAuditLogs(prev => [{
+        $id: 'log_' + Date.now(),
+        action,
+        details,
+        performedBy: currentUser?.username || 'system',
+        performedByAvatar: currentUser?.avatar,
+        timestamp: new Date().toISOString()
+      }, ...prev]);
+    },
+    submitTicket: async (data: { subject: string; message: string; category: string; priority?: string }) => {
+      const ticket = {
+        $id: 'tkt_' + Date.now(),
+        username: currentUser?.username || 'anonymous',
+        avatar: currentUser?.avatar,
+        subject: data.subject,
+        message: data.message,
+        category: data.category,
+        status: 'OPEN',
+        priority: data.priority || 'MEDIUM',
+        timestamp: new Date().toISOString(),
+      };
+      setTickets(prev => [ticket, ...prev]);
     },
     initiateTransaction: (d: any) => setPendingTransactionState(d),
     cancelTransaction: () => setPendingTransactionState(null),
