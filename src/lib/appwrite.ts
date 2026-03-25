@@ -52,6 +52,11 @@ export const BUCKET = {
   MESSAGE_MEDIA: 'message_media',
 } as const;
 
+export const BUCKET_IMAGES = BUCKET.POST_MEDIA;
+export const BUCKET_STORIES = BUCKET.STORY_MEDIA;
+export const BUCKET_REEL = BUCKET.REEL_MEDIA;
+export const BUCKET_MUSIC = BUCKET.MUSIC_TRACKS;
+
 let _client: Client | null = null;
 
 function getClient(): Client {
