@@ -7,14 +7,25 @@ ViMore is a Next.js 15 social networking and creator platform with a violet (#99
 - **Framework**: Next.js 15 (App Router)
 - **Styling**: Tailwind CSS + shadcn/ui components
 - **State**: React Context API (`PostContext`, `MusicContext`, `NotificationContext`, `LanguageContext`)
-- **Data**: Mock data only (no real backend) — all data in `src/lib/mock-data.ts`
-- **Auth**: localStorage-based session flag (`vimore_session`) gating `MOCK_CURRENT_USER`
+- **Backend**: Appwrite (Database, Storage, Auth) — Project ID: `vimore123`, Database: `vimoreprod`
+- **API Endpoint**: `https://mediatechliberia.online/v1`
+- **Auth**: Appwrite account sessions — `PostContext.checkSession()` calls `account.get()` on mount
+
+## Environment Variables
+| Variable | Scope |
+|----------|-------|
+| `NEXT_PUBLIC_APPWRITE_ENDPOINT` | shared |
+| `NEXT_PUBLIC_APPWRITE_PROJECT_ID` | shared |
+| `NEXT_PUBLIC_APPWRITE_DATABASE_ID` | shared |
+| `APPWRITE_API_KEY` | secret |
 
 ## Key Routes
 | Path | Description |
 |------|-------------|
-| `/login` | Light-mode login page (Email, Password, Forgot Password) |
-| `/signup` | Light-mode signup page (Name, Email, DOB, Nationality, Password, auto-username) |
+| `/login` | Login page |
+| `/signup` | Signup page (email verification sent on completion) |
+| `/auth/verify` | Email verification redirect handler |
+| `/auth/recovery` | Password recovery |
 | `/` | Main social feed |
 | `/dashboard` | Creator analytics hub |
 | `/admin` | Admin "Command Core" dashboard (SUPER role only) |
@@ -25,32 +36,34 @@ ViMore is a Next.js 15 social networking and creator platform with a violet (#99
 | `/messages` | Direct messaging |
 | `/profile` | Current user profile |
 | `/settings` | App settings |
-| `/auth/recovery` | Password recovery |
 
-## Auth Flow
-1. User arrives → `checkSession()` checks `localStorage.vimore_session`
-2. If session exists → auto-login with `MOCK_CURRENT_USER`
+## Auth Flow (Appwrite-based)
+1. App mounts → `PostContext.checkSession()` calls `account.get()` via Appwrite SDK
+2. If session exists → fetches user profile doc from `users` collection → sets `currentUser`
 3. If no session → `AppLoadingGate` redirects to `/login`
-4. `/login` and `/signup` are public paths (no redirect, no splash screen)
-5. On login/signup success → sets `vimore_session` in localStorage → navigates to `/`
-6. On logout → removes `vimore_session` → redirects to `/login`
+4. Signup → `account.create()` + `databases.createDocument()` in `users` + `account.createVerification()`
+5. Login → `account.createEmailPasswordSession()` + profile doc fetch
+6. Logout → `account.deleteSession('current')` → redirect to `/login`
+
+## Data Layer (All live Appwrite)
+- **PostContext**: Feeds, posts, stories, follows, friends, clusters (groups), messages, admin data
+- **MusicContext**: Tracks, albums, playlists from `tracks`/`albums`/`playlists` collections; likes from `track_likes`
+- **NotificationContext**: Loads from `notifications` collection, writes back on mark-read/delete
+
+## Appwrite Collections (32 total)
+users, posts, post_comments, post_reactions, post_unlocks, bookmarks, stories, story_segments, story_views, follows, friend_requests, blocked_users, messages, clusters, cluster_members, tracks, track_likes, albums, playlists, playlist_tracks, notifications, transactions, withdrawal_requests, payment_requests, subscriptions, verification_records, referrals, reports, support_tickets, ad_campaigns, audit_logs, call_logs
+
+## Appwrite Storage Buckets (10 total)
+avatars, covers, post_media, story_media, reel_media, music_tracks, album_covers, voice_messages, payment_screenshots, message_media
 
 ## Username Auto-Generation (Signup)
-- Takes user's full name → lowercase, remove special chars, join words
-- Appends 3-digit random number (e.g., "John Doe" → "johndoe847")
-- Refresh button lets user regenerate
+- Takes user's full name → lowercase, remove special chars, append 3-digit random number
 - Ensured unique against existing usernames
-
-## Nationality Picker (Signup)
-- Modal dialog with 169 countries (all 54 African countries + Asia, Europe, Americas, Oceania)
-- Searchable by country name
-- Shows emoji flags
 
 ## Admin Dashboard (Command Core)
 - Tabs: Analytics, Users, Content, Economy (Inbound/Outbound), Logs, Staff
+- All data loaded live from Appwrite via `refreshAdminData()`
 - Staff tab: SUPER role only — assign Moderator/Financial roles, remove staff
-- Audit logs: show `performedBy` avatar + username
-- Economy Inbound: shows payment receipt screenshots
 
 ## Design System
 - Primary: `#9940E5` (violet)
@@ -58,3 +71,8 @@ ViMore is a Next.js 15 social networking and creator platform with a violet (#99
 - Cards: `rounded-[2.5rem]` with backdrop blur
 - Light-mode pages (login/signup): forced white bg, no dark: variants
 - Dark-mode app: `bg-[#020202]` / `bg-[#050505]`
+
+## Developer Notes
+- `src/lib/mock-data.ts` is intentionally empty — all data comes from Appwrite
+- `src/lib/appwrite.ts` exports named bucket constants (`BUCKET_IMAGES`, `BUCKET_STORIES`, `BUCKET_REEL`, `BUCKET_MUSIC`) for component compatibility
+- `BUCKET_IMAGES` maps to `post_media` bucket; `BUCKET_MUSIC` maps to `music_tracks`

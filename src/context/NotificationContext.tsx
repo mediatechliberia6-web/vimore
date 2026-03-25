@@ -1,9 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { usePosts } from '@/context/PostContext';
-import { MOCK_NOTIFICATIONS } from '@/lib/mock-data';
+import { databases, DATABASE_ID, COL, ID, Query } from '@/lib/appwrite';
 
 export type SignalType = 'SOCIAL' | 'SONIC' | 'POST' | 'SYSTEM';
 export type PulseCategory = 'HOME' | 'FRIENDS' | 'MUSIC' | 'MESSAGES';
@@ -46,13 +45,54 @@ const SOUNDS = {
   lofi: "https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3",
 };
 
+function formatTimeAgoSimple(dateStr: string): string {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState<NotificationNode[]>(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<NotificationNode[]>([]);
   const [categoryPulses, setCategoryPulses] = useState<Record<PulseCategory, number>>({
     HOME: 0, FRIENDS: 0, MUSIC: 0, MESSAGES: 0,
   });
   const [hasPushPermission, setHasPushPermission] = useState(false);
-  const { settings, triggerHaptic } = usePosts();
+  const { settings, triggerHaptic, currentUser } = usePosts();
+
+  const loadNotifications = useCallback(async (userId: string) => {
+    try {
+      const res = await databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
+        Query.equal('recipient_id', userId),
+        Query.orderDesc('$createdAt'),
+        Query.limit(50),
+      ]);
+      const mapped: NotificationNode[] = res.documents.map(doc => ({
+        id: doc.$id,
+        type: (doc.type as SignalType) || 'SYSTEM',
+        title: doc.title || '',
+        content: doc.content || '',
+        time: formatTimeAgoSimple(doc.$createdAt),
+        isRead: doc.is_read || false,
+        recipientId: doc.recipient_id || '',
+        postId: doc.post_id || undefined,
+        trackId: doc.track_id || undefined,
+        targetUsername: doc.target_username || undefined,
+      }));
+      setNotifications(mapped);
+    } catch (err) {
+      console.error('loadNotifications error:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      loadNotifications(currentUser.$id);
+    } else {
+      setNotifications([]);
+    }
+  }, [currentUser, loadNotifications]);
 
   const triggerSound = useCallback(() => {
     if (settings.isSilenceActive) {
@@ -79,19 +119,40 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setNotifications(prev => [newNotif, ...prev]);
     triggerSound();
     triggerHaptic(15);
+
+    if (signal.recipientId) {
+      databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+        recipient_id: signal.recipientId,
+        sender_id: signal.recipientId,
+        type: signal.type,
+        title: signal.title,
+        content: signal.content,
+        is_read: false,
+        post_id: signal.postId || null,
+        track_id: signal.trackId ? String(signal.trackId) : null,
+        target_username: signal.targetUsername || null,
+      }).catch(() => { /* ignore */ });
+    }
   }, [triggerSound, triggerHaptic]);
 
-  const markAsRead = (id: string) => {
+  const markAsRead = useCallback((id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-  };
+    databases.updateDocument(DATABASE_ID, COL.NOTIFICATIONS, id, { is_read: true }).catch(() => { /* ignore */ });
+  }, []);
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-  };
+  const markAllAsRead = useCallback(() => {
+    setNotifications(prev => {
+      prev.filter(n => !n.isRead).forEach(n => {
+        databases.updateDocument(DATABASE_ID, COL.NOTIFICATIONS, n.id, { is_read: true }).catch(() => { /* ignore */ });
+      });
+      return prev.map(n => ({ ...n, isRead: true }));
+    });
+  }, []);
 
-  const purgeSignal = (id: string) => {
+  const purgeSignal = useCallback((id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
-  };
+    databases.deleteDocument(DATABASE_ID, COL.NOTIFICATIONS, id).catch(() => { /* ignore */ });
+  }, []);
 
   const clearPulse = useCallback((category: PulseCategory) => {
     setCategoryPulses(prev => ({ ...prev, [category]: 0 }));

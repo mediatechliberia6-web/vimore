@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { usePosts } from './PostContext';
-import { MOCK_TRACKS, MOCK_ALBUMS, MOCK_PLAYLISTS } from '@/lib/mock-data';
+import { databases, storage, ID, Query, BUCKET, DATABASE_ID, COL, getFileUrl, extractFileId } from '@/lib/appwrite';
 
 export interface Track {
   id: string | number;
@@ -35,6 +35,7 @@ export interface Playlist {
   id: string | number;
   title: string;
   creator: string;
+  creatorId?: string;
   cover: string;
   totalStreams: string;
   songs: Track[];
@@ -119,14 +120,57 @@ interface MusicContextType {
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
 
+function mapDocToTrack(doc: any): Track {
+  return {
+    id: doc.$id,
+    title: doc.title || 'Untitled',
+    artist: doc.artist_name || 'Unknown Artist',
+    artistUsername: doc.artist_username || '',
+    cover: doc.cover_id ? getFileUrl(BUCKET.ALBUM_COVERS, doc.cover_id) : `https://picsum.photos/seed/${doc.$id}/300/300`,
+    audioUrl: doc.audio_id ? getFileUrl(BUCKET.MUSIC_TRACKS, doc.audio_id) : undefined,
+    duration: doc.duration || 0,
+    streams: String(doc.streams_count || 0),
+    likes: doc.likes_count || 0,
+    isBoosted: doc.is_boosted || false,
+  };
+}
+
+function mapDocToAlbum(doc: any, songs: Track[]): Album {
+  return {
+    id: doc.$id,
+    title: doc.title || 'Untitled Album',
+    artist: doc.artist_name || 'Unknown Artist',
+    artistUsername: doc.artist_username || '',
+    cover: doc.cover_id ? getFileUrl(BUCKET.ALBUM_COVERS, doc.cover_id) : `https://picsum.photos/seed/${doc.$id}/300/300`,
+    year: doc.release_date ? new Date(doc.release_date).getFullYear().toString() : new Date().getFullYear().toString(),
+    tracks: doc.tracks_count || songs.length,
+    totalStreams: '0',
+    songs,
+  };
+}
+
+function mapDocToPlaylist(doc: any, songs: Track[]): Playlist {
+  return {
+    id: doc.$id,
+    title: doc.title || 'Untitled Playlist',
+    creator: doc.creator_username || '',
+    creatorId: doc.creator_id || '',
+    cover: doc.cover_id ? getFileUrl(BUCKET.ALBUM_COVERS, doc.cover_id) : `https://picsum.photos/seed/${doc.$id}/300/300`,
+    totalStreams: '0',
+    songs,
+    description: doc.description || '',
+    isPrivate: doc.is_private || false,
+  };
+}
+
 export function MusicProvider({ children }: { children: ReactNode }) {
   const { currentUser } = usePosts();
 
   const [currentTrack, setCurrentTrackState] = useState<Track | null>(null);
-  const [globalSongs, setGlobalSongsState] = useState<Track[]>(MOCK_TRACKS);
-  const [globalAlbums, setGlobalAlbumsState] = useState<Album[]>(MOCK_ALBUMS);
-  const [globalPlaylists, setGlobalPlaylistsState] = useState<Playlist[]>(MOCK_PLAYLISTS);
-  const [queue, setQueueState] = useState<Track[]>(MOCK_TRACKS);
+  const [globalSongs, setGlobalSongsState] = useState<Track[]>([]);
+  const [globalAlbums, setGlobalAlbumsState] = useState<Album[]>([]);
+  const [globalPlaylists, setGlobalPlaylistsState] = useState<Playlist[]>([]);
+  const [queue, setQueueState] = useState<Track[]>([]);
   const [isPlaying, setIsPlayingState] = useState(false);
   const [isExpanded, setIsExpandedState] = useState(false);
   const [selectedAlbum, setSelectedAlbumState] = useState<Album | null>(null);
@@ -151,13 +195,121 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const loadMusicData = useCallback(async () => {
+    try {
+      const [tracksRes, albumsRes, playlistsRes] = await Promise.allSettled([
+        databases.listDocuments(DATABASE_ID, COL.TRACKS, [
+          Query.equal('is_published', true),
+          Query.orderDesc('$createdAt'),
+          Query.limit(100),
+        ]),
+        databases.listDocuments(DATABASE_ID, COL.ALBUMS, [
+          Query.equal('is_published', true),
+          Query.orderDesc('$createdAt'),
+          Query.limit(50),
+        ]),
+        databases.listDocuments(DATABASE_ID, COL.PLAYLISTS, [
+          Query.equal('is_private', false),
+          Query.orderDesc('$createdAt'),
+          Query.limit(50),
+        ]),
+      ]);
+
+      let tracks: Track[] = [];
+      let albums: Album[] = [];
+      let playlists: Playlist[] = [];
+
+      if (tracksRes.status === 'fulfilled') {
+        tracks = tracksRes.value.documents.map(mapDocToTrack);
+        setGlobalSongsState(tracks);
+        setQueueState(tracks);
+      }
+
+      if (albumsRes.status === 'fulfilled') {
+        const albumDocs = albumsRes.value.documents;
+        const albumIds = albumDocs.map(a => a.$id);
+        let albumTracksMap: Record<string, Track[]> = {};
+
+        if (albumIds.length > 0) {
+          try {
+            const albumTracksRes = await databases.listDocuments(DATABASE_ID, COL.TRACKS, [
+              Query.equal('album_id', albumIds),
+              Query.equal('is_published', true),
+              Query.orderAsc('track_number'),
+              Query.limit(500),
+            ]);
+            albumTracksRes.documents.forEach(doc => {
+              const albumId = doc.album_id;
+              if (!albumTracksMap[albumId]) albumTracksMap[albumId] = [];
+              albumTracksMap[albumId].push(mapDocToTrack(doc));
+            });
+          } catch { /* ignore */ }
+        }
+
+        albums = albumDocs.map(doc => mapDocToAlbum(doc, albumTracksMap[doc.$id] || []));
+        setGlobalAlbumsState(albums);
+      }
+
+      if (playlistsRes.status === 'fulfilled') {
+        const playlistDocs = playlistsRes.value.documents;
+        const playlistIds = playlistDocs.map(p => p.$id);
+        let playlistTracksMap: Record<string, Track[]> = {};
+
+        if (playlistIds.length > 0) {
+          try {
+            const ptRes = await databases.listDocuments(DATABASE_ID, COL.PLAYLIST_TRACKS, [
+              Query.equal('playlist_id', playlistIds),
+              Query.orderAsc('order_index'),
+              Query.limit(1000),
+            ]);
+            const trackIds = [...new Set(ptRes.documents.map(pt => pt.track_id).filter(Boolean))];
+            let trackDocsMap: Record<string, any> = {};
+            if (trackIds.length > 0) {
+              const tRes = await databases.listDocuments(DATABASE_ID, COL.TRACKS, [
+                Query.equal('$id', trackIds),
+                Query.limit(500),
+              ]);
+              trackDocsMap = Object.fromEntries(tRes.documents.map(t => [t.$id, t]));
+            }
+            ptRes.documents.forEach(pt => {
+              const tDoc = trackDocsMap[pt.track_id];
+              if (!tDoc) return;
+              if (!playlistTracksMap[pt.playlist_id]) playlistTracksMap[pt.playlist_id] = [];
+              playlistTracksMap[pt.playlist_id].push(mapDocToTrack(tDoc));
+            });
+          } catch { /* ignore */ }
+        }
+
+        playlists = playlistDocs.map(doc => mapDocToPlaylist(doc, playlistTracksMap[doc.$id] || []));
+        setGlobalPlaylistsState(playlists);
+      }
+    } catch (err) {
+      console.error('loadMusicData error:', err);
+    }
+  }, []);
+
+  const loadUserLikes = useCallback(async (userId: string) => {
+    try {
+      const res = await databases.listDocuments(DATABASE_ID, COL.TRACK_LIKES, [
+        Query.equal('user_id', userId),
+        Query.limit(500),
+      ]);
+      setLikedSongIdsState(new Set(res.documents.map(d => d.track_id).filter(Boolean)));
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    loadMusicData();
+  }, [loadMusicData]);
+
   useEffect(() => {
     if (currentUser) {
+      loadUserLikes(currentUser.$id);
       setUserSongsState(globalSongs.filter(s => s.artistUsername === currentUser.username));
       setUserAlbumsState(globalAlbums.filter(a => a.artistUsername === currentUser.username));
       setUserPlaylistsState(globalPlaylists.filter(p => p.creator === currentUser.username));
     }
-  }, [currentUser, globalSongs, globalAlbums, globalPlaylists]);
+  }, [currentUser, globalSongs, globalAlbums, globalPlaylists, loadUserLikes]);
 
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
@@ -214,24 +366,240 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       const current = parseInt(s.streams || '0');
       return { ...s, streams: (current + 1).toString() };
     }));
+    try {
+      await databases.updateDocument(DATABASE_ID, COL.TRACKS, String(songId), {
+        streams_count: (globalSongs.find(s => s.id === songId)?.streams ? parseInt(globalSongs.find(s => s.id === songId)!.streams!) : 0) + 1,
+      });
+    } catch { /* ignore */ }
+  }, [globalSongs]);
+
+  const toggleLike = useCallback(async (track: Track) => {
+    if (!currentUser) return;
+    const wasLiked = likedSongIds.has(track.id);
+    setLikedSongIdsState(prev => { const n = new Set(prev); if (n.has(track.id)) n.delete(track.id); else n.add(track.id); return n; });
+    setGlobalSongsState(prev => prev.map(s => s.id === track.id ? { ...s, likes: Math.max(0, (s.likes || 0) + (wasLiked ? -1 : 1)) } : s));
+
+    try {
+      if (wasLiked) {
+        const existing = await databases.listDocuments(DATABASE_ID, COL.TRACK_LIKES, [
+          Query.equal('track_id', String(track.id)),
+          Query.equal('user_id', currentUser.$id),
+        ]);
+        for (const doc of existing.documents) {
+          await databases.deleteDocument(DATABASE_ID, COL.TRACK_LIKES, doc.$id);
+        }
+        await databases.updateDocument(DATABASE_ID, COL.TRACKS, String(track.id), {
+          likes_count: Math.max(0, (track.likes || 1) - 1),
+        });
+      } else {
+        await databases.createDocument(DATABASE_ID, COL.TRACK_LIKES, ID.unique(), {
+          track_id: String(track.id),
+          user_id: currentUser.$id,
+        });
+        await databases.updateDocument(DATABASE_ID, COL.TRACKS, String(track.id), {
+          likes_count: (track.likes || 0) + 1,
+        });
+      }
+    } catch { /* keep optimistic */ }
+  }, [currentUser, likedSongIds]);
+
+  const publishTrack = useCallback(async (track: any) => {
+    if (!currentUser) return;
+    try {
+      let audioId: string | undefined;
+      let coverId: string | undefined;
+
+      if (track.audioFile instanceof File) {
+        const audioDoc = await storage.createFile(BUCKET.MUSIC_TRACKS, ID.unique(), track.audioFile);
+        audioId = audioDoc.$id;
+      } else if (track.audioUrl) {
+        audioId = extractFileId(track.audioUrl) || undefined;
+      }
+
+      if (track.coverFile instanceof File) {
+        const coverDoc = await storage.createFile(BUCKET.ALBUM_COVERS, ID.unique(), track.coverFile);
+        coverId = coverDoc.$id;
+      } else if (track.cover) {
+        coverId = extractFileId(track.cover) || undefined;
+      }
+
+      const docData: Record<string, any> = {
+        title: track.title || 'Untitled',
+        artist_id: currentUser.$id,
+        artist_name: track.artist || currentUser.name,
+        artist_username: track.artistUsername || currentUser.username,
+        duration: track.duration || 0,
+        streams_count: 0,
+        likes_count: 0,
+        is_boosted: false,
+        is_published: true,
+        genre: track.genre || '',
+        tags: track.tags || [],
+      };
+      if (audioId) docData.audio_id = audioId;
+      if (coverId) docData.cover_id = coverId;
+      if (track.albumId) docData.album_id = track.albumId;
+
+      const doc = await databases.createDocument(DATABASE_ID, COL.TRACKS, ID.unique(), docData);
+      const newTrack = mapDocToTrack(doc);
+      if (track.audioUrl) newTrack.audioUrl = track.audioUrl;
+      if (track.cover) newTrack.cover = track.cover;
+
+      setGlobalSongsState(prev => [newTrack, ...prev]);
+      setUserSongsState(prev => [newTrack, ...prev]);
+      setQueueState(prev => [newTrack, ...prev]);
+    } catch (err: any) {
+      console.error('publishTrack error:', err);
+      throw err;
+    }
+  }, [currentUser]);
+
+  const publishAlbum = useCallback(async (album: any) => {
+    if (!currentUser) return;
+    try {
+      let coverId: string | undefined;
+      if (album.coverFile instanceof File) {
+        const coverDoc = await storage.createFile(BUCKET.ALBUM_COVERS, ID.unique(), album.coverFile);
+        coverId = coverDoc.$id;
+      } else if (album.cover) {
+        coverId = extractFileId(album.cover) || undefined;
+      }
+
+      const docData: Record<string, any> = {
+        title: album.title || 'Untitled Album',
+        artist_id: currentUser.$id,
+        artist_name: album.artist || currentUser.name,
+        artist_username: album.artistUsername || currentUser.username,
+        tracks_count: album.songs?.length || 0,
+        is_published: true,
+        genre: album.genre || '',
+        description: album.description || '',
+      };
+      if (coverId) docData.cover_id = coverId;
+
+      const doc = await databases.createDocument(DATABASE_ID, COL.ALBUMS, ID.unique(), docData);
+
+      const songsWithIds: Track[] = [];
+      if (album.songs && album.songs.length > 0) {
+        for (let i = 0; i < album.songs.length; i++) {
+          const song = album.songs[i];
+          const audioId = song.audioUrl ? extractFileId(song.audioUrl) || undefined : undefined;
+          const songDocData: Record<string, any> = {
+            title: song.title || 'Untitled',
+            artist_id: currentUser.$id,
+            artist_name: album.artist || currentUser.name,
+            artist_username: album.artistUsername || currentUser.username,
+            duration: song.duration || 0,
+            streams_count: 0,
+            likes_count: 0,
+            is_boosted: false,
+            is_published: true,
+            album_id: doc.$id,
+            track_number: i + 1,
+            genre: album.genre || '',
+            tags: [],
+          };
+          if (audioId) songDocData.audio_id = audioId;
+          if (coverId) songDocData.cover_id = coverId;
+
+          try {
+            const songDoc = await databases.createDocument(DATABASE_ID, COL.TRACKS, ID.unique(), songDocData);
+            const newSong = mapDocToTrack(songDoc);
+            if (song.audioUrl) newSong.audioUrl = song.audioUrl;
+            if (song.cover) newSong.cover = song.cover;
+            songsWithIds.push(newSong);
+          } catch { /* ignore individual track errors */ }
+        }
+      }
+
+      const newAlbum = mapDocToAlbum(doc, songsWithIds);
+      if (album.cover) newAlbum.cover = album.cover;
+      setGlobalAlbumsState(prev => [newAlbum, ...prev]);
+      setUserAlbumsState(prev => [newAlbum, ...prev]);
+      if (songsWithIds.length > 0) {
+        setGlobalSongsState(prev => [...songsWithIds, ...prev]);
+        setQueueState(prev => [...songsWithIds, ...prev]);
+      }
+    } catch (err: any) {
+      console.error('publishAlbum error:', err);
+      throw err;
+    }
+  }, [currentUser]);
+
+  const deleteUserTrack = useCallback(async (id: string | number) => {
+    setUserSongsState(prev => prev.filter(s => s.id !== id));
+    setGlobalSongsState(prev => prev.filter(s => s.id !== id));
+    try {
+      await databases.deleteDocument(DATABASE_ID, COL.TRACKS, String(id));
+    } catch { /* ignore */ }
   }, []);
 
-  const publishTrack = async (track: any) => {
-    const newTrack: Track = { id: 'track_' + Date.now(), ...track };
-    setGlobalSongsState(prev => [newTrack, ...prev]);
-    setUserSongsState(prev => [newTrack, ...prev]);
-    setQueueState(prev => [newTrack, ...prev]);
-  };
+  const deleteUserAlbum = useCallback(async (id: string | number) => {
+    setUserAlbumsState(prev => prev.filter(a => a.id !== id));
+    setGlobalAlbumsState(prev => prev.filter(a => a.id !== id));
+    try {
+      await databases.deleteDocument(DATABASE_ID, COL.ALBUMS, String(id));
+    } catch { /* ignore */ }
+  }, []);
 
-  const publishAlbum = async (album: any) => {
-    const newAlbum: Album = { id: 'album_' + Date.now(), ...album, songs: [] };
-    setGlobalAlbumsState(prev => [newAlbum, ...prev]);
-    setUserAlbumsState(prev => [newAlbum, ...prev]);
-  };
+  const confirmCreatePlaylist = useCallback(async (data: { title: string; description: string; isPrivate: boolean; cover?: string }) => {
+    if (!currentUser) return;
+    try {
+      let coverId: string | undefined;
+      if (data.cover) coverId = extractFileId(data.cover) || undefined;
+
+      const docData: Record<string, any> = {
+        title: data.title,
+        creator_id: currentUser.$id,
+        creator_username: currentUser.username,
+        description: data.description,
+        is_private: data.isPrivate,
+        tracks_count: 0,
+      };
+      if (coverId) docData.cover_id = coverId;
+
+      const doc = await databases.createDocument(DATABASE_ID, COL.PLAYLISTS, ID.unique(), docData);
+      const newPlaylist = mapDocToPlaylist(doc, trackForNewPlaylist ? [trackForNewPlaylist] : []);
+
+      if (trackForNewPlaylist) {
+        await databases.createDocument(DATABASE_ID, COL.PLAYLIST_TRACKS, ID.unique(), {
+          playlist_id: doc.$id,
+          track_id: String(trackForNewPlaylist.id),
+          order_index: 0,
+        });
+        await databases.updateDocument(DATABASE_ID, COL.PLAYLISTS, doc.$id, { tracks_count: 1 });
+      }
+
+      setGlobalPlaylistsState(prev => [newPlaylist, ...prev]);
+      setUserPlaylistsState(prev => [newPlaylist, ...prev]);
+      setIsCreatePlaylistOpenState(false);
+    } catch (err: any) {
+      console.error('confirmCreatePlaylist error:', err);
+      throw err;
+    }
+  }, [currentUser, trackForNewPlaylist]);
+
+  const addTrackToPlaylist = useCallback(async (playlistId: string | number, track: Track) => {
+    setGlobalPlaylistsState(prev => prev.map(p =>
+      p.id === playlistId ? { ...p, songs: [...p.songs, track] } : p
+    ));
+    try {
+      const playlist = globalPlaylists.find(p => p.id === playlistId);
+      const orderIndex = playlist ? playlist.songs.length : 0;
+      await databases.createDocument(DATABASE_ID, COL.PLAYLIST_TRACKS, ID.unique(), {
+        playlist_id: String(playlistId),
+        track_id: String(track.id),
+        order_index: orderIndex,
+      });
+      await databases.updateDocument(DATABASE_ID, COL.PLAYLISTS, String(playlistId), {
+        tracks_count: (playlist?.songs.length || 0) + 1,
+      });
+    } catch { /* keep optimistic */ }
+  }, [globalPlaylists]);
 
   const value: MusicContextType = {
     currentTrack, queue, globalSongs, globalAlbums, globalPlaylists,
-    forYouSongs: globalSongs.slice(0, 5),
+    forYouSongs: globalSongs.slice(0, 10),
     isPlaying, isExpanded, selectedAlbum, selectedPlaylist, progress, volume, reactions,
     likedSongIds, unlikedSongIds, downloadedSongIds, likedCollectionIds,
     likedTracks: globalSongs.filter(s => likedSongIds.has(s.id)),
@@ -259,7 +627,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       setTimeout(() => setReactionsState(prev => prev.filter(r => r.id !== id)), 2000);
     },
     clearPlayer: () => { setIsPlayingState(false); setCurrentTrackState(null); },
-    toggleLike: (t: Track) => setLikedSongIdsState(prev => { const n = new Set(prev); if (n.has(t.id)) n.delete(t.id); else n.add(t.id); return n; }),
+    toggleLike,
     toggleUnlike: (t: Track) => setUnlikedSongIdsState(prev => { const n = new Set(prev); if (n.has(t.id)) n.delete(t.id); else n.add(t.id); return n; }),
     toggleCollectionLike: (id) => setLikedCollectionIdsState(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; }),
     simulateDownload: async (t: Track) => { setDownloadedSongIdsState(prev => new Set(prev).add(t.id)); },
@@ -270,36 +638,14 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     playCollection: (ts: Track[], startIndex = 0) => { setQueueState(ts); setCurrentTrackState(ts[startIndex]); setIsPlayingState(true); setIsExpandedState(true); },
     addToQueue: (t: Track) => setQueueState(prev => [...prev, t]),
     publishTrack, publishAlbum,
-    deleteUserTrack: (id) => { setUserSongsState(prev => prev.filter(s => s.id !== id)); setGlobalSongsState(prev => prev.filter(s => s.id !== id)); },
-    deleteUserAlbum: (id) => { setUserAlbumsState(prev => prev.filter(a => a.id !== id)); setGlobalAlbumsState(prev => prev.filter(a => a.id !== id)); },
+    deleteUserTrack,
+    deleteUserAlbum,
     openCreatePlaylist: (t?: Track) => { setTrackForNewPlaylistState(t || null); setIsCreatePlaylistOpenState(true); },
     closeCreatePlaylist: () => setIsCreatePlaylistOpenState(false),
-    confirmCreatePlaylist: async (data) => {
-      const newPlaylist: Playlist = {
-        id: 'playlist_' + Date.now(),
-        title: data.title,
-        creator: currentUser?.username || 'me',
-        cover: data.cover || 'https://picsum.photos/seed/newpl/300/300',
-        totalStreams: '0',
-        songs: trackForNewPlaylist ? [trackForNewPlaylist] : [],
-        description: data.description,
-        isPrivate: data.isPrivate,
-      };
-      setGlobalPlaylistsState(prev => [newPlaylist, ...prev]);
-      setUserPlaylistsState(prev => [newPlaylist, ...prev]);
-      setIsCreatePlaylistOpenState(false);
-    },
-    addTrackToPlaylist: (playlistId, track) => {
-      setGlobalPlaylistsState(prev => prev.map(p =>
-        p.id === playlistId ? { ...p, songs: [...p.songs, track] } : p
-      ));
-    },
+    confirmCreatePlaylist,
+    addTrackToPlaylist,
     triggerHaptic,
-    refreshMusicVault: async () => {
-      setGlobalSongsState(MOCK_TRACKS);
-      setGlobalAlbumsState(MOCK_ALBUMS);
-      setGlobalPlaylistsState(MOCK_PLAYLISTS);
-    },
+    refreshMusicVault: loadMusicData,
     recordSongStream,
   };
 
