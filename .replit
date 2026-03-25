@@ -32,3 +32,11 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[userenv]
+
+[userenv.shared]
+NEXT_PUBLIC_APPWRITE_ENDPOINT = "https://mediatechliberia.online/v1"
+NEXT_PUBLIC_APPWRITE_PROJECT_ID = "vimore123"
+APPWRITE_API_KEY = "standard_ec8901e6458c35b465351b30cb8614f65fc9bed299a0e813da095048d00a7a3df9923a7845a4b8e7ac46f3b1854f8074422adea91072e3742aaae24be62d30c73c2c69a73e2fa134db01819405ba0ab2a4800c45045da5a448e223a0d7b648622546cabc2d28d9fe056e9b6c4f9de0cce65550e4aea2858a4fc50d3e64a4be92"
+APPWRITE_DATABASE_ID = "vimoreprod"
