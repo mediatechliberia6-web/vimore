@@ -545,7 +545,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [Query.equal('receiver_id', userId), Query.equal('status', 'PENDING'), Query.limit(500)]),
         databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [Query.equal('sender_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)]),
         databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [Query.equal('receiver_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)]),
-        databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [Query.equal('user_id', userId), Query.equal('type', 'LIKE'), Query.limit(500)]),
+        databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [Query.equal('user_id', userId), Query.equal('reaction_type', 'LIKE'), Query.limit(500)]),
         databases.listDocuments(DATABASE_ID, COL.BOOKMARKS, [Query.equal('user_id', userId), Query.limit(500)]),
         databases.listDocuments(DATABASE_ID, COL.POST_UNLOCKS, [Query.equal('user_id', userId), Query.limit(500)]),
         databases.listDocuments(DATABASE_ID, COL.SUBSCRIPTIONS, [Query.equal('subscriber_id', userId), Query.equal('is_active', true), Query.limit(500)]),
@@ -1051,7 +1051,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       if (wasLiked) {
         const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [
-          Query.equal('post_id', id), Query.equal('user_id', currentUser.$id), Query.equal('type', 'LIKE'),
+          Query.equal('post_id', id), Query.equal('user_id', currentUser.$id), Query.equal('reaction_type', 'LIKE'),
         ]);
         for (const doc of existing.documents) {
           await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, doc.$id);
@@ -1060,14 +1060,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
       } else {
         if (wasUnliked) {
           const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [
-            Query.equal('post_id', id), Query.equal('user_id', currentUser.$id), Query.equal('type', 'UNLIKE'),
+            Query.equal('post_id', id), Query.equal('user_id', currentUser.$id), Query.equal('reaction_type', 'UNLIKE'),
           ]);
           for (const doc of existing.documents) {
             await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, doc.$id);
           }
         }
         await databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), {
-          post_id: id, user_id: currentUser.$id, type: 'LIKE',
+          post_id: id, user_id: currentUser.$id, reaction_type: 'LIKE',
         });
         const post = posts.find(p => p.$id === id);
         await databases.updateDocument(DATABASE_ID, COL.POSTS, id, { likes_count: (post?.likes || 0) + (wasLiked ? 0 : 1) });
@@ -1091,7 +1091,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       if (wasUnliked) {
         const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [
-          Query.equal('post_id', id), Query.equal('user_id', currentUser.$id), Query.equal('type', 'UNLIKE'),
+          Query.equal('post_id', id), Query.equal('user_id', currentUser.$id), Query.equal('reaction_type', 'UNLIKE'),
         ]);
         for (const doc of existing.documents) {
           await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, doc.$id);
@@ -1099,14 +1099,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
       } else {
         if (wasLiked) {
           const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [
-            Query.equal('post_id', id), Query.equal('user_id', currentUser.$id), Query.equal('type', 'LIKE'),
+            Query.equal('post_id', id), Query.equal('user_id', currentUser.$id), Query.equal('reaction_type', 'LIKE'),
           ]);
           for (const doc of existing.documents) {
             await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, doc.$id);
           }
         }
         await databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), {
-          post_id: id, user_id: currentUser.$id, type: 'UNLIKE',
+          post_id: id, user_id: currentUser.$id, reaction_type: 'UNLIKE',
         });
       }
     } catch { /* ignore */ }
@@ -1177,7 +1177,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         story_id: storyDoc.$id,
         author_id: currentUser.$id,
         type: segment.type || 'image',
-        order: 0,
+        order_index: 0,
         duration: segment.duration || 5,
       };
       if (mediaId) segData.media_id = mediaId;
@@ -1537,8 +1537,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       await databases.createDocument(DATABASE_ID, COL.WITHDRAWAL_REQUESTS, ID.unique(), {
         user_id: currentUser.$id, username: currentUser.username,
-        amount: String(n.amount || 0), currency: n.currency || 'USD',
-        phone_number: n.phoneNumber || '', method: n.method || 'MOBILE_MONEY',
+        amount_usd: parseFloat(n.amount || 0), currency_type: n.currency || 'USD',
+        phone_number: n.phoneNumber || '', payment_method: n.method || 'MOBILE_MONEY',
         status: 'PENDING',
       });
     } catch { /* keep optimistic */ }
@@ -1664,7 +1664,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       try {
         await Promise.all([
           databases.createDocument(DATABASE_ID, COL.STORY_VIEWS, ID.unique(), {
-            story_id: id, user_id: currentUser.$id,
+            story_id: id, viewer_id: currentUser.$id,
           }),
           databases.updateDocument(DATABASE_ID, COL.STORIES, id, {
             view_count: (stories.find(s => s.$id === id)?.viewCount || 0) + 1,

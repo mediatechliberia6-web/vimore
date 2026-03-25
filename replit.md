@@ -76,3 +76,30 @@ avatars, covers, post_media, story_media, reel_media, music_tracks, album_covers
 - `src/lib/mock-data.ts` is intentionally empty — all data comes from Appwrite
 - `src/lib/appwrite.ts` exports named bucket constants (`BUCKET_IMAGES`, `BUCKET_STORIES`, `BUCKET_REEL`, `BUCKET_MUSIC`) for component compatibility
 - `BUCKET_IMAGES` maps to `post_media` bucket; `BUCKET_MUSIC` maps to `music_tracks`
+- `users` collection has both `is_verfied` (typo, original) and `is_verified` (correct, added programmatically) — code uses the correct spelling
+
+## Schema Reconciliation (applied programmatically via API)
+All mismatches between code and Appwrite schema were resolved. Attributes added:
+- **users**: `is_verified` (boolean)
+- **messages**: `is_viewed`, `is_read` (boolean), `call_status` (string)
+- **follows**: `follower_username`, `following_username` (string)
+- **friend_requests**: `sender_username`, `receiver_username` (string)
+- **subscriptions**: `is_active` (boolean), `creator_username`, `diamond_spent` (string)
+- **post_comments**: `user_id`, `user_name`, `user_avatar`, `content` (string)
+- **posts**: `theme`, `image_filter`, `feeling`, `poll` (string), `comments_disabled` (boolean)
+- **clusters**: `admin_username`, `cover_id` (string)
+- **stories**: `expiry`, `view_count` (int)
+- **cluster_members**: `username` (string)
+- **story_segments**: `text` (string)
+- **withdrawal_requests**: `username` (string)
+- **payment_requests**: `username`, `code`, `amount`, `currency` (string)
+- **audit_logs**: `details`, `performed_by`, `performed_by_avatar` (string)
+- **ad_campaigns**: `cta_link` (string)
+
+Code fixes applied in `PostContext.tsx`:
+- `post_reactions`: `type` field renamed → `reaction_type` (all queries + creates)
+- `story_views`: `user_id` → `viewer_id`
+- `story_segments`: `order` → `order_index`
+- `withdrawal_requests`: `amount`→`amount_usd`, `currency`→`currency_type`, `method`→`payment_method`
+
+Indexes created: `friend_requests` (sender/receiver_username), `follows` (follower/following_username), `post_reactions` (compound), `subscriptions` (active check), `stories` (expiry)
