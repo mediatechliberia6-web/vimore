@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { freeModeSignupAction } from '@/app/actions/free-signup';
 import { Zap, Eye, EyeOff, CheckCircle } from 'lucide-react';
 
@@ -13,6 +14,7 @@ function generateUsername(name: string): string {
 }
 
 export default function FreeModeSignupPage() {
+  const router = useRouter();
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -59,6 +61,9 @@ export default function FreeModeSignupPage() {
         gender: form.gender,
       });
       setResult(res);
+      if (res.success) {
+        setTimeout(() => router.push('/login'), 2500);
+      }
     } catch {
       setResult({ success: false, message: 'Something went wrong. Please try again.' });
     } finally {
@@ -73,16 +78,15 @@ export default function FreeModeSignupPage() {
           <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          <h2 className="text-xl font-bold text-foreground">Check Your Email</h2>
+          <h2 className="text-xl font-bold text-foreground">Account Created!</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            We sent a verification link to <strong>{form.email}</strong>. Click the link in the email to activate your account.
+            Welcome to ViMore Free Mode. Redirecting you to login…
           </p>
-          <p className="text-xs text-muted-foreground">The link expires in 24 hours.</p>
           <Link
             href="/login"
-            className="inline-block mt-4 text-sm font-bold text-primary hover:underline"
+            className="inline-block mt-2 px-8 py-3 bg-primary text-white font-black text-sm uppercase tracking-widest rounded-xl hover:bg-primary/90 transition-colors"
           >
-            Back to Login
+            Log In Now
           </Link>
         </div>
       </div>

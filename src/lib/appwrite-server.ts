@@ -5,7 +5,6 @@ const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
 const API_KEY = process.env.APPWRITE_API_KEY!;
 
 export const DATABASE_ID = process.env.APPWRITE_DATABASE_ID || 'vimoreprod';
-export const VERIFICATIONS_COLLECTION_ID = 'verifications';
 
 function getAdminClient(): Client {
   const client = new Client();
