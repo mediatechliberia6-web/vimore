@@ -48,12 +48,14 @@ export async function freeModeSignupAction(input: {
       input.name
     );
     userId = user.$id;
+    console.log('[Signup] Appwrite user created:', userId);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
+    console.error('[Signup] Appwrite user creation failed:', msg);
     if (msg.toLowerCase().includes('already exists') || msg.includes('409')) {
       return { success: false, message: 'An account with this email already exists.' };
     }
-    return { success: false, message: 'Failed to create account. Please try again.' };
+    return { success: false, message: `Failed to create account: ${msg}` };
   }
 
   const token = generateToken();
@@ -66,9 +68,12 @@ export async function freeModeSignupAction(input: {
       ID.unique(),
       { userId, token, expiresAt }
     );
-  } catch {
+    console.log('[Signup] Verification document created for userId:', userId);
+  } catch (docErr: unknown) {
+    const msg = docErr instanceof Error ? docErr.message : String(docErr);
+    console.error('[Signup] Verification document creation failed:', msg);
     await usersClient.delete(userId).catch(() => {});
-    return { success: false, message: 'Failed to create verification record. Please try again.' };
+    return { success: false, message: `Failed to create verification record: ${msg}` };
   }
 
   const verifyLink = `${FREE_DOMAIN}/verify?token=${token}`;
@@ -82,9 +87,18 @@ export async function freeModeSignupAction(input: {
       .setHtml(buildEmailHtml(input.name, verifyLink))
       .setText(`Hi ${input.name},\n\nVerify your ViMore account by visiting:\n${verifyLink}\n\nThis link expires in 24 hours.`);
 
-    await mailerSend.email.send(emailParams);
-  } catch {
-    return { success: false, message: 'Account created but we could not send the verification email. Please contact support.' };
+    const sendResult = await mailerSend.email.send(emailParams);
+    console.log('[MailerSend] Email sent successfully. Status:', sendResult.statusCode);
+  } catch (emailErr: unknown) {
+    const errMsg = emailErr instanceof Error ? emailErr.message : JSON.stringify(emailErr);
+    console.error('[MailerSend] Failed to send verification email:', errMsg);
+    if (emailErr && typeof emailErr === 'object' && 'body' in emailErr) {
+      console.error('[MailerSend] Response body:', JSON.stringify((emailErr as { body: unknown }).body));
+    }
+    return {
+      success: false,
+      message: `Account created but email failed to send: ${errMsg}. Please contact support.`,
+    };
   }
 
   return { success: true, message: 'Account created! Please check your email to verify your account.' };
