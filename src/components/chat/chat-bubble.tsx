@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { cn } from "@/lib/utils";
+import { cn, isTextForeignToUser } from "@/lib/utils";
 import { 
   CheckCheck, 
   Play, 
@@ -18,6 +18,7 @@ import {
   EyeOff,
   Download,
   Loader2,
+  Languages,
   Image as ImageIcon,
   Video as VideoIcon,
   Link as LinkIcon,
@@ -49,8 +50,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { aiTranslatePostAction } from "@/app/actions/ai";
-import { isTextForeignToUser } from "@/lib/utils";
-import { Languages, Loader2 } from "lucide-react";
 
 interface LinkPreview {
   title: string;

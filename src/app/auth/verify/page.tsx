@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle, Mail } from "lucide-react";
 import { account } from "@/lib/appwrite";
 import { Button } from "@/components/ui/button";
-import { Suspense } from "react";
 
 function VerifyContent() {
   const router = useRouter();
