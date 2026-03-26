@@ -78,6 +78,17 @@ avatars, covers, post_media, story_media, reel_media, music_tracks, album_covers
 - `BUCKET_IMAGES` maps to `post_media` bucket; `BUCKET_MUSIC` maps to `music_tracks`
 - `users` collection has both `is_verfied` (typo, original) and `is_verified` (correct, added programmatically) — code uses the correct spelling
 
+## AI System
+- **Only feature**: Translation powered by Groq (`llama-3.3-70b-versatile`), API key stored as `GROQ_API_KEY` env var.
+- **Server action**: `src/app/actions/ai.ts` — only exports `aiTranslatePostAction`.
+- **Language detection**: `isTextForeignToUser(text, browserLang)` in `src/lib/utils.ts` — detects Arabic, Chinese, Japanese, Korean, Cyrillic, Hindi, Thai, Greek scripts.
+- **Where translate appears**:
+  - **Post feed** (`post-card.tsx`): "Translate" button auto-appears under any post in a foreign script. Tap again to "Show original".
+  - **Profile bio** (`profile/[username]/page.tsx`): Hover to reveal translate button when bio is in a foreign script.
+  - **Messages** (`chat-bubble.tsx`): "Translate" button appears under incoming text messages in a foreign script.
+- **Removed AI features**: Comment summarizer, network sentiment analysis, hashtag suggester, post summarizer, music mix generator, verification code AI, boost/gift/monetization audit AI, signature verifier.
+- **All 10 unused AI flow files deleted** from `src/ai/flows/`.
+
 ## Schema Reconciliation (applied programmatically via API)
 All mismatches between code and Appwrite schema were resolved. Attributes added:
 - **users**: `is_verified` (boolean)

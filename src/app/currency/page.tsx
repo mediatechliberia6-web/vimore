@@ -38,7 +38,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
-import { aiGenerateVerificationCodeAction } from "@/app/actions/ai";
 import { BiometricGate } from "@/components/layout/biometric-gate";
 
 const GOLD_PACKAGES = [
@@ -109,7 +108,7 @@ export default function CurrencyHub() {
     setIsGeneratingCode(true);
     
     try {
-      const { code } = await aiGenerateVerificationCodeAction({ packageName: selectedPackage.label });
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
       const amount = currencyMode === 'LD' ? selectedPackage.priceLD : selectedPackage.priceUSD;
       
       initiateTransaction({

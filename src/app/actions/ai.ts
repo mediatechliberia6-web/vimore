@@ -1,66 +1,45 @@
-
 'use server';
 
-/**
- * @fileOverview ViMore AI Heuristics (Prototype Simulation)
- * Returns deterministic spatial logic nodes without external inference.
- */
+export async function aiTranslatePostAction({
+  postContent,
+  targetLanguage = 'English',
+}: {
+  postContent: string;
+  targetLanguage?: string;
+}) {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return { translation: postContent };
 
-export async function aiAuditBoostHandshakeAction(input: any) {
-  return {
-    approved: true,
-    promisedViews: 10000,
-    strategy: "Heuristic Priority active.",
-    message: "Boost authorized via local pulse.",
-    auditToken: "BST-PROTO-" + Math.random().toString(36).substring(2, 10).toUpperCase()
-  };
-}
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a professional translator. Translate the following text into ${targetLanguage}. Preserve the original tone, emojis, line breaks, and formatting exactly. Return ONLY the translated text — no explanations, no quotes, no extra words.`,
+          },
+          {
+            role: 'user',
+            content: postContent,
+          },
+        ],
+        temperature: 0.2,
+        max_tokens: 1024,
+      }),
+    });
 
-export async function aiAnalyzeGlobalSentimentAction({ messages }: { messages: string[] }) {
-  return {
-    score: 88,
-    vibe: 'POSITIVE',
-    summary: "Prototype Network Pulse: Stability Optimal. High-velocity vibes detected."
-  };
-}
+    if (!response.ok) return { translation: postContent };
 
-export async function aiAuditMonetizationHandshakeAction(input: any) {
-  return {
-    approved: true,
-    message: "Handshake verified by local auditor.",
-    auditToken: "MT-PROTO-" + Math.random().toString(36).substring(2, 10).toUpperCase(),
-    payoutAmount: (input.cost || 0) * 0.7
-  };
-}
-
-export async function aiAuditGiftHandshakeAction(input: any) {
-  return {
-    approved: true,
-    message: "Energy transfer authorized.",
-    auditToken: "TX-PROTO-" + Math.random().toString(36).substring(2, 10).toUpperCase()
-  };
-}
-
-export async function aiSummarizeCommentsAction({ comments }: { comments: string[] }) {
-  return { summary: "The community is synchronizing positively with this node's frequency." };
-}
-
-export async function aiGenerateVerificationCodeAction({ packageName }: { packageName: string }) {
-  return { code: Math.random().toString(36).substring(2, 8).toUpperCase() };
-}
-
-export async function aiGenerateDailyMixesAction() {
-  return { mixes: ["Morning Chill", "Coding Beats", "Late Night", "Focus Flow", "Vibe Check", "Groove Hub"] };
-}
-
-export async function aiSuggestHashtagsAction({ postContent }: { postContent: string }) {
-  return { hashtags: ["#ViMore", "#Prototype", "#HighVelocity", "#SpatialNetwork"] };
-}
-
-export async function aiSummarizePostAction({ postContent }: { postContent: string }) {
-  return { summary: "A high-velocity pulse shared with the network cluster." };
-}
-
-export async function aiTranslatePostAction({ postContent, targetLanguage = "English" }: { postContent: string, targetLanguage?: string }) {
-  return { translation: `[Translated to ${targetLanguage}]: ${postContent}` };
+    const data = await response.json();
+    const translation = data.choices?.[0]?.message?.content?.trim() || postContent;
+    return { translation };
+  } catch {
+    return { translation: postContent };
+  }
 }

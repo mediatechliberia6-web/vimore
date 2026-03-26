@@ -48,7 +48,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { cn, parseFollowerCount, saveFileToDevice } from "@/lib/utils";
+import { cn, parseFollowerCount, saveFileToDevice, isTextForeignToUser } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Input } from "@/components/ui/input";
@@ -278,6 +278,23 @@ export function PostCard(props: PostCardProps) {
 
   useEffect(() => { if (typeof window !== 'undefined') setViewerLanguage(window.navigator.language.split('-')[0]); }, []);
 
+  const showTranslateButton = !isShared && !!content && !!viewerLanguage && isTextForeignToUser(content, viewerLanguage);
+
+  const handleTranslate = async () => {
+    if (translatedText) { setTranslatedText(null); return; }
+    if (!content) return;
+    setIsTranslating(true);
+    try {
+      const targetLang = new Intl.DisplayNames([viewerLanguage || 'en'], { type: 'language' }).of(viewerLanguage || 'en') || 'English';
+      const res = await aiTranslatePostAction({ postContent: content, targetLanguage: targetLang });
+      setTranslatedText(res.translation);
+    } catch {
+      toast({ variant: 'destructive', description: 'Translation failed' });
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
   const allImages = useMemo(() => {
     const list = [...images];
     if (image && !list.includes(image)) list.unshift(image);
@@ -413,7 +430,19 @@ export function PostCard(props: PostCardProps) {
             </div>
           ) : (
             <>
-              <div className={cn("leading-relaxed whitespace-pre-wrap", theme && !isShared ? "text-2xl leading-tight font-black italic uppercase tracking-tighter" : "text-foreground", isShared ? "text-xs" : "text-[13px]")}>{content}</div>
+              <div className="space-y-1">
+                <div className={cn("leading-relaxed whitespace-pre-wrap", theme && !isShared ? "text-2xl leading-tight font-black italic uppercase tracking-tighter" : "text-foreground", isShared ? "text-xs" : "text-[13px]")}>{translatedText || content}</div>
+                {showTranslateButton && (
+                  <button
+                    onClick={handleTranslate}
+                    disabled={isTranslating}
+                    className={cn("flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors mt-1", translatedText ? "text-primary" : "text-muted-foreground hover:text-primary")}
+                  >
+                    {isTranslating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" />}
+                    {isTranslating ? "Translating..." : translatedText ? "Show original" : "Translate"}
+                  </button>
+                )}
+              </div>
               {poll && !theme && (
                 <div className={cn("mt-3 p-4 rounded-xl border border-primary/10 bg-primary/5 space-y-3", isShared && "p-2 scale-95 origin-top-left")}>
                   <div className="flex items-center justify-between">

@@ -14,9 +14,6 @@ import {
   Zap,
   Trash2,
   Clock,
-  Sparkles,
-  Wand2,
-  Loader2
 } from "lucide-react";
 import {
   Sheet,
@@ -32,7 +29,6 @@ import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { aiSummarizeCommentsAction } from "@/app/actions/ai";
 import { useToast } from "@/hooks/use-toast";
 
 interface CommentNodeProps {
@@ -137,8 +133,6 @@ export function CommentHub() {
   const { toast } = useToast();
   const [text, setText] = useState("");
   const [replyingTo, setReplyingTo] = useState<PostComment | null>(null);
-  const [isSummarizing, setIsSummarizing] = useState(false);
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const activePost = useMemo(() => 
@@ -177,24 +171,6 @@ export function CommentHub() {
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
-  const handleSummarize = async () => {
-    if (activeComments.length === 0) return;
-    
-    triggerHaptic(30);
-    setIsSummarizing(true);
-    setAiSummary(null);
-
-    const commentTexts = activeComments.map(c => c.text);
-    
-    try {
-      const res = await aiSummarizeCommentsAction({ comments: commentTexts });
-      setAiSummary(res.summary);
-    } catch (e) {
-      toast({ variant: "destructive", title: "Audit Error" });
-    } finally {
-      setIsSummarizing(false);
-    }
-  };
 
   if (!activeCommentPostId) return null;
 
@@ -217,46 +193,14 @@ export function CommentHub() {
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className={cn(
-                  "rounded-full h-10 w-10 transition-all",
-                  isSummarizing ? "bg-primary/20 text-primary" : "bg-secondary/40 text-muted-foreground hover:text-primary"
-                )}
-                onClick={handleSummarize}
-                disabled={isSummarizing || activeComments.length === 0}
-              >
-                {isSummarizing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" onClick={closeCommentHub}>
-                <X className="h-6 w-6" />
-              </Button>
-            </div>
+            <Button variant="ghost" size="icon" className="rounded-full h-10 w-10" onClick={closeCommentHub}>
+              <X className="h-6 w-6" />
+            </Button>
           </div>
         </SheetHeader>
 
         <ScrollArea className="flex-1 px-6 pt-6">
           <div className="space-y-8 pb-40">
-            {/* AI Summary Card */}
-            {aiSummary && (
-              <div className="p-5 bg-primary/10 border border-primary/20 rounded-[2rem] animate-in zoom-in-95 duration-500 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-3 opacity-20"><Sparkles className="h-10 w-10 text-primary" /></div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Badge className="bg-primary text-white text-[8px] font-black uppercase tracking-widest border-none px-2 py-0.5">Groq Pulse</Badge>
-                  <span className="text-[10px] font-black uppercase text-primary/60 tracking-widest">{t('comm_sentiment')}</span>
-                </div>
-                <p className="text-sm font-bold italic leading-relaxed text-foreground">"{aiSummary}"</p>
-                <button 
-                  onClick={() => setAiSummary(null)} 
-                  className="absolute top-2 right-2 p-1 text-primary/40 hover:text-primary transition-colors"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            )}
-
             {topLevelComments.length > 0 ? (
               topLevelComments.map(comment => (
                 <CommentNode 

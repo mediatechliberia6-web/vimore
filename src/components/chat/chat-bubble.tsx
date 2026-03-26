@@ -48,6 +48,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { aiTranslatePostAction } from "@/app/actions/ai";
+import { isTextForeignToUser } from "@/lib/utils";
+import { Languages, Loader2 } from "lucide-react";
 
 interface LinkPreview {
   title: string;
@@ -105,6 +108,30 @@ export function ChatBubble({
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [voiceWaveHeights, setVoiceWaveHeights] = useState<number[]>([]);
+  const [translatedText, setTranslatedText] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [browserLang, setBrowserLang] = useState<string>('en');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') setBrowserLang(window.navigator.language.split('-')[0]);
+  }, []);
+
+  const showTranslateButton = !isMe && type === 'text' && !!text && isTextForeignToUser(text, browserLang);
+
+  const handleTranslate = async () => {
+    if (translatedText) { setTranslatedText(null); return; }
+    if (!text) return;
+    setIsTranslating(true);
+    try {
+      const targetLang = new Intl.DisplayNames([browserLang], { type: 'language' }).of(browserLang) || 'English';
+      const res = await aiTranslatePostAction({ postContent: text, targetLanguage: targetLang });
+      setTranslatedText(res.translation);
+    } catch {
+      /* silently ignore */
+    } finally {
+      setIsTranslating(false);
+    }
+  };
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -569,8 +596,21 @@ export function ChatBubble({
             {text && (
               <div className="px-3 sm:px-4 py-2 sm:py-3">
                 <div className="text-sm sm:text-[15px] leading-relaxed break-words font-medium">
-                  {renderFormattedText(text)}
+                  {renderFormattedText(translatedText || text)}
                 </div>
+                {showTranslateButton && (
+                  <button
+                    onClick={handleTranslate}
+                    disabled={isTranslating}
+                    className={cn(
+                      "flex items-center gap-1 mt-1 text-[10px] font-black uppercase tracking-widest transition-colors",
+                      isMe ? "text-white/50 hover:text-white" : translatedText ? "text-primary" : "text-muted-foreground hover:text-primary"
+                    )}
+                  >
+                    {isTranslating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" />}
+                    {isTranslating ? "Translating..." : translatedText ? "Show original" : "Translate"}
+                  </button>
+                )}
               </div>
             )}
 

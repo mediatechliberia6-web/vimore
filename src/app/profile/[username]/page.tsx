@@ -41,7 +41,7 @@ import { usePosts, User } from "@/context/PostContext";
 import { useNotifications } from "@/context/NotificationContext";
 import { aiTranslatePostAction } from "@/app/actions/ai";
 import Image from "next/image";
-import { cn, parseFollowerCount } from "@/lib/utils";
+import { cn, parseFollowerCount, isTextForeignToUser } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -161,7 +161,12 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     if (!displayUser?.bio) return;
     if (translatedBio) { setTranslatedBio(null); return; }
     triggerHaptic(); setIsTranslating(true);
-    try { const res = await aiTranslatePostAction({ postContent: displayUser.bio, targetLanguage: deviceLanguage || "en" }); setTranslatedBio(res.translation); }
+    try {
+      const lang = deviceLanguage || 'en';
+      const targetLang = new Intl.DisplayNames([lang], { type: 'language' }).of(lang) || 'English';
+      const res = await aiTranslatePostAction({ postContent: displayUser.bio, targetLanguage: targetLang });
+      setTranslatedBio(res.translation);
+    }
     catch (e) { toast({ variant: "destructive", description: "Translation failed" }); }
     finally { setIsTranslating(false); }
   };
@@ -263,7 +268,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                     </Dialog>
                   )}
                 </div>
-                <div className="flex items-start gap-4 py-2 group"><p className="text-[15px] leading-relaxed flex-1">{translatedBio || displayUser.bio}</p>{(deviceLanguage && displayUser.language && deviceLanguage !== displayUser.language) && <Button variant="ghost" size="icon" className={cn("h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity", translatedBio && "text-primary opacity-100")} onClick={handleTranslateBio} disabled={isTranslating}>{isTranslating ? <Zap className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}</Button>}</div>
+                <div className="flex items-start gap-4 py-2 group"><p className="text-[15px] leading-relaxed flex-1">{translatedBio || displayUser.bio}</p>{(deviceLanguage && displayUser.bio && isTextForeignToUser(displayUser.bio, deviceLanguage)) && <Button variant="ghost" size="icon" className={cn("h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity", translatedBio && "text-primary opacity-100")} onClick={handleTranslateBio} disabled={isTranslating}>{isTranslating ? <Zap className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}</Button>}</div>
                 <div className="mt-4 flex gap-2">
                   <Button 
                     onClick={handleHandshakeAction} 

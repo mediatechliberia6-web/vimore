@@ -77,6 +77,46 @@ export function formatBytes(bytes: number, decimals: number = 2) {
 }
 
 /**
+ * Language Detection — checks if text is in a different language than the browser.
+ * Returns true when a Translate button should be shown.
+ */
+export function isTextForeignToUser(text: string, browserLang: string): boolean {
+  if (!text || text.trim().length < 8) return false;
+  const lang = browserLang.toLowerCase().split('-')[0];
+
+  const arabicRe    = /[\u0600-\u06FF\u0750-\u077F]/;
+  const chineseRe   = /[\u4E00-\u9FFF\u3400-\u4DBF]/;
+  const japaneseRe  = /[\u3040-\u30FF]/;
+  const koreanRe    = /[\uAC00-\uD7AF\u1100-\u11FF]/;
+  const cyrillicRe  = /[\u0400-\u04FF]/;
+  const hindiRe     = /[\u0900-\u097F]/;
+  const thaiRe      = /[\u0E00-\u0E7F]/;
+  const greekRe     = /[\u0370-\u03FF]/;
+
+  const hasArabic   = arabicRe.test(text);
+  const hasChinese  = chineseRe.test(text);
+  const hasJapanese = japaneseRe.test(text);
+  const hasKorean   = koreanRe.test(text);
+  const hasCyrillic = cyrillicRe.test(text);
+  const hasHindi    = hindiRe.test(text);
+  const hasThai     = thaiRe.test(text);
+  const hasGreek    = greekRe.test(text);
+
+  const nonLatinPresent = hasArabic || hasChinese || hasJapanese || hasKorean || hasCyrillic || hasHindi || hasThai || hasGreek;
+
+  if (lang === 'ar') return !hasArabic;
+  if (lang === 'zh') return !hasChinese;
+  if (lang === 'ja') return !hasJapanese;
+  if (lang === 'ko') return !hasKorean;
+  if (['ru', 'uk', 'bg'].includes(lang)) return !hasCyrillic;
+  if (lang === 'hi') return !hasHindi;
+  if (lang === 'th') return !hasThai;
+  if (lang === 'el') return !hasGreek;
+
+  return nonLatinPresent;
+}
+
+/**
  * Identity Node Converter
  * Converts a data URL to a File node for vault archival.
  */

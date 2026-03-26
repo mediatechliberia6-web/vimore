@@ -111,7 +111,6 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-import { aiAnalyzeGlobalSentimentAction } from "@/app/actions/ai";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
