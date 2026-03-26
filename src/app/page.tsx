@@ -13,12 +13,67 @@ import { MainNav } from "@/components/layout/main-nav";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
-import { Rocket, Zap, Sparkles, Loader2, ShieldCheck, Globe, ArrowRight, Lock, CheckCircle2, FileText, Scale } from "lucide-react";
+import { Rocket, Zap, Sparkles, Loader2, ShieldCheck, Globe, ArrowRight, Lock, CheckCircle2, FileText, Scale, Mail, ShieldAlert } from "lucide-react";
+import { account } from "@/lib/appwrite";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CreateStoryModal } from "@/components/feed/create-story-modal";
 import { AuthModal } from "@/components/auth/auth-modal";
 import Link from "next/link";
+
+function EmailVerificationGate({ email }: { email?: string }) {
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
+  const { logout } = usePosts();
+
+  const handleResend = async () => {
+    setResendLoading(true);
+    try {
+      const verifyUrl = window.location.origin + '/auth/verify';
+      await account.createVerification(verifyUrl);
+      setResendSent(true);
+    } catch { /* ignore */ } finally {
+      setResendLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center">
+      <div className="w-full max-w-sm space-y-8 animate-in fade-in zoom-in-95 duration-500">
+        <div className="h-24 w-24 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto border-2 border-amber-500/20">
+          <Mail className="h-12 w-12 text-amber-400" />
+        </div>
+        <div className="space-y-3">
+          <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">Verify Your Email</h2>
+          <p className="text-white/60 font-medium text-sm leading-relaxed">
+            Your account is not verified yet.{email && <> Check <span className="font-bold text-white">{email}</span> for</>} the verification link we sent when you signed up.
+          </p>
+          <p className="text-white/30 text-xs font-medium">Check your spam folder if you don't see it.</p>
+        </div>
+        {resendSent ? (
+          <div className="flex items-center justify-center gap-2 bg-green-500/10 border border-green-500/20 rounded-2xl p-4">
+            <CheckCircle2 className="h-5 w-5 text-green-400" />
+            <span className="text-sm font-bold text-green-400">Verification email sent! Check your inbox.</span>
+          </div>
+        ) : (
+          <Button
+            onClick={handleResend}
+            disabled={resendLoading}
+            className="w-full h-12 rounded-2xl bg-primary text-white font-black italic uppercase tracking-widest text-sm"
+          >
+            {resendLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Resend Verification Email"}
+          </Button>
+        )}
+        <button
+          onClick={() => logout()}
+          className="w-full text-sm font-bold text-white/30 hover:text-white/60 transition-colors py-1"
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function LandingPage() {
   const [showAuth, setShowAuth] = useState(false);
@@ -226,7 +281,6 @@ export default function Home() {
   }
 
   // If a critical vault error occurred, the AppLoadingGate will show it.
-  // We return null here to ensure no "broken" feed content is rendered behind the gate.
   if (initError) {
     return null;
   }
@@ -234,6 +288,11 @@ export default function Home() {
   // If not authenticated (no session and profile fetch finished with null), show Landing
   if (!isAuthenticated) {
     return <LandingPage />;
+  }
+
+  // Gate: block unverified users from accessing the feed
+  if (currentUser && !currentUser.isEmailVerified) {
+    return <EmailVerificationGate email={currentUser.email} />;
   }
 
   return (

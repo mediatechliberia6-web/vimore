@@ -182,7 +182,8 @@ export default function SignupPage() {
       const result = await signup({ name, email, password, dob, nationality, username });
       if (result.success) {
         setIsSuccess(true);
-        setTimeout(() => router.push("/"), 2000);
+      } else if (!result.success && result.message) {
+        toast({ variant: "destructive", title: "Signup failed", description: result.message });
       }
     } catch {
       toast({ variant: "destructive", title: "Signup failed", description: "Please try again." });
@@ -198,18 +199,29 @@ export default function SignupPage() {
           <div className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-violet-200 to-purple-100 blur-3xl opacity-60" />
           <div className="absolute -bottom-32 -left-32 w-[400px] h-[400px] rounded-full bg-gradient-to-tr from-violet-100 to-pink-100 blur-3xl opacity-50" />
         </div>
-        <div className="relative z-10 text-center space-y-6 animate-in zoom-in-95 fade-in duration-500">
+        <div className="relative z-10 text-center space-y-6 animate-in zoom-in-95 fade-in duration-500 max-w-sm w-full">
           <div className="h-24 w-24 bg-[#9940E5] rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-violet-300">
-            <CheckCircle2 className="h-12 w-12 text-white" />
+            <Mail className="h-12 w-12 text-white" />
           </div>
-          <div className="space-y-2">
-            <h2 className="text-3xl font-black italic uppercase tracking-tighter text-gray-900">Welcome, {name.split(" ")[0]}!</h2>
-            <p className="text-gray-500 font-medium">Your account is ready. Taking you in...</p>
+          <div className="space-y-3">
+            <h2 className="text-3xl font-black italic uppercase tracking-tighter text-gray-900">Check Your Email!</h2>
+            <p className="text-gray-600 font-medium">
+              We sent a verification link to <span className="font-bold text-gray-900">{email}</span>
+            </p>
+            <p className="text-sm text-gray-400 font-medium leading-relaxed">
+              Click the link in your email to verify your account. You will not be able to sign in until your email is verified.
+            </p>
             <div className="inline-flex items-center gap-2 bg-violet-50 rounded-full px-4 py-2 mt-2">
               <span className="text-[#9940E5] font-black text-sm">@{username}</span>
             </div>
           </div>
-          <Loader2 className="h-6 w-6 text-[#9940E5] animate-spin mx-auto" />
+          <a
+            href="/login"
+            className="inline-flex items-center justify-center w-full h-12 rounded-2xl bg-[#9940E5] text-white font-black italic uppercase tracking-widest text-sm shadow-xl shadow-violet-200 transition-all hover:bg-violet-700"
+          >
+            Back to Sign In
+          </a>
+          <p className="text-xs text-gray-300 font-medium">Check your spam folder if you don&apos;t see the email.</p>
         </div>
       </div>
     );

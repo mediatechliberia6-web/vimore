@@ -12,12 +12,16 @@ ViMore is a Next.js 15 social networking and creator platform with a violet (#99
 - **Auth**: Appwrite account sessions — `PostContext.checkSession()` calls `account.get()` on mount
 
 ## Environment Variables
-| Variable | Scope |
-|----------|-------|
-| `NEXT_PUBLIC_APPWRITE_ENDPOINT` | shared |
-| `NEXT_PUBLIC_APPWRITE_PROJECT_ID` | shared |
-| `NEXT_PUBLIC_APPWRITE_DATABASE_ID` | shared |
-| `APPWRITE_API_KEY` | secret |
+| Variable | Scope | Purpose |
+|----------|-------|---------|
+| `NEXT_PUBLIC_APPWRITE_ENDPOINT` | shared | Appwrite API URL |
+| `NEXT_PUBLIC_APPWRITE_PROJECT_ID` | shared | Appwrite project ID |
+| `NEXT_PUBLIC_APPWRITE_DATABASE_ID` | shared | Appwrite database ID |
+| `APPWRITE_DATABASE_ID` | shared | Appwrite database ID (server) |
+| `APPWRITE_API_KEY` | shared | Appwrite server-side API key |
+| `GROQ_API_KEY` | shared | Groq AI API key (translations) |
+| `NEXT_PUBLIC_AGORA_APP_ID` | shared | Agora App ID (client-side RTC) |
+| `AGORA_APP_CERTIFICATE` | shared | Agora certificate (server-side token generation) |
 
 ## Key Routes
 | Path | Description |

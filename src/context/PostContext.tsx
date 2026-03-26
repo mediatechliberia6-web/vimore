@@ -1767,8 +1767,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const initiateCall = useCallback(async (contact: any, type: 'audio' | 'video') => {
-    const channelName = `vimore_call_${Date.now()}`;
-    setCallState({ type, status: 'outgoing', contact, channelName, token: 'token_' + Date.now() });
+    const channelName = `vimore_${Date.now()}`;
+    const uid = Math.floor(Math.random() * 100000);
+    let token = '';
+    try {
+      const { generateAgoraToken } = await import('@/app/actions/call');
+      token = await generateAgoraToken(channelName, uid);
+    } catch { token = ''; }
+    setCallState({ type, status: 'outgoing', contact, channelName, token });
   }, []);
 
   const acceptCall = useCallback(async () => {
