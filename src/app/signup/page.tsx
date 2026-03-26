@@ -201,15 +201,15 @@ export default function SignupPage() {
         </div>
         <div className="relative z-10 text-center space-y-6 animate-in zoom-in-95 fade-in duration-500 max-w-sm w-full">
           <div className="h-24 w-24 bg-[#9940E5] rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-violet-300">
-            <Mail className="h-12 w-12 text-white" />
+            <CheckCircle2 className="h-12 w-12 text-white" />
           </div>
           <div className="space-y-3">
-            <h2 className="text-3xl font-black italic uppercase tracking-tighter text-gray-900">Check Your Email!</h2>
+            <h2 className="text-3xl font-black italic uppercase tracking-tighter text-gray-900">You&apos;re In!</h2>
             <p className="text-gray-600 font-medium">
-              We sent a verification link to <span className="font-bold text-gray-900">{email}</span>
+              Welcome to ViMore, <span className="font-bold text-gray-900">{name}</span>.
             </p>
             <p className="text-sm text-gray-400 font-medium leading-relaxed">
-              Click the link in your email to verify your account. You will not be able to sign in until your email is verified.
+              Your account is ready. Sign in now to start connecting.
             </p>
             <div className="inline-flex items-center gap-2 bg-violet-50 rounded-full px-4 py-2 mt-2">
               <span className="text-[#9940E5] font-black text-sm">@{username}</span>
@@ -219,9 +219,8 @@ export default function SignupPage() {
             href="/login"
             className="inline-flex items-center justify-center w-full h-12 rounded-2xl bg-[#9940E5] text-white font-black italic uppercase tracking-widest text-sm shadow-xl shadow-violet-200 transition-all hover:bg-violet-700"
           >
-            Back to Sign In
+            Sign In Now
           </a>
-          <p className="text-xs text-gray-300 font-medium">Check your spam folder if you don&apos;t see the email.</p>
         </div>
       </div>
     );

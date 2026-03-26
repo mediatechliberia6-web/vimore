@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, Sparkles, ArrowRight, Loader2, CheckCircle2, Zap, Users, Star, ShieldAlert } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Sparkles, ArrowRight, Loader2, CheckCircle2, Zap, Users, Star } from "lucide-react";
 import { account } from "@/lib/appwrite";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,10 +25,6 @@ export default function LoginPage() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
-  const [needsVerification, setNeedsVerification] = useState(false);
-  const [pendingEmail, setPendingEmail] = useState("");
-  const [resendLoading, setResendLoading] = useState(false);
-  const [resendSent, setResendSent] = useState(false);
 
   const justVerified = searchParams.get('verified') === 'true';
 
@@ -44,10 +40,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       const result = await login(email, password);
-      if (result.success && result.requiresVerification) {
-        setPendingEmail(email);
-        setNeedsVerification(true);
-      } else if (result.success) {
+      if (result.success) {
         router.push("/");
       } else {
         toast({ variant: "destructive", title: "Sign in failed", description: result.message || "Please check your credentials." });
@@ -59,20 +52,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleResendVerification = async () => {
-    setResendLoading(true);
-    try {
-      const verifyUrl = window.location.origin + '/auth/verify';
-      await account.createVerification(verifyUrl);
-      setResendSent(true);
-      toast({ title: "Verification email sent!", description: "Check your inbox for the verification link." });
-    } catch {
-      toast({ variant: "destructive", title: "Failed to resend", description: "Please try again in a moment." });
-    } finally {
-      setResendLoading(false);
-    }
-  };
-
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotEmail) return;
@@ -81,51 +60,6 @@ export default function LoginPage() {
     setForgotLoading(false);
     setForgotSent(true);
   };
-
-  if (needsVerification) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-6" style={{ colorScheme: 'light' }}>
-        <div className="fixed inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-violet-200 to-purple-100 blur-3xl opacity-60" />
-          <div className="absolute -bottom-32 -left-32 w-[400px] h-[400px] rounded-full bg-gradient-to-tr from-violet-100 to-pink-100 blur-3xl opacity-50" />
-        </div>
-        <div className="relative z-10 text-center space-y-6 animate-in zoom-in-95 fade-in duration-500 max-w-sm w-full">
-          <div className="h-24 w-24 bg-amber-100 rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-amber-100">
-            <ShieldAlert className="h-12 w-12 text-amber-500" />
-          </div>
-          <div className="space-y-3">
-            <h2 className="text-2xl font-black italic uppercase tracking-tighter text-gray-900">Verify Your Email</h2>
-            <p className="text-gray-600 font-medium text-sm">
-              Your account has not been verified yet. Please check your inbox for <span className="font-bold text-gray-900">{pendingEmail}</span> and click the verification link.
-            </p>
-            <p className="text-sm text-gray-400 font-medium">
-              Didn&apos;t receive the email?
-            </p>
-          </div>
-          {resendSent ? (
-            <div className="flex items-center justify-center gap-2 bg-green-50 border border-green-100 rounded-2xl p-4">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
-              <span className="text-sm font-bold text-green-600">Verification email sent!</span>
-            </div>
-          ) : (
-            <Button
-              onClick={handleResendVerification}
-              disabled={resendLoading}
-              className="w-full h-12 rounded-2xl bg-[#9940E5] text-white font-black italic uppercase tracking-widest text-sm shadow-xl shadow-violet-200"
-            >
-              {resendLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Resend Verification Email"}
-            </Button>
-          )}
-          <button
-            onClick={() => setNeedsVerification(false)}
-            className="w-full text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors py-1"
-          >
-            Back to Sign In
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col overflow-hidden" style={{ colorScheme: 'light' }}>

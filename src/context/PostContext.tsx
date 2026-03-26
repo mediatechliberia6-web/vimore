@@ -810,11 +810,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const user = mapDocToUser(authUser, profileDoc);
       setCurrentUserState(user);
 
-      if (!authUser.emailVerification) {
-        setIsLoadingState(false);
-        return { success: true, requiresVerification: true };
-      }
-
       await Promise.allSettled([
         loadFeed(),
         loadSocialGraph(authUser.$id),
@@ -865,11 +860,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         language: 'en',
       });
 
-      const verifyUrl = (typeof window !== 'undefined' ? window.location.origin : '') + '/auth/verify';
-      await account.createVerification(verifyUrl);
-
       setIsLoadingState(false);
-      return { success: true, requiresVerification: true };
+      return { success: true };
     } catch (err: any) {
       setIsLoadingState(false);
       const msg = err?.message || 'Signup failed. Please try again.';
