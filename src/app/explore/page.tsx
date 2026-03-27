@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState, useEffect, useMemo } from "react";
 import { MainNav } from "@/components/layout/main-nav";
 import { Header } from "@/components/layout/header";
 import { SubHeader } from "@/components/layout/sub-header";
@@ -11,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
 import { useTranslation } from "@/context/LanguageContext";
+import { databases, Query, COL, DATABASE_ID, BUCKET, getFileUrl } from "@/lib/appwrite";
 import { 
   Search, 
   TrendingUp, 
@@ -32,24 +34,50 @@ import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-const trendingCreators = [
-  { name: "Alex Rivera", username: "arivera", avatar: "https://picsum.photos/seed/1/100/100", role: "Designer" },
-  { name: "Sarah Chen", username: "schen_dev", avatar: "https://picsum.photos/seed/2/100/100", role: "Developer" },
-  { name: "Marcus Stone", username: "mstone", avatar: "https://picsum.photos/seed/3/100/100", role: "Photographer" },
-  { name: "Elena Gilbert", username: "elena_g", avatar: "https://picsum.photos/seed/4/100/100", role: "Creator" },
-];
-
-const hubs = [
-  { name: "Designers Lounge", members: "12k", icon: "🎨" },
-  { name: "Tech Pioneers", members: "8.5k", icon: "💻" },
-  { name: "Creative Writing", members: "4.2k", icon: "✍️" },
-];
-
 export default function ExplorePage() {
   const { currentTrack, isExpanded } = useMusic();
-  const { settings } = usePosts();
+  const { settings, posts } = usePosts();
   const { t } = useTranslation();
   const isPlayerActive = currentTrack && !isExpanded;
+
+  const [realCreators, setRealCreators] = useState<{ $id: string; name: string; username: string; avatar: string; category: string; isVerified: boolean }[]>([]);
+
+  useEffect(() => {
+    databases.listDocuments(DATABASE_ID, COL.USERS, [
+      Query.orderDesc('followers_count'),
+      Query.limit(8),
+    ]).then(res => {
+      setRealCreators(res.documents.map(u => ({
+        $id: u.$id,
+        name: u.name || 'User',
+        username: u.username || 'user',
+        avatar: u.avatar_id ? getFileUrl(BUCKET.AVATARS, u.avatar_id) : '',
+        category: u.category || 'Creator',
+        isVerified: u.is_verified || false,
+      })));
+    }).catch(() => {});
+  }, []);
+
+  const trendingTags = useMemo(() => {
+    const tagCounts: Record<string, number> = {};
+    posts.forEach(p => {
+      const tags = p.content.match(/#[\w]+/g) || [];
+      tags.forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; });
+    });
+    const sorted = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([tag]) => tag);
+    return sorted.length > 0 ? sorted : ['#ViMoreVibes', '#Creators', '#Connect', '#Digital'];
+  }, [posts]);
+
+  const hubCategories = useMemo(() => {
+    const catCounts: Record<string, number> = {};
+    posts.forEach(p => { if (p.user.category) catCounts[p.user.category] = (catCounts[p.user.category] || 0) + 1; });
+    const icons: Record<string, string> = { Music: '🎵', Tech: '💻', Art: '🎨', Design: '🎨', Photography: '📸', Writing: '✍️', Fashion: '👗', Sports: '⚽', Comedy: '😂', Gaming: '🎮' };
+    const entries = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    if (entries.length > 0) {
+      return entries.map(([name, count]) => ({ name: `${name} Hub`, members: count > 999 ? `${(count / 1000).toFixed(1)}k` : String(count), icon: icons[name] || '🌟' }));
+    }
+    return [{ name: 'Creators Hub', members: String(realCreators.length), icon: '🌟' }];
+  }, [posts, realCreators]);
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#080808] transition-colors duration-300">
@@ -143,7 +171,7 @@ export default function ExplorePage() {
                 <h3 className="font-black italic uppercase tracking-tighter text-lg">{t('explore_trending')}</h3>
               </div>
               <div className="flex-1 flex flex-col gap-4">
-                {["#DesignSF", "#ViMoreVibes", "#BuildingInPublic", "#CreativeCoding"].map((tag) => (
+                {trendingTags.map((tag) => (
                   <div key={tag} className="flex items-center justify-between group cursor-pointer">
                     <span className="font-bold text-sm text-muted-foreground group-hover:text-primary transition-colors">{tag}</span>
                     <TrendingUp className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-colors" />
@@ -163,7 +191,7 @@ export default function ExplorePage() {
                  <p className="text-xs text-muted-foreground font-medium">{t('explore_rising_stars_desc')}</p>
                </div>
                <div className="flex -space-x-3">
-                 {trendingCreators.slice(0, 3).map((c, i) => (
+                 {realCreators.slice(0, 3).map((c, i) => (
                    <Avatar key={i} className="h-10 w-10 border-4 border-white dark:border-card">
                      <AvatarImage src={c.avatar} />
                      <AvatarFallback>{c.name[0]}</AvatarFallback>
@@ -213,12 +241,12 @@ export default function ExplorePage() {
                 <Button variant="ghost" size="sm" className="text-primary font-bold text-xs uppercase">Join more</Button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
-                {hubs.map((hub) => (
+                {hubCategories.map((hub) => (
                   <div key={hub.name} className="p-4 rounded-2xl bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer group flex flex-col items-center text-center gap-2">
                     <span className="text-2xl transition-transform group-hover:scale-125 duration-300">{hub.icon}</span>
                     <div className="space-y-0.5">
                       <p className="text-xs font-bold truncate max-w-[100px]">{hub.name}</p>
-                      <p className="text-[10px] text-muted-foreground font-medium">{hub.members} members</p>
+                      <p className="text-[10px] text-muted-foreground font-medium">{hub.members} creators</p>
                     </div>
                   </div>
                 ))}
@@ -234,7 +262,9 @@ export default function ExplorePage() {
               <Button variant="ghost" size="sm" className="text-primary font-bold text-xs uppercase tracking-widest">See all</Button>
             </div>
             <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide px-2">
-              {trendingCreators.map((creator) => (
+              {realCreators.length === 0 ? (
+                <p className="text-sm text-muted-foreground px-2 py-8">No creators found yet.</p>
+              ) : realCreators.map((creator) => (
                 <div key={creator.username} className="min-w-[180px] bg-white dark:bg-card p-6 rounded-3xl border border-primary/5 shadow-sm flex flex-col items-center text-center gap-4 hover:shadow-md transition-shadow group">
                   <Link href={`/profile/${creator.username}`}>
                     <Avatar className="h-16 w-16 border-2 border-primary/10 transition-transform group-hover:scale-110">
@@ -244,7 +274,7 @@ export default function ExplorePage() {
                   </Link>
                   <div className="space-y-1">
                     <Link href={`/profile/${creator.username}`} className="font-bold text-sm block hover:underline">{creator.name}</Link>
-                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{creator.role}</p>
+                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{creator.category}</p>
                   </div>
                   <Button size="sm" className="w-full rounded-xl font-bold bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all">
                     Follow

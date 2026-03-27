@@ -1,99 +1,22 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Heart, MessageCircle, Share2, Zap, Globe, Home, Compass, Bell, User, Menu } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Zap, Home, Compass, Bell, User, Menu, Loader2 } from 'lucide-react';
 import { ModeSwitcher } from '@/components/layout/mode-switcher';
+import { databases, Query, COL, DATABASE_ID, formatTimeAgo } from '@/lib/appwrite';
 
-const FREE_POSTS = [
-  {
-    id: '1',
-    username: 'maya_chen',
-    name: 'Maya Chen',
-    initials: 'MC',
-    time: '2m ago',
-    content: 'Just finished a new digital art series exploring the intersection of culture and technology. Excited to share it with the community soon!',
-    likes: 412,
-    comments: 38,
-    isVerified: true,
-  },
-  {
-    id: '2',
-    username: 'jordan_blake',
-    name: 'Jordan Blake',
-    initials: 'JB',
-    time: '15m ago',
-    content: 'New beat dropping tonight at 10PM WAT. Been working on this one for three weeks straight. The African percussion elements hit different.',
-    likes: 289,
-    comments: 54,
-    isVerified: false,
-  },
-  {
-    id: '3',
-    username: 'sofia_l',
-    name: 'Sofia Laurent',
-    initials: 'SL',
-    time: '1h ago',
-    content: 'Reminder that your mental health is more important than your productivity. Take a break. Breathe. You are enough.',
-    likes: 1820,
-    comments: 203,
-    isVerified: true,
-  },
-  {
-    id: '4',
-    username: 'kwame_a',
-    name: 'Kwame Asante',
-    initials: 'KA',
-    time: '2h ago',
-    content: 'The tech ecosystem in West Africa is growing at a rate that most global investors are still underestimating. We are building, and the world will catch up.',
-    likes: 934,
-    comments: 117,
-    isVerified: true,
-  },
-  {
-    id: '5',
-    username: 'priya_m',
-    name: 'Priya Mehta',
-    initials: 'PM',
-    time: '3h ago',
-    content: 'Spent the morning teaching a free coding workshop for 40 young women in Monrovia. Seeing that spark of "I can do this" in someone\'s eyes is priceless.',
-    likes: 2340,
-    comments: 189,
-    isVerified: false,
-  },
-  {
-    id: '6',
-    username: 'alex_rivers',
-    name: 'Alex Rivers',
-    initials: 'AR',
-    time: '4h ago',
-    content: 'ViMore Free Mode is now live — no images, no video, just pure connection. Built for Orange and MTN users across Liberia, Ghana, Nigeria, and beyond. Your voice matters even with 1 bar of signal.',
-    likes: 5670,
-    comments: 421,
-    isVerified: true,
-  },
-  {
-    id: '7',
-    username: 'elena_v',
-    name: 'Elena Vasquez',
-    initials: 'EV',
-    time: '5h ago',
-    content: 'Language learning tip: the fastest way to become fluent is to make mistakes out loud, loudly, and without shame. Embarrassment is just unexperienced fluency.',
-    likes: 3100,
-    comments: 278,
-    isVerified: false,
-  },
-  {
-    id: '8',
-    username: 'omar_s',
-    name: 'Omar Siddiqui',
-    initials: 'OS',
-    time: '6h ago',
-    content: 'Finished reading "Things Fall Apart" for the fourth time. Every read reveals a new layer. Achebe was operating on a frequency most writers never reach.',
-    likes: 748,
-    comments: 94,
-    isVerified: false,
-  },
-];
+type FreePost = {
+  id: string;
+  username: string;
+  name: string;
+  initials: string;
+  time: string;
+  content: string;
+  likes: number;
+  comments: number;
+  isVerified: boolean;
+};
 
 function formatCount(n: number): string {
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
@@ -149,6 +72,50 @@ function TextPostCard({
 }
 
 export default function FreeModePage() {
+  const [posts, setPosts] = useState<FreePost[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      setIsLoading(true);
+      try {
+        const res = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
+          Query.orderDesc('$createdAt'),
+          Query.limit(30),
+        ]);
+        const authorIds = [...new Set(res.documents.map((d: any) => d.author_id).filter(Boolean))];
+        let authorsMap: Record<string, any> = {};
+        if (authorIds.length > 0) {
+          const ar = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', authorIds as string[])]);
+          authorsMap = Object.fromEntries(ar.documents.map(u => [u.$id, u]));
+        }
+        const textPosts: FreePost[] = res.documents
+          .filter((d: any) => !d.image_ids?.length && !d.video_id && d.content?.trim())
+          .map((d: any) => {
+            const author = authorsMap[d.author_id];
+            const name = author?.name || 'User';
+            return {
+              id: d.$id,
+              username: author?.username || 'user',
+              name,
+              initials: name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2),
+              time: formatTimeAgo(d.$createdAt),
+              content: d.content || '',
+              likes: d.likes_count || 0,
+              comments: d.comments_count || 0,
+              isVerified: author?.is_verified || false,
+            };
+          });
+        setPosts(textPosts);
+      } catch {
+        setPosts([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchPosts();
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#080808]">
       <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-primary/10 px-4 py-2.5 flex items-center justify-between shadow-sm">
@@ -179,7 +146,16 @@ export default function FreeModePage() {
           <span className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-widest">No images · No video · Low data</span>
         </div>
 
-        {FREE_POSTS.map((post) => (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <Loader2 className="h-6 w-6 text-primary animate-spin" />
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Loading posts...</p>
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="py-16 text-center border border-dashed border-primary/20 rounded-2xl">
+            <p className="text-sm font-bold text-muted-foreground">No posts yet. Be the first to share something.</p>
+          </div>
+        ) : posts.map((post) => (
           <TextPostCard key={post.id} {...post} />
         ))}
       </div>

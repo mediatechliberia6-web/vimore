@@ -48,10 +48,6 @@ import { useToast } from "@/hooks/use-toast";
 import { BiometricGate } from "@/components/layout/biometric-gate";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
 
-const REVENUE_DATA = [
-  { name: "Locked Posts", value: 65, color: "hsl(var(--primary))" },
-  { name: "Subscriptions", value: 35, color: "hsl(var(--accent))" },
-];
 
 export default function EarningsPage() {
   const { currentUser, triggerHaptic, withdrawalHistory, recordWithdrawal, processGiftTransaction, submitTicket, settings, isLoading } = usePosts();
@@ -69,6 +65,23 @@ export default function EarningsPage() {
     const totalUSD = (gold * settings.goldRate) + (diamond * settings.diamondRate);
     return { totalUSD, totalLD: totalUSD * settings.ldMultiplier };
   }, [currentUser, settings.goldRate, settings.diamondRate, settings.ldMultiplier]);
+
+  const revenueData = useMemo(() => {
+    const gold = currentUser?.goldBalance || 0;
+    const diamond = currentUser?.diamondBalance || 0;
+    const total = gold + diamond;
+    if (total === 0) {
+      return [
+        { name: "Gold Earnings", value: 1, color: "hsl(var(--primary))" },
+        { name: "Diamond Earnings", value: 1, color: "hsl(var(--accent))" },
+      ];
+    }
+    const goldPct = Math.max(1, Math.round((gold / total) * 100));
+    return [
+      { name: "Gold Earnings", value: goldPct, color: "hsl(var(--primary))" },
+      { name: "Diamond Earnings", value: 100 - goldPct, color: "hsl(var(--accent))" },
+    ];
+  }, [currentUser]);
 
   const [isTicketOpen, setIsTicketOpen] = useState(false);
   const [ticketSubject, setTicketSubject] = useState("");

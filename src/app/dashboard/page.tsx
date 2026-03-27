@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { 
   ArrowLeft, 
   Search, 
@@ -89,6 +89,7 @@ import {
 } from "@/components/ui/select";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
 import AdminLoading from "@/app/admin/loading";
+import { databases, Query, COL, DATABASE_ID } from "@/lib/appwrite";
 
 const CATEGORIES = [
   { id: "analytics", label: "Analytics" },
@@ -98,29 +99,66 @@ const CATEGORIES = [
   { id: "management", label: "Management" },
 ];
 
-const GROWTH_DATA_7D = [
-  { date: "Mon", followers: 8200, engagement: 400, revenue: 1200 },
-  { date: "Tue", followers: 8250, engagement: 600, revenue: 800 },
-  { date: "Wed", followers: 8310, engagement: 550, revenue: 2400 },
-  { date: "Thu", followers: 8340, engagement: 800, revenue: 1100 },
-  { date: "Fri", followers: 8390, engagement: 700, revenue: 3200 },
-  { date: "Sat", followers: 8420, engagement: 950, revenue: 4500 },
-  { date: "Sun", followers: 8450, engagement: 1100, revenue: 3800 },
-];
-
-const GROWTH_DATA_28D = [
-  { date: "W1", followers: 7800, engagement: 2400, revenue: 12000 },
-  { date: "W2", followers: 8000, engagement: 3100, revenue: 15800 },
-  { date: "W3", followers: 8250, engagement: 2800, revenue: 11200 },
-  { date: "W4", followers: 8450, engagement: 4200, revenue: 24500 },
-];
-
 export default function ProfessionalDashboard() {
   const { currentUser, posts, triggerHaptic, activeSubscriptions, settings, isLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { toast } = useToast();
   const [activeCategory, setActiveCategory] = useState("analytics");
   const [activeRange, setActiveRange] = useState<"7D" | "28D">("7D");
+  const [chartData7D, setChartData7D] = useState<any[]>([]);
+  const [chartData28D, setChartData28D] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const followerCount = typeof currentUser.followers === 'number' ? currentUser.followers : parseInt(String(currentUser.followers || '0'), 10) || 0;
+
+    const build7D = async () => {
+      try {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+        const res = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
+          Query.equal('author_id', currentUser.$id),
+          Query.greaterThan('$createdAt', sevenDaysAgo),
+          Query.limit(100),
+        ]);
+        const today = new Date();
+        const data = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(today);
+          d.setDate(today.getDate() - (6 - i));
+          const dateStr = d.toISOString().split('T')[0];
+          const dayPosts = res.documents.filter((doc: any) => doc.$createdAt?.startsWith(dateStr));
+          const engagement = dayPosts.reduce((acc: number, doc: any) => acc + (doc.likes_count || 0) + (doc.comments_count || 0) + (doc.shares_count || 0), 0);
+          return { date: DAY_LABELS[d.getDay()], followers: followerCount, engagement, revenue: Math.round(engagement * (settings.goldRate || 0.01) * 10 * 100) / 100 };
+        });
+        setChartData7D(data);
+      } catch { setChartData7D([]); }
+    };
+
+    const build28D = async () => {
+      try {
+        const twentyEightDaysAgo = new Date(Date.now() - 28 * 86400000).toISOString();
+        const res = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
+          Query.equal('author_id', currentUser.$id),
+          Query.greaterThan('$createdAt', twentyEightDaysAgo),
+          Query.limit(200),
+        ]);
+        const data = Array.from({ length: 4 }, (_, i) => {
+          const start = new Date(Date.now() - (4 - i) * 7 * 86400000);
+          const end = new Date(Date.now() - (3 - i) * 7 * 86400000);
+          const weekPosts = res.documents.filter((doc: any) => {
+            const t = new Date(doc.$createdAt).getTime();
+            return t >= start.getTime() && t < end.getTime();
+          });
+          const engagement = weekPosts.reduce((acc: number, doc: any) => acc + (doc.likes_count || 0) + (doc.comments_count || 0) + (doc.shares_count || 0), 0);
+          return { date: `W${i + 1}`, followers: followerCount, engagement, revenue: Math.round(engagement * (settings.goldRate || 0.01) * 10 * 100) / 100 };
+        });
+        setChartData28D(data);
+      } catch { setChartData28D([]); }
+    };
+
+    build7D();
+    build28D();
+  }, [currentUser, settings.goldRate]);
 
   if (isLoading || !currentUser) {
     return <AdminLoading />;
@@ -147,7 +185,7 @@ export default function ProfessionalDashboard() {
     setActiveCategory(id); 
   };
 
-  const chartData = useMemo(() => activeRange === "7D" ? GROWTH_DATA_7D : GROWTH_DATA_28D, [activeRange]);
+  const chartData = useMemo(() => activeRange === "7D" ? chartData7D : chartData28D, [activeRange, chartData7D, chartData28D]);
 
   return (
     <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#020202] text-foreground flex flex-col transition-colors duration-500 overflow-x-hidden">
