@@ -93,6 +93,6 @@ export function formatTimeAgo(date: Date | string): string {
   return d.toLocaleDateString();
 }
 
-export function avatarFallback(name: string): string {
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=9940E5&color=fff&bold=true`;
+export function avatarFallback(_name?: string): string {
+  return '';
 }
