@@ -290,11 +290,6 @@ export default function Home() {
     return <LandingPage />;
   }
 
-  // Gate: block unverified users from accessing the feed
-  if (currentUser && !currentUser.isEmailVerified) {
-    return <EmailVerificationGate email={currentUser.email} />;
-  }
-
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#080808] flex flex-col items-center transition-colors duration-300">
       <Header />
