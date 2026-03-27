@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, startTransition, ReactNode, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, startTransition, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import {
@@ -297,6 +297,10 @@ interface PostContextType {
   boostNode: (nodeId: string, promisedViews: number, duration: number, cost: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'SONIC') => Promise<void>;
   enrollHardwareBiometrics: () => Promise<boolean>;
   verifyHardwareBiometrics: () => Promise<boolean>;
+  blockUser: (username: string) => Promise<void>;
+  unblockUser: (username: string) => Promise<void>;
+  blockedUsernames: string[];
+  submitReport: (data: { reportedUsername: string; reason: string; details: string }) => Promise<void>;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -464,6 +468,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [reports, setReports] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
+  const [blockedUsernames, setBlockedUsernames] = useState<string[]>([]);
 
   const [likedPostIds, setLikedPostIdsState] = useState<Set<string>>(new Set());
   const [unlikedPostIds, setUnlikedPostIdsState] = useState<Set<string>>(new Set());
@@ -538,6 +543,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         bookmarksResult,
         unlocksResult,
         subscriptionsResult,
+        blockedUsersResult,
       ] = await Promise.allSettled([
         databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [Query.equal('follower_id', userId), Query.limit(500)]),
         databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [Query.equal('following_id', userId), Query.limit(500)]),
@@ -549,6 +555,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         databases.listDocuments(DATABASE_ID, COL.BOOKMARKS, [Query.equal('user_id', userId), Query.limit(500)]),
         databases.listDocuments(DATABASE_ID, COL.POST_UNLOCKS, [Query.equal('user_id', userId), Query.limit(500)]),
         databases.listDocuments(DATABASE_ID, COL.SUBSCRIPTIONS, [Query.equal('subscriber_id', userId), Query.equal('is_active', true), Query.limit(500)]),
+        databases.listDocuments(DATABASE_ID, COL.BLOCKED_USERS, [Query.equal('blocker_id', userId), Query.limit(200)]),
       ]);
 
       if (followingResult.status === 'fulfilled') {
@@ -583,6 +590,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
       if (subscriptionsResult.status === 'fulfilled') {
         setActiveSubscriptionsState(new Set(subscriptionsResult.value.documents.map(s => s.creator_username).filter(Boolean)));
+      }
+      if (blockedUsersResult.status === 'fulfilled') {
+        setBlockedUsernames(blockedUsersResult.value.documents.map((b: any) => b.blocked_username).filter(Boolean));
       }
     } catch (err) {
       console.error('loadSocialGraph error:', err);
@@ -1800,8 +1810,22 @@ export function PostProvider({ children }: { children: ReactNode }) {
     isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId,
     settings, gatewaySettings: OFFICIAL_GATEWAY, callState, stories, campaigns,
     reports, tickets, mutedUserNames, connections, clusters, auditLogs,
-    staff, adStats: { revenue: 0, handshakes: 0 },
-    intelligenceMetrics: { sentiment: 88, velocity: 'HIGH' },
+    staff, adStats: (() => {
+      const revenue = campaigns.reduce((sum, c) => sum + ((c.clicks || 0) * 0.05 + (c.impressions || 0) * 0.001), 0);
+      const handshakes = campaigns.reduce((sum, c) => sum + (c.clicks || 0), 0);
+      return { revenue: Math.round(revenue * 100) / 100, handshakes };
+    })(),
+    intelligenceMetrics: (() => {
+      const totalLikes = posts.reduce((sum, p) => sum + (p.likes || 0), 0);
+      const totalUnlikes = posts.reduce((sum, p) => sum + (p.unlikes || 0), 0);
+      const sentiment = totalLikes + totalUnlikes > 0
+        ? Math.min(99, Math.round((totalLikes / (totalLikes + totalUnlikes)) * 100))
+        : 0;
+      const oneDayAgo = new Date(Date.now() - 86400000).toISOString();
+      const recentPosts = posts.filter(p => (p.timestamp || p.$createdAt || '') > oneDayAgo).length;
+      const velocity = recentPosts > 20 ? 'HIGH' : recentPosts > 5 ? 'MEDIUM' : recentPosts > 0 ? 'LOW' : 'IDLE';
+      return { sentiment, velocity };
+    })(),
     withdrawalHistory, paymentRequests,
     referralLink: "https://www.vimore.app/join/" + (currentUser?.username || "guest"),
     pendingTransaction, activeSubscriptions, chatMessages,

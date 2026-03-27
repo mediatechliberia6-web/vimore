@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { Search, TrendingUp, Users, UserRoundPlus, Check, UserRoundX } from "lucide-react";
+import { Search, TrendingUp, Users, UserRoundPlus, Check, UserRoundX, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from "@/context/LanguageContext";
 
 export function RightSidebar() {
-  const { currentUser, connections = [], isFriend, isRequestSent, sendFriendRequest, cancelFriendRequest, setSearchOpen } = usePosts();
+  const { currentUser, connections = [], isFriend, isRequestSent, sendFriendRequest, cancelFriendRequest, setSearchOpen, posts = [] } = usePosts();
   const { t } = useTranslation();
 
   const suggestions = useMemo(() => {
@@ -22,12 +22,21 @@ export function RightSidebar() {
       .slice(0, 3);
   }, [connections, isFriend, isRequestSent, currentUser?.username]);
 
-  const trends = [
-    { tag: "BuildingInPublic", posts: "12.5k" },
-    { tag: "ViMoreCommunity", posts: "8.2k" },
-    { tag: "SpatialHandshake", posts: "4.1k" },
-    { tag: "HighVelocity", posts: "2.8k" },
-  ];
+  const trends = useMemo(() => {
+    const tagCounts: Record<string, number> = {};
+    posts.forEach((p: any) => {
+      const content: string = p.content || '';
+      const matches = content.match(/#[a-zA-Z0-9_]+/g) || [];
+      matches.forEach(tag => {
+        const clean = tag.slice(1);
+        tagCounts[clean] = (tagCounts[clean] || 0) + 1;
+      });
+    });
+    return Object.entries(tagCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([tag, count]) => ({ tag, posts: count >= 1000 ? `${(count / 1000).toFixed(1)}k` : String(count) }));
+  }, [posts]);
 
   return (
     <div className="flex flex-col gap-6 py-6 h-full">
@@ -99,13 +108,17 @@ export function RightSidebar() {
           <h3 className="font-headline font-bold text-lg italic uppercase tracking-tight">Trending Now</h3>
         </div>
         <div className="space-y-4">
-          {trends.map((trend) => (
+          {trends.length > 0 ? trends.map((trend) => (
             <div key={trend.tag} className="flex flex-col hover:bg-primary/5 p-2 -m-2 rounded-lg cursor-pointer transition-colors group">
               <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">Pulse Node</span>
               <span className="font-black italic uppercase text-sm text-primary group-hover:translate-x-1 transition-transform">#{trend.tag}</span>
               <span className="text-[9px] text-muted-foreground/60 font-black uppercase">{trend.posts} vibes materialized</span>
             </div>
-          ))}
+          )) : (
+            <div className="py-4 text-center text-[10px] font-black uppercase text-muted-foreground/40">
+              No trending tags yet
+            </div>
+          )}
         </div>
         <button className="w-full text-xs font-black uppercase text-primary hover:bg-primary/5 py-2">Show full pulse</button>
       </div>

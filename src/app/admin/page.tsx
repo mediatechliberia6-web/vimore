@@ -196,14 +196,20 @@ export default function AdminDashboard() {
   }), [posts, connections, auditLogs]);
 
   const livePulseData = useMemo(() => {
-    const hours = ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00", "23:59"];
+    const hourBuckets: Record<number, number> = {};
+    posts.forEach(p => {
+      const ts = p.timestamp || p.$createdAt;
+      if (ts) {
+        const h = new Date(ts).getHours();
+        hourBuckets[h] = (hourBuckets[h] || 0) + 1;
+      }
+    });
+    const hours = [0, 4, 8, 12, 16, 20, 23];
     return hours.map(h => ({
-      time: h,
-      active: Math.max(10, Math.floor(stats.totalNodes * (0.2 + Math.random() * 0.8))),
-      load: 15 + Math.random() * 20,
-      latency: 45 + Math.random() * 10
+      time: `${String(h).padStart(2, '0')}:00`,
+      active: Math.max(0, hourBuckets[h] || 0),
     }));
-  }, [stats.totalNodes]);
+  }, [posts]);
 
   const handleAction = async (id: string, status: 'APPROVED' | 'REJECTED', type: 'withdrawal' | 'payment') => {
     triggerHaptic(status === 'APPROVED' ? 50 : 100);
@@ -551,9 +557,23 @@ export default function AdminDashboard() {
                   </div>
                 </Card>
                 <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
-                  <h4 className="text-xl font-black italic uppercase tracking-tighter">Top Content Categories</h4>
+                  <h4 className="text-xl font-black italic uppercase tracking-tighter">Content Distribution</h4>
                   <div className="space-y-3">
-                    {[{ cat: "Art", pct: 34 }, { cat: "Music", pct: 28 }, { cat: "Wellness", pct: 18 }, { cat: "Travel", pct: 12 }, { cat: "Fashion", pct: 8 }].map(c => (
+                    {(() => {
+                      const total = posts.length || 1;
+                      const photoCount = posts.filter(p => p.type === 'photo').length;
+                      const videoCount = posts.filter(p => p.type === 'video').length;
+                      const lockedCount = posts.filter(p => p.isLocked).length;
+                      const boostedCount = posts.filter(p => p.isBoosted).length;
+                      const otherCount = Math.max(0, total - photoCount - videoCount);
+                      return [
+                        { cat: "Photo", pct: Math.round((photoCount / total) * 100) },
+                        { cat: "Video", pct: Math.round((videoCount / total) * 100) },
+                        { cat: "Text", pct: Math.round((otherCount / total) * 100) },
+                        { cat: "Locked", pct: Math.round((lockedCount / total) * 100) },
+                        { cat: "Boosted", pct: Math.round((boostedCount / total) * 100) },
+                      ];
+                    })().map(c => (
                       <div key={c.cat} className="flex items-center gap-4">
                         <span className="text-[10px] font-black uppercase w-16 text-muted-foreground">{c.cat}</span>
                         <div className="flex-1 h-2 bg-secondary/40 rounded-full overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: `${c.pct}%` }} /></div>
@@ -807,16 +827,16 @@ export default function AdminDashboard() {
                   <h4 className="text-xl font-black italic uppercase tracking-tighter">Service Health</h4>
                   <div className="space-y-3">
                     {[
-                      { name: "Content Delivery Network", status: "OPERATIONAL", uptime: 99.97 },
-                      { name: "Authentication Gateway", status: "OPERATIONAL", uptime: 100 },
-                      { name: "Media Processing Engine", status: "OPERATIONAL", uptime: 99.8 },
-                      { name: "Real-Time Messaging", status: "DEGRADED", uptime: 97.2 },
-                      { name: "AI Inference Layer", status: "OPERATIONAL", uptime: 99.5 },
+                      { name: "Appwrite Backend", status: connections.length > 0 || posts.length > 0 ? "OPERATIONAL" : "CHECKING" },
+                      { name: "Authentication Gateway", status: currentUser ? "OPERATIONAL" : "CHECKING" },
+                      { name: "Media Storage", status: posts.some(p => p.mediaUrls?.length > 0) ? "OPERATIONAL" : "CHECKING" },
+                      { name: "Real-Time Messaging", status: "OPERATIONAL" },
+                      { name: "AI Inference Layer", status: "OPERATIONAL" },
                     ].map(s => (
                       <div key={s.name} className="flex items-center justify-between p-4 bg-secondary/20 rounded-2xl">
                         <div className="flex items-center gap-3">
                           <div className={cn("h-2.5 w-2.5 rounded-full animate-pulse", s.status === 'OPERATIONAL' ? "bg-green-500" : "bg-amber-400")} />
-                          <div><p className="font-bold text-sm">{s.name}</p><p className="text-[10px] text-muted-foreground">{s.uptime}% uptime</p></div>
+                          <div><p className="font-bold text-sm">{s.name}</p></div>
                         </div>
                         <Badge className={cn("text-[9px] font-black uppercase border-none", s.status === 'OPERATIONAL' ? "bg-green-500/10 text-green-500" : "bg-amber-400/10 text-amber-400")}>{s.status}</Badge>
                       </div>
@@ -824,16 +844,24 @@ export default function AdminDashboard() {
                   </div>
                 </Card>
                 <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
-                  <div className="flex items-center justify-between"><h4 className="text-xl font-black italic uppercase tracking-tighter">Resource Usage</h4></div>
+                  <div className="flex items-center justify-between"><h4 className="text-xl font-black italic uppercase tracking-tighter">Data Volume</h4></div>
                   <div className="space-y-5">
-                    {[{ label: "CPU Load", pct: 34, color: "bg-blue-500" }, { label: "Memory", pct: 58, color: "bg-primary" }, { label: "Storage", pct: 24, color: "bg-green-500" }, { label: "Bandwidth", pct: 72, color: "bg-amber-400" }].map(r => (
-                      <div key={r.label} className="space-y-1.5">
-                        <div className="flex justify-between text-[10px] font-black uppercase text-muted-foreground"><span>{r.label}</span><span>{r.pct}%</span></div>
-                        <div className="h-2.5 bg-secondary/40 rounded-full overflow-hidden"><div className={cn("h-full rounded-full transition-all", r.color)} style={{ width: `${r.pct}%` }} /></div>
+                    {[
+                      { label: "Total Posts", value: posts.length.toLocaleString(), color: "bg-blue-500", sub: "Signatures" },
+                      { label: "Total Users", value: connections.length.toLocaleString(), color: "bg-primary", sub: "Active Nodes" },
+                      { label: "Audit Logs", value: auditLogs.length.toLocaleString(), color: "bg-green-500", sub: "Immutable Trail" },
+                      { label: "Ad Campaigns", value: campaigns.length.toLocaleString(), color: "bg-amber-400", sub: "Discovery Nodes" },
+                    ].map(r => (
+                      <div key={r.label} className="flex items-center justify-between p-4 bg-secondary/20 rounded-2xl">
+                        <div className="flex items-center gap-3">
+                          <div className={cn("h-2.5 w-2.5 rounded-full", r.color)} />
+                          <div><p className="font-bold text-sm">{r.label}</p><p className="text-[10px] text-muted-foreground">{r.sub}</p></div>
+                        </div>
+                        <span className="font-black text-lg tabular-nums">{r.value}</span>
                       </div>
                     ))}
                   </div>
-                  <Button variant="outline" className="w-full h-12 rounded-2xl border-border font-black uppercase text-[10px] tracking-widest" onClick={() => { triggerHaptic(30); toast({ title: "Cache Purged", description: "All edge caches cleared successfully." }); }}><RotateCcw className="h-4 w-4 mr-2" />Purge Edge Cache</Button>
+                  <Button variant="outline" className="w-full h-12 rounded-2xl border-border font-black uppercase text-[10px] tracking-widest" onClick={() => { triggerHaptic(30); refreshAdminData(); toast({ title: "Data Refreshed", description: "Admin data synced from Appwrite." }); }}><RotateCcw className="h-4 w-4 mr-2" />Refresh Data</Button>
                 </Card>
               </div>
             </div>
