@@ -3,11 +3,10 @@
 
 import { ArrowLeft, Gavel, CheckCircle2, ShieldAlert, Zap, Globe, Rocket, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { useTranslation } from "@/context/LanguageContext";
+import { useRouter } from "next/navigation";
 
 export default function TermsOfServicePage() {
-  const { t } = useTranslation();
+  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#050505] transition-colors duration-500 flex flex-col relative overflow-hidden">
@@ -19,11 +18,9 @@ export default function TermsOfServicePage() {
 
       <header className="h-20 px-6 flex items-center justify-between bg-white/40 dark:bg-card/40 backdrop-blur-xl border-b border-border sticky top-0 z-50">
         <div className="flex items-center gap-4">
-          <Link href="/">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <ArrowLeft className="h-6 w-6" />
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => router.back()}>
+            <ArrowLeft className="h-6 w-6" />
+          </Button>
           <div className="flex flex-col">
             <h1 className="text-lg font-black italic uppercase tracking-widest leading-tight">Terms of Service</h1>
             <span className="text-[9px] font-bold text-accent uppercase tracking-widest">Network Social Contract</span>
