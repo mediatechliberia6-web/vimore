@@ -29,7 +29,7 @@ export default function LoginPage() {
   const justVerified = searchParams.get('verified') === 'true';
 
   useEffect(() => {
-    if (!contextLoading && currentUser?.isEmailVerified) {
+    if (!contextLoading && currentUser) {
       router.replace("/");
     }
   }, [currentUser, contextLoading, router]);

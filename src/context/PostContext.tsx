@@ -814,8 +814,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     setIsLoadingState(true);
     try {
-      await account.createEmailPasswordSession(email, password);
-      const authUser = await account.get();
+      let authUser;
+      try {
+        authUser = await account.get();
+      } catch {
+        authUser = null;
+      }
+      if (!authUser) {
+        await account.createEmailPasswordSession(email, password);
+        authUser = await account.get();
+      }
       const profileDoc = await databases.getDocument(DATABASE_ID, COL.USERS, authUser.$id);
       const user = mapDocToUser(authUser, profileDoc);
       setCurrentUserState(user);

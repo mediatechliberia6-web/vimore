@@ -215,12 +215,12 @@ export default function SignupPage() {
               <span className="text-[#9940E5] font-black text-sm">@{username}</span>
             </div>
           </div>
-          <a
-            href="/login"
+          <button
+            onClick={() => router.replace("/")}
             className="inline-flex items-center justify-center w-full h-12 rounded-2xl bg-[#9940E5] text-white font-black italic uppercase tracking-widest text-sm shadow-xl shadow-violet-200 transition-all hover:bg-violet-700"
           >
             Sign In Now
-          </a>
+          </button>
         </div>
       </div>
     );
