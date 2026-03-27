@@ -836,6 +836,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const username = data.username || `${(data.name || 'user').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15)}${Math.floor(100 + Math.random() * 900)}`;
       const referralCode = `VM${username.toUpperCase().slice(0, 6)}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
+      const existingUsers = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.limit(1)]);
+      const assignedRole = existingUsers.total === 0 ? 'SUPER' : 'USER';
+
       await databases.createDocument(DATABASE_ID, COL.USERS, authUser.$id, {
         name: data.name,
         username,
@@ -851,7 +854,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         gold_balance: 0,
         diamond_balance: 0,
         star_balance: 0,
-        role: 'USER',
+        role: assignedRole,
         join_date: new Date().toISOString(),
         nationality: data.nationality || '',
         date_of_birth: data.dob || '',

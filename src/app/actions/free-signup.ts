@@ -1,9 +1,13 @@
 'use server';
 
-import { ID } from 'node-appwrite';
+import { ID, Query } from 'node-appwrite';
 import {
   getAdminUsers,
+  getAdminDatabases,
+  DATABASE_ID,
 } from '@/lib/appwrite-server';
+
+const USERS_COLLECTION_ID = 'users';
 
 export async function freeModeSignupAction(input: {
   name: string;
@@ -15,6 +19,7 @@ export async function freeModeSignupAction(input: {
   gender: string;
 }): Promise<{ success: boolean; message: string }> {
   const usersClient = getAdminUsers();
+  const databases = getAdminDatabases();
 
   let userId: string;
 
@@ -39,7 +44,45 @@ export async function freeModeSignupAction(input: {
     await usersClient.updateEmailVerification(userId, true);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { success: false, message: `Account created but could not mark as verified: ${msg}` };
+    await usersClient.delete(userId).catch(() => {});
+    return { success: false, message: `Could not activate account: ${msg}` };
+  }
+
+  try {
+    const existing = await databases.listDocuments(DATABASE_ID, USERS_COLLECTION_ID, [
+      Query.limit(1),
+    ]);
+    const assignedRole = existing.total === 0 ? 'SUPER' : 'USER';
+
+    const referralCode = `VM${input.username.toUpperCase().slice(0, 6)}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+
+    await databases.createDocument(DATABASE_ID, USERS_COLLECTION_ID, userId, {
+      name: input.name,
+      username: input.username,
+      email: input.email,
+      bio: '',
+      category: '',
+      is_verified: false,
+      has_ever_been_verified: false,
+      followers_count: 0,
+      following_count: 0,
+      friends_count: 0,
+      posts_count: 0,
+      gold_balance: 0,
+      diamond_balance: 0,
+      star_balance: 0,
+      role: assignedRole,
+      join_date: new Date().toISOString(),
+      nationality: input.nationality,
+      date_of_birth: input.dob,
+      referral_code: referralCode,
+      referral_count: 0,
+      language: 'en',
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await usersClient.delete(userId).catch(() => {});
+    return { success: false, message: `Failed to create user profile: ${msg}` };
   }
 
   return { success: true, message: 'Account created! You can now log in.' };
