@@ -47,13 +47,22 @@ export function Stories({ onOpenCreate }: StoriesProps) {
             className="relative w-28 h-48 rounded-2xl overflow-hidden shrink-0 border border-primary/10 bg-white dark:bg-card cursor-pointer group shadow-sm"
             onClick={() => { triggerHaptic(5); onOpenCreate?.(); }}
           >
-            <div className="relative h-3/4 w-full overflow-hidden">
-              <Image 
-                src={currentUser?.avatar || "https://picsum.photos/seed/vimore/200/200"} 
-                alt="My Profile" 
-                fill 
-                className="object-cover transition-transform group-hover:scale-110" 
-              />
+            <div className="relative h-3/4 w-full overflow-hidden bg-primary/10">
+              {currentUser?.avatar ? (
+                <Image 
+                  src={currentUser.avatar} 
+                  alt="My Profile" 
+                  fill 
+                  className="object-cover transition-transform group-hover:scale-110" 
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-primary/10">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-1/2 h-1/2 text-primary">
+                    <path d="M3 7L10 19L17 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M13 15L17 7L21 15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              )}
             </div>
             <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-white dark:bg-card flex items-center justify-center p-2">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 h-8 w-8 bg-primary rounded-full border-4 border-white dark:border-card flex items-center justify-center text-white shadow-lg">

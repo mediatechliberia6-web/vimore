@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { Search, Plus, Menu, MessageCircle, Bell } from "lucide-react";
+import { Search, Plus, Menu, Bell } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CreatePostModal } from "@/components/post/create-post-modal";
@@ -25,15 +25,8 @@ const PulseBadge = ({ count }: { count: number }) => {
 
 export function Header() {
   const { unreadCount = 0, categoryPulses = { MESSAGES: 0, HOME: 0 }, clearPulse } = useNotifications();
-  const { setSearchOpen, currentUser = { name: "Guest", avatar: "" }, chatMessages, settings } = usePosts();
+  const { setSearchOpen, currentUser = { name: "Guest", avatar: "" }, settings } = usePosts();
   const { t } = useTranslation();
-
-  const unseenMsgCount = useMemo(() => {
-    if (!chatMessages) return 0;
-    return Object.values(chatMessages).reduce((total, msgs) => {
-      return total + msgs.filter(m => m.sender === "them" && m.status !== "read").length;
-    }, 0);
-  }, [chatMessages]);
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-primary/10 px-4 py-2 flex items-center justify-between shadow-sm">
@@ -75,12 +68,6 @@ export function Header() {
           <PulseBadge count={unreadCount} />
         </Link>
 
-        <Link href="/messages" className="relative group" onClick={() => clearPulse('MESSAGES')}>
-          <Button variant="ghost" size="icon" className={cn("rounded-full bg-secondary/50 transition-all", unseenMsgCount > 0 && "text-primary bg-primary/5")}>
-            <MessageCircle className="h-5 w-5" />
-          </Button>
-          <PulseBadge count={unseenMsgCount} />
-        </Link>
         
         <Link href="/profile" className="hidden sm:block ml-2 group">
           <Avatar className="h-9 w-9 border-2 border-primary/10 transition-transform group-hover:scale-105">

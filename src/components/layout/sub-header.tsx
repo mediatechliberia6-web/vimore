@@ -18,7 +18,8 @@ import {
   CheckCircle2,
   Zap,
   ZapOff,
-  EyeOff
+  EyeOff,
+  MessageCircle
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -123,6 +124,21 @@ export function SubHeader() {
             );
           })}
         </nav>
+
+        {/* Messages Icon */}
+        <Link
+          href="/messages"
+          onClick={() => { triggerHaptic(5); clearPulse('MESSAGES'); }}
+          className={cn(
+            "relative flex items-center justify-center h-full px-2.5 sm:px-4 transition-colors group shrink-0",
+            "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <div className="relative">
+            <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            {(categoryPulses?.MESSAGES || 0) > 0 && <PulseBadge count={categoryPulses.MESSAGES} />}
+          </div>
+        </Link>
 
         {/* Search and Profile Section */}
         <div className="flex items-center gap-2 sm:gap-4 flex-1 justify-end min-w-0">
