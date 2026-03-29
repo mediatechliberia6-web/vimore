@@ -1,41 +1,13 @@
-import type {NextConfig} from 'next';
+// next.config.ts
 
-const nextConfig: NextConfig = {
-  /* config options here */
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+const withImages = require('next-images');
+
+module.exports = withImages({
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'placehold.co',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'picsum.photos',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'cloud.appwrite.io',
-        port: '',
-        pathname: '/**',
-      },
-    ],
+    domains: ['storage.appwrite.io'], // Allow images only from Appwrite storage
   },
-};
-
-export default nextConfig;
+  typescript: {
+    // Remove ignoreBuildErrors
+    ignoreBuildErrors: false,
+  },
+});
