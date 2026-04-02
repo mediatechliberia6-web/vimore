@@ -3,56 +3,29 @@
 import { useState, useEffect } from 'react';
 import { Zap, Globe, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { usePosts } from '@/context/PostContext';
-import { useToast } from '@/hooks/use-toast';
-import { useTranslation } from '@/context/LanguageContext';
 
 const FREE_DOMAIN = 'free.vimore.cfd';
 const MAIN_DOMAIN = 'vimore.cfd';
 
 export function ModeSwitcher() {
-  const { settings, updateSettings } = usePosts();
-  const { toast } = useToast();
-  const { t } = useTranslation();
-  const [isOnFreeDomain, setIsOnFreeDomain] = useState(false);
+  const [isFreeMode, setIsFreeMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setIsOnFreeDomain(window.location.hostname === FREE_DOMAIN);
+      const hostname = window.location.hostname;
+      setIsFreeMode(hostname === FREE_DOMAIN || hostname.startsWith('free.'));
     }
   }, []);
 
-  const isFreeMode = isOnFreeDomain || settings.isFreeMode;
-
-  const handleToggle = async () => {
-    const nextState = !isFreeMode;
-    const isVimoreDomain = typeof window !== 'undefined' &&
-      (window.location.hostname === MAIN_DOMAIN || window.location.hostname === FREE_DOMAIN);
-
-    if (isVimoreDomain) {
-      setIsLoading(true);
-      try {
-        const res = await fetch('/api/set-mode', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enable: nextState }),
-        });
-        if (!res.ok) throw new Error('Failed to set mode');
-        const { redirectUrl } = await res.json();
-        window.location.href = redirectUrl;
-        return;
-      } catch (err) {
-        console.error('[ModeSwitcher] Error:', err);
-        setIsLoading(false);
-      }
+  const handleToggle = () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    if (isFreeMode) {
+      window.location.href = `https://${MAIN_DOMAIN}`;
+    } else {
+      window.location.href = `https://${FREE_DOMAIN}`;
     }
-
-    updateSettings({ isFreeMode: nextState });
-    toast({
-      title: nextState ? 'Free Mode Active' : 'Full Fidelity Pulse',
-      description: nextState ? t('settings_free_mode_desc') : 'Media nodes synchronized.',
-    });
   };
 
   return (
