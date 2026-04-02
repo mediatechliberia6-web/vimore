@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'vimore-shell-v2';
-const STATIC_CACHE = 'vimore-static-v2';
+const SHELL_CACHE = 'vimore-shell-v3';
+const STATIC_CACHE = 'vimore-static-v3';
 
 const SHELL_URLS = [
   '/offline.html',
@@ -33,7 +33,7 @@ self.addEventListener('fetch', (event) => {
         caches.match('/offline.html').then((cached) => {
           if (cached) return cached;
           return new Response(
-            '<html><body><h1>No Data Detected</h1><a href="https://free.vimore.cfd">Switch to Free Mode</a></body></html>',
+            '<html><body><h1>No Data Detected</h1></body></html>',
             { headers: { 'Content-Type': 'text/html' } }
           );
         })

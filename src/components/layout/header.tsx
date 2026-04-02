@@ -82,7 +82,7 @@ export function Header() {
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50" aria-label="Open menu">
             <Menu className="h-5 w-5" />
           </Button>
-          <PulseBadge count={(unreadCount || 0) + unseenMsgCount + Object.values(categoryPulses || {}).reduce((a, b) => a + b, 0)} />
+          <PulseBadge count={(unreadCount || 0) + (categoryPulses?.MESSAGES || 0) + Object.values(categoryPulses || {}).reduce((a, b) => a + b, 0)} />
         </Link>
       </div>
     </header>

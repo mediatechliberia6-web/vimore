@@ -47,11 +47,8 @@ export function AppLoadingGate({ children }: { children: React.ReactNode }) {
       return;
     }
     if (!isLoading && !initError) {
-      const timer = setTimeout(() => {
-        setIsVisible(false);
-        setTimeout(() => setShouldRenderSplash(false), 600);
-      }, 2200);
-      return () => clearTimeout(timer);
+      setIsVisible(false);
+      setShouldRenderSplash(false);
     }
   }, [isLoading, initError, pathname]);
 
