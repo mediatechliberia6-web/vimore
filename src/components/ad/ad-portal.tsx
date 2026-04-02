@@ -74,19 +74,19 @@ export function AdPortal() {
         {currentCampaign ? (
           <div className="relative w-full h-full flex flex-col">
             <div className="flex-1 relative overflow-hidden">
-              {currentCampaign.type === 'video' && currentCampaign.mediaUrl ? (
+              {currentCampaign.type === 'video' && (currentCampaign.media_url || currentCampaign.mediaUrl) ? (
                 <video
-                  src={currentCampaign.mediaUrl}
+                  src={currentCampaign.media_url || currentCampaign.mediaUrl}
                   className="w-full h-full object-contain"
                   autoPlay
                   muted={false}
                   loop
                   playsInline
                 />
-              ) : currentCampaign.mediaUrl ? (
+              ) : (currentCampaign.media_url || currentCampaign.mediaUrl) ? (
                 <div className="relative w-full h-full">
                   <Image
-                    src={currentCampaign.mediaUrl}
+                    src={currentCampaign.media_url || currentCampaign.mediaUrl}
                     alt={currentCampaign.title || 'Sponsored'}
                     fill
                     className="object-contain"
@@ -109,14 +109,14 @@ export function AdPortal() {
                   <p className="text-sm text-white/70 leading-relaxed">{currentCampaign.content}</p>
                 )}
               </div>
-              {currentCampaign.actionUrl && (
+              {(currentCampaign.action_url || currentCampaign.actionUrl) && (
                 <a
-                  href={currentCampaign.actionUrl}
-                  target={currentCampaign.actionUrl.startsWith('http') ? '_blank' : '_self'}
+                  href={currentCampaign.action_url || currentCampaign.actionUrl}
+                  target={(currentCampaign.action_url || currentCampaign.actionUrl || '').startsWith('http') ? '_blank' : '_self'}
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 bg-primary text-white font-black uppercase text-[11px] tracking-widest px-6 py-3 rounded-full shadow-lg hover:bg-primary/90 active:scale-95 transition-all"
                 >
-                  {currentCampaign.actionLabel || 'Learn More'}
+                  {currentCampaign.action_label || currentCampaign.actionLabel || 'Learn More'}
                 </a>
               )}
             </div>

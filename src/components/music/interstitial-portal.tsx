@@ -126,14 +126,14 @@ export function MusicAdPortal() {
           )}
         </div>
 
-        {currentMusicAd?.actionUrl && (
+        {(currentMusicAd?.action_url || currentMusicAd?.actionUrl) && (
           <a
-            href={currentMusicAd.actionUrl}
-            target={currentMusicAd.actionUrl.startsWith('http') ? '_blank' : '_self'}
+            href={currentMusicAd.action_url || currentMusicAd.actionUrl}
+            target={(currentMusicAd.action_url || currentMusicAd.actionUrl || '').startsWith('http') ? '_blank' : '_self'}
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md text-white border border-white/20 font-black uppercase text-[11px] tracking-widest px-6 py-3 rounded-full hover:bg-white/20 active:scale-95 transition-all"
           >
-            {currentMusicAd.actionLabel || 'Learn More'} <Zap className="h-3.5 w-3.5" />
+            {currentMusicAd.action_label || currentMusicAd.actionLabel || 'Learn More'} <Zap className="h-3.5 w-3.5" />
           </a>
         )}
 

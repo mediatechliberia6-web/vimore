@@ -273,18 +273,18 @@ export function StoryViewer() {
             <div className="flex-1 relative overflow-hidden">
               {currentStoryCampaign ? (
                 <>
-                  {currentStoryCampaign.type === 'video' && currentStoryCampaign.mediaUrl ? (
+                  {currentStoryCampaign.type === 'video' && (currentStoryCampaign.media_url || currentStoryCampaign.mediaUrl) ? (
                     <video 
-                      src={currentStoryCampaign.mediaUrl}
+                      src={currentStoryCampaign.media_url || currentStoryCampaign.mediaUrl}
                       className="w-full h-full object-cover"
                       autoPlay
                       muted
                       loop
                       playsInline
                     />
-                  ) : currentStoryCampaign.mediaUrl ? (
+                  ) : (currentStoryCampaign.media_url || currentStoryCampaign.mediaUrl) ? (
                     <Image 
-                      src={currentStoryCampaign.mediaUrl}
+                      src={currentStoryCampaign.media_url || currentStoryCampaign.mediaUrl}
                       alt={currentStoryCampaign.title || "Sponsored"}
                       fill
                       className="object-cover"
@@ -304,15 +304,15 @@ export function StoryViewer() {
                         </p>
                       )}
                     </div>
-                    {currentStoryCampaign.actionUrl && (
+                    {(currentStoryCampaign.action_url || currentStoryCampaign.actionUrl) && (
                       <a
-                        href={currentStoryCampaign.actionUrl}
-                        target={currentStoryCampaign.actionUrl.startsWith('http') ? '_blank' : '_self'}
+                        href={currentStoryCampaign.action_url || currentStoryCampaign.actionUrl}
+                        target={(currentStoryCampaign.action_url || currentStoryCampaign.actionUrl || '').startsWith('http') ? '_blank' : '_self'}
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
                         className="inline-flex items-center gap-2 bg-white text-black font-black uppercase text-[11px] tracking-widest px-6 py-3 rounded-full shadow-xl hover:bg-white/90 active:scale-95 transition-all"
                       >
-                        {currentStoryCampaign.actionLabel || 'Learn More'} <ChevronRight className="h-3.5 w-3.5" />
+                        {currentStoryCampaign.action_label || currentStoryCampaign.actionLabel || 'Learn More'} <ChevronRight className="h-3.5 w-3.5" />
                       </a>
                     )}
                   </div>

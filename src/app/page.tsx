@@ -230,7 +230,7 @@ export default function Home() {
   const feedItems = useMemo(() => {
     if (posts.length === 0) return [];
     const boostedPosts = posts.filter(p => p.isBoosted);
-    const activeCampaigns = campaigns.filter((c: any) => c.isActive && c.placement === 'feed');
+    const activeCampaigns = campaigns.filter((c: any) => (c.is_active || c.isActive) && c.placement === 'feed');
     const result: (any)[] = [];
     let organicIdx = 0; let boostedIdx = 0; let campaignIdx = 0;
     let slotCount = 0;
@@ -323,11 +323,11 @@ export default function Home() {
                         isCampaign={true}
                         user={{ name: "ViMore Official", username: "vimore", avatar: "/icon.svg", isVerified: true, role: "Global Node" }}
                         content={item.data.content}
-                        image={item.data.type === 'photo' ? item.data.mediaUrl : undefined}
-                        videoUrl={item.data.type === 'video' ? item.data.mediaUrl : undefined}
+                        image={item.data.type === 'photo' ? (item.data.media_url || item.data.mediaUrl) : undefined}
+                        videoUrl={item.data.type === 'video' ? (item.data.media_url || item.data.mediaUrl) : undefined}
                         campaignTitle={item.data.title}
-                        actionUrl={item.data.actionUrl}
-                        actionLabel={item.data.actionLabel}
+                        actionUrl={item.data.action_url || item.data.actionUrl}
+                        actionLabel={item.data.action_label || item.data.actionLabel}
                         likes={1420}
                         unlikes={0}
                         comments={0}
