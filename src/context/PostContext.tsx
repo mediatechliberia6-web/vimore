@@ -8,6 +8,7 @@ import {
   COL, BUCKET, DATABASE_ID,
   getFileUrl, extractFileId, formatTimeAgo, avatarFallback,
 } from '@/lib/appwrite';
+import { withCache, cacheInvalidate } from '@/lib/query-cache';
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
@@ -534,19 +535,20 @@ export function PostProvider({ children }: { children: ReactNode }) {
     feedCursorRef.current = null;
     setHasMoreFeed(true);
     try {
-      const postsResult = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
-        Query.orderDesc('$createdAt'),
-        Query.limit(15),
-      ]);
+      const feedQueries = [Query.orderDesc('$createdAt'), Query.limit(15)];
+      const postsResult = await withCache(COL.POSTS, feedQueries, () =>
+        databases.listDocuments(DATABASE_ID, COL.POSTS, feedQueries)
+      );
 
       const authorIds = [...new Set(postsResult.documents.map((p: any) => p.author_id).filter(Boolean))];
       let authorsMap: Record<string, any> = {};
 
       if (authorIds.length > 0) {
         try {
-          const authorsResult = await databases.listDocuments(DATABASE_ID, COL.USERS, [
-            Query.equal('$id', authorIds),
-          ]);
+          const authorQueries = [Query.equal('$id', authorIds)];
+          const authorsResult = await withCache(COL.USERS, authorQueries, () =>
+            databases.listDocuments(DATABASE_ID, COL.USERS, authorQueries)
+          );
           authorsMap = Object.fromEntries(authorsResult.documents.map((u: any) => [u.$id, u]));
         } catch { /* ignore */ }
       }
@@ -602,6 +604,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const loadSocialGraph = useCallback(async (userId: string) => {
     try {
+      const q = {
+        followingOut:    [Query.equal('follower_id', userId), Query.limit(500)],
+        followersIn:     [Query.equal('following_id', userId), Query.limit(500)],
+        frSentPending:   [Query.equal('sender_id', userId), Query.equal('status', 'PENDING'), Query.limit(500)],
+        frRecvPending:   [Query.equal('receiver_id', userId), Query.equal('status', 'PENDING'), Query.limit(500)],
+        frSentAccepted:  [Query.equal('sender_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)],
+        frRecvAccepted:  [Query.equal('receiver_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)],
+        myLikes:         [Query.equal('user_id', userId), Query.equal('reaction_type', 'LIKE'), Query.limit(500)],
+        myBookmarks:     [Query.equal('user_id', userId), Query.limit(500)],
+        myUnlocks:       [Query.equal('user_id', userId), Query.limit(500)],
+        mySubs:          [Query.equal('subscriber_id', userId), Query.equal('is_active', true), Query.limit(500)],
+        myBlocked:       [Query.equal('blocker_id', userId), Query.limit(200)],
+      };
       const [
         followingResult,
         followersResult,
@@ -615,17 +630,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
         subscriptionsResult,
         blockedUsersResult,
       ] = await Promise.allSettled([
-        databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [Query.equal('follower_id', userId), Query.limit(500)]),
-        databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [Query.equal('following_id', userId), Query.limit(500)]),
-        databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [Query.equal('sender_id', userId), Query.equal('status', 'PENDING'), Query.limit(500)]),
-        databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [Query.equal('receiver_id', userId), Query.equal('status', 'PENDING'), Query.limit(500)]),
-        databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [Query.equal('sender_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)]),
-        databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [Query.equal('receiver_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)]),
-        databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [Query.equal('user_id', userId), Query.equal('reaction_type', 'LIKE'), Query.limit(500)]),
-        databases.listDocuments(DATABASE_ID, COL.BOOKMARKS, [Query.equal('user_id', userId), Query.limit(500)]),
-        databases.listDocuments(DATABASE_ID, COL.POST_UNLOCKS, [Query.equal('user_id', userId), Query.limit(500)]),
-        databases.listDocuments(DATABASE_ID, COL.SUBSCRIPTIONS, [Query.equal('subscriber_id', userId), Query.equal('is_active', true), Query.limit(500)]),
-        databases.listDocuments(DATABASE_ID, COL.BLOCKED_USERS, [Query.equal('blocker_id', userId), Query.limit(200)]),
+        withCache(COL.FOLLOWS,          q.followingOut,   () => databases.listDocuments(DATABASE_ID, COL.FOLLOWS,          q.followingOut)),
+        withCache(COL.FOLLOWS,          q.followersIn,    () => databases.listDocuments(DATABASE_ID, COL.FOLLOWS,          q.followersIn)),
+        withCache(COL.FRIEND_REQUESTS,  q.frSentPending,  () => databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS,  q.frSentPending)),
+        withCache(COL.FRIEND_REQUESTS,  q.frRecvPending,  () => databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS,  q.frRecvPending)),
+        withCache(COL.FRIEND_REQUESTS,  q.frSentAccepted, () => databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS,  q.frSentAccepted)),
+        withCache(COL.FRIEND_REQUESTS,  q.frRecvAccepted, () => databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS,  q.frRecvAccepted)),
+        withCache(COL.POST_REACTIONS,   q.myLikes,        () => databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS,   q.myLikes)),
+        withCache(COL.BOOKMARKS,        q.myBookmarks,    () => databases.listDocuments(DATABASE_ID, COL.BOOKMARKS,        q.myBookmarks)),
+        withCache(COL.POST_UNLOCKS,     q.myUnlocks,      () => databases.listDocuments(DATABASE_ID, COL.POST_UNLOCKS,     q.myUnlocks)),
+        withCache(COL.SUBSCRIPTIONS,    q.mySubs,         () => databases.listDocuments(DATABASE_ID, COL.SUBSCRIPTIONS,    q.mySubs)),
+        withCache(COL.BLOCKED_USERS,    q.myBlocked,      () => databases.listDocuments(DATABASE_ID, COL.BLOCKED_USERS,    q.myBlocked)),
       ]);
 
       if (followingResult.status === 'fulfilled') {
@@ -1132,6 +1147,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (p.images && p.images.length > 0) { newPost.images = p.images; newPost.image = p.images[0]; }
       if (p.videoUrl) newPost.videoUrl = p.videoUrl;
       setPostsState(prev => [newPost, ...prev]);
+      cacheInvalidate(COL.POSTS);
 
       await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
         posts_count: (currentUser.posts as number || 0) + 1,
@@ -1147,6 +1163,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       await databases.deleteDocument(DATABASE_ID, COL.POSTS, id);
       setPostsState(prev => prev.filter(p => p.$id !== id));
+      cacheInvalidate(COL.POSTS);
       toast({ title: "Post deleted" });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Failed to delete post", description: err?.message });
@@ -2062,6 +2079,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
             following_count: Math.max(0, (currentUser.following as number || 0) - 1),
           });
+          cacheInvalidate(COL.FOLLOWS);
         } catch { /* keep optimistic */ }
       } else {
         setFollowingUsernamesState(prev => new Set(prev).add(username));
@@ -2083,6 +2101,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
             await databases.updateDocument(DATABASE_ID, COL.USERS, targetDoc.$id, {
               followers_count: (targetDoc.followers_count || 0) + 1,
             });
+            cacheInvalidate(COL.FOLLOWS);
           }
         } catch { /* keep optimistic */ }
       }
