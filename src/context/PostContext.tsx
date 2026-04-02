@@ -66,6 +66,11 @@ export interface User {
   hasEverBeenVerified?: boolean;
   language?: string;
   introUrl?: string;
+  status?: 'active' | 'suspended' | 'banned';
+  suspendedUntil?: string;
+  suspensionReason?: string;
+  suspensionMessage?: string;
+  warningCount?: number;
 }
 
 export interface StorySegment {
@@ -324,6 +329,13 @@ interface PostContextType {
   unblockUser: (username: string) => Promise<void>;
   blockedUsernames: string[];
   submitReport: (data: { reportedUsername: string; reason: string; details: string }) => Promise<void>;
+  allUsers: User[];
+  refreshAllUsers: () => Promise<void>;
+  banUser: (userId: string, reason: string, note?: string) => Promise<void>;
+  suspendUser: (userId: string, days: number, reason: string, message: string) => Promise<void>;
+  warnUser: (userId: string, message: string, severity: 'SOFT' | 'FINAL') => Promise<void>;
+  sendAdminBroadcast: (opts: { title: string; message: string; actionUrl?: string; targetUserIds: string[] | 'all' }) => Promise<number>;
+  broadcastHistory: any[];
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -373,6 +385,11 @@ function mapDocToUser(authUser: Models.User<Models.Preferences>, doc: Models.Doc
     joinDate: doc.join_date || authUser.$createdAt,
     hasEverBeenVerified: doc.has_ever_been_verified || false,
     language: doc.language || '',
+    status: (doc.status as 'active' | 'suspended' | 'banned') || 'active',
+    suspendedUntil: doc.suspended_until || undefined,
+    suspensionReason: doc.suspension_reason || undefined,
+    suspensionMessage: doc.suspension_message || undefined,
+    warningCount: doc.warning_count || 0,
   };
 }
 
@@ -402,6 +419,11 @@ function mapProfileDocToUser(doc: Models.Document): User {
     joinDate: doc.join_date || doc.$createdAt,
     hasEverBeenVerified: doc.has_ever_been_verified || false,
     language: doc.language || '',
+    status: (doc.status as 'active' | 'suspended' | 'banned') || 'active',
+    suspendedUntil: doc.suspended_until || undefined,
+    suspensionReason: doc.suspension_reason || undefined,
+    suspensionMessage: doc.suspension_message || undefined,
+    warningCount: doc.warning_count || 0,
   };
 }
 
@@ -496,6 +518,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [tickets, setTickets] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [blockedUsernames, setBlockedUsernames] = useState<string[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [broadcastHistory, setBroadcastHistory] = useState<any[]>([]);
 
   const [likedPostIds, setLikedPostIdsState] = useState<Set<string>>(new Set());
   const [unlikedPostIds, setUnlikedPostIdsState] = useState<Set<string>>(new Set());
@@ -1096,6 +1120,144 @@ export function PostProvider({ children }: { children: ReactNode }) {
       console.error('refreshAdminData error:', err);
     }
   }, []);
+
+  const refreshAllUsers = useCallback(async () => {
+    try {
+      const [allUsersRes, broadcastRes] = await Promise.allSettled([
+        databases.listDocuments(DATABASE_ID, COL.USERS, [Query.orderDesc('$createdAt'), Query.limit(200)]),
+        databases.listDocuments(DATABASE_ID, COL.ADMIN_NOTIFICATIONS, [Query.orderDesc('$createdAt'), Query.limit(50)]),
+      ]);
+      if (allUsersRes.status === 'fulfilled') {
+        setAllUsers(allUsersRes.value.documents.map(mapProfileDocToUser));
+      }
+      if (broadcastRes.status === 'fulfilled') {
+        setBroadcastHistory(broadcastRes.value.documents);
+      }
+    } catch (err) {
+      console.error('refreshAllUsers error:', err);
+    }
+  }, []);
+
+  const banUser = useCallback(async (userId: string, reason: string, note?: string) => {
+    if (!currentUser) return;
+    setAllUsers(prev => prev.map(u => u.$id === userId ? { ...u, status: 'banned' as const } : u));
+    try {
+      await databases.updateDocument(DATABASE_ID, COL.USERS, userId, {
+        status: 'banned',
+        ban_reason: reason,
+        ban_note: note || '',
+        banned_at: new Date().toISOString(),
+        banned_by: currentUser.username,
+      });
+      const userPostsRes = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
+        Query.equal('author_id', userId), Query.limit(500),
+      ]);
+      await Promise.allSettled(
+        userPostsRes.documents.map(doc =>
+          databases.deleteDocument(DATABASE_ID, COL.POSTS, doc.$id)
+        )
+      );
+      await databases.createDocument(DATABASE_ID, COL.USER_BANS, ID.unique(), {
+        user_id: userId,
+        reason,
+        note: note || '',
+        banned_by: currentUser.username,
+        banned_at: new Date().toISOString(),
+      });
+    } catch { /* keep optimistic */ }
+  }, [currentUser]);
+
+  const suspendUser = useCallback(async (userId: string, days: number, reason: string, message: string) => {
+    if (!currentUser) return;
+    const suspendedUntil = new Date(Date.now() + days * 86400000).toISOString();
+    setAllUsers(prev => prev.map(u =>
+      u.$id === userId
+        ? { ...u, status: 'suspended' as const, suspendedUntil, suspensionReason: reason, suspensionMessage: message }
+        : u
+    ));
+    try {
+      await databases.updateDocument(DATABASE_ID, COL.USERS, userId, {
+        status: 'suspended',
+        suspended_until: suspendedUntil,
+        suspension_reason: reason,
+        suspension_message: message,
+        suspended_by: currentUser.username,
+      });
+      await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+        recipient_id: userId,
+        sender_id: currentUser.$id,
+        type: 'SYSTEM',
+        title: 'Account Suspended',
+        content: message,
+        is_read: false,
+        post_id: null,
+        track_id: null,
+        target_username: null,
+      });
+    } catch { /* keep optimistic */ }
+  }, [currentUser]);
+
+  const warnUser = useCallback(async (userId: string, message: string, severity: 'SOFT' | 'FINAL') => {
+    if (!currentUser) return;
+    const targetUser = allUsers.find(u => u.$id === userId);
+    const newCount = (targetUser?.warningCount || 0) + 1;
+    setAllUsers(prev => prev.map(u => u.$id === userId ? { ...u, warningCount: newCount } : u));
+    try {
+      await databases.updateDocument(DATABASE_ID, COL.USERS, userId, {
+        warning_count: newCount,
+        last_warning_severity: severity,
+        last_warning_at: new Date().toISOString(),
+        last_warning_by: currentUser.username,
+      });
+      await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+        recipient_id: userId,
+        sender_id: currentUser.$id,
+        type: 'SYSTEM',
+        title: severity === 'FINAL' ? '⚠️ Final Warning' : 'Account Warning',
+        content: message,
+        is_read: false,
+        post_id: null,
+        track_id: null,
+        target_username: null,
+      });
+    } catch { /* keep optimistic */ }
+  }, [currentUser, allUsers]);
+
+  const sendAdminBroadcast = useCallback(async (opts: { title: string; message: string; actionUrl?: string; targetUserIds: string[] | 'all' }) => {
+    if (!currentUser) return 0;
+    let targets: string[];
+    if (opts.targetUserIds === 'all') {
+      targets = allUsers.map(u => u.$id).filter(id => id !== currentUser.$id);
+    } else {
+      targets = opts.targetUserIds;
+    }
+    const broadcastDoc = await databases.createDocument(DATABASE_ID, COL.ADMIN_NOTIFICATIONS, ID.unique(), {
+      title: opts.title,
+      message: opts.message,
+      action_url: opts.actionUrl || null,
+      sent_by: currentUser.username,
+      sent_at: new Date().toISOString(),
+      recipient_count: targets.length,
+      target_type: opts.targetUserIds === 'all' ? 'ALL' : 'TARGETED',
+    });
+    setBroadcastHistory(prev => [broadcastDoc, ...prev]);
+    await Promise.allSettled(
+      targets.map(uid =>
+        databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+          recipient_id: uid,
+          sender_id: currentUser.$id,
+          type: 'SYSTEM',
+          title: opts.title,
+          content: opts.message,
+          is_read: false,
+          post_id: null,
+          track_id: null,
+          target_username: null,
+        })
+      )
+    );
+    return targets.length;
+  }, [currentUser, allUsers]);
 
   const addPost = async (p: any) => {
     if (!currentUser) return;
@@ -2168,6 +2330,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     updateUserIdentity,
     handleReportAction, handleTicketAction,
     sendChatMessage,
+    allUsers, refreshAllUsers, banUser, suspendUser, warnUser, sendAdminBroadcast, broadcastHistory,
     purgeVibeCache: async () => setSeenPostIdsState(new Set()),
     archiveIdentityNode: async () => {},
     boostNode,

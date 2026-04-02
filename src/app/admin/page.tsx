@@ -79,7 +79,22 @@ import {
   Film,
   ArrowLeft,
   MousePointerClick,
-  CalendarClock
+  CalendarClock,
+  UserX,
+  AlertOctagon,
+  Bell,
+  BellRing,
+  Filter,
+  Target,
+  Timer,
+  Siren,
+  BookOpen,
+  SendHorizonal,
+  MailCheck,
+  ChevronDown,
+  Info,
+  GanttChart,
+  Undo2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -124,11 +139,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "campaigns" | "infrastructure" | "resolution" | "logs" | "staff";
+type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "campaigns" | "infrastructure" | "resolution" | "logs" | "staff" | "users" | "broadcast";
 type EconomySubTab = "outbound" | "inbound";
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, reports, tickets, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus, updateUserIdentity, handleReportAction, handleTicketAction, submitTicket, uploadMedia, isLoading } = usePosts();
+  const { withdrawalHistory, paymentRequests, reports, tickets, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus, updateUserIdentity, handleReportAction, handleTicketAction, submitTicket, uploadMedia, isLoading, allUsers, refreshAllUsers, banUser, suspendUser, warnUser, sendAdminBroadcast, broadcastHistory } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   
@@ -149,6 +164,37 @@ export default function AdminDashboard() {
   const [idSearch, setIdSearch] = useState("");
   const [staffSearch, setStaffSearch] = useState("");
   const hasLoggedBreach = useRef(false);
+
+  const [userSearch, setUserSearch] = useState("");
+  const [userStatusFilter, setUserStatusFilter] = useState<'all' | 'active' | 'suspended' | 'banned'>('all');
+
+  const [banTarget, setBanTarget] = useState<any | null>(null);
+  const [banReason, setBanReason] = useState("Violation of Community Guidelines");
+  const [banNote, setBanNote] = useState("");
+  const [banConfirmText, setBanConfirmText] = useState("");
+  const [isBanning, setIsBanning] = useState(false);
+
+  const [suspendTarget, setSuspendTarget] = useState<any | null>(null);
+  const [suspendDays, setSuspendDays] = useState(7);
+  const [suspendReason, setSuspendReason] = useState("Repeated Policy Violations");
+  const [suspendMessage, setSuspendMessage] = useState("");
+  const [isSuspending, setIsSuspending] = useState(false);
+
+  const [warnTarget, setWarnTarget] = useState<any | null>(null);
+  const [warnMessage, setWarnMessage] = useState("");
+  const [warnSeverity, setWarnSeverity] = useState<'SOFT' | 'FINAL'>('SOFT');
+  const [isWarning, setIsWarning] = useState(false);
+
+  const [broadcastMode, setBroadcastMode] = useState<'all' | 'targeted'>('all');
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [broadcastActionUrl, setBroadcastActionUrl] = useState("");
+  const [broadcastTargetSearch, setBroadcastTargetSearch] = useState("");
+  const [broadcastTargetIds, setBroadcastTargetIds] = useState<string[]>([]);
+  const [broadcastFollowerMin, setBroadcastFollowerMin] = useState(0);
+  const [broadcastFollowerMax, setBroadcastFollowerMax] = useState(9999999);
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [broadcastSent, setBroadcastSent] = useState<number | null>(null);
 
   // Campaign Form State
   const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
@@ -178,6 +224,77 @@ export default function AdminDashboard() {
     }
   }, [isUnauthorized, refreshAdminData, addAuditLog, currentUser?.username]);
 
+  useEffect(() => {
+    if ((activeTab === 'users' || activeTab === 'broadcast') && !isUnauthorized) {
+      refreshAllUsers();
+    }
+  }, [activeTab, isUnauthorized, refreshAllUsers]);
+
+  const handleBanUser = async () => {
+    if (!banTarget || banConfirmText !== 'CONFIRM BAN') return;
+    if (banTarget.$id === firstUserId) { toast({ variant: "destructive", title: "Action Blocked", description: "This user is permanently protected." }); return; }
+    setIsBanning(true);
+    try {
+      await banUser(banTarget.$id, banReason, banNote);
+      await addAuditLog('USER_BANNED', `@${banTarget.username} permanently banned. Reason: ${banReason}${banNote ? ` | Note: ${banNote}` : ''}`);
+      toast({ title: "Account Terminated", description: `@${banTarget.username} has been banned from ViMore.` });
+      setBanTarget(null); setBanReason("Violation of Community Guidelines"); setBanNote(""); setBanConfirmText("");
+    } catch { toast({ variant: "destructive", title: "Ban failed" }); }
+    finally { setIsBanning(false); }
+  };
+
+  const handleSuspendUser = async () => {
+    if (!suspendTarget || !suspendMessage.trim()) return;
+    if (suspendTarget.$id === firstUserId) { toast({ variant: "destructive", title: "Action Blocked", description: "This user is permanently protected." }); return; }
+    setIsSuspending(true);
+    try {
+      await suspendUser(suspendTarget.$id, suspendDays, suspendReason, suspendMessage);
+      await addAuditLog('USER_SUSPENDED', `@${suspendTarget.username} suspended for ${suspendDays} day(s). Reason: ${suspendReason}`);
+      toast({ title: "Account Suspended", description: `@${suspendTarget.username} suspended for ${suspendDays} day(s).` });
+      setSuspendTarget(null); setSuspendDays(7); setSuspendReason("Repeated Policy Violations"); setSuspendMessage("");
+    } catch { toast({ variant: "destructive", title: "Suspension failed" }); }
+    finally { setIsSuspending(false); }
+  };
+
+  const handleWarnUser = async () => {
+    if (!warnTarget || !warnMessage.trim()) return;
+    setIsWarning(true);
+    try {
+      await warnUser(warnTarget.$id, warnMessage, warnSeverity);
+      await addAuditLog('USER_WARNED', `@${warnTarget.username} issued a ${warnSeverity} warning.`);
+      toast({ title: "Warning Issued", description: `@${warnTarget.username} has been notified.` });
+      setWarnTarget(null); setWarnMessage(""); setWarnSeverity('SOFT');
+    } catch { toast({ variant: "destructive", title: "Warning failed" }); }
+    finally { setIsWarning(false); }
+  };
+
+  const handleBroadcast = async () => {
+    if (!broadcastTitle.trim() || !broadcastMessage.trim()) return;
+    setIsBroadcasting(true);
+    setBroadcastSent(null);
+    try {
+      let targetIds: string[] | 'all' = 'all';
+      if (broadcastMode === 'targeted') {
+        if (broadcastTargetIds.length > 0) {
+          targetIds = broadcastTargetIds;
+        } else {
+          targetIds = allUsers
+            .filter(u => {
+              const followers = typeof u.followers === 'number' ? u.followers : parseInt(String(u.followers || '0'));
+              return followers >= broadcastFollowerMin && followers <= broadcastFollowerMax;
+            })
+            .map(u => u.$id);
+        }
+      }
+      const count = await sendAdminBroadcast({ title: broadcastTitle, message: broadcastMessage, actionUrl: broadcastActionUrl || undefined, targetUserIds: targetIds });
+      await addAuditLog('BROADCAST_SENT', `Admin broadcast "${broadcastTitle}" sent to ${count} user(s).`);
+      setBroadcastSent(count);
+      toast({ title: "Broadcast Sent", description: `Notification delivered to ${count} user(s).` });
+      setBroadcastTitle(""); setBroadcastMessage(""); setBroadcastActionUrl(""); setBroadcastTargetIds([]); setBroadcastTargetSearch("");
+    } catch { toast({ variant: "destructive", title: "Broadcast failed" }); }
+    finally { setIsBroadcasting(false); }
+  };
+
   const pendingWithdrawals = useMemo(() => 
     withdrawalHistory.filter(w => w.status === 'PENDING'), 
     [withdrawalHistory]
@@ -189,10 +306,10 @@ export default function AdminDashboard() {
   );
 
   const availableTabs = useMemo(() => {
-    if (isSuper) return ["pulse", "economy", "intelligence", "velocity", "identity", "safety", "governance", "campaigns", "infrastructure", "resolution", "logs", "staff"] as AdminTab[];
+    if (isSuper) return ["pulse", "economy", "intelligence", "velocity", "identity", "safety", "users", "broadcast", "governance", "campaigns", "infrastructure", "resolution", "logs", "staff"] as AdminTab[];
     const tabs: AdminTab[] = ["pulse", "logs"];
     if (isFinancial) tabs.push("economy", "infrastructure");
-    if (isModerator) tabs.push("intelligence", "velocity", "identity", "safety", "campaigns", "resolution");
+    if (isModerator) tabs.push("intelligence", "velocity", "identity", "safety", "users", "campaigns", "resolution");
     return tabs;
   }, [isSuper, isFinancial, isModerator]);
 
@@ -322,6 +439,8 @@ export default function AdminDashboard() {
     velocity: { label: "Velocity", icon: TrendingUp },
     identity: { label: "Identity", icon: UserPlus },
     safety: { label: "Safety", icon: ShieldAlert },
+    users: { label: "Users", icon: GanttChart },
+    broadcast: { label: "Broadcast", icon: BellRing },
     governance: { label: "Governance", icon: Sliders },
     campaigns: { label: "Campaigns", icon: Megaphone },
     infrastructure: { label: "Infras", icon: Database },
@@ -974,6 +1093,292 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {activeTab === 'users' && (() => {
+            const displayUsers = allUsers.filter(u => {
+              const matchesSearch = !userSearch || u.username?.toLowerCase().includes(userSearch.toLowerCase()) || u.name?.toLowerCase().includes(userSearch.toLowerCase());
+              const matchesStatus = userStatusFilter === 'all' || (u.status || 'active') === userStatusFilter;
+              return matchesSearch && matchesStatus;
+            });
+            return (
+              <div className="space-y-10 animate-in fade-in duration-500">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
+                  <div className="space-y-1">
+                    <h3 className="text-3xl font-black italic uppercase tracking-tighter">User Management</h3>
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">All registered platform nodes</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className="bg-primary/10 text-primary border-none font-black uppercase">{allUsers.length} Total</Badge>
+                    <Badge className="bg-amber-400/10 text-amber-400 border-none font-black uppercase">{allUsers.filter(u => u.status === 'suspended').length} Suspended</Badge>
+                    <Badge className="bg-destructive/10 text-destructive border-none font-black uppercase">{allUsers.filter(u => u.status === 'banned').length} Banned</Badge>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input value={userSearch} onChange={e => setUserSearch(e.target.value)} placeholder="Search by username or name..." className="pl-10 h-12 bg-secondary/30 border-none rounded-2xl font-bold" />
+                  </div>
+                  <div className="flex gap-1 bg-secondary/40 p-1.5 rounded-2xl shrink-0">
+                    {(['all', 'active', 'suspended', 'banned'] as const).map(f => (
+                      <button key={f} onClick={() => setUserStatusFilter(f)} className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wide transition-all capitalize", userStatusFilter === f ? "bg-white dark:bg-card text-primary shadow-md" : "text-muted-foreground hover:text-foreground")}>{f}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <Card className="bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20">
+                          <th className="px-6 py-4">User</th>
+                          <th className="px-6 py-4">Role</th>
+                          <th className="px-6 py-4">Followers</th>
+                          <th className="px-6 py-4">Status</th>
+                          <th className="px-6 py-4">Warnings</th>
+                          <th className="px-6 py-4">Joined</th>
+                          <th className="px-6 py-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {displayUsers.length > 0 ? displayUsers.map(u => {
+                          const isProtected = u.$id === firstUserId;
+                          const isCurrentUser = u.$id === currentUser?.$id;
+                          const userStatus = u.status || 'active';
+                          const isSuspended = userStatus === 'suspended' && u.suspendedUntil && new Date(u.suspendedUntil).getTime() > Date.now();
+                          return (
+                            <tr key={u.$id} className={cn("hover:bg-secondary/10 transition-colors", userStatus === 'banned' && "opacity-60")}>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-9 w-9 border-2 border-primary/10"><AvatarImage src={u.avatar} /><AvatarFallback>{u.name?.[0]}</AvatarFallback></Avatar>
+                                  <div>
+                                    <p className="font-bold text-sm">@{u.username}</p>
+                                    <p className="text-[10px] text-muted-foreground">{u.name}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <Badge variant="outline" className={cn("text-[9px] font-black uppercase", u.role === 'SUPER' ? "border-amber-400/30 text-amber-400" : u.role === 'FINANCIAL' ? "border-green-400/30 text-green-400" : u.role === 'MODERATOR' ? "border-blue-400/30 text-blue-400" : "border-border text-muted-foreground")}>{u.role || 'USER'}</Badge>
+                              </td>
+                              <td className="px-6 py-4"><span className="font-black text-sm">{(u.followers || 0).toLocaleString()}</span></td>
+                              <td className="px-6 py-4">
+                                <Badge className={cn("text-[9px] font-black uppercase border-none",
+                                  userStatus === 'banned' ? "bg-destructive/20 text-destructive" :
+                                  isSuspended ? "bg-amber-400/10 text-amber-400" :
+                                  "bg-green-500/10 text-green-400"
+                                )}>
+                                  {userStatus === 'banned' ? 'Banned' : isSuspended ? `Suspended` : 'Active'}
+                                </Badge>
+                                {isSuspended && u.suspendedUntil && (
+                                  <p className="text-[9px] text-muted-foreground mt-0.5">Until {new Date(u.suspendedUntil).toLocaleDateString()}</p>
+                                )}
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={cn("font-black text-sm", (u.warningCount || 0) >= 3 ? "text-destructive" : (u.warningCount || 0) > 0 ? "text-amber-400" : "text-muted-foreground")}>
+                                  {u.warningCount || 0}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4"><span className="text-[10px] font-black text-muted-foreground">{u.joinDate ? new Date(u.joinDate).toLocaleDateString() : '—'}</span></td>
+                              <td className="px-6 py-4 text-right">
+                                {isCurrentUser ? (
+                                  <Badge className="text-[8px] font-black uppercase bg-primary/10 text-primary border-none">You</Badge>
+                                ) : isProtected ? (
+                                  <Badge className="text-[8px] font-black uppercase bg-amber-500/10 text-amber-500 border-none">Protected</Badge>
+                                ) : (
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    {userStatus !== 'banned' && (
+                                      <>
+                                        <Button size="sm" variant="ghost" className="h-8 px-3 rounded-xl text-[9px] font-black uppercase text-amber-400 hover:bg-amber-400/10" onClick={() => { triggerHaptic(10); setWarnTarget(u); setWarnMessage(""); setWarnSeverity('SOFT'); }}>
+                                          <AlertOctagon className="h-3 w-3 mr-1" />Warn
+                                        </Button>
+                                        {userStatus !== 'suspended' && (
+                                          <Button size="sm" variant="ghost" className="h-8 px-3 rounded-xl text-[9px] font-black uppercase text-blue-400 hover:bg-blue-400/10" onClick={() => { triggerHaptic(20); setSuspendTarget(u); setSuspendDays(7); setSuspendMessage(""); }}>
+                                            <Timer className="h-3 w-3 mr-1" />Suspend
+                                          </Button>
+                                        )}
+                                        {userStatus === 'suspended' && (
+                                          <Button size="sm" variant="ghost" className="h-8 px-3 rounded-xl text-[9px] font-black uppercase text-green-400 hover:bg-green-400/10" onClick={async () => {
+                                            triggerHaptic(10);
+                                            await suspendUser(u.$id, 0, '', '');
+                                            await addAuditLog('SUSPENSION_LIFTED', `Suspension on @${u.username} lifted early by admin`);
+                                            toast({ title: "Suspension Lifted", description: `@${u.username} can now access the platform.` });
+                                          }}>
+                                            <Undo2 className="h-3 w-3 mr-1" />Lift
+                                          </Button>
+                                        )}
+                                      </>
+                                    )}
+                                    <Button size="sm" variant="ghost" className="h-8 px-3 rounded-xl text-[9px] font-black uppercase text-destructive hover:bg-destructive/10" onClick={() => { triggerHaptic(50); setBanTarget(u); setBanConfirmText(""); setBanNote(""); }}>
+                                      <UserX className="h-3 w-3 mr-1" />{userStatus === 'banned' ? 'Banned' : 'Ban'}
+                                    </Button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        }) : (
+                          <tr><td colSpan={7} className="py-24 text-center opacity-40 italic text-xs uppercase">No users found</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              </div>
+            );
+          })()}
+
+          {activeTab === 'broadcast' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
+                <div className="space-y-1">
+                  <h3 className="text-3xl font-black italic uppercase tracking-tighter">Notification Center</h3>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Broadcast & Targeted Notifications</p>
+                </div>
+                <Badge className="bg-primary/10 text-primary border-none font-black uppercase self-start sm:self-auto">{broadcastHistory.length} Sent</Badge>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                  <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 bg-primary/10 rounded-2xl flex items-center justify-center"><BellRing className="h-5 w-5 text-primary" /></div>
+                      <div>
+                        <h4 className="text-lg font-black italic uppercase tracking-tighter">Compose Notification</h4>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Write and send to your audience</p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-1 bg-secondary/40 p-1.5 rounded-2xl">
+                      <button onClick={() => setBroadcastMode('all')} className={cn("flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wide flex items-center justify-center gap-2 transition-all", broadcastMode === 'all' ? "bg-white dark:bg-card text-primary shadow-md" : "text-muted-foreground")}><Bell className="h-3.5 w-3.5" />All Users</button>
+                      <button onClick={() => setBroadcastMode('targeted')} className={cn("flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wide flex items-center justify-center gap-2 transition-all", broadcastMode === 'targeted' ? "bg-white dark:bg-card text-primary shadow-md" : "text-muted-foreground")}><Target className="h-3.5 w-3.5" />Targeted</button>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Notification Title *</Label>
+                        <Input value={broadcastTitle} onChange={e => setBroadcastTitle(e.target.value)} placeholder="e.g. New Feature Alert!" className="h-12 bg-secondary/30 border-none rounded-2xl font-bold" maxLength={80} />
+                        <p className="text-[9px] text-muted-foreground text-right">{broadcastTitle.length}/80</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Message *</Label>
+                        <Textarea value={broadcastMessage} onChange={e => setBroadcastMessage(e.target.value)} placeholder="Write your notification message here..." className="bg-secondary/30 border-none rounded-2xl font-medium resize-none min-h-[100px]" maxLength={300} />
+                        <p className="text-[9px] text-muted-foreground text-right">{broadcastMessage.length}/300</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Action URL (optional)</Label>
+                        <Input value={broadcastActionUrl} onChange={e => setBroadcastActionUrl(e.target.value)} placeholder="https://... or /reels" className="h-12 bg-secondary/30 border-none rounded-2xl font-bold" />
+                      </div>
+                    </div>
+
+                    {broadcastMode === 'targeted' && (
+                      <div className="space-y-4 border-t border-border pt-6">
+                        <h5 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2"><Filter className="h-3.5 w-3.5" />Audience Filter</h5>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Min Followers</Label>
+                            <Input type="number" value={broadcastFollowerMin} onChange={e => setBroadcastFollowerMin(Number(e.target.value))} className="h-10 bg-secondary/30 border-none rounded-xl font-bold" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Max Followers</Label>
+                            <Input type="number" value={broadcastFollowerMax} onChange={e => setBroadcastFollowerMax(Number(e.target.value))} className="h-10 bg-secondary/30 border-none rounded-xl font-bold" />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase text-muted-foreground">Or target specific users</Label>
+                          <div className="relative">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input value={broadcastTargetSearch} onChange={e => setBroadcastTargetSearch(e.target.value)} placeholder="Search users to add..." className="pl-10 h-12 bg-secondary/30 border-none rounded-2xl font-bold" />
+                          </div>
+                          {broadcastTargetSearch.trim().length >= 2 && (() => {
+                            const results = allUsers.filter(u => u.username?.toLowerCase().includes(broadcastTargetSearch.toLowerCase()) || u.name?.toLowerCase().includes(broadcastTargetSearch.toLowerCase())).slice(0, 5);
+                            return results.length > 0 ? (
+                              <div className="space-y-2">
+                                {results.map(u => (
+                                  <div key={u.$id} className="flex items-center justify-between bg-secondary/20 rounded-xl p-3">
+                                    <div className="flex items-center gap-2">
+                                      <Avatar className="h-7 w-7"><AvatarImage src={u.avatar} /><AvatarFallback>{u.name?.[0]}</AvatarFallback></Avatar>
+                                      <span className="text-xs font-bold">@{u.username}</span>
+                                    </div>
+                                    <Button size="sm" variant="ghost" className="h-7 text-[9px] rounded-lg font-black uppercase text-primary" onClick={() => {
+                                      if (!broadcastTargetIds.includes(u.$id)) {
+                                        setBroadcastTargetIds(prev => [...prev, u.$id]);
+                                        setBroadcastTargetSearch("");
+                                      }
+                                    }}><Plus className="h-3 w-3" />Add</Button>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null;
+                          })()}
+                          {broadcastTargetIds.length > 0 && (
+                            <div className="space-y-1.5">
+                              <p className="text-[9px] font-black uppercase text-muted-foreground">Selected ({broadcastTargetIds.length})</p>
+                              <div className="flex flex-wrap gap-2">
+                                {broadcastTargetIds.map(id => {
+                                  const u = allUsers.find(u => u.$id === id);
+                                  return u ? (
+                                    <div key={id} className="flex items-center gap-1.5 bg-primary/10 rounded-lg px-2.5 py-1">
+                                      <span className="text-[10px] font-black text-primary">@{u.username}</span>
+                                      <button onClick={() => setBroadcastTargetIds(prev => prev.filter(x => x !== id))} className="text-primary/60 hover:text-primary"><X className="h-3 w-3" /></button>
+                                    </div>
+                                  ) : null;
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="bg-secondary/20 rounded-2xl p-3 flex items-center gap-2">
+                          <Info className="h-4 w-4 text-primary shrink-0" />
+                          <p className="text-[10px] font-black text-muted-foreground">
+                            {broadcastTargetIds.length > 0
+                              ? `Sending to ${broadcastTargetIds.length} specific user(s)`
+                              : `Sending to ~${allUsers.filter(u => { const f = typeof u.followers === 'number' ? u.followers : parseInt(String(u.followers || '0')); return f >= broadcastFollowerMin && f <= broadcastFollowerMax; }).length} users matching follower filter`}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {broadcastMode === 'all' && (
+                      <div className="bg-amber-400/5 border border-amber-400/20 rounded-2xl p-4 flex items-start gap-3">
+                        <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                        <p className="text-[10px] font-bold text-amber-400">This notification will be sent to all <strong>{allUsers.length}</strong> registered users. Rate limit: 1 broadcast per 24 hours.</p>
+                      </div>
+                    )}
+
+                    {broadcastSent !== null && (
+                      <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-4 flex items-center gap-3">
+                        <MailCheck className="h-5 w-5 text-green-400" />
+                        <p className="text-sm font-black text-green-400">Broadcast delivered to {broadcastSent} users.</p>
+                      </div>
+                    )}
+
+                    <Button onClick={handleBroadcast} disabled={isBroadcasting || !broadcastTitle.trim() || !broadcastMessage.trim()} className="w-full h-14 rounded-2xl bg-primary text-white font-black uppercase text-[11px] tracking-[0.2em] shadow-lg shadow-primary/20 hover:opacity-90 transition-all">
+                      {isBroadcasting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</> : <><SendHorizonal className="h-4 w-4 mr-2" />Send Notification</>}
+                    </Button>
+                  </Card>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-xs font-black uppercase tracking-[0.25em] text-muted-foreground px-1">Send History</h4>
+                  {broadcastHistory.length > 0 ? broadcastHistory.map((b: any) => (
+                    <Card key={b.$id} className="bg-card/40 border-border rounded-3xl p-5 space-y-3 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="font-bold text-sm line-clamp-1">{b.title}</p>
+                        <Badge className={cn("text-[8px] font-black uppercase border-none shrink-0", b.target_type === 'ALL' ? "bg-primary/10 text-primary" : "bg-blue-400/10 text-blue-400")}>{b.target_type}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{b.message}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black text-muted-foreground uppercase">{b.recipient_count} recipients</span>
+                        <span className="text-[9px] font-black text-muted-foreground">{b.sent_at ? new Date(b.sent_at).toLocaleDateString() : '—'}</span>
+                      </div>
+                    </Card>
+                  )) : (
+                    <div className="py-16 text-center bg-card/20 border border-dashed border-border rounded-3xl opacity-40 text-xs font-black uppercase">No broadcasts sent yet</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'governance' && (
             <div className="space-y-10 animate-in fade-in duration-500">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
@@ -1368,6 +1773,140 @@ export default function AdminDashboard() {
           <Button variant="ghost" size="icon" className="absolute top-6 right-6 text-white bg-white/10 rounded-full" onClick={() => setSelectedReceipt(null)}><X className="h-6 w-6" /></Button>
           <div className="relative w-full max-w-2xl aspect-[3/4] sm:aspect-video rounded-[2rem] overflow-hidden shadow-2xl border border-white/10"><Image src={selectedReceipt} alt="Receipt Proof" fill className="object-contain" /></div>
           <p className="mt-6 text-[10px] font-black text-white/40 uppercase tracking-[0.4em]">Audit Trail Inspector</p>
+        </div>
+      )}
+
+      {banTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-6" onClick={() => setBanTarget(null)}>
+          <div className="bg-card border border-destructive/30 rounded-[2.5rem] p-8 w-full max-w-md space-y-6 shadow-2xl shadow-destructive/20 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 bg-destructive/10 rounded-3xl flex items-center justify-center border border-destructive/20"><UserX className="h-7 w-7 text-destructive" /></div>
+              <div>
+                <h3 className="text-xl font-black italic uppercase tracking-tighter text-destructive">Permanent Ban</h3>
+                <p className="text-xs font-bold text-muted-foreground">@{banTarget.username} · All content will be purged</p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reason</Label>
+                <select value={banReason} onChange={e => setBanReason(e.target.value)} className="w-full h-12 bg-secondary/40 border border-border rounded-2xl px-4 text-sm font-bold text-foreground appearance-none">
+                  <option>Violation of Community Guidelines</option>
+                  <option>Harassment or Hate Speech</option>
+                  <option>CSAM or Illegal Content</option>
+                  <option>Spam or Bot Activity</option>
+                  <option>Identity Fraud</option>
+                  <option>Doxxing or Privacy Violation</option>
+                  <option>Repeat Policy Offenses</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Internal Note (optional)</Label>
+                <Textarea value={banNote} onChange={e => setBanNote(e.target.value)} placeholder="Additional context for the record..." className="bg-secondary/30 border-none rounded-2xl resize-none min-h-[80px] font-medium" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-destructive">Type CONFIRM BAN to proceed</Label>
+                <Input value={banConfirmText} onChange={e => setBanConfirmText(e.target.value)} placeholder="CONFIRM BAN" className="h-12 bg-destructive/5 border border-destructive/20 rounded-2xl font-black tracking-widest text-sm" />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="ghost" className="flex-1 h-12 rounded-2xl font-black uppercase text-[10px]" onClick={() => setBanTarget(null)}>Cancel</Button>
+              <Button disabled={banConfirmText !== 'CONFIRM BAN' || isBanning} onClick={handleBanUser} className="flex-1 h-12 rounded-2xl bg-destructive text-white font-black uppercase text-[10px] hover:bg-destructive/90">
+                {isBanning ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Execute Ban'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {suspendTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-6" onClick={() => setSuspendTarget(null)}>
+          <div className="bg-card border border-amber-400/20 rounded-[2.5rem] p-8 w-full max-w-md space-y-6 shadow-2xl shadow-amber-400/10 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 bg-amber-400/10 rounded-3xl flex items-center justify-center border border-amber-400/20"><Timer className="h-7 w-7 text-amber-400" /></div>
+              <div>
+                <h3 className="text-xl font-black italic uppercase tracking-tighter text-amber-400">Suspend Account</h3>
+                <p className="text-xs font-bold text-muted-foreground">@{suspendTarget.username} · Temporary access restriction</p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Duration</Label>
+                <div className="flex gap-2 flex-wrap">
+                  {[1, 3, 7, 14, 30, 60].map(d => (
+                    <button key={d} onClick={() => setSuspendDays(d)} className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase border transition-all", suspendDays === d ? "bg-amber-400/10 border-amber-400/40 text-amber-400" : "border-border text-muted-foreground hover:border-amber-400/30")}>{d}d</button>
+                  ))}
+                  <div className="flex items-center gap-2 border border-border rounded-xl px-3">
+                    <Input type="number" value={suspendDays} onChange={e => setSuspendDays(Math.max(1, Number(e.target.value)))} className="w-12 h-8 border-none bg-transparent font-black text-center p-0 text-sm" min={1} max={365} />
+                    <span className="text-[9px] font-black text-muted-foreground uppercase">days</span>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reason</Label>
+                <select value={suspendReason} onChange={e => setSuspendReason(e.target.value)} className="w-full h-12 bg-secondary/40 border border-border rounded-2xl px-4 text-sm font-bold text-foreground appearance-none">
+                  <option>Repeated Policy Violations</option>
+                  <option>Harassment</option>
+                  <option>Spam</option>
+                  <option>Misleading Content</option>
+                  <option>Pending Investigation</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Message to User *</Label>
+                <Textarea value={suspendMessage} onChange={e => setSuspendMessage(e.target.value)} placeholder="Explain to the user why they are suspended and what they need to do..." className="bg-secondary/30 border-none rounded-2xl resize-none min-h-[90px] font-medium" />
+              </div>
+              <div className="bg-secondary/20 rounded-2xl p-3 text-[10px] font-bold text-muted-foreground">
+                Access locked until: <span className="text-amber-400">{new Date(Date.now() + suspendDays * 86400000).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</span>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="ghost" className="flex-1 h-12 rounded-2xl font-black uppercase text-[10px]" onClick={() => setSuspendTarget(null)}>Cancel</Button>
+              <Button disabled={!suspendMessage.trim() || isSuspending} onClick={handleSuspendUser} className="flex-1 h-12 rounded-2xl bg-amber-400 text-black font-black uppercase text-[10px] hover:bg-amber-300">
+                {isSuspending ? <Loader2 className="h-4 w-4 animate-spin" /> : `Suspend ${suspendDays}d`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {warnTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-6" onClick={() => setWarnTarget(null)}>
+          <div className="bg-card border border-border rounded-[2.5rem] p-8 w-full max-w-md space-y-6 shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 bg-primary/10 rounded-3xl flex items-center justify-center border border-primary/20"><AlertOctagon className="h-7 w-7 text-primary" /></div>
+              <div>
+                <h3 className="text-xl font-black italic uppercase tracking-tighter">Issue Warning</h3>
+                <p className="text-xs font-bold text-muted-foreground">@{warnTarget.username} · Formal in-app notice</p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Severity</Label>
+                <div className="flex gap-3">
+                  {(['SOFT', 'FINAL'] as const).map(s => (
+                    <button key={s} onClick={() => setWarnSeverity(s)} className={cn("flex-1 py-3 rounded-2xl text-[10px] font-black uppercase border-2 transition-all", warnSeverity === s ? (s === 'FINAL' ? "bg-destructive/10 border-destructive/40 text-destructive" : "bg-primary/10 border-primary/40 text-primary") : "border-border text-muted-foreground hover:border-primary/30")}>
+                      {s === 'SOFT' ? '⚠ Soft Warning' : '🚨 Final Warning'}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[9px] font-bold text-muted-foreground pl-1">{warnSeverity === 'FINAL' ? 'Final warning — next violation will result in ban.' : 'Standard notice. User has been cautioned.'}</p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Warning Message *</Label>
+                <Textarea value={warnMessage} onChange={e => setWarnMessage(e.target.value)} placeholder="Describe the violation and expected behavior..." className="bg-secondary/30 border-none rounded-2xl resize-none min-h-[100px] font-medium" maxLength={500} />
+                <p className="text-[9px] text-muted-foreground text-right">{warnMessage.length}/500</p>
+              </div>
+              <div className="bg-secondary/20 rounded-2xl p-3 text-[10px] font-bold text-muted-foreground">
+                Warning count after this action: <span className={cn("font-black", (warnTarget.warningCount || 0) + 1 >= 3 ? "text-destructive" : "text-amber-400")}>{(warnTarget.warningCount || 0) + 1}</span>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="ghost" className="flex-1 h-12 rounded-2xl font-black uppercase text-[10px]" onClick={() => setWarnTarget(null)}>Cancel</Button>
+              <Button disabled={!warnMessage.trim() || isWarning} onClick={handleWarnUser} className="flex-1 h-12 rounded-2xl bg-primary text-white font-black uppercase text-[10px] hover:opacity-90">
+                {isWarning ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Issue Warning'}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -41,6 +41,8 @@ export const COL = {
   AD_CAMPAIGNS: 'ad_campaigns',
   AUDIT_LOGS: 'audit_logs',
   CALL_LOGS: 'call_logs',
+  ADMIN_NOTIFICATIONS: 'admin_notifications',
+  USER_BANS: 'user_bans',
 } as const;
 
 export const BUCKET = {
@@ -129,6 +131,8 @@ const _collections: Record<string, Record<string, any>> = {
   },
 
   call_logs: {},
+  admin_notifications: {},
+  user_bans: {},
 };
 
 let _sessionUserId: string | null = 'user_001';
