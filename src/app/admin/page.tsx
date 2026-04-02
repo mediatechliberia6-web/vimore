@@ -203,6 +203,16 @@ export default function AdminDashboard() {
     auditEntries: auditLogs.length
   }), [posts, connections, auditLogs]);
 
+  // The first user ever created is permanently protected — their SUPER role can never be removed
+  const firstUserId = useMemo(() => {
+    const allUsers = [currentUser, ...connections].filter(Boolean) as any[];
+    allUsers.sort((a, b) =>
+      new Date(a.joinDate || a.$createdAt || 0).getTime() -
+      new Date(b.joinDate || b.$createdAt || 0).getTime()
+    );
+    return allUsers[0]?.$id ?? null;
+  }, [currentUser, connections]);
+
   const livePulseData = useMemo(() => {
     const hourBuckets: Record<number, number> = {};
     posts.forEach(p => {
@@ -891,10 +901,13 @@ export default function AdminDashboard() {
                               {u.$id !== currentUser?.$id && (
                                 <>
                                   <Button size="sm" variant="ghost" className="h-8 rounded-xl text-[9px] font-black uppercase text-blue-400 hover:bg-blue-400/10" onClick={() => { triggerHaptic(10); promoteUser(u.username || '', 'MODERATOR'); toast({ title: `@${u.username} promoted to Moderator` }); }}><UserCheck className="h-3 w-3 mr-1" />Promote</Button>
-                                  <Button size="sm" variant="ghost" className="h-8 rounded-xl text-[9px] font-black uppercase text-destructive hover:bg-destructive/10" onClick={() => { triggerHaptic(50); demoteUser(u.username || ''); toast({ title: `@${u.username} demoted` }); }}><UserMinus className="h-3 w-3 mr-1" />Demote</Button>
+                                  {u.$id !== firstUserId && (
+                                    <Button size="sm" variant="ghost" className="h-8 rounded-xl text-[9px] font-black uppercase text-destructive hover:bg-destructive/10" onClick={() => { triggerHaptic(50); demoteUser(u.username || ''); toast({ title: `@${u.username} demoted` }); }}><UserMinus className="h-3 w-3 mr-1" />Demote</Button>
+                                  )}
                                 </>
                               )}
                               {u.$id === currentUser?.$id && <Badge className="text-[8px] font-black uppercase bg-primary/10 text-primary border-none">You</Badge>}
+                              {u.$id === firstUserId && u.$id !== currentUser?.$id && <Badge className="text-[8px] font-black uppercase bg-amber-500/10 text-amber-500 border-none">Protected</Badge>}
                             </div>
                           </td>
                         </tr>
@@ -912,7 +925,9 @@ export default function AdminDashboard() {
                         <Avatar className="h-10 w-10"><AvatarImage src={s.avatar} /></Avatar>
                         <div className="flex-1"><p className="font-bold text-sm">@{s.username}</p><p className="text-[10px] text-muted-foreground">{s.name}</p></div>
                         <Badge className={cn("text-[9px] font-black uppercase border-none", s.role === 'MODERATOR' ? "bg-blue-400/10 text-blue-400" : "bg-green-400/10 text-green-400")}>{s.role}</Badge>
-                        <Button size="sm" variant="ghost" className="h-8 rounded-xl text-destructive hover:bg-destructive/10 text-[9px] font-black uppercase" onClick={() => { demoteUser(s.username); toast({ title: `@${s.username} removed from staff` }); }}><UserMinus className="h-3 w-3 mr-1" />Remove</Button>
+                        {s.$id !== firstUserId && (
+                          <Button size="sm" variant="ghost" className="h-8 rounded-xl text-destructive hover:bg-destructive/10 text-[9px] font-black uppercase" onClick={() => { demoteUser(s.username); toast({ title: `@${s.username} removed from staff` }); }}><UserMinus className="h-3 w-3 mr-1" />Remove</Button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1297,16 +1312,20 @@ export default function AdminDashboard() {
                               </td>
                               <td className="px-8 py-5"><span className="text-[10px] font-black text-muted-foreground">{member.assignedAt ? new Date(member.assignedAt).toLocaleDateString() : '—'}</span></td>
                               <td className="px-8 py-5">
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  className="text-[10px] font-black uppercase rounded-xl h-8 px-4"
-                                  onClick={async () => {
-                                    await demoteUser(member.username);
-                                    addAuditLog('STAFF_REMOVED', `@${member.username} removed from staff roster`);
-                                    toast({ title: "Staff Removed", description: `@${member.username} has been demoted to User` });
-                                  }}
-                                >Remove</Button>
+                                {member.$id !== firstUserId ? (
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="text-[10px] font-black uppercase rounded-xl h-8 px-4"
+                                    onClick={async () => {
+                                      await demoteUser(member.username);
+                                      addAuditLog('STAFF_REMOVED', `@${member.username} removed from staff roster`);
+                                      toast({ title: "Staff Removed", description: `@${member.username} has been demoted to User` });
+                                    }}
+                                  >Remove</Button>
+                                ) : (
+                                  <Badge className="text-[8px] font-black uppercase bg-amber-500/10 text-amber-500 border-none">Protected</Badge>
+                                )}
                               </td>
                             </tr>
                           ))}

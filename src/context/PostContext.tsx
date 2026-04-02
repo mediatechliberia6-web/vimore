@@ -1866,13 +1866,25 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const demoteUser = async (username: string) => {
-    setStaff(prev => prev.filter((s: any) => s.username !== username));
     try {
       const res = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('username', username), Query.limit(1)]);
       if (res.documents[0]) {
-        await databases.updateDocument(DATABASE_ID, COL.USERS, res.documents[0].$id, { role: 'USER' });
+        const targetId = res.documents[0].$id;
+
+        // Find the first user ever created — they can never be demoted
+        const allRes = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.orderAsc('join_date'), Query.limit(1)]);
+        const firstUserId = allRes.documents[0]?.$id;
+        if (firstUserId && targetId === firstUserId) {
+          return; // silently blocked — UI should already hide the button
+        }
+
+        await databases.updateDocument(DATABASE_ID, COL.USERS, targetId, { role: 'USER' });
+        setStaff(prev => prev.filter((s: any) => s.username !== username));
       }
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      if (err?.message?.includes('PROTECTED_SUPER_ADMIN')) return;
+      /* ignore other errors */
+    }
   };
 
   const boostNode = async (nodeId: string, duration: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'SONIC') => {

@@ -313,6 +313,19 @@ export const databases = {
   async updateDocument(_db: string, col: string, id: string, data: any): Promise<any> {
     const existing = getCol(col)[id];
     if (!existing) throw new Error(`[Mock] Document '${id}' not found in '${col}'`);
+
+    // Permanent protection: the first user (earliest join_date) can NEVER lose SUPER role
+    if (col === 'users' && data.role && data.role !== 'SUPER') {
+      const allUsers = Object.values(getCol('users')) as any[];
+      allUsers.sort((a, b) =>
+        new Date(a.join_date || a.$createdAt || 0).getTime() -
+        new Date(b.join_date || b.$createdAt || 0).getTime()
+      );
+      if (allUsers.length > 0 && allUsers[0].$id === id) {
+        throw new Error('PROTECTED_SUPER_ADMIN');
+      }
+    }
+
     const updated = { ...existing, ...data, $updatedAt: new Date().toISOString() };
     getCol(col)[id] = updated;
     return { ...updated };
