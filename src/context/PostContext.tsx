@@ -1643,10 +1643,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (!currentUser) return;
     try {
       const doc = await databases.createDocument(DATABASE_ID, COL.AD_CAMPAIGNS, ID.unique(), {
-        user_id: currentUser.$id, ...d, is_active: true, impressions: 0, clicks: 0,
+        user_id: currentUser.$id,
+        title: d.title || '',
+        content: d.content || '',
+        type: d.type || 'photo',
+        placement: d.placement || 'feed',
+        media_url: d.mediaUrl || d.media_url || '',
+        action_url: d.actionUrl || d.action_url || '',
+        action_label: d.actionLabel || d.action_label || 'Learn More',
+        is_active: true,
+        impressions: 0,
+        clicks: 0,
       });
       setCampaignsState(prev => [doc, ...prev]);
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Failed to create campaign", description: err?.message || "Please try again." });
+      throw err;
+    }
   };
 
   const deleteCampaign = async (id: string) => {

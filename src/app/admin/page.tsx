@@ -75,7 +75,8 @@ import {
   KeyRound,
   RefreshCcw,
   LayoutGrid,
-  Upload
+  Upload,
+  Film
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -650,9 +651,9 @@ export default function AdminDashboard() {
                             {c.type === 'audio' ? (
                               <Music2 className="h-7 w-7 text-primary" />
                             ) : c.type === 'video' ? (
-                              c.mediaUrl ? <video src={c.mediaUrl} className="w-full h-full object-cover" muted /> : <Video className="h-7 w-7 text-muted-foreground" />
+                              (c.media_url || c.mediaUrl) ? <video src={c.media_url || c.mediaUrl} className="w-full h-full object-cover" muted /> : <Video className="h-7 w-7 text-muted-foreground" />
                             ) : (
-                              c.mediaUrl ? <Image src={c.mediaUrl} alt="Campaign" fill className="object-cover" /> : <ImageIcon className="h-7 w-7 text-muted-foreground" />
+                              (c.media_url || c.mediaUrl) ? <Image src={c.media_url || c.mediaUrl} alt="Campaign" fill className="object-cover" /> : <ImageIcon className="h-7 w-7 text-muted-foreground" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0 space-y-1">
