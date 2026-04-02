@@ -139,7 +139,6 @@ export default function SignupPage() {
   const [securityQuestion, setSecurityQuestion] = useState("");
   const [securityAnswer, setSecurityAnswer] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
   const [showCountryDialog, setShowCountryDialog] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
   const [showQuestionPicker, setShowQuestionPicker] = useState(false);
@@ -205,7 +204,7 @@ export default function SignupPage() {
     try {
       const result = await signup({ name, vimoreId, password, dob, nationality, securityQuestion, securityAnswer });
       if (result.success) {
-        setIsSuccess(true);
+        router.replace("/");
       } else if (!result.success && result.message) {
         toast({ variant: "destructive", title: "Signup failed", description: result.message });
       }
@@ -215,42 +214,6 @@ export default function SignupPage() {
       setIsSubmitting(false);
     }
   };
-
-  if (isSuccess) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-6" style={{ colorScheme: 'light' }}>
-        <div className="fixed inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-violet-200 to-purple-100 blur-3xl opacity-60" />
-          <div className="absolute -bottom-32 -left-32 w-[400px] h-[400px] rounded-full bg-gradient-to-tr from-violet-100 to-pink-100 blur-3xl opacity-50" />
-        </div>
-        <div className="relative z-10 text-center space-y-6 animate-in zoom-in-95 fade-in duration-500 max-w-sm w-full">
-          <div className="h-24 w-24 bg-[#9940E5] rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-violet-300">
-            <CheckCircle2 className="h-12 w-12 text-white" />
-          </div>
-          <div className="space-y-3">
-            <h2 className="text-3xl font-black italic uppercase tracking-tighter text-gray-900">You&apos;re In!</h2>
-            <p className="text-gray-600 font-medium">
-              Welcome to ViMore, <span className="font-bold text-gray-900">{name}</span>.
-            </p>
-            <p className="text-sm text-gray-400 font-medium leading-relaxed">
-              Your account is ready. Sign in now to start connecting.
-            </p>
-            <div className="inline-flex items-center gap-2 bg-violet-50 rounded-full px-4 py-2 mt-2">
-              <AtSign className="h-4 w-4 text-[#9940E5]" />
-              <span className="text-[#9940E5] font-black text-sm">{vimoreId}</span>
-            </div>
-            <p className="text-[11px] text-gray-400">This is your ViMore ID — use it to sign in.</p>
-          </div>
-          <button
-            onClick={() => router.replace("/login")}
-            className="inline-flex items-center justify-center w-full h-12 rounded-2xl bg-[#9940E5] text-white font-black italic uppercase tracking-widest text-sm shadow-xl shadow-violet-200 transition-all hover:bg-violet-700"
-          >
-            Sign In Now
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col overflow-hidden" style={{ colorScheme: 'light' }}>
