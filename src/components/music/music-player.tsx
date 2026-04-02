@@ -113,6 +113,7 @@ export function MusicPlayer() {
 
       addSignal({
         type: 'SONIC',
+        recipientId: currentUser?.$id || '',
         title: 'Track Available Offline',
         content: `**${currentTrack.title}** by ${currentTrack.artist} has been successfully cached.`,
         image: currentTrack.cover

@@ -633,6 +633,25 @@ export const account = {
   async deleteSession(_type: string): Promise<void> {
     _sessionUserId = null;
   },
+
+  async createVerification(_url: string): Promise<any> {
+    return { $id: ID.unique(), userId: _sessionUserId, secret: ID.unique() };
+  },
+
+  async updateVerification(_userId: string, _secret: string): Promise<any> {
+    if (_sessionUserId && _collections.users[_sessionUserId]) {
+      _collections.users[_sessionUserId].email_verified = true;
+    }
+    return { $id: ID.unique() };
+  },
+
+  async updateRecovery(_userId: string, _secret: string, _password: string): Promise<any> {
+    return { $id: ID.unique() };
+  },
+
+  async createRecovery(_email: string, _url: string): Promise<any> {
+    return { $id: ID.unique() };
+  },
 };
 
 export const databases = {

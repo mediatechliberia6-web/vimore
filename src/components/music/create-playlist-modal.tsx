@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useMusic } from "@/context/MusicContext";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 

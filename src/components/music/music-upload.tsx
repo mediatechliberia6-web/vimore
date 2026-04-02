@@ -160,6 +160,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
     toast({ title: "Vault Archival Initiated", description: "Materializing high-fidelity sonic nodes..." });
     
     try {
+      if (!currentUser) return;
       const coverUrl = coverFile ? await uploadMedia(coverFile, BUCKET_IMAGES) : "https://picsum.photos/seed/single/600/600";
 
       if (projectType === "single") {
@@ -190,7 +191,6 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
             streams: "0",
             likes: 0,
             unlikes: 0,
-            comments: []
           });
         }
         

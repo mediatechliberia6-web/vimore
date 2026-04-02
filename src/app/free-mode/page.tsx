@@ -32,7 +32,7 @@ function TextPostCard({
   likes,
   comments,
   isVerified,
-}: (typeof FREE_POSTS)[0]) {
+}: FreePost) {
   return (
     <article className="bg-white dark:bg-card rounded-2xl border border-border/60 p-4 space-y-3">
       <div className="flex items-center gap-3">
@@ -87,7 +87,7 @@ export default function FreeModePage() {
         let authorsMap: Record<string, any> = {};
         if (authorIds.length > 0) {
           const ar = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', authorIds as string[])]);
-          authorsMap = Object.fromEntries(ar.documents.map(u => [u.$id, u]));
+          authorsMap = Object.fromEntries(ar.documents.map((u: any) => [u.$id, u]));
         }
         const textPosts: FreePost[] = res.documents
           .filter((d: any) => !d.image_ids?.length && !d.video_id && d.content?.trim())

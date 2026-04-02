@@ -14,7 +14,7 @@ export interface NotificationNode {
   content: string;
   time: string;
   isRead: boolean;
-  recipientId: string;
+  recipientId?: string;
   avatar?: string;
   image?: string;
   actionLabel?: string;
@@ -68,7 +68,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         Query.orderDesc('$createdAt'),
         Query.limit(50),
       ]);
-      const mapped: NotificationNode[] = res.documents.map(doc => ({
+      const mapped: NotificationNode[] = res.documents.map((doc: any) => ({
         id: doc.$id,
         type: (doc.type as SignalType) || 'SYSTEM',
         title: doc.title || '',

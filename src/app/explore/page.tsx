@@ -47,7 +47,7 @@ export default function ExplorePage() {
       Query.orderDesc('followers_count'),
       Query.limit(8),
     ]).then(res => {
-      setRealCreators(res.documents.map(u => ({
+      setRealCreators(res.documents.map((u: any) => ({
         $id: u.$id,
         name: u.name || 'User',
         username: u.username || 'user',

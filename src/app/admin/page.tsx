@@ -992,7 +992,7 @@ export default function AdminDashboard() {
                     {[
                       { name: "Appwrite Backend", status: connections.length > 0 || posts.length > 0 ? "OPERATIONAL" : "CHECKING" },
                       { name: "Authentication Gateway", status: currentUser ? "OPERATIONAL" : "CHECKING" },
-                      { name: "Media Storage", status: posts.some(p => p.mediaUrls?.length > 0) ? "OPERATIONAL" : "CHECKING" },
+                      { name: "Media Storage", status: posts.some(p => (p.mediaUrls?.length ?? 0) > 0 || !!p.image) ? "OPERATIONAL" : "CHECKING" },
                       { name: "Real-Time Messaging", status: "OPERATIONAL" },
                       { name: "AI Inference Layer", status: "OPERATIONAL" },
                     ].map(s => (

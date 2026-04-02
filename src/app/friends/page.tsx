@@ -34,7 +34,8 @@ import {
   X,
   Users2,
   Check,
-  Loader2
+  Loader2,
+  Rocket
 } from "lucide-react";
 import Link from "next/link";
 import {

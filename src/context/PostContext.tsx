@@ -64,10 +64,23 @@ export interface User {
   isEmailVerified?: boolean;
   hasEverBeenVerified?: boolean;
   language?: string;
+  introUrl?: string;
+}
+
+export interface StorySegment {
+  $id: string;
+  type: 'image' | 'video' | 'text';
+  mediaUrl?: string;
+  text?: string;
+  duration?: number;
+  overlays?: any[];
+  poll?: { options: string[]; votes: number[] };
+  orderIndex?: number;
 }
 
 export interface Post {
   $id: string;
+  $createdAt?: string;
   user: User;
   content: string;
   time: string;
@@ -93,6 +106,10 @@ export interface Post {
   boostExpiry?: number;
   commentNodes?: PostComment[];
   sharedPost?: Post;
+  type?: string;
+  timestamp?: string | number;
+  mediaUrls?: string[];
+  isPinned?: boolean;
 }
 
 export interface PostComment {
@@ -207,6 +224,7 @@ interface PostContextType {
   login: (identifier: string, p: string) => Promise<{ success: boolean; message?: string; requiresVerification?: boolean }>;
   signup: (d: any) => Promise<{ success: boolean; message?: string; requiresVerification?: boolean }>;
   logout: () => Promise<void>;
+  resetPassword: (userId: string, secret: string, password: string) => Promise<void>;
   checkSession: () => Promise<void>;
   uploadMedia: (file: File, bucketId?: string) => Promise<string>;
   addPost: (post: any) => Promise<void>;
@@ -232,6 +250,7 @@ interface PostContextType {
   isPostSaved: (postId: string) => boolean;
   isPostUnlocked: (postId: string) => boolean;
   isFollowing: (username: string) => boolean;
+  toggleFollowUser: (username: string) => Promise<void>;
   isFriend: (username: string) => boolean;
   isRequestSent: (username: string) => boolean;
   isRequestReceived: (username: string) => boolean;
@@ -408,6 +427,7 @@ function mapDocToPost(doc: Models.Document, authorDoc?: Models.Document): Post {
 
   return {
     $id: doc.$id,
+    $createdAt: doc.$createdAt,
     user: author,
     content: doc.content || '',
     time: formatTimeAgo(doc.$createdAt),
@@ -511,19 +531,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
         Query.limit(25),
       ]);
 
-      const authorIds = [...new Set(postsResult.documents.map(p => p.author_id).filter(Boolean))];
-      let authorsMap: Record<string, Models.Document> = {};
+      const authorIds = [...new Set(postsResult.documents.map((p: any) => p.author_id).filter(Boolean))];
+      let authorsMap: Record<string, any> = {};
 
       if (authorIds.length > 0) {
         try {
           const authorsResult = await databases.listDocuments(DATABASE_ID, COL.USERS, [
             Query.equal('$id', authorIds),
           ]);
-          authorsMap = Object.fromEntries(authorsResult.documents.map(u => [u.$id, u]));
+          authorsMap = Object.fromEntries(authorsResult.documents.map((u: any) => [u.$id, u]));
         } catch { /* ignore */ }
       }
 
-      const mapped = postsResult.documents.map(doc => mapDocToPost(doc, authorsMap[doc.author_id]));
+      const mapped = postsResult.documents.map((doc: any) => mapDocToPost(doc, authorsMap[doc.author_id]));
       setPostsState(mapped);
     } catch (err) {
       console.error('loadFeed error:', err);
@@ -559,37 +579,37 @@ export function PostProvider({ children }: { children: ReactNode }) {
       ]);
 
       if (followingResult.status === 'fulfilled') {
-        setFollowingUsernamesState(new Set(followingResult.value.documents.map(f => f.following_username).filter(Boolean)));
+        setFollowingUsernamesState(new Set(followingResult.value.documents.map((f: any) => f.following_username).filter(Boolean)));
       }
       if (followersResult.status === 'fulfilled') {
-        setFollowerUsernamesState(new Set(followersResult.value.documents.map(f => f.follower_username).filter(Boolean)));
+        setFollowerUsernamesState(new Set(followersResult.value.documents.map((f: any) => f.follower_username).filter(Boolean)));
       }
       if (sentResult.status === 'fulfilled') {
-        setSentRequestUsernamesState(new Set(sentResult.value.documents.map(r => r.receiver_username).filter(Boolean)));
+        setSentRequestUsernamesState(new Set(sentResult.value.documents.map((r: any) => r.receiver_username).filter(Boolean)));
       }
       if (receivedResult.status === 'fulfilled') {
-        setReceivedRequestUsernamesState(new Set(receivedResult.value.documents.map(r => r.sender_username).filter(Boolean)));
+        setReceivedRequestUsernamesState(new Set(receivedResult.value.documents.map((r: any) => r.sender_username).filter(Boolean)));
       }
       const friendNames = new Set<string>();
       if (acceptedSentResult.status === 'fulfilled') {
-        acceptedSentResult.value.documents.forEach(r => r.receiver_username && friendNames.add(r.receiver_username));
+        acceptedSentResult.value.documents.forEach((r: any) => r.receiver_username && friendNames.add(r.receiver_username));
       }
       if (acceptedReceivedResult.status === 'fulfilled') {
-        acceptedReceivedResult.value.documents.forEach(r => r.sender_username && friendNames.add(r.sender_username));
+        acceptedReceivedResult.value.documents.forEach((r: any) => r.sender_username && friendNames.add(r.sender_username));
       }
       setFriendUsernamesState(friendNames);
 
       if (likesResult.status === 'fulfilled') {
-        setLikedPostIdsState(new Set(likesResult.value.documents.map(r => r.post_id).filter(Boolean)));
+        setLikedPostIdsState(new Set(likesResult.value.documents.map((r: any) => r.post_id).filter(Boolean)));
       }
       if (bookmarksResult.status === 'fulfilled') {
-        setSavedPostIdsState(new Set(bookmarksResult.value.documents.map(b => b.post_id).filter(Boolean)));
+        setSavedPostIdsState(new Set(bookmarksResult.value.documents.map((b: any) => b.post_id).filter(Boolean)));
       }
       if (unlocksResult.status === 'fulfilled') {
-        setUnlockedPostIdsState(new Set(unlocksResult.value.documents.map(u => u.post_id).filter(Boolean)));
+        setUnlockedPostIdsState(new Set(unlocksResult.value.documents.map((u: any) => u.post_id).filter(Boolean)));
       }
       if (subscriptionsResult.status === 'fulfilled') {
-        setActiveSubscriptionsState(new Set(subscriptionsResult.value.documents.map(s => s.creator_username).filter(Boolean)));
+        setActiveSubscriptionsState(new Set(subscriptionsResult.value.documents.map((s: any) => s.creator_username).filter(Boolean)));
       }
       if (blockedUsersResult.status === 'fulfilled') {
         setBlockedUsernames(blockedUsersResult.value.documents.map((b: any) => b.blocked_username).filter(Boolean));
@@ -607,10 +627,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
       ]);
       if (followsResult.documents.length === 0) { setConnectionsState([]); return; }
 
-      const followingIds = followsResult.documents.map(f => f.following_id).filter(Boolean);
+      const followingIds = followsResult.documents.map((f: any) => f.following_id).filter(Boolean);
       const usersResult = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', followingIds)]);
 
-      const conns: Connection[] = usersResult.documents.map(u => ({
+      const conns: Connection[] = usersResult.documents.map((u: any) => ({
         $id: u.$id,
         name: u.name || '',
         username: u.username || '',
@@ -635,16 +655,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
         Query.limit(30),
       ]);
 
-      const authorIds = [...new Set(storiesResult.documents.map(s => s.author_id).filter(Boolean))];
-      let authorsMap: Record<string, Models.Document> = {};
+      const authorIds = [...new Set(storiesResult.documents.map((s: any) => s.author_id).filter(Boolean))];
+      let authorsMap: Record<string, any> = {};
       if (authorIds.length > 0) {
         try {
           const ar = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', authorIds)]);
-          authorsMap = Object.fromEntries(ar.documents.map(u => [u.$id, u]));
+          authorsMap = Object.fromEntries(ar.documents.map((u: any) => [u.$id, u]));
         } catch { /* ignore */ }
       }
 
-      const storyIds = storiesResult.documents.map(s => s.$id);
+      const storyIds = storiesResult.documents.map((s: any) => s.$id);
       let segmentsMap: Record<string, Models.Document[]> = {};
       if (storyIds.length > 0) {
         try {
@@ -653,14 +673,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
             Query.orderAsc('order'),
             Query.limit(200),
           ]);
-          segsResult.documents.forEach(seg => {
+          segsResult.documents.forEach((seg: any) => {
             if (!segmentsMap[seg.story_id]) segmentsMap[seg.story_id] = [];
             segmentsMap[seg.story_id].push(seg);
           });
         } catch { /* ignore */ }
       }
 
-      const mapped = storiesResult.documents.map(doc => {
+      const mapped = storiesResult.documents.map((doc: any) => {
         const authorDoc = authorsMap[doc.author_id];
         const segments = (segmentsMap[doc.$id] || []).map(seg => ({
           $id: seg.$id,
@@ -691,7 +711,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       ]);
       if (membershipsResult.documents.length === 0) { setClustersState([]); return; }
 
-      const clusterIds = membershipsResult.documents.map(m => m.cluster_id).filter(Boolean);
+      const clusterIds = membershipsResult.documents.map((m: any) => m.cluster_id).filter(Boolean);
       const clustersResult = await databases.listDocuments(DATABASE_ID, COL.CLUSTERS, [
         Query.equal('$id', clusterIds),
       ]);
@@ -1843,7 +1863,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         ? Math.min(99, Math.round((totalLikes / (totalLikes + totalUnlikes)) * 100))
         : 0;
       const oneDayAgo = new Date(Date.now() - 86400000).toISOString();
-      const recentPosts = posts.filter(p => (p.timestamp || p.$createdAt || '') > oneDayAgo).length;
+      const recentPosts = posts.filter(p => (p.$createdAt || '') > oneDayAgo).length;
       const velocity = recentPosts > 20 ? 'HIGH' : recentPosts > 5 ? 'MEDIUM' : recentPosts > 0 ? 'LOW' : 'IDLE';
       return { sentiment, velocity };
     })(),
@@ -1852,6 +1872,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
     pendingTransaction, activeSubscriptions, chatMessages,
 
     login, signup, logout, checkSession,
+    resetPassword: async (userId: string, secret: string, password: string) => {
+      await account.updateRecovery(userId, secret, password);
+    },
     uploadMedia,
     addPost, deletePost, toggleLikePost, toggleUnlikePost,
     toggleSavePost: async (id: string) => {
@@ -1890,6 +1913,47 @@ export function PostProvider({ children }: { children: ReactNode }) {
     isPostSaved: (id: string) => savedPostIds.has(id),
     isPostUnlocked: (id: string) => unlockedPostIds.has(id),
     isFollowing: (u: string) => followingUsernames.has(u),
+    toggleFollowUser: async (username: string) => {
+      if (!currentUser) return;
+      const isNowFollowing = followingUsernames.has(username);
+      if (isNowFollowing) {
+        setFollowingUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
+        try {
+          const existing = await databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
+            Query.equal('follower_id', currentUser.$id),
+            Query.equal('following_username', username),
+          ]);
+          for (const doc of existing.documents) {
+            await databases.deleteDocument(DATABASE_ID, COL.FOLLOWS, doc.$id);
+          }
+          await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
+            following_count: Math.max(0, (currentUser.following as number || 0) - 1),
+          });
+        } catch { /* keep optimistic */ }
+      } else {
+        setFollowingUsernamesState(prev => new Set(prev).add(username));
+        try {
+          const targetRes = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+            Query.equal('username', username), Query.limit(1),
+          ]);
+          const targetDoc = targetRes.documents[0];
+          if (targetDoc) {
+            await databases.createDocument(DATABASE_ID, COL.FOLLOWS, ID.unique(), {
+              follower_id: currentUser.$id,
+              following_id: targetDoc.$id,
+              follower_username: currentUser.username,
+              following_username: username,
+            });
+            await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
+              following_count: (currentUser.following as number || 0) + 1,
+            });
+            await databases.updateDocument(DATABASE_ID, COL.USERS, targetDoc.$id, {
+              followers_count: (targetDoc.followers_count || 0) + 1,
+            });
+          }
+        } catch { /* keep optimistic */ }
+      }
+    },
     isFriend: (u: string) => friendUsernames.has(u),
     isRequestSent: (u: string) => sentRequestUsernames.has(u),
     isRequestReceived: (u: string) => receivedRequestUsernames.has(u),
@@ -1994,6 +2058,42 @@ export function PostProvider({ children }: { children: ReactNode }) {
         });
         return credential !== null;
       } catch { return false; }
+    },
+    blockedUsernames,
+    blockUser: async (username: string) => {
+      if (!currentUser) return;
+      setBlockedUsernames(prev => [...prev, username]);
+      try {
+        await databases.createDocument(DATABASE_ID, COL.BLOCKED_USERS, ID.unique(), {
+          blocker_id: currentUser.$id,
+          blocked_username: username,
+        });
+      } catch { /* keep optimistic */ }
+    },
+    unblockUser: async (username: string) => {
+      if (!currentUser) return;
+      setBlockedUsernames(prev => prev.filter(u => u !== username));
+      try {
+        const existing = await databases.listDocuments(DATABASE_ID, COL.BLOCKED_USERS, [
+          Query.equal('blocker_id', currentUser.$id),
+          Query.equal('blocked_username', username),
+        ]);
+        for (const doc of existing.documents) {
+          await databases.deleteDocument(DATABASE_ID, COL.BLOCKED_USERS, doc.$id);
+        }
+      } catch { /* keep optimistic */ }
+    },
+    submitReport: async (data: { reportedUsername: string; reason: string; details: string }) => {
+      if (!currentUser) return;
+      try {
+        await databases.createDocument(DATABASE_ID, COL.REPORTS, ID.unique(), {
+          reporter_id: currentUser.$id,
+          reported_username: data.reportedUsername,
+          reason: data.reason,
+          details: data.details,
+          status: 'PENDING',
+        });
+      } catch { /* ignore */ }
     },
   };
 

@@ -17,6 +17,9 @@ export interface Track {
   likes?: number;
   unlikes?: number;
   isBoosted?: boolean;
+  boostCurrentViews?: number;
+  boostTargetViews?: number;
+  comments?: number;
 }
 
 export interface Album {
@@ -234,7 +237,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
       if (albumsRes.status === 'fulfilled') {
         const albumDocs = albumsRes.value.documents;
-        const albumIds = albumDocs.map(a => a.$id);
+        const albumIds = albumDocs.map((a: any) => a.$id);
         let albumTracksMap: Record<string, Track[]> = {};
 
         if (albumIds.length > 0) {
@@ -245,7 +248,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
               Query.orderAsc('track_number'),
               Query.limit(500),
             ]);
-            albumTracksRes.documents.forEach(doc => {
+            albumTracksRes.documents.forEach((doc: any) => {
               const albumId = doc.album_id;
               if (!albumTracksMap[albumId]) albumTracksMap[albumId] = [];
               albumTracksMap[albumId].push(mapDocToTrack(doc));
@@ -253,13 +256,13 @@ export function MusicProvider({ children }: { children: ReactNode }) {
           } catch { /* ignore */ }
         }
 
-        albums = albumDocs.map(doc => mapDocToAlbum(doc, albumTracksMap[doc.$id] || []));
+        albums = albumDocs.map((doc: any) => mapDocToAlbum(doc, albumTracksMap[doc.$id] || []));
         setGlobalAlbumsState(albums);
       }
 
       if (playlistsRes.status === 'fulfilled') {
         const playlistDocs = playlistsRes.value.documents;
-        const playlistIds = playlistDocs.map(p => p.$id);
+        const playlistIds = playlistDocs.map((p: any) => p.$id);
         let playlistTracksMap: Record<string, Track[]> = {};
 
         if (playlistIds.length > 0) {
@@ -269,16 +272,16 @@ export function MusicProvider({ children }: { children: ReactNode }) {
               Query.orderAsc('order_index'),
               Query.limit(1000),
             ]);
-            const trackIds = [...new Set(ptRes.documents.map(pt => pt.track_id).filter(Boolean))];
+            const trackIds = [...new Set(ptRes.documents.map((pt: any) => pt.track_id).filter(Boolean))];
             let trackDocsMap: Record<string, any> = {};
             if (trackIds.length > 0) {
               const tRes = await databases.listDocuments(DATABASE_ID, COL.TRACKS, [
                 Query.equal('$id', trackIds),
                 Query.limit(500),
               ]);
-              trackDocsMap = Object.fromEntries(tRes.documents.map(t => [t.$id, t]));
+              trackDocsMap = Object.fromEntries(tRes.documents.map((t: any) => [t.$id, t]));
             }
-            ptRes.documents.forEach(pt => {
+            ptRes.documents.forEach((pt: any) => {
               const tDoc = trackDocsMap[pt.track_id];
               if (!tDoc) return;
               if (!playlistTracksMap[pt.playlist_id]) playlistTracksMap[pt.playlist_id] = [];
@@ -287,7 +290,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
           } catch { /* ignore */ }
         }
 
-        playlists = playlistDocs.map(doc => mapDocToPlaylist(doc, playlistTracksMap[doc.$id] || []));
+        playlists = playlistDocs.map((doc: any) => mapDocToPlaylist(doc, playlistTracksMap[doc.$id] || []));
         setGlobalPlaylistsState(playlists);
       }
     } catch (err) {
@@ -301,7 +304,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         Query.equal('user_id', userId),
         Query.limit(500),
       ]);
-      setLikedSongIdsState(new Set(res.documents.map(d => d.track_id).filter(Boolean)));
+      setLikedSongIdsState(new Set(res.documents.map((d: any) => d.track_id).filter(Boolean)));
     } catch { /* ignore */ }
   }, []);
 

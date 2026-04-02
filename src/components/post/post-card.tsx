@@ -96,7 +96,7 @@ interface PostCardProps {
     name: string;
     username: string;
     avatar: string;
-    role: string;
+    role?: string;
     isVerified?: boolean;
     followers?: string | number;
   };
@@ -401,7 +401,7 @@ export function PostCard(props: PostCardProps) {
                 </div>
                 {renderHandshakeButton()}
               </div>
-              {!isShared && <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><span>{time === "Just now" ? t('post_now') : time}</span><span>•</span><Badge variant="ghost" className="p-0 h-auto font-normal text-[10px] uppercase">{isCampaign ? t('post_global_node') : t('post_public')}</Badge></div>}
+              {!isShared && <div className="flex items-center gap-1 text-[11px] text-muted-foreground"><span>{time === "Just now" ? t('post_now') : time}</span><span>•</span><Badge variant="outline" className="p-0 h-auto font-normal text-[10px] uppercase border-0">{isCampaign ? t('post_global_node') : t('post_public')}</Badge></div>}
             </div>
           </div>
           
