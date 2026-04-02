@@ -76,7 +76,10 @@ import {
   RefreshCcw,
   LayoutGrid,
   Upload,
-  Film
+  Film,
+  ArrowLeft,
+  MousePointerClick,
+  CalendarClock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -157,6 +160,8 @@ export default function AdminDashboard() {
     actionUrl: "",
     actionLabel: "Learn More",
     placement: "story" as "story" | "download" | "music" | "feed" | "reel",
+    endDate: "",
+    endTime: "",
   });
   const [campFile, setCampFile] = useState<File | null>(null);
   const [campPreview, setCampPreview] = useState<string | null>(null);
@@ -249,9 +254,14 @@ export default function AdminDashboard() {
     triggerHaptic(50);
     try {
       const mediaUrl = await uploadMedia(campFile);
-      await addCampaign({ ...campForm, mediaUrl, placement: campaignSubTab });
+      let endDateIso: string | null = null;
+      if (campForm.endDate) {
+        const timeStr = campForm.endTime || "23:59";
+        endDateIso = new Date(`${campForm.endDate}T${timeStr}:00`).toISOString();
+      }
+      await addCampaign({ ...campForm, mediaUrl, placement: campaignSubTab, endDate: endDateIso });
       toast({ title: "Campaign Created", description: "Your ad campaign is now live." });
-      setCampForm({ title: "", content: "", type: campaignSubTab === 'music' ? 'audio' : campaignSubTab === 'reel' ? 'video' : 'photo', actionUrl: "", actionLabel: "Learn More", placement: campaignSubTab });
+      setCampForm({ title: "", content: "", type: campaignSubTab === 'music' ? 'audio' : campaignSubTab === 'reel' ? 'video' : 'photo', actionUrl: "", actionLabel: "Learn More", placement: campaignSubTab, endDate: "", endTime: "" });
       setCampFile(null);
       setCampPreview(null);
     } catch (e: any) {
@@ -263,10 +273,28 @@ export default function AdminDashboard() {
 
   const handleCampaignSubTabChange = (tab: 'story' | 'download' | 'music' | 'feed' | 'reel') => {
     setCampaignSubTab(tab);
-    setCampForm({ title: "", content: "", type: tab === 'music' ? 'audio' : tab === 'reel' ? 'video' : 'photo', actionUrl: "", actionLabel: "Learn More", placement: tab });
+    setCampForm({ title: "", content: "", type: tab === 'music' ? 'audio' : tab === 'reel' ? 'video' : 'photo', actionUrl: "", actionLabel: "Learn More", placement: tab, endDate: "", endTime: "" });
     setCampFile(null);
     setCampPreview(null);
   };
+
+  // Auto-expire campaigns that have passed their end date
+  useEffect(() => {
+    const checkExpiry = () => {
+      const now = new Date();
+      campaigns.forEach((c: any) => {
+        if (c.is_active && c.end_date) {
+          const endDate = new Date(c.end_date);
+          if (endDate <= now) {
+            toggleCampaignStatus(c.$id);
+          }
+        }
+      });
+    };
+    checkExpiry();
+    const interval = setInterval(checkExpiry, 60000);
+    return () => clearInterval(interval);
+  }, [campaigns, toggleCampaignStatus]);
 
   if (isLoading || !currentUser) {
     return (
@@ -367,8 +395,13 @@ export default function AdminDashboard() {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto scrollbar-hide">
-        <header className="h-20 px-6 sm:px-8 flex items-center justify-between bg-card/20 border-b border-border backdrop-blur-md sticky top-0 z-50">
-          <div className="flex items-center gap-4">
+        <header className="h-20 px-4 sm:px-8 flex items-center justify-between bg-card/20 border-b border-border backdrop-blur-md sticky top-0 z-50">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Link href="/" className="md:hidden">
+              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
             <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="hidden md:flex"><Menu className="h-6 w-6" /></Button>
             <div className="flex flex-col">
               <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Spatial Node</h2>
@@ -617,6 +650,32 @@ export default function AdminDashboard() {
                       />
                     </div>
 
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">End Date & Time (optional)</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="relative">
+                          <CalendarClock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                          <Input
+                            type="date"
+                            value={campForm.endDate}
+                            onChange={(e) => setCampForm({...campForm, endDate: e.target.value})}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="h-11 bg-secondary/30 border-none rounded-xl font-bold text-sm pl-9"
+                          />
+                        </div>
+                        <Input
+                          type="time"
+                          value={campForm.endTime}
+                          onChange={(e) => setCampForm({...campForm, endTime: e.target.value})}
+                          className="h-11 bg-secondary/30 border-none rounded-xl font-bold text-sm"
+                          disabled={!campForm.endDate}
+                        />
+                      </div>
+                      {campForm.endDate && (
+                        <p className="text-[10px] text-muted-foreground ml-1">Campaign will auto-off on {new Date(`${campForm.endDate}T${campForm.endTime || "23:59"}:00`).toLocaleString()}</p>
+                      )}
+                    </div>
+
                     <Button
                       className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-black italic uppercase tracking-widest shadow-xl shadow-primary/20"
                       disabled={isCreatingCampaign || !campForm.title || !campFile}
@@ -656,7 +715,7 @@ export default function AdminDashboard() {
                               c.media_url ? <Image src={c.media_url} alt="Campaign" fill className="object-cover" /> : <ImageIcon className="h-7 w-7 text-muted-foreground" />
                             )}
                           </div>
-                          <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex-1 min-w-0 space-y-1.5">
                             <div className="flex items-center gap-2 flex-wrap">
                               <h5 className="font-bold text-sm truncate">{c.title}</h5>
                               <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5 border-none", c.is_active ? "bg-green-500 text-white" : "bg-zinc-500 text-white")}>
@@ -667,10 +726,30 @@ export default function AdminDashboard() {
                               </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground line-clamp-1">{c.content}</p>
-                            <div className="flex items-center gap-4 pt-0.5">
-                              <div className="flex items-center gap-1 text-[9px] font-black text-primary uppercase"><Eye className="h-3 w-3" /> {c.impressions?.toLocaleString() || 0}</div>
-                              <div className="flex items-center gap-1 text-[9px] font-black text-accent uppercase"><ArrowUpRight className="h-3 w-3" /> {c.clicks?.toLocaleString() || 0} clicks</div>
+                            <div className="flex items-center gap-3 pt-0.5 flex-wrap">
+                              <div className="flex items-center gap-1.5 bg-primary/10 rounded-lg px-2 py-0.5">
+                                <Eye className="h-3 w-3 text-primary" />
+                                <span className="text-[10px] font-black text-primary tabular-nums">{(c.impressions || 0).toLocaleString()} views</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 bg-accent/10 rounded-lg px-2 py-0.5">
+                                <MousePointerClick className="h-3 w-3 text-accent" />
+                                <span className="text-[10px] font-black text-accent tabular-nums">{(c.clicks || 0).toLocaleString()} clicks</span>
+                              </div>
+                              {(c.impressions || 0) > 0 && (
+                                <span className="text-[10px] font-black text-muted-foreground">
+                                  CTR: {(((c.clicks || 0) / (c.impressions || 1)) * 100).toFixed(1)}%
+                                </span>
+                              )}
                             </div>
+                            {c.end_date && (
+                              <div className={cn("flex items-center gap-1.5 mt-0.5", new Date(c.end_date) <= new Date() ? "text-destructive" : "text-muted-foreground")}>
+                                <CalendarClock className="h-3 w-3 shrink-0" />
+                                <span className="text-[10px] font-black">
+                                  {new Date(c.end_date) <= new Date() ? "Expired: " : "Ends: "}
+                                  {new Date(c.end_date).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                            )}
                           </div>
                           <div className="flex items-center gap-2">
                             <Switch checked={!!c.is_active} onCheckedChange={() => toggleCampaignStatus(c.$id)} />

@@ -1759,6 +1759,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         is_active: true,
         impressions: 0,
         clicks: 0,
+        end_date: d.endDate || null,
       });
       setCampaignsState(prev => [doc, ...prev]);
     } catch (err: any) {
