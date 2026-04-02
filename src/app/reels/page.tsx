@@ -642,7 +642,7 @@ export default function ReelsPage() {
 
   const reelFeed = useMemo<ReelFeedItem[]>(() => {
     const videoCampaigns = campaigns
-      .filter((c) => c.isActive && c.type === "video" && c.mediaUrl)
+      .filter((c: any) => c.isActive && c.placement === 'reel' && c.type === "video" && c.mediaUrl)
       .map((c) => ({
         $id: c.$id,
         user: {
@@ -672,7 +672,7 @@ export default function ReelsPage() {
     let reelIdx = 0;
     let campIdx = 0;
     while (reelIdx < reels.length) {
-      for (let i = 0; i < 2 && reelIdx < reels.length; i++) {
+      for (let i = 0; i < 3 && reelIdx < reels.length; i++) {
         result.push(reels[reelIdx] as ReelFeedItem);
         reelIdx++;
       }

@@ -230,14 +230,14 @@ export default function Home() {
   const feedItems = useMemo(() => {
     if (posts.length === 0) return [];
     const boostedPosts = posts.filter(p => p.isBoosted);
-    const activeCampaigns = campaigns.filter(c => c.isActive);
+    const activeCampaigns = campaigns.filter((c: any) => c.isActive && c.placement === 'feed');
     const result: (any)[] = [];
     let organicIdx = 0; let boostedIdx = 0; let campaignIdx = 0;
     let slotCount = 0;
 
     while (organicIdx < organicSorted.length) {
-      // Add 2 regular posts
-      for (let i = 0; i < 2 && organicIdx < organicSorted.length; i++) {
+      // Add 3 regular posts
+      for (let i = 0; i < 3 && organicIdx < organicSorted.length; i++) {
         result.push({ type: 'post', data: organicSorted[organicIdx] });
         organicIdx++;
         slotCount++;
@@ -247,7 +247,7 @@ export default function Home() {
         if (slotCount === 8) result.push({ type: 'suggestions', id: 'suggested-follows-8' });
       }
 
-      // Insert 1 campaign after every 2 posts (home feed only)
+      // Insert 1 campaign after every 3 posts (home feed only)
       if (activeCampaigns.length > 0) {
         result.push({ type: 'campaign', data: activeCampaigns[campaignIdx % activeCampaigns.length] });
         campaignIdx++;

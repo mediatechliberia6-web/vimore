@@ -31,7 +31,8 @@ import {
   HelpCircle,
   Send,
   Loader2,
-  X
+  X,
+  Megaphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -105,6 +106,7 @@ export default function MenuPage() {
     { label: t('menu_messages'), icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages", badge: unseenMsgCount },
     { label: t('menu_how_it_works'), icon: BookOpen, color: "text-rose-500", bg: "bg-rose-50", href: "/how-it-works" },
     { label: t('menu_command_core'), icon: Activity, color: "text-indigo-500", bg: "bg-indigo-50", href: "/admin", isHidden: !isAdmin },
+    { label: "Advertise", icon: Megaphone, color: "text-violet-500", bg: "bg-violet-50", href: "/advertise" },
   ];
 
   return (

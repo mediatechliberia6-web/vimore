@@ -148,14 +148,14 @@ export default function AdminDashboard() {
 
   // Campaign Form State
   const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
-  const [campaignSubTab, setCampaignSubTab] = useState<'story' | 'download' | 'music'>('story');
+  const [campaignSubTab, setCampaignSubTab] = useState<'story' | 'download' | 'music' | 'feed' | 'reel'>('story');
   const [campForm, setCampForm] = useState({
     title: "",
     content: "",
     type: "photo" as "photo" | "video" | "audio",
     actionUrl: "",
     actionLabel: "Learn More",
-    placement: "story" as "story" | "download" | "music",
+    placement: "story" as "story" | "download" | "music" | "feed" | "reel",
   });
   const [campFile, setCampFile] = useState<File | null>(null);
   const [campPreview, setCampPreview] = useState<string | null>(null);
@@ -250,7 +250,7 @@ export default function AdminDashboard() {
       const mediaUrl = await uploadMedia(campFile);
       await addCampaign({ ...campForm, mediaUrl, placement: campaignSubTab });
       toast({ title: "Campaign Created", description: "Your ad campaign is now live." });
-      setCampForm({ title: "", content: "", type: campaignSubTab === 'music' ? 'audio' : 'photo', actionUrl: "", actionLabel: "Learn More", placement: campaignSubTab });
+      setCampForm({ title: "", content: "", type: campaignSubTab === 'music' ? 'audio' : campaignSubTab === 'reel' ? 'video' : 'photo', actionUrl: "", actionLabel: "Learn More", placement: campaignSubTab });
       setCampFile(null);
       setCampPreview(null);
     } catch (e: any) {
@@ -260,9 +260,9 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleCampaignSubTabChange = (tab: 'story' | 'download' | 'music') => {
+  const handleCampaignSubTabChange = (tab: 'story' | 'download' | 'music' | 'feed' | 'reel') => {
     setCampaignSubTab(tab);
-    setCampForm({ title: "", content: "", type: tab === 'music' ? 'audio' : 'photo', actionUrl: "", actionLabel: "Learn More", placement: tab });
+    setCampForm({ title: "", content: "", type: tab === 'music' ? 'audio' : tab === 'reel' ? 'video' : 'photo', actionUrl: "", actionLabel: "Learn More", placement: tab });
     setCampFile(null);
     setCampPreview(null);
   };
@@ -466,25 +466,29 @@ export default function AdminDashboard() {
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Create and manage in-app ad campaigns</p>
               </div>
 
-              {/* Sub-tab selector */}
-              <div className="flex gap-2 bg-secondary/30 p-1.5 rounded-2xl w-fit">
-                {([
-                  { key: 'story', label: 'Story Ads', icon: Clapperboard },
-                  { key: 'download', label: 'Download Ads', icon: Download },
-                  { key: 'music', label: 'Music Audio Ads', icon: Music2 },
-                ] as const).map(({ key, label, icon: Icon }) => (
-                  <button
-                    key={key}
-                    onClick={() => handleCampaignSubTabChange(key)}
-                    className={cn(
-                      "flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all",
-                      campaignSubTab === key ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </button>
-                ))}
+              {/* Sub-tab selector — horizontal scroll on mobile */}
+              <div className="overflow-x-auto pb-1 -mx-2 px-2">
+                <div className="flex gap-2 bg-secondary/30 p-1.5 rounded-2xl w-max min-w-full">
+                  {([
+                    { key: 'story', label: 'Story Ads', icon: Clapperboard },
+                    { key: 'download', label: 'Download Ads', icon: Download },
+                    { key: 'music', label: 'Music Audio', icon: Music2 },
+                    { key: 'feed', label: 'Feed Post Ads', icon: LayoutGrid },
+                    { key: 'reel', label: 'Reel Video Ads', icon: Film },
+                  ] as const).map(({ key, label, icon: Icon }) => (
+                    <button
+                      key={key}
+                      onClick={() => handleCampaignSubTabChange(key)}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex-shrink-0",
+                        campaignSubTab === key ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Description for each type */}
@@ -516,6 +520,24 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 )}
+                {campaignSubTab === 'feed' && (
+                  <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl flex items-start gap-3">
+                    <LayoutGrid className="h-5 w-5 text-emerald-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-bold text-sm">Feed Post Ads</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Photo ads that appear directly in the home feed every 3 posts, looking exactly like a regular post. Only shows your title, description, and a call-to-action button — no likes, comments, share, or download.</p>
+                    </div>
+                  </div>
+                )}
+                {campaignSubTab === 'reel' && (
+                  <div className="p-4 bg-rose-500/5 border border-rose-500/10 rounded-2xl flex items-start gap-3">
+                    <Film className="h-5 w-5 text-rose-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-bold text-sm">Reel Video Ads</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Video ads that appear in the Reels page exactly like a real reel, every 3 reels. Only shows your title, description, and a call-to-action button — no likes, comments, share, or download.</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -524,10 +546,10 @@ export default function AdminDashboard() {
                   <div className="absolute top-0 right-0 p-6 opacity-5"><Megaphone className="h-24 w-24" /></div>
                   <div className="space-y-1 relative z-10">
                     <h4 className="text-xl font-black italic uppercase tracking-tighter">
-                      {campaignSubTab === 'story' ? 'New Story Ad' : campaignSubTab === 'download' ? 'New Download Ad' : 'New Music Audio Ad'}
+                      {campaignSubTab === 'story' ? 'New Story Ad' : campaignSubTab === 'download' ? 'New Download Ad' : campaignSubTab === 'music' ? 'New Music Audio Ad' : campaignSubTab === 'feed' ? 'New Feed Post Ad' : 'New Reel Video Ad'}
                     </h4>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase">
-                      {campaignSubTab === 'music' ? 'Upload audio (max 45 sec)' : 'Upload photo or video'}
+                      {campaignSubTab === 'music' ? 'Upload audio (max 45 sec)' : campaignSubTab === 'reel' ? 'Upload video only' : 'Upload photo or video'}
                     </p>
                   </div>
                   
@@ -556,7 +578,7 @@ export default function AdminDashboard() {
 
                     <div className="space-y-2">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
-                        {campaignSubTab === 'music' ? 'Audio File (MP3, max 45s)' : 'Photo or Video'}
+                        {campaignSubTab === 'music' ? 'Audio File (MP3, max 45s)' : campaignSubTab === 'reel' ? 'Video File' : 'Photo or Video'}
                       </Label>
                       <div
                         className="relative rounded-2xl bg-secondary/30 border-2 border-dashed border-primary/10 flex flex-col items-center justify-center cursor-pointer group hover:border-primary/30 transition-all overflow-hidden"
@@ -580,7 +602,7 @@ export default function AdminDashboard() {
                           <div className="flex flex-col items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity py-5">
                             <Upload className="h-6 w-6" />
                             <span className="text-[9px] font-black uppercase">
-                              {campaignSubTab === 'music' ? 'Upload Audio File' : 'Upload Photo or Video'}
+                              {campaignSubTab === 'music' ? 'Upload Audio File' : campaignSubTab === 'reel' ? 'Upload Video' : 'Upload Photo or Video'}
                             </span>
                           </div>
                         )}
@@ -589,7 +611,7 @@ export default function AdminDashboard() {
                         type="file"
                         ref={campInputRef}
                         className="hidden"
-                        accept={campaignSubTab === 'music' ? 'audio/*' : 'image/*,video/*'}
+                        accept={campaignSubTab === 'music' ? 'audio/*' : campaignSubTab === 'reel' ? 'video/*' : 'image/*,video/*'}
                         onChange={handleCampaignMedia}
                       />
                     </div>
@@ -611,17 +633,17 @@ export default function AdminDashboard() {
                     <div className="space-y-1">
                       <h4 className="text-xl font-black italic uppercase tracking-tighter">Active Campaigns</h4>
                       <p className="text-[10px] font-bold text-muted-foreground uppercase">
-                        {campaignSubTab === 'story' ? 'Story ad placements' : campaignSubTab === 'download' ? 'Download interstitials' : 'Music audio spots'}
+                        {campaignSubTab === 'story' ? 'Story ad placements' : campaignSubTab === 'download' ? 'Download interstitials' : campaignSubTab === 'music' ? 'Music audio spots' : campaignSubTab === 'feed' ? 'Home feed post ads' : 'Reel video ads'}
                       </p>
                     </div>
                     <Badge className="bg-primary text-primary-foreground border-none font-black h-5 px-3 uppercase tracking-tighter">
-                      {campaigns.filter((c: any) => (c.placement === campaignSubTab || (!c.placement && campaignSubTab === 'story'))).length} ADS
+                      {campaigns.filter((c: any) => c.placement === campaignSubTab).length} ADS
                     </Badge>
                   </div>
                   <ScrollArea className="flex-1">
                     <div className="p-6 grid grid-cols-1 gap-4">
                       {campaigns
-                        .filter((c: any) => c.placement === campaignSubTab || (!c.placement && campaignSubTab === 'story'))
+                        .filter((c: any) => c.placement === campaignSubTab)
                         .map((c: any) => (
                         <div key={c.$id} className="p-4 bg-secondary/20 rounded-3xl border border-white/5 flex items-center gap-5 group hover:bg-secondary/30 transition-all">
                           <div className="relative h-16 w-16 rounded-xl overflow-hidden shrink-0 shadow-lg bg-secondary/30 flex items-center justify-center">
@@ -655,7 +677,7 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       ))}
-                      {campaigns.filter((c: any) => c.placement === campaignSubTab || (!c.placement && campaignSubTab === 'story')).length === 0 && (
+                      {campaigns.filter((c: any) => c.placement === campaignSubTab).length === 0 && (
                         <div className="py-24 text-center opacity-40 italic text-xs uppercase font-black">No campaigns yet — create one to get started</div>
                       )}
                     </div>
