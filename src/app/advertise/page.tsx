@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Phone, MessageCircle, CheckCircle2, Zap, Star, Music2, Download, Clapperboard, ArrowRight, Sparkles, Globe, Users, TrendingUp, Shield } from "lucide-react";
+import { Phone, MessageCircle, CheckCircle2, Zap, Star, Music2, Download, Clapperboard, ArrowRight, Sparkles, Globe, Users, TrendingUp, Shield, LayoutList, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -119,7 +119,7 @@ export default function AdvertisePage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { step: "01", title: "Choose Your Format", desc: "Pick from Story Ads, Download Ads, or Music Audio Ads depending on where you want to connect with users." },
+            { step: "01", title: "Choose Your Format", desc: "Pick from Story Ads, Home Feed Ads, Reel Ads, Download Ads, or Music Audio Ads depending on where you want to connect with users." },
             { step: "02", title: "Provide Your Content", desc: "Send us your photo, video, or audio. No creative? No problem — we can craft a stunning ad for you." },
             { step: "03", title: "Confirm & Pay", desc: "Contact us via WhatsApp or call to confirm your campaign days and complete your payment securely." },
             { step: "04", title: "Go Live", desc: "Your ad starts running immediately and stays live consistently until every day you paid for is complete." },
@@ -186,6 +186,43 @@ export default function AdvertisePage() {
               "Minimum 10 days"
             ]}
             accent="accent"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto w-full">
+          <PriceCard
+            icon={LayoutList}
+            title="Home Feed Ads"
+            price="$1.50"
+            unit="/ day (Photo) · $2.50 / day (Video)"
+            description="A sponsored post that appears natively inside every user's home feed — once every 3 regular posts. Looks and feels like real content, so it earns attention instead of interrupting it."
+            features={[
+              "Native post format — blends with the feed",
+              "Photo ($1.50/day) or Video ($2.50/day)",
+              "Appears every 3 posts in the home feed",
+              "Includes a branded call-to-action button",
+              "Links to any URL you choose",
+              "Minimum 10 days"
+            ]}
+            accent="primary"
+            badge="High Dwell Time"
+          />
+          <PriceCard
+            icon={Film}
+            title="Reel Ads"
+            price="$1.50"
+            unit="/ day (Photo) · $2.50 / day (Video)"
+            description="A full-screen ad that plays automatically between every 2 reels. Users are already in full-screen mode with volume on — peak attention, maximum impact."
+            features={[
+              "Full-screen immersive format",
+              "Photo ($1.50/day) or Video ($2.50/day)",
+              "Plays between every 2 organic reels",
+              "Cannot be skipped mid-play",
+              "CTA button appears after playback",
+              "Minimum 10 days"
+            ]}
+            accent="blue"
+            badge="Premium Placement"
           />
         </div>
 
