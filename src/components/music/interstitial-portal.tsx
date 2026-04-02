@@ -1,127 +1,155 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Zap, ShieldCheck, Timer, Loader2 } from "lucide-react";
+import { Music2, Volume2, VolumeX, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMusic } from "@/context/MusicContext";
-import { cn } from "@/lib/utils";
 
-interface InterstitialPortalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+const MAX_AD_DURATION = 45;
 
-export function InterstitialPortal({ isOpen, onClose }: InterstitialPortalProps) {
-  const { triggerHaptic, isPlaying, togglePlay, adUrl } = useMusic();
-  const [timeLeft, setTimeLeft] = useState(10);
-  const [canClose, setCanClose] = useState(false);
+export function MusicAdPortal() {
+  const { isMusicAdActive, currentMusicAd, closeMusicAd, togglePlay, isPlaying } = useMusic();
+  const [timeLeft, setTimeLeft] = useState(MAX_AD_DURATION);
+  const [isMuted, setIsMuted] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const wasPlayingRef = useRef(false);
 
-  // 1. Timer Logic
   useEffect(() => {
-    if (isOpen) {
-      // Sonic Safety: Pause music if playing
+    if (isMusicAdActive) {
       if (isPlaying) {
         wasPlayingRef.current = true;
         togglePlay();
       }
+      setTimeLeft(MAX_AD_DURATION);
 
-      triggerHaptic(25);
-      setTimeLeft(10);
-      setCanClose(false);
+      if (currentMusicAd?.mediaUrl) {
+        const audio = new Audio(currentMusicAd.mediaUrl);
+        audioRef.current = audio;
+        audio.muted = isMuted;
+        audio.play().catch(() => {});
 
-      const timer = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            setCanClose(true);
-            triggerHaptic(15);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+        const onEnd = () => { closeMusicAd(); if (wasPlayingRef.current) { togglePlay(); wasPlayingRef.current = false; } };
+        audio.addEventListener('ended', onEnd);
 
-      return () => clearInterval(timer);
+        const timer = setInterval(() => {
+          setTimeLeft((prev) => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              audio.pause();
+              closeMusicAd();
+              if (wasPlayingRef.current) { togglePlay(); wasPlayingRef.current = false; }
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+
+        return () => {
+          clearInterval(timer);
+          audio.removeEventListener('ended', onEnd);
+          audio.pause();
+          audioRef.current = null;
+        };
+      } else {
+        const timer = setInterval(() => {
+          setTimeLeft((prev) => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              closeMusicAd();
+              if (wasPlayingRef.current) { togglePlay(); wasPlayingRef.current = false; }
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+        return () => clearInterval(timer);
+      }
     }
-  }, [isOpen]);
+  }, [isMusicAdActive, currentMusicAd]);
 
-  const handlePurge = () => {
-    if (!canClose) return;
-    triggerHaptic(10);
-    
-    // Restore Sonic State if it was playing
-    if (wasPlayingRef.current) {
-      togglePlay();
-      wasPlayingRef.current = false;
-    }
-    
-    onClose();
+  const handleMute = () => {
+    setIsMuted(prev => {
+      const next = !prev;
+      if (audioRef.current) audioRef.current.muted = next;
+      return next;
+    });
   };
 
-  if (!isOpen) return null;
+  if (!isMusicAdActive) return null;
+
+  const percent = ((MAX_AD_DURATION - timeLeft) / MAX_AD_DURATION) * 100;
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-black/95 backdrop-blur-3xl flex flex-col animate-in fade-in duration-500 overflow-hidden">
-      {/* Aurora Ambient Pulse */}
-      <div className="absolute inset-0 pointer-events-none -z-10">
-        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/20 blur-[150px] rounded-full animate-pulse delay-700" />
+    <div className="fixed inset-0 z-[1000] bg-black/97 backdrop-blur-3xl flex flex-col animate-in fade-in duration-500 overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/15 blur-[180px] rounded-full animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/10 blur-[150px] rounded-full animate-pulse delay-700" />
       </div>
 
-      <header className="h-20 px-6 flex items-center justify-between shrink-0 bg-black/40 border-b border-white/5 relative z-[1010]">
+      <header className="h-20 px-6 flex items-center justify-between shrink-0 relative z-10 bg-black/40 border-b border-white/5">
         <div className="flex items-center gap-4">
           <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/20">
-            <Zap className="h-5 w-5 animate-pulse" />
+            <Music2 className="h-5 w-5 animate-pulse" />
           </div>
           <div className="flex flex-col">
-            <h2 className="text-sm font-black italic uppercase tracking-widest text-white leading-tight">Sponsored Pulse</h2>
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-3 w-3 text-green-400" />
-              <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">High-Velocity Handshake</span>
+            <h2 className="text-sm font-black italic uppercase tracking-widest text-white">Audio Ad</h2>
+            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Music resumes in {timeLeft}s</span>
+          </div>
+        </div>
+        <Button variant="ghost" size="icon" className="rounded-full bg-white/5 border border-white/10 text-white/60 hover:text-white" onClick={handleMute}>
+          {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+        </Button>
+      </header>
+
+      <main className="flex-1 flex flex-col items-center justify-center gap-8 relative z-10 p-10 text-center">
+        <div className="relative">
+          <div className="absolute inset-0 bg-primary/20 rounded-full blur-3xl animate-ping opacity-30" />
+          <div className="relative h-40 w-40 rounded-full bg-gradient-to-br from-primary/30 to-accent/20 border border-white/10 flex items-center justify-center shadow-2xl">
+            <div
+              className="absolute inset-2 rounded-full border-4 border-primary/30"
+              style={{
+                background: `conic-gradient(hsl(var(--primary)) ${percent}%, transparent ${percent}%)`
+              }}
+            />
+            <div className="absolute inset-4 rounded-full bg-black flex items-center justify-center">
+              <Music2 className="h-12 w-12 text-primary animate-pulse" />
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          {!canClose ? (
-            <div className="bg-white/5 border border-white/10 rounded-full px-4 py-1.5 flex items-center gap-3">
-              <Timer className="h-3.5 w-3.5 text-primary animate-spin" />
-              <span className="text-xs font-black text-white tabular-nums uppercase tracking-widest">Unlock in {timeLeft}s</span>
-            </div>
-          ) : (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="rounded-full bg-primary text-white hover:bg-primary/80 animate-in zoom-in duration-300 shadow-lg shadow-primary/20"
-              onClick={handlePurge}
-            >
-              <X className="h-6 w-6" />
-            </Button>
+        <div className="space-y-2 max-w-sm">
+          <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white leading-tight">
+            {currentMusicAd?.title || 'Sponsored Audio'}
+          </h3>
+          {currentMusicAd?.content && (
+            <p className="text-sm text-white/60 leading-relaxed">{currentMusicAd.content}</p>
           )}
         </div>
-      </header>
 
-      <main className="flex-1 relative flex items-center justify-center">
-        {/* Adsterra Direct Link Iframe */}
-        <iframe 
-          src={adUrl} 
-          className="w-full h-full border-none shadow-2xl z-10" 
-          title="ViMore High-Velocity Ad"
-          sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation-by-user-activation"
-        />
-        
-        {/* Loader behind the iframe */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 opacity-20">
-          <Loader2 className="h-12 w-12 text-primary animate-spin" />
-          <p className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Synchronizing Spatial Node...</p>
+        {currentMusicAd?.actionUrl && (
+          <a
+            href={currentMusicAd.actionUrl}
+            target={currentMusicAd.actionUrl.startsWith('http') ? '_blank' : '_self'}
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md text-white border border-white/20 font-black uppercase text-[11px] tracking-widest px-6 py-3 rounded-full hover:bg-white/20 active:scale-95 transition-all"
+          >
+            {currentMusicAd.actionLabel || 'Learn More'} <Zap className="h-3.5 w-3.5" />
+          </a>
+        )}
+
+        <div className="w-full max-w-xs space-y-2">
+          <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-1000"
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+          <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">{timeLeft}s remaining</p>
         </div>
       </main>
 
-      <footer className="h-16 px-6 flex items-center justify-center bg-black/40 border-t border-white/5 relative z-[1010]">
-        <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.4em]">
-          ViMore Global Network • Sponsored Vibration
-        </p>
+      <footer className="h-14 px-6 flex items-center justify-center bg-black/40 border-t border-white/5 relative z-10">
+        <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.4em]">ViMore • Sponsored Audio</p>
       </footer>
     </div>
   );

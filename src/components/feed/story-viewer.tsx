@@ -28,7 +28,7 @@ interface FloatingReaction {
 }
 
 export function StoryViewer() {
-  const { stories, activeStoryIndex, mutedUserNames = [], setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser, settings, recordStoryView } = usePosts();
+  const { stories, activeStoryIndex, mutedUserNames = [], setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser, settings, recordStoryView, campaigns } = usePosts();
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -44,6 +44,17 @@ export function StoryViewer() {
   const requestRef = useRef<number | null>(null);
   const adRequestRef = useRef<number | null>(null);
   const hasRecordedCurrentSegment = useRef<string | null>(null);
+  const storyCampaignIndexRef = useRef(0);
+
+  const activeStoryCampaigns = useMemo(() => 
+    campaigns.filter((c: any) => (c.isActive || c.is_active) && c.placement === 'story'),
+    [campaigns]
+  );
+
+  const currentStoryCampaign = useMemo(() => {
+    if (activeStoryCampaigns.length === 0) return null;
+    return activeStoryCampaigns[storyCampaignIndexRef.current % activeStoryCampaigns.length];
+  }, [activeStoryCampaigns, isAdActive]);
 
   const activeStory = activeStoryIndex !== null ? stories[activeStoryIndex] : null;
   const isOwner = activeStory?.user.username === currentUser?.username;
@@ -60,6 +71,7 @@ export function StoryViewer() {
   }, [setActiveStoryIndex]);
 
   const closeAd = useCallback(() => {
+    storyCampaignIndexRef.current += 1;
     setIsAdActive(false);
     setAdProgress(0);
     if (activeStoryIndex !== null && activeStoryIndex < stories.length - 1) {
@@ -83,7 +95,7 @@ export function StoryViewer() {
       const nextSeenCount = storiesSeenInSession + 1;
       setStoriesSeenInSession(nextSeenCount);
 
-      if (nextSeenCount % 2 === 0 && activeStoryIndex !== null && activeStoryIndex < stories.length - 1) {
+      if (nextSeenCount % 2 === 0 && activeStoryIndex !== null && activeStoryIndex < stories.length - 1 && activeStoryCampaigns.length > 0) {
         setIsAdActive(true);
         setAdProgress(0);
       } else if (activeStoryIndex !== null && activeStoryIndex < stories.length - 1) {
@@ -244,11 +256,8 @@ export function StoryViewer() {
                   <Zap className="h-5 w-5 text-primary animate-pulse" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-sm font-black italic uppercase text-white tracking-widest">Sponsored Pulse</span>
-                  <div className="flex items-center gap-1.5">
-                    <ShieldCheck className="h-3 w-3 text-green-400" />
-                    <span className="text-[9px] font-bold text-white/40 uppercase">VAST Verified Node</span>
-                  </div>
+                  <span className="text-sm font-black italic uppercase text-white tracking-widest">Sponsored</span>
+                  <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">ViMore Ad</span>
                 </div>
               </div>
               <Button 
@@ -257,59 +266,63 @@ export function StoryViewer() {
                 className="bg-white/10 backdrop-blur-md text-white rounded-full font-black uppercase text-[10px] tracking-widest px-4 border border-white/10 hover:bg-white/20"
                 onClick={closeAd}
               >
-                Skip Vibe <ChevronRight className="ml-1 h-3 w-3" />
+                Skip <ChevronRight className="ml-1 h-3 w-3" />
               </Button>
             </div>
 
-            <div className="flex-1 flex items-center justify-center relative overflow-hidden bg-black">
-              <div className="absolute inset-0 opacity-20 pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-primary/30 blur-[150px] rounded-full animate-pulse" />
-                <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] bg-accent/30 blur-[120px] rounded-full animate-pulse delay-700" />
-              </div>
-              
-              <div className="relative z-10 w-full h-full flex items-center justify-center overflow-hidden">
-                <iframe 
-                  className="w-full h-full border-none shadow-2xl bg-black"
-                  title="Exoclick VAST Engine"
-                  allow="autoplay; fullscreen; encrypted-media"
-                  srcDoc={`
-                    <!DOCTYPE html>
-                    <html>
-                      <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <style>
-                          body, html { margin: 0; padding: 0; background: #000; height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-                          #exo-pulse-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-                        </style>
-                      </head>
-                      <body>
-                        <div id="exo-pulse-container"></div>
-                        <script type="text/javascript">
-                          var atOptions = {
-                            'key' : '5874020',
-                            'format' : 'iframe',
-                            'height' : 60,
-                            'width' : 468,
-                            'params' : {}
-                          };
-                        </script>
-                        <script type="text/javascript" src="https://s.magsrv.com/v1/vast.php?idzone=5874020&format=script&container=exo-pulse-container&muted=1&autoplay=1"></script>
-                      </body>
-                    </html>
-                  `}
-                />
-                
-                <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center gap-4 opacity-40">
-                  <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                  <p className="text-[10px] font-black uppercase text-white tracking-[0.3em]">Synchronizing Sonic Vibe...</p>
+            <div className="flex-1 relative overflow-hidden">
+              {currentStoryCampaign ? (
+                <>
+                  {currentStoryCampaign.type === 'video' && currentStoryCampaign.mediaUrl ? (
+                    <video 
+                      src={currentStoryCampaign.mediaUrl}
+                      className="w-full h-full object-cover"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                    />
+                  ) : currentStoryCampaign.mediaUrl ? (
+                    <Image 
+                      src={currentStoryCampaign.mediaUrl}
+                      alt={currentStoryCampaign.title || "Sponsored"}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-primary/30 to-accent/20" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
+                  <div className="absolute bottom-0 left-0 right-0 p-8 space-y-4">
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white leading-tight drop-shadow-lg">
+                        {currentStoryCampaign.title}
+                      </h3>
+                      {currentStoryCampaign.content && (
+                        <p className="text-sm text-white/80 font-medium leading-relaxed line-clamp-2">
+                          {currentStoryCampaign.content}
+                        </p>
+                      )}
+                    </div>
+                    {currentStoryCampaign.actionUrl && (
+                      <a
+                        href={currentStoryCampaign.actionUrl}
+                        target={currentStoryCampaign.actionUrl.startsWith('http') ? '_blank' : '_self'}
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-2 bg-white text-black font-black uppercase text-[11px] tracking-widest px-6 py-3 rounded-full shadow-xl hover:bg-white/90 active:scale-95 transition-all"
+                      >
+                        {currentStoryCampaign.actionLabel || 'Learn More'} <ChevronRight className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-accent/10">
+                  <p className="text-white/40 text-sm font-bold uppercase tracking-widest">No sponsored content</p>
                 </div>
-              </div>
+              )}
             </div>
-
-            <footer className="p-6 bg-gradient-to-t from-black to-transparent text-center shrink-0">
-              <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">ViMore Logic v1.5.0 • Sponsored handshake</p>
-            </footer>
           </div>
         ) : (
           <DiagnosticErrorBoundary title="Story Pulse">

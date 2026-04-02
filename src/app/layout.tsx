@@ -10,6 +10,7 @@ import { MusicPlayer } from "@/components/music/music-player";
 import { AlbumDetail } from "@/components/music/album-detail";
 import { PlaylistDetail } from "@/components/music/playlist-detail";
 import { AdPortal } from "@/components/ad/ad-portal";
+import { MusicAdPortal } from "@/components/music/interstitial-portal";
 import { PostPortal } from "@/components/post/post-portal";
 import { ImageViewerPortal } from "@/components/layout/image-viewer-portal";
 import { VideoViewerPortal } from "@/components/layout/video-viewer-portal";
@@ -58,7 +59,6 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta httpEquiv="Delegate-CH" content="Sec-CH-UA https://s.magsrv.com; Sec-CH-UA-Mobile https://s.magsrv.com; Sec-CH-UA-Arch https://s.magsrv.com; Sec-CH-UA-Model https://s.magsrv.com; Sec-CH-UA-Platform https://s.magsrv.com; Sec-CH-UA-Platform-Version https://s.magsrv.com; Sec-CH-UA-Bitness https://s.magsrv.com; Sec-CH-UA-Full-Version-List https://s.magsrv.com; Sec-CH-UA-Full-Version https://s.magsrv.com;" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
@@ -95,6 +95,7 @@ export default async function RootLayout({
                         <AlbumDetail />
                         <PlaylistDetail />
                         <AdPortal />
+                        <MusicAdPortal />
                         <PostPortal />
                         <ImageViewerPortal />
                         <VideoViewerPortal />

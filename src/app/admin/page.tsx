@@ -148,12 +148,14 @@ export default function AdminDashboard() {
 
   // Campaign Form State
   const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
+  const [campaignSubTab, setCampaignSubTab] = useState<'story' | 'download' | 'music'>('story');
   const [campForm, setCampForm] = useState({
     title: "",
     content: "",
-    type: "photo" as "photo" | "video",
+    type: "photo" as "photo" | "video" | "audio",
     actionUrl: "",
-    actionLabel: "Launch Pulse"
+    actionLabel: "Learn More",
+    placement: "story" as "story" | "download" | "music",
   });
   const [campFile, setCampFile] = useState<File | null>(null);
   const [campPreview, setCampPreview] = useState<string | null>(null);
@@ -227,8 +229,16 @@ export default function AdminDashboard() {
     const file = e.target.files?.[0];
     if (file) {
       setCampFile(file);
-      setCampPreview(URL.createObjectURL(file));
-      setCampForm(prev => ({ ...prev, type: file.type.startsWith('video/') ? 'video' : 'photo' }));
+      if (file.type.startsWith('audio/')) {
+        setCampPreview(null);
+        setCampForm(prev => ({ ...prev, type: 'audio' }));
+      } else if (file.type.startsWith('video/')) {
+        setCampPreview(URL.createObjectURL(file));
+        setCampForm(prev => ({ ...prev, type: 'video' }));
+      } else {
+        setCampPreview(URL.createObjectURL(file));
+        setCampForm(prev => ({ ...prev, type: 'photo' }));
+      }
     }
   };
 
@@ -238,16 +248,23 @@ export default function AdminDashboard() {
     triggerHaptic(50);
     try {
       const mediaUrl = await uploadMedia(campFile);
-      await addCampaign({ ...campForm, mediaUrl });
-      toast({ title: "Campaign Launched", description: "Global node materialized in discover stream." });
-      setCampForm({ title: "", content: "", type: "photo", actionUrl: "", actionLabel: "Launch Pulse" });
+      await addCampaign({ ...campForm, mediaUrl, placement: campaignSubTab });
+      toast({ title: "Campaign Created", description: "Your ad campaign is now live." });
+      setCampForm({ title: "", content: "", type: campaignSubTab === 'music' ? 'audio' : 'photo', actionUrl: "", actionLabel: "Learn More", placement: campaignSubTab });
       setCampFile(null);
       setCampPreview(null);
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Handshake Failed", description: e.message });
+      toast({ variant: "destructive", title: "Failed", description: e.message });
     } finally {
       setIsCreatingCampaign(false);
     }
+  };
+
+  const handleCampaignSubTabChange = (tab: 'story' | 'download' | 'music') => {
+    setCampaignSubTab(tab);
+    setCampForm({ title: "", content: "", type: tab === 'music' ? 'audio' : 'photo', actionUrl: "", actionLabel: "Learn More", placement: tab });
+    setCampFile(null);
+    setCampPreview(null);
   };
 
   if (isLoading || !currentUser) {
@@ -443,81 +460,204 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === 'campaigns' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
+            <div className="space-y-8 animate-in fade-in duration-500">
               <div className="space-y-1 px-2">
                 <h3 className="text-3xl font-black italic uppercase tracking-tighter">Campaign Hub</h3>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Global Discovery Node Materialization</p>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Create and manage in-app ad campaigns</p>
+              </div>
+
+              {/* Sub-tab selector */}
+              <div className="flex gap-2 bg-secondary/30 p-1.5 rounded-2xl w-fit">
+                {([
+                  { key: 'story', label: 'Story Ads', icon: Clapperboard },
+                  { key: 'download', label: 'Download Ads', icon: Download },
+                  { key: 'music', label: 'Music Audio Ads', icon: Music2 },
+                ] as const).map(({ key, label, icon: Icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => handleCampaignSubTabChange(key)}
+                    className={cn(
+                      "flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all",
+                      campaignSubTab === key ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Description for each type */}
+              <div className="px-2">
+                {campaignSubTab === 'story' && (
+                  <div className="p-4 bg-primary/5 border border-primary/10 rounded-2xl flex items-start gap-3">
+                    <Clapperboard className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-bold text-sm">Story Ads</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">These ads appear automatically after every 2 stories a user views. They match the exact full-screen story design with your photo or video and a call-to-action button.</p>
+                    </div>
+                  </div>
+                )}
+                {campaignSubTab === 'download' && (
+                  <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl flex items-start gap-3">
+                    <Download className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-bold text-sm">Download Ads</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">These ads show as a 30-second interstitial when a user clicks any download button. One active campaign shows at a time; if multiple exist they rotate. Supports photo and video.</p>
+                    </div>
+                  </div>
+                )}
+                {campaignSubTab === 'music' && (
+                  <div className="p-4 bg-accent/5 border border-accent/10 rounded-2xl flex items-start gap-3">
+                    <Music2 className="h-5 w-5 text-accent mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-bold text-sm">Music Audio Ads</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">These audio ads play automatically after every 2 songs. Users cannot skip to another song until the audio finishes. Upload an audio file — maximum 45 seconds long.</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <Card className="lg:col-span-1 bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl relative overflow-hidden">
+                {/* Creation Form */}
+                <Card className="lg:col-span-1 bg-card/40 border-border rounded-[2.5rem] p-8 space-y-5 shadow-xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-6 opacity-5"><Megaphone className="h-24 w-24" /></div>
-                  <div className="space-y-2 relative z-10"><h4 className="text-xl font-black italic uppercase tracking-tighter">Materialize Node</h4><p className="text-[10px] font-bold text-muted-foreground uppercase">Launch global discovery vibes</p></div>
+                  <div className="space-y-1 relative z-10">
+                    <h4 className="text-xl font-black italic uppercase tracking-tighter">
+                      {campaignSubTab === 'story' ? 'New Story Ad' : campaignSubTab === 'download' ? 'New Download Ad' : 'New Music Audio Ad'}
+                    </h4>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">
+                      {campaignSubTab === 'music' ? 'Upload audio (max 45 sec)' : 'Upload photo or video'}
+                    </p>
+                  </div>
                   
                   <div className="space-y-4 relative z-10">
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Vibe Title</Label><Input value={campForm.title} onChange={(e) => setCampForm({...campForm, title: e.target.value})} className="h-12 bg-secondary/30 border-none rounded-xl font-bold" placeholder="Summer Sonic Pulse..." /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Content Manifesto</Label><Textarea value={campForm.content} onChange={(e) => setCampForm({...campForm, content: e.target.value})} className="bg-secondary/30 border-none rounded-xl font-medium min-h-[100px] resize-none" placeholder="Experience the high-velocity..." /></div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Action Link</Label><Input value={campForm.actionUrl} onChange={(e) => setCampForm({...campForm, actionUrl: e.target.value})} className="h-12 bg-secondary/30 border-none rounded-xl font-bold" placeholder="/music or URL" /></div>
-                      <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Button Label</Label><Input value={campForm.actionLabel} onChange={(e) => setCampForm({...campForm, actionLabel: e.target.value})} className="h-12 bg-secondary/30 border-none rounded-xl font-bold" /></div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Ad Title</Label>
+                      <Input value={campForm.title} onChange={(e) => setCampForm({...campForm, title: e.target.value})} className="h-12 bg-secondary/30 border-none rounded-xl font-bold" placeholder="Your brand message..." />
                     </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Description</Label>
+                      <Textarea value={campForm.content} onChange={(e) => setCampForm({...campForm, content: e.target.value})} className="bg-secondary/30 border-none rounded-xl font-medium min-h-[80px] resize-none" placeholder="Tell users about your offer..." />
+                    </div>
+                    
+                    {campaignSubTab !== 'music' && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Link URL</Label>
+                          <Input value={campForm.actionUrl} onChange={(e) => setCampForm({...campForm, actionUrl: e.target.value})} className="h-11 bg-secondary/30 border-none rounded-xl font-bold text-sm" placeholder="https://..." />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Button Text</Label>
+                          <Input value={campForm.actionLabel} onChange={(e) => setCampForm({...campForm, actionLabel: e.target.value})} className="h-11 bg-secondary/30 border-none rounded-xl font-bold text-sm" />
+                        </div>
+                      </div>
+                    )}
 
                     <div className="space-y-2">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Visual Handshake</Label>
-                      <div className="relative aspect-video rounded-2xl bg-secondary/30 border-2 border-dashed border-primary/10 flex flex-col items-center justify-center cursor-pointer group hover:border-primary/30 transition-all overflow-hidden" onClick={() => campInputRef.current?.click()}>
-                        {campPreview ? (
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">
+                        {campaignSubTab === 'music' ? 'Audio File (MP3, max 45s)' : 'Photo or Video'}
+                      </Label>
+                      <div
+                        className="relative rounded-2xl bg-secondary/30 border-2 border-dashed border-primary/10 flex flex-col items-center justify-center cursor-pointer group hover:border-primary/30 transition-all overflow-hidden"
+                        style={{ minHeight: campaignSubTab === 'music' ? '80px' : '140px' }}
+                        onClick={() => campInputRef.current?.click()}
+                      >
+                        {campPreview && campForm.type !== 'audio' ? (
                           <>
-                            {campForm.type === 'video' ? <video src={campPreview} className="w-full h-full object-cover" autoPlay loop muted /> : <Image src={campPreview} alt="Preview" fill className="object-cover" />}
+                            {campForm.type === 'video'
+                              ? <video src={campPreview} className="w-full h-full object-cover" autoPlay loop muted />
+                              : <Image src={campPreview} alt="Preview" fill className="object-cover" />
+                            }
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><RefreshCcw className="h-6 w-6 text-white" /></div>
                           </>
+                        ) : campFile && campForm.type === 'audio' ? (
+                          <div className="flex flex-col items-center gap-2 py-4">
+                            <Music2 className="h-8 w-8 text-primary" />
+                            <span className="text-[10px] font-black uppercase text-primary">{campFile.name}</span>
+                          </div>
                         ) : (
-                          <div className="flex flex-col items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
+                          <div className="flex flex-col items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity py-5">
                             <Upload className="h-6 w-6" />
-                            <span className="text-[9px] font-black uppercase">Upload HQ Media</span>
+                            <span className="text-[9px] font-black uppercase">
+                              {campaignSubTab === 'music' ? 'Upload Audio File' : 'Upload Photo or Video'}
+                            </span>
                           </div>
                         )}
                       </div>
-                      <input type="file" ref={campInputRef} className="hidden" accept="image/*,video/*" onChange={handleCampaignMedia} />
+                      <input
+                        type="file"
+                        ref={campInputRef}
+                        className="hidden"
+                        accept={campaignSubTab === 'music' ? 'audio/*' : 'image/*,video/*'}
+                        onChange={handleCampaignMedia}
+                      />
                     </div>
 
-                    <Button className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-black italic uppercase tracking-widest shadow-xl shadow-primary/20" disabled={isCreatingCampaign || !campForm.title || !campFile} onClick={handleLaunchCampaign}>
+                    <Button
+                      className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-black italic uppercase tracking-widest shadow-xl shadow-primary/20"
+                      disabled={isCreatingCampaign || !campForm.title || !campFile}
+                      onClick={handleLaunchCampaign}
+                    >
                       {isCreatingCampaign ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Zap className="h-5 w-5 mr-2" />}
-                      Launch Node
+                      Launch Campaign
                     </Button>
                   </div>
                 </Card>
 
+                {/* Campaign List */}
                 <Card className="lg:col-span-2 bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl flex flex-col">
-                  <div className="p-8 border-b border-border flex items-center justify-between"><div className="space-y-1"><h4 className="text-xl font-black italic uppercase tracking-tighter">Campaign Registry</h4><p className="text-[10px] font-bold text-muted-foreground uppercase">Active global discovery stream handshakes</p></div><Badge className="bg-primary text-primary-foreground border-none font-black h-5 px-3 uppercase tracking-tighter">{campaigns.length} NODES</Badge></div>
+                  <div className="p-8 border-b border-border flex items-center justify-between">
+                    <div className="space-y-1">
+                      <h4 className="text-xl font-black italic uppercase tracking-tighter">Active Campaigns</h4>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">
+                        {campaignSubTab === 'story' ? 'Story ad placements' : campaignSubTab === 'download' ? 'Download interstitials' : 'Music audio spots'}
+                      </p>
+                    </div>
+                    <Badge className="bg-primary text-primary-foreground border-none font-black h-5 px-3 uppercase tracking-tighter">
+                      {campaigns.filter((c: any) => (c.placement === campaignSubTab || (!c.placement && campaignSubTab === 'story'))).length} ADS
+                    </Badge>
+                  </div>
                   <ScrollArea className="flex-1">
                     <div className="p-6 grid grid-cols-1 gap-4">
-                      {campaigns.map((c) => (
-                        <div key={c.$id} className="p-4 bg-secondary/20 rounded-3xl border border-white/5 flex items-center gap-6 group hover:bg-secondary/30 transition-all">
-                          <div className="relative h-20 w-20 rounded-2xl overflow-hidden shrink-0 shadow-lg">
-                            {c.type === 'video'
-              ? (c.mediaUrl ? <video src={c.mediaUrl} className="w-full h-full object-cover" muted /> : <div className="w-full h-full bg-secondary/30 flex items-center justify-center text-xs text-muted-foreground">No Media</div>)
-              : (c.mediaUrl ? <Image src={c.mediaUrl} alt="Campaign" fill className="object-cover" /> : <div className="w-full h-full bg-secondary/30 flex items-center justify-center text-xs text-muted-foreground">No Media</div>)
-            }
+                      {campaigns
+                        .filter((c: any) => c.placement === campaignSubTab || (!c.placement && campaignSubTab === 'story'))
+                        .map((c: any) => (
+                        <div key={c.$id} className="p-4 bg-secondary/20 rounded-3xl border border-white/5 flex items-center gap-5 group hover:bg-secondary/30 transition-all">
+                          <div className="relative h-16 w-16 rounded-xl overflow-hidden shrink-0 shadow-lg bg-secondary/30 flex items-center justify-center">
+                            {c.type === 'audio' ? (
+                              <Music2 className="h-7 w-7 text-primary" />
+                            ) : c.type === 'video' ? (
+                              c.mediaUrl ? <video src={c.mediaUrl} className="w-full h-full object-cover" muted /> : <Video className="h-7 w-7 text-muted-foreground" />
+                            ) : (
+                              c.mediaUrl ? <Image src={c.mediaUrl} alt="Campaign" fill className="object-cover" /> : <ImageIcon className="h-7 w-7 text-muted-foreground" />
+                            )}
                           </div>
                           <div className="flex-1 min-w-0 space-y-1">
-                            <div className="flex items-center gap-2">
-                              <h5 className="font-bold text-base truncate">{c.title}</h5>
-                              <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5", c.isActive ? "bg-green-500 text-white" : "bg-zinc-500 text-white")}>{c.isActive ? 'ACTIVE' : 'IDLE'}</Badge>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h5 className="font-bold text-sm truncate">{c.title}</h5>
+                              <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5 border-none", (c.isActive || c.is_active) ? "bg-green-500 text-white" : "bg-zinc-500 text-white")}>
+                                {(c.isActive || c.is_active) ? 'LIVE' : 'PAUSED'}
+                              </Badge>
+                              <Badge variant="outline" className="text-[8px] font-black uppercase h-4 px-1.5 border-primary/20 text-primary">
+                                {c.type || 'photo'}
+                              </Badge>
                             </div>
-                            <p className="text-xs text-muted-foreground line-clamp-1 italic">"{c.content}"</p>
-                            <div className="flex items-center gap-4 pt-1">
-                              <div className="flex items-center gap-1 text-[9px] font-black text-primary uppercase"><Eye className="h-3 w-3" /> {c.impressions?.toLocaleString() || 0} Reach</div>
-                              <div className="flex items-center gap-1 text-[9px] font-black text-accent uppercase"><ArrowUpRight className="h-3 w-3" /> {c.clicks?.toLocaleString() || 0} Clicks</div>
+                            <p className="text-xs text-muted-foreground line-clamp-1">{c.content}</p>
+                            <div className="flex items-center gap-4 pt-0.5">
+                              <div className="flex items-center gap-1 text-[9px] font-black text-primary uppercase"><Eye className="h-3 w-3" /> {c.impressions?.toLocaleString() || 0}</div>
+                              <div className="flex items-center gap-1 text-[9px] font-black text-accent uppercase"><ArrowUpRight className="h-3 w-3" /> {c.clicks?.toLocaleString() || 0} clicks</div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Switch checked={c.isActive} onCheckedChange={() => toggleCampaignStatus(c.$id)} />
-                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-destructive transition-colors" onClick={() => { triggerHaptic(50); deleteCampaign(c.$id); }}><Trash2 className="h-4 w-4" /></Button>
+                            <Switch checked={!!(c.isActive || c.is_active)} onCheckedChange={() => toggleCampaignStatus(c.$id)} />
+                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-destructive" onClick={() => { triggerHaptic(50); deleteCampaign(c.$id); }}><Trash2 className="h-4 w-4" /></Button>
                           </div>
                         </div>
                       ))}
-                      {campaigns.length === 0 && <div className="py-24 text-center opacity-40 italic text-xs uppercase font-black">Campaign clusters silent</div>}
+                      {campaigns.filter((c: any) => c.placement === campaignSubTab || (!c.placement && campaignSubTab === 'story')).length === 0 && (
+                        <div className="py-24 text-center opacity-40 italic text-xs uppercase font-black">No campaigns yet — create one to get started</div>
+                      )}
                     </div>
                   </ScrollArea>
                 </Card>

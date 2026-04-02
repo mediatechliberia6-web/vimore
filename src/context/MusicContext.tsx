@@ -79,6 +79,9 @@ interface MusicContextType {
   adUrl: string;
   triggerDownloadWithAd: (type: 'single' | 'album' | 'reel', task: () => Promise<void>) => void;
   onAdComplete: () => void;
+  isMusicAdActive: boolean;
+  currentMusicAd: any | null;
+  closeMusicAd: () => void;
   isCaptureStudioOpen: boolean;
   captureTrack: Track | null;
   openCaptureStudio: (track?: Track) => void;
@@ -164,7 +167,7 @@ function mapDocToPlaylist(doc: any, songs: Track[]): Playlist {
 }
 
 export function MusicProvider({ children }: { children: ReactNode }) {
-  const { currentUser } = usePosts();
+  const { currentUser, campaigns } = usePosts();
 
   const [currentTrack, setCurrentTrackState] = useState<Track | null>(null);
   const [globalSongs, setGlobalSongsState] = useState<Track[]>([]);
@@ -180,6 +183,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [reactions, setReactionsState] = useState<MusicReaction[]>([]);
   const [isAdPortalOpen, setIsAdPortalOpenState] = useState(false);
   const [pendingDownloadTask, setPendingDownloadTask] = useState<(() => Promise<void>) | null>(null);
+  const [isMusicAdActive, setIsMusicAdActiveState] = useState(false);
+  const [currentMusicAd, setCurrentMusicAdState] = useState<any | null>(null);
+  const songsPlayedCountRef = useRef(0);
+  const musicAdIndexRef = useRef(0);
   const [isCaptureStudioOpen, setIsCaptureStudioOpenState] = useState(false);
   const [captureTrack, setCaptureTrackState] = useState<Track | null>(null);
   const [likedSongIds, setLikedSongIdsState] = useState<Set<string | number>>(new Set());
@@ -606,14 +613,33 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     userPlaylists, userSongs, userAlbums,
     isCreatePlaylistOpen, trackForNewPlaylist, trackStats,
     isAdPortalOpen, adDuration: 30,
-    adUrl: "https://www.effectivegatecpm.com/fesc8y775q?key=4754d4c5b1e8452fc8b35451795350aa",
+    adUrl: "",
     triggerDownloadWithAd: (_type, task) => { setIsAdPortalOpenState(true); setPendingDownloadTask(() => task); },
     onAdComplete: () => { setIsAdPortalOpenState(false); if (pendingDownloadTask) pendingDownloadTask(); setPendingDownloadTask(null); },
+    isMusicAdActive,
+    currentMusicAd,
+    closeMusicAd: () => { setIsMusicAdActiveState(false); setCurrentMusicAdState(null); },
     isCaptureStudioOpen, captureTrack,
     openCaptureStudio: (t?: Track) => { setCaptureTrackState(t || null); setIsCaptureStudioOpenState(true); },
     closeCaptureStudio: () => setIsCaptureStudioOpenState(false),
     setCaptureTrack: setCaptureTrackState,
-    setTrack: (t: Track) => { setCurrentTrackState(t); setIsPlayingState(true); setIsExpandedState(true); recordSongStream(t.id); },
+    setTrack: (t: Track) => {
+      songsPlayedCountRef.current += 1;
+      if (songsPlayedCountRef.current >= 2) {
+        const musicCampaigns = (campaigns || []).filter((c: any) => (c.isActive || c.is_active) && c.placement === 'music');
+        if (musicCampaigns.length > 0) {
+          const ad = musicCampaigns[musicAdIndexRef.current % musicCampaigns.length];
+          musicAdIndexRef.current += 1;
+          songsPlayedCountRef.current = 0;
+          setCurrentMusicAdState(ad);
+          setIsMusicAdActiveState(true);
+        }
+      }
+      setCurrentTrackState(t);
+      setIsPlayingState(true);
+      setIsExpandedState(true);
+      recordSongStream(t.id);
+    },
     togglePlay: () => setIsPlayingState(prev => !prev),
     nextTrack, prevTrack,
     setIsExpanded: setIsExpandedState,
