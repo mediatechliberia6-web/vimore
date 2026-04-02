@@ -849,6 +849,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const user = mapDocToUser(authUser, profileDoc);
       setCurrentUserState(user);
 
+      try {
+        const saved = JSON.parse(localStorage.getItem('vimore_saved_accounts') || '[]');
+        const idx = saved.findIndex((a: any) => a.vimoreId === vimoreId);
+        const entry = { id: authUser.$id, vimoreId, name: user.name, avatar: user.avatar || null };
+        if (idx !== -1) saved.splice(idx, 1);
+        saved.unshift(entry);
+        localStorage.setItem('vimore_saved_accounts', JSON.stringify(saved.slice(0, 10)));
+      } catch { /* ignore */ }
+
       await Promise.allSettled([
         loadFeed(),
         loadSocialGraph(authUser.$id),
@@ -880,7 +889,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const existingUsers = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.limit(1)]);
       const assignedRole = existingUsers.total === 0 ? 'SUPER' : 'USER';
 
-      await databases.createDocument(DATABASE_ID, COL.USERS, authUser.$id, {
+      const newDoc = await databases.createDocument(DATABASE_ID, COL.USERS, authUser.$id, {
         name: data.name,
         username,
         email: vimoreId,
@@ -906,14 +915,35 @@ export function PostProvider({ children }: { children: ReactNode }) {
         security_answer: (data.securityAnswer || '').toLowerCase().trim(),
       });
 
+      const user = mapDocToUser(authUser, newDoc);
+      setCurrentUserState(user);
+
+      try {
+        const saved = JSON.parse(localStorage.getItem('vimore_saved_accounts') || '[]');
+        const already = saved.find((a: any) => a.vimoreId === vimoreId);
+        if (!already) {
+          saved.unshift({ id: authUser.$id, vimoreId, name: data.name, avatar: null });
+          localStorage.setItem('vimore_saved_accounts', JSON.stringify(saved.slice(0, 10)));
+        }
+      } catch { /* ignore */ }
+
+      await Promise.allSettled([
+        loadFeed(),
+        loadSocialGraph(authUser.$id),
+        loadConnections(authUser.$id),
+        loadStories(),
+        loadClusters(authUser.$id),
+      ]);
+
       setIsLoadingState(false);
+      toast({ title: "Welcome to ViMore!", description: "Your account is ready." });
       return { success: true };
     } catch (err: any) {
       setIsLoadingState(false);
       const msg = err?.message || 'Signup failed. Please try again.';
       return { success: false, message: msg };
     }
-  }, []);
+  }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters]);
 
   const logout = useCallback(async () => {
     try { await account.deleteSession('current'); } catch { /* ignore */ }

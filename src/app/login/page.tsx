@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Lock, Sparkles, ArrowRight, Loader2, CheckCircle2, Zap, Users, Star, AtSign, ShieldQuestion, KeyRound } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { Eye, EyeOff, Lock, Sparkles, ArrowRight, Loader2, CheckCircle2, Zap, Users, Star, AtSign, ShieldQuestion, KeyRound, X, ChevronRight, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,11 +13,40 @@ import { getSecurityQuestion, verifySecurityAnswer } from "@/lib/appwrite";
 
 type ForgotStep = "id" | "question" | "newpass" | "done";
 
+interface SavedAccount {
+  id: string;
+  vimoreId: string;
+  name: string;
+  avatar: string | null;
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(" ");
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+const AVATAR_COLORS = [
+  "bg-violet-500", "bg-blue-500", "bg-green-500", "bg-orange-500",
+  "bg-pink-500", "bg-teal-500", "bg-red-500", "bg-indigo-500",
+];
+function avatarColor(vimoreId: string) {
+  let h = 0;
+  for (let i = 0; i < vimoreId.length; i++) h = (h * 31 + vimoreId.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
 export default function LoginPage() {
   const { login, currentUser, isLoading: contextLoading } = usePosts();
   const { toast } = useToast();
   const router = useRouter();
-  const searchParams = useSearchParams();
+
+  const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
+  const [showFullForm, setShowFullForm] = useState(false);
+  const [quickAccount, setQuickAccount] = useState<SavedAccount | null>(null);
+  const [quickPassword, setQuickPassword] = useState("");
+  const [showQuickPass, setShowQuickPass] = useState(false);
+  const [quickSubmitting, setQuickSubmitting] = useState(false);
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -34,11 +63,52 @@ export default function LoginPage() {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
 
+  const quickPassRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!contextLoading && currentUser) {
       router.replace("/");
     }
   }, [currentUser, contextLoading, router]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('vimore_saved_accounts');
+      if (raw) setSavedAccounts(JSON.parse(raw));
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (quickAccount) {
+      setQuickPassword("");
+      setTimeout(() => quickPassRef.current?.focus(), 150);
+    }
+  }, [quickAccount]);
+
+  const removeAccount = (vimoreId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = savedAccounts.filter(a => a.vimoreId !== vimoreId);
+    setSavedAccounts(updated);
+    try { localStorage.setItem('vimore_saved_accounts', JSON.stringify(updated)); } catch { /* ignore */ }
+  };
+
+  const handleQuickLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickAccount || !quickPassword) return;
+    setQuickSubmitting(true);
+    try {
+      const result = await login(quickAccount.vimoreId, quickPassword);
+      if (result.success) {
+        router.push("/");
+      } else {
+        toast({ variant: "destructive", title: "Sign in failed", description: result.message || "Wrong password. Try again." });
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Sign in failed", description: "Please check your password." });
+    } finally {
+      setQuickSubmitting(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,6 +185,8 @@ export default function LoginPage() {
     setForgotStep("done");
   };
 
+  const hasSaved = savedAccounts.length > 0;
+
   return (
     <div className="min-h-screen bg-white flex flex-col overflow-hidden" style={{ colorScheme: 'light' }}>
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -137,111 +209,191 @@ export default function LoginPage() {
         </header>
 
         <div className="flex-1 flex flex-col justify-center px-6 py-8 max-w-sm mx-auto w-full">
-          <div className="mb-10 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="inline-flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-full px-4 py-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-[#9940E5]" />
-              <span className="text-[11px] font-black uppercase tracking-widest text-[#9940E5]">Welcome Back</span>
-            </div>
-            <h1 className="text-4xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
-              Sign In to<br />
-              <span className="text-[#9940E5]">ViMore</span>
-            </h1>
-            <p className="text-sm text-gray-500 font-medium">Where creators thrive and connect.</p>
-          </div>
 
-          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-2xl shadow-violet-100/50 p-7 space-y-5 animate-in fade-in slide-in-from-bottom-6 duration-700">
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">ViMore ID</Label>
-                <div className="relative">
-                  <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
-                  <Input
-                    type="text"
-                    value={identifier}
-                    onChange={e => setIdentifier(e.target.value)}
-                    placeholder="yourname@vimore.cfd"
-                    required
-                    className="h-14 pl-11 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
-                  />
+          {hasSaved && !showFullForm ? (
+            <>
+              <div className="mb-8 space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="inline-flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-full px-4 py-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-[#9940E5]" />
+                  <span className="text-[11px] font-black uppercase tracking-widest text-[#9940E5]">Your Accounts</span>
                 </div>
-                <p className="text-[10px] text-gray-400 font-medium pl-1">You can type just <span className="text-[#9940E5] font-bold">yourname</span> — we'll add @vimore.cfd automatically</p>
+                <h1 className="text-4xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
+                  Welcome<br />
+                  <span className="text-[#9940E5]">Back</span>
+                </h1>
+                <p className="text-sm text-gray-500 font-medium">Tap your account to sign in.</p>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Password</Label>
+              <div className="space-y-3 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                {savedAccounts.map(acc => (
                   <button
-                    type="button"
-                    onClick={() => setShowForgot(true)}
-                    className="text-[11px] font-bold text-[#9940E5] hover:text-violet-700 transition-colors uppercase tracking-wide"
+                    key={acc.vimoreId}
+                    onClick={() => setQuickAccount(acc)}
+                    className="w-full flex items-center gap-4 bg-white border border-gray-100 rounded-[1.5rem] p-4 shadow-sm hover:shadow-md hover:border-violet-200 transition-all group text-left"
                   >
-                    Forgot Password?
+                    <div className={`h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 text-white font-black text-lg ${avatarColor(acc.vimoreId)}`}>
+                      {acc.avatar
+                        ? <img src={acc.avatar} alt={acc.name} className="h-14 w-14 rounded-2xl object-cover" />
+                        : getInitials(acc.name)
+                      }
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-gray-900 truncate">{acc.name}</p>
+                      <p className="text-[11px] font-medium text-[#9940E5] truncate">{acc.vimoreId}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={(e) => removeAccount(acc.vimoreId, e)}
+                        className="h-7 w-7 rounded-full bg-gray-100 hover:bg-red-50 hover:text-red-500 flex items-center justify-center text-gray-400 transition-colors"
+                        title="Remove account"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                      <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-[#9940E5] transition-colors ml-1" />
+                    </div>
                   </button>
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    className="h-14 pl-11 pr-12 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
+                ))}
+
+                <button
+                  onClick={() => setShowFullForm(true)}
+                  className="w-full flex items-center gap-4 bg-violet-50/60 border border-violet-100 rounded-[1.5rem] p-4 hover:bg-violet-50 transition-all group text-left"
+                >
+                  <div className="h-14 w-14 rounded-2xl bg-white border-2 border-dashed border-violet-200 flex items-center justify-center shrink-0">
+                    <PlusCircle className="h-6 w-6 text-[#9940E5]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-gray-700">Add another account</p>
+                    <p className="text-[11px] font-medium text-gray-400">Sign in with a different ViMore ID</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-[#9940E5] transition-colors" />
+                </button>
               </div>
 
-              <Button
-                type="submit"
-                disabled={isSubmitting || !identifier || !password}
-                className="w-full h-14 rounded-2xl bg-[#9940E5] hover:bg-violet-700 text-white font-black italic uppercase tracking-[0.15em] text-sm shadow-xl shadow-violet-200 transition-all active:scale-95 gap-3 mt-2"
-              >
-                {isSubmitting ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <>
-                    Sign In <ArrowRight className="h-5 w-5" />
-                  </>
+              <div className="mt-6 text-center">
+                <Link href="/signup">
+                  <span className="text-sm font-black italic uppercase tracking-tight text-[#9940E5] hover:text-violet-700 transition-colors">
+                    Create New Account →
+                  </span>
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mb-10 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="inline-flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-full px-4 py-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-[#9940E5]" />
+                  <span className="text-[11px] font-black uppercase tracking-widest text-[#9940E5]">Welcome Back</span>
+                </div>
+                <h1 className="text-4xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
+                  Sign In to<br />
+                  <span className="text-[#9940E5]">ViMore</span>
+                </h1>
+                <p className="text-sm text-gray-500 font-medium">Where creators thrive and connect.</p>
+              </div>
+
+              <div className="bg-white rounded-[2rem] border border-gray-100 shadow-2xl shadow-violet-100/50 p-7 space-y-5 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                {hasSaved && (
+                  <button
+                    onClick={() => setShowFullForm(false)}
+                    className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-[#9940E5] hover:text-violet-700 transition-colors"
+                  >
+                    ← Back to saved accounts
+                  </button>
                 )}
-              </Button>
-            </form>
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">ViMore ID</Label>
+                    <div className="relative">
+                      <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
+                      <Input
+                        type="text"
+                        value={identifier}
+                        onChange={e => setIdentifier(e.target.value)}
+                        placeholder="yourname@vimore.cfd"
+                        required
+                        className="h-14 pl-11 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
+                      />
+                    </div>
+                    <p className="text-[10px] text-gray-400 font-medium pl-1">You can type just <span className="text-[#9940E5] font-bold">yourname</span> — we'll add @vimore.cfd automatically</p>
+                  </div>
 
-            <div className="relative flex items-center gap-3 py-1">
-              <div className="flex-1 h-px bg-gray-100" />
-              <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">or</span>
-              <div className="flex-1 h-px bg-gray-100" />
-            </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Password</Label>
+                      <button
+                        type="button"
+                        onClick={() => setShowForgot(true)}
+                        className="text-[11px] font-bold text-[#9940E5] hover:text-violet-700 transition-colors uppercase tracking-wide"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        required
+                        className="h-14 pl-11 pr-12 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
 
-            <div className="text-center space-y-1">
-              <p className="text-sm text-gray-500 font-medium">Don&apos;t have an account?</p>
-              <Link href="/signup">
-                <span className="text-sm font-black italic uppercase tracking-tight text-[#9940E5] hover:text-violet-700 transition-colors">
-                  Create Account →
-                </span>
-              </Link>
-            </div>
-          </div>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || !identifier || !password}
+                    className="w-full h-14 rounded-2xl bg-[#9940E5] hover:bg-violet-700 text-white font-black italic uppercase tracking-[0.15em] text-sm shadow-xl shadow-violet-200 transition-all active:scale-95 gap-3 mt-2"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <>
+                        Sign In <ArrowRight className="h-5 w-5" />
+                      </>
+                    )}
+                  </Button>
+                </form>
 
-          <div className="mt-8 grid grid-cols-3 gap-3 animate-in fade-in duration-1000 delay-300">
-            {[
-              { icon: Users, value: "2M+", label: "Creators" },
-              { icon: Star, value: "4.9★", label: "Rating" },
-              { icon: Sparkles, value: "50+", label: "Countries" },
-            ].map(({ icon: Icon, value, label }) => (
-              <div key={label} className="bg-gray-50 rounded-2xl p-3 text-center border border-gray-100">
-                <Icon className="h-4 w-4 text-[#9940E5] mx-auto mb-1" />
-                <p className="text-sm font-black text-gray-900">{value}</p>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{label}</p>
+                <div className="relative flex items-center gap-3 py-1">
+                  <div className="flex-1 h-px bg-gray-100" />
+                  <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">or</span>
+                  <div className="flex-1 h-px bg-gray-100" />
+                </div>
+
+                <div className="text-center space-y-1">
+                  <p className="text-sm text-gray-500 font-medium">Don&apos;t have an account?</p>
+                  <Link href="/signup">
+                    <span className="text-sm font-black italic uppercase tracking-tight text-[#9940E5] hover:text-violet-700 transition-colors">
+                      Create Account →
+                    </span>
+                  </Link>
+                </div>
               </div>
-            ))}
-          </div>
+
+              <div className="mt-8 grid grid-cols-3 gap-3 animate-in fade-in duration-1000 delay-300">
+                {[
+                  { icon: Users, value: "2M+", label: "Creators" },
+                  { icon: Star, value: "4.9★", label: "Rating" },
+                  { icon: Sparkles, value: "50+", label: "Countries" },
+                ].map(({ icon: Icon, value, label }) => (
+                  <div key={label} className="bg-gray-50 rounded-2xl p-3 text-center border border-gray-100">
+                    <Icon className="h-4 w-4 text-[#9940E5] mx-auto mb-1" />
+                    <p className="text-sm font-black text-gray-900">{value}</p>
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         <footer className="py-6 text-center">
@@ -250,6 +402,73 @@ export default function LoginPage() {
           </p>
         </footer>
       </div>
+
+      {quickAccount && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] w-full max-w-sm p-7 shadow-2xl space-y-6 animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-4">
+                <div className={`h-16 w-16 rounded-2xl flex items-center justify-center text-white font-black text-xl shrink-0 ${avatarColor(quickAccount.vimoreId)}`}>
+                  {quickAccount.avatar
+                    ? <img src={quickAccount.avatar} alt={quickAccount.name} className="h-16 w-16 rounded-2xl object-cover" />
+                    : getInitials(quickAccount.name)
+                  }
+                </div>
+                <div>
+                  <p className="font-black text-gray-900 text-lg leading-tight">{quickAccount.name}</p>
+                  <p className="text-[11px] font-medium text-[#9940E5] mt-0.5">{quickAccount.vimoreId}</p>
+                </div>
+              </div>
+              <button onClick={() => setQuickAccount(null)} className="h-8 w-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 transition-colors mt-1">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleQuickLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
+                  <Input
+                    ref={quickPassRef}
+                    type={showQuickPass ? "text" : "password"}
+                    value={quickPassword}
+                    onChange={e => setQuickPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                    className="h-14 pl-11 pr-12 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickPass(!showQuickPass)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+                  >
+                    {showQuickPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <Button
+                type="submit"
+                disabled={quickSubmitting || !quickPassword}
+                className="w-full h-14 rounded-2xl bg-[#9940E5] hover:bg-violet-700 text-white font-black italic uppercase tracking-[0.15em] text-sm shadow-xl shadow-violet-200 transition-all active:scale-95 gap-3"
+              >
+                {quickSubmitting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>Sign In <ArrowRight className="h-5 w-5" /></>
+                )}
+              </Button>
+              <button
+                type="button"
+                onClick={() => setShowForgot(true)}
+                className="w-full text-[11px] font-bold text-[#9940E5] hover:text-violet-700 transition-colors uppercase tracking-wide py-1"
+              >
+                Forgot Password?
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showForgot && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-200">
