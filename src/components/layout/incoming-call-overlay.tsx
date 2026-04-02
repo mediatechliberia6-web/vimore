@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
@@ -23,6 +24,7 @@ const RINGBACK_URL = "https://assets.mixkit.co/active_storage/sfx/131/131-previe
 export function IncomingCallOverlay() {
   const { callState, acceptCall, endCall, triggerHaptic, settings } = usePosts();
   const { isPlaying, togglePlay } = useMusic();
+  const { toast } = useToast();
   const router = useRouter();
   
   const [pulseScale, setPulseScale] = useState(1);
@@ -93,6 +95,11 @@ export function IncomingCallOverlay() {
   }
 
   const handleAccept = async () => {
+    if (settings.isFreeMode) {
+      endCall();
+      toast({ variant: "destructive", title: "Free Mode Active", description: "Calls are disabled in Free Mode." });
+      return;
+    }
     triggerHaptic(50);
     await acceptCall();
     router.push(`/messages/call/${callState.contact!.username}`);

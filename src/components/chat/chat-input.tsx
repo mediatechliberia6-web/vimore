@@ -92,6 +92,10 @@ export function ChatInput({ onSend }: ChatInputProps) {
   };
 
   const handleMediaTrigger = (filter: string) => {
+    if (settings.isFreeMode) {
+      toast({ variant: "destructive", title: "Free Mode Active", description: "Media sharing is disabled in Free Mode." });
+      return;
+    }
     triggerHaptic(5);
     setCurrentFilter(filter);
     setTimeout(() => {
@@ -100,6 +104,10 @@ export function ChatInput({ onSend }: ChatInputProps) {
   };
 
   const handleVoiceStart = async () => {
+    if (settings.isFreeMode) {
+      toast({ variant: "destructive", title: "Free Mode Active", description: "Voice messages are disabled in Free Mode." });
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
