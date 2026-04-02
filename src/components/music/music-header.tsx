@@ -1,12 +1,18 @@
 "use client";
 
-import { Search, Upload, Crown, MessageSquare, Menu, Gift, Settings } from "lucide-react";
+import { Search, Upload, Crown, Menu, Gift, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
+import { usePosts } from "@/context/PostContext";
 
 export function MusicHeader() {
+  const { currentUser } = usePosts();
+  const initials = currentUser?.name
+    ? currentUser.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'ME';
+
   return (
     <header className="sticky top-0 z-[60] h-20 px-6 sm:px-10 flex items-center justify-between gap-6 bg-background/60 backdrop-blur-xl border-b border-border/50">
       <div className="flex items-center gap-6 flex-1 max-w-2xl">
@@ -48,8 +54,8 @@ export function MusicHeader() {
            
            <Link href="/profile" className="transition-transform hover:scale-105 active:scale-90">
              <Avatar className="h-10 w-10 border-2 border-primary/10 shadow-sm">
-               <AvatarImage src="https://picsum.photos/seed/me/100/100" />
-               <AvatarFallback>JD</AvatarFallback>
+               <AvatarImage src={currentUser?.avatar || ''} alt={currentUser?.name || 'Profile'} />
+               <AvatarFallback>{initials}</AvatarFallback>
              </Avatar>
            </Link>
         </div>

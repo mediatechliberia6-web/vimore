@@ -16,7 +16,7 @@ import {
   Users2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Connection } from "@/context/PostContext";
+import { Connection, usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 
 interface AudioLoungeProps {
@@ -26,6 +26,10 @@ interface AudioLoungeProps {
 
 export function AudioLounge({ contact, onLeave }: AudioLoungeProps) {
   const { triggerHaptic } = useMusic();
+  const { currentUser } = usePosts();
+  const myInitials = currentUser?.name
+    ? currentUser.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'ME';
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -102,8 +106,8 @@ export function AudioLounge({ contact, onLeave }: AudioLoungeProps) {
                 <div className="relative group">
                   <div className="absolute -inset-2 bg-primary/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
                   <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-primary shadow-2xl relative">
-                    <AvatarImage src="https://picsum.photos/seed/me/200/200" />
-                    <AvatarFallback>JD</AvatarFallback>
+                    <AvatarImage src={currentUser?.avatar || ''} alt={currentUser?.name || 'Me'} />
+                    <AvatarFallback>{myInitials}</AvatarFallback>
                   </Avatar>
                   <div className="absolute -bottom-2 -right-2 bg-green-500 h-6 w-6 rounded-full border-4 border-[#050505]" />
                 </div>

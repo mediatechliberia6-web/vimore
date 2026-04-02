@@ -3,14 +3,20 @@
 import { Image as ImageIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CreatePostModal } from "./create-post-modal";
+import { usePosts } from "@/context/PostContext";
 
 export function CreatePost() {
+  const { currentUser } = usePosts();
+  const initials = currentUser?.name
+    ? currentUser.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'ME';
+
   return (
     <div className="bg-white dark:bg-card rounded-xl shadow-sm border border-primary/10 p-4 flex items-center gap-4">
       <div className="relative shrink-0">
         <Avatar className="h-10 w-10 border border-primary/10">
-          <AvatarImage src="https://picsum.photos/seed/me/200/200" alt="Me" />
-          <AvatarFallback>JD</AvatarFallback>
+          <AvatarImage src={currentUser?.avatar || ''} alt={currentUser?.name || 'Me'} />
+          <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
         <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-card rounded-full" />
       </div>
