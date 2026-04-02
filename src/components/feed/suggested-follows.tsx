@@ -13,13 +13,41 @@ import Link from "next/link";
 import { useTranslation } from "@/context/LanguageContext";
 
 export function SuggestedFollows() {
-  const { connections, isFriend, isRequestSent, sendFriendRequest, cancelFriendRequest, unfriendUser, currentUser } = usePosts();
+  const { connections, posts, isFriend, isRequestSent, sendFriendRequest, cancelFriendRequest, isFollowing, currentUser } = usePosts();
   const { triggerHaptic } = useMusic();
   const { t } = useTranslation();
 
   const suggestions = useMemo(() => {
-    return connections.filter(c => !isFriend(c.username) && !isRequestSent(c.username) && c.username !== currentUser.username).slice(0, 8);
-  }, [connections, isFriend, isRequestSent, currentUser.username]);
+    const now = Date.now();
+
+    // Regular connection suggestions (not yet friends/requested)
+    const connectionSuggestions = connections
+      .filter(c => !isFriend(c.username) && !isRequestSent(c.username) && c.username !== currentUser?.username)
+      .map(c => ({ ...c, isBoosted: false }));
+
+    // Boosted post authors: active boost, not already following, not self
+    const boostedAuthors: any[] = [];
+    const seenBoostedUsernames = new Set<string>();
+    for (const post of posts) {
+      if (
+        post.isBoosted &&
+        post.boostExpiry &&
+        post.boostExpiry > now &&
+        !isFollowing(post.user.username) &&
+        post.user.username !== currentUser?.username &&
+        !seenBoostedUsernames.has(post.user.username)
+      ) {
+        seenBoostedUsernames.add(post.user.username);
+        boostedAuthors.push({ ...post.user, isBoosted: true });
+      }
+    }
+
+    // Merge: boosted authors first (as Sponsored), then regular connections, deduplicate
+    const existingUsernames = new Set(boostedAuthors.map(u => u.username));
+    const mergedConnections = connectionSuggestions.filter(c => !existingUsernames.has(c.username));
+
+    return [...boostedAuthors, ...mergedConnections].slice(0, 10);
+  }, [connections, posts, isFriend, isRequestSent, isFollowing, currentUser]);
 
   if (suggestions.length === 0) return null;
 
@@ -47,13 +75,25 @@ export function SuggestedFollows() {
             return (
               <div 
                 key={person.username} 
-                className="relative w-40 bg-secondary/20 rounded-[2rem] p-5 flex flex-col items-center text-center gap-3 group border border-transparent hover:border-primary/20 transition-all"
+                className={cn(
+                  "relative w-40 rounded-[2rem] p-5 flex flex-col items-center text-center gap-3 group border transition-all",
+                  person.isBoosted
+                    ? "bg-primary/5 border-primary/20 hover:border-primary/40"
+                    : "bg-secondary/20 border-transparent hover:border-primary/20"
+                )}
               >
-                <Link href={`/profile/${person.username}`} className="relative group/avatar">
-                  <div className="absolute -inset-1 bg-primary/20 blur-md rounded-full opacity-0 group-hover/avatar:opacity-100 transition-opacity" />
-                  <Avatar className="h-20 w-20 border-4 border-white dark:border-card shadow-lg transition-transform group-hover/avatar:scale-105">
+                {person.isBoosted && (
+                  <div className="absolute top-3 left-0 right-0 flex justify-center">
+                    <span className="bg-primary/10 border border-primary/20 text-primary text-[7px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Sparkles className="h-2.5 w-2.5" /> Sponsored
+                    </span>
+                  </div>
+                )}
+                <Link href={`/profile/${person.username}`} className={cn("relative group/avatar", person.isBoosted && "mt-3")}>
+                  <div className={cn("absolute -inset-1 blur-md rounded-full opacity-0 group-hover/avatar:opacity-100 transition-opacity", person.isBoosted ? "bg-primary/30" : "bg-primary/20")} />
+                  <Avatar className={cn("h-20 w-20 border-4 shadow-lg transition-transform group-hover/avatar:scale-105", person.isBoosted ? "border-primary/30" : "border-white dark:border-card")}>
                     <AvatarImage src={person.avatar} />
-                    <AvatarFallback>{person.name[0]}</AvatarFallback>
+                    <AvatarFallback>{person.name?.[0] || '?'}</AvatarFallback>
                   </Avatar>
                 </Link>
 

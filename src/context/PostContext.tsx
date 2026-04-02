@@ -316,7 +316,7 @@ interface PostContextType {
   sendChatMessage: (recipientId: string, message: Partial<ChatMessage>) => Promise<void>;
   purgeVibeCache: () => Promise<void>;
   archiveIdentityNode: () => Promise<void>;
-  boostNode: (nodeId: string, promisedViews: number, duration: number, cost: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'SONIC') => Promise<void>;
+  boostNode: (nodeId: string, duration: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'SONIC') => Promise<void>;
   enrollHardwareBiometrics: () => Promise<boolean>;
   verifyHardwareBiometrics: () => Promise<boolean>;
   blockUser: (username: string) => Promise<void>;
@@ -1874,26 +1874,61 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore */ }
   };
 
-  const boostNode = async (nodeId: string, promisedViews: number, duration: number, cost: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'SONIC') => {
+  const boostNode = async (nodeId: string, duration: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'SONIC') => {
     if (!currentUser) return;
+
+    const ratePerDay = currency === 'DIAMOND' ? 5 : 2500;
+    const totalCost = duration * ratePerDay;
+    const currentBalance = currency === 'DIAMOND' ? (currentUser.diamondBalance || 0) : (currentUser.starBalance || 0);
+
+    // Balance check FIRST — before any state or DB changes
+    if (currentBalance < totalCost) {
+      throw new Error(
+        currency === 'DIAMOND'
+          ? `Insufficient Diamonds. You need ${totalCost} but only have ${currentBalance}.`
+          : `Insufficient Stars. You need ${totalCost.toLocaleString()} but only have ${currentBalance.toLocaleString()}.`
+      );
+    }
+
     const expiry = Date.now() + duration * 86400000;
+    const balanceUpdate = currency === 'DIAMOND'
+      ? { diamond_balance: currentBalance - totalCost }
+      : { star_balance: currentBalance - totalCost };
+
     if (type === 'POST') {
-      setPostsState(prev => prev.map(p => p.$id === nodeId ? { ...p, isBoosted: true, boostTargetViews: promisedViews, boostExpiry: expiry } : p));
+      // Optimistic update
+      setPostsState(prev => prev.map(p => p.$id === nodeId ? { ...p, isBoosted: true, boostExpiry: expiry } : p));
       try {
-        const updateData: Record<string, any> = { is_boosted: true, boost_target_views: promisedViews };
-        if (currency === 'DIAMOND') updateData.diamond_balance = (currentUser.diamondBalance || 0) - cost;
-        else updateData.star_balance = (currentUser.starBalance || 0) - cost;
         await Promise.all([
-          databases.updateDocument(DATABASE_ID, COL.POSTS, nodeId, { is_boosted: true, boost_target_views: promisedViews }),
-          databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, updateData),
+          databases.updateDocument(DATABASE_ID, COL.POSTS, nodeId, { is_boosted: true, boost_expiry: expiry }),
+          databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, balanceUpdate),
         ]);
         setCurrentUserState(prev => {
           if (!prev) return null;
           return currency === 'DIAMOND'
-            ? { ...prev, diamondBalance: (prev.diamondBalance || 0) - cost }
-            : { ...prev, starBalance: (prev.starBalance || 0) - cost };
+            ? { ...prev, diamondBalance: (prev.diamondBalance || 0) - totalCost }
+            : { ...prev, starBalance: (prev.starBalance || 0) - totalCost };
         });
-      } catch { /* ignore */ }
+      } catch (err: any) {
+        // Roll back optimistic update on failure
+        setPostsState(prev => prev.map(p => p.$id === nodeId ? { ...p, isBoosted: false, boostExpiry: undefined } : p));
+        throw err;
+      }
+    } else if (type === 'SONIC') {
+      try {
+        await Promise.all([
+          databases.updateDocument(DATABASE_ID, COL.TRACKS, nodeId, { is_boosted: true, boost_expiry: expiry }),
+          databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, balanceUpdate),
+        ]);
+        setCurrentUserState(prev => {
+          if (!prev) return null;
+          return currency === 'DIAMOND'
+            ? { ...prev, diamondBalance: (prev.diamondBalance || 0) - totalCost }
+            : { ...prev, starBalance: (prev.starBalance || 0) - totalCost };
+        });
+      } catch (err: any) {
+        throw err;
+      }
     }
   };
 

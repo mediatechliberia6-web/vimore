@@ -43,7 +43,8 @@ import {
   UserPlus,
   Check,
   UserRoundX,
-  Gauge
+  Gauge,
+  Clock
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -541,22 +542,15 @@ export function PostCard(props: PostCardProps) {
           <CardFooter className="p-1 px-3 flex flex-col gap-1 relative bg-white dark:bg-card">
             {isOwner && (
               <div className="w-full mb-2">
-                {isBoosted ? (
-                  <div className="bg-primary/10 rounded-xl p-3 flex flex-col gap-2 border border-primary/20">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Zap className="h-3 w-3 text-primary animate-pulse" />
-                        <span className="text-[9px] font-black text-primary uppercase">{t('boost_active')}</span>
-                      </div>
-                      <span className="text-[9px] font-black text-primary/60 tabular-nums">
-                        {boostCurrentViews?.toLocaleString() || 0} / {boostTargetViews?.toLocaleString()}
-                      </span>
+                {isBoosted && boostExpiry && boostExpiry > Date.now() ? (
+                  <div className="bg-primary/10 rounded-xl p-3 flex items-center justify-between border border-primary/20">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-3 w-3 text-primary animate-pulse" />
+                      <span className="text-[9px] font-black text-primary uppercase">{t('boost_active')}</span>
                     </div>
-                    <div className="h-1.5 w-full bg-primary/10 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-primary transition-all duration-1000 ease-out" 
-                        style={{ width: `${Math.min(((boostCurrentViews || 0) / (boostTargetViews || 1)) * 100, 100)}%` }} 
-                      />
+                    <div className="flex items-center gap-1.5 text-[9px] font-black text-primary/70">
+                      <Clock className="h-3 w-3" />
+                      <span>{Math.ceil((boostExpiry - Date.now()) / 86400000)} {Math.ceil((boostExpiry - Date.now()) / 86400000) === 1 ? 'day' : 'days'} left</span>
                     </div>
                   </div>
                 ) : (

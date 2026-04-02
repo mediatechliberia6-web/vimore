@@ -17,6 +17,7 @@ export interface Track {
   likes?: number;
   unlikes?: number;
   isBoosted?: boolean;
+  boostExpiry?: number;
   boostCurrentViews?: number;
   boostTargetViews?: number;
   comments?: number;
@@ -138,6 +139,7 @@ function mapDocToTrack(doc: any): Track {
     streams: String(doc.streams_count || 0),
     likes: doc.likes_count || 0,
     isBoosted: doc.is_boosted || false,
+    boostExpiry: doc.boost_expiry || undefined,
   };
 }
 

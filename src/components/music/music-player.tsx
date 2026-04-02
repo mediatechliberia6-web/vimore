@@ -24,7 +24,9 @@ import {
   Gift,
   Rocket,
   EyeOff,
-  Music2
+  Music2,
+  Zap,
+  Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -334,14 +336,15 @@ export function MusicPlayer() {
               </div>
             </div>
 
-            {currentTrack.isBoosted && (
-              <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 space-y-2 animate-in fade-in">
-                <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-primary">
+            {currentTrack.isBoosted && currentTrack.boostExpiry && currentTrack.boostExpiry > Date.now() && (
+              <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 flex items-center justify-between animate-in fade-in">
+                <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-primary">
+                  <Zap className="h-3 w-3 animate-pulse" />
                   <span>{t('boost_active')}</span>
-                  <span>{currentTrack.boostCurrentViews || 0} / {currentTrack.boostTargetViews} Views</span>
                 </div>
-                <div className="h-1 w-full bg-primary/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-primary" style={{ width: `${((currentTrack.boostCurrentViews || 0) / (currentTrack.boostTargetViews || 1)) * 100}%` }} />
+                <div className="flex items-center gap-1.5 text-[9px] font-black text-primary/70">
+                  <Clock className="h-3 w-3" />
+                  <span>{Math.ceil((currentTrack.boostExpiry - Date.now()) / 86400000)} {Math.ceil((currentTrack.boostExpiry - Date.now()) / 86400000) === 1 ? 'day' : 'days'} left</span>
                 </div>
               </div>
             )}
