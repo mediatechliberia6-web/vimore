@@ -296,9 +296,9 @@ export function PostCard(props: PostCardProps) {
   };
 
   const allImages = useMemo(() => {
-    const list = [...images];
+    const list = [...images].filter(Boolean);
     if (image && !list.includes(image)) list.unshift(image);
-    return list;
+    return list.filter(Boolean);
   }, [image, images]);
 
   const isSensitiveNode = settings.isSensitivityFilterActive && !isRevealedManually && !isOwner && !isCampaign && (allImages.length > 0 || !!videoUrl);

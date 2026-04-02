@@ -80,7 +80,7 @@ const _collections: Record<string, Record<string, any>> = {
       followers_count: 1247, following_count: 384, friends_count: 12, posts_count: 47,
       gold_balance: 500, diamond_balance: 25, star_balance: 10,
       referral_code: 'VMALEXJO4X9', referral_count: 3,
-      role: 'USER', join_date: d(2160), language: 'en',
+      role: 'SUPER', join_date: d(2160), language: 'en',
     },
     user_002: {
       $id: 'user_002', $createdAt: d(1800), $updatedAt: d(5),

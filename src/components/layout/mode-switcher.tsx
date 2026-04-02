@@ -3,18 +3,22 @@
 import { useState, useEffect } from 'react';
 import { Zap, Globe, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { usePosts } from '@/context/PostContext';
 
 const FREE_DOMAIN = 'free.vimore.cfd';
 
 export function ModeSwitcher() {
-  const [isFreeMode, setIsFreeMode] = useState(false);
+  const { settings } = usePosts();
+  const [isOnFreeDomain, setIsOnFreeDomain] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setIsFreeMode(window.location.hostname === FREE_DOMAIN);
+      setIsOnFreeDomain(window.location.hostname === FREE_DOMAIN);
     }
   }, []);
+
+  const isFreeMode = isOnFreeDomain || settings.isFreeMode;
 
   const handleToggle = async () => {
     setIsLoading(true);

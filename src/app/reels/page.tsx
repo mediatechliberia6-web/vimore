@@ -455,7 +455,7 @@ function ReelItem({
     else sendFriendRequest(reel.user.username);
   };
 
-  const displayLikes = isLiked ? reel.likes + 1 : reel.likes;
+  const displayLikes = reel.likes;
   const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : n.toString());
 
   return (

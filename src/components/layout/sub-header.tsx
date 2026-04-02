@@ -72,10 +72,29 @@ export function SubHeader() {
     router.push(href);
   };
 
-  const toggleFreeMode = (e: React.MouseEvent) => {
+  const toggleFreeMode = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const nextState = !settings.isFreeMode;
     triggerHaptic(nextState ? 20 : 10);
+
+    const isVimoreDomain = typeof window !== 'undefined' &&
+      (window.location.hostname === 'vimore.cfd' || window.location.hostname === 'free.vimore.cfd');
+
+    if (isVimoreDomain) {
+      try {
+        const res = await fetch('/api/set-mode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enable: nextState }),
+        });
+        if (res.ok) {
+          const { redirectUrl } = await res.json();
+          window.location.href = redirectUrl;
+          return;
+        }
+      } catch { }
+    }
+
     updateSettings({ isFreeMode: nextState });
     toast({
       title: nextState ? "Free Mode Active" : "Full Fidelity Pulse",
@@ -215,7 +234,7 @@ export function SubHeader() {
                     <span className="text-[8px] font-black text-primary/60 uppercase mt-1">Data Saver</span>
                   </div>
                 </div>
-                <Switch checked={settings.isFreeMode} onCheckedChange={(val) => updateSettings({ isFreeMode: val })} />
+                <Switch checked={settings.isFreeMode} onCheckedChange={(val) => toggleFreeMode({ stopPropagation: () => {} } as React.MouseEvent)} />
               </div>
 
               <DropdownMenuSeparator className="bg-primary/5" />
