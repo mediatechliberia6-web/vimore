@@ -17,7 +17,6 @@ import {
   ChevronRight,
   CheckCircle2,
   Zap,
-  ZapOff,
   EyeOff,
   MessageCircle
 } from "lucide-react";
@@ -38,8 +37,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
 
 const PulseBadge = ({ count }: { count: number }) => {
   if (!count || count <= 0) return null;
@@ -53,12 +50,11 @@ const PulseBadge = ({ count }: { count: number }) => {
 export function SubHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { setSearchOpen, currentUser = { name: "Guest", avatar: "", goldBalance: 0, diamondBalance: 0, starBalance: 0, isVerified: false }, settings, updateSettings, receivedRequestUsernames } = usePosts();
+  const { setSearchOpen, currentUser = { name: "Guest", avatar: "", goldBalance: 0, diamondBalance: 0, starBalance: 0, isVerified: false }, settings, receivedRequestUsernames } = usePosts();
   const { triggerHaptic } = useMusic();
   const { categoryPulses = { HOME: 0, FRIENDS: 0, MUSIC: 0, MESSAGES: 0 }, clearPulse } = useNotifications();
   const pendingRequests = receivedRequestUsernames?.size || 0;
   const { t } = useTranslation();
-  const { toast } = useToast();
 
   const navItems: { icon: any; label: string; id: string; href: string; category: PulseCategory }[] = [
     { icon: Home, label: t('sub_home'), id: "home", href: "/", category: "HOME" },
@@ -70,36 +66,6 @@ export function SubHeader() {
   const handleNav = (href: string) => {
     triggerHaptic(5);
     router.push(href);
-  };
-
-  const toggleFreeMode = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const nextState = !settings.isFreeMode;
-    triggerHaptic(nextState ? 20 : 10);
-
-    const isVimoreDomain = typeof window !== 'undefined' &&
-      (window.location.hostname === 'vimore.cfd' || window.location.hostname === 'free.vimore.cfd');
-
-    if (isVimoreDomain) {
-      try {
-        const res = await fetch('/api/set-mode', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enable: nextState }),
-        });
-        if (res.ok) {
-          const { redirectUrl } = await res.json();
-          window.location.href = redirectUrl;
-          return;
-        }
-      } catch { }
-    }
-
-    updateSettings({ isFreeMode: nextState });
-    toast({
-      title: nextState ? "Free Mode Active" : "Full Fidelity Pulse",
-      description: nextState ? t('settings_free_mode_desc') : "Media nodes synchronized."
-    });
   };
 
   return (
@@ -216,27 +182,6 @@ export function SubHeader() {
                 </div>
               </DropdownMenuLabel>
               
-              <DropdownMenuSeparator className="bg-primary/5" />
-
-              <div 
-                className="flex items-center justify-between p-3 mx-1 rounded-xl bg-primary/5 border border-primary/10 cursor-pointer group hover:bg-primary/10 transition-all"
-                onClick={toggleFreeMode}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "h-8 w-8 rounded-lg flex items-center justify-center transition-all",
-                    settings.isFreeMode ? "bg-primary text-white" : "bg-primary/10 text-primary"
-                  )}>
-                    {settings.isFreeMode ? <Zap className="h-4 w-4 fill-current" /> : <ZapOff className="h-4 w-4" />}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold leading-none">{t('settings_free_mode')}</span>
-                    <span className="text-[8px] font-black text-primary/60 uppercase mt-1">Data Saver</span>
-                  </div>
-                </div>
-                <Switch checked={settings.isFreeMode} onCheckedChange={(val) => toggleFreeMode({ stopPropagation: () => {} } as React.MouseEvent)} />
-              </div>
-
               <DropdownMenuSeparator className="bg-primary/5" />
               
               <div className="p-2 space-y-1">

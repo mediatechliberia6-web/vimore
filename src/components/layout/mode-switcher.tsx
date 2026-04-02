@@ -4,11 +4,16 @@ import { useState, useEffect } from 'react';
 import { Zap, Globe, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePosts } from '@/context/PostContext';
+import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/context/LanguageContext';
 
 const FREE_DOMAIN = 'free.vimore.cfd';
+const MAIN_DOMAIN = 'vimore.cfd';
 
 export function ModeSwitcher() {
-  const { settings } = usePosts();
+  const { settings, updateSettings } = usePosts();
+  const { toast } = useToast();
+  const { t } = useTranslation();
   const [isOnFreeDomain, setIsOnFreeDomain] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -21,22 +26,33 @@ export function ModeSwitcher() {
   const isFreeMode = isOnFreeDomain || settings.isFreeMode;
 
   const handleToggle = async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch('/api/set-mode', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enable: !isFreeMode }),
-      });
+    const nextState = !isFreeMode;
+    const isVimoreDomain = typeof window !== 'undefined' &&
+      (window.location.hostname === MAIN_DOMAIN || window.location.hostname === FREE_DOMAIN);
 
-      if (!res.ok) throw new Error('Failed to set mode');
-
-      const { redirectUrl } = await res.json();
-      window.location.href = redirectUrl;
-    } catch (err) {
-      console.error('[ModeSwitcher] Error:', err);
-      setIsLoading(false);
+    if (isVimoreDomain) {
+      setIsLoading(true);
+      try {
+        const res = await fetch('/api/set-mode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enable: nextState }),
+        });
+        if (!res.ok) throw new Error('Failed to set mode');
+        const { redirectUrl } = await res.json();
+        window.location.href = redirectUrl;
+        return;
+      } catch (err) {
+        console.error('[ModeSwitcher] Error:', err);
+        setIsLoading(false);
+      }
     }
+
+    updateSettings({ isFreeMode: nextState });
+    toast({
+      title: nextState ? 'Free Mode Active' : 'Full Fidelity Pulse',
+      description: nextState ? t('settings_free_mode_desc') : 'Media nodes synchronized.',
+    });
   };
 
   return (

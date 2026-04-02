@@ -142,10 +142,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
   const handleStartCall = (type: 'video' | 'audio') => {
     if (isCluster || isRequest) return;
-    if (settings.isFreeMode) {
-      toast({ title: "Free Mode is On", description: `Turn off Free Mode to make ${type} calls.` });
-      return;
-    }
     triggerHaptic(25);
     initiateCall(contact as Connection, type);
     router.push(`/messages/call/${(contact as Connection).username}`);

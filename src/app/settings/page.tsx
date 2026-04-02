@@ -366,23 +366,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="h-px bg-border -mx-6" />
-
-            <div className="flex items-center justify-between p-2">
-              <div className="flex items-center gap-4">
-                <div className={cn(
-                  "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
-                  settings.isFreeMode ? "bg-primary text-white" : "bg-primary/10 text-primary"
-                )}>
-                  <Zap className="h-5 w-5" />
-                </div>
-                <div className="space-y-0.5">
-                  <p className="font-bold text-sm">{t('settings_free_mode')}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase font-black">Conserve spatial energy (Data)</p>
-                </div>
-              </div>
-              <Switch checked={settings.isFreeMode} onCheckedChange={(val) => handleUpdate({ isFreeMode: val })} />
-            </div>
           </div>
         </section>
 

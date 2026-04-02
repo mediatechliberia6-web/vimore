@@ -19,7 +19,6 @@ import {
   Trash2
 } from "lucide-react";
 import { useMusic } from "@/context/MusicContext";
-import { usePosts } from "@/context/PostContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -43,7 +42,6 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const [recordedBlobUrl, setRecordedBlobUrl] = useState<string | null>(null);
   const [isViewOnceEnabled, setIsViewOnceEnabled] = useState(false);
   const { triggerHaptic } = useMusic();
-  const { settings } = usePosts();
   const { toast } = useToast();
   
   const inputRef = useRef<HTMLInputElement>(null);
@@ -92,11 +90,6 @@ export function ChatInput({ onSend }: ChatInputProps) {
   };
 
   const handleMediaTrigger = (filter: string) => {
-    if (settings.isFreeMode) {
-      const type = filter.startsWith("video") ? "videos" : "photos";
-      toast({ title: "Free Mode is On", description: `Turn off Free Mode to send ${type}.` });
-      return;
-    }
     triggerHaptic(5);
     setCurrentFilter(filter);
     setTimeout(() => {
@@ -105,10 +98,6 @@ export function ChatInput({ onSend }: ChatInputProps) {
   };
 
   const handleVoiceStart = async () => {
-    if (settings.isFreeMode) {
-      toast({ title: "Free Mode is On", description: "Turn off Free Mode to send voice messages." });
-      return;
-    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
