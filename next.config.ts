@@ -1,13 +1,17 @@
-// next.config.ts
+import type { NextConfig } from 'next';
 
-const withImages = require('next-images');
-
-module.exports = withImages({
+const nextConfig: NextConfig = {
   images: {
-    domains: ['storage.appwrite.io'], // Allow images only from Appwrite storage
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'storage.appwrite.io',
+      },
+    ],
   },
   typescript: {
-    // Remove ignoreBuildErrors
     ignoreBuildErrors: false,
   },
-});
+};
+
+export default nextConfig;
