@@ -4,31 +4,32 @@
  * Caches Appwrite document query results in-memory (current session)
  * AND in localStorage (persists across page reloads / revisits).
  *
- * Strategy: Cache-First for reads.
- *   1. Check in-memory map → instant hit, no overhead.
- *   2. Check localStorage  → serves the last known result immediately.
- *   3. Fetch from Appwrite → cache result in both layers.
+ * Strategy: Cache-First for reads — data is always served from local cache.
+ * Appwrite is only contacted on the very first fetch per item.
  *
  * TTLs (per collection type):
- *   posts       → 5 minutes
- *   music       → 30 minutes
- *   users       → 10 minutes
- *   default     → 15 minutes
+ *   posts / media → 30 days  (permanent for bandwidth saving)
+ *   music         → 30 days
+ *   users         → 30 days
+ *   messages      → 7  days
+ *   default       → 30 days
  */
 
 const LS_PREFIX = 'vimore_qcache_';
 
+const DAY = 24 * 60 * 60 * 1000;
+
 const TTL_MAP: Record<string, number> = {
-  posts:        5  * 60 * 1000,
-  tracks:       30 * 60 * 1000,
-  albums:       30 * 60 * 1000,
-  playlists:    30 * 60 * 1000,
-  users:        10 * 60 * 1000,
-  stories:      5  * 60 * 1000,
-  follows:      10 * 60 * 1000,
-  messages:     2  * 60 * 1000,
+  posts:        30 * DAY,
+  tracks:       30 * DAY,
+  albums:       30 * DAY,
+  playlists:    30 * DAY,
+  users:        30 * DAY,
+  stories:      30 * DAY,
+  follows:      30 * DAY,
+  messages:     7  * DAY,
 };
-const DEFAULT_TTL = 15 * 60 * 1000;
+const DEFAULT_TTL = 30 * DAY;
 
 interface CacheEntry<T> {
   data: T;

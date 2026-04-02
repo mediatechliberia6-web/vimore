@@ -24,7 +24,6 @@ import {
   Fingerprint,
   UserCheck,
   Users2,
-  Trash2,
   Lock,
   Globe,
   MoreVertical,
@@ -88,7 +87,7 @@ import { NativeAdNode } from "@/components/ad/native-ad-node";
 import ProfileLoading from "../profile/loading";
 
 export default function SettingsPage() {
-  const { settings, updateSettings, triggerHaptic, currentUser, connections, posts, savedPostIds, activeSubscriptions, cancelSubscription, seenPostIds, archiveIdentityNode, purgeVibeCache, isLoading, logout, enrollHardwareBiometrics } = usePosts();
+  const { settings, updateSettings, triggerHaptic, currentUser, connections, posts, savedPostIds, activeSubscriptions, cancelSubscription, seenPostIds, archiveIdentityNode, isLoading, logout, enrollHardwareBiometrics } = usePosts();
   const { currentTrack, isExpanded, downloadedSongIds, userSongs } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -426,20 +425,6 @@ export default function SettingsPage() {
                 <ArrowDownToLine className="ml-auto h-4 w-4 text-muted-foreground/40" />
               </Button>
 
-              <Button 
-                variant="outline" 
-                className="h-16 rounded-2xl border-destructive/10 bg-white dark:bg-card justify-start gap-4 px-6 group hover:bg-destructive/5 transition-all"
-                onClick={() => purgeVibeCache()}
-              >
-                <div className="h-10 w-10 rounded-xl bg-destructive/10 flex items-center justify-center text-destructive group-hover:scale-110 transition-transform">
-                  <Trash2 className="h-5 w-5" />
-                </div>
-                <div className="flex flex-col items-start">
-                  <span className="font-bold text-sm text-destructive">{t('settings_purge')}</span>
-                  <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Clear discovery history</span>
-                </div>
-                <RefreshCcw className="ml-auto h-4 w-4 text-muted-foreground/40" />
-              </Button>
             </div>
           </div>
         </section>
