@@ -41,7 +41,7 @@ export interface User {
   $id: string;
   name: string;
   username: string;
-  email?: string;
+  vimoreId?: string;
   phone?: string;
   avatar: string;
   cover?: string;
@@ -346,7 +346,7 @@ function mapDocToUser(authUser: Models.User<Models.Preferences>, doc: Models.Doc
     $id: authUser.$id,
     name: doc.name || authUser.name,
     username: doc.username || '',
-    email: authUser.email,
+    vimoreId: authUser.email,
     phone: doc.phone || undefined,
     avatar: doc.avatar_id ? getFileUrl(BUCKET.AVATARS, doc.avatar_id) : avatarFallback(doc.name || authUser.name),
     cover: doc.cover_id ? getFileUrl(BUCKET.COVERS, doc.cover_id) : undefined,
@@ -377,7 +377,7 @@ function mapProfileDocToUser(doc: Models.Document): User {
     $id: doc.$id,
     name: doc.name || '',
     username: doc.username || '',
-    email: doc.email || '',
+    vimoreId: doc.email || '',
     avatar: doc.avatar_id ? getFileUrl(BUCKET.AVATARS, doc.avatar_id) : avatarFallback(doc.name || 'U'),
     cover: doc.cover_id ? getFileUrl(BUCKET.COVERS, doc.cover_id) : undefined,
     isVerified: doc.is_verified || false,
@@ -831,8 +831,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, [selectedChatId, currentUser, loadChatMessages]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (identifier: string, password: string) => {
     setIsLoadingState(true);
+    const vimoreId = identifier.includes('@') ? identifier : `${identifier}@vimore.cfd`;
     try {
       let authUser;
       try {
@@ -841,7 +842,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         authUser = null;
       }
       if (!authUser) {
-        await account.createEmailPasswordSession(email, password);
+        await account.createEmailPasswordSession(vimoreId, password);
         authUser = await account.get();
       }
       const profileDoc = await databases.getDocument(DATABASE_ID, COL.USERS, authUser.$id);
@@ -868,10 +869,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const signup = useCallback(async (data: any) => {
     setIsLoadingState(true);
     try {
-      const authUser = await account.create(ID.unique(), data.email, data.password, data.name);
-      await account.createEmailPasswordSession(data.email, data.password);
+      const vimoreId = data.vimoreId.includes('@') ? data.vimoreId : `${data.vimoreId}@vimore.cfd`;
+      const authUser = await account.create(ID.unique(), vimoreId, data.password, data.name);
+      await account.createEmailPasswordSession(vimoreId, data.password);
 
-      const username = data.username || `${(data.name || 'user').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15)}${Math.floor(100 + Math.random() * 900)}`;
+      const parts = data.name.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/);
+      const username = parts.length >= 2 ? `${parts[0]}.${parts[parts.length - 1]}` : parts[0] || 'user';
       const referralCode = `VM${username.toUpperCase().slice(0, 6)}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
       const existingUsers = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.limit(1)]);
@@ -880,7 +883,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await databases.createDocument(DATABASE_ID, COL.USERS, authUser.$id, {
         name: data.name,
         username,
-        email: data.email,
+        email: vimoreId,
         bio: '',
         category: '',
         is_verified: false,
@@ -899,6 +902,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         referral_code: referralCode,
         referral_count: 0,
         language: 'en',
+        security_question: data.securityQuestion || '',
+        security_answer: (data.securityAnswer || '').toLowerCase().trim(),
       });
 
       setIsLoadingState(false);

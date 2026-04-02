@@ -71,7 +71,7 @@ const _collections: Record<string, Record<string, any>> = {
   users: {
     user_001: {
       $id: 'user_001', $createdAt: d(2160), $updatedAt: d(2),
-      name: 'Alex Johnson', username: 'alexjohnson', email: 'alex@vimore.com',
+      name: 'Alex Johnson', username: 'alex.johnson', email: 'alex.johnson@vimore.cfd',
       bio: 'Building the future, one post at a time. Digital creator & music lover 🎵✨',
       category: 'Creator', gender: 'Male', nationality: 'Liberian',
       date_of_birth: '1998-04-12',
@@ -81,10 +81,12 @@ const _collections: Record<string, Record<string, any>> = {
       gold_balance: 500, diamond_balance: 25, star_balance: 10,
       referral_code: 'VMALEXJO4X9', referral_count: 3,
       role: 'SUPER', join_date: d(2160), language: 'en',
+      security_question: "What was the name of your first pet?",
+      security_answer: 'buddy',
     },
     user_002: {
       $id: 'user_002', $createdAt: d(1800), $updatedAt: d(5),
-      name: 'Sarah Lee', username: 'sarahlee', email: 'sarah@vimore.com',
+      name: 'Sarah Lee', username: 'sarah.lee', email: 'sarah.lee@vimore.cfd',
       bio: 'Singer-songwriter 🎤 | Born to create | Stream my music below 🎶',
       category: 'Music', gender: 'Female', nationality: 'Liberian',
       date_of_birth: '1999-08-22',
@@ -94,10 +96,12 @@ const _collections: Record<string, Record<string, any>> = {
       gold_balance: 1200, diamond_balance: 80, star_balance: 35,
       referral_code: 'VMSARAHLX3K', referral_count: 11,
       role: 'USER', join_date: d(1800), language: 'en',
+      security_question: "What city were you born in?",
+      security_answer: 'monrovia',
     },
     user_003: {
       $id: 'user_003', $createdAt: d(1440), $updatedAt: d(12),
-      name: 'Marcus Brown', username: 'marcusbrown', email: 'marcus@vimore.com',
+      name: 'Marcus Brown', username: 'marcus.brown', email: 'marcus.brown@vimore.cfd',
       bio: 'Photographer | Traveler | Telling stories through lenses 📸🌍',
       category: 'Photography', gender: 'Male', nationality: 'Ghanaian',
       date_of_birth: '1995-11-30',
@@ -107,10 +111,12 @@ const _collections: Record<string, Record<string, any>> = {
       gold_balance: 230, diamond_balance: 5, star_balance: 2,
       referral_code: 'VMMARCU9P1Z', referral_count: 2,
       role: 'USER', join_date: d(1440), language: 'en',
+      security_question: "What is the name of your first school?",
+      security_answer: 'greenfield',
     },
     user_004: {
       $id: 'user_004', $createdAt: d(720), $updatedAt: d(1),
-      name: 'Emma Chen', username: 'emmachen', email: 'emma@vimore.com',
+      name: 'Emma Chen', username: 'emma.chen', email: 'emma.chen@vimore.cfd',
       bio: 'Tech & lifestyle blogger 💻 | Coding enthusiast | She/Her',
       category: 'Technology', gender: 'Female', nationality: 'Singaporean',
       date_of_birth: '2000-03-07',
@@ -120,10 +126,12 @@ const _collections: Record<string, Record<string, any>> = {
       gold_balance: 750, diamond_balance: 40, star_balance: 18,
       referral_code: 'VMEMMACHY2M', referral_count: 6,
       role: 'USER', join_date: d(720), language: 'en',
+      security_question: "What was your childhood nickname?",
+      security_answer: 'emmy',
     },
     user_admin: {
       $id: 'user_admin', $createdAt: d(4320), $updatedAt: d(0),
-      name: 'ViMore Admin', username: 'admin', email: 'admin@vimore.com',
+      name: 'ViMore Admin', username: 'vimore.admin', email: 'vimore.admin@vimore.cfd',
       bio: 'Platform Administrator',
       category: 'System', gender: 'Male', nationality: 'Liberian',
       date_of_birth: '1990-01-01',
@@ -133,6 +141,8 @@ const _collections: Record<string, Record<string, any>> = {
       gold_balance: 99999, diamond_balance: 9999, star_balance: 9999,
       referral_code: 'VMADMIN00000', referral_count: 0,
       role: 'SUPER', join_date: d(4320), language: 'en',
+      security_question: "What was the name of your first pet?",
+      security_answer: 'server',
     },
   },
 
@@ -606,27 +616,30 @@ export const account = {
     };
   },
 
-  async create(_id: string, email: string, _password: string, name: string): Promise<any> {
+  async create(_id: string, vimoreId: string, _password: string, name: string): Promise<any> {
     const newId = ID.unique();
-    const username = name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12) + Math.floor(100 + Math.random() * 900);
+    const parts = name.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/);
+    const username = parts.length >= 2 ? `${parts[0]}.${parts[parts.length - 1]}` : parts[0] || 'user';
     const newUser = {
       $id: newId, $createdAt: now, $updatedAt: now,
-      name, username, email, bio: '', category: '', gender: '',
+      name, username, email: vimoreId, bio: '', category: '', gender: '',
       nationality: '', date_of_birth: '', avatar_id: null, cover_id: null,
       is_verified: false, has_ever_been_verified: false,
       followers_count: 0, following_count: 0, friends_count: 0, posts_count: 0,
       gold_balance: 100, diamond_balance: 5, star_balance: 2,
       referral_code: 'VM' + username.toUpperCase().slice(0, 6) + Math.random().toString(36).slice(2, 5).toUpperCase(),
       referral_count: 0, role: 'USER', join_date: now, language: 'en',
+      security_question: '', security_answer: '',
     };
     _collections.users[newId] = newUser;
     _sessionUserId = newId;
-    return { $id: newId, name, email, emailVerification: false, $createdAt: now };
+    return { $id: newId, name, email: vimoreId, emailVerification: false, $createdAt: now };
   },
 
-  async createEmailPasswordSession(email: string, _password: string): Promise<void> {
-    const entry = Object.entries(_collections.users).find(([_, u]) => u.email === email);
-    if (!entry) throw new Error('[Mock] No account found with that email. Try: alex@vimore.com');
+  async createEmailPasswordSession(vimoreId: string, _password: string): Promise<void> {
+    const normalised = vimoreId.includes('@') ? vimoreId : `${vimoreId}@vimore.cfd`;
+    const entry = Object.entries(_collections.users).find(([_, u]) => u.email === normalised);
+    if (!entry) throw new Error('[Mock] No account found. Try: alex.johnson@vimore.cfd');
     _sessionUserId = entry[0];
   },
 
@@ -733,4 +746,17 @@ export function formatTimeAgo(date: Date | string): string {
 
 export function avatarFallback(_name?: string): string {
   return '';
+}
+
+export function getSecurityQuestion(vimoreId: string): string | null {
+  const normalised = vimoreId.includes('@') ? vimoreId : `${vimoreId}@vimore.cfd`;
+  const entry = Object.values(_collections.users).find((u: any) => u.email === normalised);
+  return entry ? (entry.security_question || null) : null;
+}
+
+export function verifySecurityAnswer(vimoreId: string, answer: string): boolean {
+  const normalised = vimoreId.includes('@') ? vimoreId : `${vimoreId}@vimore.cfd`;
+  const entry = Object.values(_collections.users).find((u: any) => u.email === normalised);
+  if (!entry) return false;
+  return (entry.security_answer || '').toLowerCase().trim() === answer.toLowerCase().trim();
 }

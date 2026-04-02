@@ -1,23 +1,19 @@
 
 'use server';
 
-/**
- * @fileOverview ViMore Identity Pulse (Prototype Edition)
- * Simulates identity materialization with phone-aware protocol logic.
- */
-
 export async function signupServerAction(input: {
-  email?: string;
+  vimoreId: string;
   phone?: string;
   password: string;
   name: string;
-  username: string;
   dob: string;
   nationality: string;
   gender: string;
+  securityQuestion: string;
+  securityAnswer: string;
   referredBy?: string;
 }) {
-  console.log("[PROTOTYPE] Identity Materialized:", input.username, "Identifier:", input.email || input.phone);
+  console.log("[PROTOTYPE] Identity Materialized:", input.vimoreId);
   return { 
     success: true, 
     userId: "NODE-" + Math.random().toString(36).substring(2, 8).toUpperCase() 

@@ -289,6 +289,7 @@ export default function MyProfilePage() {
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 py-6 my-4 border-y border-primary/5 bg-primary/[0.02] px-4 rounded-[2rem]">
+                  {currentUser.vimoreId && <InfoNode icon={AtSign} label="ViMore ID" value={currentUser.vimoreId} colorClass="bg-violet-500/10 text-violet-500" />}
                   <InfoNode icon={Globe} label="Spatial Origin" value={currentUser.nationality || "Liberian"} colorClass="bg-blue-500/10 text-blue-500" />
                   <InfoNode icon={Users} label="Gender Signature" value={currentUser.gender || 'Male'} colorClass="bg-purple-500/10 text-purple-500" />
                   {currentUser.phone && <InfoNode icon={Smartphone} label="Mobile Pulse" value={currentUser.phone} colorClass="bg-green-500/10 text-green-500" />}

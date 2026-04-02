@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Eye, EyeOff, Mail, Lock, User, Globe, Calendar, ArrowRight, Loader2,
-  CheckCircle2, Zap, Search, X, Sparkles, RefreshCw, ShieldCheck
+  Eye, EyeOff, Lock, User, Globe, Calendar, ArrowRight, Loader2,
+  CheckCircle2, Zap, Search, X, Sparkles, RefreshCw, ShieldCheck, AtSign, ShieldQuestion
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,16 +73,27 @@ const COUNTRIES = [
   { name: "Vanuatu", flag: "🇻🇺" },
 ];
 
-function generateUsername(name: string, existingUsernames: string[] = []): string {
-  const base = name.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).join("").substring(0, 15);
-  if (!base) return `user${Math.floor(1000 + Math.random() * 9000)}`;
-  let username = `${base}${Math.floor(100 + Math.random() * 900)}`;
-  let attempts = 0;
-  while (existingUsernames.includes(username) && attempts < 20) {
-    username = `${base}${Math.floor(100 + Math.random() * 9000)}`;
-    attempts++;
+const SECURITY_QUESTIONS = [
+  "What was the name of your first pet?",
+  "What city were you born in?",
+  "What is the name of your first school?",
+  "What was your childhood nickname?",
+  "What is your mother's maiden name?",
+];
+
+function generateVimoreId(name: string, suffix?: number): string {
+  const clean = name.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  let local = '';
+  if (parts.length >= 2) {
+    local = `${parts[0]}.${parts[parts.length - 1]}`;
+  } else if (parts.length === 1) {
+    local = parts[0];
+  } else {
+    local = 'user';
   }
-  return username;
+  if (suffix) local = `${local}${suffix}`;
+  return `${local}@vimore.cfd`;
 }
 
 function getPasswordStrength(password: string): { level: number; label: string; color: string } {
@@ -117,18 +128,21 @@ export default function SignupPage() {
   const router = useRouter();
 
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [dob, setDob] = useState("");
   const [nationality, setNationality] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [username, setUsername] = useState("");
+  const [vimoreId, setVimoreId] = useState("");
+  const [idSuffix, setIdSuffix] = useState<number | undefined>(undefined);
+  const [securityQuestion, setSecurityQuestion] = useState("");
+  const [securityAnswer, setSecurityAnswer] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [showCountryDialog, setShowCountryDialog] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
+  const [showQuestionPicker, setShowQuestionPicker] = useState(false);
 
   useEffect(() => {
     if (!contextLoading && currentUser) {
@@ -138,16 +152,18 @@ export default function SignupPage() {
 
   useEffect(() => {
     if (name.trim().length > 0) {
-      const generated = generateUsername(name);
-      setUsername(generated);
+      setIdSuffix(undefined);
+      setVimoreId(generateVimoreId(name));
     } else {
-      setUsername("");
+      setVimoreId("");
     }
   }, [name]);
 
-  const regenerateUsername = () => {
+  const regenerateId = () => {
     if (name.trim()) {
-      setUsername(generateUsername(name));
+      const newSuffix = Math.floor(10 + Math.random() * 90);
+      setIdSuffix(newSuffix);
+      setVimoreId(generateVimoreId(name, newSuffix));
     }
   };
 
@@ -177,9 +193,17 @@ export default function SignupPage() {
       toast({ variant: "destructive", title: "Password too short", description: "Password must be at least 8 characters." });
       return;
     }
+    if (!securityQuestion) {
+      toast({ variant: "destructive", title: "Security question required", description: "Please choose a security question." });
+      return;
+    }
+    if (!securityAnswer.trim()) {
+      toast({ variant: "destructive", title: "Security answer required", description: "Please answer your security question." });
+      return;
+    }
     setIsSubmitting(true);
     try {
-      const result = await signup({ name, email, password, dob, nationality, username });
+      const result = await signup({ name, vimoreId, password, dob, nationality, securityQuestion, securityAnswer });
       if (result.success) {
         setIsSuccess(true);
       } else if (!result.success && result.message) {
@@ -212,11 +236,13 @@ export default function SignupPage() {
               Your account is ready. Sign in now to start connecting.
             </p>
             <div className="inline-flex items-center gap-2 bg-violet-50 rounded-full px-4 py-2 mt-2">
-              <span className="text-[#9940E5] font-black text-sm">@{username}</span>
+              <AtSign className="h-4 w-4 text-[#9940E5]" />
+              <span className="text-[#9940E5] font-black text-sm">{vimoreId}</span>
             </div>
+            <p className="text-[11px] text-gray-400">This is your ViMore ID — use it to sign in.</p>
           </div>
           <button
-            onClick={() => router.replace("/")}
+            onClick={() => router.replace("/login")}
             className="inline-flex items-center justify-center w-full h-12 rounded-2xl bg-[#9940E5] text-white font-black italic uppercase tracking-widest text-sm shadow-xl shadow-violet-200 transition-all hover:bg-violet-700"
           >
             Sign In Now
@@ -262,6 +288,7 @@ export default function SignupPage() {
 
           <form onSubmit={handleSignup} className="space-y-4 animate-in fade-in slide-in-from-bottom-6 duration-700">
             <div className="bg-white rounded-[2rem] border border-gray-100 shadow-2xl shadow-violet-100/50 p-7 space-y-5">
+
               <div className="space-y-2">
                 <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Full Name</Label>
                 <div className="relative">
@@ -276,37 +303,26 @@ export default function SignupPage() {
                   />
                 </div>
 
-                {username && (
-                  <div className="flex items-center gap-2 pt-1 animate-in fade-in duration-300">
-                    <div className="flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-full px-3 py-1.5 flex-1 min-w-0">
-                      <span className="text-[11px] font-bold text-gray-400">@</span>
-                      <span className="text-sm font-black text-[#9940E5] truncate">{username}</span>
+                {vimoreId && (
+                  <div className="space-y-1 animate-in fade-in duration-300">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 pl-1">Your ViMore ID</p>
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <div className="flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-full px-3 py-1.5 flex-1 min-w-0">
+                        <AtSign className="h-3.5 w-3.5 text-[#9940E5] shrink-0" />
+                        <span className="text-sm font-black text-[#9940E5] truncate">{vimoreId}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={regenerateId}
+                        className="h-8 w-8 rounded-full bg-violet-50 border border-violet-100 flex items-center justify-center text-[#9940E5] hover:bg-violet-100 transition-colors shrink-0"
+                        title="Generate a different ID"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={regenerateUsername}
-                      className="h-8 w-8 rounded-full bg-violet-50 border border-violet-100 flex items-center justify-center text-[#9940E5] hover:bg-violet-100 transition-colors shrink-0"
-                      title="Generate new username"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                    </button>
+                    <p className="text-[10px] text-gray-400 font-medium pl-1">Use this to sign in. Tap refresh for a different one.</p>
                   </div>
                 )}
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    required
-                    className="h-14 pl-11 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
-                  />
-                </div>
               </div>
 
               <div className="space-y-2">
@@ -323,9 +339,7 @@ export default function SignupPage() {
                   />
                 </div>
                 {age && (
-                  <p className="text-[11px] font-bold text-[#9940E5] pl-2 animate-in fade-in duration-200">
-                    · {age}
-                  </p>
+                  <p className="text-[11px] font-bold text-[#9940E5] pl-2 animate-in fade-in duration-200">· {age}</p>
                 )}
               </div>
 
@@ -362,11 +376,7 @@ export default function SignupPage() {
                     required
                     className="h-14 pl-11 pr-12 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
-                  >
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors">
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
@@ -374,18 +384,10 @@ export default function SignupPage() {
                   <div className="space-y-1.5 animate-in fade-in duration-200">
                     <div className="flex gap-1">
                       {[1, 2, 3, 4, 5].map(i => (
-                        <div
-                          key={i}
-                          className="h-1.5 flex-1 rounded-full transition-all duration-300"
-                          style={{
-                            backgroundColor: i <= passwordStrength.level ? passwordStrength.color : "#f3f4f6"
-                          }}
-                        />
+                        <div key={i} className="h-1.5 flex-1 rounded-full transition-all duration-300" style={{ backgroundColor: i <= passwordStrength.level ? passwordStrength.color : "#f3f4f6" }} />
                       ))}
                     </div>
-                    <p className="text-[11px] font-bold pl-1" style={{ color: passwordStrength.color }}>
-                      {passwordStrength.label}
-                    </p>
+                    <p className="text-[11px] font-bold pl-1" style={{ color: passwordStrength.color }}>{passwordStrength.label}</p>
                   </div>
                 )}
               </div>
@@ -406,21 +408,53 @@ export default function SignupPage() {
                       "border-gray-100 focus:border-[#9940E5] focus:ring-[#9940E5]/20"
                     }`}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirm(!showConfirm)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
-                  >
+                  <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors">
                     {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
-                  {passwordsMatch && (
-                    <CheckCircle2 className="absolute right-12 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
-                  )}
+                  {passwordsMatch && <CheckCircle2 className="absolute right-12 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />}
                 </div>
-                {passwordsMismatch && (
-                  <p className="text-[11px] font-bold text-red-400 pl-1 animate-in fade-in duration-200">Passwords do not match</p>
-                )}
+                {passwordsMismatch && <p className="text-[11px] font-bold text-red-400 pl-1 animate-in fade-in duration-200">Passwords do not match</p>}
               </div>
+            </div>
+
+            <div className="bg-white rounded-[2rem] border border-gray-100 shadow-2xl shadow-violet-100/50 p-7 space-y-5">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <ShieldQuestion className="h-4 w-4 text-[#9940E5]" />
+                  <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Security Question</Label>
+                </div>
+                <p className="text-[11px] text-gray-400 font-medium">Used to recover your account if you forget your password.</p>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowQuestionPicker(true)}
+                  className="w-full min-h-14 px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-left flex items-start gap-3 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all outline-none"
+                >
+                  <ShieldQuestion className="h-4 w-4 text-gray-300 shrink-0 mt-0.5" />
+                  {securityQuestion ? (
+                    <span className="text-sm font-bold text-gray-800 leading-snug">{securityQuestion}</span>
+                  ) : (
+                    <span className="text-gray-300 text-sm font-medium">Choose a security question</span>
+                  )}
+                </button>
+              </div>
+
+              {securityQuestion && (
+                <div className="space-y-2 animate-in fade-in duration-300">
+                  <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Your Answer</Label>
+                  <Input
+                    type="text"
+                    value={securityAnswer}
+                    onChange={e => setSecurityAnswer(e.target.value)}
+                    placeholder="Type your answer"
+                    required
+                    className="h-14 px-4 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
+                  />
+                  <p className="text-[10px] text-gray-400 font-medium pl-1">Keep this answer memorable. It&apos;s not case-sensitive.</p>
+                </div>
+              )}
             </div>
 
             <div className="px-2">
@@ -433,16 +467,10 @@ export default function SignupPage() {
 
             <Button
               type="submit"
-              disabled={isSubmitting || !name || !email || !dob || !nationality || !password || !confirmPassword || passwordsMismatch}
+              disabled={isSubmitting || !name || !dob || !nationality || !password || !confirmPassword || passwordsMismatch || !securityQuestion || !securityAnswer.trim()}
               className="w-full h-14 rounded-2xl bg-[#9940E5] hover:bg-violet-700 text-white font-black italic uppercase tracking-[0.15em] text-sm shadow-xl shadow-violet-200 transition-all active:scale-95 gap-3"
             >
-              {isSubmitting ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <>
-                  Create Account <ArrowRight className="h-5 w-5" />
-                </>
-              )}
+              {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <> Create Account <ArrowRight className="h-5 w-5" /> </>}
             </Button>
 
             <div className="text-center pb-10">
@@ -463,57 +491,54 @@ export default function SignupPage() {
             <div className="p-6 pb-4 space-y-4 shrink-0">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">Select Country</h3>
-                <button
-                  onClick={() => { setShowCountryDialog(false); setCountrySearch(""); }}
-                  className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
-                >
+                <button onClick={() => { setShowCountryDialog(false); setCountrySearch(""); }} className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
                   <X className="h-4 w-4" />
                 </button>
               </div>
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
-                <Input
-                  type="text"
-                  value={countrySearch}
-                  onChange={e => setCountrySearch(e.target.value)}
-                  placeholder="Search country..."
-                  autoFocus
-                  className="h-12 pl-11 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
-                />
+                <Input type="text" value={countrySearch} onChange={e => setCountrySearch(e.target.value)} placeholder="Search country..." autoFocus className="h-12 pl-11 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all" />
               </div>
               <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">{filteredCountries.length} countries</p>
             </div>
             <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-1">
               {filteredCountries.map(country => (
-                <button
-                  key={country.name}
-                  type="button"
-                  onClick={() => {
-                    setNationality(country.name);
-                    setShowCountryDialog(false);
-                    setCountrySearch("");
-                  }}
-                  className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all text-left ${
-                    nationality === country.name
-                      ? "bg-violet-50 border border-violet-100"
-                      : "hover:bg-gray-50 border border-transparent"
-                  }`}
-                >
+                <button key={country.name} type="button" onClick={() => { setNationality(country.name); setShowCountryDialog(false); setCountrySearch(""); }} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all text-left ${nationality === country.name ? "bg-violet-50 border border-violet-100" : "hover:bg-gray-50 border border-transparent"}`}>
                   <span className="text-2xl">{country.flag}</span>
-                  <span className={`text-sm font-bold ${nationality === country.name ? "text-[#9940E5]" : "text-gray-700"}`}>
-                    {country.name}
-                  </span>
-                  {nationality === country.name && (
-                    <CheckCircle2 className="h-4 w-4 text-[#9940E5] ml-auto" />
-                  )}
+                  <span className={`text-sm font-bold ${nationality === country.name ? "text-[#9940E5]" : "text-gray-700"}`}>{country.name}</span>
+                  {nationality === country.name && <CheckCircle2 className="h-4 w-4 text-[#9940E5] ml-auto" />}
                 </button>
               ))}
               {filteredCountries.length === 0 && (
                 <div className="py-12 text-center">
-                  <Globe className="h-8 w-8 text-gray-200 mx-auto mb-3" />
                   <p className="text-sm font-bold text-gray-400">No countries found</p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showQuestionPicker && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end justify-center animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-[2rem] w-full max-w-lg shadow-2xl flex flex-col animate-in slide-in-from-bottom-4 duration-300" style={{ maxHeight: "60vh" }}>
+            <div className="p-6 pb-4 shrink-0 flex items-center justify-between">
+              <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">Security Question</h3>
+              <button onClick={() => setShowQuestionPicker(false)} className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-2">
+              {SECURITY_QUESTIONS.map(q => (
+                <button key={q} type="button" onClick={() => { setSecurityQuestion(q); setShowQuestionPicker(false); }}
+                  className={`w-full text-left px-4 py-4 rounded-2xl transition-all border ${securityQuestion === q ? "bg-violet-50 border-violet-100 text-[#9940E5]" : "bg-gray-50 border-gray-100 text-gray-800 hover:bg-gray-100"}`}>
+                  <div className="flex items-start gap-3">
+                    <ShieldQuestion className={`h-4 w-4 mt-0.5 shrink-0 ${securityQuestion === q ? "text-[#9940E5]" : "text-gray-400"}`} />
+                    <span className="text-sm font-bold leading-snug">{q}</span>
+                    {securityQuestion === q && <CheckCircle2 className="h-4 w-4 text-[#9940E5] ml-auto shrink-0" />}
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         </div>

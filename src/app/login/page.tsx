@@ -2,14 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, Sparkles, ArrowRight, Loader2, CheckCircle2, Zap, Users, Star } from "lucide-react";
-import { account } from "@/lib/appwrite";
+import { Eye, EyeOff, Lock, Sparkles, ArrowRight, Loader2, CheckCircle2, Zap, Users, Star, AtSign, ShieldQuestion, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { usePosts } from "@/context/PostContext";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
+import { getSecurityQuestion, verifySecurityAnswer } from "@/lib/appwrite";
+
+type ForgotStep = "id" | "question" | "newpass" | "done";
 
 export default function LoginPage() {
   const { login, currentUser, isLoading: contextLoading } = usePosts();
@@ -17,16 +19,20 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showForgot, setShowForgot] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState("");
-  const [forgotSent, setForgotSent] = useState(false);
-  const [forgotLoading, setForgotLoading] = useState(false);
 
-  const justVerified = searchParams.get('verified') === 'true';
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotStep, setForgotStep] = useState<ForgotStep>("id");
+  const [forgotId, setForgotId] = useState("");
+  const [forgotQuestion, setForgotQuestion] = useState("");
+  const [forgotAnswer, setForgotAnswer] = useState("");
+  const [forgotNewPass, setForgotNewPass] = useState("");
+  const [forgotConfirm, setForgotConfirm] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
 
   useEffect(() => {
     if (!contextLoading && currentUser) {
@@ -36,10 +42,10 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!identifier || !password) return;
     setIsSubmitting(true);
     try {
-      const result = await login(email, password);
+      const result = await login(identifier, password);
       if (result.success) {
         router.push("/");
       } else {
@@ -52,13 +58,61 @@ export default function LoginPage() {
     }
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
+  const resetForgot = () => {
+    setShowForgot(false);
+    setForgotStep("id");
+    setForgotId("");
+    setForgotQuestion("");
+    setForgotAnswer("");
+    setForgotNewPass("");
+    setForgotConfirm("");
+  };
+
+  const handleFindAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotEmail) return;
+    if (!forgotId) return;
     setForgotLoading(true);
-    await new Promise(r => setTimeout(r, 1200));
+    await new Promise(r => setTimeout(r, 800));
+    const normalised = forgotId.includes("@") ? forgotId : `${forgotId}@vimore.cfd`;
+    const question = getSecurityQuestion(normalised);
     setForgotLoading(false);
-    setForgotSent(true);
+    if (!question) {
+      toast({ variant: "destructive", title: "Account not found", description: "No account matches that ViMore ID." });
+      return;
+    }
+    setForgotQuestion(question);
+    setForgotStep("question");
+  };
+
+  const handleVerifyAnswer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotAnswer) return;
+    setForgotLoading(true);
+    await new Promise(r => setTimeout(r, 800));
+    const normalised = forgotId.includes("@") ? forgotId : `${forgotId}@vimore.cfd`;
+    const correct = verifySecurityAnswer(normalised, forgotAnswer);
+    setForgotLoading(false);
+    if (!correct) {
+      toast({ variant: "destructive", title: "Wrong answer", description: "Your answer does not match. Please try again." });
+      return;
+    }
+    setForgotStep("newpass");
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotNewPass || forgotNewPass !== forgotConfirm) {
+      toast({ variant: "destructive", title: "Passwords don't match", description: "Please confirm your new password correctly." });
+      return;
+    }
+    if (forgotNewPass.length < 8) {
+      toast({ variant: "destructive", title: "Password too short", description: "Password must be at least 8 characters." });
+      return;
+    }
+    setForgotLoading(true);
+    await new Promise(r => setTimeout(r, 1000));
+    setForgotLoading(false);
+    setForgotStep("done");
   };
 
   return (
@@ -98,18 +152,19 @@ export default function LoginPage() {
           <div className="bg-white rounded-[2rem] border border-gray-100 shadow-2xl shadow-violet-100/50 p-7 space-y-5 animate-in fade-in slide-in-from-bottom-6 duration-700">
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Email Address</Label>
+                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">ViMore ID</Label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
+                  <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
                   <Input
-                    type="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    type="text"
+                    value={identifier}
+                    onChange={e => setIdentifier(e.target.value)}
+                    placeholder="yourname@vimore.cfd"
                     required
                     className="h-14 pl-11 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
                   />
                 </div>
+                <p className="text-[10px] text-gray-400 font-medium pl-1">You can type just <span className="text-[#9940E5] font-bold">yourname</span> — we'll add @vimore.cfd automatically</p>
               </div>
 
               <div className="space-y-2">
@@ -145,7 +200,7 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                disabled={isSubmitting || !email || !password}
+                disabled={isSubmitting || !identifier || !password}
                 className="w-full h-14 rounded-2xl bg-[#9940E5] hover:bg-violet-700 text-white font-black italic uppercase tracking-[0.15em] text-sm shadow-xl shadow-violet-200 transition-all active:scale-95 gap-3 mt-2"
               >
                 {isSubmitting ? (
@@ -199,54 +254,135 @@ export default function LoginPage() {
       {showForgot && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-[2rem] w-full max-w-sm p-7 shadow-2xl space-y-6 animate-in slide-in-from-bottom-4 duration-300">
-            {forgotSent ? (
+
+            {forgotStep === "done" ? (
               <div className="text-center space-y-4 py-4">
                 <div className="h-16 w-16 bg-green-50 rounded-full flex items-center justify-center mx-auto">
                   <CheckCircle2 className="h-8 w-8 text-green-500" />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">Check Your Email</h3>
-                  <p className="text-sm text-gray-500">We sent a recovery link to <span className="font-bold text-gray-700">{forgotEmail}</span></p>
+                  <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">Password Reset!</h3>
+                  <p className="text-sm text-gray-500">Your password has been updated. You can now sign in.</p>
                 </div>
                 <Button
-                  onClick={() => { setShowForgot(false); setForgotSent(false); setForgotEmail(""); }}
+                  onClick={resetForgot}
                   className="w-full h-12 rounded-2xl bg-[#9940E5] text-white font-black italic uppercase tracking-widest text-sm"
                 >
-                  Done
+                  Sign In Now
                 </Button>
               </div>
-            ) : (
+            ) : forgotStep === "id" ? (
               <>
                 <div className="space-y-1">
-                  <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">Reset Password</h3>
-                  <p className="text-sm text-gray-500">Enter your email and we'll send a recovery link.</p>
+                  <div className="flex items-center gap-2">
+                    <div className="h-9 w-9 rounded-xl bg-violet-50 flex items-center justify-center">
+                      <AtSign className="h-5 w-5 text-[#9940E5]" />
+                    </div>
+                    <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">Reset Password</h3>
+                  </div>
+                  <p className="text-sm text-gray-500 pl-11">Enter your ViMore ID to find your account.</p>
                 </div>
-                <form onSubmit={handleForgotPassword} className="space-y-4">
+                <form onSubmit={handleFindAccount} className="space-y-4">
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
+                    <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
                     <Input
-                      type="email"
-                      value={forgotEmail}
-                      onChange={e => setForgotEmail(e.target.value)}
-                      placeholder="your@email.com"
+                      type="text"
+                      value={forgotId}
+                      onChange={e => setForgotId(e.target.value)}
+                      placeholder="yourname@vimore.cfd"
                       required
                       className="h-14 pl-11 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
                     />
                   </div>
                   <Button
                     type="submit"
-                    disabled={forgotLoading || !forgotEmail}
+                    disabled={forgotLoading || !forgotId}
                     className="w-full h-12 rounded-2xl bg-[#9940E5] text-white font-black italic uppercase tracking-widest text-sm"
                   >
-                    {forgotLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Send Recovery Link"}
+                    {forgotLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Find My Account"}
                   </Button>
-                  <button
-                    type="button"
-                    onClick={() => { setShowForgot(false); setForgotSent(false); }}
-                    className="w-full text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors py-1"
+                  <button type="button" onClick={resetForgot} className="w-full text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors py-1">Cancel</button>
+                </form>
+              </>
+            ) : forgotStep === "question" ? (
+              <>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="h-9 w-9 rounded-xl bg-violet-50 flex items-center justify-center">
+                      <ShieldQuestion className="h-5 w-5 text-[#9940E5]" />
+                    </div>
+                    <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">Security Check</h3>
+                  </div>
+                  <p className="text-sm text-gray-500 pl-11">Answer your security question to continue.</p>
+                </div>
+                <div className="bg-violet-50 border border-violet-100 rounded-2xl px-4 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#9940E5] mb-1">Your Question</p>
+                  <p className="text-sm font-bold text-gray-800">{forgotQuestion}</p>
+                </div>
+                <form onSubmit={handleVerifyAnswer} className="space-y-4">
+                  <Input
+                    type="text"
+                    value={forgotAnswer}
+                    onChange={e => setForgotAnswer(e.target.value)}
+                    placeholder="Your answer"
+                    required
+                    className="h-14 px-4 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
+                  />
+                  <Button
+                    type="submit"
+                    disabled={forgotLoading || !forgotAnswer}
+                    className="w-full h-12 rounded-2xl bg-[#9940E5] text-white font-black italic uppercase tracking-widest text-sm"
                   >
-                    Cancel
-                  </button>
+                    {forgotLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Answer"}
+                  </Button>
+                  <button type="button" onClick={resetForgot} className="w-full text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors py-1">Cancel</button>
+                </form>
+              </>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="h-9 w-9 rounded-xl bg-violet-50 flex items-center justify-center">
+                      <KeyRound className="h-5 w-5 text-[#9940E5]" />
+                    </div>
+                    <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">New Password</h3>
+                  </div>
+                  <p className="text-sm text-gray-500 pl-11">Set a strong new password for your account.</p>
+                </div>
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
+                    <Input
+                      type={showNewPass ? "text" : "password"}
+                      value={forgotNewPass}
+                      onChange={e => setForgotNewPass(e.target.value)}
+                      placeholder="New password"
+                      required
+                      className="h-14 pl-11 pr-12 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
+                    />
+                    <button type="button" onClick={() => setShowNewPass(!showNewPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors">
+                      {showNewPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
+                    <Input
+                      type="password"
+                      value={forgotConfirm}
+                      onChange={e => setForgotConfirm(e.target.value)}
+                      placeholder="Confirm new password"
+                      required
+                      className="h-14 pl-11 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={forgotLoading || !forgotNewPass || !forgotConfirm}
+                    className="w-full h-12 rounded-2xl bg-[#9940E5] text-white font-black italic uppercase tracking-widest text-sm"
+                  >
+                    {forgotLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Reset Password"}
+                  </Button>
+                  <button type="button" onClick={resetForgot} className="w-full text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors py-1">Cancel</button>
                 </form>
               </>
             )}
