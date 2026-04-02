@@ -47,7 +47,7 @@ export function StoryViewer() {
   const storyCampaignIndexRef = useRef(0);
 
   const activeStoryCampaigns = useMemo(() => 
-    campaigns.filter((c: any) => (c.isActive || c.is_active) && c.placement === 'story'),
+    campaigns.filter((c: any) => c.is_active && c.placement === 'story'),
     [campaigns]
   );
 
@@ -273,18 +273,18 @@ export function StoryViewer() {
             <div className="flex-1 relative overflow-hidden">
               {currentStoryCampaign ? (
                 <>
-                  {currentStoryCampaign.type === 'video' && (currentStoryCampaign.media_url || currentStoryCampaign.mediaUrl) ? (
+                  {currentStoryCampaign.type === 'video' && currentStoryCampaign.media_url ? (
                     <video 
-                      src={currentStoryCampaign.media_url || currentStoryCampaign.mediaUrl}
+                      src={currentStoryCampaign.media_url}
                       className="w-full h-full object-cover"
                       autoPlay
                       muted
                       loop
                       playsInline
                     />
-                  ) : (currentStoryCampaign.media_url || currentStoryCampaign.mediaUrl) ? (
+                  ) : currentStoryCampaign.media_url ? (
                     <Image 
-                      src={currentStoryCampaign.media_url || currentStoryCampaign.mediaUrl}
+                      src={currentStoryCampaign.media_url}
                       alt={currentStoryCampaign.title || "Sponsored"}
                       fill
                       className="object-cover"
@@ -304,15 +304,15 @@ export function StoryViewer() {
                         </p>
                       )}
                     </div>
-                    {(currentStoryCampaign.action_url || currentStoryCampaign.actionUrl) && (
+                    {currentStoryCampaign.action_url && (
                       <a
-                        href={currentStoryCampaign.action_url || currentStoryCampaign.actionUrl}
-                        target={(currentStoryCampaign.action_url || currentStoryCampaign.actionUrl || '').startsWith('http') ? '_blank' : '_self'}
+                        href={currentStoryCampaign.action_url}
+                        target={currentStoryCampaign.action_url.startsWith('http') ? '_blank' : '_self'}
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
                         className="inline-flex items-center gap-2 bg-white text-black font-black uppercase text-[11px] tracking-widest px-6 py-3 rounded-full shadow-xl hover:bg-white/90 active:scale-95 transition-all"
                       >
-                        {currentStoryCampaign.action_label || currentStoryCampaign.actionLabel || 'Learn More'} <ChevronRight className="h-3.5 w-3.5" />
+                        {currentStoryCampaign.action_label || 'Learn More'} <ChevronRight className="h-3.5 w-3.5" />
                       </a>
                     )}
                   </div>

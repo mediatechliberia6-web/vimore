@@ -626,7 +626,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setTrack: (t: Track) => {
       songsPlayedCountRef.current += 1;
       if (songsPlayedCountRef.current >= 2) {
-        const musicCampaigns = (campaigns || []).filter((c: any) => (c.isActive || c.is_active) && c.placement === 'music');
+        const musicCampaigns = (campaigns || []).filter((c: any) => c.is_active && c.placement === 'music');
         if (musicCampaigns.length > 0) {
           const ad = musicCampaigns[musicAdIndexRef.current % musicCampaigns.length];
           musicAdIndexRef.current += 1;

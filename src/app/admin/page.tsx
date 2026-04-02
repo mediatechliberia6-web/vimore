@@ -651,16 +651,16 @@ export default function AdminDashboard() {
                             {c.type === 'audio' ? (
                               <Music2 className="h-7 w-7 text-primary" />
                             ) : c.type === 'video' ? (
-                              (c.media_url || c.mediaUrl) ? <video src={c.media_url || c.mediaUrl} className="w-full h-full object-cover" muted /> : <Video className="h-7 w-7 text-muted-foreground" />
+                              c.media_url ? <video src={c.media_url} className="w-full h-full object-cover" muted /> : <Video className="h-7 w-7 text-muted-foreground" />
                             ) : (
-                              (c.media_url || c.mediaUrl) ? <Image src={c.media_url || c.mediaUrl} alt="Campaign" fill className="object-cover" /> : <ImageIcon className="h-7 w-7 text-muted-foreground" />
+                              c.media_url ? <Image src={c.media_url} alt="Campaign" fill className="object-cover" /> : <ImageIcon className="h-7 w-7 text-muted-foreground" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0 space-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <h5 className="font-bold text-sm truncate">{c.title}</h5>
-                              <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5 border-none", (c.isActive || c.is_active) ? "bg-green-500 text-white" : "bg-zinc-500 text-white")}>
-                                {(c.isActive || c.is_active) ? 'LIVE' : 'PAUSED'}
+                              <Badge className={cn("text-[8px] font-black uppercase h-4 px-1.5 border-none", c.is_active ? "bg-green-500 text-white" : "bg-zinc-500 text-white")}>
+                                {c.is_active ? 'LIVE' : 'PAUSED'}
                               </Badge>
                               <Badge variant="outline" className="text-[8px] font-black uppercase h-4 px-1.5 border-primary/20 text-primary">
                                 {c.type || 'photo'}
@@ -673,7 +673,7 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Switch checked={!!(c.isActive || c.is_active)} onCheckedChange={() => toggleCampaignStatus(c.$id)} />
+                            <Switch checked={!!c.is_active} onCheckedChange={() => toggleCampaignStatus(c.$id)} />
                             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-destructive" onClick={() => { triggerHaptic(50); deleteCampaign(c.$id); }}><Trash2 className="h-4 w-4" /></Button>
                           </div>
                         </div>

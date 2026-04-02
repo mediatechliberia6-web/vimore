@@ -642,7 +642,7 @@ export default function ReelsPage() {
 
   const reelFeed = useMemo<ReelFeedItem[]>(() => {
     const videoCampaigns = campaigns
-      .filter((c: any) => (c.is_active || c.isActive) && c.placement === 'reel' && c.type === "video" && (c.media_url || c.mediaUrl))
+      .filter((c: any) => c.is_active && c.placement === 'reel' && c.type === "video" && c.media_url)
       .map((c) => ({
         $id: c.$id,
         user: {
@@ -659,11 +659,11 @@ export default function ReelsPage() {
         comments: 0,
         shares: c.clicks || 0,
         views: c.impressions || 0,
-        videoUrl: c.media_url || c.mediaUrl,
+        videoUrl: c.media_url,
         isCampaignReel: true,
         campaignTitle: c.title,
-        actionUrl: c.action_url || c.actionUrl,
-        actionLabel: c.action_label || c.actionLabel,
+        actionUrl: c.action_url,
+        actionLabel: c.action_label,
       } as ReelFeedItem));
 
     if (videoCampaigns.length === 0) return reels as ReelFeedItem[];

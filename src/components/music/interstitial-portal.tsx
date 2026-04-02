@@ -22,8 +22,8 @@ export function MusicAdPortal() {
       }
       setTimeLeft(MAX_AD_DURATION);
 
-      if (currentMusicAd?.mediaUrl) {
-        const audio = new Audio(currentMusicAd.mediaUrl);
+      if (currentMusicAd?.media_url) {
+        const audio = new Audio(currentMusicAd.media_url);
         audioRef.current = audio;
         audio.muted = isMuted;
         audio.play().catch(() => {});
@@ -126,14 +126,14 @@ export function MusicAdPortal() {
           )}
         </div>
 
-        {(currentMusicAd?.action_url || currentMusicAd?.actionUrl) && (
+        {currentMusicAd?.action_url && (
           <a
-            href={currentMusicAd.action_url || currentMusicAd.actionUrl}
-            target={(currentMusicAd.action_url || currentMusicAd.actionUrl || '').startsWith('http') ? '_blank' : '_self'}
+            href={currentMusicAd.action_url}
+            target={currentMusicAd.action_url.startsWith('http') ? '_blank' : '_self'}
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md text-white border border-white/20 font-black uppercase text-[11px] tracking-widest px-6 py-3 rounded-full hover:bg-white/20 active:scale-95 transition-all"
           >
-            {currentMusicAd.action_label || currentMusicAd.actionLabel || 'Learn More'} <Zap className="h-3.5 w-3.5" />
+            {currentMusicAd.action_label || 'Learn More'} <Zap className="h-3.5 w-3.5" />
           </a>
         )}
 
