@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, startTransition, ReactNode, useEffect, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useRef, startTransition, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import {
@@ -178,6 +178,9 @@ interface PostContextType {
   currentUser: User | null;
   isAuthenticated: boolean;
   posts: Post[];
+  hasMoreFeed: boolean;
+  isFeedLoading: boolean;
+  loadMoreFeed: () => Promise<void>;
   activeComments: PostComment[];
   isLoading: boolean;
   initError: string | null;
@@ -472,6 +475,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const [currentUser, setCurrentUserState] = useState<User | null>(null);
   const [posts, setPostsState] = useState<Post[]>([]);
+  const [hasMoreFeed, setHasMoreFeed] = useState(true);
+  const [isFeedLoading, setIsFeedLoading] = useState(false);
+  const feedCursorRef = useRef<string | null>(null);
   const [activeComments, setActiveComments] = useState<PostComment[]>([]);
   const [isLoading, setIsLoadingState] = useState(true);
   const [initError] = useState<string | null>(null);
@@ -525,10 +531,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [settings.hapticIntensity]);
 
   const loadFeed = useCallback(async () => {
+    feedCursorRef.current = null;
+    setHasMoreFeed(true);
     try {
       const postsResult = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
         Query.orderDesc('$createdAt'),
-        Query.limit(25),
+        Query.limit(15),
       ]);
 
       const authorIds = [...new Set(postsResult.documents.map((p: any) => p.author_id).filter(Boolean))];
@@ -545,10 +553,52 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
       const mapped = postsResult.documents.map((doc: any) => mapDocToPost(doc, authorsMap[doc.author_id]));
       setPostsState(mapped);
+      if (postsResult.documents.length > 0) {
+        feedCursorRef.current = postsResult.documents[postsResult.documents.length - 1].$id;
+      }
+      setHasMoreFeed(postsResult.documents.length === 15);
     } catch (err) {
       console.error('loadFeed error:', err);
     }
   }, []);
+
+  const loadMoreFeed = useCallback(async () => {
+    if (!feedCursorRef.current || isFeedLoading) return;
+    setIsFeedLoading(true);
+    try {
+      const postsResult = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
+        Query.orderDesc('$createdAt'),
+        Query.cursorAfter(feedCursorRef.current),
+        Query.limit(15),
+      ]);
+
+      const authorIds = [...new Set(postsResult.documents.map((p: any) => p.author_id).filter(Boolean))];
+      let authorsMap: Record<string, any> = {};
+
+      if (authorIds.length > 0) {
+        try {
+          const authorsResult = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+            Query.equal('$id', authorIds),
+          ]);
+          authorsMap = Object.fromEntries(authorsResult.documents.map((u: any) => [u.$id, u]));
+        } catch { /* ignore */ }
+      }
+
+      const mapped = postsResult.documents.map((doc: any) => mapDocToPost(doc, authorsMap[doc.author_id]));
+      setPostsState(prev => {
+        const existingIds = new Set(prev.map(p => p.$id));
+        return [...prev, ...mapped.filter((p: any) => !existingIds.has(p.$id))];
+      });
+      if (postsResult.documents.length > 0) {
+        feedCursorRef.current = postsResult.documents[postsResult.documents.length - 1].$id;
+      }
+      setHasMoreFeed(postsResult.documents.length === 15);
+    } catch (err) {
+      console.error('loadMoreFeed error:', err);
+    } finally {
+      setIsFeedLoading(false);
+    }
+  }, [isFeedLoading]);
 
   const loadSocialGraph = useCallback(async (userId: string) => {
     try {
@@ -1878,7 +1928,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [currentUser, callState]);
 
   const value: PostContextType = {
-    currentUser, isAuthenticated: !!currentUser, posts, activeComments, isLoading, initError,
+    currentUser, isAuthenticated: !!currentUser, posts, hasMoreFeed, isFeedLoading, loadMoreFeed, activeComments, isLoading, initError,
     likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, viewedPostIds,
     followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames,
     receivedRequestUsernames, acceptedStrangerUsernames,

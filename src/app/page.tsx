@@ -5,7 +5,6 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { Header } from "@/components/layout/header";
 import { SubHeader } from "@/components/layout/sub-header";
 import { PostCard } from "@/components/post/post-card";
-import { NativeAdNode } from "@/components/ad/native-ad-node";
 import { Stories } from "@/components/feed/stories";
 import { SuggestedFollows } from "@/components/feed/suggested-follows";
 import { RightSidebar } from "@/components/layout/right-sidebar";
@@ -13,7 +12,7 @@ import { MainNav } from "@/components/layout/main-nav";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
-import { Rocket, Zap, Sparkles, Loader2, ShieldCheck, Globe, ArrowRight, Lock, CheckCircle2, FileText, Scale, Mail, ShieldAlert } from "lucide-react";
+import { Rocket, Loader2, ShieldCheck, Globe, ArrowRight, CheckCircle2, FileText, Scale, Mail } from "lucide-react";
 import { account } from "@/lib/appwrite";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -195,14 +194,15 @@ function LandingPage() {
 }
 
 export default function Home() {
-  const { posts, campaigns, isLoading, initError, followingUsernames, seenPostIds, isAuthenticated, currentUser, triggerHaptic } = usePosts();
+  const { posts, campaigns, isLoading, initError, followingUsernames, friendUsernames, seenPostIds, isAuthenticated, currentUser, triggerHaptic, loadMoreFeed, hasMoreFeed, isFeedLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
-  
-  const [displayLimit, setDisplayLimit] = useState(16);
-  const observerTarget = useRef(null);
+
+  const loadTriggerRef = useRef<HTMLDivElement | null>(null);
+  const endRef = useRef<HTMLDivElement | null>(null);
   const weights = useRef<Record<string, number>>({});
   const sessionSeen = useRef<Set<string>>(new Set());
+  const isLoadingMoreRef = useRef(false);
 
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -219,61 +219,89 @@ export default function Home() {
     const freshPosts = regular.filter(p => p.time === 'Just now');
     const freshIds = new Set(freshPosts.map(p => p.$id));
 
-    const followingUnseen = regular.filter(p => !freshIds.has(p.$id) && (followingUsernames.has(p.user.username) || p.user.username === currentUser?.username) && !sessionSeen.current.has(p.$id));
-    const followingUnseenIds = new Set(followingUnseen.map(p => p.$id));
-    const publicUnseen = regular.filter(p => !freshIds.has(p.$id) && !followingUsernames.has(p.user.username) && p.user.username !== currentUser?.username && !sessionSeen.current.has(p.$id) && !followingUnseenIds.has(p.$id));
-    const seenNodes = regular.filter(p => !freshIds.has(p.$id) && sessionSeen.current.has(p.$id));
     const stableSort = (arr: any[]) => [...arr].sort((a, b) => weights.current[a.$id] - weights.current[b.$id]);
-    return [...freshPosts, ...stableSort(followingUnseen), ...stableSort(publicUnseen), ...stableSort(seenNodes)];
-  }, [posts, followingUsernames]);
+
+    // Unseen posts from users the current user follows OR is friends with
+    const followingFriendUnseen = regular.filter(p =>
+      !freshIds.has(p.$id) &&
+      (followingUsernames.has(p.user.username) || friendUsernames.has(p.user.username) || p.user.username === currentUser?.username) &&
+      !sessionSeen.current.has(p.$id)
+    );
+    const followingFriendIds = new Set(followingFriendUnseen.map(p => p.$id));
+
+    // Unseen public posts (not from following/friends)
+    const publicUnseen = regular.filter(p =>
+      !freshIds.has(p.$id) &&
+      !followingFriendIds.has(p.$id) &&
+      !sessionSeen.current.has(p.$id)
+    );
+
+    // Already-seen posts (shown last)
+    const seenNodes = regular.filter(p =>
+      !freshIds.has(p.$id) &&
+      sessionSeen.current.has(p.$id)
+    );
+
+    return [...freshPosts, ...stableSort(followingFriendUnseen), ...stableSort(publicUnseen), ...stableSort(seenNodes)];
+  }, [posts, followingUsernames, friendUsernames, currentUser]);
 
   const feedItems = useMemo(() => {
     if (posts.length === 0) return [];
     const boostedPosts = posts.filter(p => p.isBoosted);
     const activeCampaigns = campaigns.filter((c: any) => c.is_active && c.placement === 'feed');
-    const result: (any)[] = [];
-    let organicIdx = 0; let boostedIdx = 0; let campaignIdx = 0;
-    let slotCount = 0;
+    const result: any[] = [];
+    let organicCount = 0;
+    let boostedIdx = 0;
+    let campaignIdx = 0;
+    let loadTriggerInserted = false;
+    let suggestionsInserted = false;
 
-    while (organicIdx < organicSorted.length) {
-      // Add 3 regular posts
-      for (let i = 0; i < 3 && organicIdx < organicSorted.length; i++) {
-        result.push({ type: 'post', data: organicSorted[organicIdx] });
-        organicIdx++;
-        slotCount++;
-        // Ad after 3rd post slot
-        if (slotCount === 3) result.push({ type: 'ad', id: `ad-init-${slotCount}` });
-        // Suggestions after 8th post slot
-        if (slotCount === 8) result.push({ type: 'suggestions', id: 'suggested-follows-8' });
+    for (let i = 0; i < organicSorted.length; i++) {
+      result.push({ type: 'post', data: organicSorted[i] });
+      organicCount++;
+
+      // Suggested follows after 8th organic post
+      if (organicCount === 8 && !suggestionsInserted) {
+        result.push({ type: 'suggestions', id: 'suggested-follows-8' });
+        suggestionsInserted = true;
       }
 
-      // Insert 1 campaign after every 3 posts (home feed only)
-      if (activeCampaigns.length > 0) {
+      // Load-more trigger after the 14th organic post
+      if (organicCount === 14 && !loadTriggerInserted) {
+        result.push({ type: 'load-trigger', id: 'load-trigger-14' });
+        loadTriggerInserted = true;
+      }
+
+      // After every 3 organic posts → campaign ad (independent slot)
+      if (organicCount % 3 === 0 && activeCampaigns.length > 0) {
         result.push({ type: 'campaign', data: activeCampaigns[campaignIdx % activeCampaigns.length] });
         campaignIdx++;
       }
 
-      // Boosted posts or periodic ads
-      if (boostedIdx < boostedPosts.length) {
-        result.push({ type: 'post', data: boostedPosts[boostedIdx] });
+      // After every 5 organic posts → boost post (independent slot)
+      if (organicCount % 5 === 0 && boostedIdx < boostedPosts.length) {
+        result.push({ type: 'boost', data: boostedPosts[boostedIdx] });
         boostedIdx++;
-      } else if (slotCount > 0 && slotCount % 10 === 0) {
-        result.push({ type: 'ad', id: `ad-seq-${slotCount}` });
       }
     }
-    return result.slice(0, displayLimit);
-  }, [organicSorted, posts, campaigns, displayLimit]);
 
+    return result;
+  }, [organicSorted, posts, campaigns]);
+
+  // Observe the load-trigger element (fires when user reaches the 14th post)
   useEffect(() => {
+    const el = loadTriggerRef.current;
+    if (!el) return;
     const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !isLoading && feedItems.length >= displayLimit) {
+      if (entries[0].isIntersecting && hasMoreFeed && !isFeedLoading && !isLoadingMoreRef.current) {
+        isLoadingMoreRef.current = true;
         triggerHaptic(5);
-        setDisplayLimit(prev => prev + 16);
+        loadMoreFeed().finally(() => { isLoadingMoreRef.current = false; });
       }
-    }, { threshold: 0.1, rootMargin: '100px' });
-    if (observerTarget.current) observer.observe(observerTarget.current);
+    }, { threshold: 0.1, rootMargin: '200px' });
+    observer.observe(el);
     return () => observer.disconnect();
-  }, [isLoading, feedItems.length, displayLimit, triggerHaptic]);
+  }, [feedItems, hasMoreFeed, isFeedLoading, loadMoreFeed, triggerHaptic]);
 
   // MANDATORY HANDSHAKE: Do not materialize feed if profile fetch is pending or failed
   if (isLoading) {
@@ -313,11 +341,15 @@ export default function Home() {
             {posts.length > 0 ? (
               <>
                 {feedItems.map((item, idx) => {
-                  if (item.type === 'ad') return <NativeAdNode key={item.id} type="banner" />;
                   if (item.type === 'suggestions') return <SuggestedFollows key={item.id} />;
+
+                  if (item.type === 'load-trigger') {
+                    return <div key={item.id} ref={loadTriggerRef} className="h-1" />;
+                  }
+
                   if (item.type === 'campaign') {
                     return (
-                      <PostCard 
+                      <PostCard
                         key={`campaign-${item.data.$id}-${idx}`}
                         $id={item.data.$id}
                         isCampaign={true}
@@ -336,16 +368,21 @@ export default function Home() {
                       />
                     );
                   }
+
+                  if (item.type === 'boost') {
+                    return <PostCard key={`boost-${item.data.$id}-${idx}`} {...item.data} />;
+                  }
+
                   return <PostCard key={`post-${item.data.$id}`} {...item.data} />;
                 })}
-                <div ref={observerTarget} className="h-20 flex items-center justify-center p-8">
-                  {feedItems.length < (posts.length + campaigns.length) ? (
+                <div ref={endRef} className="h-20 flex items-center justify-center p-8">
+                  {isFeedLoading ? (
                     <div className="flex items-center gap-2 text-muted-foreground/40 font-black uppercase text-[10px] tracking-[0.3em]">
                       <Loader2 className="h-4 w-4 animate-spin" /> Materializing...
                     </div>
-                  ) : (
+                  ) : !hasMoreFeed ? (
                     <div className="text-muted-foreground/20 text-[8px] font-black uppercase tracking-[0.5em]">Network End</div>
-                  )}
+                  ) : null}
                 </div>
               </>
             ) : !isLoading && (
