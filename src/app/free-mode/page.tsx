@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Heart, MessageCircle, Share2, Zap, Home, Compass, Bell, User, Menu, Loader2, Send, X, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Heart, MessageCircle, Share2, Zap, Home, Compass, Bell, User, Menu,
+  Loader2, Send, X, ChevronDown, ChevronUp, Image as ImageIcon, Video, Mic,
+  MoreHorizontal, Bookmark, Flag, Repeat2, Megaphone,
+} from 'lucide-react';
 import { ModeSwitcher } from '@/components/layout/mode-switcher';
 import { account, databases, Query, COL, DATABASE_ID, ID, formatTimeAgo } from '@/lib/appwrite';
 
@@ -16,7 +20,15 @@ type FreePost = {
   content: string;
   likes: number;
   comments: number;
+  shares: number;
   isVerified: boolean;
+  hasImage: boolean;
+  hasVideo: boolean;
+  hasAudio: boolean;
+  isBoosted: boolean;
+  isAd: boolean;
+  adText?: string;
+  role?: string;
 };
 
 type FreeComment = {
@@ -27,9 +39,10 @@ type FreeComment = {
   time: string;
 };
 
-type AuthUser = { $id: string; name: string } | null;
+type AuthUser = { $id: string; name: string; username?: string } | null;
 
 function formatCount(n: number): string {
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
   return String(n);
 }
@@ -38,15 +51,22 @@ function getInitials(name: string): string {
   return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
-function TextPostCard({
-  post,
-  authUser,
-  onLiked,
-}: {
-  post: FreePost;
-  authUser: AuthUser;
-  onLiked: (postId: string, delta: number) => void;
-}) {
+function MediaPlaceholder({ type }: { type: 'image' | 'video' | 'audio' }) {
+  const config = {
+    image: { icon: ImageIcon, label: '[Image — not available in Free Mode]', color: 'text-blue-500', bg: 'bg-blue-500/5 border-blue-500/20' },
+    video: { icon: Video, label: '[Video — not available in Free Mode]', color: 'text-purple-500', bg: 'bg-purple-500/5 border-purple-500/20' },
+    audio: { icon: Mic, label: '[Audio — not available in Free Mode]', color: 'text-orange-500', bg: 'bg-orange-500/5 border-orange-500/20' },
+  }[type];
+  const Icon = config.icon;
+  return (
+    <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border ${config.bg} my-1`}>
+      <Icon className={`w-4 h-4 flex-shrink-0 ${config.color}`} />
+      <span className={`text-[11px] font-bold ${config.color}`}>{config.label}</span>
+    </div>
+  );
+}
+
+function PostCard({ post, authUser, onLiked }: { post: FreePost; authUser: AuthUser; onLiked: (id: string, delta: number) => void }) {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.likes);
   const [showComments, setShowComments] = useState(false);
@@ -54,6 +74,7 @@ function TextPostCard({
   const [commentText, setCommentText] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
 
   const handleLike = async () => {
     if (!authUser) return;
@@ -64,27 +85,12 @@ function TextPostCard({
     onLiked(post.id, delta);
     try {
       if (newLiked) {
-        await databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), {
-          post_id: post.id,
-          user_id: authUser.$id,
-          type: 'like',
-        });
-        await databases.updateDocument(DATABASE_ID, COL.POSTS, post.id, {
-          likes_count: likeCount + 1,
-        });
+        await databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), { post_id: post.id, user_id: authUser.$id, type: 'like' });
+        await databases.updateDocument(DATABASE_ID, COL.POSTS, post.id, { likes_count: likeCount + 1 });
       } else {
-        const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [
-          Query.equal('post_id', post.id),
-          Query.equal('user_id', authUser.$id),
-          Query.equal('type', 'like'),
-          Query.limit(1),
-        ]);
-        if (existing.documents.length > 0) {
-          await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, existing.documents[0].$id);
-        }
-        await databases.updateDocument(DATABASE_ID, COL.POSTS, post.id, {
-          likes_count: Math.max(0, likeCount - 1),
-        });
+        const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [Query.equal('post_id', post.id), Query.equal('user_id', authUser.$id), Query.equal('type', 'like'), Query.limit(1)]);
+        if (existing.documents.length > 0) await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, existing.documents[0].$id);
+        await databases.updateDocument(DATABASE_ID, COL.POSTS, post.id, { likes_count: Math.max(0, likeCount - 1) });
       }
     } catch {
       setLiked(!newLiked);
@@ -95,11 +101,7 @@ function TextPostCard({
   const loadComments = useCallback(async () => {
     setLoadingComments(true);
     try {
-      const res = await databases.listDocuments(DATABASE_ID, COL.POST_COMMENTS, [
-        Query.equal('post_id', post.id),
-        Query.orderDesc('$createdAt'),
-        Query.limit(20),
-      ]);
+      const res = await databases.listDocuments(DATABASE_ID, COL.POST_COMMENTS, [Query.equal('post_id', post.id), Query.orderDesc('$createdAt'), Query.limit(20)]);
       const authorIds = [...new Set(res.documents.map((d: any) => d.user_id).filter(Boolean))];
       let authors: Record<string, any> = {};
       if (authorIds.length > 0) {
@@ -109,119 +111,135 @@ function TextPostCard({
       setComments(res.documents.map((d: any) => {
         const a = authors[d.user_id];
         const name = a?.name || 'User';
-        return {
-          id: d.$id,
-          name,
-          initials: getInitials(name),
-          content: d.content || '',
-          time: formatTimeAgo(d.$createdAt),
-        };
+        return { id: d.$id, name, initials: getInitials(name), content: d.content || '', time: formatTimeAgo(d.$createdAt) };
       }));
-    } catch {
-      setComments([]);
-    } finally {
-      setLoadingComments(false);
-    }
+    } catch { setComments([]); }
+    finally { setLoadingComments(false); }
   }, [post.id]);
 
-  const toggleComments = () => {
-    if (!showComments) loadComments();
-    setShowComments((v) => !v);
-  };
+  const toggleComments = () => { if (!showComments) loadComments(); setShowComments((v) => !v); };
 
   const handleComment = async () => {
     if (!authUser || !commentText.trim()) return;
     setSubmittingComment(true);
     try {
       await databases.createDocument(DATABASE_ID, COL.POST_COMMENTS, ID.unique(), {
-        post_id: post.id,
-        user_id: authUser.$id,
-        user_name: authUser.name || authUser.username || '',
-        user_avatar: authUser.avatar || '',
+        post_id: post.id, user_id: authUser.$id,
+        user_name: authUser.name || '',
+        user_avatar: '',
         content: commentText.trim(),
       });
-      await databases.updateDocument(DATABASE_ID, COL.POSTS, post.id, {
-        comments_count: post.comments + 1,
-      });
+      await databases.updateDocument(DATABASE_ID, COL.POSTS, post.id, { comments_count: post.comments + 1 });
       setCommentText('');
       loadComments();
-    } catch {
-    } finally {
-      setSubmittingComment(false);
-    }
+    } catch { } finally { setSubmittingComment(false); }
   };
 
   const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({ text: post.content, title: `${post.name} on ViMore` });
-      } catch { /* cancelled */ }
-    } else if (navigator.clipboard) {
-      await navigator.clipboard.writeText(post.content);
-    }
+    if (navigator.share) { try { await navigator.share({ text: post.content, title: `${post.name} on ViMore` }); } catch { } }
+    else if (navigator.clipboard) { await navigator.clipboard.writeText(post.content); }
   };
 
+  const roleBadge = post.role && post.role !== 'USER' ? post.role : null;
+
   return (
-    <article className="bg-white dark:bg-card rounded-2xl border border-border/60 p-4 space-y-3">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary text-sm font-black flex items-center justify-center flex-shrink-0 border border-primary/20">
-          {post.initials}
+    <article className="bg-white dark:bg-card rounded-2xl border border-border/60 overflow-hidden">
+      {post.isAd && (
+        <div className="flex items-center gap-1.5 px-4 pt-3 pb-1">
+          <Megaphone className="w-3 h-3 text-primary/60" />
+          <span className="text-[9px] font-black uppercase tracking-widest text-primary/60">Sponsored</span>
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="font-bold text-sm text-foreground truncate">{post.name}</span>
-            {post.isVerified && (
-              <span className="text-[9px] font-black uppercase tracking-widest text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
-                Verified
-              </span>
-            )}
+      )}
+      {post.isBoosted && !post.isAd && (
+        <div className="flex items-center gap-1.5 px-4 pt-3 pb-1">
+          <Zap className="w-3 h-3 text-orange-500/70" />
+          <span className="text-[9px] font-black uppercase tracking-widest text-orange-500/70">Boosted Post</span>
+        </div>
+      )}
+
+      <div className="px-4 pt-3 pb-2">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary/10 text-primary text-sm font-black flex items-center justify-center flex-shrink-0 border border-primary/20">
+            {post.initials}
           </div>
-          <span className="text-[11px] text-muted-foreground">@{post.username} · {post.time}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-bold text-sm text-foreground">{post.name}</span>
+              {post.isVerified && (
+                <span className="text-[9px] font-black uppercase tracking-widest text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">Verified</span>
+              )}
+              {roleBadge && (
+                <span className="text-[9px] font-black uppercase tracking-widest text-orange-600 bg-orange-500/10 px-1.5 py-0.5 rounded-full">{roleBadge}</span>
+              )}
+            </div>
+            <span className="text-[11px] text-muted-foreground">@{post.username} · {post.time}</span>
+          </div>
+          <button className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-gray-100 dark:hover:bg-muted transition-colors flex-shrink-0">
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
         </div>
+
+        {post.content && (
+          <p className="text-sm text-foreground/90 leading-relaxed mt-2.5">{post.content}</p>
+        )}
+
+        {post.hasImage && <div className="mt-2"><MediaPlaceholder type="image" /></div>}
+        {post.hasVideo && <div className="mt-2"><MediaPlaceholder type="video" /></div>}
+        {post.hasAudio && <div className="mt-2"><MediaPlaceholder type="audio" /></div>}
+
+        {post.adText && (
+          <div className="mt-2 px-3 py-2 bg-primary/5 border border-primary/15 rounded-xl">
+            <p className="text-xs text-primary font-bold">{post.adText}</p>
+          </div>
+        )}
       </div>
 
-      <p className="text-sm text-foreground/90 leading-relaxed">{post.content}</p>
-
-      <div className="flex items-center gap-4 pt-1 border-t border-border/40">
+      <div className="flex items-center gap-1 px-4 py-2.5 border-t border-border/40">
         <button
           onClick={handleLike}
-          className={`flex items-center gap-1.5 transition-colors ${liked ? 'text-red-500' : 'text-muted-foreground hover:text-red-500'} ${!authUser ? 'opacity-50 cursor-not-allowed' : ''}`}
-          title={authUser ? undefined : 'Log in to like posts'}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-colors text-xs font-bold ${liked ? 'text-red-500 bg-red-500/10' : 'text-muted-foreground hover:text-red-500 hover:bg-red-500/5'} ${!authUser ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
-          <span className="text-xs font-bold">{formatCount(likeCount)}</span>
+          {formatCount(likeCount)}
         </button>
         <button
           onClick={toggleComments}
-          className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors text-xs font-bold"
         >
           <MessageCircle className="w-4 h-4" />
-          <span className="text-xs font-bold">{formatCount(post.comments)}</span>
+          {formatCount(post.comments)}
           {showComments ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
         </button>
         <button
           onClick={handleShare}
-          className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors ml-auto"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-muted-foreground hover:text-green-500 hover:bg-green-500/5 transition-colors text-xs font-bold"
         >
+          <Repeat2 className="w-4 h-4" />
+          {post.shares > 0 && formatCount(post.shares)}
+        </button>
+        <div className="flex-1" />
+        <button
+          onClick={() => setBookmarked(b => !b)}
+          className={`p-1.5 rounded-xl transition-colors ${bookmarked ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
+        >
+          <Bookmark className={`w-4 h-4 ${bookmarked ? 'fill-current' : ''}`} />
+        </button>
+        <button onClick={handleShare} className="p-1.5 rounded-xl text-muted-foreground hover:text-primary transition-colors">
           <Share2 className="w-4 h-4" />
         </button>
       </div>
 
       {showComments && (
-        <div className="space-y-3 pt-1">
+        <div className="px-4 pb-3 space-y-3 border-t border-border/40 pt-3">
           {loadingComments ? (
-            <div className="flex justify-center py-3">
-              <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            </div>
+            <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 animate-spin text-primary" /></div>
           ) : comments.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-2">No comments yet.</p>
+            <p className="text-xs text-muted-foreground text-center py-2">No comments yet. Be the first.</p>
           ) : (
             <div className="space-y-2">
               {comments.map((c) => (
                 <div key={c.id} className="flex gap-2 items-start">
-                  <div className="w-7 h-7 rounded-full bg-primary/10 text-primary text-[10px] font-black flex items-center justify-center flex-shrink-0">
-                    {c.initials}
-                  </div>
+                  <div className="w-7 h-7 rounded-full bg-primary/10 text-primary text-[10px] font-black flex items-center justify-center flex-shrink-0">{c.initials}</div>
                   <div className="flex-1 bg-gray-50 dark:bg-muted rounded-xl px-3 py-2">
                     <span className="text-xs font-bold text-foreground">{c.name} </span>
                     <span className="text-[10px] text-muted-foreground">· {c.time}</span>
@@ -241,11 +259,7 @@ function TextPostCard({
                 placeholder="Write a comment..."
                 className="flex-1 px-3 py-2 text-xs rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
-              <button
-                onClick={handleComment}
-                disabled={submittingComment || !commentText.trim()}
-                className="p-2 rounded-xl bg-primary text-white disabled:opacity-50"
-              >
+              <button onClick={handleComment} disabled={submittingComment || !commentText.trim()} className="p-2 rounded-xl bg-primary text-white disabled:opacity-50">
                 {submittingComment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
               </button>
             </div>
@@ -271,22 +285,17 @@ function ComposeBox({ authUser, onPosted }: { authUser: AuthUser; onPosted: () =
         comments_count: 0,
         is_free_mode: true,
       });
-      await databases.updateDocument(DATABASE_ID, COL.USERS, authUser.$id, {
-        posts_count: 1,
-      }).catch(() => {});
+      await databases.updateDocument(DATABASE_ID, COL.USERS, authUser.$id, { posts_count: 1 }).catch(() => {});
       setText('');
       onPosted();
-    } catch {
-    } finally {
-      setSubmitting(false);
-    }
+    } catch { } finally { setSubmitting(false); }
   };
 
   return (
     <div className="bg-white dark:bg-card rounded-2xl border border-border/60 p-4 space-y-3">
       <div className="flex items-start gap-3">
         <div className="w-9 h-9 rounded-full bg-primary/10 text-primary text-xs font-black flex items-center justify-center flex-shrink-0 border border-primary/20">
-          {getInitials(authUser?.name || '')}
+          {getInitials(authUser?.name || 'Me')}
         </div>
         <textarea
           value={text}
@@ -339,17 +348,15 @@ export default function FreeModePage() {
         Query.orderDesc('$createdAt'),
         Query.limit(40),
       ]);
-      const textPosts = res.documents.filter(
-        (d: any) => !d.image_ids?.length && !d.video_id && d.content?.trim()
-      );
-      const authorIds = [...new Set(textPosts.map((d: any) => d.user_id).filter(Boolean))];
+      const docs = res.documents.filter((d: any) => d.content?.trim());
+      const authorIds = [...new Set(docs.map((d: any) => d.user_id).filter(Boolean))];
       let authorsMap: Record<string, any> = {};
       if (authorIds.length > 0) {
         const ar = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', authorIds as string[])]);
         authorsMap = Object.fromEntries(ar.documents.map((u: any) => [u.$id, u]));
       }
       setPosts(
-        textPosts.map((d: any) => {
+        docs.map((d: any) => {
           const author = authorsMap[d.user_id];
           const name = author?.name || 'User';
           return {
@@ -362,25 +369,26 @@ export default function FreeModePage() {
             content: d.content || '',
             likes: d.likes_count || 0,
             comments: d.comments_count || 0,
+            shares: d.shares_count || 0,
             isVerified: author?.is_verified || false,
+            hasImage: !!(d.image_ids?.length || d.image_id),
+            hasVideo: !!d.video_id,
+            hasAudio: !!d.audio_id,
+            isBoosted: !!d.is_boosted,
+            isAd: !!d.is_ad,
+            adText: d.ad_cta || '',
+            role: author?.role,
           };
         })
       );
-    } catch {
-      setPosts([]);
-    } finally {
-      setIsLoading(false);
-    }
+    } catch { setPosts([]); }
+    finally { setIsLoading(false); }
   }, []);
 
-  useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+  useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
   const handleLiked = (postId: string, delta: number) => {
-    setPosts((prev) =>
-      prev.map((p) => p.id === postId ? { ...p, likes: Math.max(0, p.likes + delta) } : p)
-    );
+    setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, likes: Math.max(0, p.likes + delta) } : p));
   };
 
   const navItems = [
@@ -405,7 +413,7 @@ export default function FreeModePage() {
         </div>
         <div className="flex items-center gap-2">
           {!checkingAuth && !authUser && (
-            <Link href="/login" className="text-[10px] font-black uppercase tracking-widest text-primary border border-primary/30 px-3 py-1.5 rounded-full hover:bg-primary/5 transition-colors">
+            <Link href="/free-mode/signup" className="text-[10px] font-black uppercase tracking-widest text-primary border border-primary/30 px-3 py-1.5 rounded-full hover:bg-primary/5 transition-colors">
               Log in
             </Link>
           )}
@@ -428,7 +436,7 @@ export default function FreeModePage() {
         {!checkingAuth && !authUser && (
           <div className="bg-primary/5 border border-primary/20 rounded-2xl px-4 py-3 flex items-center justify-between">
             <p className="text-xs font-bold text-primary">Log in to like, comment and post.</p>
-            <Link href="/login" className="text-[10px] font-black uppercase tracking-widest text-white bg-primary px-3 py-1.5 rounded-full hover:bg-primary/90 transition-colors">
+            <Link href="/free-mode/signup" className="text-[10px] font-black uppercase tracking-widest text-white bg-primary px-3 py-1.5 rounded-full hover:bg-primary/90 transition-colors">
               Log in
             </Link>
           </div>
@@ -445,12 +453,13 @@ export default function FreeModePage() {
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Loading posts...</p>
           </div>
         ) : posts.length === 0 ? (
-          <div className="py-16 text-center border border-dashed border-primary/20 rounded-2xl">
-            <p className="text-sm font-bold text-muted-foreground">No posts yet. Be the first to share something.</p>
+          <div className="py-16 text-center border border-dashed border-primary/20 rounded-2xl space-y-2">
+            <p className="text-sm font-bold text-muted-foreground">No posts yet.</p>
+            <p className="text-[11px] text-muted-foreground/60">Be the first to share something.</p>
           </div>
         ) : (
           posts.map((post) => (
-            <TextPostCard key={post.id} post={post} authUser={authUser} onLiked={handleLiked} />
+            <PostCard key={post.id} post={post} authUser={authUser} onLiked={handleLiked} />
           ))
         )}
       </div>
@@ -460,7 +469,7 @@ export default function FreeModePage() {
           <Link
             key={href}
             href={href}
-            className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-muted-foreground hover:text-primary transition-colors"
+            className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors ${href === '/free-mode' ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
           >
             <Icon className="h-5 w-5" />
             <span className="text-[9px] font-black uppercase tracking-wide">{label}</span>

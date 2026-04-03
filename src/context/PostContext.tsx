@@ -741,7 +741,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const now = new Date().toISOString();
       const storiesResult = await databases.listDocuments(DATABASE_ID, COL.STORIES, [
-        Query.greaterThan('expiry', now),
+        Query.greaterThan('expires_at', now),
         Query.orderDesc('$createdAt'),
         Query.limit(30),
       ]);
@@ -784,7 +784,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           $id: doc.$id,
           user: authorDoc ? mapProfileDocToUser(authorDoc) : { $id: doc.user_id, name: 'Unknown', username: 'unknown', avatar: avatarFallback('U'), isVerified: false },
           segments,
-          expiry: doc.expiry,
+          expiry: doc.expires_at || doc.expiry,
           viewCount: doc.view_count || 0,
         };
       });
@@ -1490,7 +1490,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const expiry = new Date(Date.now() + 86400000).toISOString();
       const storyDoc = await databases.createDocument(DATABASE_ID, COL.STORIES, ID.unique(), {
         user_id: currentUser.$id,
-        expiry,
+        expires_at: expiry,
         view_count: 0,
       });
 
