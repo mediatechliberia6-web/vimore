@@ -18,8 +18,8 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
-const RINGTONE_URL = "https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3";
-const RINGBACK_URL = "https://assets.mixkit.co/active_storage/sfx/131/131-preview.mp3";
+const RINGTONE_URL = "/sounds/incoming-ring.mp3";
+const RINGBACK_URL = "/sounds/outgoing-ring.mp3";
 
 export function IncomingCallOverlay() {
   const { callState, acceptCall, endCall, triggerHaptic, settings } = usePosts();

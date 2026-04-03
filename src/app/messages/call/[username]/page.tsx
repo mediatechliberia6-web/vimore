@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect, use, useCallback } from "react";
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Zap, Volume2, VolumeX, ChevronLeft } from "lucide-react";
+import { useState, useEffect, use, useCallback, useRef } from "react";
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Zap, Volume2, VolumeX, ChevronLeft, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+
+const APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID!;
 
 export default function CallPage({ params }: { params: Promise<{ username: string }> }) {
   const resolvedParams = use(params);
@@ -19,9 +21,14 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
   const [isVideoOff, setIsVideoOff] = useState(callState.type === 'audio');
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [callStatus, setCallStatus] = useState<'connecting' | 'connected' | 'failed'>('connecting');
-  const [callDuration, setCallDuration] = useState(0);
   const [statusText, setStatusText] = useState('Connecting...');
+  const [callDuration, setCallDuration] = useState(0);
+  const [remoteVideoVisible, setRemoteVideoVisible] = useState(false);
 
+  const callDurationRef = useRef(0);
+  const clientRef = useRef<any>(null);
+  const localAudioRef = useRef<any>(null);
+  const localVideoRef = useRef<any>(null);
   const isAudioCall = callState.type === 'audio';
 
   const formatDuration = (seconds: number) => {
@@ -31,12 +38,8 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setCallStatus('connected');
-      setStatusText('Call Active');
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, []);
+    callDurationRef.current = callDuration;
+  }, [callDuration]);
 
   useEffect(() => {
     if (callStatus !== 'connected') return;
@@ -50,21 +53,161 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
     }
   }, [callState.status, router]);
 
-  const handleMuteToggle = () => {
-    setIsMuted(!isMuted);
-    triggerHaptic(5);
-  };
+  const cleanup = useCallback(async () => {
+    try {
+      if (localAudioRef.current) {
+        localAudioRef.current.stop();
+        localAudioRef.current.close();
+        localAudioRef.current = null;
+      }
+    } catch {}
+    try {
+      if (localVideoRef.current) {
+        localVideoRef.current.stop();
+        localVideoRef.current.close();
+        localVideoRef.current = null;
+      }
+    } catch {}
+    try {
+      if (clientRef.current) {
+        await clientRef.current.leave();
+        clientRef.current = null;
+      }
+    } catch {}
+  }, []);
 
-  const handleVideoToggle = () => {
-    setIsVideoOff(!isVideoOff);
+  useEffect(() => {
+    let destroyed = false;
+
+    const startCall = async () => {
+      if (!APP_ID) {
+        setCallStatus('failed');
+        setStatusText('Agora App ID missing');
+        return;
+      }
+
+      try {
+        const AgoraRTC = (await import('agora-rtc-sdk-ng')).default;
+        AgoraRTC.setLogLevel(4);
+
+        const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
+        clientRef.current = client;
+
+        client.on('user-published', async (user: any, mediaType: 'audio' | 'video') => {
+          try {
+            await client.subscribe(user, mediaType);
+            if (mediaType === 'audio') {
+              user.audioTrack?.play();
+              if (!destroyed) {
+                setCallStatus('connected');
+                setStatusText('Call Active');
+              }
+            }
+            if (mediaType === 'video' && !isAudioCall) {
+              user.videoTrack?.play('remote-video-container');
+              if (!destroyed) setRemoteVideoVisible(true);
+            }
+          } catch {}
+        });
+
+        client.on('user-unpublished', (_user: any, mediaType: 'audio' | 'video') => {
+          if (mediaType === 'video' && !destroyed) setRemoteVideoVisible(false);
+        });
+
+        client.on('user-left', () => {
+          if (!destroyed) {
+            endCall(formatDuration(callDurationRef.current));
+            router.push('/messages');
+          }
+        });
+
+        let channelName = callState.channelName;
+        let token = callState.token;
+        const uid = Math.floor(Math.random() * 100000);
+
+        if (!channelName) {
+          channelName = `vimore_${Date.now()}`;
+        }
+
+        if (!token) {
+          try {
+            const { generateAgoraToken } = await import('@/app/actions/call');
+            token = await generateAgoraToken(channelName, uid);
+          } catch {
+            token = '';
+          }
+        }
+
+        await client.join(APP_ID, channelName, token || null, uid);
+
+        if (destroyed) return;
+        setStatusText('Publishing media...');
+
+        const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+        localAudioRef.current = audioTrack;
+        const tracksToPublish: any[] = [audioTrack];
+
+        if (!isAudioCall) {
+          try {
+            const videoTrack = await AgoraRTC.createCameraVideoTrack();
+            localVideoRef.current = videoTrack;
+            tracksToPublish.push(videoTrack);
+            if (!destroyed) videoTrack.play('local-video-container');
+          } catch {}
+        }
+
+        await client.publish(tracksToPublish);
+
+        if (!destroyed) {
+          setCallStatus('connected');
+          setStatusText('Call Active');
+        }
+      } catch (err: any) {
+        console.error('Agora call error:', err);
+        if (!destroyed) {
+          setCallStatus('failed');
+          setStatusText(err?.message || 'Connection failed');
+        }
+      }
+    };
+
+    startCall();
+
+    return () => {
+      destroyed = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      cleanup();
+    };
+  }, [cleanup]);
+
+  const handleMuteToggle = useCallback(() => {
+    setIsMuted(prev => {
+      const next = !prev;
+      try { localAudioRef.current?.setEnabled(!next); } catch {}
+      return next;
+    });
     triggerHaptic(5);
-  };
+  }, [triggerHaptic]);
+
+  const handleVideoToggle = useCallback(() => {
+    setIsVideoOff(prev => {
+      const next = !prev;
+      try { localVideoRef.current?.setEnabled(!next); } catch {}
+      return next;
+    });
+    triggerHaptic(5);
+  }, [triggerHaptic]);
 
   const handleEndCall = useCallback(async () => {
     triggerHaptic(100);
-    endCall(formatDuration(callDuration));
+    await cleanup();
+    endCall(formatDuration(callDurationRef.current));
     router.push('/messages');
-  }, [triggerHaptic, endCall, callDuration, router]);
+  }, [triggerHaptic, cleanup, endCall, router]);
 
   const contact = callState.contact;
   const contactName = contact?.name || resolvedParams.username;
@@ -72,51 +215,69 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
 
   return (
     <div className="fixed inset-0 z-[500] bg-black flex flex-col overflow-hidden">
-      <div className="absolute inset-0 z-0 bg-zinc-950">
-        {!isAudioCall && callStatus === 'connected' && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div
-              className="w-full h-full opacity-30"
-              style={{ background: 'radial-gradient(ellipse at center, #7c3aed 0%, #000 70%)' }}
-            />
-          </div>
-        )}
+      {!isAudioCall && (
+        <>
+          <div
+            id="remote-video-container"
+            className={cn(
+              "absolute inset-0 z-0 bg-zinc-950",
+              !remoteVideoVisible && "hidden"
+            )}
+          />
+          <div
+            id="local-video-container"
+            className="absolute bottom-32 right-4 z-20 w-28 h-40 rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 shadow-xl"
+          />
+        </>
+      )}
 
-        <div className="w-full h-full flex flex-col items-center justify-center space-y-8">
-          {callStatus === 'connecting' ? (
-            <>
-              <div className="relative">
-                <div className="absolute -inset-12 bg-primary/20 blur-3xl rounded-full animate-pulse" />
-                <div className="h-24 w-24 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                <Avatar className="absolute inset-4 h-16 w-16">
-                  <AvatarImage src={contactAvatar} />
-                  <AvatarFallback>{contactName?.[0]}</AvatarFallback>
-                </Avatar>
-              </div>
-              <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">Connecting...</h2>
-            </>
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center space-y-12">
-              <div className="relative">
-                <div className="absolute -inset-8 bg-primary/10 blur-2xl rounded-full animate-pulse" />
-                <Avatar className="h-48 w-48 border-4 border-primary shadow-2xl relative">
-                  <AvatarImage src={contactAvatar} />
-                  <AvatarFallback className="text-4xl">{contactName?.[0]}</AvatarFallback>
-                </Avatar>
-              </div>
-              <div className="text-center space-y-2">
-                <h3 className="text-3xl font-black italic uppercase text-white">{contactName}</h3>
-                <div className="flex items-center justify-center gap-2 text-primary animate-pulse font-black uppercase text-xs">
-                  <Volume2 className="h-4 w-4" /> {statusText}
-                </div>
-                {callStatus === 'connected' && (
-                  <p className="text-white/60 text-sm font-mono">{formatDuration(callDuration)}</p>
-                )}
-              </div>
-            </div>
+      {(isAudioCall || !remoteVideoVisible) && (
+        <div className="absolute inset-0 z-0 bg-zinc-950">
+          {!isAudioCall && callStatus === 'connected' && (
+            <div
+              className="absolute inset-0"
+              style={{ background: 'radial-gradient(ellipse at center, #7c3aed22 0%, #000 70%)' }}
+            />
           )}
+          <div className="w-full h-full flex flex-col items-center justify-center space-y-8">
+            {callStatus === 'connecting' ? (
+              <>
+                <div className="relative">
+                  <div className="absolute -inset-12 bg-primary/20 blur-3xl rounded-full animate-pulse" />
+                  <div className="h-24 w-24 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+                  <Avatar className="absolute inset-4 h-16 w-16">
+                    <AvatarImage src={contactAvatar} />
+                    <AvatarFallback>{contactName?.[0]}</AvatarFallback>
+                  </Avatar>
+                </div>
+                <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">{statusText}</h2>
+              </>
+            ) : callStatus === 'failed' ? (
+              <>
+                <WifiOff className="h-20 w-20 text-destructive" />
+                <p className="text-white/70 text-sm text-center px-8">{statusText}</p>
+              </>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center space-y-12">
+                <div className="relative">
+                  <div className="absolute -inset-8 bg-primary/10 blur-2xl rounded-full animate-pulse" />
+                  <Avatar className="h-48 w-48 border-4 border-primary shadow-2xl relative">
+                    <AvatarImage src={contactAvatar} />
+                    <AvatarFallback className="text-4xl">{contactName?.[0]}</AvatarFallback>
+                  </Avatar>
+                </div>
+                <div className="text-center space-y-2">
+                  <h3 className="text-3xl font-black italic uppercase text-white">{contactName}</h3>
+                  <div className="flex items-center justify-center gap-2 text-primary animate-pulse font-black uppercase text-xs">
+                    <Volume2 className="h-4 w-4" /> {statusText}
+                  </div>
+                  <p className="text-white/60 text-sm font-mono">{formatDuration(callDuration)}</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <header className="absolute top-0 left-0 right-0 z-50 px-6 py-8 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
         <div className="flex items-center gap-4">
@@ -158,7 +319,10 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
 
           <div className="w-px h-8 bg-white/10 mx-1" />
 
-          <Button className="h-16 w-16 rounded-full bg-destructive text-white shadow-xl shadow-destructive/20" onClick={handleEndCall}>
+          <Button
+            className="h-16 w-16 rounded-full bg-destructive text-white shadow-xl shadow-destructive/20"
+            onClick={handleEndCall}
+          >
             <PhoneOff className="h-8 w-8" />
           </Button>
 

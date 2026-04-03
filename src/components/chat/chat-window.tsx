@@ -46,6 +46,7 @@ import {
   Ban
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { playNotificationSound } from "@/lib/notification-sound";
 import { Connection, Cluster, usePosts } from "@/context/PostContext";
 import { ChatBubble } from "./chat-bubble";
 import { ChatInput } from "./chat-input";
@@ -106,12 +107,24 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
   const messages = useMemo(() => chatMessages[contactId] || [], [chatMessages, contactId]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const prevMsgCountRef = useRef(0);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, showVault]);
+
+  useEffect(() => {
+    const count = messages.length;
+    if (count > prevMsgCountRef.current && count > 0) {
+      const last = messages[count - 1];
+      if (last && last.sender !== currentUser?.username && !settings.isSilenceActive) {
+        playNotificationSound();
+      }
+    }
+    prevMsgCountRef.current = count;
+  }, [messages, currentUser?.username, settings.isSilenceActive]);
 
   const handleSend = async (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string }) => {
     triggerHaptic(10);

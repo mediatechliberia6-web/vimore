@@ -40,10 +40,7 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-const SOUNDS = {
-  cyberpunk: "https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3",
-  lofi: "https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3",
-};
+const NOTIFICATION_SOUND = "/sounds/notification.mp3";
 
 function formatTimeAgoSimple(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -103,9 +100,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         : (currentTime >= settings.silenceStart || currentTime <= settings.silenceEnd);
       if (isSilenced) return;
     }
-    const soundUrl = settings.activeSoundSet === 'cyberpunk' ? SOUNDS.cyberpunk : SOUNDS.lofi;
-    const audio = new Audio(soundUrl);
-    audio.volume = 0.4;
+    const audio = new Audio(NOTIFICATION_SOUND);
+    audio.volume = 0.5;
     audio.play().catch(() => {});
   }, [settings]);
 
