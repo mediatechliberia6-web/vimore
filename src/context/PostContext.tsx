@@ -9,6 +9,7 @@ import {
   getFileUrl, extractFileId, formatTimeAgo, avatarFallback,
 } from '@/lib/appwrite';
 import { withCache, cacheInvalidate } from '@/lib/query-cache';
+import { formatErrorDescription, logAppwriteError } from '@/lib/appwrite-error';
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
@@ -584,7 +585,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
       setHasMoreFeed(postsResult.documents.length === 15);
     } catch (err) {
-      console.error('loadFeed error:', err);
+      logAppwriteError('loadFeed', err);
     }
   }, []);
 
@@ -620,7 +621,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
       setHasMoreFeed(postsResult.documents.length === 15);
     } catch (err) {
-      console.error('loadMoreFeed error:', err);
+      logAppwriteError('loadMoreFeed', err);
     } finally {
       setIsFeedLoading(false);
     }
@@ -980,7 +981,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       return { success: true };
     } catch (err: any) {
       setIsLoadingState(false);
-      const msg = err?.message || 'Invalid credentials. Please try again.';
+      logAppwriteError('login', err);
+      const msg = formatErrorDescription(err, null) || 'Invalid credentials. Please try again.';
       return { success: false, message: msg };
     }
   }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters]);
@@ -1051,7 +1053,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       return { success: true };
     } catch (err: any) {
       setIsLoadingState(false);
-      const msg = err?.message || 'Signup failed. Please try again.';
+      logAppwriteError('signup', err);
+      const msg = formatErrorDescription(err, null) || 'Signup failed. Please try again.';
       return { success: false, message: msg };
     }
   }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters]);
@@ -1139,7 +1142,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (logsRes.status === 'fulfilled') setAuditLogs(logsRes.value.documents);
       if (staffRes.status === 'fulfilled') setStaff(staffRes.value.documents.map(mapProfileDocToUser));
     } catch (err) {
-      console.error('refreshAdminData error:', err);
+      logAppwriteError('refreshAdminData', err);
     }
   }, []);
 
@@ -1156,7 +1159,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         setBroadcastHistory(broadcastRes.value.documents);
       }
     } catch (err) {
-      console.error('refreshAllUsers error:', err);
+      logAppwriteError('refreshAllUsers', err);
     }
   }, []);
 
@@ -1339,7 +1342,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       setCurrentUserState(prev => prev ? { ...prev, posts: (prev.posts as number || 0) + 1 } : null);
       toast({ title: "Post published!" });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Failed to publish post", description: err?.message });
+      logAppwriteError('addPost', err);
+      toast({ variant: "destructive", title: "Failed to publish post", description: formatErrorDescription(err, currentUser?.role) });
     }
   };
 
@@ -1350,7 +1354,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       cacheInvalidate(COL.POSTS);
       toast({ title: "Post deleted" });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Failed to delete post", description: err?.message });
+      logAppwriteError('deletePost', err);
+      toast({ variant: "destructive", title: "Failed to delete post", description: formatErrorDescription(err, currentUser?.role) });
     }
   };
 
@@ -1514,7 +1519,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       setStoriesState(prev => [newStory, ...prev]);
       toast({ title: "Story posted!" });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Failed to post story", description: err?.message });
+      logAppwriteError('addStory', err);
+      toast({ variant: "destructive", title: "Failed to post story", description: formatErrorDescription(err, currentUser?.role) });
     }
   };
 
@@ -1537,7 +1543,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         status: 'PENDING',
       });
       toast({ title: "Friend request sent!" });
-    } catch { /* keep optimistic */ }
+    } catch (err) { logAppwriteError('sendFriendRequest', err); }
   }, [currentUser, toast]);
 
   const confirmFriendRequest = useCallback(async (username: string) => {
@@ -1803,7 +1809,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         performed_by: currentUser?.username || 'system',
         performed_by_avatar: currentUser?.avatar || '',
       });
-    } catch { /* ignore */ }
+    } catch (err) { logAppwriteError('addAuditLog', err); }
   }, [currentUser]);
 
   const createPaymentRequest = useCallback(async (screenshotUrl: string) => {
@@ -1833,7 +1839,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         screenshot_id: screenshotFileId,
         status: 'PENDING',
       });
-    } catch { /* keep optimistic */ }
+    } catch (err) { logAppwriteError('createPaymentRequest', err); }
     toast({ title: "Payment request submitted!" });
   }, [currentUser, pendingTransaction, toast]);
 
@@ -1860,7 +1866,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         phone_number: n.phoneNumber || '', payment_method: n.method || 'MOBILE_MONEY',
         status: 'PENDING',
       });
-    } catch { /* keep optimistic */ }
+    } catch (err) { logAppwriteError('recordWithdrawal', err); }
   };
 
   const processWithdrawal = async (id: string, status: 'APPROVED' | 'REJECTED') => {
@@ -1889,7 +1895,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       setClustersState(prev => [...prev, newCluster]);
       toast({ title: "Cluster created!" });
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Failed to create cluster", description: err?.message });
+      logAppwriteError('createCluster', err);
+      toast({ variant: "destructive", title: "Failed to create cluster", description: formatErrorDescription(err, currentUser?.role) });
     }
   };
 
@@ -1964,7 +1971,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
       setCampaignsState(prev => [doc, ...prev]);
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Failed to create campaign", description: err?.message || "Please try again." });
+      logAppwriteError('addCampaign', err);
+      toast({ variant: "destructive", title: "Failed to create campaign", description: formatErrorDescription(err, currentUser?.role) });
       throw err;
     }
   };
@@ -2084,7 +2092,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
     } catch (err: any) {
       if (err?.message?.includes('PROTECTED_SUPER_ADMIN')) return;
-      /* ignore other errors */
+      logAppwriteError('removeStaff', err);
     }
   };
 
