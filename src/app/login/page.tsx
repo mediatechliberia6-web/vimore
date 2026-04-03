@@ -302,19 +302,19 @@ export default function LoginPage() {
                 )}
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">ViMore ID</Label>
+                    <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">ViMore ID or Phone Number</Label>
                     <div className="relative">
                       <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
                       <Input
                         type="text"
                         value={identifier}
                         onChange={e => setIdentifier(e.target.value)}
-                        placeholder="yourname@vimore.cfd"
+                        placeholder="yourname@vimore.cfd or +1 555 000 0000"
                         required
                         className="h-14 pl-11 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
                       />
                     </div>
-                    <p className="text-[10px] text-gray-400 font-medium pl-1">You can type just <span className="text-[#9940E5] font-bold">yourname</span> — we'll add @vimore.cfd automatically</p>
+                    <p className="text-[10px] text-gray-400 font-medium pl-1">Use your ViMore ID <span className="text-[#9940E5] font-bold">(yourname)</span> or your registered phone number with country code.</p>
                   </div>
 
                   <div className="space-y-2">

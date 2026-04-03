@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Eye, EyeOff, Lock, User, Globe, Calendar, ArrowRight, Loader2,
-  CheckCircle2, Zap, Search, X, Sparkles, RefreshCw, ShieldCheck, AtSign, ShieldQuestion
+  CheckCircle2, Zap, Search, X, Sparkles, RefreshCw, ShieldCheck, AtSign, ShieldQuestion, Smartphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -136,6 +136,7 @@ export default function SignupPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [vimoreId, setVimoreId] = useState("");
   const [idSuffix, setIdSuffix] = useState<number | undefined>(undefined);
+  const [phone, setPhone] = useState("");
   const [securityQuestion, setSecurityQuestion] = useState("");
   const [securityAnswer, setSecurityAnswer] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -202,7 +203,7 @@ export default function SignupPage() {
     }
     setIsSubmitting(true);
     try {
-      const result = await signup({ name, vimoreId, password, dob, nationality, securityQuestion, securityAnswer });
+      const result = await signup({ name, vimoreId, password, dob, nationality, securityQuestion, securityAnswer, phone: phone.trim() || undefined });
       if (result.success) {
         router.replace("/");
       } else if (!result.success && result.message) {
@@ -323,6 +324,24 @@ export default function SignupPage() {
                     <span className="text-gray-300 text-sm font-medium">Select your country</span>
                   )}
                 </button>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Phone Number</Label>
+                  <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Optional</span>
+                </div>
+                <div className="relative">
+                  <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
+                  <Input
+                    type="tel"
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    placeholder="+1 555 000 0000"
+                    className="h-14 pl-11 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400 font-medium pl-1">Include country code (e.g. +231). Use this to sign in instead of your ViMore ID.</p>
               </div>
             </div>
 

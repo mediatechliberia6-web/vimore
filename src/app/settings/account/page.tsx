@@ -95,7 +95,12 @@ export default function AccountCenter() {
 
   const handleSave = () => {
     triggerHaptic(25);
-    updateCurrentUser({ name: formData.name });
+    const updates: any = { name: formData.name };
+    const normalized = formData.phone.replace(/[\s\-().]/g, '');
+    if (normalized !== (currentUser?.phone || '').replace(/[\s\-().]/g, '')) {
+      updates.phone = normalized || undefined;
+    }
+    updateCurrentUser(updates);
     toast({ title: t('ui_linguistic_sync'), description: "Your account credentials have been synchronized." });
   };
 
@@ -209,11 +214,21 @@ export default function AccountCenter() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground ml-1">Mobile Pulse</Label>
+                  <div className="flex items-center justify-between ml-1">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Mobile Pulse</Label>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Optional · Used for sign-in</span>
+                  </div>
                   <div className="relative">
                     <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="h-14 pl-12 bg-secondary/30 border-none rounded-2xl font-bold focus-visible:ring-primary/20" />
+                    <Input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                      placeholder="+1 555 000 0000"
+                      className="h-14 pl-12 bg-secondary/30 border-none rounded-2xl font-bold focus-visible:ring-primary/20"
+                    />
                   </div>
+                  <p className="text-[9px] font-bold text-muted-foreground/60 pl-1">Include your country code. You can sign in with this number instead of your ViMore ID.</p>
                 </div>
               </div>
             </CardContent>

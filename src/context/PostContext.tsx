@@ -922,7 +922,28 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (identifier: string, password: string) => {
     setIsLoadingState(true);
-    const vimoreId = identifier.includes('@') ? identifier : `${identifier}@vimore.cfd`;
+
+    const trimmed = identifier.trim();
+    const isPhone = !trimmed.includes('@') && /^[+\d][\d\s\-().]{5,}$/.test(trimmed);
+    let vimoreId: string;
+
+    if (isPhone) {
+      const normalized = trimmed.replace(/[\s\-().]/g, '');
+      try {
+        const phoneRes = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('phone', normalized), Query.limit(1)]);
+        if (!phoneRes.documents.length) {
+          setIsLoadingState(false);
+          return { success: false, message: "No account found with that phone number." };
+        }
+        vimoreId = phoneRes.documents[0].email;
+      } catch {
+        setIsLoadingState(false);
+        return { success: false, message: "Could not look up that phone number. Please try your ViMore ID." };
+      }
+    } else {
+      vimoreId = trimmed.includes('@') ? trimmed : `${trimmed}@vimore.cfd`;
+    }
+
     try {
       let authUser;
       try {
@@ -1002,6 +1023,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         language: 'en',
         security_question: data.securityQuestion || '',
         security_answer: (data.securityAnswer || '').toLowerCase().trim(),
+        ...(data.phone ? { phone: data.phone.replace(/[\s\-().]/g, '') } : {}),
       });
 
       const user = mapDocToUser(authUser, newDoc);
