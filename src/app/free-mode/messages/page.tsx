@@ -65,9 +65,11 @@ function ConversationThread({ authUser, partnerId, partnerName, onBack }: { auth
     setMessages(prev => [...prev, optimistic]);
     try {
       await databases.createDocument(DATABASE_ID, COL.MESSAGES, ID.unique(), {
+        user_id: authUser.$id,
         sender_id: authUser.$id,
         receiver_id: partnerId,
         content: trimmed,
+        type: 'text',
         is_read: false,
       });
     } catch {

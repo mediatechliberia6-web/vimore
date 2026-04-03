@@ -165,4 +165,13 @@ Code fixes applied in `PostContext.tsx`:
 - Friends page `/friends`: "Add" tab now fetches all users from database via `fetchAllUsersForDiscovery()` and sorts by: followers-of-current-user first, then by follower count (mutual friend approximation)
 - Search portal (`search-portal.tsx`): already uses `searchAllUsers` — benefits from `startsWith` fix
 
+**Comprehensive audit (second pass) — fixes applied:**
+- `stories` create: `expires_at` → `expiry` (schema attribute name); query filter also fixed; mapper updated to read `doc.expiry` first with `doc.expires_at` fallback; `viewCount` mapper updated to read `doc.views_count` first with `doc.view_count` fallback
+- `cluster_members` create: added `username: m.username` (schema attribute added per reconciliation; applies to both `createCluster` loop and `addMemberToCluster`)
+- `withdrawal_requests` create: added `username: currentUser.username` (schema attribute added per reconciliation)
+- `payment_requests` create: added `username: currentUser.username` (schema attribute added per reconciliation)
+- `free-mode/page.tsx` post_reactions: `type: 'like'` → `reaction_type: 'LIKE'`; delete query also fixed
+- `free-mode/page.tsx` post create: removed `is_free_mode: true` (field not in posts schema)
+- `free-mode/messages/page.tsx` message create: added `user_id` and `type: 'text'` fields
+
 Indexes created: `friend_requests` (sender/receiver_username), `follows` (follower/following_username), `post_reactions` (compound), `subscriptions` (active check), `stories` (expiry)

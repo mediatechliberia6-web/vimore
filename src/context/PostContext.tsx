@@ -743,7 +743,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const now = new Date().toISOString();
       const storiesResult = await databases.listDocuments(DATABASE_ID, COL.STORIES, [
-        Query.greaterThan('expires_at', now),
+        Query.greaterThan('expiry', now),
         Query.orderDesc('$createdAt'),
         Query.limit(30),
       ]);
@@ -786,8 +786,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
           $id: doc.$id,
           user: authorDoc ? mapProfileDocToUser(authorDoc) : { $id: doc.user_id, name: 'Unknown', username: 'unknown', avatar: avatarFallback('U'), isVerified: false },
           segments,
-          expiry: doc.expires_at || doc.expiry,
-          viewCount: doc.view_count || 0,
+          expiry: doc.expiry || doc.expires_at,
+          viewCount: doc.views_count ?? doc.view_count ?? 0,
         };
       });
       setStoriesState(mapped);
@@ -1492,7 +1492,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const expiry = new Date(Date.now() + 86400000).toISOString();
       const storyDoc = await databases.createDocument(DATABASE_ID, COL.STORIES, ID.unique(), {
         user_id: currentUser.$id,
-        expires_at: expiry,
+        expiry,
         views_count: 0,
       });
 
@@ -1879,6 +1879,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       await databases.createDocument(DATABASE_ID, COL.PAYMENT_REQUESTS, ID.unique(), {
         user_id: currentUser.$id,
+        username: currentUser.username,
         package_name: req.package_name,
         amount: String(req.amount),
         currency: req.currency,
@@ -1909,6 +1910,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       await databases.createDocument(DATABASE_ID, COL.WITHDRAWAL_REQUESTS, ID.unique(), {
         user_id: currentUser.$id,
+        username: currentUser.username,
         amount_usd: parseFloat(n.amount || 0), currency_type: n.currency || 'USD',
         phone_number: n.phoneNumber || '', payment_method: n.method || 'MOBILE_MONEY',
         status: 'PENDING',
@@ -1931,7 +1933,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const allMembers = [currentUser, ...members];
       await Promise.all(allMembers.map(m =>
         databases.createDocument(DATABASE_ID, COL.CLUSTER_MEMBERS, ID.unique(), {
-          cluster_id: clDoc.$id, user_id: m.$id,
+          cluster_id: clDoc.$id, user_id: m.$id, username: m.username,
         })
       ));
 
@@ -1952,7 +1954,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     ));
     try {
       await databases.createDocument(DATABASE_ID, COL.CLUSTER_MEMBERS, ID.unique(), {
-        cluster_id: clusterId, user_id: member.$id,
+        cluster_id: clusterId, user_id: member.$id, username: member.username,
       });
     } catch { /* keep optimistic */ }
   };

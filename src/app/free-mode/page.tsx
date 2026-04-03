@@ -85,10 +85,10 @@ function PostCard({ post, authUser, onLiked }: { post: FreePost; authUser: AuthU
     onLiked(post.id, delta);
     try {
       if (newLiked) {
-        await databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), { post_id: post.id, user_id: authUser.$id, type: 'like' });
+        await databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), { post_id: post.id, user_id: authUser.$id, reaction_type: 'LIKE' });
         await databases.updateDocument(DATABASE_ID, COL.POSTS, post.id, { likes_count: likeCount + 1 });
       } else {
-        const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [Query.equal('post_id', post.id), Query.equal('user_id', authUser.$id), Query.equal('type', 'like'), Query.limit(1)]);
+        const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [Query.equal('post_id', post.id), Query.equal('user_id', authUser.$id), Query.equal('reaction_type', 'LIKE'), Query.limit(1)]);
         if (existing.documents.length > 0) await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, existing.documents[0].$id);
         await databases.updateDocument(DATABASE_ID, COL.POSTS, post.id, { likes_count: Math.max(0, likeCount - 1) });
       }
@@ -283,7 +283,6 @@ function ComposeBox({ authUser, onPosted }: { authUser: AuthUser; onPosted: () =
         content: text.trim(),
         likes_count: 0,
         comments_count: 0,
-        is_free_mode: true,
       });
       await databases.updateDocument(DATABASE_ID, COL.USERS, authUser.$id, { posts_count: 1 }).catch(() => {});
       setText('');
