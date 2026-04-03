@@ -222,7 +222,7 @@ export default function NotificationsPage() {
                             "h-14 w-14 border-2 transition-all duration-500",
                             isUnread ? "border-primary" : "border-white/20 group-hover:border-primary/40"
                           )}>
-                            <AvatarImage src={node.avatar || node.image || "https://picsum.photos/seed/vimore/100/100"} />
+                            <AvatarImage src={node.avatar || (node.type !== 'SYSTEM' ? node.image : undefined) || (node.type === 'SYSTEM' ? '/icon.svg' : undefined)} />
                             <AvatarFallback>V</AvatarFallback>
                           </Avatar>
                           <div className="absolute -bottom-1 -right-1 bg-white dark:bg-card p-1.5 rounded-full shadow-lg border border-primary/10">
@@ -276,7 +276,7 @@ export default function NotificationsPage() {
 
                       {(node.image || node.postId) && !node.avatar && (
                         <div className="hidden sm:block relative h-16 w-16 rounded-2xl overflow-hidden shrink-0 border border-primary/10 shadow-lg transition-transform group-hover:scale-105">
-                          <Image src={node.image || "https://picsum.photos/seed/context/100/100"} alt="Context" fill className="object-cover" />
+                          <Image src={node.image || '/icon.svg'} alt="Context" fill className="object-cover" />
                           {node.type === 'SONIC' && (
                             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                               <Music2 className="h-4 w-4 text-white" />

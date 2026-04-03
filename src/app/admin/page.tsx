@@ -294,7 +294,7 @@ export default function AdminDashboard() {
       setBroadcastSent(count);
       toast({ title: "Broadcast Sent", description: `Notification delivered to ${count} user(s).` });
       setBroadcastTitle(""); setBroadcastMessage(""); setBroadcastActionUrl(""); setBroadcastTargetIds([]); setBroadcastTargetSearch("");
-    } catch { toast({ variant: "destructive", title: "Broadcast failed" }); }
+    } catch (err: any) { toast({ variant: "destructive", title: "Broadcast failed", description: err?.message || "Could not send the broadcast. Please try again." }); }
     finally { setIsBroadcasting(false); }
   };
 

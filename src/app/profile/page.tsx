@@ -177,7 +177,7 @@ export default function MyProfilePage() {
       const postContent = refiningMode === 'avatar'
         ? `${currentUser.name} updated ${pronoun} profile picture.`
         : `${currentUser.name} updated ${pronoun} cover photo.`;
-      await addPost({ content: postContent, image: vaultUrl });
+      try { await addPost({ content: postContent }); } catch { /* post is optional, don't block the update */ }
       toast({ title: "Presence Refreshed" });
       setIsRefinementOpen(false);
     } catch (e: any) {

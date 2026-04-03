@@ -247,7 +247,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
           </header>
           <div className="relative">
             <div className="relative h-48 sm:h-64 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/20 overflow-hidden">
-              {settings.isFreeMode ? <div className="absolute inset-0 bg-secondary/20 flex items-center justify-center"><EyeOff className="h-10 w-10 text-muted-foreground/20" /></div> : <Image src={displayUser.cover || `https://picsum.photos/seed/cover_${username}/1200/400`} alt="Cover" fill className="object-cover dark:brightness-75" />}
+              {settings.isFreeMode ? <div className="absolute inset-0 bg-secondary/20 flex items-center justify-center"><EyeOff className="h-10 w-10 text-muted-foreground/20" /></div> : displayUser.cover ? <Image src={displayUser.cover} alt="Cover" fill className="object-cover dark:brightness-75" /> : <div className="absolute inset-0 flex items-center justify-center opacity-10"><img src="/icon.svg" alt="ViMore" className="h-24 w-24" /></div>}
             </div>
             <div className="px-4 pb-4">
               <div className="relative inline-block -mt-16 sm:-mt-24 ml-0 sm:ml-2"><Avatar className="w-32 h-32 sm:w-44 sm:h-44 border-4 border-white dark:border-card shadow-xl ring-2 ring-primary/5"><AvatarImage src={displayUser.avatar} /><AvatarFallback>{displayUser.name[0]}</AvatarFallback></Avatar></div>

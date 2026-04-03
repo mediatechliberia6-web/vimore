@@ -1219,9 +1219,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
         title: 'Account Suspended',
         content: message,
         is_read: false,
-        post_id: null,
-        track_id: null,
-        target_username: null,
       });
     } catch { /* keep optimistic */ }
   }, [currentUser]);
@@ -1245,9 +1242,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
         title: severity === 'FINAL' ? '⚠️ Final Warning' : 'Account Warning',
         content: message,
         is_read: false,
-        post_id: null,
-        track_id: null,
-        target_username: null,
       });
     } catch { /* keep optimistic */ }
   }, [currentUser, allUsers]);
@@ -1260,16 +1254,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } else {
       targets = opts.targetUserIds;
     }
-    const broadcastDoc = await databases.createDocument(DATABASE_ID, COL.ADMIN_NOTIFICATIONS, ID.unique(), {
-      title: opts.title,
-      message: opts.message,
-      action_url: opts.actionUrl || null,
-      sent_by: currentUser.username,
-      sent_at: new Date().toISOString(),
-      recipient_count: targets.length,
-      target_type: opts.targetUserIds === 'all' ? 'ALL' : 'TARGETED',
-    });
-    setBroadcastHistory(prev => [broadcastDoc, ...prev]);
+    try {
+      const broadcastDoc = await databases.createDocument(DATABASE_ID, COL.ADMIN_NOTIFICATIONS, ID.unique(), {
+        title: opts.title,
+        message: opts.message,
+        ...(opts.actionUrl ? { action_url: opts.actionUrl } : {}),
+        sent_by: currentUser.username,
+        sent_at: new Date().toISOString(),
+        recipient_count: targets.length,
+        target_type: opts.targetUserIds === 'all' ? 'ALL' : 'TARGETED',
+      });
+      setBroadcastHistory(prev => [broadcastDoc, ...prev]);
+    } catch { /* admin log failure should not block sending notifications */ }
     await Promise.allSettled(
       targets.map(uid =>
         databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
@@ -1279,9 +1275,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
           title: opts.title,
           content: opts.message,
           is_read: false,
-          post_id: null,
-          track_id: null,
-          target_username: null,
         })
       )
     );
@@ -1310,7 +1303,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const docData: Record<string, any> = {
       user_id: currentUser.$id,
       content: p.content || '',
-      image_id: mediaIds[0] || null,
       likes_count: 0,
       unlikes_count: 0,
       comments_count: 0,
@@ -1323,6 +1315,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       visibility: 'public',
     };
 
+    if (mediaIds[0]) docData.image_id = mediaIds[0];
     if (videoId) docData.video_id = videoId;
     if (p.language) docData.language = p.language;
     if (p.theme) docData.theme = p.theme;
@@ -1489,10 +1482,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const addStory = async (segment: any) => {
     if (!currentUser) return;
     try {
-      const expiry = new Date(Date.now() + 86400000).toISOString();
+      const expires_at = new Date(Date.now() + 86400000).toISOString();
       const storyDoc = await databases.createDocument(DATABASE_ID, COL.STORIES, ID.unique(), {
         user_id: currentUser.$id,
-        expiry,
+        expires_at,
         views_count: 0,
       });
 
@@ -1517,7 +1510,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         $id: storyDoc.$id,
         user: currentUser,
         segments: [{ $id: 'seg_tmp', ...segment }],
-        expiry,
+        expires_at,
         viewCount: 0,
       };
       setStoriesState(prev => [newStory, ...prev]);
@@ -1887,8 +1880,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
         screenshot_id: screenshotFileId,
         status: 'PENDING',
       });
-    } catch (err) { logAppwriteError('createPaymentRequest', err); }
-    toast({ title: "Payment request submitted!" });
+      toast({ title: "Payment request submitted!" });
+    } catch (err: any) {
+      logAppwriteError('createPaymentRequest', err);
+      toast({ variant: "destructive", title: "Payment request failed", description: err?.message || "Could not submit your payment request. Please try again." });
+    }
   }, [currentUser, pendingTransaction, toast]);
 
   const approvePaymentRequest = async (id: string) => {
@@ -2007,7 +2003,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
         user_id: currentUser.$id,
         title: d.title || '',
         content: d.content || '',
-        type: d.type || 'photo',
         placement: d.placement || 'feed',
         media_url: d.mediaUrl || '',
         action_url: d.actionUrl || '',
@@ -2081,7 +2076,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
         user_id: currentUser.$id,
         subject: data.subject, message: data.message,
         status: 'OPEN',
-        priority: data.priority || 'MEDIUM',
       });
       setTickets(prev => [ticket, ...prev]);
     } catch (err: any) {
