@@ -144,7 +144,7 @@ export default function LoginPage() {
     setForgotLoading(true);
     await new Promise(r => setTimeout(r, 800));
     const normalised = forgotId.includes("@") ? forgotId : `${forgotId}@vimore.cfd`;
-    const question = getSecurityQuestion(normalised);
+    const question = await getSecurityQuestion(normalised);
     setForgotLoading(false);
     if (!question) {
       toast({ variant: "destructive", title: "Account not found", description: "No account matches that ViMore ID." });
@@ -160,7 +160,7 @@ export default function LoginPage() {
     setForgotLoading(true);
     await new Promise(r => setTimeout(r, 800));
     const normalised = forgotId.includes("@") ? forgotId : `${forgotId}@vimore.cfd`;
-    const correct = verifySecurityAnswer(normalised, forgotAnswer);
+    const correct = await verifySecurityAnswer(normalised, forgotAnswer);
     setForgotLoading(false);
     if (!correct) {
       toast({ variant: "destructive", title: "Wrong answer", description: "Your answer does not match. Please try again." });

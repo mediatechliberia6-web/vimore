@@ -1,31 +1,23 @@
-/**
- * MOCK SERVER SERVICE — Prototype Mode
- * All node-appwrite calls replaced with mock implementations.
- */
+import 'server-only';
+import { Client, Databases, Users } from 'node-appwrite';
 
-export const DATABASE_ID = 'vimoreprod';
+const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
+const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
+const API_KEY = process.env.APPWRITE_API_KEY!;
 
-export function getAdminDatabases(): any {
-  return {
-    async listDocuments(_db: string, _col: string, _queries: any[] = []) {
-      return { documents: [], total: 0 };
-    },
-    async createDocument(_db: string, _col: string, _id: string, _data: any) {
-      return { $id: 'mock_' + Date.now() };
-    },
-  };
+export const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'vimoreprod';
+
+function createAdminClient(): Client {
+  return new Client()
+    .setEndpoint(ENDPOINT)
+    .setProject(PROJECT_ID)
+    .setKey(API_KEY);
 }
 
-export function getAdminUsers(): any {
-  return {
-    async create(_id: string, email: string, _phone: undefined, _password: string, name: string) {
-      return { $id: 'mock_' + Date.now(), email, name };
-    },
-    async updateEmailVerification(_userId: string, _verified: boolean) {
-      return {};
-    },
-    async delete(_userId: string) {
-      return {};
-    },
-  };
+export function getAdminDatabases(): Databases {
+  return new Databases(createAdminClient());
+}
+
+export function getAdminUsers(): Users {
+  return new Users(createAdminClient());
 }
