@@ -156,5 +156,13 @@ Code fixes applied in `PostContext.tsx`:
 - `story_views`: `user_id` → `viewer_id`
 - `story_segments`: `order` → `order_index`
 - `withdrawal_requests`: `amount`→`amount_usd`, `currency`→`currency_type`, `method`→`payment_method`
+- `stories`: `view_count` → `views_count` (create + update in recordStoryView)
+- `posts`: `media_ids` (array, not in schema) → `image_id` (single string); `mapDocToPost` updated to read `image_id`
+- `ad_campaigns`: added `status: 'ACTIVE'` to create call
+- `support_tickets`: removed `category` field from create call (not in schema)
+- `searchAllUsers`: `Query.search()` → `Query.startsWith()` (fulltext index not required)
+- `tracks` (MusicContext): `audio_id` → `file_id` for write + read (both publishTrack and album songs loop); `mapDocToTrack` reads `file_id` with `audio_id` fallback
+- Friends page `/friends`: "Add" tab now fetches all users from database via `fetchAllUsersForDiscovery()` and sorts by: followers-of-current-user first, then by follower count (mutual friend approximation)
+- Search portal (`search-portal.tsx`): already uses `searchAllUsers` — benefits from `startsWith` fix
 
 Indexes created: `friend_requests` (sender/receiver_username), `follows` (follower/following_username), `post_reactions` (compound), `subscriptions` (active check), `stories` (expiry)

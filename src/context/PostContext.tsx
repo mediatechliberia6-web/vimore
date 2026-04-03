@@ -331,6 +331,7 @@ interface PostContextType {
   unblockUser: (username: string) => Promise<void>;
   blockedUsernames: string[];
   submitReport: (data: { reportedUsername: string; reason: string; details: string }) => Promise<void>;
+  fetchAllUsersForDiscovery: () => Promise<User[]>;
   allUsers: User[];
   refreshAllUsers: () => Promise<void>;
   banUser: (userId: string, reason: string, note?: string) => Promise<void>;
@@ -430,7 +431,8 @@ function mapProfileDocToUser(doc: Models.Document): User {
 }
 
 function mapDocToPost(doc: Models.Document, authorDoc?: Models.Document): Post {
-  const mediaIds: string[] = doc.media_ids || [];
+  const imageId: string | undefined = doc.image_id || undefined;
+  const mediaIds: string[] = imageId ? [imageId] : [];
   const images = mediaIds.map((id: string) => getFileUrl(BUCKET.POST_MEDIA, id));
   const videoId = doc.video_id;
 
@@ -1308,7 +1310,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const docData: Record<string, any> = {
       user_id: currentUser.$id,
       content: p.content || '',
-      media_ids: mediaIds,
+      image_id: mediaIds[0] || null,
       likes_count: 0,
       unlikes_count: 0,
       comments_count: 0,
@@ -1491,7 +1493,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const storyDoc = await databases.createDocument(DATABASE_ID, COL.STORIES, ID.unique(), {
         user_id: currentUser.$id,
         expires_at: expiry,
-        view_count: 0,
+        views_count: 0,
       });
 
       let mediaId: string | undefined;
@@ -1780,10 +1782,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const [byName, byUsername] = await Promise.allSettled([
         databases.listDocuments(DATABASE_ID, COL.USERS, [
-          Query.search('name', query), Query.limit(20),
+          Query.startsWith('name', query), Query.limit(20),
         ]),
         databases.listDocuments(DATABASE_ID, COL.USERS, [
-          Query.search('username', query), Query.limit(20),
+          Query.startsWith('username', query), Query.limit(20),
         ]),
       ]);
       const seen = new Set<string>();
@@ -1799,6 +1801,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (byName.status === 'fulfilled') addDocs(byName.value.documents);
       if (byUsername.status === 'fulfilled') addDocs(byUsername.value.documents);
       return results;
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const fetchAllUsersForDiscovery = useCallback(async (): Promise<User[]> => {
+    try {
+      const result = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+        Query.limit(200),
+        Query.orderDesc('$createdAt'),
+      ]);
+      return result.documents.map(mapProfileDocToUser);
     } catch {
       return [];
     }
@@ -1998,6 +2012,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         action_label: d.actionLabel || 'Learn More',
         budget: d.budget || 0,
         spent: 0,
+        status: 'ACTIVE',
         is_active: true,
         impressions: 0,
         clicks: 0,
@@ -2041,7 +2056,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
             story_id: id, user_id: currentUser.$id, viewer_id: currentUser.$id,
           }),
           databases.updateDocument(DATABASE_ID, COL.STORIES, id, {
-            view_count: (stories.find(s => s.$id === id)?.viewCount || 0) + 1,
+            views_count: (stories.find(s => s.$id === id)?.viewCount || 0) + 1,
           }),
         ]);
       } catch { /* ignore */ }
@@ -2063,7 +2078,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await databases.createDocument(DATABASE_ID, COL.SUPPORT_TICKETS, ID.unique(), {
         user_id: currentUser.$id,
         subject: data.subject, message: data.message,
-        category: data.category, status: 'OPEN',
+        status: 'OPEN',
         priority: data.priority || 'MEDIUM',
       });
       setTickets(prev => [ticket, ...prev]);
@@ -2397,7 +2412,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     updateUserIdentity,
     handleReportAction, handleTicketAction,
     sendChatMessage,
-    allUsers, refreshAllUsers, banUser, suspendUser, warnUser, sendAdminBroadcast, broadcastHistory,
+    fetchAllUsersForDiscovery, allUsers, refreshAllUsers, banUser, suspendUser, warnUser, sendAdminBroadcast, broadcastHistory,
     purgeVibeCache: async () => setSeenPostIdsState(new Set()),
     archiveIdentityNode: async () => {},
     boostNode,

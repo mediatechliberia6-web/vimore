@@ -54,7 +54,7 @@ import FriendsLoading from "./loading";
 type HubTab = "add" | "confirm" | "friends";
 
 function FriendsPageContent() {
-  const { connections = [], isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, currentUser, friendUsernames, isLoading } = usePosts();
+  const { connections = [], isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, currentUser, friendUsernames, followerUsernames, isLoading, fetchAllUsersForDiscovery } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -63,6 +63,8 @@ function FriendsPageContent() {
   const [activeTab, setActiveTab] = useState<HubTab>("add");
   const [searchQuery, setSearchQuery] = useState("");
   const [playingPreview, setPlayingPreview] = useState<string | null>(null);
+  const [allNetworkUsers, setAllNetworkUsers] = useState<any[]>([]);
+  const [isLoadingDiscovery, setIsLoadingDiscovery] = useState(false);
 
   const [confirmUser, setConfirmUser] = useState<any | null>(null);
   const [confirmType, setConfirmType] = useState<"unfriend" | "cancel">("unfriend");
@@ -77,6 +79,16 @@ function FriendsPageContent() {
   }, [searchParams]);
 
   useEffect(() => {
+    if (activeTab === "add" && allNetworkUsers.length === 0 && !isLoadingDiscovery) {
+      setIsLoadingDiscovery(true);
+      fetchAllUsersForDiscovery().then((users) => {
+        setAllNetworkUsers(users);
+        setIsLoadingDiscovery(false);
+      });
+    }
+  }, [activeTab, fetchAllUsersForDiscovery]);
+
+  useEffect(() => {
     if (!confirmUser) {
       document.body.style.pointerEvents = 'auto';
     }
@@ -86,27 +98,42 @@ function FriendsPageContent() {
   }, [confirmUser]);
 
   const filteredUsers = useMemo(() => {
-    if (!connections || !currentUser) return [];
-    let list = connections.filter(c => c.username !== currentUser.username);
+    if (!currentUser) return [];
+
+    let list: any[];
 
     if (activeTab === "add") {
-      list = list.filter(c => !isFriend(c.username) && !isRequestSent(c.username) && !isRequestReceived(c.username));
-    } else if (activeTab === "confirm") {
-      list = list.filter(c => isRequestReceived(c.username));
-    } else if (activeTab === "friends") {
-      list = list.filter(c => isFriend(c.username));
+      list = allNetworkUsers.filter(c =>
+        c.username !== currentUser.username &&
+        !isFriend(c.username) &&
+        !isRequestSent(c.username) &&
+        !isRequestReceived(c.username)
+      );
+      list.sort((a, b) => {
+        const aFollowsBack = followerUsernames.has(a.username) ? 1 : 0;
+        const bFollowsBack = followerUsernames.has(b.username) ? 1 : 0;
+        if (bFollowsBack !== aFollowsBack) return bFollowsBack - aFollowsBack;
+        return (b.followers || 0) - (a.followers || 0);
+      });
+    } else {
+      list = connections.filter(c => c.username !== currentUser.username);
+      if (activeTab === "confirm") {
+        list = list.filter(c => isRequestReceived(c.username));
+      } else if (activeTab === "friends") {
+        list = list.filter(c => isFriend(c.username));
+      }
     }
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      list = list.filter(u => 
-        (u.name || "").toLowerCase().includes(q) || 
+      list = list.filter(u =>
+        (u.name || "").toLowerCase().includes(q) ||
         (u.username || "").toLowerCase().includes(q)
       );
     }
 
     return list;
-  }, [activeTab, connections, isFriend, isRequestSent, isRequestReceived, searchQuery, currentUser, isFriend]);
+  }, [activeTab, connections, allNetworkUsers, isFriend, isRequestSent, isRequestReceived, searchQuery, currentUser, followerUsernames]);
 
   // Handshake Guard: Prevents build-time null-pointers
   if (isLoading || !currentUser) {
@@ -249,6 +276,13 @@ function FriendsPageContent() {
               })}
             </div>
           </div>
+
+          {isLoadingDiscovery && activeTab === "add" && (
+            <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <span className="text-sm font-bold uppercase tracking-widest">Scanning network nodes...</span>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredUsers.length > 0 ? filteredUsers.map((user, i) => {

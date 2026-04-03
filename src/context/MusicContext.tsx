@@ -135,7 +135,7 @@ function mapDocToTrack(doc: any): Track {
     artist: doc.artist || doc.artist_name || 'Unknown Artist',
     artistUsername: doc.artist_username || '',
     cover: doc.cover_id ? getFileUrl(BUCKET.ALBUM_COVERS, doc.cover_id) : `https://picsum.photos/seed/${doc.$id}/300/300`,
-    audioUrl: doc.audio_id ? getFileUrl(BUCKET.MUSIC_TRACKS, doc.audio_id) : undefined,
+    audioUrl: doc.file_id ? getFileUrl(BUCKET.MUSIC_TRACKS, doc.file_id) : (doc.audio_id ? getFileUrl(BUCKET.MUSIC_TRACKS, doc.audio_id) : undefined),
     duration: doc.duration || 0,
     streams: String(doc.streams_count || 0),
     likes: doc.likes_count || 0,
@@ -444,7 +444,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         genre: track.genre || '',
         tags: track.tags || [],
       };
-      if (audioId) docData.audio_id = audioId;
+      if (audioId) docData.file_id = audioId;
       if (coverId) docData.cover_id = coverId;
       if (track.albumId) docData.album_id = track.albumId;
 
@@ -509,7 +509,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
             genre: album.genre || '',
             tags: [],
           };
-          if (audioId) songDocData.audio_id = audioId;
+          if (audioId) songDocData.file_id = audioId;
           if (coverId) songDocData.cover_id = coverId;
 
           try {
