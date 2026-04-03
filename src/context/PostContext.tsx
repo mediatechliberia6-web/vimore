@@ -1020,6 +1020,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         join_date: new Date().toISOString(),
         nationality: data.nationality || '',
         date_of_birth: data.dob || '',
+        gender: data.gender || '',
         referral_code: referralCode,
         referral_count: 0,
         language: 'en',
