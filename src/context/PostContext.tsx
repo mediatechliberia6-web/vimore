@@ -1321,6 +1321,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     };
 
     if (videoId) docData.video_id = videoId;
+    if (p.language) docData.language = p.language;
     if (p.theme) docData.theme = p.theme;
     if (p.imageFilter) docData.image_filter = p.imageFilter;
     if (p.feeling) docData.feeling = p.feeling;
@@ -1341,10 +1342,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
         posts_count: (currentUser.posts as number || 0) + 1,
       });
       setCurrentUserState(prev => prev ? { ...prev, posts: (prev.posts as number || 0) + 1 } : null);
-      toast({ title: "Post published!" });
     } catch (err: any) {
       logAppwriteError('addPost', err);
-      toast({ variant: "destructive", title: "Failed to publish post", description: formatErrorDescription(err, currentUser?.role) });
+      throw err;
     }
   };
 
