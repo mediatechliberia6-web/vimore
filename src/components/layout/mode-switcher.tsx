@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Zap, Globe, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { account } from '@/lib/appwrite';
 
 const FREE_DOMAIN = 'free.vimore.cfd';
 const MAIN_DOMAIN = 'vimore.cfd';
@@ -10,21 +11,32 @@ const MAIN_DOMAIN = 'vimore.cfd';
 export function ModeSwitcher() {
   const [isFreeMode, setIsFreeMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isProduction, setIsProduction] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
       setIsFreeMode(hostname === FREE_DOMAIN || hostname.startsWith('free.'));
+      setIsProduction(hostname === FREE_DOMAIN || hostname === MAIN_DOMAIN);
     }
   }, []);
 
-  const handleToggle = () => {
+  const handleToggle = async () => {
     if (isLoading) return;
     setIsLoading(true);
-    if (isFreeMode) {
-      window.location.href = `https://${MAIN_DOMAIN}`;
-    } else {
-      window.location.href = `https://${FREE_DOMAIN}`;
+
+    const targetDomain = isFreeMode ? MAIN_DOMAIN : FREE_DOMAIN;
+
+    if (!isProduction) {
+      window.location.href = isFreeMode ? '/' : '/free-mode';
+      return;
+    }
+
+    try {
+      const jwtObj = await account.createJWT();
+      window.location.href = `https://${targetDomain}/api/session-handoff?jwt=${encodeURIComponent(jwtObj.jwt)}`;
+    } catch {
+      window.location.href = `https://${targetDomain}`;
     }
   };
 
