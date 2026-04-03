@@ -1305,6 +1305,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
 
     const docData: Record<string, any> = {
+      user_id: currentUser.$id,
       author_id: currentUser.$id,
       content: p.content || '',
       media_ids: mediaIds,
@@ -1488,6 +1489,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const expiry = new Date(Date.now() + 86400000).toISOString();
       const storyDoc = await databases.createDocument(DATABASE_ID, COL.STORIES, ID.unique(), {
+        user_id: currentUser.$id,
         author_id: currentUser.$id,
         expiry,
         view_count: 0,
@@ -1500,6 +1502,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
       const segData: Record<string, any> = {
         story_id: storyDoc.$id,
+        user_id: currentUser.$id,
         author_id: currentUser.$id,
         type: segment.type || 'image',
         order_index: 0,
@@ -1963,6 +1966,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         media_url: d.mediaUrl || '',
         action_url: d.actionUrl || '',
         action_label: d.actionLabel || 'Learn More',
+        budget: d.budget || 0,
         is_active: true,
         impressions: 0,
         clicks: 0,
@@ -2024,7 +2028,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       priority: data.priority || 'MEDIUM',
       $createdAt: new Date().toISOString(),
     };
-    setTickets(prev => [ticket, ...prev]);
     try {
       await databases.createDocument(DATABASE_ID, COL.SUPPORT_TICKETS, ID.unique(), {
         user_id: currentUser.$id,
@@ -2033,7 +2036,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
         category: data.category, status: 'OPEN',
         priority: data.priority || 'MEDIUM',
       });
-    } catch { /* keep optimistic */ }
+      setTickets(prev => [ticket, ...prev]);
+    } catch (err: any) {
+      logAppwriteError('submitTicket', err);
+      throw err;
+    }
   };
 
   const handleReportAction = async (reportId: string, action: any) => {

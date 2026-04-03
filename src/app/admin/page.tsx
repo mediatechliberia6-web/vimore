@@ -208,6 +208,7 @@ export default function AdminDashboard() {
     actionUrl: "",
     actionLabel: "Learn More",
     placement: "story" as "story" | "download" | "music" | "feed" | "reel",
+    budget: 0,
     endDate: "",
     endTime: "",
   });
@@ -416,7 +417,7 @@ export default function AdminDashboard() {
       }
       await addCampaign({ ...campForm, mediaUrl, placement: campaignSubTab, endDate: endDateIso });
       toast({ title: "Campaign Created", description: "Your ad campaign is now live." });
-      setCampForm({ title: "", content: "", type: campaignSubTab === 'music' ? 'audio' : campaignSubTab === 'reel' ? 'video' : 'photo', actionUrl: "", actionLabel: "Learn More", placement: campaignSubTab, endDate: "", endTime: "" });
+      setCampForm({ title: "", content: "", type: campaignSubTab === 'music' ? 'audio' : campaignSubTab === 'reel' ? 'video' : 'photo', actionUrl: "", actionLabel: "Learn More", placement: campaignSubTab, budget: 0, endDate: "", endTime: "" });
       setCampFile(null);
       setCampPreview(null);
     } catch (e: any) {
@@ -428,7 +429,7 @@ export default function AdminDashboard() {
 
   const handleCampaignSubTabChange = (tab: 'story' | 'download' | 'music' | 'feed' | 'reel') => {
     setCampaignSubTab(tab);
-    setCampForm({ title: "", content: "", type: tab === 'music' ? 'audio' : tab === 'reel' ? 'video' : 'photo', actionUrl: "", actionLabel: "Learn More", placement: tab, endDate: "", endTime: "" });
+    setCampForm({ title: "", content: "", type: tab === 'music' ? 'audio' : tab === 'reel' ? 'video' : 'photo', actionUrl: "", actionLabel: "Learn More", placement: tab, budget: 0, endDate: "", endTime: "" });
     setCampFile(null);
     setCampPreview(null);
   };
@@ -754,6 +755,11 @@ export default function AdminDashboard() {
                       <Textarea value={campForm.content} onChange={(e) => setCampForm({...campForm, content: e.target.value})} className="bg-secondary/30 border-none rounded-xl font-medium min-h-[80px] resize-none" placeholder="Tell users about your offer..." />
                     </div>
                     
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Budget (USD)</Label>
+                      <Input type="number" min={0} value={campForm.budget} onChange={(e) => setCampForm({...campForm, budget: parseFloat(e.target.value) || 0})} className="h-11 bg-secondary/30 border-none rounded-xl font-bold text-sm" placeholder="0.00" />
+                    </div>
+
                     {campaignSubTab !== 'music' && (
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-2">

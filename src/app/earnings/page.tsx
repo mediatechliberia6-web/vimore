@@ -97,6 +97,8 @@ export default function EarningsPage() {
       toast({ title: "Ticket Submitted", description: "Our team will review your issue shortly." });
       setIsTicketOpen(false);
       setTicketSubject(""); setTicketMessage(""); setTicketCategory("Finance");
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Failed to Submit Ticket", description: e.message });
     } finally {
       setIsSubmittingTicket(false);
     }

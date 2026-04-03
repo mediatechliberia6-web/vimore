@@ -263,6 +263,7 @@ function ComposeBox({ authUser, onPosted }: { authUser: AuthUser; onPosted: () =
     setSubmitting(true);
     try {
       await databases.createDocument(DATABASE_ID, COL.POSTS, ID.unique(), {
+        user_id: authUser.$id,
         author_id: authUser.$id,
         content: text.trim(),
         likes_count: 0,

@@ -82,6 +82,8 @@ export default function MenuPage() {
       toast({ title: "Ticket Submitted", description: "Our team will review your issue shortly." });
       setIsTicketOpen(false);
       setTicketSubject(""); setTicketMessage(""); setTicketCategory("Technical");
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Failed to Submit Ticket", description: e.message });
     } finally {
       setIsSubmittingTicket(false);
     }
