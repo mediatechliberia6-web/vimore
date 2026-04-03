@@ -474,8 +474,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       }
 
       const docData: Record<string, any> = {
-        title: album.title || 'Untitled Album',
+        user_id: currentUser.$id,
         artist_id: currentUser.$id,
+        title: album.title || 'Untitled Album',
         artist_name: album.artist || currentUser.name,
         artist_username: album.artistUsername || currentUser.username,
         tracks_count: album.songs?.length || 0,
@@ -558,8 +559,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       if (data.cover) coverId = extractFileId(data.cover) || undefined;
 
       const docData: Record<string, any> = {
-        title: data.title,
+        user_id: currentUser.$id,
         creator_id: currentUser.$id,
+        title: data.title,
         creator_username: currentUser.username,
         description: data.description,
         is_private: data.isPrivate,

@@ -1539,6 +1539,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (!targetDoc) throw new Error('User not found');
 
       await databases.createDocument(DATABASE_ID, COL.FRIEND_REQUESTS, ID.unique(), {
+        user_id: currentUser.$id,
         sender_id: currentUser.$id,
         receiver_id: targetDoc.$id,
         sender_username: currentUser.username,
@@ -1618,6 +1619,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
     try {
       const docData: Record<string, any> = {
+        user_id: currentUser.$id,
         sender_id: currentUser.$id,
         receiver_id: recipientId,
         content: message.text || '',
@@ -1682,6 +1684,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       await Promise.all([
         databases.createDocument(DATABASE_ID, COL.SUBSCRIPTIONS, ID.unique(), {
+          user_id: currentUser.$id,
           subscriber_id: currentUser.$id,
           creator_username: username,
           diamond_spent: cost,
@@ -1808,6 +1811,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setAuditLogs(prev => [newLog, ...prev]);
     try {
       await databases.createDocument(DATABASE_ID, COL.AUDIT_LOGS, ID.unique(), {
+        user_id: currentUser?.$id || '',
         action, details,
         performed_by: currentUser?.username || 'system',
         performed_by_avatar: currentUser?.avatar || '',
@@ -2007,7 +2011,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       try {
         await Promise.all([
           databases.createDocument(DATABASE_ID, COL.STORY_VIEWS, ID.unique(), {
-            story_id: id, viewer_id: currentUser.$id,
+            story_id: id, user_id: currentUser.$id, viewer_id: currentUser.$id,
           }),
           databases.updateDocument(DATABASE_ID, COL.STORIES, id, {
             view_count: (stories.find(s => s.$id === id)?.viewCount || 0) + 1,
@@ -2178,6 +2182,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (currentUser && callState.contact && duration) {
       try {
         await databases.createDocument(DATABASE_ID, COL.CALL_LOGS, ID.unique(), {
+          user_id: currentUser.$id,
           caller_id: currentUser.$id,
           callee_id: callState.contact.$id || callState.contact.username,
           type: callState.type,
@@ -2287,6 +2292,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           const targetDoc = targetRes.documents[0];
           if (targetDoc) {
             await databases.createDocument(DATABASE_ID, COL.FOLLOWS, ID.unique(), {
+              user_id: currentUser.$id,
               follower_id: currentUser.$id,
               following_id: targetDoc.$id,
               follower_username: currentUser.username,
@@ -2415,6 +2421,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       setBlockedUsernames(prev => [...prev, username]);
       try {
         await databases.createDocument(DATABASE_ID, COL.BLOCKED_USERS, ID.unique(), {
+          user_id: currentUser.$id,
           blocker_id: currentUser.$id,
           blocked_username: username,
         });
@@ -2437,6 +2444,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (!currentUser) return;
       try {
         await databases.createDocument(DATABASE_ID, COL.REPORTS, ID.unique(), {
+          user_id: currentUser.$id,
           reporter_id: currentUser.$id,
           reported_username: data.reportedUsername,
           reason: data.reason,

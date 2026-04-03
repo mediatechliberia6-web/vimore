@@ -135,7 +135,10 @@ function TextPostCard({
     try {
       await databases.createDocument(DATABASE_ID, COL.POST_COMMENTS, ID.unique(), {
         post_id: post.id,
+        user_id: authUser.$id,
         author_id: authUser.$id,
+        user_name: authUser.name || authUser.username || '',
+        user_avatar: authUser.avatar || '',
         content: commentText.trim(),
       });
       await databases.updateDocument(DATABASE_ID, COL.POSTS, post.id, {

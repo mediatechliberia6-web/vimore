@@ -93,6 +93,46 @@ avatars, covers, post_media, story_media, reel_media, music_tracks, album_covers
 - **Removed AI features**: Comment summarizer, network sentiment analysis, hashtag suggester, post summarizer, music mix generator, verification code AI, boost/gift/monetization audit AI, signature verifier.
 - **All 10 unused AI flow files deleted** from `src/ai/flows/`.
 
+## Full 34-Collection `user_id` Audit (completed)
+All `createDocument` calls across every collection were audited and fixed to include `user_id` as required. Summary of what was added where:
+
+| Collection | File | Fix |
+|---|---|---|
+| `posts` | PostContext + free-mode | Added `user_id` alongside `author_id` |
+| `stories` | PostContext | Added `user_id` alongside `author_id` |
+| `story_segments` | PostContext | Added `user_id` alongside `author_id` |
+| `story_views` | PostContext | Added `user_id` alongside `viewer_id` |
+| `tracks` | MusicContext | Added `user_id` alongside `artist_id` |
+| `album_songs` | MusicContext | Added `user_id` alongside `artist_id` |
+| `albums` | MusicContext | Added `user_id` alongside `artist_id` |
+| `playlists` | MusicContext | Added `user_id` alongside `creator_id` |
+| `messages` | PostContext | Added `user_id` alongside `sender_id` |
+| `follows` | PostContext | Added `user_id` alongside `follower_id` |
+| `friend_requests` | PostContext | Added `user_id` alongside `sender_id` |
+| `blocked_users` | PostContext | Added `user_id` alongside `blocker_id` |
+| `subscriptions` | PostContext | Added `user_id` alongside `subscriber_id` |
+| `reports` | PostContext | Added `user_id` alongside `reporter_id` |
+| `audit_logs` | PostContext | Added `user_id` |
+| `call_logs` | PostContext | Added `user_id` alongside `caller_id` |
+| `post_comments` (free-mode) | free-mode/page.tsx | Changed `author_id` → `user_id` + added `user_name`, `user_avatar` |
+| `ad_campaigns` | PostContext + admin | Added `user_id` + `budget` field |
+| `support_tickets` | PostContext | Already had `user_id` ✅ |
+| `post_reactions` | PostContext + free-mode | Already had `user_id` ✅ |
+| `bookmarks` | PostContext | Already had `user_id` ✅ |
+| `post_unlocks` | PostContext | Already had `user_id` ✅ |
+| `transactions` | PostContext | Already had `user_id` ✅ |
+| `payment_requests` | PostContext | Already had `user_id` ✅ |
+| `withdrawal_requests` | PostContext | Already had `user_id` ✅ |
+| `verification_records` | PostContext | Already had `user_id` ✅ |
+| `user_bans` | PostContext | Already had `user_id` ✅ |
+| `cluster_members` | PostContext | Already had `user_id` ✅ |
+| `track_likes` | MusicContext | Already had `user_id` ✅ |
+| `clusters` | PostContext | Has `admin_id` (no `user_id` needed — admin is the owner) |
+| `notifications` | PostContext/Notification | Has `recipient_id`+`sender_id` (no single `user_id` applies) |
+| `admin_notifications` | PostContext | System broadcast — no `user_id` applicable |
+| `playlist_tracks` | MusicContext | Junction table — no `user_id` needed |
+| `users` | free-signup.ts | Created with auth ID as doc ID ✅ |
+
 ## Schema Reconciliation (applied programmatically via API)
 All mismatches between code and Appwrite schema were resolved. Attributes added:
 - **users**: `is_verified` (boolean)
