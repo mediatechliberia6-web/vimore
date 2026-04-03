@@ -46,7 +46,7 @@ interface ProtocolCardProps {
   details: string[];
 }
 
-export function ProtocolCard({ title, subtitle, description, icon: Icon, color, bg, details }: ProtocolCardProps) {
+function ProtocolCard({ title, subtitle, description, icon: Icon, color, bg, details }: ProtocolCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const { triggerHaptic } = usePosts();
 

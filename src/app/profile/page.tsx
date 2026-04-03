@@ -92,7 +92,7 @@ const NATIONALITIES = [
   "Liberian", "American", "Nigerian", "Ghanian", "Guinean", "Sierra Leonean", "Ivory Coast", "European", "Asian", "Other"
 ];
 
-export function InfoNode({ icon: Icon, label, value, colorClass }: { icon: any, label: string, value: string, colorClass: string }) {
+function InfoNode({ icon: Icon, label, value, colorClass }: { icon: any, label: string, value: string, colorClass: string }) {
   return (
     <div className="flex items-center gap-3 group/node">
       <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center transition-transform group-hover/node:scale-110", colorClass)}>
