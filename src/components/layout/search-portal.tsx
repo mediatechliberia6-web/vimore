@@ -34,13 +34,16 @@ type SearchTab = "all" | "people" | "audio" | "nodes";
 
 export function SearchPortal() {
   const router = useRouter();
-  const { isSearchOpen, setSearchOpen, connections, posts, setSelectedPostId, triggerHaptic, settings } = usePosts();
+  const { isSearchOpen, setSearchOpen, connections, posts, setSelectedPostId, triggerHaptic, settings, searchAllUsers } = usePosts();
   const { setTrack, globalSongs } = useMusic();
   
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<SearchTab>("all");
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [liveUsers, setLiveUsers] = useState<any[]>([]);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Persistence: Load recent searches
   useEffect(() => {
@@ -60,8 +63,24 @@ export function SearchPortal() {
     } else {
       document.body.style.overflow = "auto";
       setQuery("");
+      setLiveUsers([]);
     }
   }, [isSearchOpen]);
+
+  // Live user search with debounce
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (!query.trim()) { setLiveUsers([]); return; }
+    setIsSearchingUsers(true);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const results = await searchAllUsers(query);
+        setLiveUsers(results);
+      } catch { setLiveUsers([]); }
+      finally { setIsSearchingUsers(false); }
+    }, 400);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [query, searchAllUsers]);
 
   const saveSearch = (term: string) => {
     if (!term.trim()) return;
@@ -81,11 +100,6 @@ export function SearchPortal() {
     if (!query.trim()) return null;
     const q = query.toLowerCase();
 
-    const people = connections.filter(c => 
-      (c.name || "").toLowerCase().includes(q) || 
-      (c.username || "").toLowerCase().includes(q)
-    );
-
     const audio = globalSongs.filter(s => 
       (s.title || "").toLowerCase().includes(q) || 
       (s.artist || "").toLowerCase().includes(q)
@@ -96,8 +110,8 @@ export function SearchPortal() {
       (p.user?.name || "").toLowerCase().includes(q)
     );
 
-    return { people, audio, nodes };
-  }, [query, connections, posts, globalSongs]);
+    return { people: liveUsers, audio, nodes };
+  }, [query, liveUsers, posts, globalSongs]);
 
   const handleDeepLink = (type: 'profile' | 'track' | 'post', id: string | number) => {
     triggerHaptic?.(15);
@@ -223,7 +237,17 @@ export function SearchPortal() {
               </div>
 
               {/* People Clusters */}
-              {(activeTab === 'all' || activeTab === 'people') && filteredResults.people.length > 0 && (
+              {(activeTab === 'all' || activeTab === 'people') && isSearchingUsers && (
+                <section className="space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2 px-1">
+                    <Users className="h-4 w-4" /> Creators
+                  </h3>
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground px-1 animate-pulse">
+                    <Zap className="h-4 w-4 text-primary" /> Scanning the network...
+                  </div>
+                </section>
+              )}
+              {(activeTab === 'all' || activeTab === 'people') && !isSearchingUsers && filteredResults.people.length > 0 && (
                 <section className="space-y-4">
                   <h3 className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2 px-1">
                     <Users className="h-4 w-4" /> Creators
@@ -323,7 +347,7 @@ export function SearchPortal() {
               )}
 
               {/* Empty Search State */}
-              {filteredResults.people.length === 0 && filteredResults.audio.length === 0 && filteredResults.nodes.length === 0 && (
+              {!isSearchingUsers && filteredResults.people.length === 0 && filteredResults.audio.length === 0 && filteredResults.nodes.length === 0 && (
                 <div className="py-20 text-center space-y-6 opacity-40">
                   <div className="h-20 w-20 bg-secondary/30 rounded-full flex items-center justify-center mx-auto">
                     <Zap className="h-10 w-10 text-muted-foreground" />

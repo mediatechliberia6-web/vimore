@@ -100,14 +100,14 @@ function TextPostCard({
         Query.orderDesc('$createdAt'),
         Query.limit(20),
       ]);
-      const authorIds = [...new Set(res.documents.map((d: any) => d.author_id).filter(Boolean))];
+      const authorIds = [...new Set(res.documents.map((d: any) => d.user_id).filter(Boolean))];
       let authors: Record<string, any> = {};
       if (authorIds.length > 0) {
         const ar = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', authorIds as string[])]);
         authors = Object.fromEntries(ar.documents.map((u: any) => [u.$id, u]));
       }
       setComments(res.documents.map((d: any) => {
-        const a = authors[d.author_id];
+        const a = authors[d.user_id];
         const name = a?.name || 'User';
         return {
           id: d.$id,
@@ -136,7 +136,6 @@ function TextPostCard({
       await databases.createDocument(DATABASE_ID, COL.POST_COMMENTS, ID.unique(), {
         post_id: post.id,
         user_id: authUser.$id,
-        author_id: authUser.$id,
         user_name: authUser.name || authUser.username || '',
         user_avatar: authUser.avatar || '',
         content: commentText.trim(),
@@ -267,7 +266,6 @@ function ComposeBox({ authUser, onPosted }: { authUser: AuthUser; onPosted: () =
     try {
       await databases.createDocument(DATABASE_ID, COL.POSTS, ID.unique(), {
         user_id: authUser.$id,
-        author_id: authUser.$id,
         content: text.trim(),
         likes_count: 0,
         comments_count: 0,
@@ -344,7 +342,7 @@ export default function FreeModePage() {
       const textPosts = res.documents.filter(
         (d: any) => !d.image_ids?.length && !d.video_id && d.content?.trim()
       );
-      const authorIds = [...new Set(textPosts.map((d: any) => d.author_id).filter(Boolean))];
+      const authorIds = [...new Set(textPosts.map((d: any) => d.user_id).filter(Boolean))];
       let authorsMap: Record<string, any> = {};
       if (authorIds.length > 0) {
         const ar = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', authorIds as string[])]);
@@ -352,11 +350,11 @@ export default function FreeModePage() {
       }
       setPosts(
         textPosts.map((d: any) => {
-          const author = authorsMap[d.author_id];
+          const author = authorsMap[d.user_id];
           const name = author?.name || 'User';
           return {
             id: d.$id,
-            authorId: d.author_id,
+            authorId: d.user_id,
             username: author?.username || 'user',
             name,
             initials: getInitials(name),

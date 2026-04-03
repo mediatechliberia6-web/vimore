@@ -309,6 +309,7 @@ interface PostContextType {
   endCall: (duration?: string) => Promise<void>;
   refreshAdminData: () => Promise<void>;
   fetchProfileByUsername: (username: string) => Promise<User | null>;
+  searchAllUsers: (query: string) => Promise<User[]>;
   fetchComments: (postId: string) => Promise<void>;
   refreshProfiles: () => Promise<any[]>;
   refreshClusters: () => Promise<void>;
@@ -434,13 +435,13 @@ function mapDocToPost(doc: Models.Document, authorDoc?: Models.Document): Post {
   const videoId = doc.video_id;
 
   const author: User = authorDoc ? {
-    $id: doc.author_id,
+    $id: doc.user_id,
     name: authorDoc.name || 'Unknown',
     username: authorDoc.username || 'unknown',
     avatar: authorDoc.avatar_id ? getFileUrl(BUCKET.AVATARS, authorDoc.avatar_id) : avatarFallback(authorDoc.name || 'U'),
     isVerified: authorDoc.is_verified || false,
   } : {
-    $id: doc.author_id,
+    $id: doc.user_id,
     name: 'Unknown',
     username: 'unknown',
     avatar: avatarFallback('U'),
@@ -565,7 +566,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         databases.listDocuments(DATABASE_ID, COL.POSTS, feedQueries)
       );
 
-      const authorIds = [...new Set(postsResult.documents.map((p: any) => p.author_id).filter(Boolean))];
+      const authorIds = [...new Set(postsResult.documents.map((p: any) => p.user_id).filter(Boolean))];
       let authorsMap: Record<string, any> = {};
 
       if (authorIds.length > 0) {
@@ -578,7 +579,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         } catch { /* ignore */ }
       }
 
-      const mapped = postsResult.documents.map((doc: any) => mapDocToPost(doc, authorsMap[doc.author_id]));
+      const mapped = postsResult.documents.map((doc: any) => mapDocToPost(doc, authorsMap[doc.user_id]));
       setPostsState(mapped);
       if (postsResult.documents.length > 0) {
         feedCursorRef.current = postsResult.documents[postsResult.documents.length - 1].$id;
@@ -599,7 +600,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         Query.limit(15),
       ]);
 
-      const authorIds = [...new Set(postsResult.documents.map((p: any) => p.author_id).filter(Boolean))];
+      const authorIds = [...new Set(postsResult.documents.map((p: any) => p.user_id).filter(Boolean))];
       let authorsMap: Record<string, any> = {};
 
       if (authorIds.length > 0) {
@@ -611,7 +612,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         } catch { /* ignore */ }
       }
 
-      const mapped = postsResult.documents.map((doc: any) => mapDocToPost(doc, authorsMap[doc.author_id]));
+      const mapped = postsResult.documents.map((doc: any) => mapDocToPost(doc, authorsMap[doc.user_id]));
       setPostsState(prev => {
         const existingIds = new Set(prev.map(p => p.$id));
         return [...prev, ...mapped.filter((p: any) => !existingIds.has(p.$id))];
@@ -745,7 +746,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         Query.limit(30),
       ]);
 
-      const authorIds = [...new Set(storiesResult.documents.map((s: any) => s.author_id).filter(Boolean))];
+      const authorIds = [...new Set(storiesResult.documents.map((s: any) => s.user_id).filter(Boolean))];
       let authorsMap: Record<string, any> = {};
       if (authorIds.length > 0) {
         try {
@@ -771,7 +772,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
 
       const mapped = storiesResult.documents.map((doc: any) => {
-        const authorDoc = authorsMap[doc.author_id];
+        const authorDoc = authorsMap[doc.user_id];
         const segments = (segmentsMap[doc.$id] || []).map(seg => ({
           $id: seg.$id,
           type: seg.type || 'image',
@@ -781,7 +782,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         }));
         return {
           $id: doc.$id,
-          user: authorDoc ? mapProfileDocToUser(authorDoc) : { $id: doc.author_id, name: 'Unknown', username: 'unknown', avatar: avatarFallback('U'), isVerified: false },
+          user: authorDoc ? mapProfileDocToUser(authorDoc) : { $id: doc.user_id, name: 'Unknown', username: 'unknown', avatar: avatarFallback('U'), isVerified: false },
           segments,
           expiry: doc.expiry,
           viewCount: doc.view_count || 0,
@@ -1176,7 +1177,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         banned_by: currentUser.username,
       });
       const userPostsRes = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
-        Query.equal('author_id', userId), Query.limit(500),
+        Query.equal('user_id', userId), Query.limit(500),
       ]);
       await Promise.allSettled(
         userPostsRes.documents.map(doc =>
@@ -1306,7 +1307,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
     const docData: Record<string, any> = {
       user_id: currentUser.$id,
-      author_id: currentUser.$id,
       content: p.content || '',
       media_ids: mediaIds,
       likes_count: 0,
@@ -1490,7 +1490,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const expiry = new Date(Date.now() + 86400000).toISOString();
       const storyDoc = await databases.createDocument(DATABASE_ID, COL.STORIES, ID.unique(), {
         user_id: currentUser.$id,
-        author_id: currentUser.$id,
         expiry,
         view_count: 0,
       });
@@ -1503,7 +1502,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const segData: Record<string, any> = {
         story_id: storyDoc.$id,
         user_id: currentUser.$id,
-        author_id: currentUser.$id,
         type: segment.type || 'image',
         order_index: 0,
         duration: segment.duration || 5,
@@ -1777,6 +1775,35 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const searchAllUsers = useCallback(async (query: string): Promise<User[]> => {
+    if (!query.trim()) return [];
+    try {
+      const [byName, byUsername] = await Promise.allSettled([
+        databases.listDocuments(DATABASE_ID, COL.USERS, [
+          Query.search('name', query), Query.limit(20),
+        ]),
+        databases.listDocuments(DATABASE_ID, COL.USERS, [
+          Query.search('username', query), Query.limit(20),
+        ]),
+      ]);
+      const seen = new Set<string>();
+      const results: User[] = [];
+      const addDocs = (docs: any[]) => {
+        for (const doc of docs) {
+          if (!seen.has(doc.$id)) {
+            seen.add(doc.$id);
+            results.push(mapProfileDocToUser(doc));
+          }
+        }
+      };
+      if (byName.status === 'fulfilled') addDocs(byName.value.documents);
+      if (byUsername.status === 'fulfilled') addDocs(byUsername.value.documents);
+      return results;
+    } catch {
+      return [];
+    }
+  }, []);
+
   const fetchComments = useCallback(async (postId: string) => {
     try {
       const result = await databases.listDocuments(DATABASE_ID, COL.POST_COMMENTS, [
@@ -1971,6 +1998,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         action_url: d.actionUrl || '',
         action_label: d.actionLabel || 'Learn More',
         budget: d.budget || 0,
+        spent: 0,
         is_active: true,
         impressions: 0,
         clicks: 0,
@@ -2035,7 +2063,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       await databases.createDocument(DATABASE_ID, COL.SUPPORT_TICKETS, ID.unique(), {
         user_id: currentUser.$id,
-        username: currentUser.username,
         subject: data.subject, message: data.message,
         category: data.category, status: 'OPEN',
         priority: data.priority || 'MEDIUM',
@@ -2363,7 +2390,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     promoteUser, demoteUser,
     addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick: async () => {},
     initiateCall, acceptCall, endCall, refreshAdminData,
-    fetchProfileByUsername, fetchComments,
+    fetchProfileByUsername, searchAllUsers, fetchComments,
     refreshProfiles,
     refreshClusters,
     refreshFeed, refreshStories,

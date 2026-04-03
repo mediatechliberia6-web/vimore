@@ -117,7 +117,7 @@ export default function ProfessionalDashboard() {
       try {
         const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
         const res = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
-          Query.equal('author_id', currentUser.$id),
+          Query.equal('user_id', currentUser.$id),
           Query.greaterThan('$createdAt', sevenDaysAgo),
           Query.limit(100),
         ]);
@@ -138,7 +138,7 @@ export default function ProfessionalDashboard() {
       try {
         const twentyEightDaysAgo = new Date(Date.now() - 28 * 86400000).toISOString();
         const res = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
-          Query.equal('author_id', currentUser.$id),
+          Query.equal('user_id', currentUser.$id),
           Query.greaterThan('$createdAt', twentyEightDaysAgo),
           Query.limit(200),
         ]);
