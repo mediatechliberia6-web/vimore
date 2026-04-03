@@ -1865,7 +1865,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       await databases.createDocument(DATABASE_ID, COL.PAYMENT_REQUESTS, ID.unique(), {
         user_id: currentUser.$id,
-        username: currentUser.username,
         package_name: req.package_name,
         amount: String(req.amount),
         currency: req.currency,
@@ -1895,7 +1894,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setWithdrawalHistory(prev => [wd, ...prev]);
     try {
       await databases.createDocument(DATABASE_ID, COL.WITHDRAWAL_REQUESTS, ID.unique(), {
-        user_id: currentUser.$id, username: currentUser.username,
+        user_id: currentUser.$id,
         amount_usd: parseFloat(n.amount || 0), currency_type: n.currency || 'USD',
         phone_number: n.phoneNumber || '', payment_method: n.method || 'MOBILE_MONEY',
         status: 'PENDING',
@@ -1918,7 +1917,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const allMembers = [currentUser, ...members];
       await Promise.all(allMembers.map(m =>
         databases.createDocument(DATABASE_ID, COL.CLUSTER_MEMBERS, ID.unique(), {
-          cluster_id: clDoc.$id, user_id: m.$id, username: m.username,
+          cluster_id: clDoc.$id, user_id: m.$id,
         })
       ));
 
@@ -1939,7 +1938,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     ));
     try {
       await databases.createDocument(DATABASE_ID, COL.CLUSTER_MEMBERS, ID.unique(), {
-        cluster_id: clusterId, user_id: member.$id, username: member.username,
+        cluster_id: clusterId, user_id: member.$id,
       });
     } catch { /* keep optimistic */ }
   };
