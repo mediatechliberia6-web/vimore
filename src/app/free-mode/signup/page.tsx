@@ -203,10 +203,8 @@ export default function FreeModeSignupPage() {
                 className="w-full px-4 py-3 rounded-xl border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
               >
                 <option value="">Select gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="non-binary">Non-binary</option>
-                <option value="prefer-not-to-say">Prefer not to say</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
               </select>
               {errors.gender && <p className="text-xs text-red-500 mt-1">{errors.gender}</p>}
             </div>

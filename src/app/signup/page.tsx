@@ -129,6 +129,7 @@ export default function SignupPage() {
 
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
+  const [gender, setGender] = useState<"Male" | "Female" | "">("");
   const [nationality, setNationality] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -197,13 +198,17 @@ export default function SignupPage() {
       toast({ variant: "destructive", title: "Security question required", description: "Please choose a security question." });
       return;
     }
+    if (!gender) {
+      toast({ variant: "destructive", title: "Gender required", description: "Please select your gender." });
+      return;
+    }
     if (!securityAnswer.trim()) {
       toast({ variant: "destructive", title: "Security answer required", description: "Please answer your security question." });
       return;
     }
     setIsSubmitting(true);
     try {
-      const result = await signup({ name, vimoreId, password, dob, nationality, securityQuestion, securityAnswer, phone: phone.trim() || undefined });
+      const result = await signup({ name, vimoreId, password, dob, nationality, gender, securityQuestion, securityAnswer, phone: phone.trim() || undefined });
       if (result.success) {
         router.replace("/");
       } else if (!result.success && result.message) {
@@ -305,6 +310,26 @@ export default function SignupPage() {
                 {age && (
                   <p className="text-[11px] font-bold text-[#9940E5] pl-2 animate-in fade-in duration-200">· {age}</p>
                 )}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Gender</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  {(["Male", "Female"] as const).map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setGender(g)}
+                      className={`h-14 rounded-2xl border font-black text-sm uppercase tracking-widest transition-all ${
+                        gender === g
+                          ? "bg-[#9940E5] border-[#9940E5] text-white shadow-lg shadow-violet-200"
+                          : "bg-gray-50 border-gray-100 text-gray-400 hover:border-violet-200 hover:text-[#9940E5]"
+                      }`}
+                    >
+                      {g === "Male" ? "♂ Male" : "♀ Female"}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -449,7 +474,7 @@ export default function SignupPage() {
 
             <Button
               type="submit"
-              disabled={isSubmitting || !name || !dob || !nationality || !password || !confirmPassword || passwordsMismatch || !securityQuestion || !securityAnswer.trim()}
+              disabled={isSubmitting || !name || !dob || !gender || !nationality || !password || !confirmPassword || passwordsMismatch || !securityQuestion || !securityAnswer.trim()}
               className="w-full h-14 rounded-2xl bg-[#9940E5] hover:bg-violet-700 text-white font-black italic uppercase tracking-[0.15em] text-sm shadow-xl shadow-violet-200 transition-all active:scale-95 gap-3"
             >
               {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <> Create Account <ArrowRight className="h-5 w-5" /> </>}
