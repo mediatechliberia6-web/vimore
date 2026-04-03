@@ -131,6 +131,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { aiAnalyzeVibeAction } from "@/app/actions/ai";
 import {
   Sheet,
   SheetContent,
@@ -158,6 +159,7 @@ export default function AdminDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
   const [isAnalyzingVibe, setIsAnalyzingVibe] = useState(false);
+  const [vibeInsight, setVibeInsight] = useState<{ sentiment: number; velocity: string; engagementRate: number; insight: string } | null>(null);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   const [govSearch, setGovSearch] = useState("");
@@ -355,6 +357,32 @@ export default function AdminDashboard() {
       if (status === 'APPROVED') await approvePaymentRequest(id);
       else await rejectPaymentRequest(id);
       toast({ title: status === 'APPROVED' ? "Pulse Authorized" : "Handshake Purged" });
+    }
+  };
+
+  const handleAnalyzeVibe = async () => {
+    if (isAnalyzingVibe) return;
+    setIsAnalyzingVibe(true);
+    triggerHaptic(15);
+    try {
+      const totalLikes = posts.reduce((a, p) => a + (p.likes || 0), 0);
+      const totalUnlikes = posts.reduce((a, p) => a + (p.unlikes || 0), 0);
+      const yesterday = Date.now() - 86400000;
+      const recentPosts = posts.filter(p => new Date(p.createdAt).getTime() > yesterday).length;
+      const result = await aiAnalyzeVibeAction({
+        posts: posts.length,
+        totalLikes,
+        totalUnlikes,
+        recentPosts,
+        totalUsers: allUsers.length,
+      });
+      setVibeInsight(result);
+      triggerHaptic(20);
+      toast({ title: 'Vibe analysis complete', description: 'AI insight generated.' });
+    } catch {
+      toast({ title: 'Analysis failed', description: 'Could not complete vibe analysis.', variant: 'destructive' });
+    } finally {
+      setIsAnalyzingVibe(false);
     }
   };
 
@@ -954,6 +982,48 @@ export default function AdminDashboard() {
                   </div>
                 </Card>
               </div>
+              <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <h4 className="text-xl font-black italic uppercase tracking-tighter">AI Vibe Analysis</h4>
+                    <p className="text-xs text-muted-foreground mt-1">Deep AI insight into platform health and community mood</p>
+                  </div>
+                  <Button onClick={handleAnalyzeVibe} disabled={isAnalyzingVibe} className="rounded-full gap-2 text-xs font-black uppercase tracking-widest">
+                    {isAnalyzingVibe ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4" />}
+                    {isAnalyzingVibe ? 'Analyzing...' : 'Run Vibe Analysis'}
+                  </Button>
+                </div>
+                {vibeInsight ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="bg-green-500/10 rounded-2xl p-4 text-center">
+                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Sentiment</p>
+                        <p className="text-2xl font-black italic text-green-400">{vibeInsight.sentiment}%</p>
+                      </div>
+                      <div className="bg-amber-400/10 rounded-2xl p-4 text-center">
+                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Velocity</p>
+                        <p className="text-2xl font-black italic text-amber-400">{vibeInsight.velocity}</p>
+                      </div>
+                      <div className="bg-primary/10 rounded-2xl p-4 text-center">
+                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Engagement</p>
+                        <p className="text-2xl font-black italic text-primary">{vibeInsight.engagementRate}x</p>
+                      </div>
+                    </div>
+                    <div className="bg-secondary/30 rounded-2xl p-5 border border-border">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-primary">AI Insight</span>
+                      </div>
+                      <p className="text-sm text-foreground leading-relaxed">{vibeInsight.insight}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-3">
+                    <BrainCircuit className="h-12 w-12 opacity-20" />
+                    <p className="text-sm font-medium">Click &quot;Run Vibe Analysis&quot; to generate AI insights</p>
+                  </div>
+                )}
+              </Card>
             </div>
           )}
 

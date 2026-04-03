@@ -58,6 +58,7 @@ import {
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { usePosts } from "@/context/PostContext";
+import { aiGenerateCaptionAction } from "@/app/actions/ai";
 import { useMusic } from "@/context/MusicContext";
 import {
   Select,
@@ -185,6 +186,24 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   useEffect(() => {
     if (content) localStorage.setItem('vimore_post_draft', content);
   }, [content]);
+
+  const handleAiEnhance = async () => {
+    if (!content.trim() || isAiLoading) return;
+    setIsAiLoading(true);
+    triggerHaptic(15);
+    try {
+      const { caption } = await aiGenerateCaptionAction({
+        content: content.trim(),
+        hasMedia: selectedMedia.length > 0,
+      });
+      setContent(caption);
+      triggerHaptic(20);
+    } catch {
+      toast({ title: 'AI unavailable', description: 'Could not enhance caption right now.', variant: 'destructive' });
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -364,7 +383,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             <DialogTitle className="font-bold text-lg">Create post</DialogTitle>
           </div>
           <div className="flex items-center gap-2">
-             <Button variant="ghost" size="icon" className="text-primary h-9 w-9" onClick={() => triggerHaptic()} disabled={isAiLoading || !content.trim()}>{isAiLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}</Button>
+             <Button variant="ghost" size="icon" className="text-primary h-9 w-9" title="AI: Enhance Caption" onClick={handleAiEnhance} disabled={isAiLoading || !content.trim()}>{isAiLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}</Button>
             <Button variant="ghost" className={cn("font-bold text-primary text-base", ((!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing) && "opacity-50")} disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing || isAiLoading} onClick={handlePost}>
               {isAiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "POST"}
             </Button>
