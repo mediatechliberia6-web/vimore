@@ -1518,10 +1518,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
         viewCount: 0,
       };
       setStoriesState(prev => [newStory, ...prev]);
-      toast({ title: "Story posted!" });
     } catch (err: any) {
       logAppwriteError('addStory', err);
-      toast({ variant: "destructive", title: "Failed to post story", description: formatErrorDescription(err, currentUser?.role) });
+      throw err;
     }
   };
 
@@ -1894,10 +1893,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
         members: allMembers as User[], isGroup: true,
       };
       setClustersState(prev => [...prev, newCluster]);
-      toast({ title: "Cluster created!" });
     } catch (err: any) {
       logAppwriteError('createCluster', err);
-      toast({ variant: "destructive", title: "Failed to create cluster", description: formatErrorDescription(err, currentUser?.role) });
+      throw err;
     }
   };
 
@@ -1973,7 +1971,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       setCampaignsState(prev => [doc, ...prev]);
     } catch (err: any) {
       logAppwriteError('addCampaign', err);
-      toast({ variant: "destructive", title: "Failed to create campaign", description: formatErrorDescription(err, currentUser?.role) });
       throw err;
     }
   };

@@ -46,12 +46,21 @@ export function CreateClusterModal({ children }: { children: React.ReactNode }) 
     });
   };
 
-  const handleCreate = () => {
+  const [isCreating, setIsCreating] = useState(false);
+
+  const handleCreate = async () => {
     if (!clusterName.trim()) return;
-    createCluster(clusterName, selectedNodes);
-    toast({ title: "Cluster Materialized", description: `${clusterName} is now live.` });
-    setIsOpen(false);
-    reset();
+    setIsCreating(true);
+    try {
+      await createCluster(clusterName, selectedNodes);
+      toast({ title: "Cluster Materialized", description: `${clusterName} is now live.` });
+      setIsOpen(false);
+      reset();
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Failed to create cluster", description: err.message });
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const reset = () => {
@@ -224,10 +233,10 @@ export function CreateClusterModal({ children }: { children: React.ReactNode }) 
             <div className="p-6 space-y-4 bg-white dark:bg-[#050505] border-t border-primary/5 shrink-0">
               <Button 
                 className="w-full h-16 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl disabled:opacity-50"
-                disabled={!clusterName.trim()}
+                disabled={!clusterName.trim() || isCreating}
                 onClick={handleCreate}
               >
-                Materialize Cluster
+                {isCreating ? "Materializing..." : "Materialize Cluster"}
               </Button>
               <Button 
                 variant="ghost" 
