@@ -1268,7 +1268,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
       setBroadcastHistory(prev => [broadcastDoc, ...prev]);
     } catch { /* admin log failure should not block sending notifications */ }
-    await Promise.allSettled(
+    if (targets.length === 0) return 0;
+    const results = await Promise.allSettled(
       targets.map(uid =>
         databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
           recipient_id: uid,
@@ -1279,7 +1280,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
         })
       )
     );
-    return targets.length;
+    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    if (failed > 0) {
+      const sample = (results.find(r => r.status === 'rejected') as PromiseRejectedResult)?.reason;
+      const detail = sample?.message || sample?.type || 'Unknown Appwrite error';
+      throw new Error(`${succeeded}/${targets.length} delivered. ${failed} failed: ${detail}`);
+    }
+    return succeeded;
   }, [currentUser, allUsers]);
 
   const addPost = async (p: any) => {
@@ -1521,8 +1529,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const sendFriendRequest = useCallback(async (targetUsername: string) => {
     if (!currentUser) return;
-    setSentRequestUsernamesState(p => new Set(p).add(targetUsername));
-
     try {
       const targetResult = await databases.listDocuments(DATABASE_ID, COL.USERS, [
         Query.equal('username', targetUsername), Query.limit(1),
@@ -1537,8 +1543,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
         receiver_username: targetUsername,
         status: 'PENDING',
       });
+      setSentRequestUsernamesState(p => new Set(p).add(targetUsername));
       toast({ title: "Friend request sent!" });
-    } catch (err) { logAppwriteError('sendFriendRequest', err); }
+    } catch (err: any) {
+      logAppwriteError('sendFriendRequest', err);
+      toast({ variant: 'destructive', title: 'Request Failed', description: err?.message || 'Could not send friend request. Please try again.' });
+    }
   }, [currentUser, toast]);
 
   const confirmFriendRequest = useCallback(async (username: string) => {
@@ -1624,8 +1634,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
         if (fid) docData.media_id = fid;
       }
       await databases.createDocument(DATABASE_ID, COL.MESSAGES, ID.unique(), docData);
-    } catch { /* keep optimistic */ }
-  }, [currentUser]);
+    } catch (err: any) {
+      setChatMessages(prev => ({
+        ...prev,
+        [recipientId]: (prev[recipientId] || []).filter(m => m.$id !== optimistic.$id),
+      }));
+      logAppwriteError('sendChatMessage', err);
+      toast({ variant: 'destructive', title: 'Message Failed', description: err?.message || 'Could not deliver your message. Please try again.' });
+      throw err;
+    }
+  }, [currentUser, toast]);
 
   const sendMessageRequest = useCallback(async (targetUserId: string, targetUser: User, text: string) => {
     if (!currentUser || !text.trim()) return;
