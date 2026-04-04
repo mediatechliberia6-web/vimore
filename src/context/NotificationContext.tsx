@@ -117,17 +117,17 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     triggerHaptic(15);
 
     if (signal.recipientId) {
-      databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+      const notifData: Record<string, any> = {
         recipient_id: signal.recipientId,
-        sender_id: signal.recipientId,
         type: signal.type,
         title: signal.title,
         content: signal.content,
         is_read: false,
-        post_id: signal.postId || null,
-        track_id: signal.trackId ? String(signal.trackId) : null,
-        target_username: signal.targetUsername || null,
-      }).catch(() => { /* ignore */ });
+      };
+      if (signal.postId) notifData.post_id = signal.postId;
+      if (signal.trackId) notifData.track_id = String(signal.trackId);
+      if (signal.targetUsername) notifData.target_username = signal.targetUsername;
+      databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), notifData).catch(() => { /* ignore */ });
     }
   }, [triggerSound, triggerHaptic]);
 

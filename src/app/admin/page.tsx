@@ -144,7 +144,7 @@ type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" |
 type EconomySubTab = "outbound" | "inbound";
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, reports, tickets, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus, updateUserIdentity, handleReportAction, handleTicketAction, submitTicket, uploadMedia, isLoading, allUsers, refreshAllUsers, banUser, suspendUser, warnUser, sendAdminBroadcast, broadcastHistory } = usePosts();
+  const { withdrawalHistory, paymentRequests, reports, tickets, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus, updateUserIdentity, handleReportAction, handleTicketAction, replyToTicket, submitTicket, uploadMedia, isLoading, allUsers, refreshAllUsers, banUser, suspendUser, warnUser, sendAdminBroadcast, broadcastHistory } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   
@@ -196,6 +196,8 @@ export default function AdminDashboard() {
   const [broadcastFollowerMin, setBroadcastFollowerMin] = useState(0);
   const [broadcastFollowerMax, setBroadcastFollowerMax] = useState(9999999);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [ticketReplies, setTicketReplies] = useState<Record<string, string>>({});
+  const [sendingReply, setSendingReply] = useState<string | null>(null);
   const [broadcastSent, setBroadcastSent] = useState<number | null>(null);
 
   // Campaign Form State
@@ -1636,9 +1638,36 @@ export default function AdminDashboard() {
                       <p className="text-sm text-muted-foreground leading-relaxed">{t.message}</p>
                     </div>
                     {t.status !== 'CLOSED' && (
-                      <div className="flex gap-3">
-                        {t.status === 'OPEN' && <Button size="sm" className="h-10 rounded-2xl bg-amber-400/10 text-amber-400 hover:bg-amber-400 hover:text-black font-black uppercase text-[10px]" onClick={() => { triggerHaptic(20); handleTicketAction(t.$id, 'IN_REVIEW'); addAuditLog('TICKET_REVIEWED', `Ticket ${t.$id} from @${t.username} moved to review`); toast({ title: "Ticket Under Review" }); }}><Eye className="h-3 w-3 mr-1" />Review</Button>}
-                        <Button size="sm" className="h-10 rounded-2xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white font-black uppercase text-[10px]" onClick={() => { triggerHaptic(50); handleTicketAction(t.$id, 'CLOSED'); addAuditLog('TICKET_CLOSED', `Ticket ${t.$id} from @${t.username} resolved and closed`); toast({ title: "Ticket Closed" }); }}><Check className="h-3 w-3 mr-1" />Close</Button>
+                      <div className="space-y-3">
+                        <textarea
+                          className="w-full rounded-2xl bg-background/60 border border-border p-3 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-muted-foreground/50"
+                          rows={2}
+                          placeholder="Type a reply to send to this user..."
+                          value={ticketReplies[t.$id] || ''}
+                          onChange={e => setTicketReplies(prev => ({ ...prev, [t.$id]: e.target.value }))}
+                        />
+                        <div className="flex gap-3 flex-wrap">
+                          {t.status === 'OPEN' && <Button size="sm" className="h-10 rounded-2xl bg-amber-400/10 text-amber-400 hover:bg-amber-400 hover:text-black font-black uppercase text-[10px]" onClick={() => { triggerHaptic(20); handleTicketAction(t.$id, 'IN_REVIEW'); addAuditLog('TICKET_REVIEWED', `Ticket ${t.$id} from @${t.username} moved to review`); toast({ title: "Ticket Under Review" }); }}><Eye className="h-3 w-3 mr-1" />Review</Button>}
+                          <Button
+                            size="sm"
+                            disabled={!ticketReplies[t.$id]?.trim() || sendingReply === t.$id}
+                            className="h-10 rounded-2xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground font-black uppercase text-[10px]"
+                            onClick={async () => {
+                              triggerHaptic(20);
+                              setSendingReply(t.$id);
+                              try {
+                                await replyToTicket(t.user_id, t.$id, ticketReplies[t.$id]);
+                                setTicketReplies(prev => { const n = { ...prev }; delete n[t.$id]; return n; });
+                                addAuditLog('TICKET_REPLIED', `Reply sent to @${t.username} for ticket ${t.$id}`);
+                                toast({ title: "Reply Sent", description: "User has been notified." });
+                              } catch { toast({ variant: 'destructive', title: 'Reply Failed' }); }
+                              finally { setSendingReply(null); }
+                            }}
+                          >
+                            <Check className="h-3 w-3 mr-1" />{sendingReply === t.$id ? 'Sending...' : 'Send Reply'}
+                          </Button>
+                          <Button size="sm" className="h-10 rounded-2xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white font-black uppercase text-[10px]" onClick={() => { triggerHaptic(50); handleTicketAction(t.$id, 'CLOSED'); addAuditLog('TICKET_CLOSED', `Ticket ${t.$id} from @${t.username} resolved and closed`); toast({ title: "Ticket Closed" }); }}><Check className="h-3 w-3 mr-1" />Close</Button>
+                        </div>
                       </div>
                     )}
                   </Card>

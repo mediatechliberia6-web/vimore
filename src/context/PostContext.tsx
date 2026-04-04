@@ -320,6 +320,7 @@ interface PostContextType {
   updateUserIdentity: (userId: string, data: Partial<User>) => Promise<void>;
   handleReportAction: (reportId: string, action: any) => Promise<void>;
   handleTicketAction: (ticketId: string, status: any) => Promise<void>;
+  replyToTicket: (ticketUserId: string, ticketId: string, reply: string) => Promise<void>;
   submitTicket: (data: { subject: string; message: string; category: string; priority?: string }) => Promise<void>;
   sendChatMessage: (recipientId: string, message: Partial<ChatMessage>) => Promise<void>;
   purgeVibeCache: () => Promise<void>;
@@ -1270,7 +1271,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       targets.map(uid =>
         databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
           recipient_id: uid,
-          sender_id: currentUser.$id,
           type: 'SYSTEM',
           title: opts.title,
           content: opts.message,
@@ -1312,7 +1312,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       is_boosted: false,
       boost_current_views: 0,
       comments_disabled: p.commentsDisabled || false,
-      visibility: 'public',
     };
 
     if (mediaIds[0]) docData.image_id = mediaIds[0];
@@ -1484,7 +1483,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const expires_at = new Date(Date.now() + 86400000).toISOString();
       const storyDoc = await databases.createDocument(DATABASE_ID, COL.STORIES, ID.unique(), {
-        user_id: currentUser.$id,
         expires_at,
         views_count: 0,
       });
@@ -1532,7 +1530,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (!targetDoc) throw new Error('User not found');
 
       await databases.createDocument(DATABASE_ID, COL.FRIEND_REQUESTS, ID.unique(), {
-        user_id: currentUser.$id,
         sender_id: currentUser.$id,
         receiver_id: targetDoc.$id,
         sender_username: currentUser.username,
@@ -1875,15 +1872,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
         username: currentUser.username,
         package_name: req.package_name,
         amount: String(req.amount),
-        currency: req.currency,
-        code: req.code,
         screenshot_id: screenshotFileId,
         status: 'PENDING',
       });
-      toast({ title: "Payment request submitted!" });
     } catch (err: any) {
       logAppwriteError('createPaymentRequest', err);
-      toast({ variant: "destructive", title: "Payment request failed", description: err?.message || "Could not submit your payment request. Please try again." });
+      throw err;
     }
   }, [currentUser, pendingTransaction, toast]);
 
@@ -2092,6 +2086,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const handleTicketAction = async (ticketId: string, status: any) => {
     setTickets(prev => prev.map((t: any) => t.$id === ticketId ? { ...t, status } : t));
     try { await databases.updateDocument(DATABASE_ID, COL.SUPPORT_TICKETS, ticketId, { status }); } catch { /* ignore */ }
+  };
+
+  const replyToTicket = async (ticketUserId: string, ticketId: string, reply: string) => {
+    if (!currentUser || !reply.trim()) return;
+    await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+      recipient_id: ticketUserId,
+      type: 'SYSTEM',
+      title: 'Support Ticket Response',
+      content: reply.trim(),
+      is_read: false,
+    });
+    await databases.updateDocument(DATABASE_ID, COL.SUPPORT_TICKETS, ticketId, { status: 'IN_REVIEW' });
+    setTickets(prev => prev.map((t: any) => t.$id === ticketId ? { ...t, status: 'IN_REVIEW' } : t));
   };
 
   const updateUserIdentity = async (userId: string, data: Partial<User>) => {
@@ -2406,7 +2413,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     refreshFeed, refreshStories,
     recordView, recordStoryView,
     updateUserIdentity,
-    handleReportAction, handleTicketAction,
+    handleReportAction, handleTicketAction, replyToTicket,
     sendChatMessage,
     fetchAllUsersForDiscovery, allUsers, refreshAllUsers, banUser, suspendUser, warnUser, sendAdminBroadcast, broadcastHistory,
     purgeVibeCache: async () => setSeenPostIdsState(new Set()),

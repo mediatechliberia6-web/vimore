@@ -432,7 +432,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
       const docData: Record<string, any> = {
         user_id: currentUser.$id,
-        artist_id: currentUser.$id,
         title: track.title || 'Untitled',
         artist: track.artist || currentUser.name,
         artist_username: track.artistUsername || currentUser.username,
@@ -496,7 +495,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
           const audioId = song.audioUrl ? extractFileId(song.audioUrl) || undefined : undefined;
           const songDocData: Record<string, any> = {
             user_id: currentUser.$id,
-            artist_id: currentUser.$id,
             title: song.title || 'Untitled',
             artist: album.artist || currentUser.name,
             artist_username: album.artistUsername || currentUser.username,
