@@ -68,14 +68,18 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       const mapped: NotificationNode[] = res.documents.map((doc: any) => ({
         id: doc.$id,
         type: (doc.type as SignalType) || 'SYSTEM',
-        title: '',
-        content: doc.message || '',
+        title: doc.title || '',
+        content: doc.content || doc.message || '',
         time: formatTimeAgoSimple(doc.$createdAt),
         isRead: doc.is_read || false,
         recipientId: doc.user_id || '',
         postId: doc.post_id || undefined,
         trackId: doc.track_id || undefined,
         targetUsername: doc.target_username || undefined,
+        avatar: doc.avatar || undefined,
+        image: doc.image || undefined,
+        actionLabel: doc.action_label || undefined,
+        actionHref: doc.action_href || undefined,
       }));
       setNotifications(mapped);
     } catch (err) {
@@ -116,17 +120,22 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     triggerSound();
     triggerHaptic(15);
 
-    if (signal.recipientId) {
+    const targetUserId = signal.recipientId || (currentUser?.$id);
+    if (targetUserId) {
       const notifData: Record<string, any> = {
-        user_id: signal.recipientId,
+        user_id: targetUserId,
         type: signal.type,
+        title: signal.title || '',
+        content: signal.content || '',
         message: signal.content || signal.title || '',
         is_read: false,
       };
       if (signal.postId) notifData.post_id = signal.postId;
+      if (signal.trackId) notifData.track_id = String(signal.trackId);
+      if (signal.targetUsername) notifData.target_username = signal.targetUsername;
       databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), notifData).catch(() => { /* ignore */ });
     }
-  }, [triggerSound, triggerHaptic]);
+  }, [triggerSound, triggerHaptic, currentUser]);
 
   const markAsRead = useCallback((id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));

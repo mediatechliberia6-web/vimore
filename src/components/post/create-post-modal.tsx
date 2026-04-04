@@ -71,7 +71,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
-import { BUCKET_IMAGES, BUCKET_REEL } from "@/lib/appwrite";
+import { BUCKET_IMAGES } from "@/lib/appwrite";
 
 interface CreatePostModalProps {
   children: React.ReactNode;
@@ -281,7 +281,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     
     try {
       const uploadedUrls = [];
-      const bucketId = mediaType === 'video' ? BUCKET_REEL : BUCKET_IMAGES;
+      const bucketId = BUCKET_IMAGES;
       
       for (const file of stagedFiles) {
         const url = await uploadMedia(file, bucketId);
@@ -302,13 +302,13 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         commentsDisabled,
         isLocked,
         unlockPrice: isLocked ? unlockPrice : undefined,
-        poll: isPollOpen && pollQuestion ? JSON.stringify({
+        poll: isPollOpen && pollQuestion ? {
           question: pollQuestion,
           options: pollOptions.filter(o => o.trim()).map(text => ({ text, votes: 0 })),
           voters: {},
           totalVotes: 0,
           duration: pollDuration
-        }) : undefined
+        } : undefined
       });
 
       toast({ title: "Handshake Synchronized", description: "Node materialized in the global vault." });

@@ -119,6 +119,7 @@ export default function CurrencyHub() {
         amount: amount.toString(),
         currency: currencyMode,
         type: selectedPackage.type,
+        coinAmount: selectedPackage.gd || selectedPackage.d || 0,
         code: `VBC-${code}`
       });
       

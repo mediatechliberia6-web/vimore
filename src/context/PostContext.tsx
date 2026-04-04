@@ -881,15 +881,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const user = mapDocToUser(authUser, profileDoc);
       setCurrentUserState(user);
 
-      if (authUser.emailVerification) {
-        await Promise.allSettled([
-          loadFeed(),
-          loadSocialGraph(authUser.$id),
-          loadConnections(authUser.$id),
-          loadStories(),
-          loadClusters(authUser.$id),
-        ]);
-      }
+      await Promise.allSettled([
+        loadFeed(),
+        loadSocialGraph(authUser.$id),
+        loadConnections(authUser.$id),
+        loadStories(),
+        loadClusters(authUser.$id),
+      ]);
     } catch {
       setCurrentUserState(null);
     } finally {
@@ -1137,7 +1135,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (reportsRes.status === 'fulfilled') setReports(reportsRes.value.documents);
       if (ticketsRes.status === 'fulfilled') setTickets(ticketsRes.value.documents);
       if (campaignsRes.status === 'fulfilled') setCampaignsState(campaignsRes.value.documents);
-      if (payReqRes.status === 'fulfilled') setPaymentRequests(payReqRes.value.documents);
+      if (payReqRes.status === 'fulfilled') setPaymentRequests(payReqRes.value.documents.map((doc: any) => ({
+        ...doc,
+        packageName: doc.package_name || doc.message || 'Package',
+        screenshot: doc.screenshot_id ? getFileUrl(BUCKET.PAYMENT_SCREENSHOTS, doc.screenshot_id) : '',
+      })));
       if (wdRes.status === 'fulfilled') setWithdrawalHistory(wdRes.value.documents);
       if (logsRes.status === 'fulfilled') setAuditLogs(logsRes.value.documents);
       if (staffRes.status === 'fulfilled') setStaff(staffRes.value.documents.map(mapProfileDocToUser));
@@ -1931,9 +1933,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
         user_id: currentUser.$id,
         from_user_id: currentUser.$id,
         to_user_id: 'platform',
+        username: currentUser.username,
+        name: currentUser.name,
         currency: pendingTransaction?.currency || 'USD',
         amount: parseFloat(pendingTransaction?.amount || '0'),
         message: pendingTransaction?.packageName || '',
+        package_name: pendingTransaction?.packageName || '',
+        coin_type: pendingTransaction?.type || 'Gold',
+        coin_amount: pendingTransaction?.coinAmount || 0,
         screenshot_id: screenshotFileId,
         status: 'PENDING',
       });
@@ -1945,7 +1952,31 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const approvePaymentRequest = async (id: string) => {
     setPaymentRequests(prev => prev.map(r => r.$id === id ? { ...r, status: 'APPROVED' } : r));
-    try { await databases.updateDocument(DATABASE_ID, COL.PAYMENT_REQUESTS, id, { status: 'APPROVED' }); } catch { /* ignore */ }
+    try {
+      const reqDoc = await databases.getDocument(DATABASE_ID, COL.PAYMENT_REQUESTS, id);
+      await databases.updateDocument(DATABASE_ID, COL.PAYMENT_REQUESTS, id, { status: 'APPROVED' });
+      if (reqDoc.user_id && reqDoc.coin_amount && reqDoc.coin_type) {
+        const userDoc = await databases.getDocument(DATABASE_ID, COL.USERS, reqDoc.user_id);
+        const updateData: Record<string, any> = {};
+        if (reqDoc.coin_type === 'Gold') {
+          updateData.gold_balance = (userDoc.gold_balance || 0) + reqDoc.coin_amount;
+        } else if (reqDoc.coin_type === 'Diamond') {
+          updateData.diamond_balance = (userDoc.diamond_balance || 0) + reqDoc.coin_amount;
+        } else if (reqDoc.coin_type === 'Star') {
+          updateData.star_balance = (userDoc.star_balance || 0) + reqDoc.coin_amount;
+        }
+        if (Object.keys(updateData).length > 0) {
+          await databases.updateDocument(DATABASE_ID, COL.USERS, reqDoc.user_id, updateData);
+        }
+        await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+          user_id: reqDoc.user_id,
+          type: 'SYSTEM',
+          title: 'Payment Approved',
+          content: `Your purchase of ${reqDoc.package_name || reqDoc.message || 'currency'} has been approved. Your balance has been updated.`,
+          is_read: false,
+        });
+      }
+    } catch { /* ignore */ }
   };
 
   const rejectPaymentRequest = async (id: string) => {
@@ -2067,7 +2098,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
         budget: d.budget || 0,
         spent: 0,
         status: 'ACTIVE',
-        is_active: true,
         impressions: 0,
         clicks: 0,
       };
@@ -2091,9 +2121,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleCampaignStatus = async (id: string) => {
-    setCampaignsState(prev => prev.map(c => c.$id === id ? { ...c, is_active: !c.is_active } : c));
     const camp = campaigns.find(c => c.$id === id);
-    try { await databases.updateDocument(DATABASE_ID, COL.AD_CAMPAIGNS, id, { is_active: !camp?.is_active }); } catch { /* ignore */ }
+    const newStatus = camp?.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+    setCampaignsState(prev => prev.map(c => c.$id === id ? { ...c, status: newStatus } : c));
+    try { await databases.updateDocument(DATABASE_ID, COL.AD_CAMPAIGNS, id, { status: newStatus }); } catch { /* ignore */ }
   };
 
   const recordView = useCallback(async (id: string) => {
