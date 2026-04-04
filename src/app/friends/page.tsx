@@ -79,14 +79,14 @@ function FriendsPageContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (activeTab === "add" && allNetworkUsers.length === 0 && !isLoadingDiscovery) {
+    if (allNetworkUsers.length === 0 && !isLoadingDiscovery) {
       setIsLoadingDiscovery(true);
       fetchAllUsersForDiscovery().then((users) => {
         setAllNetworkUsers(users);
         setIsLoadingDiscovery(false);
       });
     }
-  }, [activeTab, fetchAllUsersForDiscovery]);
+  }, [fetchAllUsersForDiscovery]);
 
   useEffect(() => {
     if (!confirmUser) {
@@ -96,6 +96,13 @@ function FriendsPageContent() {
       document.body.style.pointerEvents = 'auto';
     };
   }, [confirmUser]);
+
+  const allAvailableUsers = useMemo(() => {
+    const userMap = new Map<string, any>();
+    connections.forEach(u => { if (u.username) userMap.set(u.username, u); });
+    allNetworkUsers.forEach(u => { if (u.username) userMap.set(u.username, u); });
+    return Array.from(userMap.values());
+  }, [connections, allNetworkUsers]);
 
   const filteredUsers = useMemo(() => {
     if (!currentUser) return [];
@@ -115,13 +122,14 @@ function FriendsPageContent() {
         if (bFollowsBack !== aFollowsBack) return bFollowsBack - aFollowsBack;
         return (b.followers || 0) - (a.followers || 0);
       });
+    } else if (activeTab === "confirm") {
+      list = allAvailableUsers.filter(c =>
+        c.username !== currentUser.username && isRequestReceived(c.username)
+      );
     } else {
-      list = connections.filter(c => c.username !== currentUser.username);
-      if (activeTab === "confirm") {
-        list = list.filter(c => isRequestReceived(c.username));
-      } else if (activeTab === "friends") {
-        list = list.filter(c => isFriend(c.username));
-      }
+      list = allAvailableUsers.filter(c =>
+        c.username !== currentUser.username && isFriend(c.username)
+      );
     }
 
     if (searchQuery) {
@@ -133,7 +141,7 @@ function FriendsPageContent() {
     }
 
     return list;
-  }, [activeTab, connections, allNetworkUsers, isFriend, isRequestSent, isRequestReceived, searchQuery, currentUser, followerUsernames]);
+  }, [activeTab, allAvailableUsers, allNetworkUsers, isFriend, isRequestSent, isRequestReceived, searchQuery, currentUser, followerUsernames]);
 
   // Handshake Guard: Prevents build-time null-pointers
   if (isLoading || !currentUser) {

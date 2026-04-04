@@ -175,3 +175,13 @@ Code fixes applied in `PostContext.tsx`:
 - `free-mode/messages/page.tsx` message create: added `user_id` and `type: 'text'` fields
 
 Indexes created: `friend_requests` (sender/receiver_username), `follows` (follower/following_username), `post_reactions` (compound), `subscriptions` (active check), `stories` (expiry)
+
+**8-bug fix pass (April 2026):**
+1. `toggleLikePost` / `toggleUnlikePost`: removed silent `catch { /* ignore */ }` — now reverts optimistic UI state and shows a destructive toast with the actual Appwrite error message.
+2. `voteOnPostPoll`: added `databases.updateDocument(COL.POSTS, postId, { poll: JSON.stringify(updatedPoll) })` after local state update so votes are persisted to Appwrite.
+3. `addStory` + `create-story-modal`: story modal now calls `storage.createFile()` directly and passes the raw `fileId` to `addStory`, bypassing `extractFileId(URL)` which could fail. `addStory` prefers `segment.fileId` over URL extraction.
+4. `profile/page.tsx` — `handleApplyRefinement`: now also uploads the image to `BUCKET_IMAGES` (post_media bucket) and passes `image: postImageUrl` to `addPost`, so profile-update posts show the avatar/cover photo.
+5. `sendAdminBroadcast`: notifications now include `title` and `content` fields (matching schema). Throws an explicit error if `allUsers` is empty instead of silently returning 0 deliveries.
+6. `warnUser`, `sendFriendRequest`, `confirmFriendRequest`, `approvePaymentRequest`: all notification `createDocument` calls now include both `title`/`content` (new schema fields) and `message` (backward-compat) fields.
+7. `friends/page.tsx`: "Confirm" and "Friends" tabs now use `allAvailableUsers` (union of `connections` + `allNetworkUsers`) instead of just `connections`, so users who sent friend requests but aren't followed appear correctly. Discovery fetch is now triggered on mount for all tabs.
+8. `signup`: added referral processing — looks up referrer by username, credits them with 5000 stars, increments their `referral_count`, auto-follows the referrer, and sends them a notification. Clears `vimore_referrer` from localStorage after processing.

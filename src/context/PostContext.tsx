@@ -1105,6 +1105,39 @@ export function PostProvider({ children }: { children: ReactNode }) {
         }
       } catch { /* ignore */ }
 
+      if (data.referredBy) {
+        try {
+          const referrerRes = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+            Query.equal('username', data.referredBy), Query.limit(1),
+          ]);
+          const referrerDoc = referrerRes.documents[0];
+          if (referrerDoc) {
+            const referralBonus = 5000;
+            await Promise.allSettled([
+              databases.updateDocument(DATABASE_ID, COL.USERS, referrerDoc.$id, {
+                star_balance: (referrerDoc.star_balance || 0) + referralBonus,
+                referral_count: (referrerDoc.referral_count || 0) + 1,
+              }),
+              databases.createDocument(DATABASE_ID, COL.FOLLOWS, ID.unique(), {
+                follower_id: authUser.$id,
+                following_id: referrerDoc.$id,
+                follower_username: username,
+                following_username: referrerDoc.username,
+              }),
+              databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+                user_id: referrerDoc.$id,
+                type: 'SYSTEM',
+                title: 'Referral Bonus!',
+                content: `${data.name} (@${username}) joined via your referral link. You earned ${referralBonus} stars!`,
+                message: `${data.name} (@${username}) joined via your referral link. You earned ${referralBonus} stars!`,
+                is_read: false,
+              }),
+            ]);
+          }
+        } catch { /* referral processing failure should not block signup */ }
+        try { localStorage.removeItem('vimore_referrer'); } catch { /* ignore */ }
+      }
+
       await Promise.allSettled([
         loadFeed(),
         loadSocialGraph(authUser.$id),
@@ -1319,11 +1352,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
         user_id: userId,
         from_user_id: currentUser.$id,
         type: 'SYSTEM',
+        title: severity === 'FINAL' ? 'Final Warning' : 'Account Warning',
+        content: message,
         message: message,
         is_read: false,
       });
-    } catch { /* keep optimistic */ }
-  }, [currentUser, allUsers]);
+    } catch (err: any) {
+      logAppwriteError('warnUser', err);
+      toast({ variant: 'destructive', title: 'Warning Failed', description: formatErrorDescription(err, currentUser?.role) });
+    }
+  }, [currentUser, allUsers, toast]);
 
   const sendAdminBroadcast = useCallback(async (opts: { title: string; message: string; actionUrl?: string; targetUserIds: string[] | 'all' }) => {
     if (!currentUser) return 0;
@@ -1337,19 +1375,26 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const broadcastDoc = await databases.createDocument(DATABASE_ID, COL.ADMIN_NOTIFICATIONS, ID.unique(), {
         user_id: currentUser.$id,
         type: 'BROADCAST',
+        title: opts.title,
+        content: opts.message,
         message: opts.message,
         is_read: false,
       });
       setBroadcastHistory(prev => [broadcastDoc, ...prev]);
-    } catch { /* admin log failure should not block sending notifications */ }
-    if (targets.length === 0) return 0;
+    } catch (err: any) { logAppwriteError('sendAdminBroadcast:log', err); }
+    if (targets.length === 0) {
+      throw new Error('No target users found. Ensure users are loaded before broadcasting.');
+    }
     const results = await Promise.allSettled(
       targets.map(uid =>
         databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
           user_id: uid,
           type: 'SYSTEM',
+          title: opts.title,
+          content: opts.message,
           message: opts.message,
           is_read: false,
+          ...(opts.actionUrl ? { action_url: opts.actionUrl } : {}),
         })
       )
     );
@@ -1476,7 +1521,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
         ]);
         await databases.updateDocument(DATABASE_ID, COL.POSTS, id, { likes_count: (currentDoc.likes_count || 0) + 1 });
       }
-    } catch { /* ignore - state already updated optimistically */ }
+    } catch (err: any) {
+      logAppwriteError('toggleLikePost', err);
+      setLikedPostIdsState(prev => { const n = new Set(prev); if (wasLiked) n.add(id); else n.delete(id); return n; });
+      if (wasUnliked) setUnlikedPostIdsState(prev => new Set(prev).add(id));
+      setPostsState(prev => prev.map(p => p.$id === id ? {
+        ...p,
+        likes: Math.max(0, p.likes + (wasLiked ? 1 : -1)),
+        unlikes: wasUnliked ? p.unlikes + 1 : p.unlikes,
+      } : p));
+      toast({ variant: 'destructive', title: 'Reaction Failed', description: formatErrorDescription(err, currentUser?.role) });
+    }
   };
 
   const toggleUnlikePost = async (id: string) => {
@@ -1523,7 +1578,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
           unlikes_count: (currentDoc.unlikes_count || 0) + 1,
         });
       }
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      logAppwriteError('toggleUnlikePost', err);
+      setUnlikedPostIdsState(prev => { const n = new Set(prev); if (wasUnliked) n.add(id); else n.delete(id); return n; });
+      if (wasLiked) setLikedPostIdsState(prev => new Set(prev).add(id));
+      setPostsState(prev => prev.map(p => p.$id === id ? {
+        ...p,
+        unlikes: Math.max(0, p.unlikes + (wasUnliked ? 1 : -1)),
+        likes: wasLiked ? p.likes + 1 : p.likes,
+      } : p));
+      toast({ variant: 'destructive', title: 'Reaction Failed', description: formatErrorDescription(err, currentUser?.role) });
+    }
   };
 
   const addComment = async (postId: string, text: string) => {
@@ -1583,8 +1648,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
 
       const rawMediaUrl = segment.mediaUrl || segment.image || '';
-      let mediaId: string | undefined;
-      if (rawMediaUrl) {
+      let mediaId: string | undefined = segment.fileId || undefined;
+      if (!mediaId && rawMediaUrl) {
         mediaId = extractFileId(rawMediaUrl) || undefined;
       }
 
@@ -1645,6 +1710,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         from_user_name: currentUser.name || currentUser.username,
         from_user_avatar: currentUser.avatar || '',
         type: 'FRIEND_REQUEST',
+        title: 'Friend Request',
+        content: `${currentUser.name || currentUser.username} (@${currentUser.username}) sent you a friend request.`,
         message: `${currentUser.name || currentUser.username} (@${currentUser.username}) sent you a friend request.`,
         is_read: false,
       }).catch(() => { /* notification failure should not block the request */ });
@@ -1718,12 +1785,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
           from_user_name: currentUser.name || currentUser.username,
           from_user_avatar: currentUser.avatar || '',
           type: 'FRIEND_ACCEPT',
+          title: 'Friend Request Accepted',
+          content: `${currentUser.name || currentUser.username} (@${currentUser.username}) accepted your friend request.`,
           message: `${currentUser.name || currentUser.username} (@${currentUser.username}) accepted your friend request.`,
           is_read: false,
         }).catch(() => { /* notification failure should not block acceptance */ });
       }
-    } catch { /* ignore */ }
-  }, [currentUser, allUsers]);
+    } catch (err: any) {
+      logAppwriteError('confirmFriendRequest', err);
+      toast({ variant: 'destructive', title: 'Failed to confirm request', description: formatErrorDescription(err, currentUser?.role) });
+    }
+  }, [currentUser, allUsers, toast]);
 
   const cancelFriendRequest = useCallback(async (username: string) => {
     if (!currentUser) return;
@@ -2143,6 +2215,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           type: 'SYSTEM',
           title: 'Payment Approved',
           content: `Your purchase of ${reqDoc.package_name || reqDoc.message || 'currency'} has been approved. Your balance has been updated.`,
+          message: `Your purchase of ${reqDoc.package_name || reqDoc.message || 'currency'} has been approved. Your balance has been updated.`,
           is_read: false,
         });
       }
@@ -2663,6 +2736,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     voteOnStoryPoll: async () => {},
     voteOnPostPoll: async (postId: string, optionIndex: number) => {
       if (!currentUser) return;
+      let updatedPoll: any = null;
       setPostsState(prev => prev.map(post => {
         if (post.$id !== postId || !post.poll) return post;
         const poll = { ...post.poll };
@@ -2673,7 +2747,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
           delete voters[currentUser.username];
           options[optionIndex].votes = Math.max(0, (options[optionIndex].votes || 0) - 1);
           const totalVotes = Math.max(0, (poll.totalVotes || 0) - 1);
-          return { ...post, poll: { ...poll, options, voters, totalVotes } };
+          updatedPoll = { ...poll, options, voters, totalVotes };
+          return { ...post, poll: updatedPoll };
         }
         if (previousVote !== undefined) {
           options[previousVote].votes = Math.max(0, (options[previousVote].votes || 0) - 1);
@@ -2681,8 +2756,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
         voters[currentUser.username] = optionIndex;
         options[optionIndex].votes = (options[optionIndex].votes || 0) + 1;
         const totalVotes = previousVote !== undefined ? (poll.totalVotes || 0) : (poll.totalVotes || 0) + 1;
-        return { ...post, poll: { ...poll, options, voters, totalVotes } };
+        updatedPoll = { ...poll, options, voters, totalVotes };
+        return { ...post, poll: updatedPoll };
       }));
+      if (updatedPoll) {
+        try {
+          await databases.updateDocument(DATABASE_ID, COL.POSTS, postId, {
+            poll: JSON.stringify(updatedPoll),
+          });
+        } catch (err: any) {
+          logAppwriteError('voteOnPostPoll', err);
+          toast({ variant: 'destructive', title: 'Vote Failed', description: formatErrorDescription(err, currentUser?.role) });
+        }
+      }
     },
     toggleMuteUser: (u: string) => setMutedUserNames(p => p.includes(u) ? p.filter(x => x !== u) : [...p, u]),
     togglePinPost: async () => {},

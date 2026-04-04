@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { BUCKET_STORIES } from "@/lib/appwrite";
+import { BUCKET_STORIES, storage, ID, getFileUrl } from "@/lib/appwrite";
 
 const FILTERS = [
   { id: "none", label: "None", class: "" },
@@ -72,12 +72,17 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
 
     try {
       let finalImageUrl = "";
+      let finalFileId = "";
       if (selectedFile) {
-        finalImageUrl = await uploadMedia(selectedFile, BUCKET_STORIES);
+        const fileId = ID.unique();
+        const uploadResult = await storage.createFile(BUCKET_STORIES, fileId, selectedFile);
+        finalFileId = uploadResult.$id;
+        finalImageUrl = getFileUrl(BUCKET_STORIES, finalFileId);
       }
 
       await addStory({
-        image: finalImageUrl, 
+        image: finalImageUrl,
+        fileId: finalFileId || undefined,
         type: mediaType || 'image',
         filter: selectedFilter.class,
         textOverlays: step === 'text' ? [{ text: storyText, x: 50, y: 50, color: "#FFFFFF" }] : [],
