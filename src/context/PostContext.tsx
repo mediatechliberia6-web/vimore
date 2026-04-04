@@ -637,10 +637,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const q = {
         followingOut:    [Query.equal('follower_id', userId), Query.limit(500)],
         followersIn:     [Query.equal('following_id', userId), Query.limit(500)],
-        frSentPending:   [Query.equal('sender_id', userId), Query.equal('status', 'PENDING'), Query.limit(500)],
-        frRecvPending:   [Query.equal('receiver_id', userId), Query.equal('status', 'PENDING'), Query.limit(500)],
-        frSentAccepted:  [Query.equal('sender_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)],
-        frRecvAccepted:  [Query.equal('receiver_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)],
+        frSentPending:   [Query.equal('from_user_id', userId), Query.equal('status', 'PENDING'), Query.limit(500)],
+        frRecvPending:   [Query.equal('to_user_id', userId), Query.equal('status', 'PENDING'), Query.limit(500)],
+        frSentAccepted:  [Query.equal('from_user_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)],
+        frRecvAccepted:  [Query.equal('to_user_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)],
         myLikes:         [Query.equal('user_id', userId), Query.equal('reaction_type', 'LIKE'), Query.limit(500)],
         myBookmarks:     [Query.equal('user_id', userId), Query.limit(500)],
         myUnlocks:       [Query.equal('user_id', userId), Query.limit(500)],
@@ -679,18 +679,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (followersResult.status === 'fulfilled') {
         setFollowerUsernamesState(new Set(followersResult.value.documents.map((f: any) => f.follower_username).filter(Boolean)));
       }
+      const getUsernameById = (id: string) => allUsers.find(u => u.$id === id)?.username;
       if (sentResult.status === 'fulfilled') {
-        setSentRequestUsernamesState(new Set(sentResult.value.documents.map((r: any) => r.receiver_username).filter(Boolean)));
+        setSentRequestUsernamesState(new Set(sentResult.value.documents.map((r: any) => getUsernameById(r.to_user_id)).filter(Boolean) as string[]));
       }
       if (receivedResult.status === 'fulfilled') {
-        setReceivedRequestUsernamesState(new Set(receivedResult.value.documents.map((r: any) => r.sender_username).filter(Boolean)));
+        setReceivedRequestUsernamesState(new Set(receivedResult.value.documents.map((r: any) => getUsernameById(r.from_user_id)).filter(Boolean) as string[]));
       }
       const friendNames = new Set<string>();
       if (acceptedSentResult.status === 'fulfilled') {
-        acceptedSentResult.value.documents.forEach((r: any) => r.receiver_username && friendNames.add(r.receiver_username));
+        acceptedSentResult.value.documents.forEach((r: any) => { const u = getUsernameById(r.to_user_id); if (u) friendNames.add(u); });
       }
       if (acceptedReceivedResult.status === 'fulfilled') {
-        acceptedReceivedResult.value.documents.forEach((r: any) => r.sender_username && friendNames.add(r.sender_username));
+        acceptedReceivedResult.value.documents.forEach((r: any) => { const u = getUsernameById(r.from_user_id); if (u) friendNames.add(u); });
       }
       setFriendUsernamesState(friendNames);
 
@@ -851,29 +852,20 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const loadChatMessages = useCallback(async (userId: string, otherId: string) => {
     try {
-      const [sent, received] = await Promise.all([
-        databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
-          Query.equal('sender_id', userId),
-          Query.equal('receiver_id', otherId),
-          Query.orderAsc('$createdAt'),
-          Query.limit(100),
-        ]),
-        databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
-          Query.equal('sender_id', otherId),
-          Query.equal('receiver_id', userId),
-          Query.orderAsc('$createdAt'),
-          Query.limit(100),
-        ]),
+      const clusterId = [userId, otherId].sort().join('_');
+      const result = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
+        Query.equal('cluster_id', clusterId),
+        Query.orderAsc('$createdAt'),
+        Query.limit(100),
       ]);
 
-      const all = [...sent.documents, ...received.documents]
-        .sort((a, b) => new Date(a.$createdAt).getTime() - new Date(b.$createdAt).getTime());
+      const all = result.documents;
 
       const msgs: ChatMessage[] = all.map(doc => ({
         $id: doc.$id,
         sender: doc.sender_id === userId ? 'me' : 'them',
         senderId: doc.sender_id,
-        text: doc.content,
+        text: doc.text,
         time: formatTimeAgo(doc.$createdAt),
         status: doc.is_read ? 'read' : 'delivered',
         type: (doc.type || 'text') as ChatMessage['type'],
@@ -1215,11 +1207,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
         suspended_by: currentUser.username,
       });
       await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
-        recipient_id: userId,
-        sender_id: currentUser.$id,
+        user_id: userId,
+        from_user_id: currentUser.$id,
         type: 'SYSTEM',
-        title: 'Account Suspended',
-        content: message,
+        message: message,
         is_read: false,
       });
     } catch { /* keep optimistic */ }
@@ -1238,11 +1229,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
         last_warning_by: currentUser.username,
       });
       await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
-        recipient_id: userId,
-        sender_id: currentUser.$id,
+        user_id: userId,
+        from_user_id: currentUser.$id,
         type: 'SYSTEM',
-        title: severity === 'FINAL' ? '⚠️ Final Warning' : 'Account Warning',
-        content: message,
+        message: message,
         is_read: false,
       });
     } catch { /* keep optimistic */ }
@@ -1272,10 +1262,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const results = await Promise.allSettled(
       targets.map(uid =>
         databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
-          recipient_id: uid,
+          user_id: uid,
           type: 'SYSTEM',
-          title: opts.title,
-          content: opts.message,
+          message: opts.message,
           is_read: false,
         })
       )
@@ -1323,9 +1312,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       comments_disabled: p.commentsDisabled || false,
     };
 
-    if (mediaIds[0]) docData.image_id = mediaIds[0];
+    if (mediaIds.length > 0) docData.image_ids = mediaIds;
     if (videoId) docData.video_id = videoId;
-    if (p.language) docData.language = p.language;
     if (p.theme) docData.theme = p.theme;
     if (p.imageFilter) docData.image_filter = p.imageFilter;
     if (p.feeling) docData.feeling = p.feeling;
@@ -1503,7 +1491,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
       const segData: Record<string, any> = {
         story_id: storyDoc.$id,
-        user_id: currentUser.$id,
         type: segment.type || 'image',
         order_index: 0,
         duration: segment.duration || 5,
@@ -1537,10 +1524,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (!targetDoc) throw new Error('User not found');
 
       await databases.createDocument(DATABASE_ID, COL.FRIEND_REQUESTS, ID.unique(), {
-        sender_id: currentUser.$id,
-        receiver_id: targetDoc.$id,
-        sender_username: currentUser.username,
-        receiver_username: targetUsername,
+        from_user_id: currentUser.$id,
+        to_user_id: targetDoc.$id,
         status: 'PENDING',
       });
       setSentRequestUsernamesState(p => new Set(p).add(targetUsername));
@@ -1557,44 +1542,52 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setReceivedRequestUsernamesState(p => { const n = new Set(p); n.delete(username); return n; });
 
     try {
-      const existing = await databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
-        Query.equal('sender_username', username),
-        Query.equal('receiver_id', currentUser.$id),
-        Query.equal('status', 'PENDING'),
-      ]);
-      for (const doc of existing.documents) {
-        await databases.updateDocument(DATABASE_ID, COL.FRIEND_REQUESTS, doc.$id, { status: 'ACCEPTED' });
+      const senderDoc = allUsers.find(u => u.username === username);
+      if (senderDoc) {
+        const existing = await databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
+          Query.equal('from_user_id', senderDoc.$id),
+          Query.equal('to_user_id', currentUser.$id),
+          Query.equal('status', 'PENDING'),
+        ]);
+        for (const doc of existing.documents) {
+          await databases.updateDocument(DATABASE_ID, COL.FRIEND_REQUESTS, doc.$id, { status: 'ACCEPTED' });
+        }
       }
     } catch { /* ignore */ }
-  }, [currentUser]);
+  }, [currentUser, allUsers]);
 
   const cancelFriendRequest = useCallback(async (username: string) => {
     if (!currentUser) return;
     setSentRequestUsernamesState(p => { const n = new Set(p); n.delete(username); return n; });
 
     try {
-      const existing = await databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
-        Query.equal('sender_id', currentUser.$id),
-        Query.equal('receiver_username', username),
-        Query.equal('status', 'PENDING'),
-      ]);
-      for (const doc of existing.documents) {
-        await databases.deleteDocument(DATABASE_ID, COL.FRIEND_REQUESTS, doc.$id);
+      const targetDoc = allUsers.find(u => u.username === username);
+      if (targetDoc) {
+        const existing = await databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
+          Query.equal('from_user_id', currentUser.$id),
+          Query.equal('to_user_id', targetDoc.$id),
+          Query.equal('status', 'PENDING'),
+        ]);
+        for (const doc of existing.documents) {
+          await databases.deleteDocument(DATABASE_ID, COL.FRIEND_REQUESTS, doc.$id);
+        }
       }
     } catch { /* ignore */ }
-  }, [currentUser]);
+  }, [currentUser, allUsers]);
 
   const unfriendUser = useCallback(async (username: string) => {
     if (!currentUser) return;
     setFriendUsernamesState(p => { const n = new Set(p); n.delete(username); return n; });
 
     try {
+      const targetUser = allUsers.find(u => u.username === username);
+      if (!targetUser) { toast({ title: "Unfriended" }); return; }
       const [sent, recv] = await Promise.all([
         databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
-          Query.equal('sender_id', currentUser.$id), Query.equal('receiver_username', username), Query.equal('status', 'ACCEPTED'),
+          Query.equal('from_user_id', currentUser.$id), Query.equal('to_user_id', targetUser.$id), Query.equal('status', 'ACCEPTED'),
         ]),
         databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
-          Query.equal('receiver_id', currentUser.$id), Query.equal('sender_username', username), Query.equal('status', 'ACCEPTED'),
+          Query.equal('to_user_id', currentUser.$id), Query.equal('from_user_id', targetUser.$id), Query.equal('status', 'ACCEPTED'),
         ]),
       ]);
       for (const doc of [...sent.documents, ...recv.documents]) {
@@ -1602,7 +1595,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
     } catch { /* ignore */ }
     toast({ title: "Unfriended" });
-  }, [currentUser, toast]);
+  }, [currentUser, allUsers, toast]);
 
   const sendChatMessage = useCallback(async (recipientId: string, message: Partial<ChatMessage>) => {
     if (!currentUser) return;
@@ -1619,16 +1612,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setChatMessages(prev => ({ ...prev, [recipientId]: [...(prev[recipientId] || []), optimistic] }));
 
     try {
+      const clusterId = [currentUser.$id, recipientId].sort().join('_');
       const docData: Record<string, any> = {
-        user_id: currentUser.$id,
+        cluster_id: clusterId,
         sender_id: currentUser.$id,
-        receiver_id: recipientId,
-        content: message.text || '',
+        sender_name: currentUser.name || currentUser.username,
         type: message.type || 'text',
         is_read: false,
-        is_view_once: message.isViewOnce || false,
-        is_viewed: false,
       };
+      if (message.text) docData.text = message.text;
+      if (currentUser.avatar) docData.sender_avatar = currentUser.avatar;
       if (message.mediaUrl) {
         const fid = extractFileId(message.mediaUrl);
         if (fid) docData.media_id = fid;
@@ -1662,10 +1655,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
     // Notify the recipient about the message request
     try {
       await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
-        recipient_id: targetUserId,
+        user_id: targetUserId,
+        from_user_id: currentUser.$id,
+        from_user_name: currentUser.name || currentUser.username,
+        from_user_avatar: currentUser.avatar || '',
         type: 'MESSAGE',
-        title: 'Message Request',
-        content: `**${currentUser.name}** (@${currentUser.username}) sent you a message: "${text.slice(0, 80)}${text.length > 80 ? '...' : ''}"`,
+        message: `${currentUser.name} (@${currentUser.username}) sent you a message: "${text.slice(0, 80)}${text.length > 80 ? '...' : ''}"`,
         is_read: false,
       });
     } catch { /* ignore notification failure */ }
@@ -1887,7 +1882,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setAuditLogs(prev => [newLog, ...prev]);
     try {
       await databases.createDocument(DATABASE_ID, COL.AUDIT_LOGS, ID.unique(), {
-        user_id: currentUser?.$id || '',
         action, details,
         performed_by: currentUser?.username || 'system',
         performed_by_avatar: currentUser?.avatar || '',
@@ -2038,21 +2032,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const addCampaign = async (d: any) => {
     if (!currentUser) return;
     try {
-      const doc = await databases.createDocument(DATABASE_ID, COL.AD_CAMPAIGNS, ID.unique(), {
+      const campaignData: Record<string, any> = {
         user_id: currentUser.$id,
         title: d.title || '',
         content: d.content || '',
-        media_url: d.mediaUrl || '',
-        action_url: d.actionUrl || '',
-        action_label: d.actionLabel || 'Learn More',
         budget: d.budget || 0,
         spent: 0,
         status: 'ACTIVE',
-        is_active: true,
         impressions: 0,
         clicks: 0,
-        end_date: d.endDate || null,
-      });
+      };
+      if (d.mediaUrl) {
+        const fid = extractFileId(d.mediaUrl);
+        if (fid) campaignData.media_id = fid;
+      }
+      if (d.actionUrl) campaignData.target_url = d.actionUrl;
+      if (d.endDate) campaignData.expires_at = d.endDate;
+      const doc = await databases.createDocument(DATABASE_ID, COL.AD_CAMPAIGNS, ID.unique(), campaignData);
       setCampaignsState(prev => [doc, ...prev]);
     } catch (err: any) {
       logAppwriteError('addCampaign', err);
@@ -2135,10 +2131,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const replyToTicket = async (ticketUserId: string, ticketId: string, reply: string) => {
     if (!currentUser || !reply.trim()) return;
     await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
-      recipient_id: ticketUserId,
+      user_id: ticketUserId,
       type: 'SYSTEM',
-      title: 'Support Ticket Response',
-      content: reply.trim(),
+      message: reply.trim(),
       is_read: false,
     });
     await databases.updateDocument(DATABASE_ID, COL.SUPPORT_TICKETS, ticketId, { status: 'IN_REVIEW' });
@@ -2531,10 +2526,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
     submitReport: async (data: { reportedUsername: string; reason: string; details: string }) => {
       if (!currentUser) return;
       try {
+        const targetUser = allUsers.find(u => u.username === data.reportedUsername);
         await databases.createDocument(DATABASE_ID, COL.REPORTS, ID.unique(), {
-          user_id: currentUser.$id,
           reporter_id: currentUser.$id,
-          reported_username: data.reportedUsername,
+          target_id: targetUser?.$id || data.reportedUsername,
+          target_type: 'USER',
           reason: data.reason,
           details: data.details,
           status: 'PENDING',

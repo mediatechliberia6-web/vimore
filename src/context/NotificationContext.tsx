@@ -61,18 +61,18 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const loadNotifications = useCallback(async (userId: string) => {
     try {
       const res = await databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
-        Query.equal('recipient_id', userId),
+        Query.equal('user_id', userId),
         Query.orderDesc('$createdAt'),
         Query.limit(50),
       ]);
       const mapped: NotificationNode[] = res.documents.map((doc: any) => ({
         id: doc.$id,
         type: (doc.type as SignalType) || 'SYSTEM',
-        title: doc.title || '',
-        content: doc.content || '',
+        title: '',
+        content: doc.message || '',
         time: formatTimeAgoSimple(doc.$createdAt),
         isRead: doc.is_read || false,
-        recipientId: doc.recipient_id || '',
+        recipientId: doc.user_id || '',
         postId: doc.post_id || undefined,
         trackId: doc.track_id || undefined,
         targetUsername: doc.target_username || undefined,
@@ -118,15 +118,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     if (signal.recipientId) {
       const notifData: Record<string, any> = {
-        recipient_id: signal.recipientId,
+        user_id: signal.recipientId,
         type: signal.type,
-        title: signal.title,
-        content: signal.content,
+        message: signal.content || signal.title || '',
         is_read: false,
       };
       if (signal.postId) notifData.post_id = signal.postId;
       if (signal.trackId) notifData.track_id = String(signal.trackId);
-      if (signal.targetUsername) notifData.target_username = signal.targetUsername;
       databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), notifData).catch(() => { /* ignore */ });
     }
   }, [triggerSound, triggerHaptic]);

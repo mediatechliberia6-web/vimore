@@ -434,15 +434,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         user_id: currentUser.$id,
         title: track.title || 'Untitled',
         artist: track.artist || currentUser.name,
-        artist_username: track.artistUsername || currentUser.username,
         duration: track.duration || 0,
-        streams_count: 0,
         plays_count: 0,
         likes_count: 0,
-        is_boosted: false,
-        is_published: true,
         genre: track.genre || '',
-        tags: track.tags || [],
+        is_explicit: track.isExplicit || false,
       };
       if (audioId) docData.file_id = audioId;
       if (coverId) docData.cover_id = coverId;
@@ -475,14 +471,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
       const docData: Record<string, any> = {
         user_id: currentUser.$id,
-        artist_id: currentUser.$id,
         title: album.title || 'Untitled Album',
-        artist: album.artist || currentUser.name,
-        artist_username: album.artistUsername || currentUser.username,
         tracks_count: album.songs?.length || 0,
-        is_published: true,
         genre: album.genre || '',
-        description: album.description || '',
       };
       if (coverId) docData.cover_id = coverId;
 
@@ -497,17 +488,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
             user_id: currentUser.$id,
             title: song.title || 'Untitled',
             artist: album.artist || currentUser.name,
-            artist_username: album.artistUsername || currentUser.username,
             duration: song.duration || 0,
-            streams_count: 0,
             plays_count: 0,
             likes_count: 0,
-            is_boosted: false,
-            is_published: true,
             album_id: doc.$id,
-            track_number: i + 1,
             genre: album.genre || '',
-            tags: [],
+            is_explicit: false,
           };
           if (audioId) songDocData.file_id = audioId;
           if (coverId) songDocData.cover_id = coverId;
@@ -560,11 +546,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
       const docData: Record<string, any> = {
         user_id: currentUser.$id,
-        creator_id: currentUser.$id,
         title: data.title,
-        creator_username: currentUser.username,
-        description: data.description,
-        is_private: data.isPrivate,
+        is_public: !data.isPrivate,
         tracks_count: 0,
       };
       if (coverId) docData.cover_id = coverId;
