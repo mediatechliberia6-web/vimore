@@ -641,10 +641,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
         frRecvPending:   [Query.equal('to_user_id', userId), Query.equal('status', 'PENDING'), Query.limit(500)],
         frSentAccepted:  [Query.equal('from_user_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)],
         frRecvAccepted:  [Query.equal('to_user_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)],
-        myLikes:         [Query.equal('user_id', userId), Query.equal('reaction_type', 'LIKE'), Query.limit(500)],
+        myLikes:         [Query.equal('user_id', userId), Query.equal('type', 'LIKE'), Query.limit(500)],
         myBookmarks:     [Query.equal('user_id', userId), Query.limit(500)],
         myUnlocks:       [Query.equal('user_id', userId), Query.limit(500)],
-        mySubs:          [Query.equal('subscriber_id', userId), Query.equal('is_active', true), Query.limit(500)],
+        mySubs:          [Query.equal('subscriber_id', userId), Query.equal('status', 'ACTIVE'), Query.limit(500)],
         myBlocked:       [Query.equal('blocker_id', userId), Query.limit(200)],
       };
       const [
@@ -1183,9 +1183,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await databases.createDocument(DATABASE_ID, COL.USER_BANS, ID.unique(), {
         user_id: userId,
         reason,
-        note: note || '',
-        banned_by: currentUser.username,
-        banned_at: new Date().toISOString(),
+        banned_by: currentUser.$id,
+        is_permanent: true,
       });
     } catch { /* keep optimistic */ }
   }, [currentUser]);
@@ -1248,13 +1247,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
     try {
       const broadcastDoc = await databases.createDocument(DATABASE_ID, COL.ADMIN_NOTIFICATIONS, ID.unique(), {
-        title: opts.title,
+        type: 'BROADCAST',
         message: opts.message,
-        ...(opts.actionUrl ? { action_url: opts.actionUrl } : {}),
-        sent_by: currentUser.username,
-        sent_at: new Date().toISOString(),
-        recipient_count: targets.length,
-        target_type: opts.targetUserIds === 'all' ? 'ALL' : 'TARGETED',
+        is_read: false,
       });
       setBroadcastHistory(prev => [broadcastDoc, ...prev]);
     } catch { /* admin log failure should not block sending notifications */ }
@@ -1384,7 +1379,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           }
         }
         await databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), {
-          post_id: id, user_id: currentUser.$id, reaction_type: 'LIKE',
+          post_id: id, user_id: currentUser.$id, type: 'LIKE',
         });
         const post = posts.find(p => p.$id === id);
         await databases.updateDocument(DATABASE_ID, COL.POSTS, id, { likes_count: (post?.likes || 0) + (wasLiked ? 0 : 1) });
@@ -1423,7 +1418,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           }
         }
         await databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), {
-          post_id: id, user_id: currentUser.$id, reaction_type: 'UNLIKE',
+          post_id: id, user_id: currentUser.$id, type: 'UNLIKE',
         });
       }
     } catch { /* ignore */ }
@@ -1445,7 +1440,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const doc = await databases.createDocument(DATABASE_ID, COL.POST_COMMENTS, ID.unique(), {
         post_id: postId, user_id: currentUser.$id, user_name: currentUser.name,
-        user_avatar: currentUser.avatar, content: text,
+        user_avatar: currentUser.avatar, text, timestamp: Date.now(),
       });
       const real = mapDocToComment(doc);
       setActiveComments(prev => prev.map(c => c.$id === optimistic.$id ? real : c));
@@ -1470,7 +1465,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       await databases.createDocument(DATABASE_ID, COL.POST_COMMENTS, ID.unique(), {
         post_id: postId, user_id: currentUser.$id, user_name: currentUser.name,
-        user_avatar: currentUser.avatar, content: text, parent_id: parentId,
+        user_avatar: currentUser.avatar, text, parent_id: parentId, timestamp: Date.now(),
       });
     } catch { /* keep optimistic */ }
   };
@@ -1681,16 +1676,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       await Promise.all([
         databases.createDocument(DATABASE_ID, COL.POST_UNLOCKS, ID.unique(), {
-          post_id: postId, user_id: currentUser.$id, gold_spent: cost,
+          post_id: postId, user_id: currentUser.$id,
         }),
         databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
           gold_balance: balance - cost,
         }),
         databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
           user_id: currentUser.$id,
-          amount: cost,
-          currency: 'GOLD',
           type: 'POST_UNLOCK',
+          currency: 'GOLD',
+          amount: cost,
+          description: 'Post unlock',
           reference_id: postId,
           status: 'COMPLETED',
         }),
@@ -1711,37 +1707,42 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setActiveSubscriptionsState(p => new Set(p).add(username));
     setCurrentUserState(prev => prev ? { ...prev, diamondBalance: balance - cost } : null);
 
+    const creatorUser = allUsers.find(u => u.username === username);
+    const creatorId = creatorUser?.$id || username;
+    const expiresAt = new Date(Date.now() + 30 * 86400000).toISOString();
     try {
       await Promise.all([
         databases.createDocument(DATABASE_ID, COL.SUBSCRIPTIONS, ID.unique(), {
-          user_id: currentUser.$id,
           subscriber_id: currentUser.$id,
-          creator_username: username,
-          diamond_spent: cost,
-          is_active: true,
+          creator_id: creatorId,
+          tier: 'STANDARD',
+          expires_at: expiresAt,
+          status: 'ACTIVE',
         }),
         databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { diamond_balance: balance - cost }),
       ]);
     } catch { /* keep optimistic */ }
     toast({ title: "Subscribed!", description: `${creatorShare} Diamonds sent to @${username} · ${platformFee} platform fee` });
-  }, [currentUser, toast]);
+  }, [currentUser, allUsers, toast]);
 
   const cancelSubscription = useCallback(async (username: string) => {
     if (!currentUser) return;
     setActiveSubscriptionsState(p => { const n = new Set(p); n.delete(username); return n; });
+    const creatorUser = allUsers.find(u => u.username === username);
+    const creatorId = creatorUser?.$id || username;
 
     try {
       const existing = await databases.listDocuments(DATABASE_ID, COL.SUBSCRIPTIONS, [
         Query.equal('subscriber_id', currentUser.$id),
-        Query.equal('creator_username', username),
-        Query.equal('is_active', true),
+        Query.equal('creator_id', creatorId),
+        Query.equal('status', 'ACTIVE'),
       ]);
       for (const doc of existing.documents) {
-        await databases.updateDocument(DATABASE_ID, COL.SUBSCRIPTIONS, doc.$id, { is_active: false });
+        await databases.updateDocument(DATABASE_ID, COL.SUBSCRIPTIONS, doc.$id, { status: 'CANCELLED' });
       }
     } catch { /* ignore */ }
     toast({ title: "Subscription cancelled" });
-  }, [currentUser, toast]);
+  }, [currentUser, allUsers, toast]);
 
   const processGiftTransaction = useCallback(async (cost: number, currency: 'GOLD' | 'DIAMOND') => {
     if (!currentUser) throw new Error("Not logged in");
@@ -1786,8 +1787,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, updateData),
         databases.createDocument(DATABASE_ID, COL.VERIFICATION_RECORDS, ID.unique(), {
           user_id: currentUser.$id,
-          currency,
-          cost,
+          type: 'CREATOR',
           status: 'APPROVED',
         }),
       ]);
@@ -1907,10 +1907,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
     try {
       await databases.createDocument(DATABASE_ID, COL.PAYMENT_REQUESTS, ID.unique(), {
-        user_id: currentUser.$id,
-        username: currentUser.username,
-        package_name: req.package_name,
-        amount: String(req.amount),
+        from_user_id: currentUser.$id,
+        to_user_id: 'platform',
+        currency: pendingTransaction?.currency || 'USD',
+        amount: parseFloat(pendingTransaction?.amount || '0'),
+        message: pendingTransaction?.packageName || '',
         screenshot_id: screenshotFileId,
         status: 'PENDING',
       });
@@ -1939,9 +1940,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       await databases.createDocument(DATABASE_ID, COL.WITHDRAWAL_REQUESTS, ID.unique(), {
         user_id: currentUser.$id,
-        username: currentUser.username,
-        amount_usd: parseFloat(n.amount || 0), currency_type: n.currency || 'USD',
-        phone_number: n.phoneNumber || '', payment_method: n.method || 'MOBILE_MONEY',
+        currency: n.currency || 'USD',
+        amount: parseFloat(n.amount || 0),
+        payment_method: n.method || 'MOBILE_MONEY',
+        payment_details: n.phoneNumber || n.accountNumber || '',
         status: 'PENDING',
       });
     } catch (err) { logAppwriteError('recordWithdrawal', err); }
@@ -1960,9 +1962,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
 
       const allMembers = [currentUser, ...members];
+      const joinedAt = new Date().toISOString();
       await Promise.all(allMembers.map(m =>
         databases.createDocument(DATABASE_ID, COL.CLUSTER_MEMBERS, ID.unique(), {
-          cluster_id: clDoc.$id, user_id: m.$id, username: m.username,
+          cluster_id: clDoc.$id,
+          user_id: m.$id,
+          role: m.$id === currentUser.$id ? 'ADMIN' : 'MEMBER',
+          joined_at: joinedAt,
         })
       ));
 
@@ -1983,7 +1989,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     ));
     try {
       await databases.createDocument(DATABASE_ID, COL.CLUSTER_MEMBERS, ID.unique(), {
-        cluster_id: clusterId, user_id: member.$id, username: member.username,
+        cluster_id: clusterId, user_id: member.$id, role: 'MEMBER', joined_at: new Date().toISOString(),
       });
     } catch { /* keep optimistic */ }
   };
@@ -2264,12 +2270,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const endCall = useCallback(async (duration?: string) => {
     if (currentUser && callState.contact && duration) {
       try {
+        const [mins, secs] = (duration || '0:00').split(':').map(Number);
+        const durationSecs = (mins || 0) * 60 + (secs || 0);
         await databases.createDocument(DATABASE_ID, COL.CALL_LOGS, ID.unique(), {
-          user_id: currentUser.$id,
           caller_id: currentUser.$id,
           callee_id: callState.contact.$id || callState.contact.username,
+          channel_name: [currentUser.$id, callState.contact.$id || callState.contact.username].sort().join('_'),
           type: callState.type,
-          duration: duration || '0:00',
+          duration: durationSecs,
           status: 'COMPLETED',
         });
       } catch { /* ignore */ }
