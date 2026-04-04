@@ -528,7 +528,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const [likedPostIds, setLikedPostIdsState] = useState<Set<string>>(new Set());
   const [unlikedPostIds, setUnlikedPostIdsState] = useState<Set<string>>(new Set());
-  const [viewedPostIds, setViewedPostIdsState] = useState<Set<string>>(new Set());
+  const [viewedPostIds, setViewedPostIdsState] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set<string>();
+    try {
+      const stored = localStorage.getItem('vm_viewed_posts');
+      return stored ? new Set<string>(JSON.parse(stored)) : new Set<string>();
+    } catch { return new Set<string>(); }
+  });
   const [savedPostIds, setSavedPostIdsState] = useState<Set<string>>(new Set());
   const [unlockedPostIds, setUnlockedPostIdsState] = useState<Set<string>>(new Set());
   const [seenPostIds, setSeenPostIdsState] = useState<Set<string>>(new Set());
@@ -674,7 +680,20 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (followersResult.status === 'fulfilled') {
         setFollowerUsernamesState(new Set(followersResult.value.documents.map((f: any) => f.follower_username).filter(Boolean)));
       }
-      const getUsernameById = (id: string) => allUsers.find(u => u.$id === id)?.username;
+      const frUserIds = new Set<string>();
+      if (sentResult.status === 'fulfilled') sentResult.value.documents.forEach((r: any) => r.to_user_id && frUserIds.add(r.to_user_id));
+      if (receivedResult.status === 'fulfilled') receivedResult.value.documents.forEach((r: any) => r.from_user_id && frUserIds.add(r.from_user_id));
+      if (acceptedSentResult.status === 'fulfilled') acceptedSentResult.value.documents.forEach((r: any) => r.to_user_id && frUserIds.add(r.to_user_id));
+      if (acceptedReceivedResult.status === 'fulfilled') acceptedReceivedResult.value.documents.forEach((r: any) => r.from_user_id && frUserIds.add(r.from_user_id));
+      let frUsersMap: Record<string, string> = {};
+      const frUserIdsArr = Array.from(frUserIds).filter(Boolean);
+      if (frUserIdsArr.length > 0) {
+        try {
+          const frUsersRes = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', frUserIdsArr), Query.limit(500)]);
+          frUsersMap = Object.fromEntries(frUsersRes.documents.map((u: any) => [u.$id, u.username]));
+        } catch { /* ignore */ }
+      }
+      const getUsernameById = (id: string) => frUsersMap[id] || allUsers.find(u => u.$id === id)?.username;
       if (sentResult.status === 'fulfilled') {
         setSentRequestUsernamesState(new Set(sentResult.value.documents.map((r: any) => getUsernameById(r.to_user_id)).filter(Boolean) as string[]));
       }
@@ -741,7 +760,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const now = new Date().toISOString();
       const storiesResult = await databases.listDocuments(DATABASE_ID, COL.STORIES, [
-        Query.greaterThan('expiry', now),
+        Query.greaterThan('expires_at', now),
         Query.orderDesc('$createdAt'),
         Query.limit(30),
       ]);
@@ -761,7 +780,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         try {
           const segsResult = await databases.listDocuments(DATABASE_ID, COL.STORY_SEGMENTS, [
             Query.equal('story_id', storyIds),
-            Query.orderAsc('order'),
+            Query.orderAsc('order_index'),
             Query.limit(200),
           ]);
           segsResult.documents.forEach((seg: any) => {
@@ -873,6 +892,26 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore */ }
   }, []);
 
+  const loadUserWithdrawals = useCallback(async (userId: string) => {
+    try {
+      const res = await databases.listDocuments(DATABASE_ID, COL.WITHDRAWAL_REQUESTS, [
+        Query.equal('user_id', userId),
+        Query.orderDesc('$createdAt'),
+        Query.limit(50),
+      ]);
+      setWithdrawalHistory(res.documents.map((doc: any) => ({
+        ...doc,
+        username: doc.username || '',
+        accountName: doc.account_name || doc.accountName || '',
+        payoutAmount: doc.payout_amount ?? doc.payoutAmount ?? 0,
+        payoutCurrency: doc.payout_currency || doc.payoutCurrency || 'USD',
+        method: doc.method || doc.payment_method || '',
+        amount: doc.amount ?? 0,
+        currency: doc.currency || '',
+      })));
+    } catch { /* ignore */ }
+  }, []);
+
   const checkSession = useCallback(async () => {
     setIsLoadingState(true);
     try {
@@ -887,13 +926,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
         loadConnections(authUser.$id),
         loadStories(),
         loadClusters(authUser.$id),
+        loadUserWithdrawals(authUser.$id),
       ]);
     } catch {
       setCurrentUserState(null);
     } finally {
       setIsLoadingState(false);
     }
-  }, [loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters]);
+  }, [loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -972,6 +1012,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         loadConnections(authUser.$id),
         loadStories(),
         loadClusters(authUser.$id),
+        loadUserWithdrawals(authUser.$id),
       ]);
       setIsLoadingState(false);
       toast({ title: "Welcome back!", description: "You are now signed in." });
@@ -982,7 +1023,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const msg = formatErrorDescription(err, null) || 'Invalid credentials. Please try again.';
       return { success: false, message: msg };
     }
-  }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters]);
+  }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals]);
 
   const signup = useCallback(async (data: any) => {
     setIsLoadingState(true);
@@ -1110,6 +1151,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, updateData);
     }
     setCurrentUserState(prev => prev ? { ...prev, ...data } : null);
+    if (data.avatar !== undefined || data.name !== undefined || data.cover !== undefined) {
+      setPostsState(prev => prev.map(p =>
+        p.user?.$id === currentUser.$id
+          ? { ...p, user: { ...p.user, ...(data.avatar !== undefined ? { avatar: data.avatar } : {}), ...(data.name !== undefined ? { name: data.name } : {}), ...(data.cover !== undefined ? { cover: data.cover } : {}) } }
+          : p
+      ));
+    }
     toast({ title: "Profile updated" });
   }, [currentUser, toast]);
 
@@ -1140,7 +1188,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
         packageName: doc.package_name || doc.message || 'Package',
         screenshot: doc.screenshot_id ? getFileUrl(BUCKET.PAYMENT_SCREENSHOTS, doc.screenshot_id) : '',
       })));
-      if (wdRes.status === 'fulfilled') setWithdrawalHistory(wdRes.value.documents);
+      if (wdRes.status === 'fulfilled') setWithdrawalHistory(wdRes.value.documents.map((doc: any) => ({
+        ...doc,
+        username: doc.username || '',
+        accountName: doc.account_name || doc.accountName || '',
+        payoutAmount: doc.payout_amount ?? doc.payoutAmount ?? 0,
+        payoutCurrency: doc.payout_currency || doc.payoutCurrency || 'USD',
+        method: doc.method || doc.payment_method || '',
+        amount: doc.amount ?? 0,
+        currency: doc.currency || '',
+      })));
       if (logsRes.status === 'fulfilled') setAuditLogs(logsRes.value.documents);
       if (staffRes.status === 'fulfilled') setStaff(staffRes.value.documents.map(mapProfileDocToUser));
     } catch (err) {
@@ -1988,15 +2045,22 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (!currentUser) return;
     const wd: Record<string, any> = {
       $id: 'wd_' + Date.now(), ...n, status: 'PENDING', $createdAt: new Date().toISOString(),
+      username: currentUser.username, accountName: n.accountName || '', method: n.method || '',
     };
     setWithdrawalHistory(prev => [wd, ...prev]);
     try {
       await databases.createDocument(DATABASE_ID, COL.WITHDRAWAL_REQUESTS, ID.unique(), {
         user_id: currentUser.$id,
-        currency: n.currency || 'USD',
+        username: currentUser.username || '',
+        account_name: n.accountName || '',
+        account_number: n.accountNumber || n.phoneNumber || '',
+        currency: n.currency || 'GOLD',
         amount: parseFloat(n.amount || 0),
+        payout_amount: parseFloat(n.payoutAmount || 0),
+        payout_currency: n.payoutCurrency || 'USD',
+        method: n.method || 'MOBILE_MONEY',
         payment_method: n.method || 'MOBILE_MONEY',
-        payment_details: n.phoneNumber || n.accountNumber || '',
+        payment_details: n.accountNumber || n.phoneNumber || '',
         status: 'PENDING',
       });
     } catch (err) { logAppwriteError('recordWithdrawal', err); }
@@ -2098,14 +2162,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
         budget: d.budget || 0,
         spent: 0,
         status: 'ACTIVE',
+        is_active: true,
         impressions: 0,
         clicks: 0,
+        placement: d.placement || 'story',
+        type: d.type || 'photo',
       };
       if (d.mediaUrl) {
+        campaignData.media_url = d.mediaUrl;
         const fid = extractFileId(d.mediaUrl);
         if (fid) campaignData.media_id = fid;
       }
-      if (d.actionUrl) campaignData.target_url = d.actionUrl;
+      if (d.actionUrl) campaignData.action_url = d.actionUrl;
+      if (d.actionLabel) campaignData.action_label = d.actionLabel;
       if (d.endDate) campaignData.expires_at = d.endDate;
       const doc = await databases.createDocument(DATABASE_ID, COL.AD_CAMPAIGNS, ID.unique(), campaignData);
       setCampaignsState(prev => [doc, ...prev]);
@@ -2122,14 +2191,20 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const toggleCampaignStatus = async (id: string) => {
     const camp = campaigns.find(c => c.$id === id);
-    const newStatus = camp?.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
-    setCampaignsState(prev => prev.map(c => c.$id === id ? { ...c, status: newStatus } : c));
-    try { await databases.updateDocument(DATABASE_ID, COL.AD_CAMPAIGNS, id, { status: newStatus }); } catch { /* ignore */ }
+    const newStatus = (camp?.status === 'ACTIVE' || camp?.is_active) ? 'PAUSED' : 'ACTIVE';
+    const newIsActive = newStatus === 'ACTIVE';
+    setCampaignsState(prev => prev.map(c => c.$id === id ? { ...c, status: newStatus, is_active: newIsActive } : c));
+    try { await databases.updateDocument(DATABASE_ID, COL.AD_CAMPAIGNS, id, { status: newStatus, is_active: newIsActive }); } catch { /* ignore */ }
   };
 
   const recordView = useCallback(async (id: string) => {
     if (viewedPostIds.has(id)) return;
-    setViewedPostIdsState(prev => new Set(prev).add(id));
+    const newSet = new Set(viewedPostIds);
+    newSet.add(id);
+    setViewedPostIdsState(newSet);
+    if (typeof window !== 'undefined') {
+      try { localStorage.setItem('vm_viewed_posts', JSON.stringify([...newSet])); } catch { /* ignore */ }
+    }
     setPostsState(prev => prev.map(p => p.$id === id ? { ...p, views: p.views + 1 } : p));
     try {
       await databases.updateDocument(DATABASE_ID, COL.POSTS, id, {
@@ -2365,7 +2440,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       return { sentiment, velocity };
     })(),
     withdrawalHistory, paymentRequests,
-    referralLink: "https://www.vimore.app/join/" + (currentUser?.username || "guest"),
+    referralLink: "https://www.vimore.cfd/join/" + (currentUser?.username || "guest"),
     pendingTransaction, activeSubscriptions, chatMessages,
 
     login, signup, logout, checkSession,
@@ -2399,7 +2474,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setSelectedPostId: setSelectedPostIdState,
     setSelectedImageUrl: setSelectedImageUrlState,
     setSelectedVideoUrl: setSelectedVideoUrlState,
-    openCommentHub: (id: string) => setActiveCommentPostIdState(id),
+    openCommentHub: (id: string) => { setActiveCommentPostIdState(id); fetchComments(id); },
     closeCommentHub: () => setActiveCommentPostIdState(null),
     openGiftHub: (u: User) => { setTargetUserForGiftState(u); setIsGiftHubOpenState(true); },
     closeGiftHub: () => setIsGiftHubOpenState(false),

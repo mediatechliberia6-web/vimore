@@ -210,8 +210,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const loadMusicData = useCallback(async () => {
     try {
-      const tq = [Query.equal('is_published', true), Query.orderDesc('$createdAt'), Query.limit(100)];
-      const aq = [Query.equal('is_published', true), Query.orderDesc('$createdAt'), Query.limit(50)];
+      const tq = [Query.orderDesc('$createdAt'), Query.limit(100)];
+      const aq = [Query.orderDesc('$createdAt'), Query.limit(50)];
       const pq = [Query.equal('is_private', false),  Query.orderDesc('$createdAt'), Query.limit(50)];
 
       const [tracksRes, albumsRes, playlistsRes] = await Promise.allSettled([
@@ -239,7 +239,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
           try {
             const albumTracksRes = await databases.listDocuments(DATABASE_ID, COL.TRACKS, [
               Query.equal('album_id', albumIds),
-              Query.equal('is_published', true),
               Query.orderAsc('track_number'),
               Query.limit(500),
             ]);
@@ -430,11 +429,13 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         user_id: currentUser.$id,
         title: track.title || 'Untitled',
         artist: track.artist || currentUser.name,
+        artist_username: currentUser.username || '',
         duration: track.duration || 0,
         plays_count: 0,
         likes_count: 0,
         genre: track.genre || '',
         is_explicit: track.isExplicit || false,
+        is_published: true,
       };
       if (audioId) docData.file_id = audioId;
       if (coverId) docData.cover_id = coverId;
@@ -468,8 +469,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       const docData: Record<string, any> = {
         user_id: currentUser.$id,
         title: album.title || 'Untitled Album',
+        artist: album.artist || currentUser.name,
+        artist_username: currentUser.username || '',
         tracks_count: album.songs?.length || 0,
         genre: album.genre || '',
+        is_published: true,
       };
       if (coverId) docData.cover_id = coverId;
 
@@ -484,12 +488,15 @@ export function MusicProvider({ children }: { children: ReactNode }) {
             user_id: currentUser.$id,
             title: song.title || 'Untitled',
             artist: album.artist || currentUser.name,
+            artist_username: currentUser.username || '',
             duration: song.duration || 0,
             plays_count: 0,
             likes_count: 0,
             album_id: doc.$id,
+            track_number: i + 1,
             genre: album.genre || '',
             is_explicit: false,
+            is_published: true,
           };
           if (audioId) songDocData.file_id = audioId;
           if (coverId) songDocData.cover_id = coverId;
