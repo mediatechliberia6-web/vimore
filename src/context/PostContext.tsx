@@ -905,17 +905,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadChatMessages = useCallback(async (userId: string, otherId: string, currentUsername?: string, isCluster?: boolean) => {
+    const clusterId = isCluster
+      ? otherId
+      : (currentUsername ? [currentUsername, otherId].sort().join('_') : [userId, otherId].sort().join('_'));
     try {
-      const clusterId = isCluster
-        ? otherId
-        : (currentUsername ? [currentUsername, otherId].sort().join('_') : [userId, otherId].sort().join('_'));
+      // Fetch all recent messages from the collection without relying on any custom index,
+      // then filter by cluster_id in JavaScript.
       const result = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
-        Query.equal('cluster_id', clusterId),
         Query.orderAsc('$createdAt'),
-        Query.limit(100),
+        Query.limit(500),
       ]);
 
-      const all = result.documents;
+      const all = result.documents.filter(doc => doc.cluster_id === clusterId);
 
       const msgs: ChatMessage[] = all.map(doc => {
         let callData: ChatMessage['callData'] | undefined;
@@ -941,9 +942,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
       setChatMessages(prev => ({ ...prev, [otherId]: msgs }));
     } catch (err: any) {
-      logAppwriteError('loadChatMessages', err);
+      const message = err?.message || err?.response?.message || JSON.stringify(err) || 'Unknown error loading messages';
+      toast({ variant: 'destructive', title: 'Failed to Load Messages', description: message });
     }
-  }, []);
+  }, [toast]);
 
   const loadUserWithdrawals = useCallback(async (userId: string) => {
     try {
