@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { usePosts } from './PostContext';
 import { databases, storage, ID, Query, BUCKET, DATABASE_ID, COL, getFileUrl, extractFileId } from '@/lib/appwrite';
-import { withCache, cacheInvalidate } from '@/lib/query-cache';
+
 
 export interface Track {
   id: string | number;
@@ -215,9 +215,9 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       const pq = [Query.equal('is_private', false),  Query.orderDesc('$createdAt'), Query.limit(50)];
 
       const [tracksRes, albumsRes, playlistsRes] = await Promise.allSettled([
-        withCache(COL.TRACKS,    tq, () => databases.listDocuments(DATABASE_ID, COL.TRACKS,    tq)),
-        withCache(COL.ALBUMS,    aq, () => databases.listDocuments(DATABASE_ID, COL.ALBUMS,    aq)),
-        withCache(COL.PLAYLISTS, pq, () => databases.listDocuments(DATABASE_ID, COL.PLAYLISTS, pq)),
+        databases.listDocuments(DATABASE_ID, COL.TRACKS,    tq),
+        databases.listDocuments(DATABASE_ID, COL.ALBUMS,    aq),
+        databases.listDocuments(DATABASE_ID, COL.PLAYLISTS, pq),
       ]);
 
       let tracks: Track[] = [];
@@ -296,9 +296,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const loadUserLikes = useCallback(async (userId: string) => {
     try {
       const lq = [Query.equal('user_id', userId), Query.limit(500)];
-      const res = await withCache(COL.TRACK_LIKES, lq, () =>
-        databases.listDocuments(DATABASE_ID, COL.TRACK_LIKES, lq)
-      );
+      const res = await databases.listDocuments(DATABASE_ID, COL.TRACK_LIKES, lq);
       setLikedSongIdsState(new Set(res.documents.map((d: any) => d.track_id).filter(Boolean)));
     } catch { /* ignore */ }
   }, []);
@@ -396,7 +394,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         await databases.updateDocument(DATABASE_ID, COL.TRACKS, String(track.id), {
           likes_count: Math.max(0, (track.likes || 1) - 1),
         });
-        cacheInvalidate(COL.TRACK_LIKES);
       } else {
         await databases.createDocument(DATABASE_ID, COL.TRACK_LIKES, ID.unique(), {
           track_id: String(track.id),
@@ -405,7 +402,6 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         await databases.updateDocument(DATABASE_ID, COL.TRACKS, String(track.id), {
           likes_count: (track.likes || 0) + 1,
         });
-        cacheInvalidate(COL.TRACK_LIKES);
       }
     } catch { /* keep optimistic */ }
   }, [currentUser, likedSongIds]);
