@@ -124,7 +124,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         is_read: false,
       };
       if (signal.postId) notifData.post_id = signal.postId;
-      if (signal.trackId) notifData.track_id = String(signal.trackId);
       databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), notifData).catch(() => { /* ignore */ });
     }
   }, [triggerSound, triggerHaptic]);
