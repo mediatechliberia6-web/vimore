@@ -85,10 +85,10 @@ function PostCard({ post, authUser, onLiked }: { post: FreePost; authUser: AuthU
     onLiked(post.id, delta);
     try {
       if (newLiked) {
-        await databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), { post_id: post.id, user_id: authUser.$id, reaction_type: 'LIKE' });
+        await databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), { post_id: post.id, user_id: authUser.$id, type: 'LIKE' });
         await databases.updateDocument(DATABASE_ID, COL.POSTS, post.id, { likes_count: likeCount + 1 });
       } else {
-        const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [Query.equal('post_id', post.id), Query.equal('user_id', authUser.$id), Query.equal('reaction_type', 'LIKE'), Query.limit(1)]);
+        const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [Query.equal('post_id', post.id), Query.equal('user_id', authUser.$id), Query.equal('type', 'LIKE'), Query.limit(1)]);
         if (existing.documents.length > 0) await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, existing.documents[0].$id);
         await databases.updateDocument(DATABASE_ID, COL.POSTS, post.id, { likes_count: Math.max(0, likeCount - 1) });
       }
@@ -111,7 +111,7 @@ function PostCard({ post, authUser, onLiked }: { post: FreePost; authUser: AuthU
       setComments(res.documents.map((d: any) => {
         const a = authors[d.user_id];
         const name = a?.name || 'User';
-        return { id: d.$id, name, initials: getInitials(name), content: d.content || '', time: formatTimeAgo(d.$createdAt) };
+        return { id: d.$id, name, initials: getInitials(name), content: d.text || d.content || '', time: formatTimeAgo(d.$createdAt) };
       }));
     } catch { setComments([]); }
     finally { setLoadingComments(false); }
@@ -127,7 +127,8 @@ function PostCard({ post, authUser, onLiked }: { post: FreePost; authUser: AuthU
         post_id: post.id, user_id: authUser.$id,
         user_name: authUser.name || '',
         user_avatar: '',
-        content: commentText.trim(),
+        text: commentText.trim(),
+        timestamp: Date.now(),
       });
       await databases.updateDocument(DATABASE_ID, COL.POSTS, post.id, { comments_count: post.comments + 1 });
       setCommentText('');

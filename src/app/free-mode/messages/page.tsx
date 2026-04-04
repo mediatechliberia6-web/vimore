@@ -28,14 +28,13 @@ function ConversationThread({ authUser, partnerId, partnerName, onBack }: { auth
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const clusterId = authUser ? [authUser.$id, partnerId].sort().join('_') : '';
+
   const load = useCallback(async () => {
     if (!authUser) return;
     try {
       const res = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
-        Query.or([
-          Query.and([Query.equal('sender_id', authUser.$id), Query.equal('receiver_id', partnerId)]),
-          Query.and([Query.equal('sender_id', partnerId), Query.equal('receiver_id', authUser.$id)]),
-        ]),
+        Query.equal('cluster_id', clusterId),
         Query.orderAsc('$createdAt'),
         Query.limit(80),
       ]);
@@ -65,10 +64,10 @@ function ConversationThread({ authUser, partnerId, partnerName, onBack }: { auth
     setMessages(prev => [...prev, optimistic]);
     try {
       await databases.createDocument(DATABASE_ID, COL.MESSAGES, ID.unique(), {
-        user_id: authUser.$id,
+        cluster_id: clusterId,
         sender_id: authUser.$id,
-        receiver_id: partnerId,
-        content: trimmed,
+        sender_name: authUser.name || authUser.username || '',
+        text: trimmed,
         type: 'text',
         is_read: false,
       });
