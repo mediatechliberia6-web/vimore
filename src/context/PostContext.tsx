@@ -179,6 +179,7 @@ export interface CallState {
   contact: any | null;
   channelName?: string;
   token?: string;
+  recipientId?: string;
 }
 
 interface PostContextType {
@@ -559,6 +560,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [targetUserForGift, setTargetUserForGiftState] = useState<User | null>(null);
   const [activeCommentPostId, setActiveCommentPostIdState] = useState<string | null>(null);
   const [callState, setCallState] = useState<CallState>({ type: 'video', status: 'idle', contact: null });
+  const callStateRef = useRef<CallState>({ type: 'video', status: 'idle', contact: null });
+  useEffect(() => { callStateRef.current = callState; }, [callState]);
+  // Forward ref so polling closure always has the latest saveCallMessage without re-creating the interval
+  const saveCallMessageRef = useRef<((contact: any, callType: 'audio' | 'video', callStatus: 'ended' | 'missed', duration?: string) => Promise<void>) | null>(null);
   const [pendingTransaction, setPendingTransactionState] = useState<any>(null);
   const [mutedUserNames, setMutedUserNames] = useState<string[]>([]);
 
@@ -1026,46 +1031,91 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, [selectedChatId, currentUser, loadChatMessages, clusters]);
 
-  // Poll for incoming calls every 5 seconds
+  // Poll for call signals every 3 seconds
   useEffect(() => {
     if (!currentUser) return;
     const poll = async () => {
-      try {
-        const res = await databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
-          Query.equal('user_id', currentUser.$id),
-          Query.equal('type', 'CALL_INCOMING'),
-          Query.limit(1),
-        ]);
-        if (res.documents.length > 0) {
-          const doc = res.documents[0];
-          // Delete it immediately so it doesn't re-trigger
-          await databases.deleteDocument(DATABASE_ID, COL.NOTIFICATIONS, doc.$id).catch(() => {});
-          // Only show incoming call if the notification is fresh (less than 60 seconds old)
-          const ageMs = Date.now() - new Date(doc.$createdAt).getTime();
-          if (ageMs > 60000) return; // Stale call notification — show nothing (missed call message is in chat)
-          try {
-            const callData = JSON.parse(doc.content || '{}');
-            setCallState(prev => {
-              if (prev.status !== 'idle') return prev; // Already in a call
-              return {
-                type: callData.callType || 'audio',
-                status: 'incoming',
-                contact: {
-                  $id: doc.from_user_id || '',
-                  name: doc.from_user_name || 'Unknown',
-                  username: callData.callerUsername || '',
-                  avatar: doc.from_user_avatar || '',
-                  isVerified: false,
-                },
-                channelName: callData.channelName || '',
-                token: callData.token || '',
-              };
-            });
-          } catch { /* ignore parse errors */ }
-        }
-      } catch { /* ignore polling errors */ }
+      const currentCallStatus = callStateRef.current.status;
+
+      // --- CASE 1: Idle — check for a new incoming call ---
+      if (currentCallStatus === 'idle') {
+        try {
+          const res = await databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
+            Query.equal('user_id', currentUser.$id),
+            Query.equal('type', 'CALL_INCOMING'),
+            Query.limit(1),
+          ]);
+          if (res.documents.length > 0) {
+            const doc = res.documents[0];
+            await databases.deleteDocument(DATABASE_ID, COL.NOTIFICATIONS, doc.$id).catch(() => {});
+            const ageMs = Date.now() - new Date(doc.$createdAt).getTime();
+            if (ageMs > 60000) return; // Too stale — missed call already saved
+            try {
+              const callData = JSON.parse(doc.content || '{}');
+              setCallState(prev => {
+                if (prev.status !== 'idle') return prev;
+                return {
+                  type: callData.callType || 'audio',
+                  status: 'incoming',
+                  contact: {
+                    $id: doc.from_user_id || '',
+                    name: doc.from_user_name || 'Unknown',
+                    username: callData.callerUsername || '',
+                    avatar: doc.from_user_avatar || '',
+                    isVerified: false,
+                  },
+                  channelName: callData.channelName || '',
+                  token: callData.token || '',
+                };
+              });
+            } catch { /* ignore parse errors */ }
+          }
+        } catch { /* ignore */ }
+      }
+
+      // --- CASE 2: Incoming — check if caller cancelled or hung up ---
+      if (currentCallStatus === 'incoming') {
+        try {
+          const res = await databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
+            Query.equal('user_id', currentUser.$id),
+            Query.equal('type', 'CALL_CANCELLED'),
+            Query.limit(1),
+          ]);
+          if (res.documents.length > 0) {
+            const doc = res.documents[0];
+            await databases.deleteDocument(DATABASE_ID, COL.NOTIFICATIONS, doc.$id).catch(() => {});
+            // Caller cancelled — save missed call from callee side and dismiss
+            const snap = callStateRef.current;
+            if (snap.contact && saveCallMessageRef.current) {
+              await saveCallMessageRef.current(snap.contact, snap.type, 'missed').catch(() => {});
+            }
+            setCallState({ type: 'video', status: 'idle', contact: null });
+          }
+        } catch { /* ignore */ }
+      }
+
+      // --- CASE 3: Outgoing — check if callee declined ---
+      if (currentCallStatus === 'outgoing' || currentCallStatus === 'ringing') {
+        try {
+          const res = await databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
+            Query.equal('user_id', currentUser.$id),
+            Query.equal('type', 'CALL_DECLINED'),
+            Query.limit(1),
+          ]);
+          if (res.documents.length > 0) {
+            const doc = res.documents[0];
+            await databases.deleteDocument(DATABASE_ID, COL.NOTIFICATIONS, doc.$id).catch(() => {});
+            // Callee declined — save missed call and dismiss caller's overlay
+            const snap = callStateRef.current;
+            if (snap.contact && saveCallMessageRef.current) {
+              await saveCallMessageRef.current(snap.contact, snap.type, 'missed').catch(() => {});
+            }
+            setCallState({ type: 'video', status: 'idle', contact: null });
+          }
+        } catch { /* ignore */ }
+      }
     };
-    const interval = setInterval(poll, 5000);
+    const interval = setInterval(poll, 3000);
     return () => clearInterval(interval);
   }, [currentUser]);
 
@@ -2752,7 +2802,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const initiateCall = useCallback(async (contact: any, type: 'audio' | 'video') => {
     const channelName = `vimore_${Date.now()}`;
-    const uid = Math.floor(Math.random() * 100000);
+    // uid=0 generates a wildcard Agora token valid for any participant in the channel
+    const uid = 0;
     let token = '';
     try {
       const { generateAgoraToken } = await import('@/app/actions/call');
@@ -2761,32 +2812,35 @@ export function PostProvider({ children }: { children: ReactNode }) {
       toast({ variant: 'destructive', title: 'Call Failed', description: err?.message || 'Could not start call. Check Agora credentials in settings.' });
       return;
     }
-    setCallState({ type, status: 'outgoing', contact, channelName, token });
+
+    // Resolve recipient's Appwrite user ID
+    let recipientId = contact.$id || '';
+    if (!recipientId && contact.username && currentUser) {
+      try {
+        const res = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+          Query.equal('username', contact.username), Query.limit(1),
+        ]);
+        if (res.documents.length > 0) recipientId = res.documents[0].$id;
+      } catch { /* ignore */ }
+    }
+
+    setCallState({ type, status: 'outgoing', contact, channelName, token, recipientId });
 
     // Signal the recipient via Appwrite so their device shows an incoming call
-    if (currentUser) {
+    if (currentUser && recipientId) {
       try {
-        let recipientId = contact.$id;
-        if (!recipientId && contact.username) {
-          const res = await databases.listDocuments(DATABASE_ID, COL.USERS, [
-            Query.equal('username', contact.username), Query.limit(1),
-          ]);
-          if (res.documents.length > 0) recipientId = res.documents[0].$id;
-        }
-        if (recipientId) {
-          await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
-            user_id: recipientId,
-            from_user_id: currentUser.$id,
-            from_user_name: currentUser.name || currentUser.username,
-            from_user_avatar: currentUser.avatar || '',
-            type: 'CALL_INCOMING',
-            title: 'Incoming Call',
-            content: JSON.stringify({ channelName, token, callType: type, callerUsername: currentUser.username }),
-            message: `${currentUser.name || currentUser.username} is calling you`,
-            is_read: false,
-          });
-        }
-      } catch { /* ignore signaling failure, call may still work locally */ }
+        await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+          user_id: recipientId,
+          from_user_id: currentUser.$id,
+          from_user_name: currentUser.name || currentUser.username,
+          from_user_avatar: currentUser.avatar || '',
+          type: 'CALL_INCOMING',
+          title: 'Incoming Call',
+          content: JSON.stringify({ channelName, token, callType: type, callerUsername: currentUser.username }),
+          message: `${currentUser.name || currentUser.username} is calling you`,
+          is_read: false,
+        });
+      } catch { /* ignore signaling failure */ }
     }
   }, [currentUser, toast]);
 
@@ -2816,13 +2870,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
     } catch { /* ignore */ }
   }, [currentUser]);
+  // Keep the polling closure's ref in sync with the latest saveCallMessage
+  useEffect(() => { saveCallMessageRef.current = saveCallMessage; }, [saveCallMessage]);
 
   const endCall = useCallback(async (duration?: string) => {
     if (currentUser && callState.contact) {
-      // A call was only truly answered when status transitioned to 'active'
       const wasAnswered = callState.status === 'active';
-      const wasMissed = !wasAnswered;
-      const callStatus = wasMissed ? 'missed' : 'ended';
+      const wasOutgoing = callState.status === 'outgoing' || callState.status === 'ringing';
+      const callStatus = wasAnswered ? 'ended' : 'missed';
       try {
         const [mins, secs] = ((duration || '0:00')).split(':').map(Number);
         const durationSecs = (mins || 0) * 60 + (secs || 0);
@@ -2832,10 +2887,27 @@ export function PostProvider({ children }: { children: ReactNode }) {
           channel_name: [currentUser.$id, callState.contact.$id || callState.contact.username].sort().join('_'),
           type: callState.type,
           duration: durationSecs,
-          status: wasMissed ? 'MISSED' : 'COMPLETED',
+          status: wasAnswered ? 'COMPLETED' : 'MISSED',
         });
       } catch { /* ignore */ }
       await saveCallMessage(callState.contact, callState.type, callStatus, duration);
+
+      // If caller is cancelling an unanswered outgoing call, signal the recipient to dismiss
+      if (wasOutgoing && callState.recipientId) {
+        try {
+          await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+            user_id: callState.recipientId,
+            from_user_id: currentUser.$id,
+            from_user_name: currentUser.name || currentUser.username,
+            from_user_avatar: currentUser.avatar || '',
+            type: 'CALL_CANCELLED',
+            title: 'Call Cancelled',
+            content: JSON.stringify({ channelName: callState.channelName }),
+            message: `${currentUser.name || currentUser.username} cancelled the call`,
+            is_read: true,
+          });
+        } catch { /* ignore */ }
+      }
     }
     setCallState({ type: 'video', status: 'idle', contact: null });
   }, [currentUser, callState, saveCallMessage]);
@@ -2853,6 +2925,22 @@ export function PostProvider({ children }: { children: ReactNode }) {
           status: 'DECLINED',
         });
       } catch { /* ignore */ }
+      // Signal the caller that the call was declined so their overlay dismisses immediately
+      if (callState.contact.$id) {
+        try {
+          await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+            user_id: callState.contact.$id,
+            from_user_id: currentUser.$id,
+            from_user_name: currentUser.name || currentUser.username,
+            from_user_avatar: currentUser.avatar || '',
+            type: 'CALL_DECLINED',
+            title: 'Call Declined',
+            content: JSON.stringify({ channelName: callState.channelName }),
+            message: `${currentUser.name || currentUser.username} declined the call`,
+            is_read: true,
+          });
+        } catch { /* ignore */ }
+      }
     }
     setCallState({ type: 'video', status: 'idle', contact: null });
   }, [currentUser, callState, saveCallMessage]);
