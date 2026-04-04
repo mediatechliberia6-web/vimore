@@ -480,6 +480,7 @@ function mapDocToPost(doc: Models.Document, authorDoc?: Models.Document): Post {
     isBoosted: doc.is_boosted || false,
     boostTargetViews: doc.boost_target_views,
     boostCurrentViews: doc.boost_current_views || 0,
+    boostExpiry: doc.boost_expiry ? Number(doc.boost_expiry) : undefined,
     poll,
   };
 }
@@ -744,14 +745,39 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const loadConnections = useCallback(async (userId: string) => {
     try {
-      const followsResult = await databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
-        Query.equal('follower_id', userId),
-        Query.limit(100),
+      const [followsResult, friendsSentResult, friendsReceivedResult] = await Promise.allSettled([
+        databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
+          Query.equal('follower_id', userId),
+          Query.limit(200),
+        ]),
+        databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
+          Query.equal('from_user_id', userId),
+          Query.equal('status', 'ACCEPTED'),
+          Query.limit(200),
+        ]),
+        databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
+          Query.equal('to_user_id', userId),
+          Query.equal('status', 'ACCEPTED'),
+          Query.limit(200),
+        ]),
       ]);
-      if (followsResult.documents.length === 0) { setConnectionsState([]); return; }
 
-      const followingIds = followsResult.documents.map((f: any) => f.following_id).filter(Boolean);
-      const usersResult = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', followingIds)]);
+      const allUserIds = new Set<string>();
+
+      if (followsResult.status === 'fulfilled') {
+        followsResult.value.documents.forEach((f: any) => { if (f.following_id) allUserIds.add(f.following_id); });
+      }
+      if (friendsSentResult.status === 'fulfilled') {
+        friendsSentResult.value.documents.forEach((f: any) => { if (f.to_user_id) allUserIds.add(f.to_user_id); });
+      }
+      if (friendsReceivedResult.status === 'fulfilled') {
+        friendsReceivedResult.value.documents.forEach((f: any) => { if (f.from_user_id) allUserIds.add(f.from_user_id); });
+      }
+
+      const userIdsArr = Array.from(allUserIds).filter(id => id !== userId);
+      if (userIdsArr.length === 0) { setConnectionsState([]); return; }
+
+      const usersResult = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', userIdsArr), Query.limit(200)]);
 
       const conns: Connection[] = usersResult.documents.map((u: any) => ({
         $id: u.$id,
@@ -1381,7 +1407,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
         is_read: false,
       });
       setBroadcastHistory(prev => [broadcastDoc, ...prev]);
-    } catch (err: any) { logAppwriteError('sendAdminBroadcast:log', err); }
+    } catch (err: any) {
+      logAppwriteError('sendAdminBroadcast:log', err);
+      const fallbackDoc = {
+        $id: 'local_' + Date.now(),
+        $createdAt: new Date().toISOString(),
+        type: 'BROADCAST',
+        title: opts.title,
+        content: opts.message,
+        message: opts.message,
+        user_id: currentUser.$id,
+      };
+      setBroadcastHistory(prev => [fallbackDoc, ...prev]);
+    }
     if (targets.length === 0) {
       throw new Error('No target users found. Ensure users are loaded before broadcasting.');
     }
@@ -1641,23 +1679,25 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (!currentUser) return;
     try {
       const expires_at = new Date(Date.now() + 86400000).toISOString();
-      const storyDoc = await databases.createDocument(DATABASE_ID, COL.STORIES, ID.unique(), {
-        user_id: currentUser.$id,
-        expires_at,
-        views_count: 0,
-      });
-
       const rawMediaUrl = segment.mediaUrl || segment.image || '';
       let mediaId: string | undefined = segment.fileId || undefined;
       if (!mediaId && rawMediaUrl) {
         mediaId = extractFileId(rawMediaUrl) || undefined;
       }
 
+      const storyDoc = await databases.createDocument(DATABASE_ID, COL.STORIES, ID.unique(), {
+        user_id: currentUser.$id,
+        expires_at,
+        views_count: 0,
+        story_url: rawMediaUrl || '',
+      });
+
       const segData: Record<string, any> = {
         story_id: storyDoc.$id,
         type: segment.type || 'image',
         order_index: 0,
         duration: segment.duration || 5,
+        story_url: rawMediaUrl || '',
       };
       if (mediaId) segData.media_id = mediaId;
       if (segment.text) segData.text = segment.text;
@@ -2424,7 +2464,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
             views_count: (stories.find(s => s.$id === id)?.viewCount || 0) + 1,
           }),
         ]);
-      } catch { /* ignore */ }
+      } catch (err: any) {
+        logAppwriteError('recordStoryView', err);
+        toast({ variant: 'destructive', title: 'Story View Failed', description: err?.message || 'Could not record story view.' });
+      }
     }
   };
 

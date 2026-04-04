@@ -147,6 +147,7 @@ interface PostCardProps {
   isBoosted?: boolean;
   boostTargetViews?: number;
   boostCurrentViews?: number;
+  boostExpiry?: number;
 }
 
 function FeedVideo({ videoUrl, postId, isShared }: { videoUrl: string; postId: string; isShared: boolean }) {
@@ -215,7 +216,7 @@ export function PostCard(props: PostCardProps) {
     $id, user, collaborator, content, image, images = [], imageFilter, theme, language,
     likes = 0, unlikes = 0, comments = 0, shares = 0, views = 0, time, hashtags, feeling, location, commentsDisabled, isPinned, 
     isSeries, seriesTitle, poll, isShared = false, videoUrl, sharedPost, isLocked, unlockPrice, isCampaign, campaignTitle, actionUrl, actionLabel,
-    isBoosted, boostTargetViews, boostCurrentViews
+    isBoosted, boostTargetViews, boostCurrentViews, boostExpiry
   } = props;
 
   const { 

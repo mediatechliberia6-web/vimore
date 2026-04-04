@@ -16,7 +16,7 @@ import MessagesLoading from "./loading";
 
 function MessagesInner() {
   const { currentTrack, isExpanded } = useMusic();
-  const { connections, clusters, currentUser, isLoading } = usePosts();
+  const { connections, clusters, currentUser, isLoading, allUsers } = usePosts();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
   const searchParams = useSearchParams();
@@ -44,9 +44,24 @@ function MessagesInner() {
     
     const cluster = clusters.find(cl => cl.$id === selectedChatId);
     if (cluster) return { ...cluster, isGroup: true } as Cluster;
+
+    const fallbackUser = allUsers.find(u => u.username === selectedChatId);
+    if (fallbackUser) {
+      return {
+        $id: fallbackUser.$id,
+        name: fallbackUser.name,
+        username: fallbackUser.username,
+        email: fallbackUser.vimoreId || '',
+        avatar: fallbackUser.avatar,
+        isVerified: fallbackUser.isVerified,
+        isGroup: false,
+        isOnline: false,
+        followsYou: false,
+      } as Connection;
+    }
     
     return null;
-  }, [connections, clusters, selectedChatId, currentUser]);
+  }, [connections, clusters, selectedChatId, currentUser, allUsers]);
 
   if (isLoading || !currentUser) {
     return <MessagesLoading />;

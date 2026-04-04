@@ -129,13 +129,17 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const handleSend = async (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string }) => {
     triggerHaptic(10);
     
-    await sendChatMessage(contactId, {
-      text: text || undefined,
-      type: options?.isWorkspace ? "workspace" : (options?.mediaType || (text.includes("http") ? "link" : "text")) as any,
-      isViewOnce: options?.isViewOnce,
-      mediaUrl: options?.mediaUrl,
-      voiceDuration: options?.duration
-    });
+    try {
+      await sendChatMessage(contactId, {
+        text: text || undefined,
+        type: options?.isWorkspace ? "workspace" : (options?.mediaType || (text.includes("http") ? "link" : "text")) as any,
+        isViewOnce: options?.isViewOnce,
+        mediaUrl: options?.mediaUrl,
+        voiceDuration: options?.duration
+      });
+    } catch {
+      return;
+    }
 
     if (!isCluster) {
       setTimeout(() => {
