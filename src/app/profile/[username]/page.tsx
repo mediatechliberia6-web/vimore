@@ -71,7 +71,7 @@ import { useTranslation } from "@/context/LanguageContext";
 export default function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const resolvedParams = use(params);
   const username = resolvedParams.username;
-  const { currentUser, posts, connections, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, isSubscribed, subscribeToCreator, cancelSubscription, fetchProfileByUsername, settings, followerUsernames, friendUsernames } = usePosts();
+  const { currentUser, posts, connections, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, isSubscribed, subscribeToCreator, cancelSubscription, fetchProfileByUsername, settings, followerUsernames, friendUsernames, sendMessageRequest } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { addSignal } = useNotifications();
   const { t } = useTranslation();
@@ -92,6 +92,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   
   const [confirmUser, setConfirmUser] = useState<any | null>(null);
   const [confirmType, setConfirmType] = useState<"unfriend" | "cancel">("unfriend");
+  const [showMsgDialog, setShowMsgDialog] = useState(false);
+  const [msgText, setMsgText] = useState("");
+  const [isSendingMsg, setIsSendingMsg] = useState(false);
 
   const amIFriend = isFriend(username);
   const sent = isRequestSent(username);
@@ -289,11 +292,17 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                       </span>
                     )}
                   </Button>
-                  <Link href="/messages" className="flex-1">
-                    <Button variant="secondary" className="w-full rounded-lg gap-2 h-11 font-bold active:scale-95 transition-all">
+                  {amIFriend ? (
+                    <Link href={`/messages?open=${displayUser.username}`} className="flex-1">
+                      <Button variant="secondary" className="w-full rounded-lg gap-2 h-11 font-bold active:scale-95 transition-all">
+                        <MessageCircle className="h-5 w-5" /> Message
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button variant="secondary" className="flex-1 rounded-lg gap-2 h-11 font-bold active:scale-95 transition-all" onClick={() => { triggerHaptic(10); setShowMsgDialog(true); }}>
                       <MessageCircle className="h-5 w-5" /> Message
                     </Button>
-                  </Link>
+                  )}
                 </div>
               </div>
             </div>
@@ -302,6 +311,53 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
         </main>
         <aside className={cn("hidden lg:block sticky h-screen transition-all duration-300", isPlayerActive ? "top-16" : "top-0")}><RightSidebar /></aside>
       </div>
+      <Dialog open={showMsgDialog} onOpenChange={(open) => { setShowMsgDialog(open); if (!open) setMsgText(""); }}>
+        <DialogContent className="rounded-[2rem] sm:max-w-[420px] z-[200]">
+          <DialogHeader>
+            <DialogTitle className="font-black italic uppercase tracking-tighter text-xl flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-primary" /> Message {displayUser?.name}
+            </DialogTitle>
+            <DialogDescription className="text-sm font-medium">
+              This message will go to their <span className="font-bold text-foreground">message requests</span>. They can accept or ignore it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <textarea
+              className="w-full rounded-2xl bg-secondary/30 border border-border p-4 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50 min-h-[120px]"
+              placeholder={`Say something to ${displayUser?.name}...`}
+              value={msgText}
+              onChange={e => setMsgText(e.target.value)}
+              maxLength={500}
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground font-bold">{msgText.length}/500</span>
+              <Button
+                disabled={!msgText.trim() || isSendingMsg}
+                className="rounded-xl h-11 px-8 font-black italic uppercase tracking-widest bg-primary text-white"
+                onClick={async () => {
+                  if (!displayUser) return;
+                  setIsSendingMsg(true);
+                  triggerHaptic(20);
+                  try {
+                    await sendMessageRequest(displayUser.$id, displayUser, msgText);
+                    setShowMsgDialog(false);
+                    setMsgText("");
+                    toast({ title: "Message Sent", description: "Your message request has been delivered." });
+                    router.push(`/messages?open=${displayUser.username}`);
+                  } catch {
+                    toast({ variant: "destructive", title: "Send Failed", description: "Could not send your message. Try again." });
+                  } finally {
+                    setIsSendingMsg(false);
+                  }
+                }}
+              >
+                {isSendingMsg ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={!!confirmUser} onOpenChange={(open) => !open && setConfirmUser(null)}><AlertDialogContent className="rounded-[2rem] sm:max-w-[420px] z-[200]"><AlertDialogHeader><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-2xl">{confirmType === "cancel" ? "Cancel Request?" : "Unfriend User?"}</AlertDialogTitle><AlertDialogDescription className="text-base font-medium leading-relaxed">Are you sure you want to {confirmType === "cancel" ? "cancel your friendship request" : "unfriend"} <span className="font-bold text-foreground">@{confirmUser?.username}</span>? This action will adjust your community connection.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-2"><AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50 border-none">Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmAction} className="rounded-xl h-12 font-black italic uppercase tracking-widest bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20">Confirm</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>
   );

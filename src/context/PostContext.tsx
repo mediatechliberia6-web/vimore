@@ -323,6 +323,7 @@ interface PostContextType {
   replyToTicket: (ticketUserId: string, ticketId: string, reply: string) => Promise<void>;
   submitTicket: (data: { subject: string; message: string; category: string; priority?: string }) => Promise<void>;
   sendChatMessage: (recipientId: string, message: Partial<ChatMessage>) => Promise<void>;
+  sendMessageRequest: (targetUserId: string, targetUser: User, text: string) => Promise<void>;
   purgeVibeCache: () => Promise<void>;
   archiveIdentityNode: () => Promise<void>;
   boostNode: (nodeId: string, duration: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'SONIC') => Promise<void>;
@@ -1626,6 +1627,32 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch { /* keep optimistic */ }
   }, [currentUser]);
 
+  const sendMessageRequest = useCallback(async (targetUserId: string, targetUser: User, text: string) => {
+    if (!currentUser || !text.trim()) return;
+    await sendChatMessage(targetUserId, { text: text.trim() });
+    // Inject target into local connections so sender sees the chat immediately
+    setConnectionsState(prev => {
+      if (prev.find(c => c.username === targetUser.username)) return prev;
+      const tempConn: Connection = {
+        ...targetUser,
+        isGroup: false,
+        lastMessage: text.trim(),
+        lastTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      return [tempConn, ...prev];
+    });
+    // Notify the recipient about the message request
+    try {
+      await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+        recipient_id: targetUserId,
+        type: 'MESSAGE',
+        title: 'Message Request',
+        content: `**${currentUser.name}** (@${currentUser.username}) sent you a message: "${text.slice(0, 80)}${text.length > 80 ? '...' : ''}"`,
+        is_read: false,
+      });
+    } catch { /* ignore notification failure */ }
+  }, [currentUser, sendChatMessage]);
+
   const unlockPost = useCallback(async (postId: string, cost: number) => {
     if (!currentUser) return;
     const balance = currentUser.goldBalance || 0;
@@ -1997,7 +2024,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
         user_id: currentUser.$id,
         title: d.title || '',
         content: d.content || '',
-        placement: d.placement || 'feed',
         media_url: d.mediaUrl || '',
         action_url: d.actionUrl || '',
         action_label: d.actionLabel || 'Learn More',
@@ -2414,7 +2440,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     recordView, recordStoryView,
     updateUserIdentity,
     handleReportAction, handleTicketAction, replyToTicket,
-    sendChatMessage,
+    sendChatMessage, sendMessageRequest,
     fetchAllUsersForDiscovery, allUsers, refreshAllUsers, banUser, suspendUser, warnUser, sendAdminBroadcast, broadcastHistory,
     purgeVibeCache: async () => setSeenPostIdsState(new Set()),
     archiveIdentityNode: async () => {},
