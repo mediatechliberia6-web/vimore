@@ -25,7 +25,7 @@ export function PostPortal() {
 
   if (!selectedPostId && !isVisible) return null;
 
-  const post = posts.find((p) => p.id === selectedPostId);
+  const post = posts.find((p) => p.$id === selectedPostId);
 
   const handleClose = () => {
     triggerHaptic?.(10);

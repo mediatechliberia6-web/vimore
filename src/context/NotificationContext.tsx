@@ -62,6 +62,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     try {
       const res = await databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
         Query.equal('user_id', userId),
+        Query.notEqual('type', 'CALL_INCOMING'),
         Query.orderDesc('$createdAt'),
         Query.limit(50),
       ]);

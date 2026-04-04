@@ -155,9 +155,9 @@ export function StoryViewer() {
   }, [isAdActive, closeAd]);
 
   useEffect(() => {
-    if (activeStory && !isOwner && hasRecordedCurrentSegment.current !== activeStory.id) {
-      recordStoryView(activeStory.id);
-      hasRecordedCurrentSegment.current = activeStory.id;
+    if (activeStory && !isOwner && hasRecordedCurrentSegment.current !== activeStory.$id) {
+      recordStoryView(activeStory.$id);
+      hasRecordedCurrentSegment.current = activeStory.$id;
     }
   }, [activeStory, isOwner, recordStoryView]);
 
@@ -217,9 +217,9 @@ export function StoryViewer() {
 
   const handlePollVote = (e: React.MouseEvent, optionIndex: number) => {
     e.stopPropagation();
-    if (!activeStory || !currentSegment || votedSegmentId === currentSegment.id || isOwner) return;
-    voteOnStoryPoll(activeStory.id, currentSegment.id, optionIndex);
-    setVotedSegmentId(currentSegment.id);
+    if (!activeStory || !currentSegment || votedSegmentId === currentSegment.$id || isOwner) return;
+    voteOnStoryPoll(activeStory.$id, currentSegment.$id, optionIndex);
+    setVotedSegmentId(currentSegment.$id);
   };
 
   const totalPollVotes = useMemo(() => {
@@ -494,7 +494,7 @@ export function StoryViewer() {
                   <div className="space-y-2">
                     {currentSegment.poll.options.map((opt, i) => {
                       const percent = totalPollVotes > 0 ? (opt.votes / totalPollVotes) * 100 : 0;
-                      const isVoted = votedSegmentId === currentSegment.id || isOwner;
+                      const isVoted = votedSegmentId === currentSegment.$id || isOwner;
                       
                       return (
                         <button

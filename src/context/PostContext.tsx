@@ -940,7 +940,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
 
       setChatMessages(prev => ({ ...prev, [otherId]: msgs }));
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      logAppwriteError('loadChatMessages', err);
+    }
   }, []);
 
   const loadUserWithdrawals = useCallback(async (userId: string) => {
@@ -1036,6 +1038,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
           const doc = res.documents[0];
           // Delete it immediately so it doesn't re-trigger
           await databases.deleteDocument(DATABASE_ID, COL.NOTIFICATIONS, doc.$id).catch(() => {});
+          // Only show incoming call if the notification is fresh (less than 60 seconds old)
+          const ageMs = Date.now() - new Date(doc.$createdAt).getTime();
+          if (ageMs > 60000) return; // Stale call notification — show nothing (missed call message is in chat)
           try {
             const callData = JSON.parse(doc.content || '{}');
             setCallState(prev => {
