@@ -16,7 +16,7 @@ import MessagesLoading from "./loading";
 
 function MessagesInner() {
   const { currentTrack, isExpanded } = useMusic();
-  const { connections, clusters, currentUser, isLoading, allUsers } = usePosts();
+  const { connections, clusters, currentUser, isLoading, allUsers, setSelectedChatId: setContextChatId } = usePosts();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
   const searchParams = useSearchParams();
@@ -25,8 +25,8 @@ function MessagesInner() {
 
   useEffect(() => {
     const open = searchParams.get('open');
-    if (open) setSelectedChatId(open);
-  }, [searchParams]);
+    if (open) { setSelectedChatId(open); setContextChatId(open); }
+  }, [searchParams, setContextChatId]);
 
   useEffect(() => {
     if (selectedChatId) {
@@ -88,7 +88,7 @@ function MessagesInner() {
               )}>
                 <ChatList 
                   selectedId={selectedChatId} 
-                  onSelect={(id) => setSelectedChatId(id)} 
+                  onSelect={(id) => { setSelectedChatId(id); setContextChatId(id); }} 
                 />
               </div>
 
@@ -101,7 +101,7 @@ function MessagesInner() {
                     <div className="relative h-full flex flex-col min-0">
                       <ChatWindow 
                         contact={selectedContact} 
-                        onBack={() => setSelectedChatId(null)} 
+                        onBack={() => { setSelectedChatId(null); setContextChatId(null); }} 
                       />
                     </div>
                   ) : (

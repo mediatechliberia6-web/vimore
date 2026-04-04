@@ -903,9 +903,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore */ }
   }, []);
 
-  const loadChatMessages = useCallback(async (userId: string, otherId: string) => {
+  const loadChatMessages = useCallback(async (userId: string, otherId: string, currentUsername?: string, isCluster?: boolean) => {
     try {
-      const clusterId = [userId, otherId].sort().join('_');
+      const clusterId = isCluster
+        ? otherId
+        : (currentUsername ? [currentUsername, otherId].sort().join('_') : [userId, otherId].sort().join('_'));
       const result = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
         Query.equal('cluster_id', clusterId),
         Query.orderAsc('$createdAt'),
@@ -1005,9 +1007,50 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (selectedChatId && currentUser) {
-      loadChatMessages(currentUser.$id, selectedChatId);
+      const isCluster = clusters.some(cl => cl.$id === selectedChatId);
+      loadChatMessages(currentUser.$id, selectedChatId, currentUser.username, isCluster);
     }
-  }, [selectedChatId, currentUser, loadChatMessages]);
+  }, [selectedChatId, currentUser, loadChatMessages, clusters]);
+
+  // Poll for incoming calls every 5 seconds
+  useEffect(() => {
+    if (!currentUser) return;
+    const poll = async () => {
+      try {
+        const res = await databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
+          Query.equal('user_id', currentUser.$id),
+          Query.equal('type', 'CALL_INCOMING'),
+          Query.limit(1),
+        ]);
+        if (res.documents.length > 0) {
+          const doc = res.documents[0];
+          // Delete it immediately so it doesn't re-trigger
+          await databases.deleteDocument(DATABASE_ID, COL.NOTIFICATIONS, doc.$id).catch(() => {});
+          try {
+            const callData = JSON.parse(doc.content || '{}');
+            setCallState(prev => {
+              if (prev.status !== 'idle') return prev; // Already in a call
+              return {
+                type: callData.callType || 'audio',
+                status: 'incoming',
+                contact: {
+                  $id: doc.from_user_id || '',
+                  name: doc.from_user_name || 'Unknown',
+                  username: callData.callerUsername || '',
+                  avatar: doc.from_user_avatar || '',
+                  isVerified: false,
+                },
+                channelName: callData.channelName || '',
+                token: callData.token || '',
+              };
+            });
+          } catch { /* ignore parse errors */ }
+        }
+      } catch { /* ignore polling errors */ }
+    };
+    const interval = setInterval(poll, 5000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
 
   const login = useCallback(async (identifier: string, password: string) => {
     setIsLoadingState(true);
@@ -1500,6 +1543,29 @@ export function PostProvider({ children }: { children: ReactNode }) {
         posts_count: (currentUser.posts as number || 0) + 1,
       });
       setCurrentUserState(prev => prev ? { ...prev, posts: (prev.posts as number || 0) + 1 } : null);
+
+      // Notify followers about the new post (fire-and-forget, limit 50)
+      databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
+        Query.equal('following_id', currentUser.$id),
+        Query.limit(50),
+      ]).then(res => {
+        res.documents.forEach(follow => {
+          if (follow.follower_id && follow.follower_id !== currentUser.$id) {
+            databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+              user_id: follow.follower_id,
+              from_user_id: currentUser.$id,
+              from_user_name: currentUser.name || currentUser.username,
+              from_user_avatar: currentUser.avatar || '',
+              type: 'POST',
+              title: 'New Post',
+              content: `${currentUser.name || '@' + currentUser.username} published a new post`,
+              message: `${currentUser.name || '@' + currentUser.username} published a new post`,
+              post_id: doc.$id,
+              is_read: false,
+            }).catch(() => {});
+          }
+        });
+      }).catch(() => {});
     } catch (err: any) {
       logAppwriteError('addPost', err);
       throw err;
@@ -1558,6 +1624,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
           databases.getDocument(DATABASE_ID, COL.POSTS, id),
         ]);
         await databases.updateDocument(DATABASE_ID, COL.POSTS, id, { likes_count: (currentDoc.likes_count || 0) + 1 });
+        const likedPost = posts.find(p => p.$id === id);
+        if (likedPost && likedPost.user.$id !== currentUser.$id) {
+          databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+            user_id: likedPost.user.$id,
+            from_user_id: currentUser.$id,
+            from_user_name: currentUser.name || currentUser.username,
+            from_user_avatar: currentUser.avatar || '',
+            type: 'POST',
+            title: 'New Like',
+            content: `${currentUser.name || '@' + currentUser.username} liked your post`,
+            message: `${currentUser.name || '@' + currentUser.username} liked your post`,
+            post_id: id,
+            is_read: false,
+          }).catch(() => {});
+        }
       }
     } catch (err: any) {
       logAppwriteError('toggleLikePost', err);
@@ -1649,9 +1730,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
       const real = mapDocToComment(doc);
       setActiveComments(prev => prev.map(c => c.$id === optimistic.$id ? real : c));
+      const commentedPost = posts.find(p => p.$id === postId);
       await databases.updateDocument(DATABASE_ID, COL.POSTS, postId, {
-        comments_count: (posts.find(p => p.$id === postId)?.comments || 0) + 1,
+        comments_count: (commentedPost?.comments || 0) + 1,
       });
+      if (commentedPost && commentedPost.user.$id !== currentUser.$id) {
+        databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+          user_id: commentedPost.user.$id,
+          from_user_id: currentUser.$id,
+          from_user_name: currentUser.name || currentUser.username,
+          from_user_avatar: currentUser.avatar || '',
+          type: 'POST',
+          title: 'New Comment',
+          content: `${currentUser.name || '@' + currentUser.username} commented: "${text.slice(0, 80)}${text.length > 80 ? '...' : ''}"`,
+          message: `${currentUser.name || '@' + currentUser.username} commented on your post`,
+          post_id: postId,
+          is_read: false,
+        }).catch(() => {});
+      }
     } catch { /* keep optimistic */ }
   };
 
@@ -1893,7 +1989,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setChatMessages(prev => ({ ...prev, [recipientId]: [...(prev[recipientId] || []), optimistic] }));
 
     try {
-      const clusterId = [currentUser.$id, recipientId].sort().join('_');
+      const isClusterMsg = clusters.some(cl => cl.$id === recipientId);
+      const clusterId = isClusterMsg ? recipientId : [currentUser.username, recipientId].sort().join('_');
       const docData: Record<string, any> = {
         cluster_id: clusterId,
         sender_id: currentUser.$id,
@@ -1917,7 +2014,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       toast({ variant: 'destructive', title: 'Message Failed', description: err?.message || 'Could not deliver your message. Please try again.' });
       throw err;
     }
-  }, [currentUser, toast]);
+  }, [currentUser, toast, clusters]);
 
   const sendMessageRequest = useCallback(async (targetUserId: string, targetUser: User, text: string) => {
     if (!currentUser || !text.trim()) return;
@@ -2456,17 +2553,30 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setStoriesState(prev => prev.map(s => s.$id === id ? { ...s, viewCount: (s.viewCount || 0) + 1 } : s));
     if (currentUser) {
       try {
+        const viewedStory = stories.find(s => s.$id === id);
         await Promise.all([
           databases.createDocument(DATABASE_ID, COL.STORY_VIEWS, ID.unique(), {
             story_id: id, user_id: currentUser.$id, viewer_id: currentUser.$id,
           }),
           databases.updateDocument(DATABASE_ID, COL.STORIES, id, {
-            views_count: (stories.find(s => s.$id === id)?.viewCount || 0) + 1,
+            views_count: (viewedStory?.viewCount || 0) + 1,
           }),
         ]);
+        if (viewedStory && viewedStory.user.$id !== currentUser.$id) {
+          databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+            user_id: viewedStory.user.$id,
+            from_user_id: currentUser.$id,
+            from_user_name: currentUser.name || currentUser.username,
+            from_user_avatar: currentUser.avatar || '',
+            type: 'SOCIAL',
+            title: 'Story View',
+            content: `${currentUser.name || '@' + currentUser.username} viewed your story`,
+            message: `${currentUser.name || '@' + currentUser.username} viewed your story`,
+            is_read: false,
+          }).catch(() => {});
+        }
       } catch (err: any) {
         logAppwriteError('recordStoryView', err);
-        toast({ variant: 'destructive', title: 'Story View Failed', description: err?.message || 'Could not record story view.' });
       }
     }
   };
@@ -2630,9 +2740,38 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const { generateAgoraToken } = await import('@/app/actions/call');
       token = await generateAgoraToken(channelName, uid);
-    } catch { token = ''; }
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Call Failed', description: err?.message || 'Could not start call. Check Agora credentials in settings.' });
+      return;
+    }
     setCallState({ type, status: 'outgoing', contact, channelName, token });
-  }, []);
+
+    // Signal the recipient via Appwrite so their device shows an incoming call
+    if (currentUser) {
+      try {
+        let recipientId = contact.$id;
+        if (!recipientId && contact.username) {
+          const res = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+            Query.equal('username', contact.username), Query.limit(1),
+          ]);
+          if (res.documents.length > 0) recipientId = res.documents[0].$id;
+        }
+        if (recipientId) {
+          await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+            user_id: recipientId,
+            from_user_id: currentUser.$id,
+            from_user_name: currentUser.name || currentUser.username,
+            from_user_avatar: currentUser.avatar || '',
+            type: 'CALL_INCOMING',
+            title: 'Incoming Call',
+            content: JSON.stringify({ channelName, token, callType: type, callerUsername: currentUser.username }),
+            message: `${currentUser.name || currentUser.username} is calling you`,
+            is_read: false,
+          });
+        }
+      } catch { /* ignore signaling failure, call may still work locally */ }
+    }
+  }, [currentUser, toast]);
 
   const acceptCall = useCallback(async () => {
     setCallState(prev => ({ ...prev, status: 'active' }));

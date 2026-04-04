@@ -51,7 +51,6 @@ import { Connection, Cluster, usePosts } from "@/context/PostContext";
 import { ChatBubble } from "./chat-bubble";
 import { ChatInput } from "./chat-input";
 import { useMusic } from "@/context/MusicContext";
-import { useNotifications } from "@/context/NotificationContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
@@ -84,7 +83,6 @@ interface ChatWindowProps {
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections = [], addMemberToCluster, updateCluster, settings, chatMessages, sendChatMessage, friendUsernames, acceptedStrangerUsernames, acceptMessageRequest, declineMessageRequest } = usePosts();
-  const { incrementPulse } = useNotifications();
   const { t } = useTranslation();
   const { toast } = useToast();
   const router = useRouter();
@@ -139,16 +137,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       });
     } catch {
       return;
-    }
-
-    if (!isCluster) {
-      setTimeout(() => {
-        incrementPulse('MESSAGES');
-        toast({
-          title: "New Pulse Detected",
-          description: `@${contact.name} is typing...`
-        });
-      }, 2000);
     }
   };
 

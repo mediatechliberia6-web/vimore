@@ -441,7 +441,7 @@ export function StoryViewer() {
                   {currentSegment.type === 'video' ? (
                     <>
                       <video 
-                        src={currentSegment.image} 
+                        src={(currentSegment as any).mediaUrl || (currentSegment as any).image} 
                         className="w-full h-full object-cover" 
                         autoPlay 
                         muted={isVideoMuted}
@@ -455,12 +455,12 @@ export function StoryViewer() {
                         {isVideoMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                       </button>
                     </>
-                  ) : currentSegment.image ? (
+                  ) : ((currentSegment as any).mediaUrl || (currentSegment as any).image) ? (
                     <Image 
-                      src={currentSegment.image} 
+                      src={(currentSegment as any).mediaUrl || (currentSegment as any).image} 
                       alt="Story Content" 
                       fill 
-                      className={cn("object-cover", currentSegment.filter)}
+                      className={cn("object-cover", (currentSegment as any).filter)}
                       priority
                     />
                   ) : null}
