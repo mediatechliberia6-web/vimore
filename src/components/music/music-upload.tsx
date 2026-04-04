@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useMusic, Track, Album } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
-import { BUCKET_MUSIC, BUCKET_IMAGES } from "@/lib/appwrite";
+import { BUCKET_MUSIC, BUCKET_IMAGES, BUCKET } from "@/lib/appwrite";
 
 interface TrackSlot {
   id: number;
@@ -161,7 +161,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
     
     try {
       if (!currentUser) return;
-      const coverUrl = coverFile ? await uploadMedia(coverFile, BUCKET_IMAGES) : "https://picsum.photos/seed/single/600/600";
+      const coverUrl = coverFile ? await uploadMedia(coverFile, BUCKET.ALBUM_COVERS) : "https://picsum.photos/seed/single/600/600";
 
       if (projectType === "single") {
         const slot = tracks[0];

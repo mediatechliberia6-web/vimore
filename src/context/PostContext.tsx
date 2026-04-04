@@ -433,9 +433,8 @@ function mapProfileDocToUser(doc: Models.Document): User {
 }
 
 function mapDocToPost(doc: Models.Document, authorDoc?: Models.Document): Post {
-  const imageId: string | undefined = doc.image_id || undefined;
-  const mediaIds: string[] = imageId ? [imageId] : [];
-  const images = mediaIds.map((id: string) => getFileUrl(BUCKET.POST_MEDIA, id));
+  const imageIds: string[] = Array.isArray(doc.image_ids) ? doc.image_ids : (doc.image_id ? [doc.image_id] : []);
+  const images = imageIds.map((id: string) => getFileUrl(BUCKET.POST_MEDIA, id));
   const videoId = doc.video_id;
 
   const author: User = authorDoc ? {
@@ -641,7 +640,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         frRecvPending:   [Query.equal('to_user_id', userId), Query.equal('status', 'PENDING'), Query.limit(500)],
         frSentAccepted:  [Query.equal('from_user_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)],
         frRecvAccepted:  [Query.equal('to_user_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)],
-        myLikes:         [Query.equal('user_id', userId), Query.equal('type', 'LIKE'), Query.limit(500)],
+        myLikes:         [Query.equal('user_id', userId), Query.equal('reaction_type', 'LIKE'), Query.limit(500)],
         myBookmarks:     [Query.equal('user_id', userId), Query.limit(500)],
         myUnlocks:       [Query.equal('user_id', userId), Query.limit(500)],
         mySubs:          [Query.equal('subscriber_id', userId), Query.equal('status', 'ACTIVE'), Query.limit(500)],
@@ -1247,6 +1246,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
     try {
       const broadcastDoc = await databases.createDocument(DATABASE_ID, COL.ADMIN_NOTIFICATIONS, ID.unique(), {
+        user_id: currentUser.$id,
         type: 'BROADCAST',
         message: opts.message,
         is_read: false,
@@ -1379,7 +1379,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           }
         }
         await databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), {
-          post_id: id, user_id: currentUser.$id, type: 'LIKE',
+          post_id: id, user_id: currentUser.$id, reaction_type: 'LIKE',
         });
         const post = posts.find(p => p.$id === id);
         await databases.updateDocument(DATABASE_ID, COL.POSTS, id, { likes_count: (post?.likes || 0) + (wasLiked ? 0 : 1) });
@@ -1418,7 +1418,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           }
         }
         await databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), {
-          post_id: id, user_id: currentUser.$id, type: 'UNLIKE',
+          post_id: id, user_id: currentUser.$id, reaction_type: 'UNLIKE',
         });
       }
     } catch { /* ignore */ }
@@ -1475,6 +1475,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const expires_at = new Date(Date.now() + 86400000).toISOString();
       const storyDoc = await databases.createDocument(DATABASE_ID, COL.STORIES, ID.unique(), {
+        user_id: currentUser.$id,
         expires_at,
         views_count: 0,
       });
@@ -1891,7 +1892,26 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const createPaymentRequest = useCallback(async (screenshotUrl: string) => {
     if (!currentUser) return;
-    const screenshotFileId = extractFileId(screenshotUrl) || screenshotUrl;
+
+    let screenshotFileId: string;
+    try {
+      if (screenshotUrl.startsWith('data:')) {
+        const arr = screenshotUrl.split(',');
+        const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) u8arr[n] = bstr.charCodeAt(n);
+        const file = new File([u8arr], 'receipt.jpg', { type: mime });
+        const uploadResult = await storage.createFile(BUCKET.PAYMENT_SCREENSHOTS, ID.unique(), file);
+        screenshotFileId = uploadResult.$id;
+      } else {
+        screenshotFileId = extractFileId(screenshotUrl) || screenshotUrl;
+      }
+    } catch {
+      screenshotFileId = 'upload_failed';
+    }
+
     const req: Record<string, any> = {
       $id: 'pay_' + Date.now(),
       user_id: currentUser.$id,
@@ -1907,6 +1927,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
     try {
       await databases.createDocument(DATABASE_ID, COL.PAYMENT_REQUESTS, ID.unique(), {
+        user_id: currentUser.$id,
         from_user_id: currentUser.$id,
         to_user_id: 'platform',
         currency: pendingTransaction?.currency || 'USD',
@@ -2045,6 +2066,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         budget: d.budget || 0,
         spent: 0,
         status: 'ACTIVE',
+        is_active: true,
         impressions: 0,
         clicks: 0,
       };
@@ -2383,7 +2405,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
           const targetDoc = targetRes.documents[0];
           if (targetDoc) {
             await databases.createDocument(DATABASE_ID, COL.FOLLOWS, ID.unique(), {
-              user_id: currentUser.$id,
               follower_id: currentUser.$id,
               following_id: targetDoc.$id,
               follower_username: currentUser.username,

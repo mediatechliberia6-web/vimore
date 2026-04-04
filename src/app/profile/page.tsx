@@ -85,7 +85,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { BUCKET_IMAGES } from "@/lib/appwrite";
+import { BUCKET_IMAGES, BUCKET } from "@/lib/appwrite";
 import ProfileLoading from "./loading";
 
 const NATIONALITIES = [
@@ -171,7 +171,8 @@ export default function MyProfilePage() {
     try {
       const fileName = refiningMode === 'avatar' ? 'avatar.jpg' : 'cover.jpg';
       const file = dataURLtoFile(refinedDataUrl, fileName);
-      const vaultUrl = await uploadMedia(file, BUCKET_IMAGES);
+      const targetBucket = refiningMode === 'avatar' ? BUCKET.AVATARS : BUCKET.COVERS;
+      const vaultUrl = await uploadMedia(file, targetBucket);
       await updateCurrentUser({ [refiningMode]: vaultUrl });
       const pronoun = currentUser.gender === 'Female' ? 'her' : 'his';
       const postContent = refiningMode === 'avatar'
