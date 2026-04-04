@@ -307,6 +307,7 @@ interface PostContextType {
   initiateCall: (contact: any, type: 'audio' | 'video') => Promise<void>;
   acceptCall: () => Promise<void>;
   endCall: (duration?: string) => Promise<void>;
+  declineCall: () => Promise<void>;
   refreshAdminData: () => Promise<void>;
   fetchProfileByUsername: (username: string) => Promise<User | null>;
   searchAllUsers: (query: string) => Promise<User[]>;
@@ -916,18 +917,27 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
       const all = result.documents;
 
-      const msgs: ChatMessage[] = all.map(doc => ({
-        $id: doc.$id,
-        sender: doc.sender_id === userId ? 'me' : 'them',
-        senderId: doc.sender_id,
-        text: doc.text,
-        time: formatTimeAgo(doc.$createdAt),
-        status: doc.is_read ? 'read' : 'delivered',
-        type: (doc.type || 'text') as ChatMessage['type'],
-        mediaUrl: doc.media_id ? getFileUrl(BUCKET.MESSAGE_MEDIA, doc.media_id) : undefined,
-        isViewOnce: doc.is_view_once || false,
-        isViewed: doc.is_viewed || false,
-      }));
+      const msgs: ChatMessage[] = all.map(doc => {
+        let callData: ChatMessage['callData'] | undefined;
+        if (doc.type === 'call' && doc.text) {
+          try { callData = JSON.parse(doc.text); } catch { /* ignore */ }
+        }
+        return {
+          $id: doc.$id,
+          sender: doc.sender_id === userId ? 'me' : 'them',
+          senderId: doc.sender_id,
+          text: doc.type === 'call' ? undefined : doc.text,
+          time: formatTimeAgo(doc.$createdAt),
+          status: doc.is_read ? 'read' : 'delivered',
+          type: (doc.type || 'text') as ChatMessage['type'],
+          mediaUrl: doc.media_id ? getFileUrl(BUCKET.MESSAGE_MEDIA, doc.media_id) : undefined,
+          isViewOnce: doc.is_view_once || false,
+          isViewed: doc.is_viewed || false,
+          callData,
+          senderName: doc.sender_name,
+          senderAvatar: doc.sender_avatar,
+        };
+      });
 
       setChatMessages(prev => ({ ...prev, [otherId]: msgs }));
     } catch { /* ignore */ }
@@ -2777,10 +2787,37 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setCallState(prev => ({ ...prev, status: 'active' }));
   }, []);
 
+  const saveCallMessage = useCallback(async (
+    contact: any,
+    callType: 'audio' | 'video',
+    callStatus: 'ended' | 'missed',
+    duration?: string,
+  ) => {
+    if (!currentUser || !contact) return;
+    const contactUsername = contact.username || contact.name;
+    const clusterId = [currentUser.username, contactUsername].sort().join('_');
+    const callPayload = JSON.stringify({ type: callType, status: callStatus, duration: duration || undefined });
+    try {
+      await databases.createDocument(DATABASE_ID, COL.MESSAGES, ID.unique(), {
+        cluster_id: clusterId,
+        sender_id: currentUser.$id,
+        sender_name: currentUser.name || currentUser.username,
+        sender_avatar: currentUser.avatar || '',
+        type: 'call',
+        text: callPayload,
+        is_read: false,
+      });
+    } catch { /* ignore */ }
+  }, [currentUser]);
+
   const endCall = useCallback(async (duration?: string) => {
-    if (currentUser && callState.contact && duration) {
+    if (currentUser && callState.contact) {
+      // A call was only truly answered when status transitioned to 'active'
+      const wasAnswered = callState.status === 'active';
+      const wasMissed = !wasAnswered;
+      const callStatus = wasMissed ? 'missed' : 'ended';
       try {
-        const [mins, secs] = (duration || '0:00').split(':').map(Number);
+        const [mins, secs] = ((duration || '0:00')).split(':').map(Number);
         const durationSecs = (mins || 0) * 60 + (secs || 0);
         await databases.createDocument(DATABASE_ID, COL.CALL_LOGS, ID.unique(), {
           caller_id: currentUser.$id,
@@ -2788,12 +2825,30 @@ export function PostProvider({ children }: { children: ReactNode }) {
           channel_name: [currentUser.$id, callState.contact.$id || callState.contact.username].sort().join('_'),
           type: callState.type,
           duration: durationSecs,
-          status: 'COMPLETED',
+          status: wasMissed ? 'MISSED' : 'COMPLETED',
+        });
+      } catch { /* ignore */ }
+      await saveCallMessage(callState.contact, callState.type, callStatus, duration);
+    }
+    setCallState({ type: 'video', status: 'idle', contact: null });
+  }, [currentUser, callState, saveCallMessage]);
+
+  const declineCall = useCallback(async () => {
+    if (currentUser && callState.contact) {
+      await saveCallMessage(callState.contact, callState.type, 'missed');
+      try {
+        await databases.createDocument(DATABASE_ID, COL.CALL_LOGS, ID.unique(), {
+          caller_id: callState.contact.$id || callState.contact.username,
+          callee_id: currentUser.$id,
+          channel_name: [currentUser.$id, callState.contact.$id || callState.contact.username].sort().join('_'),
+          type: callState.type,
+          duration: 0,
+          status: 'DECLINED',
         });
       } catch { /* ignore */ }
     }
     setCallState({ type: 'video', status: 'idle', contact: null });
-  }, [currentUser, callState]);
+  }, [currentUser, callState, saveCallMessage]);
 
   const value: PostContextType = {
     currentUser, isAuthenticated: !!currentUser, posts, hasMoreFeed, isFeedLoading, loadMoreFeed, activeComments, isLoading, initError,
@@ -2973,7 +3028,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     createCluster, addMemberToCluster, leaveCluster, updateCluster,
     promoteUser, demoteUser,
     addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick: async () => {},
-    initiateCall, acceptCall, endCall, refreshAdminData,
+    initiateCall, acceptCall, endCall, declineCall, refreshAdminData,
     fetchProfileByUsername, searchAllUsers, fetchComments,
     refreshProfiles,
     refreshClusters,

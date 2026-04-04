@@ -156,6 +156,17 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     router.push(`/messages/call/${(contact as Connection).username}`);
   };
 
+  const handleCallBack = (type: 'audio' | 'video') => {
+    if (isCluster || isRequest) return;
+    if (settings.isFreeMode) {
+      toast({ variant: "destructive", title: "Free Mode Active", description: "Calls are disabled in Free Mode." });
+      return;
+    }
+    triggerHaptic(25);
+    initiateCall(contact as Connection, type);
+    router.push(`/messages/call/${(contact as Connection).username}`);
+  };
+
   const handleConfirmLeave = () => {
     if (isCluster) {
       triggerHaptic(50);
@@ -260,7 +271,8 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                   {...msg} 
                   isMe={msg.sender === "me"} 
                   status={settings.showReadReceipts ? msg.status : 'sent'} 
-                  onExternalLink={handleExternalLink} 
+                  onExternalLink={handleExternalLink}
+                  onCallBack={!isCluster ? handleCallBack : undefined}
                 />
               </div>
             ))

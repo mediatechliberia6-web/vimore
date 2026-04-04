@@ -94,10 +94,11 @@ interface ChatBubbleProps {
   onDownload?: (id: string) => void;
   onExternalLink?: (url: string) => void;
   onDelete?: (id: string) => void;
+  onCallBack?: (type: 'audio' | 'video') => void;
 }
 
 export function ChatBubble({ 
-  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, callData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete 
+  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, callData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete, onCallBack
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const { setSelectedImageUrl, setSelectedVideoUrl, settings } = usePosts();
@@ -342,36 +343,76 @@ export function ChatBubble({
 
           <div className="flex flex-col">
             {type === "call" && callData && (
-              <div className="flex items-center gap-4">
-                <div className={cn(
-                  "h-12 w-12 rounded-2xl flex items-center justify-center",
-                  callData.status === 'missed' ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
-                )}>
-                  {callData.status === 'missed' ? (
-                    <PhoneMissed className="h-6 w-6" />
-                  ) : callData.type === 'video' ? (
-                    <Video className="h-6 w-6" />
-                  ) : (
-                    <Phone className="h-6 w-6" />
-                  )}
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold uppercase tracking-tight">
-                    {callData.status === 'started' ? (isMe ? 'Outgoing call' : 'Incoming call') : 
-                     callData.status === 'missed' ? 'Missed call' : 'Call ended'}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                      {callData.type.toUpperCase()} HANDSHAKE
-                    </span>
-                    {callData.duration && (
-                      <>
-                        <div className="h-1 w-1 rounded-full bg-muted-foreground/30" />
-                        <span className="text-[10px] font-black text-primary uppercase tracking-widest">{callData.duration}</span>
-                      </>
+              <div className="flex flex-col gap-3 min-w-[220px]">
+                <div className="flex items-center gap-3">
+                  {/* Icon column */}
+                  <div className={cn(
+                    "h-11 w-11 rounded-2xl flex items-center justify-center shrink-0",
+                    callData.status === 'missed'
+                      ? "bg-destructive/10 text-destructive"
+                      : "bg-primary/10 text-primary"
+                  )}>
+                    {callData.status === 'missed' ? (
+                      <PhoneMissed className="h-5 w-5" />
+                    ) : callData.type === 'video' ? (
+                      <Video className="h-5 w-5" />
+                    ) : (
+                      <Phone className="h-5 w-5" />
                     )}
                   </div>
+
+                  {/* Text column */}
+                  <div className="flex flex-col min-w-0">
+                    <span className={cn(
+                      "text-sm font-black uppercase tracking-tight leading-tight",
+                      callData.status === 'missed' ? "text-destructive" : "text-foreground"
+                    )}>
+                      {callData.status === 'missed'
+                        ? (isMe ? 'Missed Call' : 'Missed Call')
+                        : callData.status === 'ended'
+                          ? (isMe ? 'Outgoing Call' : 'Incoming Call')
+                          : (isMe ? 'Outgoing Call' : 'Incoming Call')}
+                    </span>
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                        {callData.type === 'video' ? 'Video' : 'Voice'}
+                      </span>
+                      {callData.duration && callData.status === 'ended' && (
+                        <>
+                          <span className="text-[10px] text-muted-foreground/40">·</span>
+                          <span className="text-[10px] font-black text-primary uppercase tracking-widest">{callData.duration}</span>
+                        </>
+                      )}
+                      {callData.status === 'missed' && (
+                        <>
+                          <span className="text-[10px] text-muted-foreground/40">·</span>
+                          <span className="text-[10px] font-black text-destructive uppercase tracking-widest">No Answer</span>
+                        </>
+                      )}
+                    </div>
+                    <span className="text-[9px] text-muted-foreground/50 uppercase tracking-widest mt-0.5">{time}</span>
+                  </div>
                 </div>
+
+                {/* Call Back button — only show for missed calls or ended calls from others */}
+                {onCallBack && (callData.status === 'missed' || (!isMe && callData.status === 'ended')) && (
+                  <div className="flex gap-2 pt-1 border-t border-primary/10">
+                    {callData.type !== 'video' && (
+                      <button
+                        onClick={() => onCallBack('audio')}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary transition-colors text-[10px] font-black uppercase tracking-widest"
+                      >
+                        <Phone className="h-3.5 w-3.5" /> Call Back
+                      </button>
+                    )}
+                    <button
+                      onClick={() => onCallBack('video')}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary transition-colors text-[10px] font-black uppercase tracking-widest"
+                    >
+                      <Video className="h-3.5 w-3.5" /> {callData.type === 'video' ? 'Call Back' : 'Video'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

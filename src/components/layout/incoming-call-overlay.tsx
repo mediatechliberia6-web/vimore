@@ -22,7 +22,7 @@ const RINGTONE_URL = "/sounds/incoming-ring.mp3";
 const RINGBACK_URL = "/sounds/outgoing-ring.mp3";
 
 export function IncomingCallOverlay() {
-  const { callState, acceptCall, endCall, triggerHaptic, settings } = usePosts();
+  const { callState, acceptCall, endCall, declineCall, triggerHaptic, settings } = usePosts();
   const { isPlaying, togglePlay } = useMusic();
   const { toast } = useToast();
   const router = useRouter();
@@ -126,7 +126,7 @@ export function IncomingCallOverlay() {
         <div className="space-y-4 pt-12">
           <div className="flex items-center justify-center gap-12">
             <div className="flex flex-col items-center gap-3">
-              <Button size="icon" className="h-20 w-20 rounded-full bg-destructive text-white" onClick={() => endCall()}><PhoneOff className="h-8 w-8" /></Button>
+              <Button size="icon" className="h-20 w-20 rounded-full bg-destructive text-white" onClick={() => declineCall()}><PhoneOff className="h-8 w-8" /></Button>
               <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Decline</span>
             </div>
             <div className="flex flex-col items-center gap-3">
