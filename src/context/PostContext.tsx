@@ -490,7 +490,7 @@ function mapDocToComment(doc: Models.Document): PostComment {
     userId: doc.user_id,
     userName: doc.user_name || 'Unknown',
     userAvatar: doc.user_avatar ? doc.user_avatar : avatarFallback(doc.user_name || 'U'),
-    text: doc.content || '',
+    text: doc.text || doc.content || '',
     time: formatTimeAgo(doc.$createdAt),
     timestamp: new Date(doc.$createdAt).getTime(),
     parentId: doc.parent_id || undefined,
@@ -643,6 +643,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         frSentAccepted:  [Query.equal('from_user_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)],
         frRecvAccepted:  [Query.equal('to_user_id', userId), Query.equal('status', 'ACCEPTED'), Query.limit(500)],
         myLikes:         [Query.equal('user_id', userId), Query.equal('reaction_type', 'LIKE'), Query.limit(500)],
+        myViews:         [Query.equal('user_id', userId), Query.equal('reaction_type', 'VIEW'), Query.limit(500)],
         myBookmarks:     [Query.equal('user_id', userId), Query.limit(500)],
         myUnlocks:       [Query.equal('user_id', userId), Query.limit(500)],
         mySubs:          [Query.equal('subscriber_id', userId), Query.equal('status', 'ACTIVE'), Query.limit(500)],
@@ -656,6 +657,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         acceptedSentResult,
         acceptedReceivedResult,
         likesResult,
+        viewsResult,
         bookmarksResult,
         unlocksResult,
         subscriptionsResult,
@@ -668,6 +670,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS,  q.frSentAccepted),
         databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS,  q.frRecvAccepted),
         databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS,   q.myLikes),
+        databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS,   q.myViews),
         databases.listDocuments(DATABASE_ID, COL.BOOKMARKS,        q.myBookmarks),
         databases.listDocuments(DATABASE_ID, COL.POST_UNLOCKS,     q.myUnlocks),
         databases.listDocuments(DATABASE_ID, COL.SUBSCRIPTIONS,    q.mySubs),
@@ -711,6 +714,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
       if (likesResult.status === 'fulfilled') {
         setLikedPostIdsState(new Set(likesResult.value.documents.map((r: any) => r.post_id).filter(Boolean)));
+      }
+      if (viewsResult.status === 'fulfilled') {
+        const dbViewedIds = viewsResult.value.documents.map((r: any) => r.post_id).filter(Boolean) as string[];
+        setViewedPostIdsState(prev => {
+          const merged = new Set([...prev, ...dbViewedIds]);
+          if (typeof window !== 'undefined') {
+            try { localStorage.setItem('vm_viewed_posts', JSON.stringify([...merged])); } catch { /* ignore */ }
+          }
+          return merged;
+        });
       }
       if (bookmarksResult.status === 'fulfilled') {
         setSavedPostIdsState(new Set(bookmarksResult.value.documents.map((b: any) => b.post_id).filter(Boolean)));
@@ -912,6 +925,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore */ }
   }, []);
 
+  const loadCampaigns = useCallback(async () => {
+    try {
+      const res = await databases.listDocuments(DATABASE_ID, COL.AD_CAMPAIGNS, [
+        Query.equal('is_active', true),
+        Query.orderDesc('$createdAt'),
+        Query.limit(50),
+      ]);
+      setCampaignsState(res.documents);
+    } catch { /* ignore */ }
+  }, []);
+
   const checkSession = useCallback(async () => {
     setIsLoadingState(true);
     try {
@@ -927,13 +951,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
         loadStories(),
         loadClusters(authUser.$id),
         loadUserWithdrawals(authUser.$id),
+        loadCampaigns(),
       ]);
     } catch {
       setCurrentUserState(null);
     } finally {
       setIsLoadingState(false);
     }
-  }, [loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals]);
+  }, [loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1013,6 +1038,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         loadStories(),
         loadClusters(authUser.$id),
         loadUserWithdrawals(authUser.$id),
+        loadCampaigns(),
       ]);
       setIsLoadingState(false);
       toast({ title: "Welcome back!", description: "You are now signed in." });
@@ -1023,7 +1049,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const msg = formatErrorDescription(err, null) || 'Invalid credentials. Please try again.';
       return { success: false, message: msg };
     }
-  }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals]);
+  }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns]);
 
   const signup = useCallback(async (data: any) => {
     setIsLoadingState(true);
@@ -1085,6 +1111,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         loadConnections(authUser.$id),
         loadStories(),
         loadClusters(authUser.$id),
+        loadCampaigns(),
       ]);
 
       setIsLoadingState(false);
@@ -1096,7 +1123,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const msg = formatErrorDescription(err, null) || 'Signup failed. Please try again.';
       return { success: false, message: msg };
     }
-  }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters]);
+  }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadCampaigns]);
 
   const logout = useCallback(async () => {
     try { await account.deleteSession('current'); } catch { /* ignore */ }
@@ -1422,13 +1449,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
     try {
       if (wasLiked) {
-        const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [
-          Query.equal('post_id', id), Query.equal('user_id', currentUser.$id), Query.equal('reaction_type', 'LIKE'),
+        const [existing, currentDoc] = await Promise.all([
+          databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [
+            Query.equal('post_id', id), Query.equal('user_id', currentUser.$id), Query.equal('reaction_type', 'LIKE'),
+          ]),
+          databases.getDocument(DATABASE_ID, COL.POSTS, id),
         ]);
         for (const doc of existing.documents) {
           await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, doc.$id);
         }
-        await databases.updateDocument(DATABASE_ID, COL.POSTS, id, { likes_count: Math.max(0, (posts.find(p => p.$id === id)?.likes || 1) - 1) });
+        await databases.updateDocument(DATABASE_ID, COL.POSTS, id, { likes_count: Math.max(0, (currentDoc.likes_count || 0) - 1) });
       } else {
         if (wasUnliked) {
           const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [
@@ -1438,11 +1468,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
             await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, doc.$id);
           }
         }
-        await databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), {
-          post_id: id, user_id: currentUser.$id, reaction_type: 'LIKE',
-        });
-        const post = posts.find(p => p.$id === id);
-        await databases.updateDocument(DATABASE_ID, COL.POSTS, id, { likes_count: (post?.likes || 0) + (wasLiked ? 0 : 1) });
+        const [, currentDoc] = await Promise.all([
+          databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), {
+            post_id: id, user_id: currentUser.$id, reaction_type: 'LIKE',
+          }),
+          databases.getDocument(DATABASE_ID, COL.POSTS, id),
+        ]);
+        await databases.updateDocument(DATABASE_ID, COL.POSTS, id, { likes_count: (currentDoc.likes_count || 0) + 1 });
       }
     } catch { /* ignore - state already updated optimistically */ }
   };
@@ -1461,6 +1493,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } : p));
 
     try {
+      const currentDoc = await databases.getDocument(DATABASE_ID, COL.POSTS, id);
       if (wasUnliked) {
         const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [
           Query.equal('post_id', id), Query.equal('user_id', currentUser.$id), Query.equal('reaction_type', 'UNLIKE'),
@@ -1468,6 +1501,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
         for (const doc of existing.documents) {
           await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, doc.$id);
         }
+        await databases.updateDocument(DATABASE_ID, COL.POSTS, id, {
+          unlikes_count: Math.max(0, (currentDoc.unlikes_count || 0) - 1),
+        });
       } else {
         if (wasLiked) {
           const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [
@@ -1476,9 +1512,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
           for (const doc of existing.documents) {
             await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, doc.$id);
           }
+          await databases.updateDocument(DATABASE_ID, COL.POSTS, id, {
+            likes_count: Math.max(0, (currentDoc.likes_count || 0) - 1),
+          });
         }
         await databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), {
           post_id: id, user_id: currentUser.$id, reaction_type: 'UNLIKE',
+        });
+        await databases.updateDocument(DATABASE_ID, COL.POSTS, id, {
+          unlikes_count: (currentDoc.unlikes_count || 0) + 1,
         });
       }
     } catch { /* ignore */ }
@@ -1540,9 +1582,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
         views_count: 0,
       });
 
+      const rawMediaUrl = segment.mediaUrl || segment.image || '';
       let mediaId: string | undefined;
-      if (segment.mediaUrl) {
-        mediaId = extractFileId(segment.mediaUrl) || undefined;
+      if (rawMediaUrl) {
+        mediaId = extractFileId(rawMediaUrl) || undefined;
       }
 
       const segData: Record<string, any> = {
@@ -1559,7 +1602,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const newStory = {
         $id: storyDoc.$id,
         user: currentUser,
-        segments: [{ $id: 'seg_tmp', ...segment }],
+        segments: [{ $id: 'seg_tmp', ...segment, mediaUrl: rawMediaUrl || undefined }],
         expires_at,
         viewCount: 0,
       };
@@ -1584,21 +1627,50 @@ export function PostProvider({ children }: { children: ReactNode }) {
         to_user_id: targetDoc.$id,
         status: 'PENDING',
       });
+
+      const alreadyFollowing = followingUsernames.has(targetUsername);
+      if (!alreadyFollowing) {
+        await databases.createDocument(DATABASE_ID, COL.FOLLOWS, ID.unique(), {
+          follower_id: currentUser.$id,
+          following_id: targetDoc.$id,
+          follower_username: currentUser.username,
+          following_username: targetUsername,
+        });
+        setFollowingUsernamesState(prev => new Set(prev).add(targetUsername));
+      }
+
+      await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+        user_id: targetDoc.$id,
+        from_user_id: currentUser.$id,
+        from_user_name: currentUser.name || currentUser.username,
+        from_user_avatar: currentUser.avatar || '',
+        type: 'FRIEND_REQUEST',
+        message: `${currentUser.name || currentUser.username} (@${currentUser.username}) sent you a friend request.`,
+        is_read: false,
+      }).catch(() => { /* notification failure should not block the request */ });
+
       setSentRequestUsernamesState(p => new Set(p).add(targetUsername));
       toast({ title: "Friend request sent!" });
     } catch (err: any) {
       logAppwriteError('sendFriendRequest', err);
       toast({ variant: 'destructive', title: 'Request Failed', description: err?.message || 'Could not send friend request. Please try again.' });
     }
-  }, [currentUser, toast]);
+  }, [currentUser, followingUsernames, toast]);
 
   const confirmFriendRequest = useCallback(async (username: string) => {
     if (!currentUser) return;
     setFriendUsernamesState(p => new Set(p).add(username));
     setReceivedRequestUsernamesState(p => { const n = new Set(p); n.delete(username); return n; });
+    setFollowingUsernamesState(prev => new Set(prev).add(username));
 
     try {
-      const senderDoc = allUsers.find(u => u.username === username);
+      let senderDoc = allUsers.find(u => u.username === username);
+      if (!senderDoc) {
+        const res = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+          Query.equal('username', username), Query.limit(1),
+        ]);
+        senderDoc = res.documents[0] ? mapProfileDocToUser(res.documents[0]) : undefined;
+      }
       if (senderDoc) {
         const existing = await databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
           Query.equal('from_user_id', senderDoc.$id),
@@ -1608,6 +1680,47 @@ export function PostProvider({ children }: { children: ReactNode }) {
         for (const doc of existing.documents) {
           await databases.updateDocument(DATABASE_ID, COL.FRIEND_REQUESTS, doc.$id, { status: 'ACCEPTED' });
         }
+
+        const [myFollowsRes, theirFollowsRes] = await Promise.all([
+          databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
+            Query.equal('follower_id', currentUser.$id),
+            Query.equal('following_id', senderDoc.$id),
+            Query.limit(1),
+          ]),
+          databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
+            Query.equal('follower_id', senderDoc.$id),
+            Query.equal('following_id', currentUser.$id),
+            Query.limit(1),
+          ]),
+        ]);
+
+        if (myFollowsRes.total === 0) {
+          await databases.createDocument(DATABASE_ID, COL.FOLLOWS, ID.unique(), {
+            follower_id: currentUser.$id,
+            following_id: senderDoc.$id,
+            follower_username: currentUser.username,
+            following_username: username,
+          });
+        }
+
+        if (theirFollowsRes.total === 0) {
+          await databases.createDocument(DATABASE_ID, COL.FOLLOWS, ID.unique(), {
+            follower_id: senderDoc.$id,
+            following_id: currentUser.$id,
+            follower_username: username,
+            following_username: currentUser.username,
+          });
+        }
+
+        await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+          user_id: senderDoc.$id,
+          from_user_id: currentUser.$id,
+          from_user_name: currentUser.name || currentUser.username,
+          from_user_avatar: currentUser.avatar || '',
+          type: 'FRIEND_ACCEPT',
+          message: `${currentUser.name || currentUser.username} (@${currentUser.username}) accepted your friend request.`,
+          is_read: false,
+        }).catch(() => { /* notification failure should not block acceptance */ });
       }
     } catch { /* ignore */ }
   }, [currentUser, allUsers]);
@@ -2063,7 +2176,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
         payment_details: n.accountNumber || n.phoneNumber || '',
         status: 'PENDING',
       });
-    } catch (err) { logAppwriteError('recordWithdrawal', err); }
+    } catch (err: any) {
+      setWithdrawalHistory(prev => prev.filter(w => w.$id !== wd.$id));
+      logAppwriteError('recordWithdrawal', err);
+      throw err;
+    }
   };
 
   const processWithdrawal = async (id: string, status: 'APPROVED' | 'REJECTED') => {
@@ -2199,6 +2316,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const recordView = useCallback(async (id: string) => {
     if (viewedPostIds.has(id)) return;
+    if (!currentUser) return;
     const newSet = new Set(viewedPostIds);
     newSet.add(id);
     setViewedPostIdsState(newSet);
@@ -2207,11 +2325,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
     setPostsState(prev => prev.map(p => p.$id === id ? { ...p, views: p.views + 1 } : p));
     try {
-      await databases.updateDocument(DATABASE_ID, COL.POSTS, id, {
-        views_count: (posts.find(p => p.$id === id)?.views || 0) + 1,
-      });
+      const currentDoc = await databases.getDocument(DATABASE_ID, COL.POSTS, id);
+      await Promise.all([
+        databases.updateDocument(DATABASE_ID, COL.POSTS, id, {
+          views_count: (currentDoc.views_count || 0) + 1,
+        }),
+        databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), {
+          post_id: id,
+          user_id: currentUser.$id,
+          reaction_type: 'VIEW',
+        }),
+      ]);
     } catch { /* ignore */ }
-  }, [viewedPostIds, posts]);
+  }, [viewedPostIds, currentUser]);
 
   const recordStoryView = async (id: string) => {
     setStoriesState(prev => prev.map(s => s.$id === id ? { ...s, viewCount: (s.viewCount || 0) + 1 } : s));

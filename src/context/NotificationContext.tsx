@@ -124,16 +124,21 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     if (targetUserId) {
       const notifData: Record<string, any> = {
         user_id: targetUserId,
+        from_user_id: currentUser?.$id || '',
+        from_user_name: currentUser?.name || currentUser?.username || '',
+        from_user_avatar: currentUser?.avatar || '',
         type: signal.type,
-        title: signal.title || '',
-        content: signal.content || '',
         message: signal.content || signal.title || '',
         is_read: false,
       };
+      if (signal.title) notifData.title = signal.title;
+      if (signal.content) notifData.content = signal.content;
       if (signal.postId) notifData.post_id = signal.postId;
       if (signal.trackId) notifData.track_id = String(signal.trackId);
       if (signal.targetUsername) notifData.target_username = signal.targetUsername;
-      databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), notifData).catch(() => { /* ignore */ });
+      databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), notifData).catch((err) => {
+        console.error('addSignal DB write failed:', err);
+      });
     }
   }, [triggerSound, triggerHaptic, currentUser]);
 
