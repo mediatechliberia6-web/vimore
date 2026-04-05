@@ -749,7 +749,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const loadConnections = useCallback(async (userId: string) => {
+  const loadConnections = useCallback(async (userId: string, currentUsername?: string) => {
     try {
       const [followsResult, friendsSentResult, friendsReceivedResult] = await Promise.allSettled([
         databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
@@ -797,7 +797,38 @@ export function PostProvider({ children }: { children: ReactNode }) {
         isOnline: false,
         followsYou: false,
       }));
-      setConnectionsState(conns);
+
+      if (currentUsername && conns.length > 0) {
+        try {
+          const recentMsgs = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
+            Query.orderDesc('$createdAt'),
+            Query.limit(500),
+          ]);
+          const lastMsgMap: Record<string, { text?: string; type?: string; time?: string }> = {};
+          recentMsgs.documents.forEach((doc: any) => {
+            const cid = doc.cluster_id;
+            if (cid && !lastMsgMap[cid]) {
+              lastMsgMap[cid] = { text: doc.text, type: doc.type, time: formatTimeAgo(doc.$createdAt) };
+            }
+          });
+          const enriched = conns.map(c => {
+            const clusterId = [currentUsername, c.username].sort().join('_');
+            const lastMsg = lastMsgMap[clusterId];
+            if (!lastMsg) return c;
+            const preview = lastMsg.text ||
+              (lastMsg.type === 'photo' ? '📷 Photo' :
+               lastMsg.type === 'video' ? '🎥 Video' :
+               lastMsg.type === 'voice' ? '🎤 Voice message' :
+               lastMsg.type === 'call' ? '📞 Call' : '');
+            return { ...c, lastMessage: preview, lastTime: lastMsg.time };
+          });
+          setConnectionsState(enriched);
+        } catch {
+          setConnectionsState(conns);
+        }
+      } else {
+        setConnectionsState(conns);
+      }
     } catch { /* ignore */ }
   }, []);
 
@@ -840,19 +871,35 @@ export function PostProvider({ children }: { children: ReactNode }) {
         const segments = (segmentsMap[doc.$id] || []).map(seg => ({
           $id: seg.$id,
           type: seg.type || 'image',
-          mediaUrl: seg.media_id ? getFileUrl(BUCKET.STORY_MEDIA, seg.media_id) : undefined,
+          mediaUrl: seg.media_id ? getFileUrl(BUCKET.STORY_MEDIA, seg.media_id) : (seg.story_url || undefined),
           text: seg.text,
           duration: seg.duration || 5,
+          filter: seg.filter,
+          background: seg.background,
+          textOverlays: seg.text_overlays ? JSON.parse(seg.text_overlays) : undefined,
         }));
         return {
           $id: doc.$id,
+          user_id: doc.user_id,
           user: authorDoc ? mapProfileDocToUser(authorDoc) : { $id: doc.user_id, name: 'Unknown', username: 'unknown', avatar: avatarFallback('U'), isVerified: false },
           segments,
           expiry: doc.expiry || doc.expires_at,
           viewCount: doc.views_count ?? doc.view_count ?? 0,
+          createdAt: doc.$createdAt,
         };
       });
-      setStoriesState(mapped);
+
+      // Group stories by user — multiple uploads from same user become one story with many segments
+      const userStoryMap: Record<string, any> = {};
+      mapped.forEach(story => {
+        const uid = story.user_id || story.user.$id;
+        if (!userStoryMap[uid]) {
+          userStoryMap[uid] = { ...story };
+        } else {
+          userStoryMap[uid].segments = [...userStoryMap[uid].segments, ...story.segments];
+        }
+      });
+      setStoriesState(Object.values(userStoryMap));
     } catch (err) {
       console.error('loadStories error:', err);
     }
@@ -936,7 +983,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
           time: formatTimeAgo(doc.$createdAt),
           status: doc.is_read ? 'read' : 'delivered',
           type: (doc.type || 'text') as ChatMessage['type'],
-          mediaUrl: doc.media_id ? getFileUrl(BUCKET.MESSAGE_MEDIA, doc.media_id) : undefined,
+          mediaUrl: doc.media_id ? getFileUrl(BUCKET.MESSAGE_MEDIA, doc.media_id) : (doc.media_url || undefined),
+          voiceDuration: doc.voice_duration,
           isViewOnce: doc.is_view_once || false,
           isViewed: doc.is_viewed || false,
           callData,
@@ -946,6 +994,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
 
       setChatMessages(prev => ({ ...prev, [otherId]: msgs }));
+
+      if (!isCluster && msgs.length > 0) {
+        const lastMsg = msgs[msgs.length - 1];
+        const preview = lastMsg.text ||
+          (lastMsg.type === 'photo' ? '📷 Photo' :
+           lastMsg.type === 'video' ? '🎥 Video' :
+           lastMsg.type === 'voice' ? '🎤 Voice message' :
+           lastMsg.type === 'call' ? '📞 Call' : '');
+        setConnectionsState(prev => prev.map(c =>
+          c.username === otherId ? { ...c, lastMessage: preview, lastTime: lastMsg.time } : c
+        ));
+      }
     } catch (err: any) {
       const message = err?.message || err?.response?.message || JSON.stringify(err) || 'Unknown error loading messages';
       toast({ variant: 'destructive', title: 'Failed to Load Messages', description: message });
@@ -994,7 +1054,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await Promise.allSettled([
         loadFeed(),
         loadSocialGraph(authUser.$id),
-        loadConnections(authUser.$id),
+        loadConnections(authUser.$id, profileDoc.username || ''),
         loadStories(),
         loadClusters(authUser.$id),
         loadUserWithdrawals(authUser.$id),
@@ -1170,7 +1230,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await Promise.allSettled([
         loadFeed(),
         loadSocialGraph(authUser.$id),
-        loadConnections(authUser.$id),
+        loadConnections(authUser.$id, profileDoc.username || ''),
         loadStories(),
         loadClusters(authUser.$id),
         loadUserWithdrawals(authUser.$id),
@@ -1277,7 +1337,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await Promise.allSettled([
         loadFeed(),
         loadSocialGraph(authUser.$id),
-        loadConnections(authUser.$id),
+        loadConnections(authUser.$id, username),
         loadStories(),
         loadClusters(authUser.$id),
         loadCampaigns(),
@@ -1867,14 +1927,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
       await databases.createDocument(DATABASE_ID, COL.STORY_SEGMENTS, ID.unique(), segData);
 
-      const newStory = {
-        $id: storyDoc.$id,
-        user: currentUser,
-        segments: [{ $id: 'seg_tmp', ...segment, mediaUrl: rawMediaUrl || undefined }],
-        expires_at,
-        viewCount: 0,
-      };
-      setStoriesState(prev => [newStory, ...prev]);
+      const newSegment = { $id: 'seg_tmp_' + Date.now(), ...segment, mediaUrl: rawMediaUrl || undefined };
+      setStoriesState(prev => {
+        const existingIdx = prev.findIndex(s => s.user.$id === currentUser.$id || s.user.username === currentUser.username);
+        if (existingIdx >= 0) {
+          const updated = [...prev];
+          updated[existingIdx] = { ...updated[existingIdx], segments: [...updated[existingIdx].segments, newSegment] };
+          return updated;
+        }
+        return [{ $id: storyDoc.$id, user: currentUser, segments: [newSegment], expires_at, viewCount: 0 }, ...prev];
+      });
     } catch (err: any) {
       logAppwriteError('addStory', err);
       throw err;
@@ -2070,7 +2132,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (message.mediaUrl) {
         const fid = extractFileId(message.mediaUrl);
         if (fid) docData.media_id = fid;
+        docData.media_url = message.mediaUrl;
       }
+      if (message.voiceDuration) docData.voice_duration = message.voiceDuration;
       await databases.createDocument(DATABASE_ID, COL.MESSAGES, ID.unique(), docData);
     } catch (err: any) {
       setChatMessages(prev => ({
@@ -2806,8 +2870,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const uid = 0;
     let token = '';
     try {
-      const { generateAgoraToken } = await import('@/app/actions/call');
-      token = await generateAgoraToken(channelName, uid);
+      const res = await fetch('/api/agora-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelName, uid }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      token = data.token || '';
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Call Failed', description: err?.message || 'Could not start call. Check Agora credentials in settings.' });
       return;

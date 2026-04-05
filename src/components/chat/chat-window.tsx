@@ -82,7 +82,7 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
-  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections = [], addMemberToCluster, updateCluster, settings, chatMessages, sendChatMessage, friendUsernames, acceptedStrangerUsernames, acceptMessageRequest, declineMessageRequest } = usePosts();
+  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections = [], addMemberToCluster, updateCluster, settings, chatMessages, sendChatMessage, uploadMedia, friendUsernames, acceptedStrangerUsernames, acceptMessageRequest, declineMessageRequest } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   const router = useRouter();
@@ -117,22 +117,35 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     const count = messages.length;
     if (count > prevMsgCountRef.current && count > 0) {
       const last = messages[count - 1];
-      if (last && last.sender !== currentUser?.username && !settings.isSilenceActive) {
+      if (last && last.sender !== 'me' && last.sender !== currentUser?.username && !settings.isSilenceActive) {
         playNotificationSound();
       }
     }
     prevMsgCountRef.current = count;
   }, [messages, currentUser?.username, settings.isSilenceActive]);
 
-  const handleSend = async (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string }) => {
+  const handleSend = async (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string; file?: File }) => {
     triggerHaptic(10);
     
     try {
+      let finalMediaUrl = options?.mediaUrl;
+
+      if (options?.file) {
+        try {
+          const { BUCKET } = await import('@/lib/appwrite');
+          const bucket = options.mediaType === 'voice' ? BUCKET.VOICE_MESSAGES : BUCKET.MESSAGE_MEDIA;
+          finalMediaUrl = await uploadMedia(options.file, bucket);
+        } catch (uploadErr: any) {
+          toast({ variant: 'destructive', title: 'Upload Failed', description: uploadErr?.message || 'Could not upload media.' });
+          return;
+        }
+      }
+
       await sendChatMessage(contactId, {
         text: text || undefined,
         type: options?.isWorkspace ? "workspace" : (options?.mediaType || (text.includes("http") ? "link" : "text")) as any,
         isViewOnce: options?.isViewOnce,
-        mediaUrl: options?.mediaUrl,
+        mediaUrl: finalMediaUrl,
         voiceDuration: options?.duration
       });
     } catch {

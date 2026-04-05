@@ -131,8 +131,13 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
 
         if (!token) {
           try {
-            const { generateAgoraToken } = await import('@/app/actions/call');
-            token = await generateAgoraToken(channelName, uid);
+            const res = await fetch('/api/agora-token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ channelName, uid }),
+            });
+            const data = await res.json();
+            token = data.token || '';
           } catch {
             token = '';
           }

@@ -76,34 +76,40 @@ export function Stories({ onOpenCreate }: StoriesProps) {
           {sortedStories.map(({ story, index }) => {
             const firstSegment = story.segments[0];
             const isVideo = firstSegment.type === 'video';
+            const mediaUrl = (firstSegment as any).mediaUrl || (firstSegment as any).image;
+            const isTextStory = firstSegment.type === 'text' || (!mediaUrl && firstSegment.text);
 
             return (
               <div 
                 key={story.$id} 
                 className={cn(
                   "relative w-28 h-48 rounded-2xl overflow-hidden shrink-0 border border-primary/5 cursor-pointer group shadow-sm transition-all hover:scale-[1.02]",
-                  settings.isFreeMode ? "bg-secondary/20" : ""
+                  settings.isFreeMode ? "bg-secondary/20" : isTextStory ? ((firstSegment as any).background || "bg-gradient-to-br from-primary to-accent") : ""
                 )}
                 onClick={() => handleStoryClick(index)}
               >
                 {!settings.isFreeMode && (
                   isVideo ? (
-                    firstSegment.image ? (
+                    mediaUrl ? (
                       <video 
-                        src={firstSegment.image} 
-                        className={cn("object-cover w-full h-full transition-transform group-hover:scale-110", firstSegment.filter)}
+                        src={mediaUrl} 
+                        className={cn("object-cover w-full h-full transition-transform group-hover:scale-110", (firstSegment as any).filter)}
                         muted
                         playsInline
                         preload="metadata"
                       />
                     ) : null
+                  ) : isTextStory ? (
+                    <div className="w-full h-full flex items-center justify-center p-3 text-center">
+                      <span className="text-white text-xs font-bold line-clamp-4 italic">{firstSegment.text}</span>
+                    </div>
                   ) : (
-                    firstSegment.image ? (
+                    mediaUrl ? (
                       <Image 
-                        src={firstSegment.image} 
+                        src={mediaUrl} 
                         alt={story.user.name} 
                         fill 
-                        className={cn("object-cover transition-transform group-hover:scale-110", firstSegment.filter)} 
+                        className={cn("object-cover transition-transform group-hover:scale-110", (firstSegment as any).filter)} 
                       />
                     ) : null
                   )

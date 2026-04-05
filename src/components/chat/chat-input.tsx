@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/tooltip";
 
 interface ChatInputProps {
-  onSend: (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string }) => void;
+  onSend: (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string; file?: File }) => void;
 }
 
 const VIDEO_UPLOAD_LIMIT = 300; // 5 minutes in seconds
@@ -41,6 +41,7 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const [isReviewing, setIsReviewing] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [recordedBlobUrl, setRecordedBlobUrl] = useState<string | null>(null);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [isViewOnceEnabled, setIsViewOnceEnabled] = useState(false);
   const { triggerHaptic } = useMusic();
   const { settings } = usePosts();
@@ -121,6 +122,7 @@ export function ChatInput({ onSend }: ChatInputProps) {
       recorder.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const audioUrl = URL.createObjectURL(audioBlob);
+        setRecordedBlob(audioBlob);
         setRecordedBlobUrl(audioUrl);
         setIsReviewing(true);
         stream.getTracks().forEach(track => track.stop());
@@ -131,8 +133,16 @@ export function ChatInput({ onSend }: ChatInputProps) {
       recorder.start();
       setIsRecording(true);
       toast({ title: "Capturing Sonic Note", description: "Vibe live..." });
-    } catch (err) {
-      toast({ variant: "destructive", title: "Access Denied", description: "Mic required for voice vibes." });
+    } catch (err: any) {
+      let description = "Mic required for voice vibes.";
+      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        description = "Microphone access was denied. Please enable it in your browser settings and reload.";
+      } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+        description = "No microphone found on this device.";
+      } else if (err?.name === 'NotSupportedError' || err?.name === 'SecurityError') {
+        description = "Voice messages require a secure (HTTPS) connection.";
+      }
+      toast({ variant: "destructive", title: "Mic Access Denied", description });
     }
   };
 
@@ -145,12 +155,14 @@ export function ChatInput({ onSend }: ChatInputProps) {
   };
 
   const handleSendVoice = () => {
-    if (recordedBlobUrl) {
+    if (recordedBlobUrl && recordedBlob) {
       triggerHaptic(25);
+      const voiceFile = new File([recordedBlob], `voice_${Date.now()}.webm`, { type: 'audio/webm' });
       onSend("", { 
         mediaUrl: recordedBlobUrl, 
         mediaType: 'voice',
-        duration: formatDuration(recordingDuration)
+        duration: formatDuration(recordingDuration),
+        file: voiceFile
       });
       resetVoiceState();
     }
@@ -166,6 +178,7 @@ export function ChatInput({ onSend }: ChatInputProps) {
     setIsReviewing(false);
     setRecordingDuration(0);
     setRecordedBlobUrl(null);
+    setRecordedBlob(null);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,7 +202,7 @@ export function ChatInput({ onSend }: ChatInputProps) {
             e.target.value = "";
             return;
           }
-          sendMedia(mediaUrl, 'video', file.name);
+          sendMedia(mediaUrl, 'video', file.name, file);
         };
         video.onerror = () => {
           toast({ variant: "destructive", title: "Format Error", description: "Could not decode video metadata." });
@@ -197,18 +210,19 @@ export function ChatInput({ onSend }: ChatInputProps) {
         };
         video.src = mediaUrl;
       } else {
-        sendMedia(mediaUrl, 'photo', file.name);
+        sendMedia(mediaUrl, 'photo', file.name, file);
       }
       
       e.target.value = "";
     }
   };
 
-  const sendMedia = (url: string, type: 'photo' | 'video', fileName: string) => {
+  const sendMedia = (url: string, type: 'photo' | 'video', fileName: string, file: File) => {
     onSend("", { 
       isViewOnce: isViewOnceEnabled,
       mediaUrl: url,
-      mediaType: type
+      mediaType: type,
+      file
     });
     
     setIsViewOnceEnabled(false);
