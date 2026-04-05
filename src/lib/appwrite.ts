@@ -74,8 +74,7 @@ export { ID, Query };
 
 export function getFileUrl(bucketId: string, fileId: string): string {
   if (!fileId) return '';
-  // Route all media through the same-origin proxy to fix iOS Safari cross-origin cookie blocking
-  return `/api/file/${bucketId}/${fileId}`;
+  return `${ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/view?project=${PROJECT_ID}`;
 }
 
 export function getDirectFileUrl(bucketId: string, fileId: string): string {
@@ -85,29 +84,19 @@ export function getDirectFileUrl(bucketId: string, fileId: string): string {
 
 export function extractFileId(url: string): string | null {
   if (!url) return null;
-  // Handle new proxy URL format: /api/file/{bucket}/{fileId}
   const proxyMatch = url.match(/^\/api\/file\/[^/]+\/([^/?]+)/);
   if (proxyMatch) return proxyMatch[1];
-  // Handle old direct Appwrite URL format
   const match = url.match(/\/files\/([^\/\?]+)/);
   if (match) return match[1];
   return null;
 }
 
-/**
- * Convert any Appwrite file URL (old direct format or new proxy format) to a proxy URL.
- * This ensures iOS Safari compatibility by serving media from the same origin.
- */
 export function toProxyUrl(url: string): string {
   if (!url) return '';
-  // Already a proxy URL
-  if (url.startsWith('/api/file/')) return url;
-  // Extract bucket and fileId from Appwrite URL: .../buckets/{bucket}/files/{fileId}/...
-  const match = url.match(/\/storage\/buckets\/([^/]+)\/files\/([^/?]+)/);
-  if (match) {
-    return `/api/file/${match[1]}/${match[2]}`;
+  if (url.startsWith('/api/file/')) {
+    const match = url.match(/^\/api\/file\/([^/]+)\/([^/?]+)/);
+    if (match) return getFileUrl(match[1], match[2]);
   }
-  // Not an Appwrite URL — return as-is (external images like Unsplash)
   return url;
 }
 

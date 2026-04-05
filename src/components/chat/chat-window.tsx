@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   ArrowLeft, 
-  Phone, 
-  Video, 
   Info, 
   MoreHorizontal,
   Search,
@@ -34,7 +32,6 @@ import {
   ExternalLink,
   ShieldAlert,
   Layers,
-  Video as VideoIcon,
   LogOut,
   Shield,
   Trash2,
@@ -55,7 +52,7 @@ import { useTranslation } from "@/context/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertDialog,
@@ -82,10 +79,9 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
-  const { currentUser, triggerHaptic, initiateCall, leaveCluster, connections = [], addMemberToCluster, updateCluster, settings, chatMessages, sendChatMessage, uploadMedia, friendUsernames, acceptedStrangerUsernames, acceptMessageRequest, declineMessageRequest } = usePosts();
+  const { currentUser, triggerHaptic, leaveCluster, connections = [], addMemberToCluster, updateCluster, settings, chatMessages, sendChatMessage, uploadMedia, friendUsernames, acceptedStrangerUsernames, acceptMessageRequest, declineMessageRequest } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
-  const router = useRouter();
   
   const isCluster = contact.isGroup === true;
   const contactId = isCluster ? (contact as Cluster).$id : (contact as Connection).username;
@@ -175,28 +171,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const handleStartCall = (type: 'video' | 'audio') => {
-    if (isCluster || isRequest) return;
-    if (settings.isFreeMode) {
-      toast({ variant: "destructive", title: "Free Mode Active", description: "Calls are disabled in Free Mode." });
-      return;
-    }
-    triggerHaptic(25);
-    initiateCall(contact as Connection, type);
-    router.push(`/messages/call/${(contact as Connection).username}`);
-  };
-
-  const handleCallBack = (type: 'audio' | 'video') => {
-    if (isCluster || isRequest) return;
-    if (settings.isFreeMode) {
-      toast({ variant: "destructive", title: "Free Mode Active", description: "Calls are disabled in Free Mode." });
-      return;
-    }
-    triggerHaptic(25);
-    initiateCall(contact as Connection, type);
-    router.push(`/messages/call/${(contact as Connection).username}`);
-  };
-
   const handleConfirmLeave = () => {
     if (isCluster) {
       triggerHaptic(50);
@@ -253,12 +227,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
           </div>
           
           <div className="flex items-center gap-1">
-            {!isCluster && !isRequest && (
-              <>
-                <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary transition-colors" onClick={() => handleStartCall('video')}><VideoIcon className="h-5 w-5" /></Button>
-                <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-primary transition-colors" onClick={() => handleStartCall('audio')}><Phone className="h-5 w-5" /></Button>
-              </>
-            )}
             <Button variant="ghost" size="icon" className={cn("rounded-full transition-all", showVault ? "bg-primary/10 text-primary" : "text-muted-foreground")} onClick={() => { triggerHaptic(5); setShowVault(!showVault); }}>
               {isCluster ? <Bookmark className="h-5 w-5" /> : <InfoIcon className="h-5 w-5" />}
             </Button>
@@ -302,7 +270,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                   isMe={msg.sender === "me"} 
                   status={settings.showReadReceipts ? msg.status : 'sent'} 
                   onExternalLink={handleExternalLink}
-                  onCallBack={!isCluster ? handleCallBack : undefined}
                 />
               </div>
             ))

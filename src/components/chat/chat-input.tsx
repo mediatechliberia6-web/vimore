@@ -1,47 +1,29 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
   Paperclip, 
   Smile, 
   Send, 
-  Mic, 
   Image as ImageIcon,
   Video as VideoIcon,
-  MoreHorizontal,
-  X,
-  Circle,
   Flame,
-  LayoutDashboard,
-  Square,
-  Trash2
 } from "lucide-react";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 interface ChatInputProps {
   onSend: (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string; file?: File }) => void;
 }
 
-const VIDEO_UPLOAD_LIMIT = 300; // 5 minutes in seconds
+const VIDEO_UPLOAD_LIMIT = 300;
 
 export function ChatInput({ onSend }: ChatInputProps) {
   const [text, setText] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
-  const [isReviewing, setIsReviewing] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
-  const [recordedBlobUrl, setRecordedBlobUrl] = useState<string | null>(null);
-  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [isViewOnceEnabled, setIsViewOnceEnabled] = useState(false);
   const { triggerHaptic } = useMusic();
   const { settings } = usePosts();
@@ -50,34 +32,10 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentFilter, setCurrentFilter] = useState<string>("image/*,video/*");
-  
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    if (isRecording) {
-      timerRef.current = setInterval(() => {
-        setRecordingDuration(prev => prev + 1);
-      }, 1000);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isRecording]);
-
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!text.trim()) return;
-    
     triggerHaptic(10);
     onSend(text, { isViewOnce: isViewOnceEnabled });
     setText("");
@@ -102,112 +60,6 @@ export function ChatInput({ onSend }: ChatInputProps) {
     setTimeout(() => {
       if (fileInputRef.current) fileInputRef.current.click();
     }, 10);
-  };
-
-  const handleVoiceStart = async () => {
-    if (settings.isFreeMode) {
-      toast({ variant: "destructive", title: "Free Mode Active", description: "Voice messages are disabled in Free Mode." });
-      return;
-    }
-    // Call getUserMedia immediately — no awaits before this so the browser treats it
-    // as a direct user gesture, which is required to show the permission dialog on iOS/Android PWA.
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Pick the best audio format: iOS Safari needs audio/mp4; Chrome/Android prefer audio/webm
-      const mimeType = (() => {
-        const candidates = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
-        for (const t of candidates) {
-          if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) return t;
-        }
-        return '';
-      })();
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-      const resolvedMime = recorder.mimeType || mimeType || 'audio/webm';
-      mediaRecorderRef.current = recorder;
-      audioChunksRef.current = [];
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-
-      recorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: resolvedMime });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        setRecordedBlob(audioBlob);
-        setRecordedBlobUrl(audioUrl);
-        setIsReviewing(true);
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      triggerHaptic(30);
-      setRecordingDuration(0);
-      recorder.start();
-      setIsRecording(true);
-      toast({ title: "Capturing Sonic Note", description: "Vibe live..." });
-    } catch (err: any) {
-      const isPwa = typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches;
-      let description = "Mic required for voice vibes.";
-
-      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-        // Check whether permission is permanently denied or just dismissed this time
-        let permanentlyDenied = false;
-        try {
-          const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-          permanentlyDenied = status.state === 'denied';
-        } catch { /* permissions API unsupported */ }
-
-        if (permanentlyDenied) {
-          description = isPwa
-            ? "Mic is blocked for this app. On Android: Settings → Apps → ViMore → Permissions → Microphone. On iPhone: Settings → Privacy & Security → Microphone → enable ViMore."
-            : "Microphone is blocked. Go to your browser Site Settings → Microphone and allow access for this site, then reload.";
-        } else {
-          description = "Tap the mic button again and allow microphone access when prompted.";
-        }
-      } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
-        description = "No microphone found on this device.";
-      } else if (err?.name === 'NotSupportedError' || err?.name === 'SecurityError') {
-        description = "Voice messages require a secure (HTTPS) connection.";
-      }
-
-      toast({ variant: "destructive", title: "Mic Access Denied", description });
-    }
-  };
-
-  const handleVoiceStop = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      triggerHaptic(20);
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const handleSendVoice = () => {
-    if (recordedBlobUrl && recordedBlob) {
-      triggerHaptic(25);
-      const mimeType = recordedBlob.type || 'audio/webm';
-      const ext = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
-      const voiceFile = new File([recordedBlob], `voice_${Date.now()}.${ext}`, { type: mimeType });
-      onSend("", { 
-        mediaUrl: recordedBlobUrl, 
-        mediaType: 'voice',
-        duration: formatDuration(recordingDuration),
-        file: voiceFile
-      });
-      resetVoiceState();
-    }
-  };
-
-  const handleDiscardVoice = () => {
-    triggerHaptic(10);
-    resetVoiceState();
-  };
-
-  const resetVoiceState = () => {
-    setIsRecording(false);
-    setIsReviewing(false);
-    setRecordingDuration(0);
-    setRecordedBlobUrl(null);
-    setRecordedBlob(null);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -253,7 +105,6 @@ export function ChatInput({ onSend }: ChatInputProps) {
       mediaType: type,
       file
     });
-    
     setIsViewOnceEnabled(false);
     toast({
       title: isViewOnceEnabled ? "View-Once Vibe Shared" : "Media Shared",
@@ -269,86 +120,60 @@ export function ChatInput({ onSend }: ChatInputProps) {
   return (
     <footer className="p-4 sm:p-6 bg-white dark:bg-card border-t border-primary/5 shrink-0 z-20">
       <div className="flex flex-col gap-4 max-w-5xl mx-auto">
-        {!isRecording && !isReviewing && (
-          <div className="flex items-center justify-between px-2">
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => handleMediaTrigger("image/*,video/*")}
-                className="h-10 w-10 rounded-xl bg-secondary/40 flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
-              >
-                <Paperclip className="h-5 w-5" />
-              </button>
-              <button 
-                onClick={toggleViewOnce}
-                className={cn(
-                  "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
-                  isViewOnceEnabled ? "bg-primary text-white shadow-lg" : "bg-secondary/40 text-muted-foreground"
-                )}
-              >
-                <Flame className={cn("h-5 w-5", isViewOnceEnabled && "animate-pulse")} />
-              </button>
-            </div>
-            <div className={cn("flex items-center gap-2 px-3 py-1 rounded-full transition-all duration-500", isViewOnceEnabled ? "bg-primary/10 opacity-100" : "opacity-0")}>
-              <div className="h-1.5 w-1.5 bg-primary rounded-full animate-ping" />
-              <span className="text-[10px] font-black text-primary uppercase tracking-widest">Disappearing Mode</span>
-            </div>
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => handleMediaTrigger("image/*,video/*")}
+              className="h-10 w-10 rounded-xl bg-secondary/40 flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
+            >
+              <Paperclip className="h-5 w-5" />
+            </button>
+            <button 
+              onClick={toggleViewOnce}
+              className={cn(
+                "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
+                isViewOnceEnabled ? "bg-primary text-white shadow-lg" : "bg-secondary/40 text-muted-foreground"
+              )}
+            >
+              <Flame className={cn("h-5 w-5", isViewOnceEnabled && "animate-pulse")} />
+            </button>
           </div>
-        )}
+          <div className={cn("flex items-center gap-2 px-3 py-1 rounded-full transition-all duration-500", isViewOnceEnabled ? "bg-primary/10 opacity-100" : "opacity-0")}>
+            <div className="h-1.5 w-1.5 bg-primary rounded-full animate-ping" />
+            <span className="text-[10px] font-black text-primary uppercase tracking-widest">Disappearing Mode</span>
+          </div>
+        </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          {!isRecording && !isReviewing && (
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-primary"><Smile className="h-6 w-6" /></Button>
-              <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-primary" onClick={() => handleMediaTrigger("video/*")}><VideoIcon className="h-6 w-6" /></Button>
-            </div>
-          )}
-
-          <div className="flex-1 relative">
-            {isRecording ? (
-              <div className="h-12 bg-primary/10 rounded-2xl px-6 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
-                  <span className="text-sm font-black text-primary tabular-nums">{formatDuration(recordingDuration)}</span>
-                </div>
-                <Button variant="ghost" size="sm" onClick={handleVoiceStop} className="h-8 text-primary font-black uppercase text-[10px] tracking-widest gap-2"><Square className="h-3.5 w-3.5 fill-current" /> STOP</Button>
-              </div>
-            ) : isReviewing ? (
-              <div className="h-12 bg-secondary/30 rounded-2xl px-6 flex items-center justify-between">
-                <div className="flex items-center gap-3"><Mic className="h-4 w-4 text-primary" /><span className="text-xs font-black text-muted-foreground uppercase">Review: <span className="text-foreground tabular-nums">{formatDuration(recordingDuration)}</span></span></div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" onClick={handleDiscardVoice} className="h-8 w-8 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                  <Button onClick={handleSendVoice} className="h-8 px-4 bg-primary text-white rounded-full font-black uppercase text-[10px] tracking-widest">SEND VIBE</Button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <Input 
-                  ref={inputRef}
-                  placeholder="Type a high-velocity message..." 
-                  className={cn("h-12 border-none rounded-2xl px-6 pr-12 bg-secondary/30", isViewOnceEnabled && "italic font-bold")}
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                  <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleMediaTrigger("image/*")}><ImageIcon className="h-5 w-5" /></Button>
-                  <input type="file" ref={fileInputRef} className="hidden" accept={currentFilter} onChange={handleFileChange} />
-                </div>
-              </>
-            )}
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-primary"><Smile className="h-6 w-6" /></Button>
+            <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-primary" onClick={() => handleMediaTrigger("video/*")}><VideoIcon className="h-6 w-6" /></Button>
           </div>
 
-          {!isReviewing && (
-            <div className="shrink-0">
-              {text.trim() ? (
-                <Button onClick={handleSubmit} className="rounded-full h-12 w-12 bg-primary text-white"><Send className="h-5 w-5 fill-current" /></Button>
-              ) : (
-                <Button variant="ghost" size="icon" className={cn("rounded-full h-12 w-12", isRecording ? "bg-primary text-white" : "bg-secondary/50")} onClick={isRecording ? handleVoiceStop : handleVoiceStart}>
-                  {isRecording ? <Square className="h-6 w-6 fill-current animate-pulse" /> : <Mic className="h-6 w-6" />}
-                </Button>
-              )}
+          <div className="flex-1 relative">
+            <Input 
+              ref={inputRef}
+              placeholder="Type a high-velocity message..." 
+              className={cn("h-12 border-none rounded-2xl px-6 pr-12 bg-secondary/30", isViewOnceEnabled && "italic font-bold")}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+            <div className="absolute right-2 top-1/2 -translate-y-1/2">
+              <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleMediaTrigger("image/*")}><ImageIcon className="h-5 w-5" /></Button>
+              <input type="file" ref={fileInputRef} className="hidden" accept={currentFilter} onChange={handleFileChange} />
             </div>
-          )}
+          </div>
+
+          <div className="shrink-0">
+            {text.trim() ? (
+              <Button onClick={handleSubmit} className="rounded-full h-12 w-12 bg-primary text-white"><Send className="h-5 w-5 fill-current" /></Button>
+            ) : (
+              <Button variant="ghost" size="icon" className="rounded-full h-12 w-12 bg-secondary/50" onClick={handleSubmit} disabled>
+                <Send className="h-6 w-6 text-muted-foreground" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </footer>

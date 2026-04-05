@@ -9,7 +9,6 @@ import {
   Pause, 
   ExternalLink, 
   UserPlus, 
-  Mic, 
   Eye, 
   Flame, 
   Lock,
@@ -95,11 +94,10 @@ interface ChatBubbleProps {
   onDownload?: (id: string) => void;
   onExternalLink?: (url: string) => void;
   onDelete?: (id: string) => void;
-  onCallBack?: (type: 'audio' | 'video') => void;
 }
 
 export function ChatBubble({ 
-  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, callData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete, onCallBack
+  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, callData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const { setSelectedImageUrl, setSelectedVideoUrl, settings } = usePosts();
@@ -409,25 +407,6 @@ export function ChatBubble({
                   </div>
                 </div>
 
-                {/* Call Back button — only show for missed calls or ended calls from others */}
-                {onCallBack && (callData.status === 'missed' || (!isMe && callData.status === 'ended')) && (
-                  <div className="flex gap-2 pt-1 border-t border-primary/10">
-                    {callData.type !== 'video' && (
-                      <button
-                        onClick={() => onCallBack('audio')}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary transition-colors text-[10px] font-black uppercase tracking-widest"
-                      >
-                        <Phone className="h-3.5 w-3.5" /> Call Back
-                      </button>
-                    )}
-                    <button
-                      onClick={() => onCallBack('video')}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary transition-colors text-[10px] font-black uppercase tracking-widest"
-                    >
-                      <Video className="h-3.5 w-3.5" /> {callData.type === 'video' ? 'Call Back' : 'Video'}
-                    </button>
-                  </div>
-                )}
               </div>
             )}
 
@@ -562,38 +541,6 @@ export function ChatBubble({
               </button>
             )}
 
-            {type === "voice" && (
-              <div className="px-4 py-3 flex items-center gap-4 min-w-[220px]">
-                <button 
-                  onClick={toggleVoice}
-                  className={cn(
-                    "h-10 w-10 rounded-full flex items-center justify-center transition-all",
-                    isMe ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
-                  )}
-                >
-                  {isPlayingVoice ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
-                </button>
-                <div className="flex-1 flex items-center gap-1 h-6">
-                  {voiceWaveHeights.map((height, i) => (
-                    <div 
-                      key={i} 
-                      className={cn(
-                        "w-1 rounded-full transition-all duration-300",
-                        isMe ? "bg-white/40" : "bg-primary/30",
-                        isPlayingVoice && "animate-pulse"
-                      )}
-                      style={{ height: `${height}%`, animationDelay: `${i * 100}ms` }}
-                    />
-                  ))}
-                </div>
-                <div className="flex flex-col items-end gap-0.5">
-                  <Mic className={cn("h-4 w-4 opacity-40", isMe ? "text-white" : "text-primary")} />
-                  <span className={cn("text-[8px] font-black tabular-nums uppercase min-w-[30px] text-right", isMe ? "text-white/60" : "text-primary/60")}>
-                    {isPlayingVoice ? formatDisplayTime(elapsedTime) : voiceDuration}
-                  </span>
-                </div>
-              </div>
-            )}
 
             {type === "tag" && taggedUser && (
               <div className={cn(
