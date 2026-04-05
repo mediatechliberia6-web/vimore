@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Range, X-Appwrite-Project',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
+}
 
 export async function GET(
   req: NextRequest,
@@ -13,23 +27,27 @@ export async function GET(
     return new NextResponse(null, { status: 400 });
   }
 
-  const appwriteUrl = `${APPWRITE_ENDPOINT}/storage/buckets/${encodeURIComponent(bucket)}/files/${encodeURIComponent(fileId)}/view?project=${PROJECT_ID}`;
+  const appwriteUrl = `${APPWRITE_ENDPOINT}/storage/buckets/${bucket}/files/${fileId}/view?project=${PROJECT_ID}`;
 
   try {
     const cookieHeader = req.headers.get('cookie') || '';
     const rangeHeader = req.headers.get('range');
 
     const upstreamHeaders: Record<string, string> = {
-      'Cookie': cookieHeader,
       'X-Appwrite-Project': PROJECT_ID,
     };
-    // Forward Range header so mobile audio players can stream
+
+    if (cookieHeader) {
+      upstreamHeaders['Cookie'] = cookieHeader;
+    }
+
     if (rangeHeader) {
       upstreamHeaders['Range'] = rangeHeader;
     }
 
     const upstream = await fetch(appwriteUrl, {
       headers: upstreamHeaders,
+      redirect: 'follow',
       cache: 'no-store',
     });
 
@@ -41,17 +59,25 @@ export async function GET(
     const contentLength = upstream.headers.get('content-length');
     const contentRange = upstream.headers.get('content-range');
     const acceptRanges = upstream.headers.get('accept-ranges') || 'bytes';
+    const etag = upstream.headers.get('etag');
+    const lastModified = upstream.headers.get('last-modified');
 
     const responseHeaders: Record<string, string> = {
       'Content-Type': contentType,
       'Accept-Ranges': acceptRanges,
       'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
       'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
+      'Content-Disposition': 'inline',
+      'X-Content-Type-Options': 'nosniff',
     };
+
     if (contentLength) responseHeaders['Content-Length'] = contentLength;
     if (contentRange) responseHeaders['Content-Range'] = contentRange;
+    if (etag) responseHeaders['ETag'] = etag;
+    if (lastModified) responseHeaders['Last-Modified'] = lastModified;
 
-    // Stream the body directly — never buffer audio/video to avoid blocking mobile players
     return new NextResponse(upstream.body, {
       status: upstream.status,
       headers: responseHeaders,

@@ -1208,7 +1208,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         } catch { /* ignore */ }
       }
     };
-    const interval = setInterval(poll, 3000);
+    const interval = setInterval(poll, 1000);
     return () => clearInterval(interval);
   }, [currentUser]);
 
@@ -2571,7 +2571,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const processWithdrawal = async (id: string, status: 'APPROVED' | 'REJECTED', adminMessage?: string) => {
+  const processWithdrawal = async (id: string, status: 'APPROVED' | 'REJECTED', adminMessage?: string, proofImageUrl?: string) => {
     setWithdrawalHistory(prev => prev.map(w => w.$id === id ? { ...w, status } : w));
     try {
       await databases.updateDocument(DATABASE_ID, COL.WITHDRAWAL_REQUESTS, id, { status });
@@ -2582,14 +2582,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
         ? `Your withdrawal of ${wdDoc.amount} ${wdDoc.currency} has been approved.`
         : `Your withdrawal of ${wdDoc.amount} ${wdDoc.currency} has been rejected.`;
       const fullMsg = adminMessage ? `${baseMsg} ${adminMessage}` : baseMsg;
-      await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+      const notifData: Record<string, any> = {
         user_id: wdDoc.user_id,
         type: 'SYSTEM',
         title: notifTitle,
         message: fullMsg,
         content: fullMsg,
         is_read: false,
-      });
+      };
+      if (proofImageUrl) notifData.image = proofImageUrl;
+      await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), notifData);
       // If REJECTED, refund the balance
       if (status === 'REJECTED') {
         const currency: string = wdDoc.currency || 'GOLD';

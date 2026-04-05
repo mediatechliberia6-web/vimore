@@ -106,10 +106,27 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const messages = useMemo(() => chatMessages[contactId] || [], [chatMessages, contactId]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevMsgCountRef = useRef(0);
+  const userScrolledUpRef = useRef(false);
+
+  const isNearBottom = () => {
+    const el = scrollRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  };
+
+  const handleScroll = () => {
+    userScrolledUpRef.current = !isNearBottom();
+  };
 
   useEffect(() => {
+    const newCount = messages.length;
+    const isNewMessage = newCount > prevMsgCountRef.current;
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      if (!userScrolledUpRef.current || isNewMessage && messages[newCount - 1]?.sender === 'me') {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      } else if (isNewMessage && !userScrolledUpRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
     }
   }, [messages, showVault]);
 
@@ -248,7 +265,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
           </div>
         </header>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-8 scroll-smooth" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(153, 64, 22, 0.03) 1px, transparent 0)', backgroundSize: '24px 24px' }}>
+        <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-8 scroll-smooth" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(153, 64, 22, 0.03) 1px, transparent 0)', backgroundSize: '24px 24px' }}>
           {isRequest && (
             <div className="max-w-md mx-auto p-6 bg-white dark:bg-card border border-primary/10 rounded-[2rem] text-center space-y-4 animate-in zoom-in-95 duration-500 shadow-xl">
               <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary">

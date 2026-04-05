@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { usePosts } from '@/context/PostContext';
 import { databases, DATABASE_ID, COL, ID, Query } from '@/lib/appwrite';
 
@@ -56,7 +56,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     HOME: 0, FRIENDS: 0, MUSIC: 0, MESSAGES: 0,
   });
   const [hasPushPermission, setHasPushPermission] = useState(false);
-  const { settings, triggerHaptic, currentUser } = usePosts();
+  const { settings, triggerHaptic, currentUser, selectedChatId } = usePosts();
 
   const loadNotifications = useCallback(async (userId: string) => {
     try {
@@ -179,6 +179,48 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setCategoryPulses(prev => ({ ...prev, [category]: (prev[category] || 0) + 1 }));
     triggerSound();
   }, [triggerSound]);
+
+  // Background poll for new chat messages — updates the MESSAGES badge when not in chat
+  const lastMsgTimestampRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const checkNewMessages = async () => {
+      try {
+        const queries: any[] = [
+          Query.orderDesc('$createdAt'),
+          Query.limit(50),
+        ];
+        if (lastMsgTimestampRef.current) {
+          queries.push(Query.greaterThan('$createdAt', lastMsgTimestampRef.current));
+        }
+
+        const result = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, queries);
+        if (result.documents.length === 0) return;
+
+        const newestTimestamp = result.documents[0].$createdAt;
+
+        if (lastMsgTimestampRef.current) {
+          const newFromOthers = result.documents.filter(doc => {
+            if (doc.sender_id === currentUser.$id) return false;
+            const clusterId: string = doc.cluster_id || '';
+            if (!clusterId) return false;
+            const sId = selectedChatId || '';
+            if (sId && clusterId.includes(sId)) return false;
+            return true;
+          });
+          if (newFromOthers.length > 0) {
+            incrementPulse('MESSAGES');
+          }
+        }
+
+        lastMsgTimestampRef.current = newestTimestamp;
+      } catch { /* ignore */ }
+    };
+
+    const interval = setInterval(checkNewMessages, 10000);
+    return () => clearInterval(interval);
+  }, [currentUser, selectedChatId, incrementPulse]);
 
   const requestPushPermission = async () => {
     if (typeof window !== 'undefined' && "Notification" in window) {

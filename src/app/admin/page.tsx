@@ -111,6 +111,7 @@ import { useNotifications } from "@/context/NotificationContext";
 import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
+import { storage, BUCKET, ID, toProxyUrl, getFileUrl } from "@/lib/appwrite";
 import Link from "next/link";
 import { 
   Area, 
@@ -209,6 +210,8 @@ export default function AdminDashboard() {
   const [withdrawalActionTarget, setWithdrawalActionTarget] = useState<{ id: string; action: 'APPROVED' | 'REJECTED' } | null>(null);
   const [withdrawalAdminMessage, setWithdrawalAdminMessage] = useState("");
   const [isProcessingWithdrawal, setIsProcessingWithdrawal] = useState(false);
+  const [withdrawalProofFile, setWithdrawalProofFile] = useState<File | null>(null);
+  const [withdrawalProofPreview, setWithdrawalProofPreview] = useState<string | null>(null);
 
   // Payment action dialogs
   const [paymentActionTarget, setPaymentActionTarget] = useState<{ id: string; action: 'APPROVED' | 'REJECTED' } | null>(null);
@@ -378,6 +381,8 @@ export default function AdminDashboard() {
 
   const handleOpenWithdrawalDialog = (id: string, action: 'APPROVED' | 'REJECTED') => {
     setWithdrawalAdminMessage("");
+    setWithdrawalProofFile(null);
+    setWithdrawalProofPreview(null);
     setWithdrawalActionTarget({ id, action });
   };
 
@@ -386,13 +391,20 @@ export default function AdminDashboard() {
     setIsProcessingWithdrawal(true);
     triggerHaptic(withdrawalActionTarget.action === 'APPROVED' ? 50 : 100);
     try {
-      await processWithdrawal(withdrawalActionTarget.id, withdrawalActionTarget.action, withdrawalAdminMessage || undefined);
+      let proofImageUrl: string | undefined;
+      if (withdrawalActionTarget.action === 'APPROVED' && withdrawalProofFile) {
+        const uploaded = await storage.createFile(BUCKET.PAYMENT_SCREENSHOTS, ID.unique(), withdrawalProofFile);
+        proofImageUrl = toProxyUrl(getFileUrl(BUCKET.PAYMENT_SCREENSHOTS, uploaded.$id));
+      }
+      await processWithdrawal(withdrawalActionTarget.id, withdrawalActionTarget.action, withdrawalAdminMessage || undefined, proofImageUrl);
       toast({ title: withdrawalActionTarget.action === 'APPROVED' ? "Withdrawal Approved" : "Withdrawal Rejected" });
     } catch {
       toast({ variant: 'destructive', title: 'Action Failed', description: 'Could not process withdrawal.' });
     } finally {
       setIsProcessingWithdrawal(false);
       setWithdrawalActionTarget(null);
+      setWithdrawalProofFile(null);
+      setWithdrawalProofPreview(null);
     }
   };
 
@@ -2083,9 +2095,44 @@ export default function AdminDashboard() {
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
               {withdrawalActionTarget?.action === 'APPROVED'
-                ? 'Confirm you have processed the payment. Add an optional message for the user.'
+                ? 'Confirm you have processed the payment. Upload a proof screenshot (optional) and add a message for the user.'
                 : 'Provide a reason for rejecting this withdrawal request. The user will be notified and their balance refunded.'}
             </p>
+            {withdrawalActionTarget?.action === 'APPROVED' && (
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Proof Screenshot (Optional)</Label>
+                {withdrawalProofPreview ? (
+                  <div className="relative rounded-2xl overflow-hidden border border-green-500/30">
+                    <img src={withdrawalProofPreview} alt="Proof" className="w-full h-32 object-cover" />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="absolute top-2 right-2 h-7 w-7 bg-black/60 hover:bg-black/80 text-white rounded-full"
+                      onClick={() => { setWithdrawalProofFile(null); setWithdrawalProofPreview(null); }}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center h-24 rounded-2xl border-2 border-dashed border-border/50 hover:border-green-500/50 cursor-pointer transition-colors bg-secondary/20 hover:bg-green-500/5">
+                    <ImageIcon className="h-6 w-6 text-muted-foreground mb-1" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Upload Screenshot</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setWithdrawalProofFile(file);
+                          setWithdrawalProofPreview(URL.createObjectURL(file));
+                        }
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            )}
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                 {withdrawalActionTarget?.action === 'APPROVED' ? 'Message (Optional)' : 'Rejection Reason'}

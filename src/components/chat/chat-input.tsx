@@ -114,11 +114,11 @@ export function ChatInput({ onSend }: ChatInputProps) {
       try {
         const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
         if (status.state === 'denied') {
-          toast({
-            variant: "destructive",
-            title: "Microphone Blocked",
-            description: "Go to your browser/app Settings → Site Permissions → Microphone and allow access for ViMore, then reload.",
-          });
+          const isPwa = typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches;
+          const desc = isPwa
+            ? "Mic blocked for this app. On Android: go to Settings → Apps → ViMore → Permissions → Microphone. On iPhone: Settings → Privacy → Microphone → enable ViMore."
+            : "Microphone access was denied. Go to Settings → Site Permissions → Microphone and allow access for ViMore, then reload.";
+          toast({ variant: "destructive", title: "Microphone Blocked", description: desc });
           return;
         }
       } catch { /* permissions API not supported — continue to getUserMedia */ }
@@ -157,9 +157,12 @@ export function ChatInput({ onSend }: ChatInputProps) {
       setIsRecording(true);
       toast({ title: "Capturing Sonic Note", description: "Vibe live..." });
     } catch (err: any) {
+      const isPwa = typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches;
       let description = "Mic required for voice vibes.";
       if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-        description = "Microphone access was denied. Please enable it in your browser settings and reload.";
+        description = isPwa
+          ? "Mic permission denied. On Android: Settings → Apps → ViMore → Permissions → Microphone. On iPhone: Settings → Privacy → Microphone → enable ViMore."
+          : "Microphone access was denied. Please enable it in your browser settings and reload.";
       } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
         description = "No microphone found on this device.";
       } else if (err?.name === 'NotSupportedError' || err?.name === 'SecurityError') {

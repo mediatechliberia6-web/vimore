@@ -32,12 +32,12 @@ export function IncomingCallOverlay() {
   const endCallRef = useRef(endCall);
   useEffect(() => { endCallRef.current = endCall; }, [endCall]);
 
-  // Auto-dismiss stale cancelled calls quickly so new incoming calls aren't missed
+  // Auto-dismiss stale cancelled calls after showing them briefly (3s) so the user sees the missed call
   useEffect(() => {
     if (callState.status === 'incoming' && callState.isStaleCancelled) {
       const t = setTimeout(() => {
         endCallRef.current();
-      }, 300);
+      }, 3500);
       return () => clearTimeout(t);
     }
   }, [callState.status, callState.isStaleCancelled]);
@@ -162,32 +162,24 @@ export function IncomingCallOverlay() {
     );
   }
 
-  // Stale cancelled call — show brief "Missed" flash before auto-dismissing
-  if (callState.isStaleCancelled) {
-    return (
-      <div className="fixed inset-0 z-[600] bg-black/80 backdrop-blur-xl flex flex-col items-center justify-center animate-in fade-in">
-        <div className="flex flex-col items-center gap-4">
-          <Avatar className="h-24 w-24 border-4 border-zinc-700 opacity-60">
-            <AvatarImage src={callState.contact.avatar} />
-            <AvatarFallback>V</AvatarFallback>
-          </Avatar>
-          <p className="text-white/60 text-sm font-black uppercase tracking-widest">Missed Call</p>
-          <p className="text-white/30 text-xs">{callState.contact.name}</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Incoming call screen
+  // Incoming call screen (also shown for stale-cancelled calls so user sees who called)
   return (
     <div className="fixed inset-0 z-[600] bg-[#050505]/95 backdrop-blur-3xl flex flex-col items-center justify-center p-6 overflow-hidden animate-in fade-in duration-500">
       <div className="relative z-10 w-full max-w-md flex flex-col items-center text-center space-y-12">
         <header className="space-y-4">
-          <div className="bg-primary/10 border border-primary/20 rounded-2xl px-4 py-1.5 flex items-center gap-2">
-            <Zap className="h-3.5 w-3.5 text-primary animate-pulse" />
-            <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Incoming Handshake</span>
+          <div className={`border rounded-2xl px-4 py-1.5 flex items-center gap-2 ${callState.isStaleCancelled ? 'bg-destructive/10 border-destructive/20' : 'bg-primary/10 border-primary/20'}`}>
+            {callState.isStaleCancelled ? (
+              <PhoneOff className="h-3.5 w-3.5 text-destructive" />
+            ) : (
+              <Zap className="h-3.5 w-3.5 text-primary animate-pulse" />
+            )}
+            <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${callState.isStaleCancelled ? 'text-destructive' : 'text-primary'}`}>
+              {callState.isStaleCancelled ? 'Missed Call' : 'Incoming Handshake'}
+            </span>
           </div>
-          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white">Digital Pulse</h1>
+          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white">
+            {callState.isStaleCancelled ? callState.contact.name : 'Digital Pulse'}
+          </h1>
         </header>
 
         <div className="relative h-48 w-48" style={{ transform: `scale(${pulseScale})` }}>
@@ -198,20 +190,29 @@ export function IncomingCallOverlay() {
         </div>
 
         <div className="space-y-4 pt-12">
-          <div className="flex items-center justify-center gap-12">
-            <div className="flex flex-col items-center gap-3">
-              <Button size="icon" className="h-20 w-20 rounded-full bg-destructive text-white" onClick={() => declineCall()}>
-                <PhoneOff className="h-8 w-8" />
+          {callState.isStaleCancelled ? (
+            <div className="text-center space-y-2">
+              <p className="text-white/50 text-xs font-black uppercase tracking-widest">Call already ended</p>
+              <Button variant="ghost" className="text-white/40 font-black uppercase text-[10px] tracking-widest" onClick={() => endCall()}>
+                Dismiss
               </Button>
-              <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Decline</span>
             </div>
-            <div className="flex flex-col items-center gap-3">
-              <Button size="icon" className="h-24 w-24 rounded-full bg-green-500 text-white animate-bounce shadow-xl" onClick={handleAccept}>
-                <CheckCircle2 className="h-10 w-10" />
-              </Button>
-              <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">Accept Pulse</span>
+          ) : (
+            <div className="flex items-center justify-center gap-12">
+              <div className="flex flex-col items-center gap-3">
+                <Button size="icon" className="h-20 w-20 rounded-full bg-destructive text-white" onClick={() => declineCall()}>
+                  <PhoneOff className="h-8 w-8" />
+                </Button>
+                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Decline</span>
+              </div>
+              <div className="flex flex-col items-center gap-3">
+                <Button size="icon" className="h-24 w-24 rounded-full bg-green-500 text-white animate-bounce shadow-xl" onClick={handleAccept}>
+                  <CheckCircle2 className="h-10 w-10" />
+                </Button>
+                <span className="text-[10px] font-black text-green-500 uppercase tracking-widest">Accept Pulse</span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
