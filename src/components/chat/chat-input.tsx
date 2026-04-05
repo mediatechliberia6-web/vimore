@@ -125,7 +125,16 @@ export function ChatInput({ onSend }: ChatInputProps) {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      // Pick the best audio format: iOS Safari needs audio/mp4; Chrome/Android prefer audio/webm
+      const mimeType = (() => {
+        const candidates = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+        for (const t of candidates) {
+          if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) return t;
+        }
+        return '';
+      })();
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      const resolvedMime = recorder.mimeType || mimeType || 'audio/webm';
       mediaRecorderRef.current = recorder;
       audioChunksRef.current = [];
 
@@ -134,7 +143,7 @@ export function ChatInput({ onSend }: ChatInputProps) {
       };
 
       recorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(audioChunksRef.current, { type: resolvedMime });
         const audioUrl = URL.createObjectURL(audioBlob);
         setRecordedBlob(audioBlob);
         setRecordedBlobUrl(audioUrl);

@@ -50,6 +50,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { aiTranslatePostAction } from "@/app/actions/ai";
+import { useToast } from "@/hooks/use-toast";
 
 interface LinkPreview {
   title: string;
@@ -102,6 +103,7 @@ export function ChatBubble({
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const { setSelectedImageUrl, setSelectedVideoUrl, settings } = usePosts();
+  const { toast } = useToast();
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -262,6 +264,15 @@ export function ChatBubble({
         console.warn("Voice playback failed:", err);
         setIsPlayingVoice(false);
         audioRef.current = null;
+        // Show a helpful message — on iOS, older webm voice notes can't play
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        toast({
+          variant: "destructive",
+          title: "Can't Play Voice Note",
+          description: isIOS
+            ? "This voice note was recorded in a format not supported by iPhone. Ask the sender to record a new one — new notes will play on all devices."
+            : "Voice note playback failed. Please try again.",
+        });
       });
       setIsPlayingVoice(true);
       

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   account, databases, storage, ID, Query, Models,
   COL, BUCKET, DATABASE_ID,
-  getFileUrl, extractFileId, formatTimeAgo, avatarFallback,
+  getFileUrl, extractFileId, formatTimeAgo, avatarFallback, toProxyUrl,
 } from '@/lib/appwrite';
 
 import { formatErrorDescription, logAppwriteError } from '@/lib/appwrite-error';
@@ -872,7 +872,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         const segments = (segmentsMap[doc.$id] || []).map(seg => ({
           $id: seg.$id,
           type: seg.type || 'image',
-          mediaUrl: seg.media_id ? getFileUrl(BUCKET.STORY_MEDIA, seg.media_id) : (seg.story_url || undefined),
+          mediaUrl: seg.media_id ? getFileUrl(BUCKET.STORY_MEDIA, seg.media_id) : (seg.story_url ? toProxyUrl(seg.story_url) : undefined),
           text: seg.text,
           duration: seg.duration || 5,
           filter: seg.filter,
@@ -985,8 +985,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
           status: doc.is_read ? 'read' : 'delivered',
           type: (doc.type || 'text') as ChatMessage['type'],
           mediaUrl: doc.type === 'voice'
-            ? (doc.media_url || (doc.media_id ? getFileUrl(BUCKET.VOICE_MESSAGES, doc.media_id) : undefined))
-            : (doc.media_id ? getFileUrl(BUCKET.MESSAGE_MEDIA, doc.media_id) : (doc.media_url || undefined)),
+            ? (doc.media_id ? getFileUrl(BUCKET.VOICE_MESSAGES, doc.media_id) : (doc.media_url ? toProxyUrl(doc.media_url) : undefined))
+            : (doc.media_id ? getFileUrl(BUCKET.MESSAGE_MEDIA, doc.media_id) : (doc.media_url ? toProxyUrl(doc.media_url) : undefined)),
           voiceDuration: doc.voice_duration,
           isViewOnce: doc.is_view_once || false,
           isViewed: doc.is_viewed || false,
