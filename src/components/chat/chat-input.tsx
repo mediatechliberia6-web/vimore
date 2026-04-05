@@ -180,7 +180,9 @@ export function ChatInput({ onSend }: ChatInputProps) {
   const handleSendVoice = () => {
     if (recordedBlobUrl && recordedBlob) {
       triggerHaptic(25);
-      const voiceFile = new File([recordedBlob], `voice_${Date.now()}.webm`, { type: 'audio/webm' });
+      const mimeType = recordedBlob.type || 'audio/webm';
+      const ext = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
+      const voiceFile = new File([recordedBlob], `voice_${Date.now()}.${ext}`, { type: mimeType });
       onSend("", { 
         mediaUrl: recordedBlobUrl, 
         mediaType: 'voice',

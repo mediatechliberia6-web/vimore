@@ -17,29 +17,44 @@ export async function GET(
 
   try {
     const cookieHeader = req.headers.get('cookie') || '';
+    const rangeHeader = req.headers.get('range');
+
+    const upstreamHeaders: Record<string, string> = {
+      'Cookie': cookieHeader,
+      'X-Appwrite-Project': PROJECT_ID,
+    };
+    // Forward Range header so mobile audio players can stream
+    if (rangeHeader) {
+      upstreamHeaders['Range'] = rangeHeader;
+    }
 
     const upstream = await fetch(appwriteUrl, {
-      headers: {
-        'Cookie': cookieHeader,
-        'X-Appwrite-Project': PROJECT_ID,
-      },
+      headers: upstreamHeaders,
       cache: 'no-store',
     });
 
-    if (!upstream.ok) {
+    if (!upstream.ok && upstream.status !== 206) {
       return new NextResponse(null, { status: upstream.status });
     }
 
     const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
-    const buffer = await upstream.arrayBuffer();
+    const contentLength = upstream.headers.get('content-length');
+    const contentRange = upstream.headers.get('content-range');
+    const acceptRanges = upstream.headers.get('accept-ranges') || 'bytes';
 
-    return new NextResponse(buffer, {
-      status: 200,
-      headers: {
-        'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
-        'Access-Control-Allow-Origin': '*',
-      },
+    const responseHeaders: Record<string, string> = {
+      'Content-Type': contentType,
+      'Accept-Ranges': acceptRanges,
+      'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+      'Access-Control-Allow-Origin': '*',
+    };
+    if (contentLength) responseHeaders['Content-Length'] = contentLength;
+    if (contentRange) responseHeaders['Content-Range'] = contentRange;
+
+    // Stream the body directly — never buffer audio/video to avoid blocking mobile players
+    return new NextResponse(upstream.body, {
+      status: upstream.status,
+      headers: responseHeaders,
     });
   } catch {
     return new NextResponse(null, { status: 502 });
