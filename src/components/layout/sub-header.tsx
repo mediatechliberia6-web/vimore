@@ -18,7 +18,8 @@ import {
   CheckCircle2,
   Zap,
   EyeOff,
-  MessageCircle
+  MessageCircle,
+  Activity
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -50,11 +51,21 @@ const PulseBadge = ({ count }: { count: number }) => {
 export function SubHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { setSearchOpen, currentUser = { name: "Guest", avatar: "", goldBalance: 0, diamondBalance: 0, starBalance: 0, isVerified: false }, settings, receivedRequestUsernames } = usePosts();
+  const { setSearchOpen, currentUser = { name: "Guest", avatar: "", goldBalance: 0, diamondBalance: 0, starBalance: 0, isVerified: false }, settings, receivedRequestUsernames, withdrawalHistory, paymentRequests, reports, tickets } = usePosts();
   const { triggerHaptic } = useMusic();
   const { categoryPulses = { HOME: 0, FRIENDS: 0, MUSIC: 0, MESSAGES: 0 }, clearPulse } = useNotifications();
   const pendingRequests = receivedRequestUsernames?.size || 0;
   const { t } = useTranslation();
+
+  const userRole = (currentUser as any)?.role || 'USER';
+  const isAdmin = userRole === 'SUPER' || userRole === 'MODERATOR' || userRole === 'FINANCIAL';
+
+  const adminBadgeCount = isAdmin
+    ? ((withdrawalHistory as any[])?.filter((w) => w.status === 'pending')?.length || 0)
+      + ((paymentRequests as any[])?.filter((p) => p.status === 'pending')?.length || 0)
+      + ((tickets as any[])?.filter((tk) => tk.status === 'open')?.length || 0)
+      + ((reports as any[])?.filter((r) => r.status === 'pending' || r.status === 'open')?.length || 0)
+    : 0;
 
   const navItems: { icon: any; label: string; id: string; href: string; category: PulseCategory }[] = [
     { icon: Home, label: t('sub_home'), id: "home", href: "/", category: "HOME" },
@@ -124,6 +135,26 @@ export function SubHeader() {
             {(categoryPulses?.MESSAGES || 0) > 0 && <PulseBadge count={categoryPulses.MESSAGES} />}
           </div>
         </Link>
+
+        {/* Admin Command Core — only for SUPER, MODERATOR, FINANCIAL */}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            onClick={() => triggerHaptic(5)}
+            className={cn(
+              "relative flex items-center justify-center h-full px-2.5 sm:px-4 transition-colors group shrink-0",
+              pathname === "/admin" ? "text-primary" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <div className="relative">
+              <Activity className={cn("w-5 h-5 group-hover:scale-110 transition-transform", pathname === "/admin" && "scale-110")} />
+              {adminBadgeCount > 0 && <PulseBadge count={adminBadgeCount} />}
+            </div>
+            {pathname === "/admin" && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
+            )}
+          </Link>
+        )}
 
         {/* Search and Profile Section */}
         <div className="flex items-center gap-2 sm:gap-4 flex-1 justify-end min-w-0">

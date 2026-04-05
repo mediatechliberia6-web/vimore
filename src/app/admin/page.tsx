@@ -250,7 +250,7 @@ export default function AdminDashboard() {
       refreshAdminData();
       const interval = setInterval(() => {
         refreshAdminData();
-      }, 15000);
+      }, 5000);
       return () => clearInterval(interval);
     }
   }, [isUnauthorized, refreshAdminData, addAuditLog, currentUser?.username]);
