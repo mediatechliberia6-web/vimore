@@ -42,6 +42,8 @@ export const COL = {
   CALL_LOGS: 'call_logs',
   ADMIN_NOTIFICATIONS: 'admin_notifications',
   USER_BANS: 'user_bans',
+  EVENTS: 'events',
+  TICKETS: 'tickets',
 } as const;
 
 export const BUCKET = {
@@ -55,6 +57,7 @@ export const BUCKET = {
   VOICE_MESSAGES: 'voice_messages',
   PAYMENT_SCREENSHOTS: 'payment_screenshots',
   MESSAGE_MEDIA: 'message_media',
+  EVENT_FLYERS: 'event_flyers',
 } as const;
 
 export const BUCKET_IMAGES = BUCKET.POST_MEDIA;

@@ -147,8 +147,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { AdminTicketTab } from "@/components/tickets/AdminTicketTab";
+import { AdminCheckTicketTab } from "@/components/tickets/AdminCheckTicketTab";
 
-type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "campaigns" | "infrastructure" | "resolution" | "logs" | "staff" | "users" | "broadcast";
+type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "campaigns" | "infrastructure" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket";
 type EconomySubTab = "outbound" | "inbound";
 
 export default function AdminDashboard() {
@@ -339,10 +341,10 @@ export default function AdminDashboard() {
   );
 
   const availableTabs = useMemo(() => {
-    if (isSuper) return ["pulse", "economy", "intelligence", "velocity", "identity", "safety", "users", "broadcast", "governance", "campaigns", "infrastructure", "resolution", "logs", "staff"] as AdminTab[];
+    if (isSuper) return ["pulse", "economy", "intelligence", "velocity", "identity", "safety", "users", "broadcast", "governance", "campaigns", "tickets", "check_ticket", "infrastructure", "resolution", "logs", "staff"] as AdminTab[];
     const tabs: AdminTab[] = ["pulse", "logs"];
     if (isFinancial) tabs.push("economy", "infrastructure");
-    if (isModerator) tabs.push("intelligence", "velocity", "identity", "safety", "users", "campaigns", "resolution");
+    if (isModerator) tabs.push("intelligence", "velocity", "identity", "safety", "users", "campaigns", "resolution", "tickets", "check_ticket");
     return tabs;
   }, [isSuper, isFinancial, isModerator]);
 
@@ -532,6 +534,13 @@ export default function AdminDashboard() {
     );
   }
 
+  const QrCode2 = (props: any) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/>
+      <path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/>
+    </svg>
+  );
+
   const TABS_DATA = {
     pulse: { label: "Pulse", icon: Activity },
     economy: { label: "Economy", icon: Coins },
@@ -546,7 +555,9 @@ export default function AdminDashboard() {
     infrastructure: { label: "Infras", icon: Database },
     resolution: { label: "Resol", icon: Hammer },
     logs: { label: "Logs", icon: FileText },
-    staff: { label: "Staff", icon: Users }
+    staff: { label: "Staff", icon: Users },
+    tickets: { label: "Tickets", icon: CalendarClock },
+    check_ticket: { label: "Check Ticket", icon: QrCode2 },
   };
 
   if (isUnauthorized) {
@@ -1917,6 +1928,14 @@ export default function AdminDashboard() {
                 )}
               </div>
             </div>
+          )}
+
+          {activeTab === 'tickets' && (
+            <AdminTicketTab currentUserId={currentUser.$id} />
+          )}
+
+          {activeTab === 'check_ticket' && (
+            <AdminCheckTicketTab />
           )}
         </div>
       </main>

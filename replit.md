@@ -40,6 +40,18 @@ ViMore is a Next.js 15 social networking and creator platform with a violet (#99
 | `/messages` | Direct messaging |
 | `/profile` | Current user profile |
 | `/settings` | App settings |
+| `/tickets` | ViMore Ticket System — browse events & manage user tickets |
+
+## ViMore Ticket System
+**User page** (`/tickets`): Two tabs — Find Events (sorted by highest price, instant search) and My Tickets. Users can buy tickets for themselves or gift them to another user. Uses diamond currency. Tickets have 15-character unique serial numbers and display QR codes generated on-the-fly. Expired tickets are auto-deleted. 6-stage reminder notifications sent for upcoming events.
+
+**Admin dashboard** (`/admin` → Tickets tab): Create events (title, date/time, venue, flyer, description, price in diamonds). View stats (tickets sold + diamonds earned per event). Toggle event active/paused.
+
+**Admin dashboard** (`/admin` → Check Ticket tab): Camera-based QR scanner + manual serial entry. Scans and marks tickets as used. Shows personalized welcome/error messages.
+
+**Gift tickets**: Buyers can search any user and purchase a ticket that appears in the recipient's My Tickets tab. Recipient receives an in-app notification.
+
+**Reminders**: Automated in-app notifications at 3 days, 2 days, 1 day, day-of, 30 min before, and when event starts.
 
 ## Auth Flow (Appwrite-based)
 1. App mounts → `PostContext.checkSession()` calls `account.get()` via Appwrite SDK
