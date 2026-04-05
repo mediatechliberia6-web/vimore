@@ -139,6 +139,13 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "campaigns" | "infrastructure" | "resolution" | "logs" | "staff" | "users" | "broadcast";
 type EconomySubTab = "outbound" | "inbound";
@@ -197,6 +204,16 @@ export default function AdminDashboard() {
   const [broadcastFollowerMax, setBroadcastFollowerMax] = useState(9999999);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [ticketReplies, setTicketReplies] = useState<Record<string, string>>({});
+
+  // Withdrawal action dialogs
+  const [withdrawalActionTarget, setWithdrawalActionTarget] = useState<{ id: string; action: 'APPROVED' | 'REJECTED' } | null>(null);
+  const [withdrawalAdminMessage, setWithdrawalAdminMessage] = useState("");
+  const [isProcessingWithdrawal, setIsProcessingWithdrawal] = useState(false);
+
+  // Payment action dialogs
+  const [paymentActionTarget, setPaymentActionTarget] = useState<{ id: string; action: 'APPROVED' | 'REJECTED' } | null>(null);
+  const [paymentRejectReason, setPaymentRejectReason] = useState("");
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [sendingReply, setSendingReply] = useState<string | null>(null);
   const [broadcastSent, setBroadcastSent] = useState<number | null>(null);
 
@@ -351,15 +368,47 @@ export default function AdminDashboard() {
     }));
   }, [posts]);
 
-  const handleAction = async (id: string, status: 'APPROVED' | 'REJECTED', type: 'withdrawal' | 'payment') => {
-    triggerHaptic(status === 'APPROVED' ? 50 : 100);
-    if (type === 'withdrawal') {
-      await processWithdrawal(id, status);
-      toast({ title: status === 'APPROVED' ? "Node Materialized" : "Handshake Denied" });
-    } else if (type === 'payment') {
-      if (status === 'APPROVED') await approvePaymentRequest(id);
-      else await rejectPaymentRequest(id);
-      toast({ title: status === 'APPROVED' ? "Pulse Authorized" : "Handshake Purged" });
+  const handleOpenWithdrawalDialog = (id: string, action: 'APPROVED' | 'REJECTED') => {
+    setWithdrawalAdminMessage("");
+    setWithdrawalActionTarget({ id, action });
+  };
+
+  const handleConfirmWithdrawal = async () => {
+    if (!withdrawalActionTarget) return;
+    setIsProcessingWithdrawal(true);
+    triggerHaptic(withdrawalActionTarget.action === 'APPROVED' ? 50 : 100);
+    try {
+      await processWithdrawal(withdrawalActionTarget.id, withdrawalActionTarget.action, withdrawalAdminMessage || undefined);
+      toast({ title: withdrawalActionTarget.action === 'APPROVED' ? "Withdrawal Approved" : "Withdrawal Rejected" });
+    } catch {
+      toast({ variant: 'destructive', title: 'Action Failed', description: 'Could not process withdrawal.' });
+    } finally {
+      setIsProcessingWithdrawal(false);
+      setWithdrawalActionTarget(null);
+    }
+  };
+
+  const handleOpenPaymentDialog = (id: string, action: 'APPROVED' | 'REJECTED') => {
+    setPaymentRejectReason("");
+    setPaymentActionTarget({ id, action });
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!paymentActionTarget) return;
+    setIsProcessingPayment(true);
+    triggerHaptic(paymentActionTarget.action === 'APPROVED' ? 50 : 100);
+    try {
+      if (paymentActionTarget.action === 'APPROVED') {
+        await approvePaymentRequest(paymentActionTarget.id);
+      } else {
+        await rejectPaymentRequest(paymentActionTarget.id);
+      }
+      toast({ title: paymentActionTarget.action === 'APPROVED' ? "Payment Approved" : "Payment Rejected" });
+    } catch {
+      toast({ variant: 'destructive', title: 'Action Failed', description: 'Could not process payment.' });
+    } finally {
+      setIsProcessingPayment(false);
+      setPaymentActionTarget(null);
     }
   };
 
@@ -628,7 +677,7 @@ export default function AdminDashboard() {
                             <td className="px-8 py-5"><div className="flex flex-col"><span className="font-bold text-sm">@{w.username}</span><span className="text-[10px] font-black text-muted-foreground uppercase">{w.accountName}</span></div></td>
                             <td className="px-8 py-5"><div className="flex flex-col"><span className="font-black text-primary text-sm">{w.payoutCurrency} {(w.payoutAmount ?? 0).toFixed(2)}</span><span className="text-[9px] font-bold text-muted-foreground uppercase">Source: {w.amount} {w.currency}</span></div></td>
                             <td className="px-8 py-5"><Badge variant="outline" className="text-[9px] font-black uppercase border-primary/20">{w.method}</Badge></td>
-                            <td className="px-8 py-5 text-right"><div className="flex items-center justify-end gap-2"><Button size="sm" className="h-8 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white" onClick={() => handleAction(w.$id, 'APPROVED', 'withdrawal')}><Check className="h-4 w-4" /></Button><Button size="sm" className="h-8 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white" onClick={() => handleAction(w.$id, 'REJECTED', 'withdrawal')}><X className="h-4 w-4" /></Button></div></td>
+                            <td className="px-8 py-5 text-right"><div className="flex items-center justify-end gap-2"><Button size="sm" className="h-8 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white" onClick={() => handleOpenWithdrawalDialog(w.$id, 'APPROVED')}><Check className="h-4 w-4" /></Button><Button size="sm" className="h-8 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white" onClick={() => handleOpenWithdrawalDialog(w.$id, 'REJECTED')}><X className="h-4 w-4" /></Button></div></td>
                           </tr>
                         )) : (<tr><td colSpan={4} className="py-24 text-center opacity-40 italic text-xs uppercase">No pending outbound handshakes</td></tr>)}
                       </tbody>
@@ -644,7 +693,7 @@ export default function AdminDashboard() {
                         <Badge className="bg-amber-500/10 text-amber-500 border-none font-black h-5 px-3 uppercase">{p.currency} {p.amount}</Badge>
                       </div>
                       <div className="aspect-video relative rounded-2xl overflow-hidden border border-white/5 cursor-zoom-in" onClick={() => setSelectedReceipt(p.screenshot)}><Image src={p.screenshot} alt="Receipt" fill className="object-cover group-hover:scale-105 transition-transform" /><div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-black text-[10px] uppercase tracking-widest">Verify Visual</div></div>
-                      <div className="flex gap-3"><Button className="flex-1 h-12 rounded-2xl bg-green-600 text-white font-black uppercase text-[10px] tracking-widest" onClick={() => handleAction(p.$id, 'APPROVED', 'payment')}>Approve Node</Button><Button variant="ghost" className="flex-1 h-12 rounded-2xl bg-destructive/10 text-destructive font-black uppercase text-[10px] tracking-widest" onClick={() => handleAction(p.$id, 'REJECTED', 'payment')}>Reject</Button></div>
+                      <div className="flex gap-3"><Button className="flex-1 h-12 rounded-2xl bg-green-600 text-white font-black uppercase text-[10px] tracking-widest" onClick={() => handleOpenPaymentDialog(p.$id, 'APPROVED')}>Approve Node</Button><Button variant="ghost" className="flex-1 h-12 rounded-2xl bg-destructive/10 text-destructive font-black uppercase text-[10px] tracking-widest" onClick={() => handleOpenPaymentDialog(p.$id, 'REJECTED')}>Reject</Button></div>
                     </Card>
                   ))}
                   {pendingPayments.length === 0 && <div className="col-span-full py-24 text-center bg-card/20 rounded-[2.5rem] border border-dashed border-border opacity-40 uppercase text-xs font-black">Vault Inbound Nodes Silent</div>}
@@ -2014,6 +2063,86 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* Withdrawal Approve/Reject Dialog */}
+      <Dialog open={!!withdrawalActionTarget} onOpenChange={(o) => { if (!o) setWithdrawalActionTarget(null); }}>
+        <DialogContent className="bg-card border-border rounded-[2.5rem] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black italic uppercase tracking-tighter">
+              {withdrawalActionTarget?.action === 'APPROVED' ? 'Approve Withdrawal' : 'Reject Withdrawal'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              {withdrawalActionTarget?.action === 'APPROVED'
+                ? 'Confirm you have processed the payment. Add an optional message for the user.'
+                : 'Provide a reason for rejecting this withdrawal request. The user will be notified and their balance refunded.'}
+            </p>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                {withdrawalActionTarget?.action === 'APPROVED' ? 'Message (Optional)' : 'Rejection Reason'}
+              </Label>
+              <Textarea
+                value={withdrawalAdminMessage}
+                onChange={(e) => setWithdrawalAdminMessage(e.target.value)}
+                placeholder={withdrawalActionTarget?.action === 'APPROVED'
+                  ? 'e.g. Payment sent via Mobile Money...'
+                  : 'e.g. Account details could not be verified...'}
+                className="bg-secondary/30 border-none rounded-2xl resize-none min-h-[80px]"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex gap-3">
+            <Button variant="ghost" className="flex-1 h-12 rounded-2xl font-black uppercase text-[10px]" onClick={() => setWithdrawalActionTarget(null)}>Cancel</Button>
+            <Button
+              disabled={isProcessingWithdrawal || (withdrawalActionTarget?.action === 'REJECTED' && !withdrawalAdminMessage.trim())}
+              onClick={handleConfirmWithdrawal}
+              className={`flex-1 h-12 rounded-2xl font-black uppercase text-[10px] ${withdrawalActionTarget?.action === 'APPROVED' ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-destructive text-white hover:bg-destructive/80'}`}
+            >
+              {isProcessingWithdrawal ? <Loader2 className="h-4 w-4 animate-spin" /> : (withdrawalActionTarget?.action === 'APPROVED' ? 'Confirm Approval' : 'Confirm Rejection')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Approve/Reject Dialog */}
+      <Dialog open={!!paymentActionTarget} onOpenChange={(o) => { if (!o) setPaymentActionTarget(null); }}>
+        <DialogContent className="bg-card border-border rounded-[2.5rem] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black italic uppercase tracking-tighter">
+              {paymentActionTarget?.action === 'APPROVED' ? 'Approve Payment' : 'Reject Payment'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              {paymentActionTarget?.action === 'APPROVED'
+                ? 'Confirm this payment screenshot is valid and approve the top-up.'
+                : 'Provide a reason for rejecting this payment request.'}
+            </p>
+            {paymentActionTarget?.action === 'REJECTED' && (
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Rejection Reason</Label>
+                <Textarea
+                  value={paymentRejectReason}
+                  onChange={(e) => setPaymentRejectReason(e.target.value)}
+                  placeholder="e.g. Screenshot is unclear, invalid reference..."
+                  className="bg-secondary/30 border-none rounded-2xl resize-none min-h-[80px]"
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter className="flex gap-3">
+            <Button variant="ghost" className="flex-1 h-12 rounded-2xl font-black uppercase text-[10px]" onClick={() => setPaymentActionTarget(null)}>Cancel</Button>
+            <Button
+              disabled={isProcessingPayment || (paymentActionTarget?.action === 'REJECTED' && !paymentRejectReason.trim())}
+              onClick={handleConfirmPayment}
+              className={`flex-1 h-12 rounded-2xl font-black uppercase text-[10px] ${paymentActionTarget?.action === 'APPROVED' ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-destructive text-white hover:bg-destructive/80'}`}
+            >
+              {isProcessingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : (paymentActionTarget?.action === 'APPROVED' ? 'Confirm Approval' : 'Confirm Rejection')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

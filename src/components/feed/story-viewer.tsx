@@ -7,6 +7,7 @@ import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye, BellOff
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { usePosts, StorySegment } from "@/context/PostContext";
+import { databases, DATABASE_ID, COL, ID } from "@/lib/appwrite";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import {
@@ -28,11 +29,12 @@ interface FloatingReaction {
 }
 
 export function StoryViewer() {
-  const { stories, activeStoryIndex, mutedUserNames = [], setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser, settings, recordStoryView, campaigns } = usePosts();
+  const { stories, activeStoryIndex, mutedUserNames = [], setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser, settings, recordStoryView, campaigns, sendChatMessage } = usePosts();
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
   const [reactions, setReactions] = useState<FloatingReaction[]>([]);
+  const [replyText, setReplyText] = useState("");
   const [votedSegmentId, setVotedSegmentId] = useState<string | null>(null);
   
   // AD Logic State
@@ -211,6 +213,29 @@ export function StoryViewer() {
     setTimeout(() => {
       setReactions(prev => prev.filter(r => r.id !== id));
     }, 2000);
+    // Notify story owner of the reaction (skip if viewing own story)
+    if (activeStory && currentUser && activeStory.user.$id !== currentUser.$id) {
+      databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+        user_id: activeStory.user.$id,
+        from_user_id: currentUser.$id,
+        from_user_name: currentUser.name || currentUser.username,
+        from_user_avatar: currentUser.avatar || '',
+        type: 'SOCIAL',
+        title: 'Story Reaction',
+        content: `${currentUser.name || '@' + currentUser.username} reacted ${emoji} to your story`,
+        message: `${currentUser.name || '@' + currentUser.username} reacted ${emoji} to your story`,
+        is_read: false,
+      }).catch(() => {});
+    }
+  };
+
+  const handleSendReply = async () => {
+    if (!replyText.trim() || !activeStory || !currentUser) return;
+    const text = replyText.trim();
+    setReplyText("");
+    try {
+      await sendChatMessage(activeStory.user.$id, activeStory.user as any, text);
+    } catch { /* ignore */ }
   };
 
   const currentSegment = activeStory?.segments[segmentIndex];
@@ -559,13 +584,21 @@ export function StoryViewer() {
                     <div className="flex-1 h-12 bg-white/10 backdrop-blur-md rounded-full border border-white/20 px-5 flex items-center text-white/60 text-sm transition-colors group">
                       <input 
                         type="text"
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
                         placeholder={`Reply to ${activeStory.user.name}...`}
                         className="bg-transparent border-none focus:ring-0 w-full placeholder:text-white/40"
                         onClick={(e) => e.stopPropagation()}
                         onFocus={() => setIsPaused(true)}
                         onBlur={() => setIsPaused(false)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); handleSendReply(); }
+                        }}
                       />
-                      <Send className="h-5 w-5 text-white/40 group-focus-within:text-white cursor-pointer" />
+                      <Send
+                        className="h-5 w-5 text-white/40 group-focus-within:text-white cursor-pointer hover:text-white transition-colors"
+                        onClick={(e) => { e.stopPropagation(); handleSendReply(); }}
+                      />
                     </div>
                     <Button 
                       variant="ghost" 

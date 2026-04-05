@@ -2,11 +2,8 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { 
-  Phone, 
   PhoneOff, 
-  Video, 
   Zap, 
-  ShieldCheck, 
   CheckCircle2,
   Volume2
 } from "lucide-react";
@@ -15,7 +12,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
 const RINGTONE_URL = "/sounds/incoming-ring.mp3";
@@ -36,13 +32,25 @@ export function IncomingCallOverlay() {
   const endCallRef = useRef(endCall);
   useEffect(() => { endCallRef.current = endCall; }, [endCall]);
 
+  // Auto-dismiss stale cancelled calls after 1 second (caller already hung up)
+  useEffect(() => {
+    if (callState.status === 'incoming' && callState.isStaleCancelled) {
+      const t = setTimeout(() => {
+        endCallRef.current();
+      }, 1000);
+      return () => clearTimeout(t);
+    }
+  }, [callState.status, callState.isStaleCancelled]);
+
   // Audio management based on call status
   useEffect(() => {
     if (callState.status === 'incoming') {
       if (isPlaying) { wasMusicPlayingRef.current = true; togglePlay(); }
       if (!ringtoneRef.current) ringtoneRef.current = new Audio(RINGTONE_URL);
       ringtoneRef.current.loop = true;
-      if (!settings.isSilenceActive) ringtoneRef.current.play().catch(() => {});
+      if (!settings.isSilenceActive && !callState.isStaleCancelled) {
+        ringtoneRef.current.play().catch(() => {});
+      }
     } else if (callState.status === 'outgoing' || callState.status === 'ringing') {
       if (isPlaying) { wasMusicPlayingRef.current = true; togglePlay(); }
       if (!ringbackRef.current) ringbackRef.current = new Audio(RINGBACK_URL);
@@ -73,7 +81,6 @@ export function IncomingCallOverlay() {
     }
     setOutgoingSecondsLeft(RING_TIMEOUT_SECONDS);
 
-    // Countdown ticker
     const ticker = setInterval(() => {
       setOutgoingSecondsLeft(prev => {
         if (prev <= 1) return 0;
@@ -81,9 +88,9 @@ export function IncomingCallOverlay() {
       });
     }, 1000);
 
-    // Auto-end the call after timeout
+    // Auto-end call as missed after timeout — pass timedOut=true so a missed call message IS created
     const timeout = setTimeout(() => {
-      endCallRef.current();
+      endCallRef.current(undefined, true);
     }, RING_TIMEOUT_SECONDS * 1000);
 
     return () => {
@@ -92,7 +99,8 @@ export function IncomingCallOverlay() {
     };
   }, [callState.status]);
 
-  if (callState.status === 'idle' || !callState.contact) return null;
+  // Don't show overlay when idle, no contact, or when call is active (in-call UI handles it)
+  if (callState.status === 'idle' || callState.status === 'active' || !callState.contact) return null;
 
   const handleAccept = async () => {
     if (settings.isFreeMode) {
@@ -123,7 +131,6 @@ export function IncomingCallOverlay() {
               <Volume2 className="h-4 w-4 animate-bounce" />
               <span className="text-[10px] font-black uppercase tracking-widest">Ringing Node...</span>
             </div>
-            {/* Countdown ring */}
             <div className="flex items-center justify-center gap-2 mt-1">
               <div className="relative h-10 w-10">
                 <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
@@ -150,6 +157,22 @@ export function IncomingCallOverlay() {
           >
             <PhoneOff className="h-8 w-8" />
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Stale cancelled call — show brief "Missed" flash before auto-dismissing
+  if (callState.isStaleCancelled) {
+    return (
+      <div className="fixed inset-0 z-[600] bg-black/80 backdrop-blur-xl flex flex-col items-center justify-center animate-in fade-in">
+        <div className="flex flex-col items-center gap-4">
+          <Avatar className="h-24 w-24 border-4 border-zinc-700 opacity-60">
+            <AvatarImage src={callState.contact.avatar} />
+            <AvatarFallback>V</AvatarFallback>
+          </Avatar>
+          <p className="text-white/60 text-sm font-black uppercase tracking-widest">Missed Call</p>
+          <p className="text-white/30 text-xs">{callState.contact.name}</p>
         </div>
       </div>
     );

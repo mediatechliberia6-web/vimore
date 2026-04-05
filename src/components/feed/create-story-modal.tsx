@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { X, Image as ImageIcon, Clapperboard, Type, Check, Palette, Filter, Send, Trash2, ArrowLeft, Loader2 } from "lucide-react";
+import { Image as ImageIcon, Clapperboard, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { usePosts } from "@/context/PostContext";
@@ -131,7 +131,6 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
               <div className="grid grid-cols-1 w-full gap-4">
                 <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-6 p-6 bg-zinc-900 border border-white/5 rounded-[2rem] hover:bg-zinc-800 transition-all group"><div className="h-14 w-14 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-500 group-hover:scale-110 transition-transform"><ImageIcon className="h-7 w-7" /></div><div className="text-left"><p className="text-lg font-bold text-white">Photo</p><p className="text-xs text-zinc-500">Share your best moments</p></div></button>
                 <button onClick={() => videoInputRef.current?.click()} className="flex items-center gap-6 p-6 bg-zinc-900 border border-white/5 rounded-[2rem] hover:bg-zinc-800 transition-all group"><div className="h-14 w-14 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform"><Clapperboard className="h-7 w-7" /></div><div className="text-left"><p className="text-lg font-bold text-white">Video</p><p className="text-xs text-zinc-500">Max 1 minute clip</p></div></button>
-                <button onClick={() => setStep('text')} className="flex items-center gap-6 p-6 bg-zinc-900 border border-white/5 rounded-[2rem] hover:bg-zinc-800 transition-all group"><div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform"><Type className="h-7 w-7" /></div><div className="text-left"><p className="text-lg font-bold text-white">Text Story</p><p className="text-xs text-zinc-500">Type what's on your mind</p></div></button>
               </div>
               <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => handleMediaUpload(e, 'image')} />
               <input type="file" ref={videoInputRef} className="hidden" accept="video/*" onChange={(e) => handleMediaUpload(e, 'video')} />

@@ -180,6 +180,7 @@ export interface CallState {
   channelName?: string;
   token?: string;
   recipientId?: string;
+  isStaleCancelled?: boolean;
 }
 
 interface PostContextType {
@@ -287,7 +288,7 @@ interface PostContextType {
   approvePaymentRequest: (id: string) => Promise<void>;
   rejectPaymentRequest: (id: string) => Promise<void>;
   recordWithdrawal: (node: any) => Promise<void>;
-  processWithdrawal: (id: string, status: 'APPROVED' | 'REJECTED') => Promise<void>;
+  processWithdrawal: (id: string, status: 'APPROVED' | 'REJECTED', adminMessage?: string) => Promise<void>;
   verifyUser: (cost: number, currency: 'DIAMOND' | 'STAR') => Promise<void>;
   processGiftTransaction: (cost: number, currency: 'GOLD' | 'DIAMOND') => Promise<void>;
   unlockPost: (postId: string, cost: number) => Promise<void>;
@@ -307,7 +308,7 @@ interface PostContextType {
   recordCampaignClick: (id: string) => Promise<void>;
   initiateCall: (contact: any, type: 'audio' | 'video') => Promise<void>;
   acceptCall: () => Promise<void>;
-  endCall: (duration?: string) => Promise<void>;
+  endCall: (duration?: string, timedOut?: boolean) => Promise<void>;
   declineCall: () => Promise<void>;
   refreshAdminData: () => Promise<void>;
   fetchProfileByUsername: (username: string) => Promise<User | null>;
@@ -983,7 +984,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
           time: formatTimeAgo(doc.$createdAt),
           status: doc.is_read ? 'read' : 'delivered',
           type: (doc.type || 'text') as ChatMessage['type'],
-          mediaUrl: doc.media_id ? getFileUrl(BUCKET.MESSAGE_MEDIA, doc.media_id) : (doc.media_url || undefined),
+          mediaUrl: doc.type === 'voice'
+            ? (doc.media_url || (doc.media_id ? getFileUrl(BUCKET.VOICE_MESSAGES, doc.media_id) : undefined))
+            : (doc.media_id ? getFileUrl(BUCKET.MESSAGE_MEDIA, doc.media_id) : (doc.media_url || undefined)),
           voiceDuration: doc.voice_duration,
           isViewOnce: doc.is_view_once || false,
           isViewed: doc.is_viewed || false,
@@ -1091,6 +1094,25 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, [selectedChatId, currentUser, loadChatMessages, clusters]);
 
+  // Poll active chat for new messages every 4 seconds for real-time feel
+  useEffect(() => {
+    if (!selectedChatId || !currentUser) return;
+    const isCluster = clusters.some(cl => cl.$id === selectedChatId);
+    const interval = setInterval(() => {
+      loadChatMessages(currentUser.$id, selectedChatId, currentUser.username, isCluster);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [selectedChatId, currentUser, loadChatMessages, clusters]);
+
+  // Poll connections list every 10 seconds for real-time conversation updates
+  useEffect(() => {
+    if (!currentUser) return;
+    const interval = setInterval(() => {
+      loadConnections(currentUser.$id);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [currentUser, loadConnections]);
+
   // Poll for call signals every 3 seconds
   useEffect(() => {
     if (!currentUser) return;
@@ -1109,9 +1131,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
             const doc = res.documents[0];
             await databases.deleteDocument(DATABASE_ID, COL.NOTIFICATIONS, doc.$id).catch(() => {});
             const ageMs = Date.now() - new Date(doc.$createdAt).getTime();
-            if (ageMs > 60000) return; // Too stale — missed call already saved
+            if (ageMs > 65000) return; // Too stale — skip entirely
             try {
               const callData = JSON.parse(doc.content || '{}');
+              // Check if the caller already cancelled before we even saw this signal
+              let callerAlreadyCancelled = false;
+              try {
+                const cancelRes = await databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
+                  Query.equal('user_id', currentUser.$id),
+                  Query.equal('type', 'CALL_CANCELLED'),
+                  Query.limit(1),
+                ]);
+                if (cancelRes.documents.length > 0) {
+                  await databases.deleteDocument(DATABASE_ID, COL.NOTIFICATIONS, cancelRes.documents[0].$id).catch(() => {});
+                  callerAlreadyCancelled = true;
+                }
+              } catch { /* ignore */ }
+
               setCallState(prev => {
                 if (prev.status !== 'idle') return prev;
                 return {
@@ -1126,6 +1162,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
                   },
                   channelName: callData.channelName || '',
                   token: callData.token || '',
+                  isStaleCancelled: callerAlreadyCancelled,
                 };
               });
             } catch { /* ignore parse errors */ }
@@ -1144,11 +1181,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           if (res.documents.length > 0) {
             const doc = res.documents[0];
             await databases.deleteDocument(DATABASE_ID, COL.NOTIFICATIONS, doc.$id).catch(() => {});
-            // Caller cancelled — save missed call from callee side and dismiss
-            const snap = callStateRef.current;
-            if (snap.contact && saveCallMessageRef.current) {
-              await saveCallMessageRef.current(snap.contact, snap.type, 'missed').catch(() => {});
-            }
+            // Caller cancelled — NO call history message (caller creates their own). Just dismiss.
             setCallState({ type: 'video', status: 'idle', contact: null });
           }
         } catch { /* ignore */ }
@@ -1165,7 +1198,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           if (res.documents.length > 0) {
             const doc = res.documents[0];
             await databases.deleteDocument(DATABASE_ID, COL.NOTIFICATIONS, doc.$id).catch(() => {});
-            // Callee declined — save missed call and dismiss caller's overlay
+            // Callee declined — save missed call from caller side and dismiss
             const snap = callStateRef.current;
             if (snap.contact && saveCallMessageRef.current) {
               await saveCallMessageRef.current(snap.contact, snap.type, 'missed').catch(() => {});
@@ -2497,6 +2530,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const recordWithdrawal = async (n: any) => {
     if (!currentUser) return;
+    const currency: string = n.currency || 'GOLD';
+    const withdrawAmount = parseFloat(n.amount || 0);
+    // Deduct balance immediately (reserve funds) so user can't double-withdraw
+    const balanceField = currency === 'DIAMOND' ? 'diamondBalance' : currency === 'STAR' ? 'starBalance' : 'goldBalance';
+    const dbBalanceField = currency === 'DIAMOND' ? 'diamond_balance' : currency === 'STAR' ? 'star_balance' : 'gold_balance';
+    const currentBalance = (currentUser as any)[balanceField] || 0;
+    if (currentBalance < withdrawAmount) throw new Error('Insufficient balance');
+    setCurrentUserState(prev => prev ? { ...prev, [balanceField]: currentBalance - withdrawAmount } : null);
     const wd: Record<string, any> = {
       $id: 'wd_' + Date.now(), ...n, status: 'PENDING', $createdAt: new Date().toISOString(),
       username: currentUser.username, accountName: n.accountName || '', method: n.method || '',
@@ -2508,8 +2549,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         username: currentUser.username || '',
         account_name: n.accountName || '',
         account_number: n.accountNumber || n.phoneNumber || '',
-        currency: n.currency || 'GOLD',
-        amount: parseFloat(n.amount || 0),
+        currency,
+        amount: withdrawAmount,
         payout_amount: parseFloat(n.payoutAmount || 0),
         payout_currency: n.payoutCurrency || 'USD',
         method: n.method || 'MOBILE_MONEY',
@@ -2517,16 +2558,62 @@ export function PostProvider({ children }: { children: ReactNode }) {
         payment_details: n.accountNumber || n.phoneNumber || '',
         status: 'PENDING',
       });
+      // Persist balance deduction to DB
+      await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
+        [dbBalanceField]: currentBalance - withdrawAmount,
+      });
     } catch (err: any) {
+      // Revert local balance deduction on failure
+      setCurrentUserState(prev => prev ? { ...prev, [balanceField]: currentBalance } : null);
       setWithdrawalHistory(prev => prev.filter(w => w.$id !== wd.$id));
       logAppwriteError('recordWithdrawal', err);
       throw err;
     }
   };
 
-  const processWithdrawal = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+  const processWithdrawal = async (id: string, status: 'APPROVED' | 'REJECTED', adminMessage?: string) => {
     setWithdrawalHistory(prev => prev.map(w => w.$id === id ? { ...w, status } : w));
-    try { await databases.updateDocument(DATABASE_ID, COL.WITHDRAWAL_REQUESTS, id, { status }); } catch { /* ignore */ }
+    try {
+      await databases.updateDocument(DATABASE_ID, COL.WITHDRAWAL_REQUESTS, id, { status });
+      // Fetch the withdrawal doc to get user_id and amount for notification
+      const wdDoc = await databases.getDocument(DATABASE_ID, COL.WITHDRAWAL_REQUESTS, id);
+      const notifTitle = status === 'APPROVED' ? 'Withdrawal Approved' : 'Withdrawal Rejected';
+      const baseMsg = status === 'APPROVED'
+        ? `Your withdrawal of ${wdDoc.amount} ${wdDoc.currency} has been approved.`
+        : `Your withdrawal of ${wdDoc.amount} ${wdDoc.currency} has been rejected.`;
+      const fullMsg = adminMessage ? `${baseMsg} ${adminMessage}` : baseMsg;
+      await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+        user_id: wdDoc.user_id,
+        type: 'SYSTEM',
+        title: notifTitle,
+        message: fullMsg,
+        content: fullMsg,
+        is_read: false,
+      });
+      // If REJECTED, refund the balance
+      if (status === 'REJECTED') {
+        const currency: string = wdDoc.currency || 'GOLD';
+        const dbBalanceField = currency === 'DIAMOND' ? 'diamond_balance' : currency === 'STAR' ? 'star_balance' : 'gold_balance';
+        const balanceField = currency === 'DIAMOND' ? 'diamondBalance' : currency === 'STAR' ? 'starBalance' : 'goldBalance';
+        if (wdDoc.user_id === currentUser?.$id) {
+          const currentBalance = (currentUser as any)[balanceField] || 0;
+          setCurrentUserState(prev => prev ? { ...prev, [balanceField]: currentBalance + (wdDoc.amount || 0) } : null);
+          await databases.updateDocument(DATABASE_ID, COL.USERS, wdDoc.user_id, {
+            [dbBalanceField]: currentBalance + (wdDoc.amount || 0),
+          });
+        } else {
+          // Update balance of the user whose withdrawal was rejected (admin side)
+          const userRes = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', wdDoc.user_id), Query.limit(1)]);
+          if (userRes.documents[0]) {
+            const userDoc = userRes.documents[0];
+            const dbBal = currency === 'DIAMOND' ? 'diamond_balance' : currency === 'STAR' ? 'star_balance' : 'gold_balance';
+            await databases.updateDocument(DATABASE_ID, COL.USERS, userDoc.$id, {
+              [dbBal]: (userDoc[dbBal] || 0) + (wdDoc.amount || 0),
+            });
+          }
+        }
+      }
+    } catch { /* ignore */ }
   };
 
   const createCluster = async (name: string, members: any[]) => {
@@ -2681,34 +2768,41 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [viewedPostIds, currentUser]);
 
   const recordStoryView = async (id: string) => {
-    setStoriesState(prev => prev.map(s => s.$id === id ? { ...s, viewCount: (s.viewCount || 0) + 1 } : s));
-    if (currentUser) {
-      try {
-        const viewedStory = stories.find(s => s.$id === id);
-        await Promise.all([
-          databases.createDocument(DATABASE_ID, COL.STORY_VIEWS, ID.unique(), {
-            story_id: id, user_id: currentUser.$id, viewer_id: currentUser.$id,
-          }),
-          databases.updateDocument(DATABASE_ID, COL.STORIES, id, {
-            views_count: (viewedStory?.viewCount || 0) + 1,
-          }),
-        ]);
-        if (viewedStory && viewedStory.user.$id !== currentUser.$id) {
-          databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
-            user_id: viewedStory.user.$id,
-            from_user_id: currentUser.$id,
-            from_user_name: currentUser.name || currentUser.username,
-            from_user_avatar: currentUser.avatar || '',
-            type: 'SOCIAL',
-            title: 'Story View',
-            content: `${currentUser.name || '@' + currentUser.username} viewed your story`,
-            message: `${currentUser.name || '@' + currentUser.username} viewed your story`,
-            is_read: false,
-          }).catch(() => {});
-        }
-      } catch (err: any) {
-        logAppwriteError('recordStoryView', err);
+    if (!currentUser) return;
+    try {
+      // Check if this user already viewed this story to ensure unique views only
+      const existing = await databases.listDocuments(DATABASE_ID, COL.STORY_VIEWS, [
+        Query.equal('story_id', id),
+        Query.equal('viewer_id', currentUser.$id),
+        Query.limit(1),
+      ]);
+      if (existing.documents.length > 0) return; // Already viewed — skip
+
+      const viewedStory = stories.find(s => s.$id === id);
+      setStoriesState(prev => prev.map(s => s.$id === id ? { ...s, viewCount: (s.viewCount || 0) + 1 } : s));
+      await Promise.all([
+        databases.createDocument(DATABASE_ID, COL.STORY_VIEWS, ID.unique(), {
+          story_id: id, user_id: currentUser.$id, viewer_id: currentUser.$id,
+        }),
+        databases.updateDocument(DATABASE_ID, COL.STORIES, id, {
+          views_count: (viewedStory?.viewCount || 0) + 1,
+        }),
+      ]);
+      if (viewedStory && viewedStory.user.$id !== currentUser.$id) {
+        databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+          user_id: viewedStory.user.$id,
+          from_user_id: currentUser.$id,
+          from_user_name: currentUser.name || currentUser.username,
+          from_user_avatar: currentUser.avatar || '',
+          type: 'SOCIAL',
+          title: 'Story View',
+          content: `${currentUser.name || '@' + currentUser.username} viewed your story`,
+          message: `${currentUser.name || '@' + currentUser.username} viewed your story`,
+          is_read: false,
+        }).catch(() => {});
       }
+    } catch (err: any) {
+      logAppwriteError('recordStoryView', err);
     }
   };
 
@@ -2943,24 +3037,29 @@ export function PostProvider({ children }: { children: ReactNode }) {
   // Keep the polling closure's ref in sync with the latest saveCallMessage
   useEffect(() => { saveCallMessageRef.current = saveCallMessage; }, [saveCallMessage]);
 
-  const endCall = useCallback(async (duration?: string) => {
+  const endCall = useCallback(async (duration?: string, timedOut?: boolean) => {
     if (currentUser && callState.contact) {
       const wasAnswered = callState.status === 'active';
       const wasOutgoing = callState.status === 'outgoing' || callState.status === 'ringing';
+      // Only create a call history message if the call was answered (ended normally)
+      // or if the 60-second ring timeout fired (missed call). Manual cancel = no message.
+      const shouldSaveMessage = wasAnswered || timedOut;
       const callStatus = wasAnswered ? 'ended' : 'missed';
-      try {
-        const [mins, secs] = ((duration || '0:00')).split(':').map(Number);
-        const durationSecs = (mins || 0) * 60 + (secs || 0);
-        await databases.createDocument(DATABASE_ID, COL.CALL_LOGS, ID.unique(), {
-          caller_id: currentUser.$id,
-          callee_id: callState.contact.$id || callState.contact.username,
-          channel_name: [currentUser.$id, callState.contact.$id || callState.contact.username].sort().join('_'),
-          type: callState.type,
-          duration: durationSecs,
-          status: wasAnswered ? 'COMPLETED' : 'MISSED',
-        });
-      } catch { /* ignore */ }
-      await saveCallMessage(callState.contact, callState.type, callStatus, duration);
+      if (shouldSaveMessage) {
+        try {
+          const [mins, secs] = ((duration || '0:00')).split(':').map(Number);
+          const durationSecs = (mins || 0) * 60 + (secs || 0);
+          await databases.createDocument(DATABASE_ID, COL.CALL_LOGS, ID.unique(), {
+            caller_id: currentUser.$id,
+            callee_id: callState.contact.$id || callState.contact.username,
+            channel_name: [currentUser.$id, callState.contact.$id || callState.contact.username].sort().join('_'),
+            type: callState.type,
+            duration: durationSecs,
+            status: wasAnswered ? 'COMPLETED' : 'MISSED',
+          });
+        } catch { /* ignore */ }
+        await saveCallMessage(callState.contact, callState.type, callStatus, duration);
+      }
 
       // If caller is cancelling an unanswered outgoing call, signal the recipient to dismiss
       if (wasOutgoing && callState.recipientId) {
@@ -2984,7 +3083,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const declineCall = useCallback(async () => {
     if (currentUser && callState.contact) {
-      await saveCallMessage(callState.contact, callState.type, 'missed');
+      // No call history message from callee side — the caller's poller will create it
       try {
         await databases.createDocument(DATABASE_ID, COL.CALL_LOGS, ID.unique(), {
           caller_id: callState.contact.$id || callState.contact.username,
