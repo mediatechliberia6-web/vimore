@@ -218,7 +218,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       } catch { /* ignore */ }
     };
 
-    const interval = setInterval(checkNewMessages, 10000);
+    const interval = setInterval(checkNewMessages, 2000);
     return () => clearInterval(interval);
   }, [currentUser, selectedChatId, incrementPulse]);
 
