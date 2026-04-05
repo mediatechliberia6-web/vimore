@@ -109,20 +109,8 @@ export function ChatInput({ onSend }: ChatInputProps) {
       toast({ variant: "destructive", title: "Free Mode Active", description: "Voice messages are disabled in Free Mode." });
       return;
     }
-    // Pre-check permission status to give a clearer error on PWA installs
-    if (typeof navigator !== 'undefined' && navigator.permissions) {
-      try {
-        const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-        if (status.state === 'denied') {
-          const isPwa = typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches;
-          const desc = isPwa
-            ? "Mic blocked for this app. On Android: go to Settings → Apps → ViMore → Permissions → Microphone. On iPhone: Settings → Privacy → Microphone → enable ViMore."
-            : "Microphone access was denied. Go to Settings → Site Permissions → Microphone and allow access for ViMore, then reload.";
-          toast({ variant: "destructive", title: "Microphone Blocked", description: desc });
-          return;
-        }
-      } catch { /* permissions API not supported — continue to getUserMedia */ }
-    }
+    // Call getUserMedia immediately — no awaits before this so the browser treats it
+    // as a direct user gesture, which is required to show the permission dialog on iOS/Android PWA.
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       // Pick the best audio format: iOS Safari needs audio/mp4; Chrome/Android prefer audio/webm
@@ -159,15 +147,28 @@ export function ChatInput({ onSend }: ChatInputProps) {
     } catch (err: any) {
       const isPwa = typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches;
       let description = "Mic required for voice vibes.";
+
       if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-        description = isPwa
-          ? "Mic permission denied. On Android: Settings → Apps → ViMore → Permissions → Microphone. On iPhone: Settings → Privacy → Microphone → enable ViMore."
-          : "Microphone access was denied. Please enable it in your browser settings and reload.";
+        // Check whether permission is permanently denied or just dismissed this time
+        let permanentlyDenied = false;
+        try {
+          const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+          permanentlyDenied = status.state === 'denied';
+        } catch { /* permissions API unsupported */ }
+
+        if (permanentlyDenied) {
+          description = isPwa
+            ? "Mic is blocked for this app. On Android: Settings → Apps → ViMore → Permissions → Microphone. On iPhone: Settings → Privacy & Security → Microphone → enable ViMore."
+            : "Microphone is blocked. Go to your browser Site Settings → Microphone and allow access for this site, then reload.";
+        } else {
+          description = "Tap the mic button again and allow microphone access when prompted.";
+        }
       } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
         description = "No microphone found on this device.";
       } else if (err?.name === 'NotSupportedError' || err?.name === 'SecurityError') {
         description = "Voice messages require a secure (HTTPS) connection.";
       }
+
       toast({ variant: "destructive", title: "Mic Access Denied", description });
     }
   };
