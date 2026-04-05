@@ -172,6 +172,14 @@ export default function CallPage({ params }: { params: Promise<{ username: strin
         if (!destroyed) {
           setCallStatus('failed');
           setStatusText(err?.message || 'Connection failed');
+          // Auto-reset call state after 3 seconds so both sides can call again
+          setTimeout(() => {
+            if (!destroyed) {
+              cleanup();
+              endCall(undefined);
+              router.push('/messages');
+            }
+          }, 3000);
         }
       }
     };

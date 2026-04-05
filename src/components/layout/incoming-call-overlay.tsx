@@ -32,12 +32,12 @@ export function IncomingCallOverlay() {
   const endCallRef = useRef(endCall);
   useEffect(() => { endCallRef.current = endCall; }, [endCall]);
 
-  // Auto-dismiss stale cancelled calls after 1 second (caller already hung up)
+  // Auto-dismiss stale cancelled calls quickly so new incoming calls aren't missed
   useEffect(() => {
     if (callState.status === 'incoming' && callState.isStaleCancelled) {
       const t = setTimeout(() => {
         endCallRef.current();
-      }, 1000);
+      }, 300);
       return () => clearTimeout(t);
     }
   }, [callState.status, callState.isStaleCancelled]);

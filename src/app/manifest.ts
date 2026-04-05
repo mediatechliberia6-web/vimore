@@ -16,5 +16,8 @@ export default function manifest(): MetadataRoute.Manifest {
         type: 'image/svg+xml',
       },
     ],
+    ...({
+      permissions: ['microphone', 'camera'],
+    } as any),
   }
 }

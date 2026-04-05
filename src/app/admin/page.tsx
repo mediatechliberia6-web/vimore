@@ -243,12 +243,20 @@ export default function AdminDashboard() {
     
     if (!isUnauthorized) {
       refreshAdminData();
+      const interval = setInterval(() => {
+        refreshAdminData();
+      }, 15000);
+      return () => clearInterval(interval);
     }
   }, [isUnauthorized, refreshAdminData, addAuditLog, currentUser?.username]);
 
   useEffect(() => {
     if ((activeTab === 'users' || activeTab === 'broadcast') && !isUnauthorized) {
       refreshAllUsers();
+      const interval = setInterval(() => {
+        refreshAllUsers();
+      }, 20000);
+      return () => clearInterval(interval);
     }
   }, [activeTab, isUnauthorized, refreshAllUsers]);
 
@@ -674,7 +682,7 @@ export default function AdminDashboard() {
                       <tbody className="divide-y divide-border">
                         {pendingWithdrawals.length > 0 ? pendingWithdrawals.map((w) => (
                           <tr key={w.$id} className="hover:bg-secondary/10 transition-colors">
-                            <td className="px-8 py-5"><div className="flex flex-col"><span className="font-bold text-sm">@{w.username}</span><span className="text-[10px] font-black text-muted-foreground uppercase">{w.accountName}</span></div></td>
+                            <td className="px-8 py-5"><div className="flex flex-col"><span className="font-bold text-sm">@{w.username}</span><span className="text-[10px] font-black text-muted-foreground uppercase">{w.accountName}</span><span className="text-[10px] font-bold text-muted-foreground">{w.account_number || w.accountNumber || w.payment_details || ''}</span></div></td>
                             <td className="px-8 py-5"><div className="flex flex-col"><span className="font-black text-primary text-sm">{w.payoutCurrency} {(w.payoutAmount ?? 0).toFixed(2)}</span><span className="text-[9px] font-bold text-muted-foreground uppercase">Source: {w.amount} {w.currency}</span></div></td>
                             <td className="px-8 py-5"><Badge variant="outline" className="text-[9px] font-black uppercase border-primary/20">{w.method}</Badge></td>
                             <td className="px-8 py-5 text-right"><div className="flex items-center justify-end gap-2"><Button size="sm" className="h-8 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white" onClick={() => handleOpenWithdrawalDialog(w.$id, 'APPROVED')}><Check className="h-4 w-4" /></Button><Button size="sm" className="h-8 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white" onClick={() => handleOpenWithdrawalDialog(w.$id, 'REJECTED')}><X className="h-4 w-4" /></Button></div></td>

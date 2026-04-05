@@ -242,12 +242,14 @@ export function ChatBubble({
     triggerHaptic(10);
 
     if (!audioRef.current) {
-      audioRef.current = new Audio(mediaUrl);
-      audioRef.current.onended = () => {
+      const audio = new Audio(mediaUrl);
+      audio.onended = () => {
         setIsPlayingVoice(false);
         setElapsedTime(0);
         if (timerRef.current) clearInterval(timerRef.current);
+        audioRef.current = null;
       };
+      audioRef.current = audio;
     }
 
     if (isPlayingVoice) {
@@ -255,9 +257,11 @@ export function ChatBubble({
       setIsPlayingVoice(false);
       if (timerRef.current) clearInterval(timerRef.current);
     } else {
+      audioRef.current.currentTime = 0;
       audioRef.current.play().catch(err => {
         console.warn("Voice playback failed:", err);
         setIsPlayingVoice(false);
+        audioRef.current = null;
       });
       setIsPlayingVoice(true);
       

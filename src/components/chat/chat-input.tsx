@@ -109,6 +109,20 @@ export function ChatInput({ onSend }: ChatInputProps) {
       toast({ variant: "destructive", title: "Free Mode Active", description: "Voice messages are disabled in Free Mode." });
       return;
     }
+    // Pre-check permission status to give a clearer error on PWA installs
+    if (typeof navigator !== 'undefined' && navigator.permissions) {
+      try {
+        const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        if (status.state === 'denied') {
+          toast({
+            variant: "destructive",
+            title: "Microphone Blocked",
+            description: "Go to your browser/app Settings → Site Permissions → Microphone and allow access for ViMore, then reload.",
+          });
+          return;
+        }
+      } catch { /* permissions API not supported — continue to getUserMedia */ }
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);

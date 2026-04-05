@@ -96,12 +96,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, [currentUser, loadNotifications]);
 
-  // Poll for new notifications every 8 seconds so users see them without refreshing
+  // Poll for new notifications every 4 seconds so users see them without refreshing
   useEffect(() => {
     if (!currentUser) return;
     const interval = setInterval(() => {
       loadNotifications(currentUser.$id);
-    }, 8000);
+    }, 4000);
     return () => clearInterval(interval);
   }, [currentUser, loadNotifications]);
 
