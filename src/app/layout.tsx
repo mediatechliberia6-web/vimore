@@ -24,6 +24,7 @@ import { SuspensionGate } from "@/components/layout/suspension-gate";
 import { DiagnosticErrorBoundary } from "@/components/layout/diagnostic-error-boundary";
 import { ThemeLogic } from "@/components/layout/theme-logic";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
+import { GlobalRealtimeListener } from "@/components/layout/global-realtime";
 import NextTopLoader from 'nextjs-toploader';
 
 export const metadata: Metadata = {
@@ -92,6 +93,7 @@ export default async function RootLayout({
                     ) : (
                       <AppLoadingGate>
                         <SuspensionGate>
+                        <GlobalRealtimeListener />
                         {children}
                         <MusicPlayer />
                         <AlbumDetail />

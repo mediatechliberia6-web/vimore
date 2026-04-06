@@ -36,7 +36,7 @@ export function MainNav() {
     { icon: Bell, label: t('nav_notifications'), href: "/notifications", badge: unreadCount },
     { icon: MessageCircle, label: t('nav_messages'), href: "/messages", category: "MESSAGES" },
     { icon: User, label: t('nav_profile'), href: "/profile" },
-    { icon: Activity, label: t('nav_admin'), href: "/admin", isHidden: !isAdmin },
+    { icon: Activity, label: t('nav_admin'), href: "/admin", category: "ADMIN" as PulseCategory, isHidden: !isAdmin },
     { icon: Megaphone, label: "Advertise", href: "/advertise" },
     { icon: Sparkles, label: "Coming Soon", href: "/coming-soon" },
     { icon: Menu, label: t('nav_menu'), href: "/menu" },

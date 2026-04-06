@@ -24,7 +24,7 @@ const PulseBadge = ({ count }: { count: number }) => {
 };
 
 export function Header() {
-  const { unreadCount = 0, categoryPulses = { MESSAGES: 0, HOME: 0 }, clearPulse } = useNotifications();
+  const { unreadCount = 0, categoryPulses = { MESSAGES: 0, HOME: 0, FRIENDS: 0, MUSIC: 0, ADMIN: 0 }, clearPulse } = useNotifications();
   const { setSearchOpen, currentUser = { name: "Guest", avatar: "" }, settings } = usePosts();
   const { t } = useTranslation();
 

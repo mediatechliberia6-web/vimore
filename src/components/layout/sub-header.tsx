@@ -53,19 +53,20 @@ export function SubHeader() {
   const router = useRouter();
   const { setSearchOpen, currentUser = { name: "Guest", avatar: "", goldBalance: 0, diamondBalance: 0, starBalance: 0, isVerified: false }, settings, receivedRequestUsernames, withdrawalHistory, paymentRequests, reports, tickets } = usePosts();
   const { triggerHaptic } = useMusic();
-  const { categoryPulses = { HOME: 0, FRIENDS: 0, MUSIC: 0, MESSAGES: 0 }, clearPulse } = useNotifications();
+  const { categoryPulses = { HOME: 0, FRIENDS: 0, MUSIC: 0, MESSAGES: 0, ADMIN: 0 }, clearPulse } = useNotifications();
   const pendingRequests = receivedRequestUsernames?.size || 0;
   const { t } = useTranslation();
 
   const userRole = (currentUser as any)?.role || 'USER';
   const isAdmin = userRole === 'SUPER' || userRole === 'MODERATOR' || userRole === 'FINANCIAL';
 
-  const adminBadgeCount = isAdmin
+  const staticAdminCount = isAdmin
     ? ((withdrawalHistory as any[])?.filter((w) => w.status === 'pending')?.length || 0)
       + ((paymentRequests as any[])?.filter((p) => p.status === 'pending')?.length || 0)
       + ((tickets as any[])?.filter((tk) => tk.status === 'open')?.length || 0)
       + ((reports as any[])?.filter((r) => r.status === 'pending' || r.status === 'open')?.length || 0)
     : 0;
+  const adminBadgeCount = staticAdminCount + (categoryPulses?.ADMIN || 0);
 
   const navItems: { icon: any; label: string; id: string; href: string; category: PulseCategory }[] = [
     { icon: Home, label: t('sub_home'), id: "home", href: "/", category: "HOME" },
@@ -91,7 +92,10 @@ export function SubHeader() {
             const pulseCount = categoryPulses?.[item.category] || 0;
 
             const showDot = (item.id === "reels" || item.id === "music");
-            const friendBadge = item.id === "friends" ? pendingRequests : 0;
+            const realtimeFriendPulse = categoryPulses?.FRIENDS || 0;
+            const friendBadge = item.id === "friends"
+              ? Math.max(pendingRequests, realtimeFriendPulse)
+              : 0;
 
             return (
               <Link

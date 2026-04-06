@@ -65,7 +65,7 @@ export const BUCKET_STORIES = BUCKET.STORY_MEDIA;
 export const BUCKET_REEL = BUCKET.REEL_MEDIA;
 export const BUCKET_MUSIC = BUCKET.MUSIC_TRACKS;
 
-const client = new Client()
+export const client = new Client()
   .setEndpoint(ENDPOINT)
   .setProject(PROJECT_ID);
 

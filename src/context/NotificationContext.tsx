@@ -1,11 +1,16 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { usePosts } from '@/context/PostContext';
 import { databases, DATABASE_ID, COL, ID, Query } from '@/lib/appwrite';
 
 export type SignalType = 'SOCIAL' | 'SONIC' | 'POST' | 'SYSTEM';
-export type PulseCategory = 'HOME' | 'FRIENDS' | 'MUSIC' | 'MESSAGES';
+export type PulseCategory = 'HOME' | 'FRIENDS' | 'MUSIC' | 'MESSAGES' | 'ADMIN';
+
+export interface MessagePreview {
+  text: string;
+  time: string;
+}
 
 export interface NotificationNode {
   id: string;
@@ -28,12 +33,15 @@ interface NotificationContextType {
   notifications: NotificationNode[];
   unreadCount: number;
   categoryPulses: Record<PulseCategory, number>;
+  messagePreviews: Record<string, MessagePreview>;
   addSignal: (signal: Omit<NotificationNode, 'id' | 'time' | 'isRead'>) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   purgeSignal: (id: string) => void;
   clearPulse: (category: PulseCategory) => void;
   incrementPulse: (category: PulseCategory) => void;
+  updateMessagePreview: (clusterId: string, text: string, time: string) => void;
+  refreshNotifications: (userId: string) => Promise<void>;
   requestPushPermission: () => Promise<void>;
   hasPushPermission: boolean;
 }
@@ -53,8 +61,9 @@ function formatTimeAgoSimple(dateStr: string): string {
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<NotificationNode[]>([]);
   const [categoryPulses, setCategoryPulses] = useState<Record<PulseCategory, number>>({
-    HOME: 0, FRIENDS: 0, MUSIC: 0, MESSAGES: 0,
+    HOME: 0, FRIENDS: 0, MUSIC: 0, MESSAGES: 0, ADMIN: 0,
   });
+  const [messagePreviews, setMessagePreviews] = useState<Record<string, MessagePreview>>({});
   const [hasPushPermission, setHasPushPermission] = useState(false);
   const { settings, triggerHaptic, currentUser, selectedChatId } = usePosts();
 
@@ -180,47 +189,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     triggerSound();
   }, [triggerSound]);
 
-  // Background poll for new chat messages — updates the MESSAGES badge when not in chat
-  const lastMsgTimestampRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!currentUser) return;
+  const updateMessagePreview = useCallback((clusterId: string, text: string, time: string) => {
+    setMessagePreviews(prev => ({
+      ...prev,
+      [clusterId]: { text, time },
+    }));
+  }, []);
 
-    const checkNewMessages = async () => {
-      try {
-        const queries: any[] = [
-          Query.orderDesc('$createdAt'),
-          Query.limit(50),
-        ];
-        if (lastMsgTimestampRef.current) {
-          queries.push(Query.greaterThan('$createdAt', lastMsgTimestampRef.current));
-        }
-
-        const result = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, queries);
-        if (result.documents.length === 0) return;
-
-        const newestTimestamp = result.documents[0].$createdAt;
-
-        if (lastMsgTimestampRef.current) {
-          const newFromOthers = result.documents.filter(doc => {
-            if (doc.sender_id === currentUser.$id) return false;
-            const clusterId: string = doc.cluster_id || '';
-            if (!clusterId) return false;
-            const sId = selectedChatId || '';
-            if (sId && clusterId.includes(sId)) return false;
-            return true;
-          });
-          if (newFromOthers.length > 0) {
-            incrementPulse('MESSAGES');
-          }
-        }
-
-        lastMsgTimestampRef.current = newestTimestamp;
-      } catch { /* ignore */ }
-    };
-
-    const interval = setInterval(checkNewMessages, 2000);
-    return () => clearInterval(interval);
-  }, [currentUser, selectedChatId, incrementPulse]);
+  const refreshNotifications = useCallback(async (userId: string) => {
+    await loadNotifications(userId);
+  }, [loadNotifications]);
 
   const requestPushPermission = async () => {
     if (typeof window !== 'undefined' && "Notification" in window) {
@@ -233,8 +211,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   return (
     <NotificationContext.Provider value={{
-      notifications, unreadCount, categoryPulses, addSignal, markAsRead, markAllAsRead,
-      purgeSignal, clearPulse, incrementPulse, requestPushPermission, hasPushPermission,
+      notifications, unreadCount, categoryPulses, messagePreviews,
+      addSignal, markAsRead, markAllAsRead, purgeSignal, clearPulse,
+      incrementPulse, updateMessagePreview, refreshNotifications,
+      requestPushPermission, hasPushPermission,
     }}>
       {children}
     </NotificationContext.Provider>
