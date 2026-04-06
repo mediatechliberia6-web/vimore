@@ -108,6 +108,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { usePosts } from "@/context/PostContext";
 import { useNotifications } from "@/context/NotificationContext";
+import { useAdminAlerts } from "@/context/AdminAlertsContext";
 import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
@@ -157,6 +158,21 @@ export default function AdminDashboard() {
   const { withdrawalHistory, paymentRequests, reports, tickets, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus, updateUserIdentity, handleReportAction, handleTicketAction, replyToTicket, submitTicket, uploadMedia, isLoading, allUsers, refreshAllUsers, banUser, suspendUser, warnUser, sendAdminBroadcast, broadcastHistory } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
+  const {
+    economyAlerts,
+    openTickets: realtimeOpenTickets,
+    resetEconomyBadge,
+    resetTicketsBadge,
+  } = useAdminAlerts();
+
+  const AdminAlertBadge = ({ count }: { count: number }) => {
+    if (!count || count <= 0) return null;
+    return (
+      <div className="absolute top-2 right-2 min-w-[18px] h-[18px] bg-destructive text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 shadow-lg shadow-destructive/30 animate-in zoom-in duration-300 border border-background">
+        {count > 99 ? '99+' : count}
+      </div>
+    );
+  };
   
   const userRole = currentUser?.role || 'USER';
   const isSuper = userRole === 'SUPER';
@@ -615,10 +631,32 @@ export default function AdminDashboard() {
           {availableTabs.map((tab) => {
             const Icon = TABS_DATA[tab].icon;
             const isActive = activeTab === tab;
+            const tabBadge =
+              tab === 'economy' ? economyAlerts :
+              (tab === 'resolution' || tab === 'tickets') ? realtimeOpenTickets :
+              0;
+            const handleTabClick = () => {
+              triggerHaptic(5);
+              setActiveTab(tab);
+              if (tab === 'economy') resetEconomyBadge();
+              if (tab === 'resolution' || tab === 'tickets') resetTicketsBadge();
+            };
             return (
-              <button key={tab} onClick={() => { triggerHaptic(5); setActiveTab(tab); }} className={cn("w-full flex items-center gap-4 p-4 rounded-2xl transition-all group relative", isActive ? "bg-primary text-white shadow-xl shadow-primary/10" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
-                <Icon className={cn("h-5 w-5 shrink-0 transition-transform group-hover:scale-110", isActive && "animate-pulse")} />
-                {isSidebarOpen && <span className="text-xs font-black italic uppercase tracking-widest">{TABS_DATA[tab].label}</span>}
+              <button key={tab} onClick={handleTabClick} className={cn("w-full flex items-center gap-4 p-4 rounded-2xl transition-all group relative", isActive ? "bg-primary text-white shadow-xl shadow-primary/10" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground")}>
+                <div className="relative shrink-0">
+                  <Icon className={cn("h-5 w-5 transition-transform group-hover:scale-110", isActive && "animate-pulse")} />
+                  {!isSidebarOpen && <AdminAlertBadge count={tabBadge} />}
+                </div>
+                {isSidebarOpen && (
+                  <div className="flex-1 flex items-center justify-between min-w-0">
+                    <span className="text-xs font-black italic uppercase tracking-widest">{TABS_DATA[tab].label}</span>
+                    {tabBadge > 0 && !isActive && (
+                      <div className="ml-2 min-w-[18px] h-[18px] bg-destructive text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 shadow-lg shadow-destructive/30 border border-background shrink-0">
+                        {tabBadge > 99 ? '99+' : tabBadge}
+                      </div>
+                    )}
+                  </div>
+                )}
               </button>
             );
           })}
@@ -1944,16 +1982,33 @@ export default function AdminDashboard() {
           {availableTabs.map((tab) => {
             const { label, icon: Icon } = TABS_DATA[tab];
             const isTabActive = activeTab === tab;
+            const mobileBadge =
+              tab === 'economy' ? economyAlerts :
+              (tab === 'resolution' || tab === 'tickets') ? realtimeOpenTickets :
+              0;
+            const handleMobileTabClick = () => {
+              triggerHaptic(5);
+              setActiveTab(tab);
+              if (tab === 'economy') resetEconomyBadge();
+              if (tab === 'resolution' || tab === 'tickets') resetTicketsBadge();
+            };
             return (
               <button
                 key={tab}
-                onClick={() => { triggerHaptic(5); setActiveTab(tab); }}
+                onClick={handleMobileTabClick}
                 className={cn(
-                  "flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all shrink-0 min-w-[56px]",
+                  "flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all shrink-0 min-w-[56px] relative",
                   isTabActive ? "bg-primary text-white shadow-lg" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Icon className="h-5 w-5" />
+                <div className="relative">
+                  <Icon className="h-5 w-5" />
+                  {mobileBadge > 0 && !isTabActive && (
+                    <div className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] bg-destructive text-white text-[7px] font-black rounded-full flex items-center justify-center px-0.5 border border-background shadow-sm">
+                      {mobileBadge > 9 ? '9+' : mobileBadge}
+                    </div>
+                  )}
+                </div>
                 <span className="text-[8px] font-black uppercase tracking-wide leading-none">{label}</span>
               </button>
             );

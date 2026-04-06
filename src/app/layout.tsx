@@ -25,6 +25,7 @@ import { DiagnosticErrorBoundary } from "@/components/layout/diagnostic-error-bo
 import { ThemeLogic } from "@/components/layout/theme-logic";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
 import { GlobalRealtimeListener } from "@/components/layout/global-realtime";
+import { AdminAlertsProvider } from "@/context/AdminAlertsContext";
 import NextTopLoader from 'nextjs-toploader';
 
 export const metadata: Metadata = {
@@ -78,6 +79,7 @@ export default async function RootLayout({
           speed={200} 
           shadow="0 0 10px #9940E5,0 0 5px #9940E5"
         />
+        <AdminAlertsProvider>
         <PostProvider>
           <LanguageProvider>
             <NotificationProvider>
@@ -117,6 +119,7 @@ export default async function RootLayout({
             </NotificationProvider>
           </LanguageProvider>
         </PostProvider>
+        </AdminAlertsProvider>
       </body>
     </html>
   );
