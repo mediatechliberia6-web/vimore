@@ -128,22 +128,37 @@ export function CommentNode({ comment, postId, onReply, allComments, level = 0 }
 }
 
 export function CommentHub() {
-  const { activeCommentPostId, closeCommentHub, posts, activeComments, addComment, addReply, triggerHaptic } = usePosts();
+  const { activeCommentPostId, closeCommentHub, posts, activeComments, addComment, addReply, triggerHaptic, streamedComments } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   const [text, setText] = useState("");
   const [replyingTo, setReplyingTo] = useState<PostComment | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const scrollBottomRef = useRef<HTMLDivElement>(null);
 
   const activePost = useMemo(() => 
     posts.find(p => p.$id === activeCommentPostId), 
     [posts, activeCommentPostId]
   );
 
+  const allComments = useMemo(() => {
+    const combined = [...activeComments];
+    streamedComments.forEach(sc => {
+      if (!combined.some(c => c.$id === sc.$id)) combined.push(sc);
+    });
+    return combined.sort((a, b) => a.timestamp - b.timestamp);
+  }, [activeComments, streamedComments]);
+
   const topLevelComments = useMemo(() => 
-    activeComments.filter(c => !c.parentId),
-    [activeComments]
+    allComments.filter(c => !c.parentId),
+    [allComments]
   );
+
+  useEffect(() => {
+    if (streamedComments.length > 0 && scrollBottomRef.current) {
+      scrollBottomRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [streamedComments.length]);
 
   const handleSend = async () => {
     if (!text.trim() || !activeCommentPostId) return;
@@ -208,7 +223,7 @@ export function CommentHub() {
                   comment={comment} 
                   postId={activeCommentPostId} 
                   onReply={handleInitiateReply}
-                  allComments={activeComments}
+                  allComments={allComments}
                 />
               ))
             ) : (
@@ -220,6 +235,7 @@ export function CommentHub() {
                 </div>
               </div>
             )}
+            <div ref={scrollBottomRef} />
           </div>
         </ScrollArea>
 

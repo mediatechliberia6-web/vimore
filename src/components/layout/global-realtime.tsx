@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { client, DATABASE_ID, COL, formatTimeAgo } from '@/lib/appwrite';
-import { usePosts } from '@/context/PostContext';
+import { usePosts, PostComment } from '@/context/PostContext';
 import { useNotifications } from '@/context/NotificationContext';
 import { useAdminAlerts } from '@/context/AdminAlertsContext';
+import { useFeedSignal } from '@/context/FeedSignalContext';
 
 const ADMIN_ALERT_SOUND = '/sounds/notification.mp3';
 
@@ -19,20 +20,28 @@ function playAdminSound(type: 'withdrawal' | 'highTicket' | 'payment') {
 }
 
 export function GlobalRealtimeListener() {
-  const { currentUser, selectedChatId, refreshAdminData } = usePosts();
+  const {
+    currentUser, selectedChatId, refreshAdminData,
+    followingUserIds, applyPostCountUpdate, addStreamedComment, activeCommentPostId,
+  } = usePosts();
   const { incrementPulse, updateMessagePreview, refreshNotifications } = useNotifications();
   const {
     incrementPendingPayments,
     incrementPendingWithdrawals,
     incrementOpenTickets,
   } = useAdminAlerts();
+  const { incrementNewPosts } = useFeedSignal();
 
-  const currentUserRef  = useRef(currentUser);
-  const selectedChatRef = useRef(selectedChatId);
-  const adminRefTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentUserRef       = useRef(currentUser);
+  const selectedChatRef      = useRef(selectedChatId);
+  const followingUserIdsRef  = useRef(followingUserIds);
+  const activeCommentPostRef = useRef(activeCommentPostId);
+  const adminRefTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
   useEffect(() => { selectedChatRef.current = selectedChatId; }, [selectedChatId]);
+  useEffect(() => { followingUserIdsRef.current = followingUserIds; }, [followingUserIds]);
+  useEffect(() => { activeCommentPostRef.current = activeCommentPostId; }, [activeCommentPostId]);
 
   const debouncedAdminRefresh = useCallback(() => {
     if (adminRefTimerRef.current) clearTimeout(adminRefTimerRef.current);
@@ -47,6 +56,7 @@ export function GlobalRealtimeListener() {
     };
   }, []);
 
+  // ─── Core social + admin channels ───────────────────────────────────────
   useEffect(() => {
     if (!currentUser?.$id) return;
 
@@ -118,6 +128,82 @@ export function GlobalRealtimeListener() {
     return () => { unsubscribe(); };
   }, [currentUser?.$id, currentUser?.role, incrementPulse, updateMessagePreview, refreshNotifications]);
 
+  // ─── Post interaction counts (likes / comments / shares) ─────────────────
+  useEffect(() => {
+    if (!currentUser?.$id) return;
+
+    const unsubscribe = client.subscribe(
+      `databases.${DATABASE_ID}.collections.${COL.POSTS}.documents`,
+      (response) => {
+        const events: string[] = response.events as string[];
+        const payload = response.payload as any;
+        const postId: string = payload.$id;
+        if (!postId) return;
+
+        const isCreate = events.some(e => e.endsWith('.create'));
+        const isUpdate = events.some(e => e.endsWith('.update'));
+
+        if (isUpdate) {
+          const update: { likes?: number; unlikes?: number; comments?: number; shares?: number } = {};
+          if (typeof payload.likes_count === 'number')    update.likes    = payload.likes_count;
+          if (typeof payload.unlikes_count === 'number')  update.unlikes  = payload.unlikes_count;
+          if (typeof payload.comments_count === 'number') update.comments = payload.comments_count;
+          if (typeof payload.shares_count === 'number')   update.shares   = payload.shares_count;
+          if (Object.keys(update).length > 0) {
+            applyPostCountUpdate(postId, update);
+          }
+        }
+
+        if (isCreate) {
+          const authorId: string = payload.user_id || '';
+          const me = currentUserRef.current;
+          if (authorId && me && authorId !== me.$id) {
+            if (followingUserIdsRef.current.has(authorId)) {
+              incrementNewPosts();
+              incrementPulse('HOME');
+            }
+          }
+        }
+      }
+    );
+
+    return () => { unsubscribe(); };
+  }, [currentUser?.$id, applyPostCountUpdate, incrementNewPosts, incrementPulse]);
+
+  // ─── Real-time comment streaming ─────────────────────────────────────────
+  useEffect(() => {
+    if (!currentUser?.$id) return;
+
+    const unsubscribe = client.subscribe(
+      `databases.${DATABASE_ID}.collections.${COL.POST_COMMENTS}.documents`,
+      (response) => {
+        const events: string[] = response.events as string[];
+        const payload = response.payload as any;
+        const isCreate = events.some(e => e.endsWith('.create'));
+        if (!isCreate) return;
+
+        const targetPostId: string = payload.post_id || '';
+        const activeId = activeCommentPostRef.current;
+        if (!targetPostId || !activeId || targetPostId !== activeId) return;
+
+        const comment: PostComment = {
+          $id: payload.$id,
+          userId: payload.user_id || '',
+          userName: payload.user_name || 'Unknown',
+          userAvatar: payload.user_avatar || '',
+          text: payload.text || payload.content || '',
+          time: payload.$createdAt ? formatTimeAgo(payload.$createdAt) : 'Just now',
+          timestamp: payload.$createdAt ? new Date(payload.$createdAt).getTime() : Date.now(),
+          parentId: payload.parent_id || undefined,
+        };
+        addStreamedComment(comment);
+      }
+    );
+
+    return () => { unsubscribe(); };
+  }, [currentUser?.$id, addStreamedComment]);
+
+  // ─── Admin financial channels ─────────────────────────────────────────────
   useEffect(() => {
     if (!currentUser?.$id) return;
     const isAdmin = currentUser.role && currentUser.role !== 'USER';

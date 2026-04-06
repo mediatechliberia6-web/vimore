@@ -12,13 +12,14 @@ import { MainNav } from "@/components/layout/main-nav";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
-import { Rocket, Loader2, ShieldCheck, Globe, ArrowRight, CheckCircle2, FileText, Scale, Mail } from "lucide-react";
+import { Rocket, Loader2, ShieldCheck, Globe, ArrowRight, CheckCircle2, FileText, Scale, Mail, ChevronUp } from "lucide-react";
 import { account } from "@/lib/appwrite";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CreateStoryModal } from "@/components/feed/create-story-modal";
 import { AuthModal } from "@/components/auth/auth-modal";
 import Link from "next/link";
+import { useFeedSignal } from "@/context/FeedSignalContext";
 
 function EmailVerificationGate({ email }: { email?: string }) {
   const [resendLoading, setResendLoading] = useState(false);
@@ -196,10 +197,12 @@ function LandingPage() {
 export default function Home() {
   const { posts, campaigns, isLoading, initError, followingUsernames, friendUsernames, seenPostIds, isAuthenticated, currentUser, triggerHaptic, loadMoreFeed, hasMoreFeed, isFeedLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
+  const { newFollowingPostsCount, clearNewPosts } = useFeedSignal();
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
 
   const loadTriggerRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const feedTopRef = useRef<HTMLDivElement | null>(null);
   const weights = useRef<Record<string, number>>({});
   const sessionSeen = useRef<Set<string>>(new Set());
   const isLoadingMoreRef = useRef(false);
@@ -335,8 +338,25 @@ export default function Home() {
         </aside>
 
         <main className="flex flex-col gap-4 w-full max-w-[680px] mx-auto">
+          <div ref={feedTopRef} />
           <Stories onOpenCreate={() => setIsStoryModalOpen(true)} />
-          
+
+          {/* New Posts floating pill */}
+          {newFollowingPostsCount > 0 && (
+            <div className="sticky top-[76px] z-30 flex justify-center pointer-events-none">
+              <button
+                className="pointer-events-auto flex items-center gap-2 bg-primary text-white text-[11px] font-black uppercase tracking-[0.15em] px-5 py-2.5 rounded-full shadow-xl shadow-primary/30 animate-badge-pop hover:scale-105 active:scale-95 transition-transform"
+                onClick={() => {
+                  clearNewPosts();
+                  feedTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+              >
+                <ChevronUp className="h-3.5 w-3.5" />
+                {newFollowingPostsCount} New {newFollowingPostsCount === 1 ? 'Post' : 'Posts'}
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-col gap-1">
             {posts.length > 0 ? (
               <>

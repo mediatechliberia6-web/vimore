@@ -220,7 +220,8 @@ export function PostCard(props: PostCardProps) {
   } = props;
 
   const { 
-    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, voteOnPostPoll, settings, recordCampaignClick, recordView, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser
+    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, voteOnPostPoll, settings, recordCampaignClick, recordView, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser,
+    postCountOverrides,
   } = usePosts();
 
   const { addSignal } = useNotifications();
@@ -255,7 +256,52 @@ export function PostCard(props: PostCardProps) {
 
   const cardRef = useRef<HTMLDivElement>(null);
   const hasRecordedView = useRef(false);
+  const isVisibleRef = useRef(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRef = useRef<{ likes?: number; unlikes?: number; comments?: number; shares?: number } | null>(null);
   const { toast } = useToast();
+
+  const override = postCountOverrides[$id] ?? {};
+  const [liveCounts, setLiveCounts] = useState({
+    likes:    override.likes    ?? likes,
+    unlikes:  override.unlikes  ?? unlikes,
+    comments: override.comments ?? comments,
+    shares:   override.shares   ?? shares,
+  });
+  const [animField, setAnimField] = useState<'likes' | 'unlikes' | 'comments' | 'shares' | null>(null);
+
+  useEffect(() => {
+    const newOverride = postCountOverrides[$id] ?? {};
+    const next = {
+      likes:    newOverride.likes    ?? likes,
+      unlikes:  newOverride.unlikes  ?? unlikes,
+      comments: newOverride.comments ?? comments,
+      shares:   newOverride.shares   ?? shares,
+    };
+    pendingRef.current = next;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const p = pendingRef.current;
+      if (!p) return;
+      setLiveCounts(prev => {
+        let changed: 'likes' | 'unlikes' | 'comments' | 'shares' | null = null;
+        if (p.likes !== prev.likes) changed = 'likes';
+        else if (p.unlikes !== prev.unlikes) changed = 'unlikes';
+        else if (p.comments !== prev.comments) changed = 'comments';
+        else if (p.shares !== prev.shares) changed = 'shares';
+        if (changed && isVisibleRef.current) {
+          setAnimField(changed);
+          setTimeout(() => setAnimField(null), 400);
+        }
+        return p;
+      });
+    }, 280);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [postCountOverrides[$id], likes, unlikes, comments, shares, $id]);
+
+  useEffect(() => {
+    setLiveCounts({ likes, unlikes, comments, shares });
+  }, [likes, unlikes, comments, shares]);
 
   const userVote = useMemo(() => {
     if (!poll || !poll.voters || !currentUser) return null;
@@ -270,10 +316,16 @@ export function PostCard(props: PostCardProps) {
   }, [poll]);
 
   useEffect(() => {
-    if (isShared || isCampaign || hasRecordedView.current) return;
+    if (isShared || isCampaign) return;
     const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => { if (entry.isIntersecting && !hasRecordedView.current) { hasRecordedView.current = true; recordView($id); } });
-    }, { threshold: 0.5 });
+      entries.forEach((entry) => {
+        isVisibleRef.current = entry.isIntersecting;
+        if (entry.isIntersecting && !hasRecordedView.current) {
+          hasRecordedView.current = true;
+          recordView($id);
+        }
+      });
+    }, { threshold: 0.3 });
     if (cardRef.current) observer.observe(cardRef.current);
     return () => observer.disconnect();
   }, [$id, isShared, isCampaign, recordView]);
@@ -565,13 +617,25 @@ export function PostCard(props: PostCardProps) {
             )}
             <div className="px-1 pt-2 pb-1 flex items-center justify-between w-full text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground/50 border-t border-primary/5">
               <div className="flex items-center gap-3">
-                <span className={cn("flex items-center gap-1.5", isLiked && "text-primary")}><ThumbsUp className={cn("h-3 w-3", isLiked && "fill-current")} />{likes.toLocaleString()}</span>
-                <span className={cn("flex items-center gap-1.5", isUnliked && "text-destructive")}><ThumbsDown className={cn("h-3 w-3", isUnliked && "fill-current")} />{unlikes.toLocaleString()}</span>
+                <span className={cn("flex items-center gap-1.5", isLiked && "text-primary")}>
+                  <ThumbsUp className={cn("h-3 w-3 transition-transform duration-200", isLiked && "fill-current", animField === 'likes' && "scale-125")} />
+                  <span className={cn(animField === 'likes' && "animate-count-pop")} key={`likes-${liveCounts.likes}`}>{liveCounts.likes.toLocaleString()}</span>
+                </span>
+                <span className={cn("flex items-center gap-1.5", isUnliked && "text-destructive")}>
+                  <ThumbsDown className={cn("h-3 w-3 transition-transform duration-200", isUnliked && "fill-current", animField === 'unlikes' && "scale-125")} />
+                  <span className={cn(animField === 'unlikes' && "animate-count-pop")} key={`unlikes-${liveCounts.unlikes}`}>{liveCounts.unlikes.toLocaleString()}</span>
+                </span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1.5 cursor-pointer hover:text-primary transition-colors" onClick={() => openCommentHub($id)}><MessageCircle className="h-3 w-3" />{comments.toLocaleString()}</span>
+                <span className="flex items-center gap-1.5 cursor-pointer hover:text-primary transition-colors" onClick={() => openCommentHub($id)}>
+                  <MessageCircle className={cn("h-3 w-3 transition-transform duration-200", animField === 'comments' && "scale-125")} />
+                  <span className={cn(animField === 'comments' && "animate-count-pop")} key={`comments-${liveCounts.comments}`}>{liveCounts.comments.toLocaleString()}</span>
+                </span>
                 <span className="flex items-center gap-1.5"><Eye className="h-3 w-3" />{views.toLocaleString()}</span>
-                <span className="flex items-center gap-1.5"><Share2 className="h-3 w-3" />{shares.toLocaleString()}</span>
+                <span className="flex items-center gap-1.5">
+                  <Share2 className={cn("h-3 w-3 transition-transform duration-200", animField === 'shares' && "scale-125")} />
+                  <span className={cn(animField === 'shares' && "animate-count-pop")} key={`shares-${liveCounts.shares}`}>{liveCounts.shares.toLocaleString()}</span>
+                </span>
               </div>
             </div>
             <div className="flex items-center justify-between gap-1 w-full pt-1">

@@ -199,8 +199,14 @@ interface PostContextType {
   unlockedPostIds: Set<string>;
   seenPostIds: Set<string>;
   followingUsernames: Set<string>;
+  followingUserIds: Set<string>;
   followerUsernames: Set<string>;
   friendUsernames: Set<string>;
+  postCountOverrides: Record<string, { likes?: number; unlikes?: number; comments?: number; shares?: number }>;
+  applyPostCountUpdate: (postId: string, update: { likes?: number; unlikes?: number; comments?: number; shares?: number }) => void;
+  streamedComments: PostComment[];
+  addStreamedComment: (comment: PostComment) => void;
+  clearStreamedComments: () => void;
   sentRequestUsernames: Set<string>;
   receivedRequestUsernames: Set<string>;
   acceptedStrangerUsernames: Set<string>;
@@ -544,7 +550,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [seenPostIds, setSeenPostIdsState] = useState<Set<string>>(new Set());
 
   const [followingUsernames, setFollowingUsernamesState] = useState<Set<string>>(new Set());
+  const [followingUserIds, setFollowingUserIdsState] = useState<Set<string>>(new Set());
   const [followerUsernames, setFollowerUsernamesState] = useState<Set<string>>(new Set());
+  const [postCountOverrides, setPostCountOverrides] = useState<Record<string, { likes?: number; unlikes?: number; comments?: number; shares?: number }>>({});
+  const [streamedComments, setStreamedComments] = useState<PostComment[]>([]);
   const [friendUsernames, setFriendUsernamesState] = useState<Set<string>>(new Set());
   const [sentRequestUsernames, setSentRequestUsernamesState] = useState<Set<string>>(new Set());
   const [receivedRequestUsernames, setReceivedRequestUsernamesState] = useState<Set<string>>(new Set());
@@ -687,6 +696,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
       if (followingResult.status === 'fulfilled') {
         setFollowingUsernamesState(new Set(followingResult.value.documents.map((f: any) => f.following_username).filter(Boolean)));
+        setFollowingUserIdsState(new Set(followingResult.value.documents.map((f: any) => f.following_id).filter(Boolean)));
       }
       if (followersResult.status === 'fulfilled') {
         setFollowerUsernamesState(new Set(followersResult.value.documents.map((f: any) => f.follower_username).filter(Boolean)));
@@ -3116,11 +3126,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setCallState({ type: 'video', status: 'idle', contact: null });
   }, [currentUser, callState, saveCallMessage]);
 
+  const applyPostCountUpdate = useCallback((postId: string, update: { likes?: number; unlikes?: number; comments?: number; shares?: number }) => {
+    setPostCountOverrides(prev => ({ ...prev, [postId]: { ...(prev[postId] || {}), ...update } }));
+  }, []);
+
+  const addStreamedComment = useCallback((comment: PostComment) => {
+    setStreamedComments(prev => prev.some(c => c.$id === comment.$id) ? prev : [...prev, comment]);
+  }, []);
+
+  const clearStreamedComments = useCallback(() => setStreamedComments([]), []);
+
   const value: PostContextType = {
     currentUser, isAuthenticated: !!currentUser, posts, hasMoreFeed, isFeedLoading, loadMoreFeed, activeComments, isLoading, initError,
     likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, viewedPostIds,
-    followingUsernames, followerUsernames, friendUsernames, sentRequestUsernames,
+    followingUsernames, followingUserIds, followerUsernames, friendUsernames, sentRequestUsernames,
     receivedRequestUsernames, acceptedStrangerUsernames,
+    postCountOverrides, applyPostCountUpdate,
+    streamedComments, addStreamedComment, clearStreamedComments,
     activeStoryIndex, selectedChatId, selectedPostId, selectedImageUrl, selectedVideoUrl,
     isSearchOpen, isGiftHubOpen, targetUserForGift, activeCommentPostId,
     settings, gatewaySettings: OFFICIAL_GATEWAY, callState, stories, campaigns,
@@ -3176,7 +3198,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setSelectedPostId: setSelectedPostIdState,
     setSelectedImageUrl: setSelectedImageUrlState,
     setSelectedVideoUrl: setSelectedVideoUrlState,
-    openCommentHub: (id: string) => { setActiveCommentPostIdState(id); fetchComments(id); },
+    openCommentHub: (id: string) => { setActiveCommentPostIdState(id); fetchComments(id); clearStreamedComments(); },
     closeCommentHub: () => setActiveCommentPostIdState(null),
     openGiftHub: (u: User) => { setTargetUserForGiftState(u); setIsGiftHubOpenState(true); },
     closeGiftHub: () => setIsGiftHubOpenState(false),
@@ -3198,7 +3220,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
             Query.equal('following_username', username),
           ]);
           for (const doc of existing.documents) {
+            const followingId = doc.following_id;
             await databases.deleteDocument(DATABASE_ID, COL.FOLLOWS, doc.$id);
+            if (followingId) setFollowingUserIdsState(prev => { const n = new Set(prev); n.delete(followingId); return n; });
           }
           await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
             following_count: Math.max(0, (currentUser.following as number || 0) - 1),
@@ -3212,6 +3236,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           ]);
           const targetDoc = targetRes.documents[0];
           if (targetDoc) {
+            setFollowingUserIdsState(prev => new Set(prev).add(targetDoc.$id));
             await databases.createDocument(DATABASE_ID, COL.FOLLOWS, ID.unique(), {
               follower_id: currentUser.$id,
               following_id: targetDoc.$id,

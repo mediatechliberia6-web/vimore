@@ -26,6 +26,7 @@ import { ThemeLogic } from "@/components/layout/theme-logic";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
 import { GlobalRealtimeListener } from "@/components/layout/global-realtime";
 import { AdminAlertsProvider } from "@/context/AdminAlertsContext";
+import { FeedSignalProvider } from "@/context/FeedSignalContext";
 import NextTopLoader from 'nextjs-toploader';
 
 export const metadata: Metadata = {
@@ -79,6 +80,7 @@ export default async function RootLayout({
           speed={200} 
           shadow="0 0 10px #9940E5,0 0 5px #9940E5"
         />
+        <FeedSignalProvider>
         <AdminAlertsProvider>
         <PostProvider>
           <LanguageProvider>
@@ -120,6 +122,7 @@ export default async function RootLayout({
           </LanguageProvider>
         </PostProvider>
         </AdminAlertsProvider>
+        </FeedSignalProvider>
       </body>
     </html>
   );
