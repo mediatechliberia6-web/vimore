@@ -20,6 +20,7 @@ import {
   Loader2,
   Pin,
   Archive,
+  Pencil,
   GalleryVerticalEnd,
   Link as LinkIcon,
   Trash2,
@@ -79,6 +80,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Comment {
   $id: string;
@@ -220,7 +229,7 @@ export function PostCard(props: PostCardProps) {
   } = props;
 
   const { 
-    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, voteOnPostPoll, settings, recordCampaignClick, recordView, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser,
+    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, editPost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, voteOnPostPoll, settings, recordCampaignClick, recordView, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser,
     postCountOverrides,
   } = usePosts();
 
@@ -250,6 +259,9 @@ export function PostCard(props: PostCardProps) {
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editContent, setEditContent] = useState(content || '');
+  const [isEditSaving, setIsEditSaving] = useState(false);
   const [isShareHubOpen, setIsShareHubOpen] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -372,6 +384,21 @@ export function PostCard(props: PostCardProps) {
     }
   };
 
+  const handleEditSave = async () => {
+    if (!editContent.trim() || editContent.trim() === content) {
+      setIsEditDialogOpen(false);
+      return;
+    }
+    triggerHaptic(10);
+    setIsEditSaving(true);
+    try {
+      await editPost($id, { content: editContent.trim() });
+      setIsEditDialogOpen(false);
+    } finally {
+      setIsEditSaving(false);
+    }
+  };
+
   const handleVote = (optionIndex: number) => {
     if (isShared) return;
     triggerHaptic(10);
@@ -467,7 +494,7 @@ export function PostCard(props: PostCardProps) {
                 </Badge>
               )}
               <Button variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isBookmarked && "text-primary")} onClick={handleSave}><Bookmark className={cn("h-4 w-4", isBookmarked && "fill-current")} /></Button>
-              <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full"><MoreHorizontal className="h-5 w-5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5"><DropdownMenuItem className="gap-2" onClick={() => setIsHidden(true)}><EyeOff className="h-4 w-4" />{t('post_hide')}</DropdownMenuItem>{isOwner && <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); togglePinPost($id); }}><Pin className="h-4 w-4" />{isPinned ? t('post_unpin') : t('post_pin')}</DropdownMenuItem>}{!isOwner && <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => toast({ title: "Report Sent" })}><Flag className="h-4 w-4" />{t('post_report')}</DropdownMenuItem>}{isOwner && <><DropdownMenuSeparator /><DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" />{t('post_purge')}</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>
+              <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full"><MoreHorizontal className="h-5 w-5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5"><DropdownMenuItem className="gap-2" onClick={() => setIsHidden(true)}><EyeOff className="h-4 w-4" />{t('post_hide')}</DropdownMenuItem>{isOwner && <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); togglePinPost($id); }}><Pin className="h-4 w-4" />{isPinned ? t('post_unpin') : t('post_pin')}</DropdownMenuItem>}{!isOwner && <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => toast({ title: "Report Sent" })}><Flag className="h-4 w-4" />{t('post_report')}</DropdownMenuItem>}{isOwner && <DropdownMenuItem className="gap-2" onSelect={() => { setEditContent(content || ''); setIsEditDialogOpen(true); }}><Pencil className="h-4 w-4" />Edit Post</DropdownMenuItem>}{isOwner && <><DropdownMenuSeparator /><DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" />{t('post_purge')}</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>
             </div>
           )}
         </CardHeader>
@@ -648,6 +675,40 @@ export function PostCard(props: PostCardProps) {
         )}
       </Card>
       <ShareHub isOpen={isShareHubOpen} onClose={() => setIsShareHubOpen(false)} post={props} />
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="rounded-[2rem] sm:max-w-[520px] p-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-4 border-b border-primary/5 bg-primary/3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                <Pencil className="h-5 w-5" />
+              </div>
+              <DialogTitle className="font-black italic uppercase tracking-tighter text-xl">Edit Post</DialogTitle>
+            </div>
+          </DialogHeader>
+          <div className="p-6 space-y-4">
+            <Textarea
+              value={editContent}
+              onChange={e => setEditContent(e.target.value)}
+              placeholder="What's on your mind?"
+              className="min-h-[140px] resize-none rounded-2xl bg-secondary/20 border-none text-sm font-medium leading-relaxed focus-visible:ring-primary/30"
+              maxLength={5000}
+            />
+            <div className="flex justify-between items-center text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+              <span>{editContent.length}/5000</span>
+              <span>Changes save to the network instantly</span>
+            </div>
+          </div>
+          <DialogFooter className="p-6 pt-0 flex gap-3">
+            <Button variant="ghost" className="flex-1 h-12 rounded-2xl font-bold" onClick={() => setIsEditDialogOpen(false)} disabled={isEditSaving}>Cancel</Button>
+            <Button className="flex-1 h-12 rounded-2xl font-black italic uppercase tracking-widest bg-primary text-white" onClick={handleEditSave} disabled={isEditSaving || !editContent.trim()}>
+              {isEditSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {isEditSaving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}><AlertDialogContent className="rounded-[2rem] sm:max-w-[420px]"><AlertDialogHeader><div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4"><Trash2 className="h-8 w-8" /></div><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">{t('post_purge')}?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6"><AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="rounded-xl h-12 font-black italic uppercase bg-destructive text-white">Confirm Purge</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </>
   );

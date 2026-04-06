@@ -247,6 +247,9 @@ interface PostContextType {
   uploadMedia: (file: File, bucketId?: string) => Promise<string>;
   addPost: (post: any) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
+  editPost: (postId: string, updates: { content?: string }) => Promise<void>;
+  deleteMessage: (messageId: string, chatId: string) => Promise<void>;
+  editMessage: (messageId: string, chatId: string, newText: string) => Promise<void>;
   toggleLikePost: (postId: string) => Promise<void>;
   toggleUnlikePost: (postId: string) => Promise<void>;
   toggleSavePost: (postId: string) => void;
@@ -1753,6 +1756,48 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const editPost = async (id: string, updates: { content?: string }) => {
+    if (!currentUser) return;
+    const original = postsState.find(p => p.$id === id);
+    setPostsState(prev => prev.map(p => p.$id === id ? { ...p, ...updates } : p));
+    try {
+      const docUpdates: Record<string, any> = {};
+      if (updates.content !== undefined) docUpdates.content = updates.content;
+      await databases.updateDocument(DATABASE_ID, COL.POSTS, id, docUpdates);
+      toast({ title: 'Post Updated', description: 'Your node has been updated.' });
+    } catch (err: any) {
+      if (original) setPostsState(prev => prev.map(p => p.$id === id ? original : p));
+      logAppwriteError('editPost', err);
+      toast({ variant: 'destructive', title: 'Update Failed', description: err?.message || formatErrorDescription(err, currentUser?.role) });
+    }
+  };
+
+  const deleteMessage = async (messageId: string, chatId: string) => {
+    setChatMessages(prev => ({
+      ...prev,
+      [chatId]: (prev[chatId] || []).filter(m => m.$id !== messageId),
+    }));
+    try {
+      await databases.deleteDocument(DATABASE_ID, COL.MESSAGES, messageId);
+    } catch (err: any) {
+      logAppwriteError('deleteMessage', err);
+      toast({ variant: 'destructive', title: 'Delete Failed', description: err?.message || 'Could not delete message.' });
+    }
+  };
+
+  const editMessage = async (messageId: string, chatId: string, newText: string) => {
+    setChatMessages(prev => ({
+      ...prev,
+      [chatId]: (prev[chatId] || []).map(m => m.$id === messageId ? { ...m, text: newText } : m),
+    }));
+    try {
+      await databases.updateDocument(DATABASE_ID, COL.MESSAGES, messageId, { text: newText });
+    } catch (err: any) {
+      logAppwriteError('editMessage', err);
+      toast({ variant: 'destructive', title: 'Update Failed', description: err?.message || 'Could not update message.' });
+    }
+  };
+
   const toggleLikePost = async (id: string) => {
     if (!currentUser) return;
     const wasLiked = likedPostIds.has(id);
@@ -2782,39 +2827,48 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const recordStoryView = async (id: string) => {
     if (!currentUser) return;
     try {
-      // Check if this user already viewed this story to ensure unique views only
-      const existing = await databases.listDocuments(DATABASE_ID, COL.STORY_VIEWS, [
-        Query.equal('story_id', id),
-        Query.equal('viewer_id', currentUser.$id),
-        Query.limit(1),
-      ]);
-      if (existing.documents.length > 0) return; // Already viewed — skip
-
       const viewedStory = stories.find(s => s.$id === id);
-      setStoriesState(prev => prev.map(s => s.$id === id ? { ...s, viewCount: (s.viewCount || 0) + 1 } : s));
-      await Promise.all([
-        databases.createDocument(DATABASE_ID, COL.STORY_VIEWS, ID.unique(), {
-          story_id: id, user_id: currentUser.$id, viewer_id: currentUser.$id,
-        }),
-        databases.updateDocument(DATABASE_ID, COL.STORIES, id, {
-          views_count: (viewedStory?.viewCount || 0) + 1,
-        }),
-      ]);
+      const newViewCount = (viewedStory?.viewCount || 0) + 1;
+
+      setStoriesState(prev => prev.map(s => s.$id === id ? { ...s, viewCount: newViewCount } : s));
+
+      // Record the view document — ignore duplicate/constraint errors so each viewing still increments the count
+      databases.createDocument(DATABASE_ID, COL.STORY_VIEWS, ID.unique(), {
+        story_id: id, user_id: currentUser.$id, viewer_id: currentUser.$id,
+      }).catch((err: any) => {
+        logAppwriteError('recordStoryView:createDoc', err);
+      });
+
+      // Always update the view count on the story itself
+      await databases.updateDocument(DATABASE_ID, COL.STORIES, id, {
+        views_count: newViewCount,
+      });
+
+      // Send notification to story owner (only once — check before sending)
       if (viewedStory && viewedStory.user.$id !== currentUser.$id) {
-        databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
-          user_id: viewedStory.user.$id,
-          from_user_id: currentUser.$id,
-          from_user_name: currentUser.name || currentUser.username,
-          from_user_avatar: currentUser.avatar || '',
-          type: 'SOCIAL',
-          title: 'Story View',
-          content: `${currentUser.name || '@' + currentUser.username} viewed your story`,
-          message: `${currentUser.name || '@' + currentUser.username} viewed your story`,
-          is_read: false,
-        }).catch(() => {});
+        const alreadyNotified = await databases.listDocuments(DATABASE_ID, COL.STORY_VIEWS, [
+          Query.equal('story_id', id),
+          Query.equal('viewer_id', currentUser.$id),
+          Query.limit(2),
+        ]).catch(() => ({ documents: [] }));
+
+        if (alreadyNotified.documents.length <= 1) {
+          databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+            user_id: viewedStory.user.$id,
+            from_user_id: currentUser.$id,
+            from_user_name: currentUser.name || currentUser.username,
+            from_user_avatar: currentUser.avatar || '',
+            type: 'SOCIAL',
+            title: 'Story View',
+            content: `${currentUser.name || '@' + currentUser.username} viewed your story`,
+            message: `${currentUser.name || '@' + currentUser.username} viewed your story`,
+            is_read: false,
+          }).catch(() => {});
+        }
       }
     } catch (err: any) {
       logAppwriteError('recordStoryView', err);
+      toast({ variant: 'destructive', title: 'View Error', description: err?.message || 'Could not record story view.' });
     }
   };
 
@@ -3172,7 +3226,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       await account.updateRecovery(userId, secret, password);
     },
     uploadMedia,
-    addPost, deletePost, toggleLikePost, toggleUnlikePost,
+    addPost, deletePost, editPost, deleteMessage, editMessage, toggleLikePost, toggleUnlikePost,
     toggleSavePost: async (id: string) => {
       const wasSaved = savedPostIds.has(id);
       setSavedPostIdsState(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -3409,7 +3463,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
           details: data.details,
           status: 'PENDING',
         });
-      } catch { /* ignore */ }
+        toast({ title: 'Report Submitted', description: 'Your report has been received and will be reviewed.' });
+      } catch (err: any) {
+        logAppwriteError('submitReport', err);
+        toast({ variant: 'destructive', title: 'Report Failed', description: err?.message || 'Could not submit your report. Please try again.' });
+      }
     },
   };
 

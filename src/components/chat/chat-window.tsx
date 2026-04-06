@@ -79,7 +79,7 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
-  const { currentUser, triggerHaptic, leaveCluster, connections = [], addMemberToCluster, updateCluster, settings, chatMessages, sendChatMessage, uploadMedia, friendUsernames, acceptedStrangerUsernames, acceptMessageRequest, declineMessageRequest } = usePosts();
+  const { currentUser, triggerHaptic, leaveCluster, connections = [], addMemberToCluster, updateCluster, settings, chatMessages, sendChatMessage, uploadMedia, friendUsernames, acceptedStrangerUsernames, acceptMessageRequest, declineMessageRequest, deleteMessage, editMessage } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   
@@ -266,10 +266,13 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                   </div>
                 )}
                 <ChatBubble 
-                  {...msg} 
+                  {...msg}
+                  id={msg.$id}
                   isMe={msg.sender === "me"} 
                   status={settings.showReadReceipts ? msg.status : 'sent'} 
                   onExternalLink={handleExternalLink}
+                  onDelete={(msgId) => deleteMessage(msgId, contactId)}
+                  onEdit={(msgId, newText) => editMessage(msgId, contactId, newText)}
                 />
               </div>
             ))

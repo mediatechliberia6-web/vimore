@@ -23,6 +23,9 @@ import {
   Link as LinkIcon,
   Trash2,
   MoreVertical,
+  Pencil,
+  Check,
+  X as XIcon,
   Phone,
   Video,
   PhoneMissed
@@ -94,10 +97,11 @@ interface ChatBubbleProps {
   onDownload?: (id: string) => void;
   onExternalLink?: (url: string) => void;
   onDelete?: (id: string) => void;
+  onEdit?: (id: string, newText: string) => void;
 }
 
 export function ChatBubble({ 
-  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, callData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete
+  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, callData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete, onEdit
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const { setSelectedImageUrl, setSelectedVideoUrl, settings } = usePosts();
@@ -107,6 +111,8 @@ export function ChatBubble({
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(text || '');
   const [voiceWaveHeights, setVoiceWaveHeights] = useState<number[]>([]);
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
@@ -337,6 +343,11 @@ export function ChatBubble({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="rounded-xl">
+                  {type === 'text' && !!text && (
+                    <DropdownMenuItem className="gap-2" onSelect={() => { setEditText(text); setIsEditing(true); }}>
+                      <Pencil className="h-3.5 w-3.5" /> Edit Message
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}>
                     <Trash2 className="h-3.5 w-3.5" /> Purge Message
                   </DropdownMenuItem>
@@ -568,21 +579,53 @@ export function ChatBubble({
 
             {text && (
               <div className="px-3 sm:px-4 py-2 sm:py-3">
-                <div className="text-sm sm:text-[15px] leading-relaxed break-words font-medium">
-                  {renderFormattedText(translatedText || text)}
-                </div>
-                {showTranslateButton && (
-                  <button
-                    onClick={handleTranslate}
-                    disabled={isTranslating}
-                    className={cn(
-                      "flex items-center gap-1 mt-1 text-[10px] font-black uppercase tracking-widest transition-colors",
-                      isMe ? "text-white/50 hover:text-white" : translatedText ? "text-primary" : "text-muted-foreground hover:text-primary"
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={editText}
+                      onChange={e => setEditText(e.target.value)}
+                      className={cn(
+                        "w-full min-h-[60px] resize-none rounded-xl p-2 text-sm font-medium leading-relaxed focus:outline-none",
+                        isMe ? "bg-white/10 text-white placeholder:text-white/40" : "bg-secondary/40 text-foreground"
+                      )}
+                      autoFocus
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (editText.trim()) { onEdit?.(id, editText.trim()); setIsEditing(false); } }
+                        if (e.key === 'Escape') { setIsEditing(false); }
+                      }}
+                    />
+                    <div className="flex items-center gap-2 justify-end">
+                      <button onClick={() => setIsEditing(false)} className={cn("h-7 w-7 rounded-full flex items-center justify-center transition-colors", isMe ? "bg-white/10 hover:bg-white/20 text-white" : "bg-secondary hover:bg-secondary/80")}>
+                        <XIcon className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => { if (editText.trim()) { onEdit?.(id, editText.trim()); setIsEditing(false); } }}
+                        disabled={!editText.trim() || editText.trim() === text}
+                        className={cn("h-7 w-7 rounded-full flex items-center justify-center transition-colors", isMe ? "bg-white/20 hover:bg-white/30 text-white" : "bg-primary text-white hover:bg-primary/90", (!editText.trim() || editText.trim() === text) && "opacity-40 cursor-not-allowed")}
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-sm sm:text-[15px] leading-relaxed break-words font-medium">
+                      {renderFormattedText(translatedText || text)}
+                    </div>
+                    {showTranslateButton && (
+                      <button
+                        onClick={handleTranslate}
+                        disabled={isTranslating}
+                        className={cn(
+                          "flex items-center gap-1 mt-1 text-[10px] font-black uppercase tracking-widest transition-colors",
+                          isMe ? "text-white/50 hover:text-white" : translatedText ? "text-primary" : "text-muted-foreground hover:text-primary"
+                        )}
+                      >
+                        {isTranslating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" />}
+                        {isTranslating ? "Translating..." : translatedText ? "Show original" : "Translate"}
+                      </button>
                     )}
-                  >
-                    {isTranslating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" />}
-                    {isTranslating ? "Translating..." : translatedText ? "Show original" : "Translate"}
-                  </button>
+                  </>
                 )}
               </div>
             )}
