@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useNotifications, PulseCategory } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
 import { useTranslation } from "@/context/LanguageContext";
+import { useAdminAlerts } from "@/context/AdminAlertsContext";
 
 const PulseBadge = ({ count }: { count: number }) => {
   if (count <= 0) return null;
@@ -24,6 +25,7 @@ export function MainNav() {
   const { unreadCount, categoryPulses, clearPulse } = useNotifications();
   const { settings, currentUser } = usePosts();
   const { t } = useTranslation();
+  const { totalAdminAlerts, resetEconomyBadge, resetTicketsBadge } = useAdminAlerts();
 
   const isAdmin = currentUser?.role && currentUser.role !== 'USER';
 
@@ -59,13 +61,23 @@ export function MainNav() {
       <nav className="flex-1 space-y-2">
         {navItems.filter(item => !item.isHidden).map((item) => {
           const isActive = pathname === item.href;
-          const displayBadge = item.category ? categoryPulses[item.category] : item.badge;
+          const isAdminItem = item.href === '/admin';
+          const rawBadge = item.category ? categoryPulses[item.category] : (item.badge ?? 0);
+          const displayBadge = isAdminItem ? (rawBadge + totalAdminAlerts) : rawBadge;
+
+          const handleClick = () => {
+            if (item.category) clearPulse(item.category);
+            if (isAdminItem) {
+              resetEconomyBadge();
+              resetTicketsBadge();
+            }
+          };
 
           return (
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => item.category && clearPulse(item.category)}
+              onClick={handleClick}
               className={cn(
                 "flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group",
                 isActive 
@@ -77,7 +89,7 @@ export function MainNav() {
                 <item.icon className={cn("w-6 h-6", isActive ? "scale-110" : "group-hover:scale-110 transition-transform")} />
                 <span className="font-bold text-sm">{item.label}</span>
               </div>
-              {displayBadge && displayBadge > 0 && !isActive && (
+              {displayBadge > 0 && !isActive && (
                 <PulseBadge count={displayBadge} />
               )}
             </Link>
