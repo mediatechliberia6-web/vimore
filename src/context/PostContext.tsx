@@ -2769,17 +2769,27 @@ export function PostProvider({ children }: { children: ReactNode }) {
         clicks: 0,
         placement: d.placement || 'story',
         type: d.type || 'photo',
+        action_url: d.actionUrl || '',
+        action_label: d.actionLabel || 'Learn More',
       };
       if (d.mediaUrl) {
         campaignData.media_url = d.mediaUrl;
         const fid = extractFileId(d.mediaUrl);
         if (fid) campaignData.media_id = fid;
       }
-      if (d.actionUrl) campaignData.action_url = d.actionUrl;
-      if (d.actionLabel) campaignData.action_label = d.actionLabel;
       if (d.endDate) campaignData.expires_at = d.endDate;
+
       const doc = await databases.createDocument(DATABASE_ID, COL.AD_CAMPAIGNS, ID.unique(), campaignData);
-      setCampaignsState(prev => [doc, ...prev]);
+
+      // Merge local form values back into the state entry so action_url and action_label
+      // are available immediately regardless of what Appwrite returns in the response.
+      const enriched = {
+        ...doc,
+        action_url: doc.action_url ?? d.actionUrl ?? '',
+        action_label: doc.action_label ?? d.actionLabel ?? 'Learn More',
+        media_url: doc.media_url ?? d.mediaUrl ?? '',
+      };
+      setCampaignsState(prev => [enriched, ...prev]);
     } catch (err: any) {
       logAppwriteError('addCampaign', err);
       throw err;

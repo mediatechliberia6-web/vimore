@@ -589,7 +589,7 @@ export function PostCard(props: PostCardProps) {
         </CardContent>
 
         {isCampaign && !isShared && (
-          <div className="px-3 pb-4 pt-2 bg-white dark:bg-card space-y-3">
+          <div className="px-3 pb-4 pt-1 bg-white dark:bg-card space-y-2.5">
             {campaignTitle && (
               <div className="flex items-center gap-2">
                 <Zap className="h-3 w-3 text-primary animate-pulse shrink-0" />
@@ -597,23 +597,32 @@ export function PostCard(props: PostCardProps) {
                 <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black h-4 px-1.5 uppercase shrink-0">Sponsored</Badge>
               </div>
             )}
-            {actionUrl && (
-              <div className="flex items-center justify-between gap-3 p-3 bg-secondary/30 rounded-2xl border border-primary/10">
-                <div className="flex items-center gap-2 min-w-0">
-                  <LinkIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-[11px] text-muted-foreground truncate font-medium">{actionUrl}</span>
+            {actionUrl ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <LinkIcon className="h-3 w-3 text-muted-foreground/60 shrink-0" />
+                  <span className="text-[10px] text-muted-foreground/60 truncate">{actionUrl}</span>
                 </div>
                 <a
                   href={actionUrl}
-                  target="_blank"
+                  target={actionUrl.startsWith('http') ? '_blank' : '_self'}
                   rel="noopener noreferrer"
                   onClick={(e) => { e.stopPropagation(); recordCampaignClick($id); }}
-                  className="shrink-0 inline-flex items-center gap-1.5 bg-primary text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary/90 active:scale-95 transition-all shadow-md"
+                  className="flex items-center justify-center gap-2 w-full bg-primary text-white py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-primary/90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20"
                 >
-                  <ExternalLink className="h-3 w-3" />
-                  {actionLabel || 'Visit'}
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  {actionLabel || 'Learn More'}
                 </a>
               </div>
+            ) : (
+              <a
+                href="#"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); recordCampaignClick($id); }}
+                className="flex items-center justify-center gap-2 w-full bg-primary/10 text-primary border border-primary/20 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-primary/20 active:scale-[0.98] transition-all"
+              >
+                <Zap className="h-3.5 w-3.5" />
+                {actionLabel || 'Learn More'}
+              </a>
             )}
           </div>
         )}
