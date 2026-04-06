@@ -97,7 +97,8 @@ export function StoryViewer() {
       const nextSeenCount = storiesSeenInSession + 1;
       setStoriesSeenInSession(nextSeenCount);
 
-      if (nextSeenCount % 2 === 0 && activeStoryIndex !== null && activeStoryIndex < stories.length - 1 && activeStoryCampaigns.length > 0) {
+      const shouldShowStoryAd = nextSeenCount === 2 || (nextSeenCount > 2 && (nextSeenCount - 2) % 5 === 0);
+      if (shouldShowStoryAd && activeStoryIndex !== null && activeStoryIndex < stories.length - 1 && activeStoryCampaigns.length > 0) {
         setIsAdActive(true);
         setAdProgress(0);
       } else if (activeStoryIndex !== null && activeStoryIndex < stories.length - 1) {

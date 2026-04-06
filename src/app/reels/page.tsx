@@ -671,13 +671,21 @@ export default function ReelsPage() {
     const result: ReelFeedItem[] = [];
     let reelIdx = 0;
     let campIdx = 0;
+
+    // First ad: after the first 2 reels
+    for (let i = 0; i < 2 && reelIdx < reels.length; i++) {
+      result.push(reels[reelIdx++] as ReelFeedItem);
+    }
+    if (reelIdx > 0) {
+      result.push(videoCampaigns[campIdx++ % videoCampaigns.length]);
+    }
+
+    // Subsequent ads: after every 5 reels
     while (reelIdx < reels.length) {
-      for (let i = 0; i < 3 && reelIdx < reels.length; i++) {
-        result.push(reels[reelIdx] as ReelFeedItem);
-        reelIdx++;
+      for (let i = 0; i < 5 && reelIdx < reels.length; i++) {
+        result.push(reels[reelIdx++] as ReelFeedItem);
       }
-      result.push(videoCampaigns[campIdx % videoCampaigns.length]);
-      campIdx++;
+      result.push(videoCampaigns[campIdx++ % videoCampaigns.length]);
     }
     return result;
   }, [reels, campaigns]);

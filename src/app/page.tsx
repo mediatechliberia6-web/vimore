@@ -275,8 +275,10 @@ export default function Home() {
         loadTriggerInserted = true;
       }
 
-      // After every 3 organic posts → campaign ad (independent slot)
-      if (organicCount % 3 === 0 && activeCampaigns.length > 0) {
+      // First campaign ad after the 2nd organic post, then after every 5 organic posts
+      const isFirstAdSlot = organicCount === 2;
+      const isSubsequentAdSlot = organicCount > 2 && (organicCount - 2) % 5 === 0;
+      if ((isFirstAdSlot || isSubsequentAdSlot) && activeCampaigns.length > 0) {
         result.push({ type: 'campaign', data: activeCampaigns[campaignIdx % activeCampaigns.length] });
         campaignIdx++;
       }
