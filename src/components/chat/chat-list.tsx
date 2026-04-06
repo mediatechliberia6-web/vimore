@@ -37,7 +37,7 @@ interface ChatListProps {
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
   const { connections = [], clusters = [], triggerHaptic, settings, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages } = usePosts();
-  const { categoryPulses, clearPulse } = useNotifications();
+  const { categoryPulses, clearPulse, messagePreviews } = useNotifications();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "unread" | "broadcasts" | "clusters">("all");
@@ -213,18 +213,22 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                       <span className={cn("font-bold text-sm truncate", hasNewPulse && "text-primary")}>{item.name}</span>
                       {item.isGroup && <Badge className="bg-primary/10 text-primary border-none text-[7px] font-black h-3.5 px-1 uppercase">CLUSTER</Badge>}
                     </div>
-                    <span className={cn("text-[10px] font-medium", hasNewPulse ? "text-primary" : "text-muted-foreground")}>{(item as any).lastTime}</span>
+                    <span className={cn("text-[10px] font-medium", hasNewPulse ? "text-primary" : "text-muted-foreground")}>
+                      {messagePreviews[id]?.time || (item as any).lastTime}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <p className={cn("text-xs truncate", hasNewPulse ? "text-foreground font-bold" : "text-muted-foreground")}>
                       {(() => {
                         const lastMsg = chatMessages[id]?.at(-1);
-                        if (!lastMsg) return (item as any).lastMessage || "No messages yet.";
-                        if (lastMsg.text) return lastMsg.text;
-                        if (lastMsg.type === 'photo') return '📷 Photo';
-                        if (lastMsg.type === 'video') return '🎥 Video';
-                        if (lastMsg.type === 'voice') return `🎤 Voice message${lastMsg.voiceDuration ? ` · ${lastMsg.voiceDuration}` : ''}`;
-                        if (lastMsg.type === 'call') return '📞 Call';
+                        if (lastMsg) {
+                          if (lastMsg.text) return lastMsg.text;
+                          if (lastMsg.type === 'photo') return '📷 Photo';
+                          if (lastMsg.type === 'video') return '🎥 Video';
+                          if (lastMsg.type === 'voice') return `🎤 Voice message${lastMsg.voiceDuration ? ` · ${lastMsg.voiceDuration}` : ''}`;
+                          if (lastMsg.type === 'call') return '📞 Call';
+                        }
+                        if (messagePreviews[id]?.text) return messagePreviews[id].text;
                         return (item as any).lastMessage || "No messages yet.";
                       })()}
                     </p>

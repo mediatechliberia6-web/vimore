@@ -1,11 +1,20 @@
 /**
  * ViMore Service Worker
- * Cache-First strategy for all media assets (images, video, audio).
- * Media is cached on first fetch and served from the device on every subsequent request.
+ * - Cache-First for media assets (images, video, audio)
+ * - Network-First with cache fallback for page navigation
+ * - Offline page when network fails and no cache exists
  */
 
-const MEDIA_CACHE = 'vimore-media-v1';
-const CACHE_NAMES = [MEDIA_CACHE];
+const MEDIA_CACHE = 'vimore-media-v2';
+const PAGE_CACHE = 'vimore-pages-v2';
+const CACHE_NAMES = [MEDIA_CACHE, PAGE_CACHE];
+
+const OFFLINE_URL = '/offline.html';
+
+const APP_SHELL_URLS = [
+  '/',
+  '/offline.html',
+];
 
 const MEDIA_EXTENSIONS = [
   '.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.svg',
@@ -45,9 +54,17 @@ function isMediaUrl(url) {
   }
 }
 
-// ─── Install ──────────────────────────────────────────────────────────────────
-self.addEventListener('install', () => {
-  self.skipWaiting();
+function isNavigationRequest(request) {
+  return request.mode === 'navigate';
+}
+
+// ─── Install: cache app shell ─────────────────────────────────────────────────
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(PAGE_CACHE).then((cache) => {
+      return cache.addAll(APP_SHELL_URLS).catch(() => {});
+    }).then(() => self.skipWaiting())
+  );
 });
 
 // ─── Activate: delete old caches ─────────────────────────────────────────────
@@ -63,31 +80,71 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// ─── Fetch: Cache-First for media ─────────────────────────────────────────────
+// ─── Fetch ────────────────────────────────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = request.url;
 
   if (request.method !== 'GET') return;
   if (shouldSkip(url)) return;
-  if (!isMediaUrl(url)) return;
 
-  event.respondWith(
-    caches.open(MEDIA_CACHE).then(async (cache) => {
-      const cached = await cache.match(request);
-      if (cached) return cached;
-
-      try {
-        const response = await fetch(request);
-        if (response.ok && response.status === 200) {
-          cache.put(request, response.clone());
+  // Media: cache-first
+  if (isMediaUrl(url)) {
+    event.respondWith(
+      caches.open(MEDIA_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        try {
+          const response = await fetch(request);
+          if (response.ok && response.status === 200) {
+            cache.put(request, response.clone());
+          }
+          return response;
+        } catch {
+          return new Response('Media unavailable offline', { status: 503 });
         }
-        return response;
-      } catch {
-        return new Response('Media unavailable offline', { status: 503 });
-      }
-    })
-  );
+      })
+    );
+    return;
+  }
+
+  // Navigation: network-first, fall back to cache, then offline page
+  if (isNavigationRequest(request)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Cache successful navigations for offline use
+          if (response.ok) {
+            const cloned = response.clone();
+            caches.open(PAGE_CACHE).then(cache => cache.put(request, cloned)).catch(() => {});
+          }
+          return response;
+        })
+        .catch(async () => {
+          // Offline: try cache first
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          // Fall back to root (SPA routing)
+          const rootCached = await caches.match('/');
+          if (rootCached) return rootCached;
+          // Last resort: offline page
+          const offlineCached = await caches.match(OFFLINE_URL);
+          if (offlineCached) return offlineCached;
+          return new Response('You are offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+        })
+    );
+    return;
+  }
+
+  // Other same-origin requests: network-first with cache fallback
+  if (url.startsWith(self.location.origin)) {
+    event.respondWith(
+      fetch(request).catch(async () => {
+        const cached = await caches.match(request);
+        return cached || new Response('Offline', { status: 503 });
+      })
+    );
+  }
 });
 
 // ─── Messages: manual cache control ──────────────────────────────────────────

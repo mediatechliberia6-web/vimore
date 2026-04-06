@@ -229,7 +229,7 @@ export function PostCard(props: PostCardProps) {
   } = props;
 
   const { 
-    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, editPost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, voteOnPostPoll, settings, recordCampaignClick, recordView, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser,
+    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, editPost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, voteOnPostPoll, settings, recordCampaignClick, recordView, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, submitReport,
     postCountOverrides,
   } = usePosts();
 
@@ -260,6 +260,10 @@ export function PostCard(props: PostCardProps) {
   const [isTranslating, setIsTranslating] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [isReportSubmitting, setIsReportSubmitting] = useState(false);
   const [editContent, setEditContent] = useState(content || '');
   const [isEditSaving, setIsEditSaving] = useState(false);
   const [isShareHubOpen, setIsShareHubOpen] = useState(false);
@@ -494,7 +498,7 @@ export function PostCard(props: PostCardProps) {
                 </Badge>
               )}
               <Button variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isBookmarked && "text-primary")} onClick={handleSave}><Bookmark className={cn("h-4 w-4", isBookmarked && "fill-current")} /></Button>
-              <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full"><MoreHorizontal className="h-5 w-5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5"><DropdownMenuItem className="gap-2" onClick={() => setIsHidden(true)}><EyeOff className="h-4 w-4" />{t('post_hide')}</DropdownMenuItem>{isOwner && <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); togglePinPost($id); }}><Pin className="h-4 w-4" />{isPinned ? t('post_unpin') : t('post_pin')}</DropdownMenuItem>}{!isOwner && <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => toast({ title: "Report Sent" })}><Flag className="h-4 w-4" />{t('post_report')}</DropdownMenuItem>}{isOwner && <DropdownMenuItem className="gap-2" onSelect={() => { setEditContent(content || ''); setIsEditDialogOpen(true); }}><Pencil className="h-4 w-4" />Edit Post</DropdownMenuItem>}{isOwner && <><DropdownMenuSeparator /><DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" />{t('post_purge')}</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>
+              <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full"><MoreHorizontal className="h-5 w-5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5"><DropdownMenuItem className="gap-2" onClick={() => setIsHidden(true)}><EyeOff className="h-4 w-4" />{t('post_hide')}</DropdownMenuItem>{isOwner && <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); togglePinPost($id); }}><Pin className="h-4 w-4" />{isPinned ? t('post_unpin') : t('post_pin')}</DropdownMenuItem>}{!isOwner && <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => { triggerHaptic(); setIsReportDialogOpen(true); }}><Flag className="h-4 w-4" />{t('post_report')}</DropdownMenuItem>}{isOwner && <DropdownMenuItem className="gap-2" onSelect={() => { setEditContent(content || ''); setIsEditDialogOpen(true); }}><Pencil className="h-4 w-4" />Edit Post</DropdownMenuItem>}{isOwner && <><DropdownMenuSeparator /><DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" />{t('post_purge')}</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>
             </div>
           )}
         </CardHeader>
@@ -713,6 +717,67 @@ export function PostCard(props: PostCardProps) {
             <Button className="flex-1 h-12 rounded-2xl font-black italic uppercase tracking-widest bg-primary text-white" onClick={handleEditSave} disabled={isEditSaving || !editContent.trim()}>
               {isEditSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {isEditSaving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isReportDialogOpen} onOpenChange={(open) => { setIsReportDialogOpen(open); if (!open) { setReportReason(''); setReportDetails(''); } }}>
+        <DialogContent className="rounded-[2rem] sm:max-w-[420px]">
+          <DialogHeader>
+            <div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4">
+              <Flag className="h-8 w-8" />
+            </div>
+            <DialogTitle className="font-black italic uppercase tracking-tighter text-2xl text-center">Report Post</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Reason *</label>
+              <select
+                className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+                value={reportReason}
+                onChange={e => setReportReason(e.target.value)}
+              >
+                <option value="">Select a reason…</option>
+                <option value="spam">Spam or misleading</option>
+                <option value="harassment">Harassment or bullying</option>
+                <option value="hate_speech">Hate speech</option>
+                <option value="violence">Violence or dangerous content</option>
+                <option value="misinformation">Misinformation</option>
+                <option value="nudity">Nudity or sexual content</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Additional details</label>
+              <Textarea
+                placeholder="Describe the issue in more detail…"
+                className="rounded-xl resize-none min-h-[90px] text-sm"
+                value={reportDetails}
+                onChange={e => setReportDetails(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-3 pt-2">
+            <Button variant="secondary" className="rounded-xl h-12 font-bold" onClick={() => { setIsReportDialogOpen(false); setReportReason(''); setReportDetails(''); }}>Cancel</Button>
+            <Button
+              className="rounded-xl h-12 font-black italic uppercase bg-destructive hover:bg-destructive/90 text-white"
+              disabled={!reportReason || isReportSubmitting}
+              onClick={async () => {
+                if (!reportReason) return;
+                setIsReportSubmitting(true);
+                try {
+                  await submitReport({ reportedUsername: user.username, reason: reportReason, details: reportDetails });
+                  setIsReportDialogOpen(false);
+                  setReportReason('');
+                  setReportDetails('');
+                } finally {
+                  setIsReportSubmitting(false);
+                }
+              }}
+            >
+              {isReportSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Submit Report
             </Button>
           </DialogFooter>
         </DialogContent>

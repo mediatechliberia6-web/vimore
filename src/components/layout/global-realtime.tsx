@@ -23,6 +23,7 @@ export function GlobalRealtimeListener() {
   const {
     currentUser, selectedChatId, refreshAdminData,
     followingUserIds, applyPostCountUpdate, addStreamedComment, activeCommentPostId,
+    addIncomingMessage,
   } = usePosts();
   const { incrementPulse, updateMessagePreview, refreshNotifications } = useNotifications();
   const {
@@ -86,20 +87,34 @@ export function GlobalRealtimeListener() {
       const user   = currentUserRef.current;
       const chatId = selectedChatRef.current;
 
-      if (isMessageEvent && (isCreate || isUpdate)) {
+      if (isMessageEvent && isCreate) {
         if (payload.sender_id !== user?.$id) {
           const clusterId: string = payload.cluster_id || '';
+          const rawText =
+            payload.text
+              ? String(payload.text).slice(0, 80)
+              : payload.media_url
+                ? '📷 Media'
+                : payload.voice_url
+                  ? '🎤 Voice note'
+                  : 'New message';
+          const timeStr = payload.$createdAt ? formatTimeAgo(payload.$createdAt) : 'Just now';
           if (clusterId) {
-            const rawText =
-              payload.text
-                ? String(payload.text).slice(0, 80)
-                : payload.media_url
-                  ? '📷 Media'
-                  : payload.voice_url
-                    ? '🎤 Voice note'
-                    : 'New message';
-            const timeStr = payload.$createdAt ? formatTimeAgo(payload.$createdAt) : 'Just now';
             updateMessagePreview(clusterId, rawText, timeStr);
+            const incomingMsg = {
+              $id: payload.$id || `msg_${Date.now()}`,
+              sender: 'them' as const,
+              senderId: payload.sender_id || '',
+              senderName: payload.sender_name || '',
+              senderAvatar: payload.sender_avatar || '',
+              text: payload.text || undefined,
+              time: timeStr,
+              status: 'delivered' as const,
+              type: (payload.type || 'text') as any,
+              mediaUrl: payload.media_url || undefined,
+              voiceDuration: payload.voice_duration || undefined,
+            };
+            addIncomingMessage(clusterId, incomingMsg, rawText, timeStr);
           }
           const isInCurrentChat = chatId && clusterId && (clusterId === chatId || clusterId.includes(chatId));
           if (!isInCurrentChat) {
@@ -126,7 +141,7 @@ export function GlobalRealtimeListener() {
     });
 
     return () => { unsubscribe(); };
-  }, [currentUser?.$id, currentUser?.role, incrementPulse, updateMessagePreview, refreshNotifications]);
+  }, [currentUser?.$id, currentUser?.role, incrementPulse, updateMessagePreview, refreshNotifications, addIncomingMessage]);
 
   // ─── Post interaction counts (likes / comments / shares) ─────────────────
   useEffect(() => {

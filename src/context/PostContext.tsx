@@ -353,6 +353,7 @@ interface PostContextType {
   warnUser: (userId: string, message: string, severity: 'SOFT' | 'FINAL') => Promise<void>;
   sendAdminBroadcast: (opts: { title: string; message: string; actionUrl?: string; targetUserIds: string[] | 'all' }) => Promise<number>;
   broadcastHistory: any[];
+  addIncomingMessage: (clusterId: string, message: ChatMessage, preview: string, timeStr: string) => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -2821,18 +2822,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setPostsState(prev => prev.map(p => p.$id === id ? { ...p, views: p.views + 1 } : p));
     try {
       const currentDoc = await databases.getDocument(DATABASE_ID, COL.POSTS, id);
-      await Promise.all([
-        databases.updateDocument(DATABASE_ID, COL.POSTS, id, {
-          views_count: (currentDoc.views_count || 0) + 1,
-        }),
-        databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), {
-          post_id: id,
-          user_id: currentUser.$id,
-          reaction_type: 'VIEW',
-        }),
-      ]);
-    } catch { /* ignore */ }
-  }, [viewedPostIds, currentUser]);
+      await databases.updateDocument(DATABASE_ID, COL.POSTS, id, {
+        views_count: (currentDoc.views_count || 0) + 1,
+      });
+      databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), {
+        post_id: id,
+        user_id: currentUser.$id,
+        reaction_type: 'VIEW',
+      }).catch((err: any) => {
+        logAppwriteError('recordView:createReaction', err);
+      });
+    } catch (err: any) {
+      logAppwriteError('recordView', err);
+      toast({ variant: 'destructive', title: 'View Error', description: err?.message || 'Could not record post view.' });
+    }
+  }, [viewedPostIds, currentUser, toast]);
 
   const recordStoryView = async (id: string) => {
     if (!currentUser) return;
@@ -3393,6 +3397,26 @@ export function PostProvider({ children }: { children: ReactNode }) {
     handleReportAction, handleTicketAction, replyToTicket,
     sendChatMessage, sendMessageRequest,
     fetchAllUsersForDiscovery, allUsers, refreshAllUsers, banUser, suspendUser, warnUser, sendAdminBroadcast, broadcastHistory,
+    addIncomingMessage: (clusterId: string, message: ChatMessage, preview: string, timeStr: string) => {
+      setChatMessages(prev => {
+        const existing = prev[clusterId] || [];
+        const alreadyExists = existing.some(m => m.$id === message.$id);
+        if (alreadyExists) return prev;
+        return { ...prev, [clusterId]: [...existing, message] };
+      });
+      setConnectionsState(prev => prev.map(c => {
+        if (c.username === clusterId || clusterId.includes(c.username)) {
+          return { ...c, lastMessage: preview, lastTime: timeStr };
+        }
+        return c;
+      }));
+      setClustersState(prev => prev.map(cl => {
+        if (cl.$id === clusterId) {
+          return { ...cl, lastMessage: preview, lastTime: timeStr };
+        }
+        return cl;
+      }));
+    },
     purgeVibeCache: async () => setSeenPostIdsState(new Set()),
     archiveIdentityNode: async () => {},
     boostNode,
