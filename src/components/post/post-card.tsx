@@ -69,6 +69,7 @@ import { useNotifications } from "@/context/NotificationContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { ShareHub } from "./share-hub";
 import { BoostPortal } from "./boost-portal";
+import { RichText } from "./rich-text";
 import { useRouter } from "next/navigation";
 import {
   AlertDialog,
@@ -157,6 +158,16 @@ interface PostCardProps {
   boostTargetViews?: number;
   boostCurrentViews?: number;
   boostExpiry?: number;
+  taggedUsers?: string[];
+  linkPreview?: {
+    url: string;
+    title?: string;
+    description?: string;
+    image?: string;
+    siteName?: string;
+    favicon?: string;
+  } | null;
+  hashtags?: string[];
 }
 
 function FeedVideo({ videoUrl, postId, isShared }: { videoUrl: string; postId: string; isShared: boolean }) {
@@ -225,7 +236,7 @@ export function PostCard(props: PostCardProps) {
     $id, user, collaborator, content, image, images = [], imageFilter, theme, language,
     likes = 0, unlikes = 0, comments = 0, shares = 0, views = 0, time, hashtags, feeling, location, commentsDisabled, isPinned, 
     isSeries, seriesTitle, poll, isShared = false, videoUrl, sharedPost, isLocked, unlockPrice, isCampaign, campaignTitle, actionUrl, actionLabel,
-    isBoosted, boostTargetViews, boostCurrentViews, boostExpiry
+    isBoosted, boostTargetViews, boostCurrentViews, boostExpiry, taggedUsers, linkPreview
   } = props;
 
   const { 
@@ -516,7 +527,12 @@ export function PostCard(props: PostCardProps) {
           ) : (
             <>
               <div className="space-y-1">
-                <div className={cn("leading-relaxed whitespace-pre-wrap", theme && !isShared ? "text-2xl leading-tight font-black italic uppercase tracking-tighter" : "text-foreground", isShared ? "text-xs" : "text-[13px]")}>{translatedText || content}</div>
+                <RichText
+                  content={translatedText || content || ''}
+                  isShared={isShared}
+                  theme={theme && !isShared ? theme : undefined}
+                  linkPreview={!isShared && !translatedText ? linkPreview : undefined}
+                />
                 {showTranslateButton && (
                   <button
                     onClick={handleTranslate}

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { 
   ArrowLeft, 
   ImageIcon, 
@@ -39,7 +39,11 @@ import {
   Loader2,
   Zap,
   CheckCircle2,
-  Plus
+  Plus,
+  ExternalLink,
+  Hash,
+  Tag,
+  LinkIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -142,7 +146,14 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   const [location, setLocation] = useState<string>("");
   const [isTaggingSelectorOpen, setIsTaggingSelectorOpen] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
-  const [collaborator, setCollaborator] = useState<any | null>(null);
+  const [taggedUsers, setTaggedUsers] = useState<any[]>([]);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
+  const [mentionStartIndex, setMentionStartIndex] = useState(-1);
+  const [linkPreview, setLinkPreview] = useState<any>(null);
+  const [isFetchingPreview, setIsFetchingPreview] = useState(false);
+  const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
+  const urlDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedTheme, setSelectedTheme] = useState(backgroundThemes[0]);
   const [selectedFilter, setSelectedFilter] = useState(imageFilters[0]);
   const [commentsDisabled, setCommentsDisabled] = useState(false);
@@ -204,6 +215,85 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
       setIsAiLoading(false);
     }
   };
+
+  const mentionSuggestions = useMemo(() => {
+    if (!mentionQuery && !showMentionSuggestions) return [];
+    const q = mentionQuery.toLowerCase();
+    return (connections || []).filter(c =>
+      c.name.toLowerCase().includes(q) || c.username.toLowerCase().includes(q)
+    ).slice(0, 6);
+  }, [connections, mentionQuery, showMentionSuggestions]);
+
+  const handleContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setContent(val);
+
+    const urlMatch = val.match(/https?:\/\/[^\s]+/);
+    const foundUrl = urlMatch ? urlMatch[0] : null;
+    if (foundUrl !== detectedUrl) {
+      setDetectedUrl(foundUrl);
+      setLinkPreview(null);
+      if (urlDebounceRef.current) clearTimeout(urlDebounceRef.current);
+      if (foundUrl) {
+        setIsFetchingPreview(true);
+        urlDebounceRef.current = setTimeout(async () => {
+          try {
+            const res = await fetch(`/api/link-preview?url=${encodeURIComponent(foundUrl)}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.url) setLinkPreview(data);
+            }
+          } catch {}
+          finally { setIsFetchingPreview(false); }
+        }, 800);
+      } else {
+        setIsFetchingPreview(false);
+      }
+    }
+
+    const cursorPos = e.target.selectionStart ?? val.length;
+    const textBeforeCursor = val.slice(0, cursorPos);
+    const mentionMatch = textBeforeCursor.match(/@([\w]*)$/);
+    if (mentionMatch) {
+      setMentionQuery(mentionMatch[1]);
+      setShowMentionSuggestions(true);
+      setMentionStartIndex(cursorPos - mentionMatch[0].length);
+    } else {
+      setShowMentionSuggestions(false);
+      setMentionQuery('');
+      setMentionStartIndex(-1);
+    }
+  }, [detectedUrl]);
+
+  const handleSelectMention = useCallback((user: any) => {
+    if (taggedUsers.length >= 25) {
+      toast({ variant: 'destructive', title: 'Tag Limit Reached', description: 'You can only tag up to 25 people.' });
+      return;
+    }
+    if (!taggedUsers.find(u => u.username === user.username)) {
+      setTaggedUsers(prev => [...prev, user]);
+    }
+    const before = content.slice(0, mentionStartIndex);
+    const after = content.slice(mentionStartIndex + mentionQuery.length + 1);
+    setContent(before + '@' + user.username + ' ' + after);
+    setShowMentionSuggestions(false);
+    setMentionQuery('');
+    setMentionStartIndex(-1);
+    setTimeout(() => textareaRef.current?.focus(), 50);
+  }, [content, mentionStartIndex, mentionQuery, taggedUsers, toast]);
+
+  const handleToggleTagUser = useCallback((user: any) => {
+    triggerHaptic(10);
+    setTaggedUsers(prev => {
+      const exists = prev.find(u => u.username === user.username);
+      if (exists) return prev.filter(u => u.username !== user.username);
+      if (prev.length >= 25) {
+        toast({ variant: 'destructive', title: 'Tag Limit Reached', description: 'You can only tag up to 25 people.' });
+        return prev;
+      }
+      return [...prev, user];
+    });
+  }, [triggerHaptic, toast]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -302,6 +392,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         commentsDisabled,
         isLocked,
         unlockPrice: isLocked ? unlockPrice : undefined,
+        taggedUsers: taggedUsers.length > 0 ? taggedUsers : undefined,
+        linkPreview: linkPreview || undefined,
         poll: isPollOpen && pollQuestion ? {
           question: pollQuestion,
           options: pollOptions.filter(o => o.trim()).map(text => ({ text, votes: 0 })),
@@ -332,7 +424,13 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setLocation("");
     setPollQuestion("");
     setPollOptions(["", ""]);
-    setCollaborator(null);
+    setTaggedUsers([]);
+    setMentionQuery('');
+    setShowMentionSuggestions(false);
+    setMentionStartIndex(-1);
+    setLinkPreview(null);
+    setIsFetchingPreview(false);
+    setDetectedUrl(null);
     setSelectedTheme(backgroundThemes[0]);
     setSelectedFilter(imageFilters[0]);
     setIsLocked(false);
@@ -443,11 +541,11 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
                   <Button 
                     variant="secondary" 
                     size="sm" 
-                    className={cn("h-7 px-2 rounded-md flex items-center gap-1.5", collaborator ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/60")}
+                    className={cn("h-7 px-2 rounded-md flex items-center gap-1.5", taggedUsers.length > 0 ? "bg-primary/10 text-primary border-primary/20" : "bg-secondary/60")}
                     onClick={() => setIsTaggingSelectorOpen(true)}
                   >
-                    <Users2 className="h-3.5 w-3.5" />
-                    <span className="text-[13px] font-bold">{collaborator ? `With ${collaborator.name}` : "Collaborator"}</span>
+                    <Tag className="h-3.5 w-3.5" />
+                    <span className="text-[13px] font-bold">{taggedUsers.length > 0 ? `${taggedUsers.length} Tagged` : "Tag People"}</span>
                   </Button>
                 </div>
               </div>
@@ -466,7 +564,37 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           </div>
 
           <div className={cn("px-4 relative min-h-[220px] transition-all duration-300 flex flex-col items-center justify-center p-8", selectedTheme.class)}>
-            <Textarea ref={textareaRef} placeholder={isLimitedType ? "Short vibe... (150 chars max)" : "What's on your mind? (2000 chars max)"} className={cn("border-none focus-visible:ring-0 text-2xl resize-none p-0 min-h-[160px] bg-transparent text-center", selectedTheme.id !== "none" ? "text-white placeholder:text-white/60" : "text-foreground")} value={content} onChange={(e) => setContent(e.target.value)} autoFocus />
+            <div className="relative w-full">
+              <Textarea ref={textareaRef} placeholder={isLimitedType ? "Short vibe... (150 chars max)" : "What's on your mind? (2000 chars max)"} className={cn("border-none focus-visible:ring-0 text-2xl resize-none p-0 min-h-[160px] bg-transparent text-center w-full", selectedTheme.id !== "none" ? "text-white placeholder:text-white/60" : "text-foreground")} value={content} onChange={handleContentChange} autoFocus />
+              {showMentionSuggestions && mentionSuggestions.length > 0 && (
+                <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white dark:bg-card border border-primary/10 rounded-2xl shadow-xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                  <div className="px-3 py-2 border-b border-primary/5 flex items-center gap-2">
+                    <Tag className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">Tag a person</span>
+                    <span className="ml-auto text-[9px] text-muted-foreground font-bold">{taggedUsers.length}/25 tagged</span>
+                  </div>
+                  {mentionSuggestions.map((user) => (
+                    <button
+                      key={user.username}
+                      onMouseDown={(e) => { e.preventDefault(); handleSelectMention(user); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-secondary/40 transition-colors text-left"
+                    >
+                      <Avatar className="h-8 w-8 border border-primary/10">
+                        <AvatarImage src={user.avatar} />
+                        <AvatarFallback>{user.name?.[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-bold text-sm leading-none truncate">{user.name}</span>
+                        <span className="text-[10px] text-muted-foreground font-black uppercase mt-0.5">@{user.username}</span>
+                      </div>
+                      {taggedUsers.find(u => u.username === user.username) && (
+                        <CheckCircle2 className="h-4 w-4 text-primary ml-auto shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             
             {isLocked && (
               <div className="w-full max-w-sm mt-8 p-6 bg-black/20 backdrop-blur-md rounded-[2.5rem] border border-white/10 space-y-6 animate-in zoom-in-95">
@@ -492,6 +620,58 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               </div>
             )}
           </div>
+
+          {(isFetchingPreview || linkPreview || taggedUsers.length > 0) && (
+            <div className="px-4 space-y-3 animate-in slide-in-from-bottom-2 duration-300">
+              {taggedUsers.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {taggedUsers.map(u => (
+                    <div key={u.username} className="flex items-center gap-1.5 bg-primary/10 text-primary rounded-full px-3 py-1 text-[11px] font-bold">
+                      <Avatar className="h-4 w-4"><AvatarImage src={u.avatar} /><AvatarFallback>{u.name?.[0]}</AvatarFallback></Avatar>
+                      @{u.username}
+                      <button onClick={() => setTaggedUsers(p => p.filter(x => x.username !== u.username))} className="ml-1 hover:text-destructive transition-colors"><X className="h-3 w-3" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {isFetchingPreview && (
+                <div className="flex items-center gap-2 text-[11px] text-muted-foreground p-3 bg-secondary/20 rounded-xl border border-primary/5">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                  <span className="font-bold uppercase tracking-widest text-[9px]">Fetching link preview...</span>
+                </div>
+              )}
+              {linkPreview && !isFetchingPreview && (
+                <a
+                  href={linkPreview.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="block rounded-2xl border border-primary/10 overflow-hidden bg-secondary/20 group relative"
+                >
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLinkPreview(null); setDetectedUrl(null); }}
+                    className="absolute top-2 right-2 z-10 bg-black/60 text-white p-1 rounded-full hover:bg-black/80 transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                  {linkPreview.image && (
+                    <div className="w-full h-40 overflow-hidden bg-secondary/40">
+                      <img src={linkPreview.image} alt={linkPreview.title || ''} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    </div>
+                  )}
+                  <div className="p-3 space-y-1">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      {linkPreview.favicon && <img src={linkPreview.favicon} alt="" className="h-3.5 w-3.5 rounded-sm" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
+                      <span>{linkPreview.siteName || ''}</span>
+                      <ExternalLink className="h-2.5 w-2.5 ml-auto opacity-40" />
+                    </div>
+                    {linkPreview.title && <p className="font-bold text-sm line-clamp-2">{linkPreview.title}</p>}
+                    {linkPreview.description && <p className="text-[11px] text-muted-foreground line-clamp-2">{linkPreview.description}</p>}
+                  </div>
+                </a>
+              )}
+            </div>
+          )}
 
           {isPollOpen && (
             <div className="px-4 py-6 bg-secondary/10 border-y border-primary/5 space-y-6 animate-in slide-in-from-bottom-4">
@@ -645,7 +825,31 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
 
         <Dialog open={isTaggingSelectorOpen} onOpenChange={setIsTaggingSelectorOpen}>
           <DialogContent className="rounded-t-[2.5rem] p-0 overflow-hidden h-[80vh] flex flex-col bg-white dark:bg-card">
-            <DialogHeader className="p-6 border-b"><DialogTitle className="text-xl font-black italic uppercase tracking-widest text-primary">Collaborator Sync</DialogTitle></DialogHeader>
+            <DialogHeader className="p-6 border-b space-y-1">
+              <DialogTitle className="text-xl font-black italic uppercase tracking-widest text-primary flex items-center gap-2">
+                <Tag className="h-5 w-5" /> Tag People
+              </DialogTitle>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                {taggedUsers.length}/25 people tagged
+              </p>
+            </DialogHeader>
+            {taggedUsers.length > 0 && (
+              <div className="px-4 py-3 flex flex-wrap gap-2 border-b border-primary/5 bg-primary/5">
+                {taggedUsers.map(u => (
+                  <div key={u.username} className="flex items-center gap-1.5 bg-white dark:bg-card rounded-full px-2.5 py-1 text-[11px] font-bold shadow-sm border border-primary/10">
+                    <Avatar className="h-4 w-4"><AvatarImage src={u.avatar} /><AvatarFallback>{u.name?.[0]}</AvatarFallback></Avatar>
+                    @{u.username}
+                    <button onClick={() => handleToggleTagUser(u)} className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors"><X className="h-3 w-3" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {taggedUsers.length >= 25 && (
+              <div className="mx-4 mt-3 flex items-center gap-2 text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-xl px-3 py-2">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                You can only tag up to 25 people.
+              </div>
+            )}
             <div className="p-4 space-y-4 shrink-0">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -654,17 +858,25 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
             </div>
             <ScrollArea className="flex-1 px-4">
               <div className="space-y-2 pb-10">
-                {(filteredTagResults || []).map((c) => (
-                  <button key={c.username} onClick={() => { triggerHaptic(10); setCollaborator(c); setIsTaggingSelectorOpen(false); }} className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-secondary/40 transition-all">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={c.avatar} /></Avatar>
-                      <div className="text-left"><p className="font-bold text-sm leading-none">{c.name}</p><p className="text-[10px] text-muted-foreground font-black uppercase mt-1">@{c.username}</p></div>
-                    </div>
-                    {collaborator?.username === c.username && <CheckCircle2 className="h-5 w-5 text-primary" />}
-                  </button>
-                ))}
+                {(filteredTagResults || []).map((c) => {
+                  const isTagged = taggedUsers.some(u => u.username === c.username);
+                  return (
+                    <button key={c.username} onClick={() => handleToggleTagUser(c)} className={cn("w-full flex items-center justify-between p-3 rounded-2xl hover:bg-secondary/40 transition-all", isTagged && "bg-primary/5")}>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={c.avatar} /><AvatarFallback>{c.name?.[0]}</AvatarFallback></Avatar>
+                        <div className="text-left"><p className="font-bold text-sm leading-none">{c.name}</p><p className="text-[10px] text-muted-foreground font-black uppercase mt-1">@{c.username}</p></div>
+                      </div>
+                      {isTagged ? <CheckCircle2 className="h-5 w-5 text-primary" /> : <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/20" />}
+                    </button>
+                  );
+                })}
               </div>
             </ScrollArea>
+            <div className="p-4 border-t shrink-0">
+              <Button className="w-full font-bold rounded-xl" onClick={() => setIsTaggingSelectorOpen(false)}>
+                Done ({taggedUsers.length} tagged)
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </DialogContent>

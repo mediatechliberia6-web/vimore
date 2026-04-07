@@ -86,6 +86,15 @@ export interface StorySegment {
   orderIndex?: number;
 }
 
+export interface LinkPreview {
+  url: string;
+  title?: string;
+  description?: string;
+  image?: string;
+  siteName?: string;
+  favicon?: string;
+}
+
 export interface Post {
   $id: string;
   $createdAt?: string;
@@ -118,6 +127,9 @@ export interface Post {
   timestamp?: string | number;
   mediaUrls?: string[];
   isPinned?: boolean;
+  hashtags?: string[];
+  taggedUsers?: string[];
+  linkPreview?: LinkPreview | null;
 }
 
 export interface PostComment {
@@ -497,6 +509,11 @@ function mapDocToPost(doc: Models.Document, authorDoc?: Models.Document): Post {
     boostCurrentViews: doc.boost_current_views || 0,
     boostExpiry: doc.boost_expiry ? Number(doc.boost_expiry) : undefined,
     poll,
+    hashtags: Array.isArray(doc.hashtags) ? doc.hashtags : [],
+    taggedUsers: Array.isArray(doc.tagged_users) ? doc.tagged_users : [],
+    linkPreview: doc.link_preview
+      ? (() => { try { return typeof doc.link_preview === 'string' ? JSON.parse(doc.link_preview) : doc.link_preview; } catch { return null; } })()
+      : null,
   };
 }
 
@@ -1732,6 +1749,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
       videoId = extractFileId(p.videoUrl) || undefined;
     }
 
+    const hashtagRegex = /#[\w\u00C0-\u024F]+/g;
+    const extractedHashtags = [...new Set(
+      ((p.content || '').match(hashtagRegex) || []).map((t: string) => t.toLowerCase())
+    )];
+
+    const taggedUserIds: string[] = Array.isArray(p.taggedUsers)
+      ? p.taggedUsers.map((u: any) => (typeof u === 'string' ? u : u.$id)).filter(Boolean)
+      : [];
+
     const docData: Record<string, any> = {
       user_id: currentUser.$id,
       content: p.content || '',
@@ -1746,6 +1772,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
       comments_disabled: p.commentsDisabled || false,
     };
 
+    if (extractedHashtags.length > 0) docData.hashtags = extractedHashtags;
+    if (taggedUserIds.length > 0) docData.tagged_users = taggedUserIds;
+    if (p.linkPreview) docData.link_preview = JSON.stringify(p.linkPreview);
     if (mediaIds.length > 0) docData.image_ids = mediaIds;
     if (videoId) docData.video_id = videoId;
     if (p.theme) docData.theme = p.theme;
@@ -1759,6 +1788,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const doc = await databases.createDocument(DATABASE_ID, COL.POSTS, ID.unique(), docData);
       const newPost = mapDocToPost(doc, undefined);
       newPost.user = currentUser;
+      newPost.hashtags = extractedHashtags;
+      newPost.taggedUsers = taggedUserIds;
+      if (p.linkPreview) newPost.linkPreview = p.linkPreview;
       if (p.images && p.images.length > 0) { newPost.images = p.images; newPost.image = p.images[0]; }
       if (p.videoUrl) newPost.videoUrl = p.videoUrl;
       setPostsState(prev => [newPost, ...prev]);
@@ -1790,6 +1822,26 @@ export function PostProvider({ children }: { children: ReactNode }) {
           }
         });
       }).catch(() => {});
+
+      // Notify tagged users (fire-and-forget)
+      if (taggedUserIds.length > 0) {
+        taggedUserIds.forEach(uid => {
+          if (uid !== currentUser.$id) {
+            databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+              user_id: uid,
+              from_user_id: currentUser.$id,
+              from_user_name: currentUser.name || currentUser.username,
+              from_user_avatar: currentUser.avatar || '',
+              type: 'TAG',
+              title: 'You were tagged',
+              content: `${currentUser.name || '@' + currentUser.username} tagged you in a post`,
+              message: `${currentUser.name || '@' + currentUser.username} tagged you in a post`,
+              post_id: doc.$id,
+              is_read: false,
+            }).catch(() => {});
+          }
+        });
+      }
     } catch (err: any) {
       logAppwriteError('addPost', err);
       throw err;

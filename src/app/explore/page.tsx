@@ -31,10 +31,12 @@ import {
   EyeOff
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 export default function ExplorePage() {
+  const router = useRouter();
   const { currentTrack, isExpanded } = useMusic();
   const { settings, posts } = usePosts();
   const { t } = useTranslation();
@@ -172,10 +174,14 @@ export default function ExplorePage() {
               </div>
               <div className="flex-1 flex flex-col gap-4">
                 {trendingTags.map((tag) => (
-                  <div key={tag} className="flex items-center justify-between group cursor-pointer">
+                  <button
+                    key={tag}
+                    onClick={() => router.push(`/hashtag/${encodeURIComponent(tag.replace('#', ''))}`)}
+                    className="flex items-center justify-between group"
+                  >
                     <span className="font-bold text-sm text-muted-foreground group-hover:text-primary transition-colors">{tag}</span>
                     <TrendingUp className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-colors" />
-                  </div>
+                  </button>
                 ))}
               </div>
               <Button variant="ghost" className="w-full mt-4 text-primary font-bold text-xs uppercase tracking-widest">{t('explore_see_all_tags')}</Button>

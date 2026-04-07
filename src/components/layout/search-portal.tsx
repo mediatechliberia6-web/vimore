@@ -105,10 +105,16 @@ export function SearchPortal() {
       (s.artist || "").toLowerCase().includes(q)
     );
 
-    const nodes = posts.filter(p => 
-      (p.content || "").toLowerCase().includes(q) || 
-      (p.user?.name || "").toLowerCase().includes(q)
-    );
+    const qIsExactTag = q.startsWith('#');
+    const nodes = posts.filter(p => {
+      const matchesContent = (p.content || "").toLowerCase().includes(q);
+      const matchesUser = (p.user?.name || "").toLowerCase().includes(q);
+      const postHashtags: string[] = (p as any).hashtags || [];
+      const matchesHashtag = qIsExactTag
+        ? postHashtags.includes(q)
+        : postHashtags.some((h: string) => h.includes(q));
+      return matchesContent || matchesUser || matchesHashtag;
+    });
 
     return { people: liveUsers, audio, nodes };
   }, [query, liveUsers, posts, globalSongs]);
@@ -201,7 +207,7 @@ export function SearchPortal() {
                   <button 
                     key={tag} 
                     className="flex items-center justify-between p-5 bg-white/40 dark:bg-white/5 border border-white/20 rounded-[1.75rem] hover:bg-primary/5 hover:border-primary/20 transition-all group text-left"
-                    onClick={() => setQuery(tag.replace('#', ''))}
+                    onClick={() => { saveSearch(tag); setSearchOpen(false); router.push(`/hashtag/${encodeURIComponent(tag.replace('#', ''))}`); }}
                   >
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">

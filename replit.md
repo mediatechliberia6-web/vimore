@@ -28,6 +28,8 @@ ViMore is a Next.js 15 social networking and creator platform with a violet (#99
 |------|-------------|
 | `/login` | Login page |
 | `/signup` | Signup page (email verification sent on completion) |
+| `/hashtag/[tag]` | Hashtag results page — queries Appwrite for posts with that hashtag |
+| `/api/link-preview` | Server-side Open Graph preview endpoint (uses link-preview-js) |
 | `/auth/verify` | Email verification redirect handler |
 | `/auth/recovery` | Password recovery |
 | `/` | Main social feed |
