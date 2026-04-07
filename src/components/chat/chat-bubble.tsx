@@ -496,7 +496,6 @@ export function ChatBubble({
                           muted={!isPlayingVideo}
                           playsInline
                           preload="metadata"
-                          crossOrigin="anonymous"
                         />
                         <div className={cn(
                           "absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-300",

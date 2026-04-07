@@ -474,7 +474,6 @@ function ReelItem({
         playsInline
         muted={isMuted}
         preload="metadata"
-        crossOrigin="anonymous"
         className="absolute inset-0 w-full h-full object-cover"
       />
 

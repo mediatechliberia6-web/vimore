@@ -308,7 +308,6 @@ export function StoryViewer() {
                       loop
                       playsInline
                       preload="metadata"
-                      crossOrigin="anonymous"
                     />
                   ) : currentStoryCampaign.media_url ? (
                     <Image 
@@ -476,7 +475,6 @@ export function StoryViewer() {
                         loop
                         playsInline
                         preload="metadata"
-                        crossOrigin="anonymous"
                       />
                       <button
                         className="absolute bottom-24 right-4 z-30 p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white"

@@ -126,7 +126,6 @@ export function VideoViewerPortal() {
             muted={isMuted}
             playsInline
             preload="metadata"
-            crossOrigin="anonymous"
           />
         )}
 

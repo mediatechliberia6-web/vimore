@@ -125,7 +125,6 @@ export function ImageViewerPortal() {
               src={imgSrc}
               alt="Immersive Visual"
               className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
-              crossOrigin="anonymous"
               onError={() => {
                 if (imgSrc && !imgSrc.includes('?t=')) {
                   setImgSrc(`${selectedImageUrl}${selectedImageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`);
