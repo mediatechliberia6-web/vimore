@@ -304,14 +304,35 @@ export default function Home() {
 
                   return <PostCard key={`post-${item.data.$id}`} {...item.data} />;
                 })}
-                <div ref={endRef} className="h-20 flex items-center justify-center p-8">
-                  {isFeedLoading ? (
-                    <div className="flex items-center gap-2 text-muted-foreground/40 font-black uppercase text-[10px] tracking-[0.3em]">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Materializing...
-                    </div>
-                  ) : !hasMoreFeed ? (
+                {isFeedLoading && (
+                  <div className="flex flex-col gap-1 w-full">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={`feed-skeleton-${i}`} className="bg-white dark:bg-card rounded-[2rem] overflow-hidden animate-pulse">
+                        <div className="flex items-center gap-3 p-4">
+                          <div className="w-10 h-10 rounded-full bg-secondary/50 flex-shrink-0" />
+                          <div className="flex-1 space-y-1.5">
+                            <div className="h-3 bg-secondary/50 rounded-full w-32" />
+                            <div className="h-2.5 bg-secondary/40 rounded-full w-20" />
+                          </div>
+                        </div>
+                        <div className="aspect-[4/5] bg-secondary/30 w-full" />
+                        <div className="p-4 space-y-2">
+                          <div className="h-3 bg-secondary/40 rounded-full w-3/4" />
+                          <div className="h-3 bg-secondary/30 rounded-full w-1/2" />
+                          <div className="flex items-center gap-4 pt-2">
+                            <div className="h-8 w-16 bg-secondary/30 rounded-full" />
+                            <div className="h-8 w-16 bg-secondary/30 rounded-full" />
+                            <div className="h-8 w-16 bg-secondary/30 rounded-full" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div ref={endRef} className="h-10 flex items-center justify-center">
+                  {!isFeedLoading && !hasMoreFeed && (
                     <div className="text-muted-foreground/20 text-[8px] font-black uppercase tracking-[0.5em]">Network End</div>
-                  ) : null}
+                  )}
                 </div>
               </>
             ) : !isLoading && (
