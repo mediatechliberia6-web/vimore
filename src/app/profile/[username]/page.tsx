@@ -142,6 +142,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
             followers: typeof payload.followers_count === 'number' ? payload.followers_count : prev.followers,
             following: typeof payload.following_count === 'number' ? payload.following_count : prev.following,
             friendsCount: typeof payload.friends_count === 'number' ? payload.friends_count : prev.friendsCount,
+            posts: typeof payload.posts_count === 'number' ? payload.posts_count : prev.posts,
           };
         });
       }
@@ -330,7 +331,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                     <div className="flex items-center gap-6 py-2">
                       <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowers.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div>
                       <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowing.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
-                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{profilePosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
+                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{displayUser.posts ?? 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
                     </div>
                   </div>
                   {isEliteCreator && !isMe && (

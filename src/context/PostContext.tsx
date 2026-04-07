@@ -1862,13 +1862,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const deletePost = async (id: string) => {
     const original = postsState.find(p => p.$id === id);
-    // Remove from UI immediately so the user doesn't wait for the network
     setPostsState(prev => prev.filter(p => p.$id !== id));
     try {
       await databases.deleteDocument(DATABASE_ID, COL.POSTS, id);
+      if (currentUser) {
+        const newCount = Math.max(0, (currentUser.posts as number || 0) - 1);
+        await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
+          posts_count: newCount,
+        });
+        setCurrentUserState(prev => prev ? { ...prev, posts: newCount } : null);
+      }
       toast({ title: "Post deleted" });
     } catch (err: any) {
-      // Restore the post if the database delete failed
       if (original) setPostsState(prev => [original, ...prev.filter(p => p.$id !== id)]);
       logAppwriteError('deletePost', err);
       toast({ variant: "destructive", title: "Failed to delete post", description: formatErrorDescription(err, currentUser?.role) });
@@ -3479,7 +3484,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
           for (const doc of existing.documents) {
             const followingId = doc.following_id;
             await databases.deleteDocument(DATABASE_ID, COL.FOLLOWS, doc.$id);
-            if (followingId) setFollowingUserIdsState(prev => { const n = new Set(prev); n.delete(followingId); return n; });
+            if (followingId) {
+              setFollowingUserIdsState(prev => { const n = new Set(prev); n.delete(followingId); return n; });
+              try {
+                const targetDoc = await databases.getDocument(DATABASE_ID, COL.USERS, followingId);
+                await databases.updateDocument(DATABASE_ID, COL.USERS, followingId, {
+                  followers_count: Math.max(0, (targetDoc.followers_count || 0) - 1),
+                });
+              } catch { /* keep optimistic */ }
+            }
           }
           await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
             following_count: Math.max(0, (currentUser.following as number || 0) - 1),
