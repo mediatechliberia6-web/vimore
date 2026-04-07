@@ -72,6 +72,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const { settings, triggerHaptic, currentUser, selectedChatId } = usePosts();
 
+  // Tracks IDs currently being deleted so polls don't re-add them
+  const pendingDeletions = React.useRef<Set<string>>(new Set());
+
   const loadNotifications = useCallback(async (userId: string) => {
     try {
       const res = await databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
@@ -80,22 +83,24 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         Query.orderDesc('$createdAt'),
         Query.limit(50),
       ]);
-      const mapped: NotificationNode[] = res.documents.map((doc: any) => ({
-        id: doc.$id,
-        type: (doc.type as SignalType) || 'SYSTEM',
-        title: doc.title || '',
-        content: doc.content || doc.message || '',
-        time: formatTimeAgoSimple(doc.$createdAt),
-        isRead: doc.is_read || false,
-        recipientId: doc.user_id || '',
-        postId: doc.post_id || undefined,
-        trackId: doc.track_id || undefined,
-        targetUsername: doc.target_username || undefined,
-        avatar: doc.avatar || undefined,
-        image: doc.image || undefined,
-        actionLabel: doc.action_label || undefined,
-        actionHref: doc.action_href || undefined,
-      }));
+      const mapped: NotificationNode[] = res.documents
+        .filter((doc: any) => !pendingDeletions.current.has(doc.$id))
+        .map((doc: any) => ({
+          id: doc.$id,
+          type: (doc.type as SignalType) || 'SYSTEM',
+          title: doc.title || '',
+          content: doc.content || doc.message || '',
+          time: formatTimeAgoSimple(doc.$createdAt),
+          isRead: doc.is_read || false,
+          recipientId: doc.user_id || '',
+          postId: doc.post_id || undefined,
+          trackId: doc.track_id || undefined,
+          targetUsername: doc.target_username || undefined,
+          avatar: doc.avatar || undefined,
+          image: doc.image || undefined,
+          actionLabel: doc.action_label || undefined,
+          actionHref: doc.action_href || undefined,
+        }));
       setNotifications(mapped);
     } catch (err) {
       console.error('loadNotifications error:', err);
@@ -184,8 +189,17 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const purgeSignal = useCallback((id: string) => {
+    // Remove from UI immediately
     setNotifications(prev => prev.filter(n => n.id !== id));
-    databases.deleteDocument(DATABASE_ID, COL.NOTIFICATIONS, id).catch(() => { /* ignore */ });
+    // Guard the polling loop so it won't re-add this ID while the delete is in flight
+    pendingDeletions.current.add(id);
+    databases.deleteDocument(DATABASE_ID, COL.NOTIFICATIONS, id)
+      .catch((err) => {
+        console.error('purgeSignal DB delete failed:', err);
+      })
+      .finally(() => {
+        pendingDeletions.current.delete(id);
+      });
   }, []);
 
   const clearPulse = useCallback((category: PulseCategory) => {
