@@ -784,9 +784,33 @@ function ReelItem({
 }
 
 export default function ReelsPage() {
-  const { posts, campaigns, openCommentHub, fetchComments, friendUsernames, followingUsernames, settings, isOffline } = usePosts();
+  const { campaigns, openCommentHub, fetchComments, friendUsernames, followingUsernames, settings, isOffline, fetchReels, postCountOverrides } = usePosts();
 
-  const reels = useMemo(() => posts.filter((p) => p.videoUrl), [posts]);
+  const [reelsList, setReelsList] = useState<Post[]>([]);
+  const [reelsCursor, setReelsCursor] = useState<string | null>(null);
+  const [hasMoreReels, setHasMoreReels] = useState(true);
+  const [isLoadingReels, setIsLoadingReels] = useState(false);
+  const isLoadingReelsRef = useRef(false);
+
+  useEffect(() => {
+    if (isLoadingReelsRef.current) return;
+    isLoadingReelsRef.current = true;
+    setIsLoadingReels(true);
+    fetchReels(null).then(({ posts, cursor, hasMore }) => {
+      setReelsList(posts);
+      setReelsCursor(cursor);
+      setHasMoreReels(hasMore);
+    }).finally(() => {
+      setIsLoadingReels(false);
+      isLoadingReelsRef.current = false;
+    });
+  }, [fetchReels]);
+
+  const reels = useMemo(() => reelsList.map(r => {
+    const ov = postCountOverrides[r.$id];
+    if (!ov) return r;
+    return { ...r, ...(ov.likes !== undefined ? { likes: ov.likes } : {}), ...(ov.unlikes !== undefined ? { unlikes: ov.unlikes } : {}), ...(ov.comments !== undefined ? { comments: ov.comments } : {}), ...(ov.shares !== undefined ? { shares: ov.shares } : {}) };
+  }), [reelsList, postCountOverrides]);
 
   const reelFeed = useMemo<ReelFeedItem[]>(() => {
     const videoCampaigns = campaigns
@@ -902,6 +926,25 @@ export default function ReelsPage() {
     if (video) video.muted = isMuted;
   }, [isMuted, activeIndex]);
 
+  useEffect(() => {
+    const feedLength = activeFeed.filter(r => !r.isCampaignReel).length;
+    if (activeIndex >= feedLength - 3 && hasMoreReels && !isLoadingReelsRef.current) {
+      isLoadingReelsRef.current = true;
+      setIsLoadingReels(true);
+      fetchReels(reelsCursor).then(({ posts, cursor, hasMore }) => {
+        setReelsList(prev => {
+          const existingIds = new Set(prev.map(r => r.$id));
+          return [...prev, ...posts.filter(r => !existingIds.has(r.$id))];
+        });
+        setReelsCursor(cursor);
+        setHasMoreReels(hasMore);
+      }).finally(() => {
+        setIsLoadingReels(false);
+        isLoadingReelsRef.current = false;
+      });
+    }
+  }, [activeIndex, activeFeed, hasMoreReels, reelsCursor, fetchReels]);
+
   const handleOpenComment = useCallback(
     (postId: string) => {
       openCommentHub(postId);
@@ -923,6 +966,18 @@ export default function ReelsPage() {
         <p className="text-white/50 text-sm font-medium max-w-xs leading-relaxed">
           Can&apos;t access this page because Free Mode is on. Turn off Free Mode in settings to watch Reels.
         </p>
+      </div>
+    );
+  }
+
+  if (isLoadingReels && reelsList.length === 0) {
+    return (
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-4">
+        <Link href="/" className="absolute top-4 left-4 w-9 h-9 rounded-full bg-white/10 flex items-center justify-center">
+          <ArrowLeft className="w-5 h-5 text-white" />
+        </Link>
+        <Loader2 className="w-12 h-12 text-white/40 animate-spin" />
+        <p className="text-white/40 font-bold text-sm uppercase tracking-widest">Loading Reels</p>
       </div>
     );
   }
@@ -988,20 +1043,27 @@ export default function ReelsPage() {
             <p className="text-white/30 text-sm">Add friends or follow people to see their reels here</p>
           </div>
         ) : (
-          activeFeed.map((reel, index) => (
-            <ReelItem
-              key={`${reel.$id}-${index}`}
-              reel={reel}
-              index={index}
-              isMuted={isMuted}
-              isActive={activeIndex === index}
-              onVideoRef={setVideoRef(index)}
-              onContainerRef={setContainerRef(index)}
-              onToggleMute={() => setIsMuted((m) => !m)}
-              onOpenShare={() => !reel.isCampaignReel && setShareReel(reel)}
-              onOpenComment={() => !reel.isCampaignReel && handleOpenComment(reel.$id)}
-            />
-          ))
+          <>
+            {activeFeed.map((reel, index) => (
+              <ReelItem
+                key={`${reel.$id}-${index}`}
+                reel={reel}
+                index={index}
+                isMuted={isMuted}
+                isActive={activeIndex === index}
+                onVideoRef={setVideoRef(index)}
+                onContainerRef={setContainerRef(index)}
+                onToggleMute={() => setIsMuted((m) => !m)}
+                onOpenShare={() => !reel.isCampaignReel && setShareReel(reel)}
+                onOpenComment={() => !reel.isCampaignReel && handleOpenComment(reel.$id)}
+              />
+            ))}
+            {isLoadingReels && reelsList.length > 0 && (
+              <div className="h-[100svh] w-full flex-shrink-0 snap-start bg-black flex items-center justify-center">
+                <Loader2 className="w-10 h-10 text-white/30 animate-spin" />
+              </div>
+            )}
+          </>
         )}
       </div>
 
