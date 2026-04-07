@@ -36,7 +36,7 @@ interface ChatListProps {
 }
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
-  const { connections = [], clusters = [], triggerHaptic, settings, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, markChatMessagesRead } = usePosts();
+  const { connections = [], clusters = [], triggerHaptic, settings, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, markChatMessagesRead, chatLastMessageAt } = usePosts();
   const { categoryPulses, clearPulse, messagePreviews } = useNotifications();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -103,12 +103,11 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
       );
     }
 
-    const getLastMsgTime = (id: string) => {
+    const getLastMsgTime = (id: string): number => {
+      if (chatLastMessageAt[id]) return chatLastMessageAt[id];
       const msgs = chatMessages[id];
       if (!msgs || msgs.length === 0) return -1;
-      const lastId = msgs[msgs.length - 1].$id || "";
-      const ts = parseInt(lastId.split("_").pop() || "0", 10);
-      return isNaN(ts) ? msgs.length : ts;
+      return msgs.length;
     };
 
     const sorted = list.sort((a, b) => {
@@ -122,7 +121,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     });
 
     return { sortedChats: sorted, requestCount: requests.length };
-  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, showRequests]);
+  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, chatLastMessageAt, showRequests]);
 
   const handleSelection = (id: string) => {
     triggerHaptic(5);

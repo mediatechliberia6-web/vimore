@@ -49,7 +49,7 @@ import {
   Film
 } from "lucide-react";
 import Link from "next/link";
-import { usePosts } from "@/context/PostContext";
+import { usePosts, Post } from "@/context/PostContext";
 import Image from "next/image";
 import { cn, dataURLtoFile, parseFollowerCount } from "@/lib/utils";
 import {
@@ -107,7 +107,7 @@ function InfoNode({ icon: Icon, label, value, colorClass }: { icon: any, label: 
 }
 
 export default function MyProfilePage() {
-  const { currentUser, posts, updateCurrentUser, uploadMedia, triggerHaptic, settings, setSelectedImageUrl, addPost, friendUsernames, followingUsernames, followerUsernames, isLoading } = usePosts();
+  const { currentUser, updateCurrentUser, uploadMedia, triggerHaptic, settings, setSelectedImageUrl, addPost, friendUsernames, followingUsernames, followerUsernames, isLoading, fetchProfilePosts } = usePosts();
   const { currentTrack, isExpanded, userSongs, userAlbums, userPlaylists, setTrack, playCollection, isPlaying } = useMusic();
   const { toast } = useToast();
   const router = useRouter();
@@ -131,6 +131,13 @@ export default function MyProfilePage() {
     gender: 'Male' as 'Male' | 'Female'
   });
 
+  const [ownProfilePosts, setOwnProfilePosts] = useState<Post[]>([]);
+  const [isLoadingOwnPosts, setIsLoadingOwnPosts] = useState(false);
+  const [ownPostsCursor, setOwnPostsCursor] = useState<string | null>(null);
+  const [hasMoreOwnPosts, setHasMoreOwnPosts] = useState(true);
+  const ownPostsLoadMoreRef = useRef<HTMLDivElement>(null);
+  const isLoadingOwnPostsRef = useRef(false);
+
   const isPlayerActive = currentTrack && !isExpanded;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -148,6 +155,47 @@ export default function MyProfilePage() {
       });
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser?.$id) return;
+    setOwnProfilePosts([]);
+    setOwnPostsCursor(null);
+    setHasMoreOwnPosts(true);
+    setIsLoadingOwnPosts(true);
+    isLoadingOwnPostsRef.current = true;
+    fetchProfilePosts(currentUser.$id, null).then(({ posts, cursor, hasMore }) => {
+      setOwnProfilePosts(posts);
+      setOwnPostsCursor(cursor);
+      setHasMoreOwnPosts(hasMore);
+    }).finally(() => {
+      setIsLoadingOwnPosts(false);
+      isLoadingOwnPostsRef.current = false;
+    });
+  }, [currentUser?.$id, fetchProfilePosts]);
+
+  useEffect(() => {
+    const el = ownPostsLoadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMoreOwnPosts && !isLoadingOwnPostsRef.current && currentUser?.$id) {
+        isLoadingOwnPostsRef.current = true;
+        setIsLoadingOwnPosts(true);
+        fetchProfilePosts(currentUser.$id, ownPostsCursor).then(({ posts, cursor, hasMore }) => {
+          setOwnProfilePosts(prev => {
+            const existingIds = new Set(prev.map(p => p.$id));
+            return [...prev, ...posts.filter(p => !existingIds.has(p.$id))];
+          });
+          setOwnPostsCursor(cursor);
+          setHasMoreOwnPosts(hasMore);
+        }).finally(() => {
+          setIsLoadingOwnPosts(false);
+          isLoadingOwnPostsRef.current = false;
+        });
+      }
+    }, { threshold: 0.1, rootMargin: '300px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ownProfilePosts, hasMoreOwnPosts, ownPostsCursor, currentUser?.$id, fetchProfilePosts]);
 
   const handleSaveProfile = async () => {
     if (!currentUser) return;
@@ -191,23 +239,18 @@ export default function MyProfilePage() {
     }
   };
 
-  const myPosts = useMemo(() => {
-    if (!currentUser) return [];
-    return posts.filter(p => p.user.username === currentUser.username);
-  }, [posts, currentUser?.username]);
-
   const myVideoPosts = useMemo(() => {
-    return myPosts.filter(p => !!p.videoUrl);
-  }, [myPosts]);
+    return ownProfilePosts.filter(p => !!p.videoUrl);
+  }, [ownProfilePosts]);
 
   const postedImages = useMemo(() => {
     const list: string[] = [];
-    myPosts.forEach(p => {
+    ownProfilePosts.forEach(p => {
       if (p.image) list.push(p.image);
       if (p.images) list.push(...p.images);
     });
     return Array.from(new Set(list));
-  }, [myPosts]);
+  }, [ownProfilePosts]);
 
   const formattedDob = useMemo(() => {
     if (!currentUser?.dateOfBirth) return null;
@@ -216,13 +259,13 @@ export default function MyProfilePage() {
 
   const combinedFollowers = useMemo(() => {
     if (!currentUser) return 0;
-    return parseFollowerCount(currentUser.followers) + friendUsernames.size;
-  }, [currentUser, friendUsernames.size]);
+    return parseFollowerCount(currentUser.followers);
+  }, [currentUser]);
 
   const combinedFollowing = useMemo(() => {
     if (!currentUser) return 0;
-    return (typeof currentUser.following === 'number' ? currentUser.following : parseFollowerCount(currentUser.following)) + friendUsernames.size;
-  }, [currentUser, friendUsernames.size]);
+    return typeof currentUser.following === 'number' ? currentUser.following : parseFollowerCount(currentUser.following);
+  }, [currentUser]);
 
   if (isLoading) {
     return <ProfileLoading />;
@@ -289,7 +332,7 @@ export default function MyProfilePage() {
                 <div className="flex items-center gap-6 py-2">
                   <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowers.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div>
                   <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowing.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
-                  <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{myPosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
+                  <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{ownProfilePosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 py-6 my-4 border-y border-primary/5 bg-primary/[0.02] px-4 rounded-[2rem]">
@@ -315,7 +358,37 @@ export default function MyProfilePage() {
                 <TabsTrigger value="music" className="flex-1 font-bold text-sm">Music</TabsTrigger>
                 <TabsTrigger value="media" className="flex-1 font-bold text-sm">Media</TabsTrigger>
               </TabsList>
-              <TabsContent value="all" className="p-4 space-y-4">{myPosts.length > 0 ? myPosts.map(post => <PostCard key={post.$id} {...post} />) : <div className="py-20 text-center opacity-40"><p className="font-bold">No active vibes</p></div>}</TabsContent>
+              <TabsContent value="all" className="p-4 space-y-4">
+                {isLoadingOwnPosts && ownProfilePosts.length === 0 ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="rounded-2xl overflow-hidden bg-secondary/20 animate-pulse">
+                      <div className="aspect-[4/5] bg-secondary/30 w-full" />
+                      <div className="p-4 space-y-2">
+                        <div className="h-3 bg-secondary/30 rounded-full w-3/4" />
+                        <div className="h-3 bg-secondary/30 rounded-full w-1/2" />
+                      </div>
+                    </div>
+                  ))
+                ) : ownProfilePosts.length === 0 ? (
+                  <div className="py-20 text-center opacity-40"><p className="font-bold">No active vibes</p></div>
+                ) : (
+                  <>
+                    {ownProfilePosts.map(post => <PostCard key={post.$id} {...post} />)}
+                    <div ref={ownPostsLoadMoreRef} className="h-4" />
+                    {isLoadingOwnPosts && (
+                      Array.from({ length: 2 }).map((_, i) => (
+                        <div key={`skeleton-own-${i}`} className="rounded-2xl overflow-hidden bg-secondary/20 animate-pulse">
+                          <div className="aspect-[4/5] bg-secondary/30 w-full" />
+                          <div className="p-4 space-y-2">
+                            <div className="h-3 bg-secondary/30 rounded-full w-3/4" />
+                            <div className="h-3 bg-secondary/30 rounded-full w-1/2" />
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </>
+                )}
+              </TabsContent>
               <TabsContent value="reels" className="p-4 space-y-4">
                 {myVideoPosts.length > 0 ? myVideoPosts.map(post => <PostCard key={post.$id} {...post} />) : (
                   <div className="py-20 text-center opacity-40 flex flex-col items-center gap-3">

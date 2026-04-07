@@ -37,11 +37,12 @@ import {
   Check
 } from "lucide-react";
 import Link from "next/link";
-import { usePosts, User } from "@/context/PostContext";
+import { usePosts, User, Post } from "@/context/PostContext";
 import { useNotifications } from "@/context/NotificationContext";
 import { aiTranslatePostAction } from "@/app/actions/ai";
 import Image from "next/image";
 import { cn, parseFollowerCount, isTextForeignToUser } from "@/lib/utils";
+import { client, DATABASE_ID, COL } from "@/lib/appwrite";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,7 +72,7 @@ import { useTranslation } from "@/context/LanguageContext";
 export default function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const resolvedParams = use(params);
   const username = resolvedParams.username;
-  const { currentUser, posts, connections, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, isSubscribed, subscribeToCreator, cancelSubscription, fetchProfileByUsername, settings, followerUsernames, friendUsernames, sendMessageRequest } = usePosts();
+  const { currentUser, connections, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, isSubscribed, subscribeToCreator, cancelSubscription, fetchProfileByUsername, fetchProfilePosts, settings, followerUsernames, friendUsernames, sendMessageRequest } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { addSignal } = useNotifications();
   const { t } = useTranslation();
@@ -79,7 +80,13 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   
   const [displayUser, setDisplayUser] = useState<User | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
-  
+  const [profilePosts, setProfilePosts] = useState<Post[]>([]);
+  const [isLoadingProfilePosts, setIsLoadingProfilePosts] = useState(false);
+  const [profileCursor, setProfileCursor] = useState<string | null>(null);
+  const [hasMoreProfilePosts, setHasMoreProfilePosts] = useState(true);
+  const profileLoadMoreRef = useRef<HTMLDivElement>(null);
+  const isLoadingProfilePostsRef = useRef(false);
+
   const isMe = currentUser && username === currentUser.username;
   const isPlayerActive = currentTrack && !isExpanded;
   
@@ -118,6 +125,70 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   }, [username, fetchProfileByUsername]);
 
   useEffect(() => { if (isMe) router.replace('/profile'); }, [isMe, router]);
+
+  useEffect(() => {
+    if (!displayUser?.$id) return;
+    const unsubscribe = client.subscribe(
+      `databases.${DATABASE_ID}.collections.${COL.USERS}.documents.${displayUser.$id}`,
+      (response) => {
+        const events: string[] = response.events as string[];
+        const isUpdate = events.some(e => e.endsWith('.update'));
+        if (!isUpdate) return;
+        const payload = response.payload as any;
+        setDisplayUser(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            followers: typeof payload.followers_count === 'number' ? payload.followers_count : prev.followers,
+            following: typeof payload.following_count === 'number' ? payload.following_count : prev.following,
+            friendsCount: typeof payload.friends_count === 'number' ? payload.friends_count : prev.friendsCount,
+          };
+        });
+      }
+    );
+    return () => { unsubscribe(); };
+  }, [displayUser?.$id]);
+
+  useEffect(() => {
+    if (!displayUser?.$id) return;
+    setProfilePosts([]);
+    setProfileCursor(null);
+    setHasMoreProfilePosts(true);
+    setIsLoadingProfilePosts(true);
+    isLoadingProfilePostsRef.current = true;
+    fetchProfilePosts(displayUser.$id, null).then(({ posts, cursor, hasMore }) => {
+      setProfilePosts(posts);
+      setProfileCursor(cursor);
+      setHasMoreProfilePosts(hasMore);
+    }).finally(() => {
+      setIsLoadingProfilePosts(false);
+      isLoadingProfilePostsRef.current = false;
+    });
+  }, [displayUser?.$id, fetchProfilePosts]);
+
+  useEffect(() => {
+    const el = profileLoadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMoreProfilePosts && !isLoadingProfilePostsRef.current && displayUser?.$id) {
+        isLoadingProfilePostsRef.current = true;
+        setIsLoadingProfilePosts(true);
+        fetchProfilePosts(displayUser.$id, profileCursor).then(({ posts, cursor, hasMore }) => {
+          setProfilePosts(prev => {
+            const existingIds = new Set(prev.map(p => p.$id));
+            return [...prev, ...posts.filter(p => !existingIds.has(p.$id))];
+          });
+          setProfileCursor(cursor);
+          setHasMoreProfilePosts(hasMore);
+        }).finally(() => {
+          setIsLoadingProfilePosts(false);
+          isLoadingProfilePostsRef.current = false;
+        });
+      }
+    }, { threshold: 0.1, rootMargin: '300px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [profilePosts, hasMoreProfilePosts, profileCursor, displayUser?.$id, fetchProfilePosts]);
 
   const isEliteCreator = useMemo(() => {
     if (!displayUser) return false;
@@ -194,8 +265,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     }
   };
 
-  const userPosts = useMemo(() => posts.filter(p => p.user.username === username), [posts, username]);
-  const mediaPosts = useMemo(() => userPosts.filter(p => p.image || p.images?.length), [userPosts]);
+  const mediaPosts = useMemo(() => profilePosts.filter(p => p.image || p.images?.length), [profilePosts]);
 
   // Unified Pulse Metrics
   const combinedFollowers = useMemo(() => {
@@ -260,7 +330,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                     <div className="flex items-center gap-6 py-2">
                       <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowers.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div>
                       <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowing.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
-                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{userPosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
+                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{profilePosts.length}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
                     </div>
                   </div>
                   {isEliteCreator && !isMe && (
@@ -305,7 +375,61 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                 </div>
               </div>
             </div>
-            <Tabs defaultValue="all" className="w-full mt-2"><TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0"><TabsTrigger value="all" className="flex-1 font-bold text-sm">Posts</TabsTrigger><TabsTrigger value="media" className="flex-1 font-bold text-sm">Media</TabsTrigger></TabsList><TabsContent value="all" className="p-4 space-y-4">{userPosts.map(post => <PostCard key={post.$id} {...post} />)}</TabsContent><TabsContent value="media" className="p-4"><div className="grid grid-cols-3 gap-1">{mediaPosts.length > 0 ? mediaPosts.map(post => <div key={post.$id} className={cn("aspect-square relative group overflow-hidden rounded-lg", !settings.isFreeMode ? "cursor-pointer" : "bg-secondary/20 flex items-center justify-center")}>{!settings.isFreeMode ? (<><Image src={post.image || post.images![0]} alt="Media" fill className="object-cover transition-transform group-hover:scale-110" /><div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"><Play className="h-6 w-6" /></div></>) : <Zap className="h-6 w-6 text-muted-foreground/20" />}</div>) : <div className="col-span-3 py-20 text-center text-muted-foreground"><p className="font-bold">No media shared yet</p></div>}</div></TabsContent></Tabs>
+            <Tabs defaultValue="all" className="w-full mt-2">
+              <TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0">
+                <TabsTrigger value="all" className="flex-1 font-bold text-sm">Posts</TabsTrigger>
+                <TabsTrigger value="media" className="flex-1 font-bold text-sm">Media</TabsTrigger>
+              </TabsList>
+              <TabsContent value="all" className="p-4 space-y-4">
+                {isLoadingProfilePosts && profilePosts.length === 0 ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="rounded-2xl overflow-hidden bg-secondary/20 animate-pulse">
+                      <div className="aspect-[4/5] bg-secondary/30 w-full" />
+                      <div className="p-4 space-y-2">
+                        <div className="h-3 bg-secondary/30 rounded-full w-3/4" />
+                        <div className="h-3 bg-secondary/30 rounded-full w-1/2" />
+                      </div>
+                    </div>
+                  ))
+                ) : profilePosts.length === 0 ? (
+                  <div className="py-20 text-center text-muted-foreground">
+                    <p className="font-bold">No posts yet</p>
+                  </div>
+                ) : (
+                  <>
+                    {profilePosts.map(post => <PostCard key={post.$id} {...post} />)}
+                    <div ref={profileLoadMoreRef} className="h-4" />
+                    {isLoadingProfilePosts && (
+                      Array.from({ length: 2 }).map((_, i) => (
+                        <div key={`skeleton-more-${i}`} className="rounded-2xl overflow-hidden bg-secondary/20 animate-pulse">
+                          <div className="aspect-[4/5] bg-secondary/30 w-full" />
+                          <div className="p-4 space-y-2">
+                            <div className="h-3 bg-secondary/30 rounded-full w-3/4" />
+                            <div className="h-3 bg-secondary/30 rounded-full w-1/2" />
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </>
+                )}
+              </TabsContent>
+              <TabsContent value="media" className="p-4">
+                <div className="grid grid-cols-3 gap-1">
+                  {mediaPosts.length > 0 ? mediaPosts.map(post => (
+                    <div key={post.$id} className={cn("aspect-square relative group overflow-hidden rounded-lg", !settings.isFreeMode ? "cursor-pointer" : "bg-secondary/20 flex items-center justify-center")}>
+                      {!settings.isFreeMode ? (
+                        <>
+                          <Image src={post.image || post.images![0]} alt="Media" fill className="object-cover transition-transform group-hover:scale-110" />
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"><Play className="h-6 w-6" /></div>
+                        </>
+                      ) : <Zap className="h-6 w-6 text-muted-foreground/20" />}
+                    </div>
+                  )) : (
+                    <div className="col-span-3 py-20 text-center text-muted-foreground"><p className="font-bold">No media shared yet</p></div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </main>
         <aside className={cn("hidden lg:block sticky h-screen transition-all duration-300", isPlayerActive ? "top-16" : "top-0")}><RightSidebar /></aside>

@@ -371,6 +371,8 @@ interface PostContextType {
   markChatMessagesRead: (chatId: string) => void;
   applyRemotePostEdit: (postId: string, content: string) => void;
   refreshSocialGraph: () => Promise<void>;
+  chatLastMessageAt: Record<string, number>;
+  fetchProfilePosts: (userId: string, cursor?: string | null) => Promise<{ posts: Post[]; cursor: string | null; hasMore: boolean }>;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -586,6 +588,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [receivedRequestUsernames, setReceivedRequestUsernamesState] = useState<Set<string>>(new Set());
   const [acceptedStrangerUsernames] = useState<Set<string>>(new Set());
   const [activeSubscriptions, setActiveSubscriptionsState] = useState<Set<string>>(new Set());
+  const [chatLastMessageAt, setChatLastMessageAt] = useState<Record<string, number>>({});
 
   const [selectedPostId, setSelectedPostIdState] = useState<string | null>(null);
   const [selectedChatId, setSelectedChatIdState] = useState<string | null>(null);
@@ -1043,6 +1046,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
 
       setChatMessages(prev => ({ ...prev, [otherId]: msgs }));
+
+      if (all.length > 0) {
+        const lastDoc = all[all.length - 1];
+        const ts = lastDoc.$createdAt ? new Date(lastDoc.$createdAt).getTime() : Date.now();
+        setChatLastMessageAt(prev => ({ ...prev, [otherId]: ts }));
+      }
 
       if (!isCluster && msgs.length > 0) {
         const lastMsg = msgs[msgs.length - 1];
@@ -2539,6 +2548,31 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const fetchProfilePosts = useCallback(async (userId: string, cursor?: string | null): Promise<{ posts: Post[]; cursor: string | null; hasMore: boolean }> => {
+    const queries: any[] = [
+      Query.equal('user_id', userId),
+      Query.orderDesc('$createdAt'),
+      Query.limit(15),
+    ];
+    if (cursor) queries.push(Query.cursorAfter(cursor));
+    try {
+      const result = await databases.listDocuments(DATABASE_ID, COL.POSTS, queries);
+      const authorIds = [...new Set(result.documents.map((p: any) => p.user_id).filter(Boolean))];
+      let authorsMap: Record<string, any> = {};
+      if (authorIds.length > 0) {
+        try {
+          const authorsResult = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', authorIds)]);
+          authorsMap = Object.fromEntries(authorsResult.documents.map((u: any) => [u.$id, u]));
+        } catch { /* ignore */ }
+      }
+      const mapped = result.documents.map((doc: any) => mapDocToPost(doc, authorsMap[doc.user_id]));
+      const newCursor = result.documents.length > 0 ? result.documents[result.documents.length - 1].$id : null;
+      return { posts: mapped, cursor: newCursor, hasMore: result.documents.length === 15 };
+    } catch {
+      return { posts: [], cursor: null, hasMore: false };
+    }
+  }, []);
+
   const searchAllUsers = useCallback(async (query: string): Promise<User[]> => {
     if (!query.trim()) return [];
     try {
@@ -3517,10 +3551,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
     promoteUser, demoteUser,
     addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick: async () => {},
     initiateCall, acceptCall, endCall, declineCall, refreshAdminData,
-    fetchProfileByUsername, searchAllUsers, fetchComments,
+    fetchProfileByUsername, fetchProfilePosts, searchAllUsers, fetchComments,
     refreshProfiles,
     refreshClusters,
     refreshFeed, refreshStories,
+    chatLastMessageAt,
     recordView, recordStoryView,
     updateUserIdentity,
     handleReportAction, handleTicketAction, replyToTicket,
@@ -3539,6 +3574,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         if (alreadyExists) return prev;
         return { ...prev, [storageKey]: [...existing, message] };
       });
+      setChatLastMessageAt(prev => ({ ...prev, [storageKey]: Date.now() }));
       setConnectionsState(prev => prev.map(c => {
         if (c.username === storageKey || clusterId.includes(c.username)) {
           return { ...c, lastMessage: preview, lastTime: timeStr };
