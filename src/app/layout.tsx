@@ -63,10 +63,18 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta httpEquiv="Content-Security-Policy" content="img-src 'self' data: blob: https://mediatechliberia.online https:; media-src 'self' blob: https://mediatechliberia.online https:; connect-src 'self' https://mediatechliberia.online wss: ws: https:;" />
+        <meta httpEquiv="Content-Security-Policy" content="img-src 'self' * data: blob:; media-src 'self' * data: blob:; connect-src 'self' https://mediatechliberia.online wss: ws: https:;" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+        {/* Legacy Safari / iOS 12 polyfills for Promise, fetch, and URL.createObjectURL */}
+        <script dangerouslySetInnerHTML={{ __html: `
+(function(){
+  if(typeof Promise==='undefined'){var p=document.createElement('script');p.src='https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js';document.head.appendChild(p);}
+  if(typeof fetch==='undefined'){var f=document.createElement('script');f.src='https://cdn.jsdelivr.net/npm/whatwg-fetch@3.6.20/fetch.min.js';document.head.appendChild(f);}
+  if(typeof URL==='undefined'||typeof URL.createObjectURL==='undefined'){var u=document.createElement('script');u.src='https://cdn.jsdelivr.net/npm/url-polyfill@1.1.12/url.min.js';document.head.appendChild(u);}
+})();
+        `}} />
       </head>
       <body className="font-body antialiased bg-background text-foreground" suppressHydrationWarning>
         <ServiceWorkerRegister />

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn, saveFileToDevice } from "@/lib/utils";
-import Image from "next/image";
+import { IOSImage } from "@/components/ui/ios-image";
 
 export function ImageViewerPortal() {
   const { selectedImageUrl, setSelectedImageUrl } = usePosts();
@@ -121,15 +121,10 @@ export function ImageViewerPortal() {
           style={{ transform: `scale(${zoom})` }}
         >
           {selectedImageUrl && imgSrc && (
-            <img
+            <IOSImage
               src={imgSrc}
               alt="Immersive Visual"
               className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
-              onError={() => {
-                if (imgSrc && !imgSrc.includes('?t=')) {
-                  setImgSrc(`${selectedImageUrl}${selectedImageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`);
-                }
-              }}
             />
           )}
         </div>

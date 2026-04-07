@@ -3,6 +3,8 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
+import { IOSImage } from "@/components/ui/ios-image";
+import { IOSVideo } from "@/components/ui/ios-video";
 import Link from "next/link";
 import { 
   ThumbsUp, 
@@ -213,13 +215,14 @@ function FeedVideo({ videoUrl, postId, isShared }: { videoUrl: string; postId: s
       className={cn("relative mt-2 rounded-lg overflow-hidden bg-black cursor-pointer aspect-[4/5]", isShared ? "-mx-1" : "-mx-3 sm:mx-0")}
       onClick={toggleMute}
     >
-      <video
+      <IOSVideo
         ref={videoRef}
         src={videoUrl}
         className="w-full h-full object-cover"
         playsInline
         loop
         muted={isMuted}
+        controls
         preload="metadata"
       />
       <button
@@ -576,7 +579,7 @@ export function PostCard(props: PostCardProps) {
                 ) : (
                   <div className={cn("relative mt-2", isShared ? "-mx-1" : "-mx-3 sm:mx-0")}>
                     {allImages.length > 1 && <div className="absolute top-3 right-3 z-20 bg-black/40 backdrop-blur-md px-2 py-1 rounded-xl border border-white/10 text-white text-[10px] font-black">{currentSlide + 1}/{allImages.length}</div>}
-                    <Carousel className="w-full" setApi={(api) => api?.on("select", () => setCurrentSlide(api.selectedScrollSnap()))}><CarouselContent>{allImages.map((img, i) => (<CarouselItem key={i}><div className="relative aspect-[4/5] overflow-hidden rounded-lg cursor-pointer" onClick={() => setSelectedImageUrl(img)}><img src={img} alt="Post" className="w-full h-full object-cover" /></div></CarouselItem>))}</CarouselContent></Carousel>
+                    <Carousel className="w-full" setApi={(api) => api?.on("select", () => setCurrentSlide(api.selectedScrollSnap()))}><CarouselContent>{allImages.map((img, i) => (<CarouselItem key={i}><div className="relative aspect-[4/5] overflow-hidden rounded-lg cursor-pointer" onClick={() => setSelectedImageUrl(img)}><IOSImage src={img} alt="Post" className="w-full h-full object-cover" /></div></CarouselItem>))}</CarouselContent></Carousel>
                   </div>
                 )
               )}

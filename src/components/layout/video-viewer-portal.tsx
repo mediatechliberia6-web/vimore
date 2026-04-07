@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { IOSVideo } from "@/components/ui/ios-video";
 import { X, Download, Zap, ShieldCheck, ArrowLeft, Loader2, Play, Pause, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePosts } from "@/context/PostContext";
@@ -117,7 +118,7 @@ export function VideoViewerPortal() {
         </div>
 
         {selectedVideoUrl && (
-          <video
+          <IOSVideo
             ref={videoRef}
             src={selectedVideoUrl}
             className="max-w-full max-h-full object-contain shadow-2xl"
@@ -125,6 +126,7 @@ export function VideoViewerPortal() {
             loop
             muted={isMuted}
             playsInline
+            controls
             preload="metadata"
           />
         )}
