@@ -273,7 +273,6 @@ export function PostCard(props: PostCardProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editContent, setEditContent] = useState('');
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
@@ -400,17 +399,10 @@ export function PostCard(props: PostCardProps) {
     }
   };
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = () => {
     if (!editContent.trim()) return;
-    setIsSavingEdit(true);
-    try {
-      await editPost($id, { content: editContent.trim() });
-      setIsEditDialogOpen(false);
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Update Failed", description: e.message });
-    } finally {
-      setIsSavingEdit(false);
-    }
+    setIsEditDialogOpen(false);
+    editPost($id, { content: editContent.trim() });
   };
 
   const handleVote = (optionIndex: number) => {
@@ -807,16 +799,15 @@ export function PostCard(props: PostCardProps) {
               variant="outline"
               className="rounded-xl h-11 font-bold flex-1"
               onClick={() => setIsEditDialogOpen(false)}
-              disabled={isSavingEdit}
             >
               Cancel
             </Button>
             <Button
               className="rounded-xl h-11 font-black italic uppercase tracking-widest bg-primary text-white flex-1 shadow-lg shadow-primary/20"
               onClick={handleSaveEdit}
-              disabled={isSavingEdit || !editContent.trim() || editContent.trim() === content.trim() || editContent.length > 2000}
+              disabled={!editContent.trim() || editContent.trim() === content.trim() || editContent.length > 2000}
             >
-              {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Pencil className="h-4 w-4 mr-2" />}
+              <Pencil className="h-4 w-4 mr-2" />
               Save Changes
             </Button>
           </DialogFooter>
