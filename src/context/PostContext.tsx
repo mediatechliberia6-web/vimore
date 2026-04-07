@@ -1851,11 +1851,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const deletePost = async (id: string) => {
+    const original = postsState.find(p => p.$id === id);
+    // Remove from UI immediately so the user doesn't wait for the network
+    setPostsState(prev => prev.filter(p => p.$id !== id));
     try {
       await databases.deleteDocument(DATABASE_ID, COL.POSTS, id);
-      setPostsState(prev => prev.filter(p => p.$id !== id));
       toast({ title: "Post deleted" });
     } catch (err: any) {
+      // Restore the post if the database delete failed
+      if (original) setPostsState(prev => [original, ...prev.filter(p => p.$id !== id)]);
       logAppwriteError('deletePost', err);
       toast({ variant: "destructive", title: "Failed to delete post", description: formatErrorDescription(err, currentUser?.role) });
     }
