@@ -36,7 +36,7 @@ interface ChatListProps {
 }
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
-  const { connections = [], clusters = [], triggerHaptic, settings, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages } = usePosts();
+  const { connections = [], clusters = [], triggerHaptic, settings, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, markChatMessagesRead } = usePosts();
   const { categoryPulses, clearPulse, messagePreviews } = useNotifications();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -87,7 +87,12 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     if (activeFilter === "clusters") {
       list = list.filter(item => item.isGroup);
     } else if (activeFilter === "unread") {
-      list = list.filter(item => categoryPulses.MESSAGES > 0); 
+      list = list.filter(item => {
+        const itemId = (item as any).username || (item as any).$id;
+        const msgs = chatMessages[itemId];
+        if (!msgs || msgs.length === 0) return false;
+        return msgs.some(m => m.sender !== 'me' && m.status !== 'read');
+      });
     }
 
     if (searchQuery) {
@@ -117,11 +122,12 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     });
 
     return { sortedChats: sorted, requestCount: requests.length };
-  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser, categoryPulses.MESSAGES, friendUsernames, acceptedStrangerUsernames, chatMessages, showRequests]);
+  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, showRequests]);
 
   const handleSelection = (id: string) => {
     triggerHaptic(5);
     clearPulse('MESSAGES');
+    markChatMessagesRead(id);
     onSelect(id);
   };
 
@@ -193,7 +199,8 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
             // Respect Ghost Mode Protocol
             const isOnlineVisible = (item as any).isOnline && !settings.isGhostMode;
             
-            const hasNewPulse = isSelected ? false : categoryPulses.MESSAGES > 0;
+            const msgs = chatMessages[id];
+            const hasNewPulse = isSelected ? false : !!(msgs && msgs.length > 0 && msgs.some(m => m.sender !== 'me' && m.status !== 'read'));
 
             return (
               <div key={id} onClick={() => handleSelection(id)} className={cn("group flex items-center gap-4 p-4 cursor-pointer transition-all border-l-4", isSelected ? "bg-primary/5 border-primary" : "hover:bg-secondary/30 border-transparent")}>

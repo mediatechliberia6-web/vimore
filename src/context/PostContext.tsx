@@ -370,6 +370,7 @@ interface PostContextType {
   addIncomingMessage: (clusterId: string, message: ChatMessage, preview: string, timeStr: string) => void;
   markChatMessagesRead: (chatId: string) => void;
   applyRemotePostEdit: (postId: string, content: string) => void;
+  refreshSocialGraph: () => Promise<void>;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -3546,6 +3547,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
         }
         return cl;
       }));
+    },
+    refreshSocialGraph: async () => {
+      if (currentUser) await loadSocialGraph(currentUser.$id).catch(() => {});
     },
     markChatMessagesRead: (chatId: string) => {
       if (!currentUser) return;

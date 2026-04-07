@@ -200,14 +200,13 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   // Unified Pulse Metrics
   const combinedFollowers = useMemo(() => {
     if (!displayUser) return 0;
-    return parseFollowerCount(displayUser.followers) + (amIFriend ? 1 : 0);
-  }, [displayUser, amIFriend]);
+    return parseFollowerCount(displayUser.followers);
+  }, [displayUser]);
 
   const combinedFollowing = useMemo(() => {
     if (!displayUser) return 0;
-    const base = typeof displayUser.following === 'number' ? displayUser.following : parseFollowerCount(displayUser.following);
-    return base + (amIFriend ? 1 : 0);
-  }, [displayUser, amIFriend]);
+    return typeof displayUser.following === 'number' ? displayUser.following : parseFollowerCount(displayUser.following);
+  }, [displayUser]);
 
   if (isLoadingProfile) {
     return <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4"><Loader2 className="h-10 w-10 animate-spin text-primary" /><p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fetching Node Vault...</p></div>;

@@ -23,7 +23,7 @@ export function GlobalRealtimeListener() {
   const {
     currentUser, selectedChatId, refreshAdminData,
     followingUserIds, applyPostCountUpdate, addStreamedComment, activeCommentPostId,
-    addIncomingMessage, applyRemotePostEdit,
+    addIncomingMessage, applyRemotePostEdit, refreshSocialGraph,
   } = usePosts();
   const {
     incrementPulse, updateMessagePreview, refreshNotifications,
@@ -141,9 +141,10 @@ export function GlobalRealtimeListener() {
         }
       }
 
-      if (isFriendReqEvent && isCreate) {
-        if (payload.to_user_id === user?.$id) {
+      if (isFriendReqEvent && (isCreate || isUpdate)) {
+        if (payload.to_user_id === user?.$id || payload.from_user_id === user?.$id) {
           incrementPulse('FRIENDS');
+          refreshSocialGraph().catch(() => {});
         }
       }
 
@@ -153,7 +154,7 @@ export function GlobalRealtimeListener() {
     });
 
     return () => { unsubscribe(); };
-  }, [currentUser?.$id, currentUser?.role, incrementPulse, updateMessagePreview, refreshNotifications, addIncomingMessage, incrementUnreadMessageCount, decrementUnreadMessageCount]);
+  }, [currentUser?.$id, currentUser?.role, incrementPulse, updateMessagePreview, refreshNotifications, addIncomingMessage, incrementUnreadMessageCount, decrementUnreadMessageCount, refreshSocialGraph]);
 
   // ─── Post interaction counts (likes / comments / shares) ─────────────────
   useEffect(() => {

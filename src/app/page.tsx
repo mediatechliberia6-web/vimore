@@ -14,6 +14,7 @@ import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Rocket, Loader2, Mail, ChevronUp, WifiOff } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { account } from "@/lib/appwrite";
 import { Button } from "@/components/ui/button";
 import { CreateStoryModal } from "@/components/feed/create-story-modal";
@@ -77,7 +78,7 @@ export default function Home() {
   const router = useRouter();
   const { posts, campaigns, isLoading, initError, followingUsernames, friendUsernames, seenPostIds, isAuthenticated, isOffline, currentUser, triggerHaptic, loadMoreFeed, hasMoreFeed, isFeedLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
-  const { newFollowingPostsCount, clearNewPosts } = useFeedSignal();
+  const { newFollowingPostsCount, clearNewPosts, uploadProgress } = useFeedSignal();
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
 
   const loadTriggerRef = useRef<HTMLDivElement | null>(null);
@@ -236,6 +237,18 @@ export default function Home() {
         <main className="flex flex-col gap-4 w-full max-w-[680px] mx-auto">
           <div ref={feedTopRef} />
           <Stories onOpenCreate={() => setIsStoryModalOpen(true)} />
+
+          {uploadProgress !== null && (
+            <div className="px-4 pb-1 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+                  {uploadProgress < 100 ? "Syncing node to vault..." : "Node synchronized!"}
+                </span>
+                <span className="text-[10px] font-black text-primary tabular-nums">{uploadProgress}%</span>
+              </div>
+              <Progress value={uploadProgress} className="h-1" />
+            </div>
+          )}
 
           {/* New Posts floating pill */}
           {newFollowingPostsCount > 0 && (

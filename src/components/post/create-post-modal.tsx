@@ -62,6 +62,7 @@ import {
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { usePosts } from "@/context/PostContext";
+import { useFeedSignal } from "@/context/FeedSignalContext";
 import { aiGenerateCaptionAction } from "@/app/actions/ai";
 import { useMusic } from "@/context/MusicContext";
 import {
@@ -129,6 +130,7 @@ const VIDEO_SIZE_LIMIT = 50 * 1024 * 1024; // 50MB in bytes
 
 export function CreatePostModal({ children }: CreatePostModalProps) {
   const { addPost, currentUser, connections, settings, isFollowing, triggerHaptic, uploadMedia } = usePosts();
+  const { setUploadProgress } = useFeedSignal();
   const { openCaptureStudio } = useMusic();
   const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState("");
@@ -364,54 +366,78 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     });
   };
 
-  const handlePost = async () => {
+  const handlePost = () => {
     if (!currentUser) return;
-    setIsAiLoading(true); 
     triggerHaptic(30);
-    
-    try {
-      const uploadedUrls = [];
-      const bucketId = BUCKET_IMAGES;
-      
-      for (const file of stagedFiles) {
-        const url = await uploadMedia(file, bucketId);
-        uploadedUrls.push(url);
+
+    const snap = {
+      files: [...stagedFiles],
+      content,
+      creationLanguage: typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en',
+      theme: selectedTheme.id !== "none" ? selectedTheme.class : undefined,
+      mediaType,
+      imageFilter: selectedFilter.id !== "none" ? selectedFilter.class : undefined,
+      feeling: feeling || undefined,
+      location: location || undefined,
+      commentsDisabled,
+      isLocked,
+      unlockPrice,
+      taggedUsers: taggedUsers.length > 0 ? [...taggedUsers] : undefined,
+      linkPreview: linkPreview || undefined,
+      poll: isPollOpen && pollQuestion ? {
+        question: pollQuestion,
+        options: pollOptions.filter(o => o.trim()).map(text => ({ text, votes: 0 })),
+        voters: {},
+        totalVotes: 0,
+        duration: pollDuration,
+      } : undefined,
+    };
+
+    localStorage.removeItem('vimore_post_draft');
+    resetForm();
+    setIsOpen(false);
+
+    (async () => {
+      try {
+        const uploadedUrls: string[] = [];
+        const total = snap.files.length;
+        if (total > 0) {
+          setUploadProgress(0);
+          for (let i = 0; i < total; i++) {
+            const url = await uploadMedia(snap.files[i], BUCKET_IMAGES);
+            uploadedUrls.push(url);
+            setUploadProgress(Math.round(((i + 1) / total) * 80));
+          }
+        } else {
+          setUploadProgress(5);
+        }
+
+        setUploadProgress(90);
+        await addPost({
+          content: snap.content,
+          language: snap.creationLanguage,
+          theme: snap.theme,
+          images: snap.mediaType === 'image' ? uploadedUrls : undefined,
+          videoUrl: snap.mediaType === 'video' ? uploadedUrls[0] : undefined,
+          imageFilter: snap.imageFilter,
+          feeling: snap.feeling,
+          location: snap.location,
+          commentsDisabled: snap.commentsDisabled,
+          isLocked: snap.isLocked,
+          unlockPrice: snap.isLocked ? snap.unlockPrice : undefined,
+          taggedUsers: snap.taggedUsers,
+          linkPreview: snap.linkPreview,
+          poll: snap.poll,
+        });
+
+        setUploadProgress(100);
+        setTimeout(() => setUploadProgress(null), 1500);
+        toast({ title: "Handshake Synchronized", description: "Node materialized in the global vault." });
+      } catch (e: any) {
+        setUploadProgress(null);
+        toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
       }
-
-      const creationLanguage = typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en';
-
-      await addPost({
-        content,
-        language: creationLanguage,
-        theme: selectedTheme.id !== "none" ? selectedTheme.class : undefined,
-        images: mediaType === 'image' ? uploadedUrls : undefined,
-        videoUrl: mediaType === 'video' ? uploadedUrls[0] : undefined,
-        imageFilter: selectedFilter.id !== "none" ? selectedFilter.class : undefined,
-        feeling: feeling || undefined,
-        location: location || undefined,
-        commentsDisabled,
-        isLocked,
-        unlockPrice: isLocked ? unlockPrice : undefined,
-        taggedUsers: taggedUsers.length > 0 ? taggedUsers : undefined,
-        linkPreview: linkPreview || undefined,
-        poll: isPollOpen && pollQuestion ? {
-          question: pollQuestion,
-          options: pollOptions.filter(o => o.trim()).map(text => ({ text, votes: 0 })),
-          voters: {},
-          totalVotes: 0,
-          duration: pollDuration
-        } : undefined
-      });
-
-      toast({ title: "Handshake Synchronized", description: "Node materialized in the global vault." });
-      localStorage.removeItem('vimore_post_draft');
-      resetForm();
-      setIsOpen(false);
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
-    } finally {
-      setIsAiLoading(false);
-    }
+    })();
   };
 
   const resetForm = () => {

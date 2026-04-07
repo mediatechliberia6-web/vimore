@@ -24,6 +24,7 @@ import {
   X,
   Users,
   WifiOff,
+  Play,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -431,7 +432,36 @@ function ReelItem({
   } = usePosts();
   const { triggerHaptic } = useMusic();
   const [showHeart, setShowHeart] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [seekFlash, setSeekFlash] = useState<'left' | 'right' | null>(null);
+  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
   const lastTapRef = useRef(0);
+  const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const combinedVideoRef = useCallback((el: HTMLVideoElement | null) => {
+    setVideoElement(el);
+    onVideoRef(el);
+  }, [onVideoRef]);
+
+  useEffect(() => {
+    if (!videoElement) return;
+    const handleTimeUpdate = () => setCurrentTime(videoElement.currentTime);
+    const handleLoadedMetadata = () => setDuration(videoElement.duration || 0);
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    videoElement.addEventListener('timeupdate', handleTimeUpdate);
+    videoElement.addEventListener('loadedmetadata', handleLoadedMetadata);
+    videoElement.addEventListener('play', handlePlay);
+    videoElement.addEventListener('pause', handlePause);
+    return () => {
+      videoElement.removeEventListener('timeupdate', handleTimeUpdate);
+      videoElement.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      videoElement.removeEventListener('play', handlePlay);
+      videoElement.removeEventListener('pause', handlePause);
+    };
+  }, [videoElement]);
 
   const isLiked = isPostLiked(reel.$id);
   const isOwn = currentUser?.username === reel.user.username;
@@ -439,15 +469,50 @@ function ReelItem({
   const isFriendWith = isFriend(reel.user.username);
   const requestSent = isRequestSent(reel.user.username);
 
-  const handleTap = () => {
+  const handleTap = (e: React.MouseEvent) => {
     const now = Date.now();
+    const x = e.clientX;
+    const width = (e.currentTarget as HTMLElement).clientWidth;
+
     if (now - lastTapRef.current < 300) {
-      triggerHaptic(30);
-      if (!isLiked) toggleLikePost(reel.$id);
-      setShowHeart(true);
-      setTimeout(() => setShowHeart(false), 900);
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
+      if (x < width * 0.35) {
+        triggerHaptic(20);
+        if (videoElement) {
+          videoElement.currentTime = Math.max(0, videoElement.currentTime - 10);
+        }
+        setSeekFlash('left');
+        setTimeout(() => setSeekFlash(null), 700);
+      } else if (x > width * 0.65) {
+        triggerHaptic(20);
+        if (videoElement) {
+          videoElement.currentTime = Math.min(videoElement.duration || 0, videoElement.currentTime + 10);
+        }
+        setSeekFlash('right');
+        setTimeout(() => setSeekFlash(null), 700);
+      } else {
+        triggerHaptic(30);
+        if (!isLiked) toggleLikePost(reel.$id);
+        setShowHeart(true);
+        setTimeout(() => setShowHeart(false), 900);
+      }
+      lastTapRef.current = 0;
+    } else {
+      lastTapRef.current = now;
+      singleTapTimerRef.current = setTimeout(() => {
+        if (videoElement) {
+          if (videoElement.paused) {
+            videoElement.play().catch(() => {});
+          } else {
+            videoElement.pause();
+          }
+        }
+        singleTapTimerRef.current = null;
+      }, 300);
     }
-    lastTapRef.current = now;
   };
 
   const handleFollowToggle = () => {
