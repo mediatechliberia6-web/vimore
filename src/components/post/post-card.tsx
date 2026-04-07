@@ -220,6 +220,8 @@ function FeedVideo({ videoUrl, postId, isShared }: { videoUrl: string; postId: s
         playsInline
         loop
         muted={isMuted}
+        preload="metadata"
+        crossOrigin="anonymous"
       />
       <button
         onClick={toggleMute}

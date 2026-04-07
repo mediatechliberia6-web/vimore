@@ -117,7 +117,7 @@ export function VideoViewerPortal() {
         </div>
 
         {selectedVideoUrl && (
-          <video 
+          <video
             ref={videoRef}
             src={selectedVideoUrl}
             className="max-w-full max-h-full object-contain shadow-2xl"
@@ -125,6 +125,8 @@ export function VideoViewerPortal() {
             loop
             muted={isMuted}
             playsInline
+            preload="metadata"
+            crossOrigin="anonymous"
           />
         )}
 

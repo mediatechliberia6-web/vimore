@@ -488,13 +488,15 @@ export function ChatBubble({
                       </div>
                     ) : (
                       <div className="relative w-full h-full cursor-pointer" onClick={handleMediaClick}>
-                        <video 
+                        <video
                           key={mediaUrl}
-                          ref={videoRef} 
-                          src={mediaUrl} 
-                          className="w-full h-full object-cover" 
-                          muted={!isPlayingVideo} 
-                          playsInline 
+                          ref={videoRef}
+                          src={mediaUrl}
+                          className="w-full h-full object-cover"
+                          muted={!isPlayingVideo}
+                          playsInline
+                          preload="metadata"
+                          crossOrigin="anonymous"
                         />
                         <div className={cn(
                           "absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-300",

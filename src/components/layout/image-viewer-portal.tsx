@@ -15,6 +15,11 @@ export function ImageViewerPortal() {
   const [isVisible, setIsVisible] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [imgSrc, setImgSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    setImgSrc(selectedImageUrl);
+  }, [selectedImageUrl]);
 
   useEffect(() => {
     if (selectedImageUrl) {
@@ -115,11 +120,17 @@ export function ImageViewerPortal() {
           className="relative w-full h-full flex items-center justify-center transition-transform duration-500 ease-out"
           style={{ transform: `scale(${zoom})` }}
         >
-          {selectedImageUrl && (
-            <img 
-              src={selectedImageUrl} 
-              alt="Immersive Visual" 
+          {selectedImageUrl && imgSrc && (
+            <img
+              src={imgSrc}
+              alt="Immersive Visual"
               className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
+              crossOrigin="anonymous"
+              onError={() => {
+                if (imgSrc && !imgSrc.includes('?t=')) {
+                  setImgSrc(`${selectedImageUrl}${selectedImageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`);
+                }
+              }}
             />
           )}
         </div>

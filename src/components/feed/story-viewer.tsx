@@ -300,13 +300,15 @@ export function StoryViewer() {
               {currentStoryCampaign ? (
                 <>
                   {currentStoryCampaign.type === 'video' && currentStoryCampaign.media_url ? (
-                    <video 
+                    <video
                       src={currentStoryCampaign.media_url}
                       className="w-full h-full object-cover"
                       autoPlay
                       muted
                       loop
                       playsInline
+                      preload="metadata"
+                      crossOrigin="anonymous"
                     />
                   ) : currentStoryCampaign.media_url ? (
                     <Image 
@@ -466,13 +468,15 @@ export function StoryViewer() {
                 <>
                   {currentSegment.type === 'video' ? (
                     <>
-                      <video 
-                        src={(currentSegment as any).mediaUrl || (currentSegment as any).image} 
-                        className="w-full h-full object-cover" 
-                        autoPlay 
+                      <video
+                        src={(currentSegment as any).mediaUrl || (currentSegment as any).image}
+                        className="w-full h-full object-cover"
+                        autoPlay
                         muted={isVideoMuted}
-                        loop 
-                        playsInline 
+                        loop
+                        playsInline
+                        preload="metadata"
+                        crossOrigin="anonymous"
                       />
                       <button
                         className="absolute bottom-24 right-4 z-30 p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white"

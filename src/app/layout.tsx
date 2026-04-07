@@ -63,6 +63,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta httpEquiv="Content-Security-Policy" content="img-src 'self' data: blob: https://mediatechliberia.online https:; media-src 'self' blob: https://mediatechliberia.online https:; connect-src 'self' https://mediatechliberia.online wss: ws: https:;" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />

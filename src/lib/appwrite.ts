@@ -2,7 +2,7 @@ import { Client, Account, Databases, Storage, ID, Query } from 'appwrite';
 
 export type { Models } from 'appwrite';
 
-const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
+const ENDPOINT = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '').replace(/\/$/, '');
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
 
 export const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'vimoreprod';
