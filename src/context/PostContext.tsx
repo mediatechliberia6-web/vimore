@@ -1901,13 +1901,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const editMessage = async (messageId: string, chatId: string, newText: string) => {
-    setChatMessages(prev => ({
-      ...prev,
-      [chatId]: (prev[chatId] || []).map(m => m.$id === messageId ? { ...m, text: newText } : m),
-    }));
+    let originalMessages: ChatMessage[] = [];
+    setChatMessages(prev => {
+      originalMessages = prev[chatId] || [];
+      return {
+        ...prev,
+        [chatId]: originalMessages.map(m => m.$id === messageId ? { ...m, text: newText } : m),
+      };
+    });
     try {
       await databases.updateDocument(DATABASE_ID, COL.MESSAGES, messageId, { text: newText });
     } catch (err: any) {
+      setChatMessages(prev => ({ ...prev, [chatId]: originalMessages }));
       logAppwriteError('editMessage', err);
       toast({ variant: 'destructive', title: 'Update Failed', description: err?.message || 'Could not update message.' });
     }
