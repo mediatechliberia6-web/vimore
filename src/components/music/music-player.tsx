@@ -237,9 +237,6 @@ export function MusicPlayer() {
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20" title="Share">
             <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20 hover:text-destructive" onClick={clearPlayer} title="Close Player">
-            <X className="h-4 w-4 sm:h-5 sm:w-5" />
-          </Button>
         </div>
       </header>
 

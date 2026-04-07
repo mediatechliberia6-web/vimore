@@ -228,6 +228,11 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         tracks = tracksRes.value.documents.map(mapDocToTrack);
         setGlobalSongsState(tracks);
         setQueueState(tracks);
+        setCurrentTrackState(prev => {
+          if (!prev) return prev;
+          const refreshed = tracks.find(t => t.id === prev.id);
+          return refreshed ? { ...prev, ...refreshed } : prev;
+        });
         try { localStorage.setItem('vm_offline_songs', JSON.stringify(tracks)); } catch { }
       }
 
