@@ -216,6 +216,15 @@ export default function NotificationsPage() {
                       )}
                       style={{ animationDelay: `${i * 50}ms` }}
                     >
+                      {/* Delete button — always visible on mobile, hover-reveal on desktop */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); triggerHaptic(10); purgeSignal(node.id); }}
+                        className="absolute top-3 right-3 z-10 h-7 w-7 flex items-center justify-center rounded-full bg-secondary/60 text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all duration-200"
+                        aria-label="Delete notification"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+
                       <div className="relative shrink-0 pt-1">
                         <div className="relative">
                           <Avatar className={cn(
@@ -234,7 +243,7 @@ export default function NotificationsPage() {
                         )}
                       </div>
 
-                      <div className="flex-1 min-w-0 pt-1">
+                      <div className="flex-1 min-w-0 pt-1 pr-6 sm:pr-0">
                         <div className="flex flex-col gap-1">
                           <p className="text-sm leading-relaxed text-muted-foreground">
                             {renderContent(node.content)}
@@ -261,14 +270,6 @@ export default function NotificationsPage() {
                               {node.type === 'SOCIAL' 
                                 ? (amFollowing ? <><UserCheck className="h-3 w-3 mr-1.5" /> Friend</> : "Follow Back") 
                                 : (node.actionLabel || "View Vibe")}
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-9 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-destructive"
-                              onClick={(e) => { e.stopPropagation(); triggerHaptic(5); purgeSignal(node.id); }}
-                            >
-                              Purge
                             </Button>
                           </div>
                         )}
