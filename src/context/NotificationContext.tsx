@@ -214,11 +214,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, [setPulseCount]);
 
-  // Load unread message count on login and poll every 20 seconds
+  // Load unread message count on login and poll every 3 seconds
   useEffect(() => {
     if (!currentUser?.$id) { setUnreadMessageCount(0); return; }
     fetchUnreadMessageCount(currentUser.$id);
-    const interval = setInterval(() => fetchUnreadMessageCount(currentUser.$id), 20000);
+    const interval = setInterval(() => fetchUnreadMessageCount(currentUser.$id), 3000);
     return () => clearInterval(interval);
   }, [currentUser?.$id, fetchUnreadMessageCount]);
 
