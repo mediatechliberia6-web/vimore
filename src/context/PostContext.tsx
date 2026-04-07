@@ -261,7 +261,7 @@ interface PostContextType {
   uploadMedia: (file: File, bucketId?: string) => Promise<string>;
   addPost: (post: any) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
-  editPost: (postId: string, updates: { content?: string }) => Promise<void>;
+  editPost: (postId: string, updates: { content?: string; hashtags?: string[] }) => Promise<void>;
   deleteMessage: (messageId: string, chatId: string) => Promise<void>;
   editMessage: (messageId: string, chatId: string, newText: string) => Promise<void>;
   toggleLikePost: (postId: string) => Promise<void>;
@@ -1859,13 +1859,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const editPost = async (id: string, updates: { content?: string }) => {
-    if (!currentUser) return;
+  const editPost = async (id: string, updates: { content?: string; hashtags?: string[] }) => {
+    if (!currentUser) {
+      toast({ variant: 'destructive', title: 'Not signed in', description: 'Please sign in to edit posts.' });
+      return;
+    }
     const original = postsState.find(p => p.$id === id);
-    setPostsState(prev => prev.map(p => p.$id === id ? { ...p, ...updates } : p));
+    const resolvedHashtags = updates.hashtags !== undefined
+      ? updates.hashtags
+      : updates.content !== undefined
+        ? (updates.content.match(/#[\w\u00C0-\u024F]+/g) || []).map((h: string) => h.toLowerCase())
+        : undefined;
+    const mergedUpdates = { ...updates, ...(resolvedHashtags !== undefined ? { hashtags: resolvedHashtags } : {}) };
+    setPostsState(prev => prev.map(p => p.$id === id ? { ...p, ...mergedUpdates } : p));
     try {
       const docUpdates: Record<string, any> = {};
       if (updates.content !== undefined) docUpdates.content = updates.content;
+      if (resolvedHashtags !== undefined) docUpdates.hashtags = resolvedHashtags;
       await databases.updateDocument(DATABASE_ID, COL.POSTS, id, docUpdates);
       toast({ title: 'Post Updated', description: 'Your node has been updated.' });
     } catch (err: any) {
@@ -1876,13 +1886,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteMessage = async (messageId: string, chatId: string) => {
-    setChatMessages(prev => ({
-      ...prev,
-      [chatId]: (prev[chatId] || []).filter(m => m.$id !== messageId),
-    }));
+    let originalMessages: ChatMessage[] = [];
+    setChatMessages(prev => {
+      originalMessages = prev[chatId] || [];
+      return { ...prev, [chatId]: originalMessages.filter(m => m.$id !== messageId) };
+    });
     try {
       await databases.deleteDocument(DATABASE_ID, COL.MESSAGES, messageId);
     } catch (err: any) {
+      setChatMessages(prev => ({ ...prev, [chatId]: originalMessages }));
       logAppwriteError('deleteMessage', err);
       toast({ variant: 'destructive', title: 'Delete Failed', description: err?.message || 'Could not delete message.' });
     }

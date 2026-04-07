@@ -400,15 +400,18 @@ export function PostCard(props: PostCardProps) {
   };
 
   const handleEditSave = async () => {
-    if (!editContent.trim() || editContent.trim() === content) {
+    const trimmed = editContent.trim();
+    if (!trimmed) return;
+    if (trimmed === (content || '').trim()) {
       setIsEditDialogOpen(false);
       return;
     }
     triggerHaptic(10);
     setIsEditSaving(true);
     try {
-      await editPost($id, { content: editContent.trim() });
+      await editPost($id, { content: trimmed });
       setIsEditDialogOpen(false);
+    } catch {
     } finally {
       setIsEditSaving(false);
     }
