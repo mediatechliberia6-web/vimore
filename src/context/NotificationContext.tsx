@@ -199,18 +199,28 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setCategoryPulses(prev => ({ ...prev, [category]: count }));
   }, []);
 
-  // Load real unread message count from DB on login (requires receiver_id index in Appwrite)
+  const fetchUnreadMessageCount = useCallback(async (userId: string) => {
+    try {
+      const res = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
+        Query.equal('receiver_id', userId),
+        Query.orderDesc('$createdAt'),
+        Query.limit(100),
+      ]);
+      const count = res.documents.filter((doc: any) => doc.is_read === false).length;
+      setUnreadMessageCount(count);
+      setPulseCount('MESSAGES', count);
+    } catch {
+      // silently ignore — badge simply won't update if the collection is unreachable
+    }
+  }, [setPulseCount]);
+
+  // Load unread message count on login and poll every 20 seconds
   useEffect(() => {
     if (!currentUser?.$id) { setUnreadMessageCount(0); return; }
-    databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
-      Query.equal('receiver_id', currentUser.$id),
-      Query.equal('is_read', false),
-      Query.limit(100),
-    ]).then(res => {
-      setUnreadMessageCount(res.total);
-      setPulseCount('MESSAGES', res.total);
-    }).catch(() => { /* index may not exist yet — no-op until receiver_id attribute is indexed */ });
-  }, [currentUser?.$id, setPulseCount]);
+    fetchUnreadMessageCount(currentUser.$id);
+    const interval = setInterval(() => fetchUnreadMessageCount(currentUser.$id), 20000);
+    return () => clearInterval(interval);
+  }, [currentUser?.$id, fetchUnreadMessageCount]);
 
   const incrementUnreadMessageCount = useCallback(() => {
     setUnreadMessageCount(prev => prev + 1);
