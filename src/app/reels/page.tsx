@@ -532,7 +532,7 @@ function ReelItem({
       style={{ height: "100svh" }}
     >
       <video
-        ref={onVideoRef}
+        ref={combinedVideoRef}
         src={reel.videoUrl}
         poster={reel.image}
         loop
@@ -549,6 +549,31 @@ function ReelItem({
       {showHeart && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
           <Heart className="w-32 h-32 text-white fill-white drop-shadow-2xl animate-in zoom-in-50 fade-in duration-200" />
+        </div>
+      )}
+
+      {seekFlash === 'left' && (
+        <div className="absolute left-0 top-0 bottom-0 w-1/3 z-20 flex items-center justify-center pointer-events-none animate-in fade-in duration-100">
+          <div className="bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-1.5">
+            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+            <span className="text-white text-xs font-black">10s</span>
+          </div>
+        </div>
+      )}
+      {seekFlash === 'right' && (
+        <div className="absolute right-0 top-0 bottom-0 w-1/3 z-20 flex items-center justify-center pointer-events-none animate-in fade-in duration-100">
+          <div className="bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-1.5">
+            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+            <span className="text-white text-xs font-black">10s</span>
+          </div>
+        </div>
+      )}
+
+      {!isPlaying && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center animate-in zoom-in-75 fade-in duration-200">
+            <Play className="w-8 h-8 text-white fill-white ml-1" />
+          </div>
         </div>
       )}
 
@@ -652,7 +677,7 @@ function ReelItem({
         </div>
       </div>
 
-      <div className="absolute bottom-6 left-3 right-16 z-30 pointer-events-none">
+      <div className="absolute bottom-10 left-3 right-16 z-30 pointer-events-none">
         {reel.isCampaignReel ? (
           <>
             <p className="text-white/50 text-[10px] font-bold uppercase tracking-widest mb-1">
@@ -697,6 +722,62 @@ function ReelItem({
             </div>
           </>
         )}
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 z-30 px-3 pb-2 pt-1">
+        <div className="flex items-center gap-2 mb-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (videoElement) {
+                if (videoElement.paused) videoElement.play().catch(() => {});
+                else videoElement.pause();
+              }
+            }}
+            className="w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
+          >
+            {isPlaying ? (
+              <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            ) : (
+              <Play className="w-3.5 h-3.5 text-white fill-white ml-0.5" />
+            )}
+          </button>
+          <div
+            className="flex-1 h-1 bg-white/30 rounded-full relative cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!videoElement || !duration) return;
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+              videoElement.currentTime = ratio * duration;
+            }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              const bar = e.currentTarget as HTMLElement;
+              bar.setPointerCapture(e.pointerId);
+            }}
+            onPointerMove={(e) => {
+              if (e.buttons !== 1) return;
+              e.stopPropagation();
+              if (!videoElement || !duration) return;
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+              videoElement.currentTime = ratio * duration;
+            }}
+          >
+            <div
+              className="h-full bg-white rounded-full transition-none"
+              style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+            />
+            <div
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-md -translate-x-1/2"
+              style={{ left: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+            />
+          </div>
+          <span className="text-white/60 text-[9px] font-bold tabular-nums flex-shrink-0">
+            {Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, '0')} / {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}
+          </span>
+        </div>
       </div>
     </div>
   );

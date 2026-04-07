@@ -13,16 +13,21 @@ import Link from "next/link";
 import { useTranslation } from "@/context/LanguageContext";
 
 export function SuggestedFollows() {
-  const { connections, posts, isFriend, isRequestSent, sendFriendRequest, cancelFriendRequest, isFollowing, currentUser } = usePosts();
+  const { connections, posts, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, cancelFriendRequest, isFollowing, currentUser } = usePosts();
   const { triggerHaptic } = useMusic();
   const { t } = useTranslation();
 
   const suggestions = useMemo(() => {
     const now = Date.now();
 
-    // Regular connection suggestions (not yet friends/requested)
+    // Regular connection suggestions (not yet friends, no pending request in either direction)
     const connectionSuggestions = connections
-      .filter(c => !isFriend(c.username) && !isRequestSent(c.username) && c.username !== currentUser?.username)
+      .filter(c =>
+        !isFriend(c.username) &&
+        !isRequestSent(c.username) &&
+        !isRequestReceived(c.username) &&
+        c.username !== currentUser?.username
+      )
       .map(c => ({ ...c, isBoosted: false }));
 
     // Boosted post authors: active boost, not already following, not self
@@ -47,7 +52,7 @@ export function SuggestedFollows() {
     const mergedConnections = connectionSuggestions.filter(c => !existingUsernames.has(c.username));
 
     return [...boostedAuthors, ...mergedConnections].slice(0, 10);
-  }, [connections, posts, isFriend, isRequestSent, isFollowing, currentUser]);
+  }, [connections, posts, isFriend, isRequestSent, isRequestReceived, isFollowing, currentUser]);
 
   if (suggestions.length === 0) return null;
 
