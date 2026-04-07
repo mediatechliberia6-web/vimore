@@ -160,6 +160,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       if (signal.postId) notifData.post_id = signal.postId;
       if (signal.trackId) notifData.track_id = String(signal.trackId);
       if (signal.targetUsername) notifData.target_username = signal.targetUsername;
+      if (signal.actionHref) notifData.action_href = signal.actionHref;
+      if (signal.actionLabel) notifData.action_label = signal.actionLabel;
+      if (signal.avatar) notifData.avatar = signal.avatar;
       databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), notifData).catch((err) => {
         console.error('addSignal DB write failed:', err);
       });

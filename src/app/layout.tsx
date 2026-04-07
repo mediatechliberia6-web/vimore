@@ -24,6 +24,7 @@ import { SuspensionGate } from "@/components/layout/suspension-gate";
 import { DiagnosticErrorBoundary } from "@/components/layout/diagnostic-error-boundary";
 import { ThemeLogic } from "@/components/layout/theme-logic";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
+import { NotificationScheduler } from "@/components/layout/notification-scheduler";
 import { GlobalRealtimeListener } from "@/components/layout/global-realtime";
 import { AdminAlertsProvider } from "@/context/AdminAlertsContext";
 import { FeedSignalProvider } from "@/context/FeedSignalContext";
@@ -107,6 +108,7 @@ export default async function RootLayout({
                       <AppLoadingGate>
                         <SuspensionGate>
                         <GlobalRealtimeListener />
+                        <NotificationScheduler />
                         {children}
                         <MusicPlayer />
                         <AlbumDetail />
