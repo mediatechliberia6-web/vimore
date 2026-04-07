@@ -23,9 +23,12 @@ export function GlobalRealtimeListener() {
   const {
     currentUser, selectedChatId, refreshAdminData,
     followingUserIds, applyPostCountUpdate, addStreamedComment, activeCommentPostId,
-    addIncomingMessage,
+    addIncomingMessage, applyRemotePostEdit,
   } = usePosts();
-  const { incrementPulse, updateMessagePreview, refreshNotifications } = useNotifications();
+  const {
+    incrementPulse, updateMessagePreview, refreshNotifications,
+    incrementUnreadMessageCount, decrementUnreadMessageCount,
+  } = useNotifications();
   const {
     incrementPendingPayments,
     incrementPendingWithdrawals,
@@ -119,6 +122,15 @@ export function GlobalRealtimeListener() {
           const isInCurrentChat = chatId && clusterId && (clusterId === chatId || clusterId.includes(chatId));
           if (!isInCurrentChat) {
             incrementPulse('MESSAGES');
+            // Only increment the DB-backed unread count if this message was directed at us
+            if (payload.receiver_id === user?.$id) {
+              incrementUnreadMessageCount();
+            }
+          } else {
+            // User is in the chat — no badge needed, but decrement if we had counted it
+            if (payload.receiver_id === user?.$id) {
+              decrementUnreadMessageCount(0);
+            }
           }
         }
       }
@@ -141,7 +153,7 @@ export function GlobalRealtimeListener() {
     });
 
     return () => { unsubscribe(); };
-  }, [currentUser?.$id, currentUser?.role, incrementPulse, updateMessagePreview, refreshNotifications, addIncomingMessage]);
+  }, [currentUser?.$id, currentUser?.role, incrementPulse, updateMessagePreview, refreshNotifications, addIncomingMessage, incrementUnreadMessageCount, decrementUnreadMessageCount]);
 
   // ─── Post interaction counts (likes / comments / shares) ─────────────────
   useEffect(() => {
@@ -167,6 +179,10 @@ export function GlobalRealtimeListener() {
           if (Object.keys(update).length > 0) {
             applyPostCountUpdate(postId, update);
           }
+          // Propagate content edits to all users' feeds in real-time
+          if (typeof payload.content === 'string') {
+            applyRemotePostEdit(postId, payload.content);
+          }
         }
 
         if (isCreate) {
@@ -183,7 +199,7 @@ export function GlobalRealtimeListener() {
     );
 
     return () => { unsubscribe(); };
-  }, [currentUser?.$id, applyPostCountUpdate, incrementNewPosts, incrementPulse]);
+  }, [currentUser?.$id, applyPostCountUpdate, applyRemotePostEdit, incrementNewPosts, incrementPulse]);
 
   // ─── Real-time comment streaming ─────────────────────────────────────────
   useEffect(() => {

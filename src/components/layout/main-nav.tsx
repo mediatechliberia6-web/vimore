@@ -22,7 +22,7 @@ const PulseBadge = ({ count }: { count: number }) => {
 
 export function MainNav() {
   const pathname = usePathname();
-  const { unreadCount, categoryPulses, clearPulse } = useNotifications();
+  const { unreadCount, categoryPulses, clearPulse, unreadMessageCount } = useNotifications();
   const { settings, currentUser } = usePosts();
   const { t } = useTranslation();
   const { totalAdminAlerts, resetEconomyBadge, resetTicketsBadge } = useAdminAlerts();
@@ -36,7 +36,7 @@ export function MainNav() {
     { icon: Film, label: t('nav_reels'), href: "/reels" },
     { icon: Music2, label: t('nav_music'), href: "/music", category: "MUSIC", isHidden: !settings.isMusicEnabled },
     { icon: Bell, label: t('nav_notifications'), href: "/notifications", badge: unreadCount },
-    { icon: MessageCircle, label: t('nav_messages'), href: "/messages", category: "MESSAGES" },
+    { icon: MessageCircle, label: t('nav_messages'), href: "/messages", category: "MESSAGES", badge: unreadMessageCount > 0 ? unreadMessageCount : undefined },
     { icon: User, label: t('nav_profile'), href: "/profile" },
     { icon: Activity, label: t('nav_admin'), href: "/admin", category: "ADMIN" as PulseCategory, isHidden: !isAdmin },
     { icon: Megaphone, label: "Advertise", href: "/advertise" },
@@ -62,7 +62,7 @@ export function MainNav() {
         {navItems.filter(item => !item.isHidden).map((item) => {
           const isActive = pathname === item.href;
           const isAdminItem = item.href === '/admin';
-          const rawBadge = item.category ? categoryPulses[item.category] : (item.badge ?? 0);
+          const rawBadge = item.badge !== undefined ? item.badge : (item.category ? categoryPulses[item.category] : 0);
           const displayBadge = isAdminItem ? (rawBadge + totalAdminAlerts) : rawBadge;
 
           const handleClick = () => {

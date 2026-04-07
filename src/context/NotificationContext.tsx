@@ -32,6 +32,7 @@ export interface NotificationNode {
 interface NotificationContextType {
   notifications: NotificationNode[];
   unreadCount: number;
+  unreadMessageCount: number;
   categoryPulses: Record<PulseCategory, number>;
   messagePreviews: Record<string, MessagePreview>;
   addSignal: (signal: Omit<NotificationNode, 'id' | 'time' | 'isRead'>) => void;
@@ -40,6 +41,9 @@ interface NotificationContextType {
   purgeSignal: (id: string) => void;
   clearPulse: (category: PulseCategory) => void;
   incrementPulse: (category: PulseCategory) => void;
+  setPulseCount: (category: PulseCategory, count: number) => void;
+  incrementUnreadMessageCount: () => void;
+  decrementUnreadMessageCount: (by?: number) => void;
   updateMessagePreview: (clusterId: string, text: string, time: string) => void;
   refreshNotifications: (userId: string) => Promise<void>;
   requestPushPermission: () => Promise<void>;
@@ -65,6 +69,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   });
   const [messagePreviews, setMessagePreviews] = useState<Record<string, MessagePreview>>({});
   const [hasPushPermission, setHasPushPermission] = useState(false);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const { settings, triggerHaptic, currentUser, selectedChatId } = usePosts();
 
   const loadNotifications = useCallback(async (userId: string) => {
@@ -182,12 +187,38 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const clearPulse = useCallback((category: PulseCategory) => {
     setCategoryPulses(prev => ({ ...prev, [category]: 0 }));
+    if (category === 'MESSAGES') setUnreadMessageCount(0);
   }, []);
 
   const incrementPulse = useCallback((category: PulseCategory) => {
     setCategoryPulses(prev => ({ ...prev, [category]: (prev[category] || 0) + 1 }));
     triggerSound();
   }, [triggerSound]);
+
+  const setPulseCount = useCallback((category: PulseCategory, count: number) => {
+    setCategoryPulses(prev => ({ ...prev, [category]: count }));
+  }, []);
+
+  // Load real unread message count from DB on login (requires receiver_id index in Appwrite)
+  useEffect(() => {
+    if (!currentUser?.$id) { setUnreadMessageCount(0); return; }
+    databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
+      Query.equal('receiver_id', currentUser.$id),
+      Query.equal('is_read', false),
+      Query.limit(100),
+    ]).then(res => {
+      setUnreadMessageCount(res.total);
+      setPulseCount('MESSAGES', res.total);
+    }).catch(() => { /* index may not exist yet — no-op until receiver_id attribute is indexed */ });
+  }, [currentUser?.$id, setPulseCount]);
+
+  const incrementUnreadMessageCount = useCallback(() => {
+    setUnreadMessageCount(prev => prev + 1);
+  }, []);
+
+  const decrementUnreadMessageCount = useCallback((by = 1) => {
+    setUnreadMessageCount(prev => Math.max(0, prev - by));
+  }, []);
 
   const updateMessagePreview = useCallback((clusterId: string, text: string, time: string) => {
     setMessagePreviews(prev => ({
@@ -211,9 +242,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   return (
     <NotificationContext.Provider value={{
-      notifications, unreadCount, categoryPulses, messagePreviews,
+      notifications, unreadCount, unreadMessageCount, categoryPulses, messagePreviews,
       addSignal, markAsRead, markAllAsRead, purgeSignal, clearPulse,
-      incrementPulse, updateMessagePreview, refreshNotifications,
+      incrementPulse, setPulseCount, incrementUnreadMessageCount, decrementUnreadMessageCount,
+      updateMessagePreview, refreshNotifications,
       requestPushPermission, hasPushPermission,
     }}>
       {children}

@@ -199,3 +199,24 @@ Indexes created: `friend_requests` (sender/receiver_username), `follows` (follow
 6. `warnUser`, `sendFriendRequest`, `confirmFriendRequest`, `approvePaymentRequest`: all notification `createDocument` calls now include both `title`/`content` (new schema fields) and `message` (backward-compat) fields.
 7. `friends/page.tsx`: "Confirm" and "Friends" tabs now use `allAvailableUsers` (union of `connections` + `allNetworkUsers`) instead of just `connections`, so users who sent friend requests but aren't followed appear correctly. Discovery fetch is now triggered on mount for all tabs.
 8. `signup`: added referral processing — looks up referrer by username, credits them with 5000 stars, increments their `referral_count`, auto-follows the referrer, and sends them a notification. Clears `vimore_referrer` from localStorage after processing.
+
+## Real-Time Feature Pass (April 2026)
+
+**1. Real-time conversation list updates**
+- `addIncomingMessage` in the PostContext value now derives the correct storage key for DMs: finds the matching `Connection` by checking `c.username === clusterId || clusterId.includes(c.username)`, and uses `c.username` as the key (matching `loadChatMessages` behavior). Falls back to `clusterId` for group chats.
+- Also updates `connectionsState` and `clustersState` with `lastMessage`/`lastTime` preview on every incoming message, so `ChatList` reflects the latest message instantly without a reload.
+
+**2. DB-backed `is_read` message status and unread notification badge**
+- `sendChatMessage` now writes `receiver_id: otherUser.$id` on every DM document.
+- `markChatMessagesRead(chatId)` in PostContext updates local `chatMessages` state (`status: 'read'`) and batch-calls `databases.updateDocument(... { is_read: true })` for all unread incoming messages.
+- A `useEffect` in PostContext fires when `selectedChatId` changes, calls `markChatMessagesRead` automatically.
+- `NotificationContext` adds `unreadMessageCount` state (separate from `categoryPulses`), `incrementUnreadMessageCount`, `decrementUnreadMessageCount`, `setPulseCount` callbacks.
+- On login, a `useEffect` (placed after `setPulseCount` declaration to avoid TDZ error) queries Appwrite for `receiver_id == currentUser AND is_read == false` and seeds both `unreadMessageCount` and the MESSAGES pulse. Requires a `receiver_id` attribute index in Appwrite — silently no-ops if not yet indexed.
+- `main-nav.tsx` Messages badge reads `unreadMessageCount` from NotificationContext with priority over `categoryPulses.MESSAGES`.
+- `clearPulse('MESSAGES')` resets `unreadMessageCount` to 0 (triggered when user opens Messages).
+
+**3. Live post edit propagation**
+- `GlobalRealtimeListener` POSTS subscription now checks for `content` field changes on `update` events and calls `applyRemotePostEdit(postId, content)` on the PostContext.
+- `applyRemotePostEdit` is added to PostContext type and value: maps over `posts` state and updates the matching post's `content` in place, so all users see edited posts instantly without refreshing.
+
+**Appwrite index needed**: `messages` collection requires a `receiver_id` attribute index for the unread count query. Until created, the query fails silently (caught and ignored).

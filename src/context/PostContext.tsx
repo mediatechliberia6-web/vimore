@@ -368,6 +368,8 @@ interface PostContextType {
   sendAdminBroadcast: (opts: { title: string; message: string; actionUrl?: string; targetUserIds: string[] | 'all' }) => Promise<number>;
   broadcastHistory: any[];
   addIncomingMessage: (clusterId: string, message: ChatMessage, preview: string, timeStr: string) => void;
+  markChatMessagesRead: (chatId: string) => void;
+  applyRemotePostEdit: (postId: string, content: string) => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -1172,6 +1174,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
       loadChatMessages(currentUser.$id, selectedChatId, currentUser.username, isCluster);
     }
   }, [selectedChatId, currentUser, loadChatMessages, clusters]);
+
+  // Mark incoming messages as read when a chat is opened or new messages arrive
+  useEffect(() => {
+    if (!selectedChatId || !currentUser) return;
+    const msgs = chatMessages[selectedChatId] || [];
+    const unreadMsgs = msgs.filter(m => m.sender === 'them' && m.status !== 'read');
+    if (unreadMsgs.length === 0) return;
+    setChatMessages(prev => ({
+      ...prev,
+      [selectedChatId]: (prev[selectedChatId] || []).map(m =>
+        m.sender === 'them' && m.status !== 'read' ? { ...m, status: 'read' as const } : m
+      ),
+    }));
+    unreadMsgs.forEach(m => {
+      databases.updateDocument(DATABASE_ID, COL.MESSAGES, m.$id, { is_read: true }).catch(() => {});
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChatId, chatMessages, currentUser]);
 
   // Poll active chat for new messages every 2 seconds for real-time feel
   useEffect(() => {
@@ -2335,6 +2355,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
         type: message.type || 'text',
         is_read: false,
       };
+      if (!isClusterMsg) {
+        const recipientConn = connections.find(c => c.username === recipientId);
+        if (recipientConn?.$id) docData.receiver_id = recipientConn.$id;
+      }
       if (message.text) docData.text = message.text;
       if (currentUser.avatar) docData.sender_avatar = currentUser.avatar;
       if (message.mediaUrl) {
@@ -2353,7 +2377,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       toast({ variant: 'destructive', title: 'Message Failed', description: err?.message || 'Could not deliver your message. Please try again.' });
       throw err;
     }
-  }, [currentUser, toast, clusters]);
+  }, [currentUser, toast, clusters, connections]);
 
   const sendMessageRequest = useCallback(async (targetUserId: string, targetUser: User, text: string) => {
     if (!currentUser || !text.trim()) return;
@@ -3517,14 +3541,20 @@ export function PostProvider({ children }: { children: ReactNode }) {
     sendChatMessage, sendMessageRequest,
     fetchAllUsersForDiscovery, allUsers, refreshAllUsers, banUser, suspendUser, warnUser, sendAdminBroadcast, broadcastHistory,
     addIncomingMessage: (clusterId: string, message: ChatMessage, preview: string, timeStr: string) => {
+      // For DMs, chatMessages is keyed by the other user's username (matching loadChatMessages).
+      // For group clusters, chatMessages is keyed by the cluster $id.
+      const matchingConn = connections.find(c =>
+        c.username === clusterId || clusterId.includes(c.username)
+      );
+      const storageKey = matchingConn ? matchingConn.username : clusterId;
       setChatMessages(prev => {
-        const existing = prev[clusterId] || [];
+        const existing = prev[storageKey] || [];
         const alreadyExists = existing.some(m => m.$id === message.$id);
         if (alreadyExists) return prev;
-        return { ...prev, [clusterId]: [...existing, message] };
+        return { ...prev, [storageKey]: [...existing, message] };
       });
       setConnectionsState(prev => prev.map(c => {
-        if (c.username === clusterId || clusterId.includes(c.username)) {
+        if (c.username === storageKey || clusterId.includes(c.username)) {
           return { ...c, lastMessage: preview, lastTime: timeStr };
         }
         return c;
@@ -3535,6 +3565,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
         }
         return cl;
       }));
+    },
+    markChatMessagesRead: (chatId: string) => {
+      if (!currentUser) return;
+      const msgs = chatMessages[chatId] || [];
+      const unreadMsgs = msgs.filter(m => m.sender === 'them' && m.status !== 'read');
+      if (unreadMsgs.length === 0) return;
+      setChatMessages(prev => ({
+        ...prev,
+        [chatId]: (prev[chatId] || []).map(m =>
+          m.sender === 'them' && m.status !== 'read' ? { ...m, status: 'read' as const } : m
+        ),
+      }));
+      unreadMsgs.forEach(m => {
+        databases.updateDocument(DATABASE_ID, COL.MESSAGES, m.$id, { is_read: true }).catch(() => {});
+      });
+    },
+    applyRemotePostEdit: (postId: string, content: string) => {
+      setPostsState(prev => prev.map(p => p.$id === postId ? { ...p, content } : p));
     },
     purgeVibeCache: async () => setSeenPostIdsState(new Set()),
     archiveIdentityNode: async () => {},
