@@ -228,6 +228,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         tracks = tracksRes.value.documents.map(mapDocToTrack);
         setGlobalSongsState(tracks);
         setQueueState(tracks);
+        try { localStorage.setItem('vm_offline_songs', JSON.stringify(tracks)); } catch { }
       }
 
       if (albumsRes.status === 'fulfilled') {
@@ -252,6 +253,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
         albums = albumDocs.map((doc: any) => mapDocToAlbum(doc, albumTracksMap[doc.$id] || []));
         setGlobalAlbumsState(albums);
+        try { localStorage.setItem('vm_offline_albums', JSON.stringify(albums)); } catch { }
       }
 
       if (playlistsRes.status === 'fulfilled') {
@@ -289,6 +291,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       console.error('loadMusicData error:', err);
+      try {
+        const cachedSongs = localStorage.getItem('vm_offline_songs');
+        if (cachedSongs) setGlobalSongsState(JSON.parse(cachedSongs));
+        const cachedAlbums = localStorage.getItem('vm_offline_albums');
+        if (cachedAlbums) setGlobalAlbumsState(JSON.parse(cachedAlbums));
+      } catch { }
     }
   }, []);
 

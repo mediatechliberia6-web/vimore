@@ -10,6 +10,7 @@ import {
 } from '@/lib/appwrite';
 
 import { formatErrorDescription, logAppwriteError } from '@/lib/appwrite-error';
+import { offlineCache } from '@/lib/offline-cache';
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
@@ -193,6 +194,7 @@ interface PostContextType {
   activeComments: PostComment[];
   isLoading: boolean;
   initError: string | null;
+  isOffline: boolean;
   likedPostIds: Set<string>;
   unlikedPostIds: Set<string>;
   savedPostIds: Set<string>;
@@ -523,6 +525,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [activeComments, setActiveComments] = useState<PostComment[]>([]);
   const [isLoading, setIsLoadingState] = useState(true);
   const [initError] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
   const [settings, setSettingsState] = useState<AppSettings>(INITIAL_SETTINGS);
 
   const [clusters, setClustersState] = useState<Cluster[]>([]);
@@ -607,12 +610,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
       const mapped = postsResult.documents.map((doc: any) => mapDocToPost(doc, authorsMap[doc.user_id]));
       setPostsState(mapped);
+      offlineCache.savePosts(mapped);
       if (postsResult.documents.length > 0) {
         feedCursorRef.current = postsResult.documents[postsResult.documents.length - 1].$id;
       }
       setHasMoreFeed(postsResult.documents.length === 15);
     } catch (err) {
       logAppwriteError('loadFeed', err);
+      const cachedPosts = offlineCache.getPosts() as any[];
+      if (cachedPosts.length > 0) setPostsState(cachedPosts);
     }
   }, []);
 
@@ -838,13 +844,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
             return { ...c, lastMessage: preview, lastTime: lastMsg.time };
           });
           setConnectionsState(enriched);
+          offlineCache.saveConnections(enriched);
         } catch {
           setConnectionsState(conns);
+          offlineCache.saveConnections(conns);
         }
       } else {
         setConnectionsState(conns);
+        offlineCache.saveConnections(conns);
       }
-    } catch { /* ignore */ }
+    } catch {
+      const cachedConns = offlineCache.getConnections() as any[];
+      if (cachedConns.length > 0) setConnectionsState(cachedConns);
+    }
   }, []);
 
   const loadStories = useCallback(async () => {
@@ -1062,11 +1074,29 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const checkSession = useCallback(async () => {
     setIsLoadingState(true);
+
+    // If the device has no connectivity, restore from local cache immediately
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const cachedUser = offlineCache.getUser() as any | null;
+      if (cachedUser) {
+        setCurrentUserState(cachedUser);
+        const cachedPosts = offlineCache.getPosts() as any[];
+        if (cachedPosts.length > 0) setPostsState(cachedPosts);
+        const cachedConns = offlineCache.getConnections() as any[];
+        if (cachedConns.length > 0) setConnectionsState(cachedConns);
+        setIsOffline(true);
+        setIsLoadingState(false);
+        return;
+      }
+    }
+
     try {
       const authUser = await account.get();
       const profileDoc = await databases.getDocument(DATABASE_ID, COL.USERS, authUser.$id);
       const user = mapDocToUser(authUser, profileDoc);
       setCurrentUserState(user);
+      offlineCache.saveUser(user);
+      setIsOffline(false);
 
       await Promise.allSettled([
         loadFeed(),
@@ -1077,7 +1107,25 @@ export function PostProvider({ children }: { children: ReactNode }) {
         loadUserWithdrawals(authUser.$id),
         loadCampaigns(),
       ]);
-    } catch {
+    } catch (err: any) {
+      // Network failure (offline) but we have a cached session → go offline mode
+      const isNetworkError = (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        (err?.message && /fetch|network|failed to fetch/i.test(err.message));
+      if (isNetworkError) {
+        const cachedUser = offlineCache.getUser() as any | null;
+        if (cachedUser) {
+          setCurrentUserState(cachedUser);
+          const cachedPosts = offlineCache.getPosts() as any[];
+          if (cachedPosts.length > 0) setPostsState(cachedPosts);
+          const cachedConns = offlineCache.getConnections() as any[];
+          if (cachedConns.length > 0) setConnectionsState(cachedConns);
+          setIsOffline(true);
+          setIsLoadingState(false);
+          return;
+        }
+      }
+      // Auth error or no cached session — redirect to login
+      offlineCache.clearUser();
       setCurrentUserState(null);
     } finally {
       setIsLoadingState(false);
@@ -1403,6 +1451,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try { await account.deleteSession('current'); } catch { /* ignore */ }
+    offlineCache.clearUser();
+    setIsOffline(false);
     setCurrentUserState(null);
     setPostsState([]);
     setStoriesState([]);
@@ -3205,7 +3255,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const clearStreamedComments = useCallback(() => setStreamedComments([]), []);
 
   const value: PostContextType = {
-    currentUser, isAuthenticated: !!currentUser, posts, hasMoreFeed, isFeedLoading, loadMoreFeed, activeComments, isLoading, initError,
+    currentUser, isAuthenticated: !!currentUser, posts, hasMoreFeed, isFeedLoading, loadMoreFeed, activeComments, isLoading, initError, isOffline,
     likedPostIds, unlikedPostIds, savedPostIds, unlockedPostIds, seenPostIds, viewedPostIds,
     followingUsernames, followingUserIds, followerUsernames, friendUsernames, sentRequestUsernames,
     receivedRequestUsernames, acceptedStrangerUsernames,

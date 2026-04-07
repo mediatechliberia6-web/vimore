@@ -16,7 +16,7 @@ import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search, X, Heart, ListMusic, Plus, Music, Disc3, Download, Trash2, MoreVertical, Zap } from "lucide-react";
+import { ArrowLeft, Search, X, Heart, ListMusic, Plus, Music, Disc3, Download, Trash2, MoreVertical, Zap, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -40,7 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 function MusicPageContent() {
   const searchParams = useSearchParams();
   const { globalSongs, globalAlbums, globalPlaylists, forYouSongs, currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, userSongs, userAlbums, openCreatePlaylist, downloadedSongIds, deleteUserTrack, deleteUserAlbum, triggerHaptic } = useMusic();
-  const { connections, settings } = usePosts();
+  const { connections, settings, isOffline } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("discover");
@@ -150,6 +150,12 @@ function MusicPageContent() {
       <div className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[280px_1fr]">
         <aside className={cn("hidden lg:block sticky border-r border-border/50 transition-all duration-300", isPlayerActive ? "top-[125px] h-[calc(100vh-125px)]" : "top-[61px] h-[calc(100vh-61px)]")}><MainNav /></aside>
         <main className={cn("flex flex-col pb-48 relative transition-all duration-300", isPlayerActive ? "pt-[64px]" : "pt-0")}>
+          {isOffline && (
+            <div className="w-full bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-center gap-2">
+              <WifiOff className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <span className="text-[11px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Offline — showing saved music</span>
+            </div>
+          )}
           <div className={cn("sticky z-30 bg-[#F0F2F5]/80 dark:bg-background/80 backdrop-blur-md px-4 sm:px-10 py-4 flex items-center justify-between border-b border-border/50 transition-all duration-300", isPlayerActive ? "top-[125px]" : "top-[61px]")}>
             <div className="flex items-center gap-2 sm:gap-4 shrink-0"><Link href="/"><Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 h-9 w-9 sm:h-10 sm:w-10"><ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" /></Button></Link><h1 className="text-lg sm:text-2xl font-black italic uppercase tracking-tighter hidden xs:block">{t('music_title')}</h1></div>
             <div className="relative group flex-1 max-w-md ml-2 sm:ml-4"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary" /><Input placeholder={t('music_search')} className="pl-10 pr-10 h-10 bg-white/50 dark:bg-card/50 border-primary/10 rounded-xl text-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />{searchQuery && <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X className="h-4 w-4" /></button>}</div>

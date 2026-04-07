@@ -23,6 +23,7 @@ import {
   PlusSquare,
   X,
   Users,
+  WifiOff,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -636,7 +637,7 @@ function ReelItem({
 }
 
 export default function ReelsPage() {
-  const { posts, campaigns, openCommentHub, fetchComments, friendUsernames, followingUsernames, settings } = usePosts();
+  const { posts, campaigns, openCommentHub, fetchComments, friendUsernames, followingUsernames, settings, isOffline } = usePosts();
 
   const reels = useMemo(() => posts.filter((p) => p.videoUrl), [posts]);
 
@@ -797,6 +798,12 @@ export default function ReelsPage() {
 
   return (
     <div className="fixed inset-0 bg-black overflow-hidden">
+      {isOffline && (
+        <div className="absolute top-0 left-0 right-0 z-50 bg-amber-500/20 backdrop-blur-sm border-b border-amber-500/30 px-4 py-1.5 flex items-center justify-center gap-2 pointer-events-none">
+          <WifiOff className="h-3 w-3 text-amber-400 shrink-0" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">Offline — showing saved reels</span>
+        </div>
+      )}
       <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none">
         <div className="flex items-center justify-between px-4 pt-12 pb-3">
           <Link

@@ -9,14 +9,14 @@ import { ChatWindow } from "@/components/chat/chat-window";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts, Connection, Cluster } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
-import { MessageSquare, Zap, Layers, Loader2 } from "lucide-react";
+import { MessageSquare, Zap, Layers, Loader2, WifiOff } from "lucide-react";
 import { BiometricGate } from "@/components/layout/biometric-gate";
 import { DiagnosticErrorBoundary } from "@/components/layout/diagnostic-error-boundary";
 import MessagesLoading from "./loading";
 
 function MessagesInner() {
   const { currentTrack, isExpanded } = useMusic();
-  const { connections, clusters, currentUser, isLoading, allUsers, setSelectedChatId: setContextChatId } = usePosts();
+  const { connections, clusters, currentUser, isLoading, isOffline, allUsers, setSelectedChatId: setContextChatId } = usePosts();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
   const searchParams = useSearchParams();
@@ -78,7 +78,12 @@ function MessagesInner() {
           </aside>
 
           <main className="relative flex flex-col bg-white dark:bg-[#050505] h-full overflow-hidden">
-            
+            {isOffline && (
+              <div className="w-full bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-center gap-2 shrink-0">
+                <WifiOff className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                <span className="text-[11px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Offline — showing saved messages</span>
+              </div>
+            )}
             {isPlayerActive && <div className="h-16 shrink-0 transition-all duration-300" />}
 
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-[400px_1fr] min-h-0 overflow-hidden">

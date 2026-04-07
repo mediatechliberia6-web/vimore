@@ -20,7 +20,8 @@ import {
   Users, 
   UserPlus, 
   Search, 
-  MessageCircle, 
+  MessageCircle,
+  WifiOff,
   UserCheck, 
   Zap, 
   Play, 
@@ -54,7 +55,7 @@ import FriendsLoading from "./loading";
 type HubTab = "add" | "confirm" | "friends";
 
 function FriendsPageContent() {
-  const { connections = [], isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, currentUser, friendUsernames, followerUsernames, isLoading, fetchAllUsersForDiscovery } = usePosts();
+  const { connections = [], isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, currentUser, friendUsernames, followerUsernames, isLoading, isOffline, fetchAllUsersForDiscovery } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -213,6 +214,13 @@ function FriendsPageContent() {
 
       <Header />
       <SubHeader />
+
+      {isOffline && (
+        <div className="w-full bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-center gap-2 relative z-20">
+          <WifiOff className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+          <span className="text-[11px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Offline — showing saved connections</span>
+        </div>
+      )}
       
       <div className={cn(
         "w-full max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[280px_1fr_360px] gap-8 px-4 relative z-10 transition-all duration-300",
