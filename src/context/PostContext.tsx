@@ -1193,25 +1193,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChatId, chatMessages, currentUser]);
 
-  // Poll active chat for new messages every 2 seconds for real-time feel
-  useEffect(() => {
-    if (!selectedChatId || !currentUser) return;
-    const isCluster = clusters.some(cl => cl.$id === selectedChatId);
-    const interval = setInterval(() => {
-      loadChatMessages(currentUser.$id, selectedChatId, currentUser.username, isCluster);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [selectedChatId, currentUser, loadChatMessages, clusters]);
-
-  // Poll connections list every 5 seconds for real-time conversation updates
-  useEffect(() => {
-    if (!currentUser) return;
-    const interval = setInterval(() => {
-      loadConnections(currentUser.$id);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [currentUser, loadConnections]);
-
   // Poll for call signals every 3 seconds
   useEffect(() => {
     if (!currentUser) return;
