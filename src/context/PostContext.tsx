@@ -183,6 +183,7 @@ export interface ChatMessage {
     status: 'started' | 'missed' | 'ended';
     duration?: string;
   };
+  createdAt?: number;
 }
 
 export interface CallState {
@@ -370,8 +371,11 @@ interface PostContextType {
   addIncomingMessage: (clusterId: string, message: ChatMessage, preview: string, timeStr: string) => void;
   markChatMessagesRead: (chatId: string) => void;
   applyRemotePostEdit: (postId: string, content: string) => void;
+  applyReadReceipt: (storageKey: string, lastReadAt: string, docId: string) => void;
   refreshSocialGraph: () => Promise<void>;
   chatLastMessageAt: Record<string, number>;
+  chatLastIncomingAt: Record<string, number>;
+  chatReadReceipts: Record<string, string>;
   fetchProfilePosts: (userId: string, cursor?: string | null) => Promise<{ posts: Post[]; cursor: string | null; hasMore: boolean }>;
   fetchReels: (cursor?: string | null) => Promise<{ posts: Post[]; cursor: string | null; hasMore: boolean }>;
 }
@@ -590,6 +594,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [acceptedStrangerUsernames] = useState<Set<string>>(new Set());
   const [activeSubscriptions, setActiveSubscriptionsState] = useState<Set<string>>(new Set());
   const [chatLastMessageAt, setChatLastMessageAt] = useState<Record<string, number>>({});
+  const [chatLastIncomingAt, setChatLastIncomingAt] = useState<Record<string, number>>({});
+  const [chatReadReceipts, setChatReadReceipts] = useState<Record<string, string>>({});
+  const [chatReadReceiptDocIds, setChatReadReceiptDocIds] = useState<Record<string, string>>({});
 
   const [selectedPostId, setSelectedPostIdState] = useState<string | null>(null);
   const [selectedChatId, setSelectedChatIdState] = useState<string | null>(null);
@@ -1043,6 +1050,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           callData,
           senderName: doc.sender_name,
           senderAvatar: doc.sender_avatar,
+          createdAt: doc.$createdAt ? new Date(doc.$createdAt).getTime() : undefined,
         };
       });
 
@@ -1052,6 +1060,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
         const lastDoc = all[all.length - 1];
         const ts = lastDoc.$createdAt ? new Date(lastDoc.$createdAt).getTime() : Date.now();
         setChatLastMessageAt(prev => ({ ...prev, [otherId]: ts }));
+      }
+
+      const lastIncomingMsg = msgs.filter(m => m.sender === 'them' && m.createdAt).at(-1);
+      if (lastIncomingMsg?.createdAt) {
+        setChatLastIncomingAt(prev => ({ ...prev, [otherId]: lastIncomingMsg.createdAt! }));
       }
 
       if (!isCluster && msgs.length > 0) {
@@ -1070,6 +1083,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
       toast({ variant: 'destructive', title: 'Failed to Load Messages', description: message });
     }
   }, [toast]);
+
+  const loadChatReadReceipts = useCallback(async (userId: string) => {
+    try {
+      const result = await databases.listDocuments(DATABASE_ID, COL.CHAT_READ_RECEIPTS, [
+        Query.equal('user_id', userId),
+        Query.limit(200),
+      ]);
+      const receipts: Record<string, string> = {};
+      const docIds: Record<string, string> = {};
+      for (const doc of result.documents) {
+        receipts[doc.cluster_id] = doc.last_read_at;
+        docIds[doc.cluster_id] = doc.$id;
+      }
+      setChatReadReceipts(receipts);
+      setChatReadReceiptDocIds(docIds);
+    } catch { /* ignore */ }
+  }, []);
 
   const loadUserWithdrawals = useCallback(async (userId: string) => {
     try {
@@ -1136,6 +1166,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         loadClusters(authUser.$id),
         loadUserWithdrawals(authUser.$id),
         loadCampaigns(),
+        loadChatReadReceipts(authUser.$id),
       ]);
     } catch (err: any) {
       // Network failure (offline) but we have a cached session → go offline mode
@@ -1160,7 +1191,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoadingState(false);
     }
-  }, [loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns]);
+  }, [loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns, loadChatReadReceipts]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1379,6 +1410,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         loadClusters(authUser.$id),
         loadUserWithdrawals(authUser.$id),
         loadCampaigns(),
+        loadChatReadReceipts(authUser.$id),
       ]);
       setIsLoadingState(false);
       toast({ title: "Welcome back!", description: "You are now signed in." });
@@ -1389,7 +1421,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const msg = formatErrorDescription(err, null) || 'Invalid credentials. Please try again.';
       return { success: false, message: msg };
     }
-  }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns]);
+  }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns, loadChatReadReceipts]);
 
   const signup = useCallback(async (data: any) => {
     setIsLoadingState(true);
@@ -1485,6 +1517,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         loadStories(),
         loadClusters(authUser.$id),
         loadCampaigns(),
+        loadChatReadReceipts(authUser.$id),
       ]);
 
       setIsLoadingState(false);
@@ -1496,7 +1529,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const msg = formatErrorDescription(err, null) || 'Signup failed. Please try again.';
       return { success: false, message: msg };
     }
-  }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadCampaigns]);
+  }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadCampaigns, loadChatReadReceipts]);
 
   const logout = useCallback(async () => {
     try { await account.deleteSession('current'); } catch { /* ignore */ }
@@ -1508,6 +1541,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setConnectionsState([]);
     setClustersState([]);
     setChatMessages({});
+    setChatLastIncomingAt({});
+    setChatReadReceipts({});
+    setChatReadReceiptDocIds({});
     setLikedPostIdsState(new Set());
     setUnlikedPostIdsState(new Set());
     setSavedPostIdsState(new Set());
@@ -3716,6 +3752,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     refreshClusters,
     refreshFeed, refreshStories,
     chatLastMessageAt,
+    chatLastIncomingAt,
+    chatReadReceipts,
     recordView, recordStoryView,
     updateUserIdentity,
     handleReportAction, handleTicketAction, replyToTicket,
@@ -3732,9 +3770,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
         const existing = prev[storageKey] || [];
         const alreadyExists = existing.some(m => m.$id === message.$id);
         if (alreadyExists) return prev;
-        return { ...prev, [storageKey]: [...existing, message] };
+        return { ...prev, [storageKey]: [...existing, { ...message, createdAt: Date.now() }] };
       });
       setChatLastMessageAt(prev => ({ ...prev, [storageKey]: Date.now() }));
+      setChatLastIncomingAt(prev => ({ ...prev, [storageKey]: Date.now() }));
       setConnectionsState(prev => prev.map(c => {
         if (c.username === storageKey || clusterId.includes(c.username)) {
           return { ...c, lastMessage: preview, lastTime: timeStr };
@@ -3755,7 +3794,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (!currentUser) return;
       const msgs = chatMessages[chatId] || [];
       const unreadMsgs = msgs.filter(m => m.sender === 'them' && m.status !== 'read');
-      if (unreadMsgs.length === 0) return;
       setChatMessages(prev => ({
         ...prev,
         [chatId]: (prev[chatId] || []).map(m =>
@@ -3765,6 +3803,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
       unreadMsgs.forEach(m => {
         databases.updateDocument(DATABASE_ID, COL.MESSAGES, m.$id, { is_read: true }).catch(() => {});
       });
+      const now = new Date().toISOString();
+      setChatReadReceipts(prev => ({ ...prev, [chatId]: now }));
+      const existingDocId = chatReadReceiptDocIds[chatId];
+      if (existingDocId) {
+        databases.updateDocument(DATABASE_ID, COL.CHAT_READ_RECEIPTS, existingDocId, { last_read_at: now }).catch(() => {});
+      } else {
+        databases.createDocument(DATABASE_ID, COL.CHAT_READ_RECEIPTS, ID.unique(), {
+          user_id: currentUser.$id,
+          cluster_id: chatId,
+          last_read_at: now,
+        }).then(doc => {
+          setChatReadReceiptDocIds(prev => ({ ...prev, [chatId]: doc.$id }));
+        }).catch(() => {});
+      }
+    },
+    applyReadReceipt: (storageKey: string, lastReadAt: string, docId: string) => {
+      setChatReadReceipts(prev => ({ ...prev, [storageKey]: lastReadAt }));
+      setChatReadReceiptDocIds(prev => ({ ...prev, [storageKey]: docId }));
     },
     applyRemotePostEdit: (postId: string, content: string) => {
       setPostsState(prev => prev.map(p => p.$id === postId ? { ...p, content } : p));

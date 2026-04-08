@@ -44,6 +44,7 @@ export const COL = {
   USER_BANS: 'user_bans',
   EVENTS: 'events',
   TICKETS: 'tickets',
+  CHAT_READ_RECEIPTS: 'chat_read_receipts',
 } as const;
 
 export const BUCKET = {

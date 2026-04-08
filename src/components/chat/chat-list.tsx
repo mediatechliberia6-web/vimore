@@ -36,7 +36,7 @@ interface ChatListProps {
 }
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
-  const { connections = [], clusters = [], triggerHaptic, settings, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, markChatMessagesRead, chatLastMessageAt } = usePosts();
+  const { connections = [], clusters = [], triggerHaptic, settings, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, markChatMessagesRead, chatLastMessageAt, chatLastIncomingAt, chatReadReceipts } = usePosts();
   const { categoryPulses, clearPulse, messagePreviews } = useNotifications();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -89,9 +89,10 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     } else if (activeFilter === "unread") {
       list = list.filter(item => {
         const itemId = (item as any).username || (item as any).$id;
-        const msgs = chatMessages[itemId];
-        if (!msgs || msgs.length === 0) return false;
-        return msgs.some(m => m.sender !== 'me' && m.status !== 'read');
+        const lastIncomingAt = chatLastIncomingAt[itemId];
+        if (lastIncomingAt === undefined) return false;
+        const lastReadAt = chatReadReceipts[itemId] ? new Date(chatReadReceipts[itemId]).getTime() : 0;
+        return lastIncomingAt > lastReadAt;
       });
     }
 
@@ -121,7 +122,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     });
 
     return { sortedChats: sorted, requestCount: requests.length };
-  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, chatLastMessageAt, showRequests]);
+  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, chatLastMessageAt, chatLastIncomingAt, chatReadReceipts, showRequests]);
 
   const handleSelection = (id: string) => {
     triggerHaptic(5);
@@ -199,7 +200,9 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
             const isOnlineVisible = (item as any).isOnline && !settings.isGhostMode;
             
             const msgs = chatMessages[id];
-            const hasNewPulse = isSelected ? false : !!(msgs && msgs.length > 0 && msgs.some(m => m.sender !== 'me' && m.status !== 'read'));
+            const lastIncomingAt = chatLastIncomingAt[id];
+            const lastReadAt = chatReadReceipts[id] ? new Date(chatReadReceipts[id]).getTime() : 0;
+            const hasNewPulse = !isSelected && lastIncomingAt !== undefined && lastIncomingAt > lastReadAt;
 
             return (
               <div key={id} onClick={() => handleSelection(id)} className={cn("group flex items-center gap-4 p-4 cursor-pointer transition-all border-l-4", isSelected ? "bg-primary/5 border-primary" : "hover:bg-secondary/30 border-transparent")}>

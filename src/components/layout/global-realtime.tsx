@@ -23,7 +23,7 @@ export function GlobalRealtimeListener() {
   const {
     currentUser, selectedChatId, refreshAdminData,
     followingUserIds, applyPostCountUpdate, addStreamedComment, activeCommentPostId,
-    addIncomingMessage, applyRemotePostEdit, refreshSocialGraph,
+    addIncomingMessage, applyRemotePostEdit, refreshSocialGraph, applyReadReceipt,
   } = usePosts();
   const {
     incrementPulse, updateMessagePreview, refreshNotifications,
@@ -70,6 +70,7 @@ export function GlobalRealtimeListener() {
       `databases.${DATABASE_ID}.collections.${COL.MESSAGES}.documents`,
       `databases.${DATABASE_ID}.collections.${COL.NOTIFICATIONS}.documents`,
       `databases.${DATABASE_ID}.collections.${COL.FRIEND_REQUESTS}.documents`,
+      `databases.${DATABASE_ID}.collections.${COL.CHAT_READ_RECEIPTS}.documents`,
     ];
     if (isAdmin) {
       channels.push(`databases.${DATABASE_ID}.collections.${COL.REPORTS}.documents`);
@@ -86,6 +87,7 @@ export function GlobalRealtimeListener() {
       const isNotificationEvent = events.some(e => e.includes(`.${COL.NOTIFICATIONS}.`));
       const isFriendReqEvent    = events.some(e => e.includes(`.${COL.FRIEND_REQUESTS}.`));
       const isReportEvent       = events.some(e => e.includes(`.${COL.REPORTS}.`));
+      const isReceiptEvent      = events.some(e => e.includes(`.${COL.CHAT_READ_RECEIPTS}.`));
 
       const user   = currentUserRef.current;
       const chatId = selectedChatRef.current;
@@ -151,10 +153,14 @@ export function GlobalRealtimeListener() {
       if (isReportEvent && isCreate && isAdmin) {
         incrementPulse('ADMIN');
       }
+
+      if (isReceiptEvent && (isCreate || isUpdate) && payload.user_id === user?.$id) {
+        applyReadReceipt(payload.cluster_id, payload.last_read_at, payload.$id);
+      }
     });
 
     return () => { unsubscribe(); };
-  }, [currentUser?.$id, currentUser?.role, incrementPulse, updateMessagePreview, refreshNotifications, addIncomingMessage, incrementUnreadMessageCount, decrementUnreadMessageCount, refreshSocialGraph]);
+  }, [currentUser?.$id, currentUser?.role, incrementPulse, updateMessagePreview, refreshNotifications, addIncomingMessage, incrementUnreadMessageCount, decrementUnreadMessageCount, refreshSocialGraph, applyReadReceipt]);
 
   // ─── Post interaction counts (likes / comments / shares) ─────────────────
   useEffect(() => {
