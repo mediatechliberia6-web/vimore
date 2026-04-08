@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useRef, startTransition, ReactNode
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import {
-  account, databases, storage, ID, Query, Models,
+  account, databases, storage, client, ID, Query, Models,
   COL, BUCKET, DATABASE_ID,
   getFileUrl, extractFileId, formatTimeAgo, avatarFallback, toProxyUrl,
 } from '@/lib/appwrite';
@@ -1172,6 +1172,26 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [checkSession]);
 
   useEffect(() => {
+    if (!currentUser?.$id) return;
+    const channel = `databases.${DATABASE_ID}.collections.${COL.USERS}.documents.${currentUser.$id}`;
+    const unsubscribe = client.subscribe(channel, (response) => {
+      const events: string[] = response.events as string[];
+      if (!events.some(e => e.endsWith('.update'))) return;
+      const payload = response.payload as any;
+      setCurrentUserState(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          followers: typeof payload.followers_count === 'number' ? payload.followers_count : prev.followers,
+          following: typeof payload.following_count === 'number' ? payload.following_count : prev.following,
+          posts: typeof payload.posts_count === 'number' ? payload.posts_count : prev.posts,
+        };
+      });
+    });
+    return () => { unsubscribe(); };
+  }, [currentUser?.$id]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     const credId = localStorage.getItem('vimore_biometric_cred_id');
     if (credId) {
@@ -2196,6 +2216,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
           following_username: targetUsername,
         });
         setFollowingUsernamesState(prev => new Set(prev).add(targetUsername));
+        const prevFollowing = currentUser.following as number || 0;
+        await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
+          following_count: prevFollowing + 1,
+        });
+        setCurrentUserState(prev => prev ? { ...prev, following: prevFollowing + 1 } : null);
+        await databases.updateDocument(DATABASE_ID, COL.USERS, targetDoc.$id, {
+          followers_count: (targetDoc.followers_count || 0) + 1,
+        }).catch(() => {});
       }
 
       await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
@@ -2262,6 +2290,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
             follower_username: currentUser.username,
             following_username: username,
           });
+          const prevFollowing = currentUser.following as number || 0;
+          await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
+            following_count: prevFollowing + 1,
+          }).catch(() => {});
+          setCurrentUserState(prev => prev ? { ...prev, following: prevFollowing + 1 } : null);
+          await databases.updateDocument(DATABASE_ID, COL.USERS, senderDoc.$id, {
+            followers_count: (senderDoc.followers as number || 0) + 1,
+          }).catch(() => {});
         }
 
         if (theirFollowsRes.total === 0) {
@@ -2271,6 +2307,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
             follower_username: username,
             following_username: currentUser.username,
           });
+          const prevFollowers = currentUser.followers as number || 0;
+          await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
+            followers_count: prevFollowers + 1,
+          }).catch(() => {});
+          setCurrentUserState(prev => prev ? { ...prev, followers: prevFollowers + 1 } : null);
+          await databases.updateDocument(DATABASE_ID, COL.USERS, senderDoc.$id, {
+            following_count: (senderDoc.following as number || 0) + 1,
+          }).catch(() => {});
         }
 
         await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
@@ -2294,6 +2338,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const cancelFriendRequest = useCallback(async (username: string) => {
     if (!currentUser) return;
     setSentRequestUsernamesState(p => { const n = new Set(p); n.delete(username); return n; });
+    const prevFollowing = currentUser.following as number || 0;
 
     try {
       const targetDoc = allUsers.find(u => u.username === username);
@@ -2306,17 +2351,40 @@ export function PostProvider({ children }: { children: ReactNode }) {
         for (const doc of existing.documents) {
           await databases.deleteDocument(DATABASE_ID, COL.FRIEND_REQUESTS, doc.$id);
         }
+
+        const followDocs = await databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
+          Query.equal('follower_id', currentUser.$id),
+          Query.equal('following_id', targetDoc.$id),
+        ]);
+        if (followDocs.total > 0) {
+          for (const doc of followDocs.documents) {
+            await databases.deleteDocument(DATABASE_ID, COL.FOLLOWS, doc.$id);
+          }
+          setFollowingUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
+          setFollowingUserIdsState(prev => { const n = new Set(prev); n.delete(targetDoc.$id); return n; });
+          const newFollowing = Math.max(0, prevFollowing - 1);
+          await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { following_count: newFollowing }).catch(() => {});
+          setCurrentUserState(prev => prev ? { ...prev, following: newFollowing } : null);
+          await databases.updateDocument(DATABASE_ID, COL.USERS, targetDoc.$id, {
+            followers_count: Math.max(0, (targetDoc.followers as number || 0) - 1),
+          }).catch(() => {});
+        }
       }
-    } catch { /* ignore */ }
+    } catch {
+      setCurrentUserState(prev => prev ? { ...prev, following: prevFollowing } : null);
+    }
   }, [currentUser, allUsers]);
 
   const unfriendUser = useCallback(async (username: string) => {
     if (!currentUser) return;
     setFriendUsernamesState(p => { const n = new Set(p); n.delete(username); return n; });
+    const prevFollowing = currentUser.following as number || 0;
+    const prevFollowers = currentUser.followers as number || 0;
 
     try {
       const targetUser = allUsers.find(u => u.username === username);
       if (!targetUser) { toast({ title: "Unfriended" }); return; }
+
       const [sent, recv] = await Promise.all([
         databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
           Query.equal('from_user_id', currentUser.$id), Query.equal('to_user_id', targetUser.$id), Query.equal('status', 'ACCEPTED'),
@@ -2328,8 +2396,51 @@ export function PostProvider({ children }: { children: ReactNode }) {
       for (const doc of [...sent.documents, ...recv.documents]) {
         await databases.deleteDocument(DATABASE_ID, COL.FRIEND_REQUESTS, doc.$id);
       }
-    } catch { /* ignore */ }
-    toast({ title: "Unfriended" });
+
+      const [myFollows, theirFollows] = await Promise.all([
+        databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
+          Query.equal('follower_id', currentUser.$id),
+          Query.equal('following_id', targetUser.$id),
+        ]),
+        databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
+          Query.equal('follower_id', targetUser.$id),
+          Query.equal('following_id', currentUser.$id),
+        ]),
+      ]);
+
+      if (myFollows.total > 0) {
+        for (const doc of myFollows.documents) {
+          await databases.deleteDocument(DATABASE_ID, COL.FOLLOWS, doc.$id);
+        }
+        setFollowingUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
+        setFollowingUserIdsState(prev => { const n = new Set(prev); n.delete(targetUser.$id); return n; });
+        const newFollowing = Math.max(0, prevFollowing - 1);
+        await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { following_count: newFollowing }).catch(() => {});
+        setCurrentUserState(prev => prev ? { ...prev, following: newFollowing } : null);
+        await databases.updateDocument(DATABASE_ID, COL.USERS, targetUser.$id, {
+          followers_count: Math.max(0, (targetUser.followers as number || 0) - 1),
+        }).catch(() => {});
+      }
+
+      if (theirFollows.total > 0) {
+        for (const doc of theirFollows.documents) {
+          await databases.deleteDocument(DATABASE_ID, COL.FOLLOWS, doc.$id);
+        }
+        const newFollowers = Math.max(0, prevFollowers - 1);
+        await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { followers_count: newFollowers }).catch(() => {});
+        setCurrentUserState(prev => prev ? { ...prev, followers: newFollowers } : null);
+        await databases.updateDocument(DATABASE_ID, COL.USERS, targetUser.$id, {
+          following_count: Math.max(0, (targetUser.following as number || 0) - 1),
+        }).catch(() => {});
+      }
+
+      toast({ title: "Unfriended" });
+    } catch (err) {
+      setFriendUsernamesState(p => new Set(p).add(username));
+      setCurrentUserState(prev => prev ? { ...prev, following: prevFollowing, followers: prevFollowers } : null);
+      logAppwriteError('unfriendUser', err);
+      toast({ variant: "destructive", title: "Unfriend failed" });
+    }
   }, [currentUser, allUsers, toast]);
 
   const sendChatMessage = useCallback(async (recipientId: string, message: Partial<ChatMessage>) => {
@@ -3475,7 +3586,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (!currentUser) return;
       const isNowFollowing = followingUsernames.has(username);
       if (isNowFollowing) {
+        const prevFollowing = currentUser.following as number || 0;
         setFollowingUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
+        setCurrentUserState(prev => prev ? { ...prev, following: Math.max(0, prevFollowing - 1) } : null);
         try {
           const existing = await databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
             Query.equal('follower_id', currentUser.$id),
@@ -3495,11 +3608,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
             }
           }
           await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
-            following_count: Math.max(0, (currentUser.following as number || 0) - 1),
+            following_count: Math.max(0, prevFollowing - 1),
           });
-        } catch { /* keep optimistic */ }
+        } catch {
+          setFollowingUsernamesState(prev => new Set(prev).add(username));
+          setCurrentUserState(prev => prev ? { ...prev, following: prevFollowing } : null);
+        }
       } else {
+        const prevFollowing = currentUser.following as number || 0;
         setFollowingUsernamesState(prev => new Set(prev).add(username));
+        setCurrentUserState(prev => prev ? { ...prev, following: prevFollowing + 1 } : null);
         try {
           const targetRes = await databases.listDocuments(DATABASE_ID, COL.USERS, [
             Query.equal('username', username), Query.limit(1),
@@ -3514,13 +3632,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
               following_username: username,
             });
             await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
-              following_count: (currentUser.following as number || 0) + 1,
+              following_count: prevFollowing + 1,
             });
             await databases.updateDocument(DATABASE_ID, COL.USERS, targetDoc.$id, {
               followers_count: (targetDoc.followers_count || 0) + 1,
             });
           }
-        } catch { /* keep optimistic */ }
+        } catch {
+          setFollowingUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
+          setCurrentUserState(prev => prev ? { ...prev, following: prevFollowing } : null);
+        }
       }
     },
     isFriend: (u: string) => friendUsernames.has(u),
