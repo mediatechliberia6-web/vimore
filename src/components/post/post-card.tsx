@@ -47,7 +47,6 @@ import {
   UserRoundX,
   Gauge,
   Clock,
-  Pencil
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -244,7 +243,7 @@ export function PostCard(props: PostCardProps) {
   } = props;
 
   const { 
-    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, editPost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, voteOnPostPoll, settings, recordCampaignClick, recordView, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, submitReport,
+    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, voteOnPostPoll, settings, recordCampaignClick, recordView, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, submitReport,
     postCountOverrides,
   } = usePosts();
 
@@ -274,8 +273,6 @@ export function PostCard(props: PostCardProps) {
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editContent, setEditContent] = useState('');
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
@@ -402,12 +399,6 @@ export function PostCard(props: PostCardProps) {
     }
   };
 
-  const handleSaveEdit = () => {
-    if (!editContent.trim()) return;
-    setIsEditDialogOpen(false);
-    editPost($id, { content: editContent.trim() });
-  };
-
   const handleVote = (optionIndex: number) => {
     if (isShared) return;
     triggerHaptic(10);
@@ -503,7 +494,7 @@ export function PostCard(props: PostCardProps) {
                 </Badge>
               )}
               <Button variant="ghost" size="icon" className={cn("h-8 w-8 rounded-full", isBookmarked && "text-primary")} onClick={handleSave}><Bookmark className={cn("h-4 w-4", isBookmarked && "fill-current")} /></Button>
-              <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full"><MoreHorizontal className="h-5 w-5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5"><DropdownMenuItem className="gap-2" onClick={() => setIsHidden(true)}><EyeOff className="h-4 w-4" />{t('post_hide')}</DropdownMenuItem>{isOwner && <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); togglePinPost($id); }}><Pin className="h-4 w-4" />{isPinned ? t('post_unpin') : t('post_pin')}</DropdownMenuItem>}{isOwner && <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(10); setEditContent(content); setIsEditDialogOpen(true); }}><Pencil className="h-4 w-4" />Edit Post</DropdownMenuItem>}{!isOwner && <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => { triggerHaptic(); setIsReportDialogOpen(true); }}><Flag className="h-4 w-4" />{t('post_report')}</DropdownMenuItem>}{isOwner && <><DropdownMenuSeparator /><DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" />{t('post_purge')}</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>
+              <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-full"><MoreHorizontal className="h-5 w-5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5"><DropdownMenuItem className="gap-2" onClick={() => setIsHidden(true)}><EyeOff className="h-4 w-4" />{t('post_hide')}</DropdownMenuItem>{isOwner && <DropdownMenuItem className="gap-2" onClick={() => { triggerHaptic(); togglePinPost($id); }}><Pin className="h-4 w-4" />{isPinned ? t('post_unpin') : t('post_pin')}</DropdownMenuItem>}{!isOwner && <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => { triggerHaptic(); setIsReportDialogOpen(true); }}><Flag className="h-4 w-4" />{t('post_report')}</DropdownMenuItem>}{isOwner && <><DropdownMenuSeparator /><DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onSelect={() => setIsDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" />{t('post_purge')}</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>
             </div>
           )}
         </CardHeader>
@@ -762,60 +753,6 @@ export function PostCard(props: PostCardProps) {
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}><AlertDialogContent className="rounded-[2rem] sm:max-w-[420px]"><AlertDialogHeader><div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4"><Trash2 className="h-8 w-8" /></div><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">{t('post_purge')}?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6"><AlertDialogCancel className="rounded-xl h-12 font-bold bg-secondary/50">Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="rounded-xl h-12 font-black italic uppercase bg-destructive text-white">Confirm Purge</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
 
-      <Dialog open={isEditDialogOpen} onOpenChange={(open) => { setIsEditDialogOpen(open); }}>
-        <DialogContent className="rounded-[2rem] sm:max-w-[500px] p-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-6 pb-0">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-                <Pencil className="h-5 w-5" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl font-black italic uppercase tracking-tighter">Edit Post</DialogTitle>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Update your caption</p>
-              </div>
-            </div>
-          </DialogHeader>
-          <div className="px-6 py-4">
-            <Textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              placeholder="What's on your mind?"
-              className="min-h-[140px] resize-none rounded-2xl bg-secondary/20 border-primary/10 focus-visible:ring-primary text-sm leading-relaxed"
-              autoFocus
-            />
-            <div className="flex items-center justify-between mt-2">
-              <span className={cn(
-                "text-[10px] font-bold tabular-nums",
-                editContent.length > 2000 ? "text-destructive" : "text-muted-foreground"
-              )}>
-                {editContent.length} / 2000
-              </span>
-              <div className="flex items-center gap-1 flex-wrap">
-                {(editContent.match(/#[\w\u00C0-\u024F]+/g) || []).map((tag, i) => (
-                  <span key={i} className="text-[9px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">{tag}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="px-6 pb-6 pt-2 flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              className="rounded-xl h-11 font-bold flex-1"
-              onClick={() => setIsEditDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="rounded-xl h-11 font-black italic uppercase tracking-widest bg-primary text-white flex-1 shadow-lg shadow-primary/20"
-              onClick={handleSaveEdit}
-              disabled={!editContent.trim() || editContent.trim() === content.trim() || editContent.length > 2000}
-            >
-              <Pencil className="h-4 w-4 mr-2" />
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

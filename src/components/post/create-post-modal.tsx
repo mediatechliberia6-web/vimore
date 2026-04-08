@@ -366,78 +366,63 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     });
   };
 
-  const handlePost = () => {
-    if (!currentUser) return;
+  const [isPosting, setIsPosting] = useState(false);
+
+  const handlePost = async () => {
+    if (!currentUser || isPosting) return;
     triggerHaptic(30);
+    setIsPosting(true);
 
-    const snap = {
-      files: [...stagedFiles],
-      content,
-      creationLanguage: typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en',
-      theme: selectedTheme.id !== "none" ? selectedTheme.class : undefined,
-      mediaType,
-      imageFilter: selectedFilter.id !== "none" ? selectedFilter.class : undefined,
-      feeling: feeling || undefined,
-      location: location || undefined,
-      commentsDisabled,
-      isLocked,
-      unlockPrice,
-      taggedUsers: taggedUsers.length > 0 ? [...taggedUsers] : undefined,
-      linkPreview: linkPreview || undefined,
-      poll: isPollOpen && pollQuestion ? {
-        question: pollQuestion,
-        options: pollOptions.filter(o => o.trim()).map(text => ({ text, votes: 0 })),
-        voters: {},
-        totalVotes: 0,
-        duration: pollDuration,
-      } : undefined,
-    };
-
-    localStorage.removeItem('vimore_post_draft');
-    resetForm();
-    setIsOpen(false);
-
-    (async () => {
-      try {
-        const uploadedUrls: string[] = [];
-        const total = snap.files.length;
-        if (total > 0) {
-          setUploadProgress(0);
-          for (let i = 0; i < total; i++) {
-            const url = await uploadMedia(snap.files[i], BUCKET_IMAGES);
-            uploadedUrls.push(url);
-            setUploadProgress(Math.round(((i + 1) / total) * 80));
-          }
-        } else {
-          setUploadProgress(5);
+    try {
+      const uploadedUrls: string[] = [];
+      const total = stagedFiles.length;
+      if (total > 0) {
+        setUploadProgress(0);
+        for (let i = 0; i < total; i++) {
+          const url = await uploadMedia(stagedFiles[i], BUCKET_IMAGES);
+          uploadedUrls.push(url);
+          setUploadProgress(Math.round(((i + 1) / total) * 80));
         }
-
-        setUploadProgress(90);
-        await addPost({
-          content: snap.content,
-          language: snap.creationLanguage,
-          theme: snap.theme,
-          images: snap.mediaType === 'image' ? uploadedUrls : undefined,
-          videoUrl: snap.mediaType === 'video' ? uploadedUrls[0] : undefined,
-          imageFilter: snap.imageFilter,
-          feeling: snap.feeling,
-          location: snap.location,
-          commentsDisabled: snap.commentsDisabled,
-          isLocked: snap.isLocked,
-          unlockPrice: snap.isLocked ? snap.unlockPrice : undefined,
-          taggedUsers: snap.taggedUsers,
-          linkPreview: snap.linkPreview,
-          poll: snap.poll,
-        });
-
-        setUploadProgress(100);
-        setTimeout(() => setUploadProgress(null), 1500);
-        toast({ title: "Handshake Synchronized", description: "Node materialized in the global vault." });
-      } catch (e: any) {
-        setUploadProgress(null);
-        toast({ variant: "destructive", title: "Vault Sync Error", description: e.message });
+      } else {
+        setUploadProgress(5);
       }
-    })();
+
+      setUploadProgress(90);
+      await addPost({
+        content,
+        language: typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en',
+        theme: selectedTheme.id !== "none" ? selectedTheme.class : undefined,
+        images: mediaType === 'image' ? uploadedUrls : undefined,
+        videoUrl: mediaType === 'video' ? uploadedUrls[0] : undefined,
+        imageFilter: selectedFilter.id !== "none" ? selectedFilter.class : undefined,
+        feeling: feeling || undefined,
+        location: location || undefined,
+        commentsDisabled,
+        isLocked,
+        unlockPrice: isLocked ? unlockPrice : undefined,
+        taggedUsers: taggedUsers.length > 0 ? [...taggedUsers] : undefined,
+        linkPreview: linkPreview || undefined,
+        poll: isPollOpen && pollQuestion ? {
+          question: pollQuestion,
+          options: pollOptions.filter(o => o.trim()).map(text => ({ text, votes: 0 })),
+          voters: {},
+          totalVotes: 0,
+          duration: pollDuration,
+        } : undefined,
+      });
+
+      setUploadProgress(100);
+      setTimeout(() => setUploadProgress(null), 1500);
+      localStorage.removeItem('vimore_post_draft');
+      toast({ title: "Handshake Synchronized", description: "Node materialized in the global vault." });
+      resetForm();
+      setIsOpen(false);
+    } catch (e: any) {
+      setUploadProgress(null);
+      toast({ variant: "destructive", title: "Upload Failed", description: e.message });
+    } finally {
+      setIsPosting(false);
+    }
   };
 
   const resetForm = () => {
@@ -508,8 +493,8 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           </div>
           <div className="flex items-center gap-2">
              <Button variant="ghost" size="icon" className="text-primary h-9 w-9" title="AI: Enhance Caption" onClick={handleAiEnhance} disabled={isAiLoading || !content.trim()}>{isAiLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}</Button>
-            <Button variant="ghost" className={cn("font-bold text-primary text-base", ((!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing) && "opacity-50")} disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing || isAiLoading} onClick={handlePost}>
-              {isAiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "POST"}
+            <Button variant="ghost" className={cn("font-bold text-primary text-base", ((!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing || isPosting) && "opacity-50")} disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing || isAiLoading || isPosting} onClick={handlePost}>
+              {isPosting || isAiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "POST"}
             </Button>
           </div>
         </DialogHeader>
