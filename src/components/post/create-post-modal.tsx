@@ -80,6 +80,9 @@ import { BUCKET_IMAGES } from "@/lib/appwrite";
 
 interface CreatePostModalProps {
   children: React.ReactNode;
+  sharedPost?: any;
+  initialContent?: string;
+  onOpen?: () => void;
 }
 
 type PrivacySetting = {
@@ -128,12 +131,13 @@ const imageFilters = [
 
 const VIDEO_SIZE_LIMIT = 50 * 1024 * 1024; // 50MB in bytes
 
-export function CreatePostModal({ children }: CreatePostModalProps) {
+export function CreatePostModal({ children, sharedPost, initialContent, onOpen }: CreatePostModalProps) {
   const { addPost, currentUser, connections, settings, isFollowing, triggerHaptic, uploadMedia } = usePosts();
   const { setUploadProgress } = useFeedSignal();
   const { openCaptureStudio } = useMusic();
   const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState("");
+  const [activeSharedPost, setActiveSharedPost] = useState<any>(sharedPost || null);
   const [privacy, setPrivacy] = useState<PrivacySetting>(privacySettings[0]);
   const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
@@ -192,13 +196,23 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
   }, [connections, tagSearch, settings.taggingPrivacy, isFollowing]);
 
   useEffect(() => {
-    const savedContent = localStorage.getItem('vimore_post_draft');
-    if (savedContent) setContent(savedContent);
-  }, []);
+    if (!sharedPost) {
+      const savedContent = localStorage.getItem('vimore_post_draft');
+      if (savedContent) setContent(savedContent);
+    }
+  }, [sharedPost]);
 
   useEffect(() => {
-    if (content) localStorage.setItem('vimore_post_draft', content);
-  }, [content]);
+    if (content && !sharedPost) localStorage.setItem('vimore_post_draft', content);
+  }, [content, sharedPost]);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialContent && !content) setContent(initialContent);
+      if (sharedPost) setActiveSharedPost(sharedPost);
+      onOpen?.();
+    }
+  }, [isOpen]);
 
   const handleAiEnhance = async () => {
     if (!content.trim() || isAiLoading) return;
@@ -402,6 +416,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
         unlockPrice: isLocked ? unlockPrice : undefined,
         taggedUsers: taggedUsers.length > 0 ? [...taggedUsers] : undefined,
         linkPreview: linkPreview || undefined,
+        sharedPost: activeSharedPost || undefined,
         poll: isPollOpen && pollQuestion ? {
           question: pollQuestion,
           options: pollOptions.filter(o => o.trim()).map(text => ({ text, votes: 0 })),
@@ -451,6 +466,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
     setShowThemeSelector(false);
     setIsCompressing(false);
     setCompressionProgress(0);
+    setActiveSharedPost(null);
   };
 
   const toggleAction = (type: 'feeling' | 'location' | 'theme' | 'poll') => {
@@ -493,7 +509,7 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
           </div>
           <div className="flex items-center gap-2">
              <Button variant="ghost" size="icon" className="text-primary h-9 w-9" title="AI: Enhance Caption" onClick={handleAiEnhance} disabled={isAiLoading || !content.trim()}>{isAiLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}</Button>
-            <Button variant="ghost" className={cn("font-bold text-primary text-base", ((!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing || isPosting) && "opacity-50")} disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing || isAiLoading || isPosting} onClick={handlePost}>
+            <Button variant="ghost" className={cn("font-bold text-primary text-base", ((!content.trim() && selectedMedia.length === 0 && !pollQuestion && !activeSharedPost) || isOverLimit || isCompressing || isPosting) && "opacity-50")} disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion && !activeSharedPost) || isOverLimit || isCompressing || isAiLoading || isPosting} onClick={handlePost}>
               {isPosting || isAiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "POST"}
             </Button>
           </div>
@@ -607,6 +623,43 @@ export function CreatePostModal({ children }: CreatePostModalProps) {
               )}
             </div>
             
+            {activeSharedPost && (
+              <div className="w-full mt-4 rounded-2xl overflow-hidden border border-primary/10 bg-secondary/30 animate-in slide-in-from-bottom-2 duration-300">
+                <div className="flex items-center justify-between px-3 pt-2.5 pb-1">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-primary">Sharing post from</span>
+                  <button
+                    onClick={() => setActiveSharedPost(null)}
+                    className="h-5 w-5 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+                {(activeSharedPost.image || activeSharedPost.videoUrl) && (
+                  <div className="relative aspect-video w-full">
+                    <Image
+                      src={activeSharedPost.image || activeSharedPost.videoUrl}
+                      alt="Shared post preview"
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+                <div className="p-3 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-5 w-5 border border-primary/10 shrink-0">
+                      <AvatarImage src={activeSharedPost.user?.avatar} />
+                      <AvatarFallback>{activeSharedPost.user?.name?.[0] || '?'}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-[11px] font-black text-foreground truncate">{activeSharedPost.user?.name}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">@{activeSharedPost.user?.username}</span>
+                  </div>
+                  {activeSharedPost.content && (
+                    <p className="text-[11px] text-muted-foreground line-clamp-2 leading-snug">{activeSharedPost.content}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {isLocked && (
               <div className="w-full max-w-sm mt-8 p-6 bg-black/20 backdrop-blur-md rounded-[2.5rem] border border-white/10 space-y-6 animate-in zoom-in-95">
                 <div className="flex items-center justify-between">

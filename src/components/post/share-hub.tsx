@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePosts } from "@/context/PostContext";
+import { CreatePostModal } from "@/components/post/create-post-modal";
 import { useMusic } from "@/context/MusicContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn, saveFileToDevice } from "@/lib/utils";
@@ -38,7 +39,7 @@ interface ShareHubProps {
 }
 
 export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
-  const { connections, addPost, addStory, incrementShareCount, currentUser, friendUsernames, sendChatMessage } = usePosts();
+  const { connections, addStory, incrementShareCount, currentUser, friendUsernames, sendChatMessage } = usePosts();
   const { triggerHaptic, triggerDownloadWithAd } = useMusic();
   const { toast } = useToast();
   
@@ -52,19 +53,6 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
     (c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     c.username.toLowerCase().includes(searchQuery.toLowerCase()))
   );
-
-  const handleRepost = () => {
-    triggerHaptic(20);
-    addPost({
-      user: currentUser,
-      content: `Sharing a vibe from **${post.user.name}** ✨`,
-      sharedPost: post,
-      language: 'en'
-    });
-    incrementShareCount(post.$id);
-    toast({ title: "Shared as Post", description: "Reposted to your feed." });
-    onClose();
-  };
 
   const handleShareToStory = () => {
     triggerHaptic(25);
@@ -165,10 +153,12 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" className="h-24 rounded-[2rem] border-primary/10 bg-white dark:bg-card hover:bg-primary/5 flex flex-col items-center justify-center gap-2 transition-all group" onClick={handleRepost}>
-              <div className="p-3 bg-primary/10 rounded-2xl group-hover:scale-110 transition-transform"><PlusSquare className="h-6 w-6 text-primary" /></div>
-              <span className="text-[10px] font-black uppercase tracking-widest">Share as Post</span>
-            </Button>
+            <CreatePostModal sharedPost={post} initialContent="" onOpen={onClose}>
+              <Button variant="outline" className="h-24 w-full rounded-[2rem] border-primary/10 bg-white dark:bg-card hover:bg-primary/5 flex flex-col items-center justify-center gap-2 transition-all group">
+                <div className="p-3 bg-primary/10 rounded-2xl group-hover:scale-110 transition-transform"><PlusSquare className="h-6 w-6 text-primary" /></div>
+                <span className="text-[10px] font-black uppercase tracking-widest">Share as Post</span>
+              </Button>
+            </CreatePostModal>
             <Button variant="outline" className="h-24 rounded-[2rem] border-accent/10 bg-white dark:bg-card hover:bg-accent/5 flex flex-col items-center justify-center gap-2 transition-all group" onClick={handleShareToStory}>
               <div className="p-3 bg-accent/10 rounded-2xl group-hover:scale-110 transition-transform"><Clapperboard className="h-6 w-6 text-accent" /></div>
               <span className="text-[10px] font-black uppercase tracking-widest">Add to Story</span>

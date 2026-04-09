@@ -1957,7 +1957,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (p.linkPreview) newPost.linkPreview = p.linkPreview;
       if (p.images && p.images.length > 0) { newPost.images = p.images; newPost.image = p.images[0]; }
       if (p.videoUrl) newPost.videoUrl = p.videoUrl;
-      if (p.sharedPost) newPost.sharedPost = p.sharedPost;
+      if (p.sharedPost) {
+        newPost.sharedPost = p.sharedPost;
+        databases.updateDocument(DATABASE_ID, COL.POSTS, p.sharedPost.$id, {
+          shares_count: (p.sharedPost.shares || 0) + 1,
+        }).catch(() => {});
+        setPostsState(prev => prev.map(post =>
+          post.$id === p.sharedPost.$id ? { ...post, shares: (post.shares || 0) + 1 } : post
+        ));
+      }
       setPostsState(prev => [newPost, ...prev]);
 
       await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
