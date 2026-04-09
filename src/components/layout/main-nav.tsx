@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, User, MessageCircle, PlusSquare, Compass, Menu, Music2, Bell, Activity, Film, Megaphone, Sparkles, Ticket } from "lucide-react";
+import { Home, User, MessageCircle, PlusSquare, Compass, Menu, Music2, Bell, Activity, Film, Megaphone, Sparkles, Ticket, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useNotifications, PulseCategory } from "@/context/NotificationContext";
@@ -41,6 +41,7 @@ export function MainNav() {
     { icon: Activity, label: t('nav_admin'), href: "/admin", category: "ADMIN" as PulseCategory, isHidden: !isAdmin },
     { icon: Megaphone, label: "Advertise", href: "/advertise" },
     { icon: Sparkles, label: "Coming Soon", href: "/coming-soon" },
+    { icon: Building2, label: "MTL Info", href: "/mtl" },
     { icon: Menu, label: t('nav_menu'), href: "/menu" },
   ];
 
