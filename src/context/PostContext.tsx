@@ -2440,7 +2440,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const prevFollowing = currentUser.following as number || 0;
 
     try {
-      const targetDoc = allUsers.find(u => u.username === username);
+      let targetDoc: any = allUsers.find(u => u.username === username);
+      if (!targetDoc) {
+        const res = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+          Query.equal('username', username), Query.limit(1),
+        ]);
+        targetDoc = res.documents[0] || null;
+      }
+
       if (targetDoc) {
         const existing = await databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
           Query.equal('from_user_id', currentUser.$id),
@@ -2459,13 +2466,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
           for (const doc of followDocs.documents) {
             await databases.deleteDocument(DATABASE_ID, COL.FOLLOWS, doc.$id);
           }
-          setFollowingUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
-          setFollowingUserIdsState(prev => { const n = new Set(prev); n.delete(targetDoc.$id); return n; });
-          const newFollowing = Math.max(0, prevFollowing - 1);
-          await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { following_count: newFollowing }).catch(() => {});
-          setCurrentUserState(prev => prev ? { ...prev, following: newFollowing } : null);
+        }
+        setFollowingUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
+        setFollowingUserIdsState(prev => { const n = new Set(prev); n.delete(targetDoc.$id); return n; });
+        const newFollowing = Math.max(0, prevFollowing - 1);
+        await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { following_count: newFollowing }).catch(() => {});
+        setCurrentUserState(prev => prev ? { ...prev, following: newFollowing } : null);
+        if (followDocs && followDocs.total > 0) {
           await databases.updateDocument(DATABASE_ID, COL.USERS, targetDoc.$id, {
-            followers_count: Math.max(0, (targetDoc.followers as number || 0) - 1),
+            followers_count: Math.max(0, (targetDoc.followers_count || targetDoc.followers || 0) - 1),
           }).catch(() => {});
         }
       }
