@@ -1101,6 +1101,45 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore */ }
   }, []);
 
+  const loadUnreadSignals = useCallback(async (userId: string, userUsername: string) => {
+    try {
+      const result = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
+        Query.equal('receiver_id', userId),
+        Query.equal('is_read', false),
+        Query.orderDesc('$createdAt'),
+        Query.limit(200),
+      ]);
+
+      if (result.documents.length === 0) return;
+
+      const latestPerCluster: Record<string, number> = {};
+      for (const doc of result.documents) {
+        const clusterId: string = doc.cluster_id || '';
+        if (!clusterId) continue;
+        const ts = doc.$createdAt ? new Date(doc.$createdAt).getTime() : Date.now();
+        if (!latestPerCluster[clusterId] || ts > latestPerCluster[clusterId]) {
+          latestPerCluster[clusterId] = ts;
+        }
+      }
+
+      const signals: Record<string, number> = {};
+      for (const [clusterId, ts] of Object.entries(latestPerCluster)) {
+        const parts = clusterId.split('_');
+        const otherUsername = parts.find(p => p !== userUsername);
+        const storageKey = (parts.length === 2 && otherUsername) ? otherUsername : clusterId;
+        signals[storageKey] = ts;
+      }
+
+      setChatLastIncomingAt(prev => ({ ...prev, ...signals }));
+
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(`vimore_unread_signals_${userId}`, JSON.stringify(signals));
+        } catch { /* ignore */ }
+      }
+    } catch { /* silent — non-critical */ }
+  }, []);
+
   const loadUserWithdrawals = useCallback(async (userId: string) => {
     try {
       const res = await databases.listDocuments(DATABASE_ID, COL.WITHDRAWAL_REQUESTS, [
@@ -1158,6 +1197,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
       offlineCache.saveUser(user);
       setIsOffline(false);
 
+      if (typeof window !== 'undefined') {
+        try {
+          const cached = localStorage.getItem(`vimore_unread_signals_${authUser.$id}`);
+          if (cached) setChatLastIncomingAt(JSON.parse(cached));
+        } catch { /* ignore */ }
+      }
+
       await Promise.allSettled([
         loadFeed(),
         loadSocialGraph(authUser.$id),
@@ -1168,6 +1214,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         loadCampaigns(),
         loadChatReadReceipts(authUser.$id),
       ]);
+
+      loadUnreadSignals(authUser.$id, profileDoc.username || '').catch(() => {});
     } catch (err: any) {
       // Network failure (offline) but we have a cached session → go offline mode
       const isNetworkError = (typeof navigator !== 'undefined' && !navigator.onLine) ||
@@ -1191,7 +1239,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoadingState(false);
     }
-  }, [loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns, loadChatReadReceipts]);
+  }, [loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns, loadChatReadReceipts, loadUnreadSignals]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1402,6 +1450,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('vimore_saved_accounts', JSON.stringify(saved.slice(0, 10)));
       } catch { /* ignore */ }
 
+      if (typeof window !== 'undefined') {
+        try {
+          const cached = localStorage.getItem(`vimore_unread_signals_${authUser.$id}`);
+          if (cached) setChatLastIncomingAt(JSON.parse(cached));
+        } catch { /* ignore */ }
+      }
+
       await Promise.allSettled([
         loadFeed(),
         loadSocialGraph(authUser.$id),
@@ -1412,6 +1467,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         loadCampaigns(),
         loadChatReadReceipts(authUser.$id),
       ]);
+
+      loadUnreadSignals(authUser.$id, profileDoc.username || '').catch(() => {});
       setIsLoadingState(false);
       toast({ title: "Welcome back!", description: "You are now signed in." });
       return { success: true };
@@ -1421,7 +1478,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const msg = formatErrorDescription(err, null) || 'Invalid credentials. Please try again.';
       return { success: false, message: msg };
     }
-  }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns, loadChatReadReceipts]);
+  }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns, loadChatReadReceipts, loadUnreadSignals]);
 
   const signup = useCallback(async (data: any) => {
     setIsLoadingState(true);
@@ -1533,6 +1590,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try { await account.deleteSession('current'); } catch { /* ignore */ }
+    if (typeof window !== 'undefined') {
+      try {
+        const uid = currentUser?.$id;
+        if (uid) localStorage.removeItem(`vimore_unread_signals_${uid}`);
+      } catch { /* ignore */ }
+    }
     offlineCache.clearUser();
     setIsOffline(false);
     setCurrentUserState(null);
