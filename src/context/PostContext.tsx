@@ -84,6 +84,7 @@ export interface StorySegment {
   overlays?: any[];
   poll?: { options: string[]; votes: number[] };
   orderIndex?: number;
+  postId?: string;
 }
 
 export interface LinkPreview {
@@ -162,6 +163,15 @@ export interface Connection extends User {
   lastTime?: string;
 }
 
+export interface SharedPostData {
+  postId: string;
+  postImage?: string;
+  postContent?: string;
+  postAuthorName?: string;
+  postAuthorAvatar?: string;
+  postAuthorUsername?: string;
+}
+
 export interface ChatMessage {
   $id: string;
   sender: "me" | "them";
@@ -171,7 +181,7 @@ export interface ChatMessage {
   text?: string;
   time: string;
   status: "sent" | "delivered" | "read";
-  type: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace" | "call";
+  type: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace" | "call" | "post";
   mediaUrl?: string;
   voiceDuration?: string;
   isViewOnce?: boolean;
@@ -184,6 +194,8 @@ export interface ChatMessage {
     duration?: string;
   };
   createdAt?: number;
+  postId?: string;
+  sharedPostData?: SharedPostData;
 }
 
 export interface CallState {
@@ -524,6 +536,9 @@ function mapDocToPost(doc: Models.Document, authorDoc?: Models.Document): Post {
     linkPreview: doc.link_preview
       ? (() => { try { return typeof doc.link_preview === 'string' ? JSON.parse(doc.link_preview) : doc.link_preview; } catch { return null; } })()
       : null,
+    sharedPost: doc.shared_post_data
+      ? (() => { try { return typeof doc.shared_post_data === 'string' ? JSON.parse(doc.shared_post_data) : doc.shared_post_data; } catch { return undefined; } })()
+      : undefined,
   };
 }
 
@@ -935,6 +950,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
           filter: seg.filter,
           background: seg.background,
           textOverlays: seg.text_overlays ? JSON.parse(seg.text_overlays) : undefined,
+          postId: seg.post_id || undefined,
         }));
         return {
           $id: doc.$id,
@@ -1051,6 +1067,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
           senderName: doc.sender_name,
           senderAvatar: doc.sender_avatar,
           createdAt: doc.$createdAt ? new Date(doc.$createdAt).getTime() : undefined,
+          postId: doc.post_id || undefined,
+          sharedPostData: doc.shared_post_data
+            ? (() => { try { return typeof doc.shared_post_data === 'string' ? JSON.parse(doc.shared_post_data) : doc.shared_post_data; } catch { return undefined; } })()
+            : undefined,
         };
       });
 
@@ -1914,6 +1934,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (p.location) docData.location = p.location;
     if (p.unlockPrice) docData.unlock_price = p.unlockPrice;
     if (p.poll) docData.poll = JSON.stringify(p.poll);
+    if (p.sharedPost) {
+      docData.shared_post_data = JSON.stringify({
+        $id: p.sharedPost.$id,
+        content: p.sharedPost.content,
+        image: p.sharedPost.image,
+        videoUrl: p.sharedPost.videoUrl,
+        user: {
+          name: p.sharedPost.user?.name,
+          username: p.sharedPost.user?.username,
+          avatar: p.sharedPost.user?.avatar,
+        },
+      });
+    }
 
     try {
       const doc = await databases.createDocument(DATABASE_ID, COL.POSTS, ID.unique(), docData);
@@ -1924,6 +1957,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (p.linkPreview) newPost.linkPreview = p.linkPreview;
       if (p.images && p.images.length > 0) { newPost.images = p.images; newPost.image = p.images[0]; }
       if (p.videoUrl) newPost.videoUrl = p.videoUrl;
+      if (p.sharedPost) newPost.sharedPost = p.sharedPost;
       setPostsState(prev => [newPost, ...prev]);
 
       await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
@@ -2272,6 +2306,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       };
       if (mediaId) segData.media_id = mediaId;
       if (segment.text) segData.text = segment.text;
+      if (segment.postId) segData.post_id = segment.postId;
 
       await databases.createDocument(DATABASE_ID, COL.STORY_SEGMENTS, ID.unique(), segData);
 
@@ -2427,6 +2462,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
           message: `${currentUser.name || currentUser.username} (@${currentUser.username}) accepted your friend request.`,
           is_read: false,
         }).catch(() => { /* notification failure should not block acceptance */ });
+
+        setConnectionsState(prev => {
+          if (prev.find(c => c.username === senderDoc!.username)) return prev;
+          const newConn: Connection = {
+            ...senderDoc!,
+            isGroup: false,
+            lastMessage: '',
+            lastTime: '',
+          };
+          return [...prev, newConn];
+        });
       }
     } catch (err: any) {
       logAppwriteError('confirmFriendRequest', err);
@@ -2587,6 +2633,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         docData.media_url = message.mediaUrl;
       }
       if (message.voiceDuration) docData.voice_duration = message.voiceDuration;
+      if (message.postId) docData.post_id = message.postId;
+      if (message.sharedPostData) docData.shared_post_data = JSON.stringify(message.sharedPostData);
       await databases.createDocument(DATABASE_ID, COL.MESSAGES, ID.unique(), docData);
     } catch (err: any) {
       setChatMessages(prev => ({

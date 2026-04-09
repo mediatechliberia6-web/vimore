@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye, BellOff, VolumeX, Volume2, EyeOff, Zap, ShieldCheck, Loader2 } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye, BellOff, VolumeX, Volume2, EyeOff, Zap, ShieldCheck, Loader2, ExternalLink } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { usePosts, StorySegment } from "@/context/PostContext";
@@ -558,6 +558,17 @@ export function StoryViewer() {
                     })}
                   </div>
                 </div>
+              )}
+
+              {(currentSegment as any).postId && (
+                <Link
+                  href={`/post/${(currentSegment as any).postId}`}
+                  className="absolute top-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-black/50 backdrop-blur-md border border-white/20 text-white rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-widest hover:bg-black/70 transition-colors active:scale-95"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  View Post
+                </Link>
               )}
 
               {reactions.map((r) => (

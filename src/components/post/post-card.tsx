@@ -591,6 +591,43 @@ export function PostCard(props: PostCardProps) {
               )}
             </>
           )}
+
+          {sharedPost && !isShared && (
+            <Link
+              href={`/post/${sharedPost.$id}`}
+              className="block mt-3 rounded-2xl overflow-hidden border border-primary/10 bg-secondary/20 hover:bg-secondary/40 transition-colors active:scale-[0.99] group/shared"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {(sharedPost.image || sharedPost.videoUrl) && (
+                <div className="relative aspect-video w-full overflow-hidden">
+                  <Image
+                    src={sharedPost.image || sharedPost.videoUrl!}
+                    alt="Shared post"
+                    fill
+                    className="object-cover group-hover/shared:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-black/10" />
+                </div>
+              )}
+              <div className="p-3 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-6 w-6 border border-primary/10 shrink-0">
+                    <AvatarImage src={sharedPost.user?.avatar} />
+                    <AvatarFallback>{sharedPost.user?.name?.[0] || '?'}</AvatarFallback>
+                  </Avatar>
+                  <span className="text-[11px] font-black text-foreground uppercase tracking-widest truncate">{sharedPost.user?.name}</span>
+                  <span className="text-[10px] text-muted-foreground shrink-0">@{sharedPost.user?.username}</span>
+                </div>
+                {sharedPost.content && (
+                  <p className="text-[12px] text-muted-foreground line-clamp-2 leading-snug">{sharedPost.content}</p>
+                )}
+                <div className="flex items-center gap-1 text-[10px] font-black text-primary uppercase tracking-widest">
+                  <ExternalLink className="h-3 w-3" />
+                  View Original Post
+                </div>
+              </div>
+            </Link>
+          )}
         </CardContent>
 
         {isCampaign && !isShared && (

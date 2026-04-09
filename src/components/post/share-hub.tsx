@@ -69,9 +69,10 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
   const handleShareToStory = () => {
     triggerHaptic(25);
     addStory({
-      image: post.image || post.user.avatar,
+      image: post.image || post.videoUrl || '',
       type: 'image',
       background: 'bg-gradient-to-br from-primary to-accent',
+      postId: post.$id,
       textOverlays: [{
         text: `Shared from @${post.user.username}`,
         x: 50,
@@ -112,11 +113,17 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
     if (sharingTo || sentTo.has(conn.$id)) return;
     triggerHaptic(30);
     setSharingTo(conn.username);
-    const msgType = post.videoUrl ? 'video' : post.image ? 'photo' : 'link';
     await sendChatMessage(conn.$id, {
-      type: msgType,
-      mediaUrl: post.videoUrl || post.image,
-      text: `Shared a post from @${post.user.username}: ${post.content.slice(0, 80)}${post.content.length > 80 ? '...' : ''}`,
+      type: 'post',
+      postId: post.$id,
+      sharedPostData: {
+        postId: post.$id,
+        postImage: post.image || post.videoUrl,
+        postContent: post.content,
+        postAuthorName: post.user.name,
+        postAuthorAvatar: post.user.avatar,
+        postAuthorUsername: post.user.username,
+      },
     });
     incrementShareCount(post.$id);
     setSentTo(prev => new Set(prev).add(conn.$id));

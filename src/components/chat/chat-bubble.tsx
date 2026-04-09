@@ -31,6 +31,7 @@ import {
   PhoneMissed
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
@@ -61,13 +62,22 @@ interface LinkPreview {
   url: string;
 }
 
+interface SharedPostData {
+  postId: string;
+  postImage?: string;
+  postContent?: string;
+  postAuthorName?: string;
+  postAuthorAvatar?: string;
+  postAuthorUsername?: string;
+}
+
 interface ChatBubbleProps {
   id: string;
   isMe: boolean;
   text?: string;
   time: string;
   status?: "sent" | "delivered" | "read";
-  type?: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace" | "call";
+  type?: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace" | "call" | "post";
   mediaUrl?: string;
   voiceDuration?: string;
   linkData?: LinkPreview;
@@ -91,6 +101,8 @@ interface ChatBubbleProps {
     metrics: string;
     image: string;
   };
+  postId?: string;
+  sharedPostData?: SharedPostData;
   onReact?: (emoji: string) => void;
   onViewOnceOpen?: (id: string) => void;
   onMediaOpen?: (id: string) => void;
@@ -101,7 +113,7 @@ interface ChatBubbleProps {
 }
 
 export function ChatBubble({ 
-  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, callData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete, onEdit
+  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, callData, postId, sharedPostData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete, onEdit
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const { setSelectedImageUrl, setSelectedVideoUrl, settings } = usePosts();
@@ -533,6 +545,47 @@ export function ChatBubble({
                   </Button>
                 </div>
               </div>
+            )}
+
+            {type === "post" && sharedPostData && (
+              <Link
+                href={`/post/${sharedPostData.postId}`}
+                className={cn(
+                  "m-1 mb-2 rounded-xl overflow-hidden border flex flex-col text-left group/post transition-transform active:scale-95",
+                  isMe ? "bg-white/10 border-white/10" : "bg-secondary/30 border-primary/10"
+                )}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {sharedPostData.postImage && (
+                  <div className="relative aspect-video w-full">
+                    <Image src={sharedPostData.postImage} alt="Shared Post" fill className="object-cover" />
+                    <div className="absolute inset-0 bg-black/20" />
+                  </div>
+                )}
+                <div className="p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6 border border-white/20 shrink-0">
+                      <AvatarImage src={sharedPostData.postAuthorAvatar} />
+                      <AvatarFallback>{sharedPostData.postAuthorName?.[0] || '?'}</AvatarFallback>
+                    </Avatar>
+                    <span className={cn("text-[11px] font-black uppercase tracking-widest truncate", isMe ? "text-white/80" : "text-foreground")}>
+                      {sharedPostData.postAuthorName}
+                    </span>
+                    <span className={cn("text-[10px] shrink-0", isMe ? "text-white/40" : "text-muted-foreground")}>
+                      @{sharedPostData.postAuthorUsername}
+                    </span>
+                  </div>
+                  {sharedPostData.postContent && (
+                    <p className={cn("text-[12px] leading-snug line-clamp-2", isMe ? "text-white/70" : "text-muted-foreground")}>
+                      {sharedPostData.postContent}
+                    </p>
+                  )}
+                  <div className={cn("flex items-center gap-1 text-[10px] font-black uppercase tracking-widest", isMe ? "text-white/50" : "text-primary")}>
+                    <ExternalLink className="h-3 w-3" />
+                    View Post
+                  </div>
+                </div>
+              </Link>
             )}
 
             {type === "link" && linkData && (
