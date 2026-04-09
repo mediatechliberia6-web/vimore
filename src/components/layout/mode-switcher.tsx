@@ -56,11 +56,11 @@ export function ModeSwitcher() {
       {isLoading ? (
         <Loader2 className="h-3 w-3 animate-spin" />
       ) : isFreeMode ? (
-        <Zap className="h-3 w-3" />
-      ) : (
         <Globe className="h-3 w-3" />
+      ) : (
+        <Zap className="h-3 w-3" />
       )}
-      {isFreeMode ? 'Free Mode' : 'Full Mode'}
+      {isFreeMode ? 'Full Mode' : 'Free Mode'}
     </button>
   );
 }

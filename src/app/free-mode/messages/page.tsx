@@ -4,9 +4,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { Home, Compass, Bell, User, Menu, Loader2, Zap, Send, MessageSquare, ArrowLeft, Search } from 'lucide-react';
 import { account, databases, Query, COL, DATABASE_ID, ID, formatTimeAgo } from '@/lib/appwrite';
+import { ModeSwitcher } from '@/components/layout/mode-switcher';
 
-type AuthUser = { $id: string; name: string; username?: string } | null;
-type Conversation = { userId: string; name: string; initials: string; lastMessage: string; lastTime: string; unread: number };
+type AuthUser = { $id: string; name: string; username: string } | null;
+type Conversation = { userId: string; partnerUsername: string; name: string; initials: string; lastMessage: string; lastTime: string; unread: number };
 type Message = { id: string; senderId: string; content: string; time: string; isMine: boolean };
 
 const navItems = [
@@ -21,42 +22,62 @@ function getInitials(name: string) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
-function ConversationThread({ authUser, partnerId, partnerName, onBack }: { authUser: AuthUser; partnerId: string; partnerName: string; onBack: () => void }) {
+function ConversationThread({
+  authUser,
+  partnerId,
+  partnerName,
+  partnerUsername,
+  onBack,
+}: {
+  authUser: AuthUser;
+  partnerId: string;
+  partnerName: string;
+  partnerUsername: string;
+  onBack: () => void;
+}) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const clusterId = authUser ? [authUser.$id, partnerId].sort().join('_') : '';
+  const clusterId = authUser?.username && partnerUsername
+    ? [authUser.username, partnerUsername].sort().join('_')
+    : authUser
+      ? [authUser.$id, partnerId].sort().join('_')
+      : '';
 
   const load = useCallback(async () => {
-    if (!authUser) return;
+    if (!authUser || !clusterId) return;
     try {
       const res = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
         Query.equal('cluster_id', clusterId),
         Query.orderAsc('$createdAt'),
         Query.limit(80),
       ]);
-      setMessages(res.documents.map((d: any) => ({
-        id: d.$id,
-        senderId: d.sender_id,
-        content: d.content || d.text || '',
-        time: formatTimeAgo(d.$createdAt),
-        isMine: d.sender_id === authUser.$id,
-      })));
+      setMessages(
+        res.documents
+          .filter((d: any) => !d.type || d.type === 'text')
+          .map((d: any) => ({
+            id: d.$id,
+            senderId: d.sender_id,
+            content: d.content || d.text || '',
+            time: formatTimeAgo(d.$createdAt),
+            isMine: d.sender_id === authUser.$id,
+          }))
+      );
     } catch {
       setMessages([]);
     } finally {
       setLoading(false);
     }
-  }, [authUser, partnerId]);
+  }, [authUser, clusterId]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const handleSend = async () => {
-    if (!authUser || !text.trim()) return;
+    if (!authUser || !text.trim() || !clusterId) return;
     const trimmed = text.trim();
     setText('');
     setSending(true);
@@ -67,7 +88,9 @@ function ConversationThread({ authUser, partnerId, partnerName, onBack }: { auth
         cluster_id: clusterId,
         sender_id: authUser.$id,
         sender_name: authUser.name || authUser.username || '',
+        receiver_id: partnerId,
         text: trimmed,
+        content: trimmed,
         type: 'text',
         is_read: false,
       });
@@ -88,10 +111,11 @@ function ConversationThread({ authUser, partnerId, partnerName, onBack }: { auth
         <div className="w-8 h-8 rounded-full bg-primary/10 text-primary text-xs font-black flex items-center justify-center border border-primary/20">
           {getInitials(partnerName)}
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <p className="font-bold text-sm text-foreground">{partnerName}</p>
           <p className="text-[10px] text-muted-foreground uppercase font-bold">Text only · Free Mode</p>
         </div>
+        <ModeSwitcher />
       </header>
 
       <div className="flex items-center justify-center gap-2 bg-orange-500/5 border-b border-orange-500/10 px-4 py-1.5">
@@ -147,49 +171,148 @@ export default function FreeModeMessagesPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeConv, setActiveConv] = useState<{ userId: string; name: string } | null>(null);
+  const [activeConv, setActiveConv] = useState<{ userId: string; name: string; username: string } | null>(null);
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState<{ $id: string; name: string; username: string }[]>([]);
   const [searching, setSearching] = useState(false);
 
   useEffect(() => {
-    account.get()
-      .then(u => setAuthUser({ $id: u.$id, name: u.name }))
-      .catch(() => setAuthUser(null))
-      .finally(() => setCheckingAuth(false));
+    const init = async () => {
+      try {
+        const u = await account.get();
+        let username = '';
+        try {
+          const profile = await databases.getDocument(DATABASE_ID, COL.USERS, u.$id);
+          username = profile.username || '';
+        } catch {}
+        setAuthUser({ $id: u.$id, name: u.name, username });
+      } catch {
+        setAuthUser(null);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    init();
   }, []);
 
   useEffect(() => {
     if (!authUser) { setLoading(false); return; }
+
     const load = async () => {
       try {
-        const [sent, received] = await Promise.all([
-          databases.listDocuments(DATABASE_ID, COL.MESSAGES, [Query.equal('sender_id', authUser.$id), Query.orderDesc('$createdAt'), Query.limit(100)]),
-          databases.listDocuments(DATABASE_ID, COL.MESSAGES, [Query.equal('receiver_id', authUser.$id), Query.orderDesc('$createdAt'), Query.limit(100)]),
+        const sentRes = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
+          Query.equal('sender_id', authUser.$id),
+          Query.orderDesc('$createdAt'),
+          Query.limit(100),
         ]);
-        const all = [...sent.documents, ...received.documents];
-        const partnerIds = new Set<string>();
+
+        let receivedDocs: any[] = [];
+        try {
+          const recvRes = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
+            Query.equal('receiver_id', authUser.$id),
+            Query.orderDesc('$createdAt'),
+            Query.limit(100),
+          ]);
+          receivedDocs = recvRes.documents;
+        } catch {}
+
+        const allMsgs = [...sentRes.documents, ...receivedDocs];
+        if (allMsgs.length === 0) { setLoading(false); return; }
+
         const latestByPartner = new Map<string, any>();
-        for (const msg of all) {
-          const partnerId = msg.sender_id === authUser.$id ? msg.receiver_id : msg.sender_id;
-          if (!partnerIds.has(partnerId)) {
-            partnerIds.add(partnerId);
-            latestByPartner.set(partnerId, msg);
+        const partnerUsernameById = new Map<string, string>();
+
+        for (const msg of allMsgs) {
+          const isMine = msg.sender_id === authUser.$id;
+
+          let partnerKey: string | undefined;
+          let partnerUsername: string | undefined;
+          let partnerId: string | undefined;
+
+          if (authUser.username && msg.cluster_id) {
+            const parts: string[] = msg.cluster_id.split('_');
+            if (parts.length === 2 && parts.includes(authUser.username)) {
+              partnerUsername = parts.find((p: string) => p !== authUser.username);
+            }
+          }
+
+          if (isMine) {
+            partnerId = msg.receiver_id || undefined;
+          } else {
+            partnerId = msg.sender_id;
+          }
+
+          partnerKey = partnerUsername || partnerId;
+          if (!partnerKey) continue;
+
+          if (!latestByPartner.has(partnerKey)) {
+            latestByPartner.set(partnerKey, msg);
+            if (partnerUsername && partnerId) {
+              partnerUsernameById.set(partnerId, partnerUsername);
+            }
           }
         }
-        if (partnerIds.size === 0) { setLoading(false); return; }
-        const usersRes = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', [...partnerIds] as string[])]);
-        const usersMap = Object.fromEntries(usersRes.documents.map((u: any) => [u.$id, u]));
-        const convs: Conversation[] = [...partnerIds].map(pid => {
-          const user = usersMap[pid];
-          const name = user?.name || 'User';
-          const msg = latestByPartner.get(pid);
-          return { userId: pid, name, initials: getInitials(name), lastMessage: msg?.content || msg?.text || '', lastTime: formatTimeAgo(msg?.$createdAt), unread: 0 };
-        });
+
+        if (latestByPartner.size === 0) { setLoading(false); return; }
+
+        const usernameKeys = [...latestByPartner.keys()].filter(k => !/^[a-zA-Z0-9]{20,}$/.test(k));
+        const idKeys = [...latestByPartner.keys()].filter(k => /^[a-zA-Z0-9]{20,}$/.test(k));
+
+        const usersMap: Record<string, any> = {};
+
+        if (usernameKeys.length > 0) {
+          try {
+            const byUsername = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+              Query.equal('username', usernameKeys),
+              Query.limit(50),
+            ]);
+            for (const u of byUsername.documents) {
+              usersMap[u.username] = u;
+              usersMap[u.$id] = u;
+            }
+          } catch {}
+        }
+
+        if (idKeys.length > 0) {
+          try {
+            const byId = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+              Query.equal('$id', idKeys),
+              Query.limit(50),
+            ]);
+            for (const u of byId.documents) {
+              usersMap[u.$id] = u;
+              if (u.username) usersMap[u.username] = u;
+            }
+          } catch {}
+        }
+
+        const convs: Conversation[] = [];
+        for (const [key, msg] of latestByPartner.entries()) {
+          const user = usersMap[key];
+          if (!user) continue;
+          const name = user.name || 'User';
+          const username = user.username || '';
+          const lastMessage = msg.content || msg.text || '';
+          if (msg.type && msg.type !== 'text') continue;
+          convs.push({
+            userId: user.$id,
+            partnerUsername: username,
+            name,
+            initials: getInitials(name),
+            lastMessage,
+            lastTime: formatTimeAgo(msg.$createdAt),
+            unread: 0,
+          });
+        }
+
         setConversations(convs);
-      } catch { setConversations([]); }
-      finally { setLoading(false); }
+      } catch {
+        setConversations([]);
+      } finally {
+        setLoading(false);
+      }
     };
+
     load();
   }, [authUser]);
 
@@ -199,13 +322,25 @@ export default function FreeModeMessagesPage() {
     setSearching(true);
     try {
       const res = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.search('name', q), Query.limit(10)]);
-      setSearchResults(res.documents.map((u: any) => ({ $id: u.$id, name: u.name, username: u.username || '' })).filter((u: any) => u.$id !== authUser?.$id));
+      setSearchResults(
+        res.documents
+          .map((u: any) => ({ $id: u.$id, name: u.name, username: u.username || '' }))
+          .filter((u: any) => u.$id !== authUser?.$id)
+      );
     } catch { setSearchResults([]); }
     finally { setSearching(false); }
   };
 
   if (activeConv && authUser) {
-    return <ConversationThread authUser={authUser} partnerId={activeConv.userId} partnerName={activeConv.name} onBack={() => setActiveConv(null)} />;
+    return (
+      <ConversationThread
+        authUser={authUser}
+        partnerId={activeConv.userId}
+        partnerName={activeConv.name}
+        partnerUsername={activeConv.username}
+        onBack={() => setActiveConv(null)}
+      />
+    );
   }
 
   return (
@@ -217,7 +352,8 @@ export default function FreeModeMessagesPage() {
             <path d="M13 15L17 7L21 15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
-        <span className="font-headline font-bold text-lg tracking-tight text-primary">Messages</span>
+        <span className="font-headline font-bold text-lg tracking-tight text-primary flex-1">Messages</span>
+        <ModeSwitcher />
       </header>
 
       <div className="flex items-center justify-center gap-2 bg-orange-500/5 border-b border-orange-500/10 px-4 py-2">
@@ -253,7 +389,11 @@ export default function FreeModeMessagesPage() {
             {search && searchResults.length > 0 && (
               <div className="bg-white dark:bg-card rounded-2xl border border-border/60 overflow-hidden divide-y divide-border/40">
                 {searchResults.map(u => (
-                  <button key={u.$id} onClick={() => { setSearch(''); setSearchResults([]); setActiveConv({ userId: u.$id, name: u.name }); }} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-muted transition-colors text-left">
+                  <button
+                    key={u.$id}
+                    onClick={() => { setSearch(''); setSearchResults([]); setActiveConv({ userId: u.$id, name: u.name, username: u.username }); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-muted transition-colors text-left"
+                  >
                     <div className="w-9 h-9 rounded-full bg-primary/10 text-primary text-xs font-black flex items-center justify-center border border-primary/20 flex-shrink-0">{getInitials(u.name)}</div>
                     <div>
                       <p className="font-bold text-sm text-foreground">{u.name}</p>
@@ -277,14 +417,18 @@ export default function FreeModeMessagesPage() {
                 ) : (
                   <div className="bg-white dark:bg-card rounded-2xl border border-border/60 overflow-hidden divide-y divide-border/40">
                     {conversations.map(c => (
-                      <button key={c.userId} onClick={() => setActiveConv({ userId: c.userId, name: c.name })} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-muted transition-colors text-left">
+                      <button
+                        key={c.userId}
+                        onClick={() => setActiveConv({ userId: c.userId, name: c.name, username: c.partnerUsername })}
+                        className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-muted transition-colors text-left"
+                      >
                         <div className="w-10 h-10 rounded-full bg-primary/10 text-primary text-sm font-black flex items-center justify-center border border-primary/20 flex-shrink-0">{c.initials}</div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
                             <p className="font-bold text-sm text-foreground">{c.name}</p>
                             <span className="text-[10px] text-muted-foreground">{c.lastTime}</span>
                           </div>
-                          <p className="text-[12px] text-muted-foreground truncate">{c.lastMessage || 'No messages yet'}</p>
+                          <p className="text-[12px] text-muted-foreground truncate">{c.lastMessage || 'Start chatting'}</p>
                         </div>
                         {c.unread > 0 && <div className="w-5 h-5 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center flex-shrink-0">{c.unread}</div>}
                       </button>
