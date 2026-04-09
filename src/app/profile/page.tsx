@@ -85,7 +85,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { BUCKET_IMAGES, BUCKET } from "@/lib/appwrite";
+import { client, DATABASE_ID, COL, BUCKET_IMAGES, BUCKET } from "@/lib/appwrite";
 import ProfileLoading from "./loading";
 
 const NATIONALITIES = [
@@ -138,10 +138,28 @@ export default function MyProfilePage() {
   const ownPostsLoadMoreRef = useRef<HTMLDivElement>(null);
   const isLoadingOwnPostsRef = useRef(false);
 
+  const [liveFollowers, setLiveFollowers] = useState<number | null>(null);
+
   const isPlayerActive = currentTrack && !isExpanded;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!currentUser?.$id) return;
+    const unsubscribe = client.subscribe(
+      `databases.${DATABASE_ID}.collections.${COL.USERS}.documents.${currentUser.$id}`,
+      (response) => {
+        const events: string[] = response.events as string[];
+        if (!events.some(e => e.endsWith('.update'))) return;
+        const payload = response.payload as any;
+        if (typeof payload.followers_count === 'number') {
+          setLiveFollowers(payload.followers_count);
+        }
+      }
+    );
+    return () => { unsubscribe(); };
+  }, [currentUser?.$id]);
 
   useEffect(() => {
     if (currentUser) {
@@ -259,8 +277,9 @@ export default function MyProfilePage() {
 
   const combinedFollowers = useMemo(() => {
     if (!currentUser) return 0;
+    if (liveFollowers !== null) return liveFollowers;
     return parseFollowerCount(currentUser.followers);
-  }, [currentUser]);
+  }, [currentUser, liveFollowers]);
 
   const combinedFollowing = useMemo(() => {
     if (!currentUser) return 0;

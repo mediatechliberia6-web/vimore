@@ -72,6 +72,10 @@ function FriendsPageContent() {
   const [discoveryUsers, setDiscoveryUsers] = useState<any[]>([]);
   const [isLoadingDiscovery, setIsLoadingDiscovery] = useState(false);
 
+  // Confirm tab state
+  const [confirmReceivedUsers, setConfirmReceivedUsers] = useState<any[]>([]);
+  const [isLoadingConfirm, setIsLoadingConfirm] = useState(false);
+
   // Pending tab state
   const [pendingUsers, setPendingUsers] = useState<any[]>([]);
   const [isLoadingPending, setIsLoadingPending] = useState(false);
@@ -81,6 +85,7 @@ function FriendsPageContent() {
   const [confirmType, setConfirmType] = useState<"unfriend" | "cancel">("unfriend");
 
   const discoveryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const confirmIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isPlayerActive = currentTrack && !isExpanded;
@@ -152,6 +157,43 @@ function FriendsPageContent() {
     }
   }, [currentUser]);
 
+  // ─── Fetch received (confirm) requests ───
+  const fetchConfirmRequests = useCallback(async () => {
+    if (!currentUser) return;
+    try {
+      const reqResult = await databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
+        Query.equal('to_user_id', currentUser.$id),
+        Query.equal('status', 'PENDING'),
+        Query.limit(50),
+      ]);
+
+      if (reqResult.documents.length === 0) {
+        setConfirmReceivedUsers([]);
+        return;
+      }
+
+      const fromIds = reqResult.documents.map((d: any) => d.from_user_id);
+      const userResults = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+        Query.equal('$id', fromIds),
+        Query.limit(50),
+      ]);
+
+      const mapped = userResults.documents.map((doc: any) => ({
+        $id: doc.$id,
+        username: doc.username,
+        name: doc.name || doc.username,
+        avatar: doc.avatar || doc.avatar_url || '',
+        followers: doc.followers_count || doc.followers || 0,
+        category: doc.category || 'CREATOR',
+        isVerified: doc.is_verified || false,
+      }));
+
+      setConfirmReceivedUsers(mapped);
+    } catch {
+      // silent fail
+    }
+  }, [currentUser]);
+
   // ─── Add Friends tab: initial fetch + 30s interval ───
   useEffect(() => {
     if (activeTab !== 'add') {
@@ -176,6 +218,31 @@ function FriendsPageContent() {
       }
     };
   }, [activeTab, fetchDiscoveryBatch]);
+
+  // ─── Confirm tab: initial fetch + 5s interval ───
+  useEffect(() => {
+    if (activeTab !== 'confirm') {
+      if (confirmIntervalRef.current) {
+        clearInterval(confirmIntervalRef.current);
+        confirmIntervalRef.current = null;
+      }
+      return;
+    }
+
+    setIsLoadingConfirm(true);
+    fetchConfirmRequests().finally(() => setIsLoadingConfirm(false));
+
+    confirmIntervalRef.current = setInterval(() => {
+      fetchConfirmRequests();
+    }, 5000);
+
+    return () => {
+      if (confirmIntervalRef.current) {
+        clearInterval(confirmIntervalRef.current);
+        confirmIntervalRef.current = null;
+      }
+    };
+  }, [activeTab, fetchConfirmRequests]);
 
   // ─── Pending tab: initial fetch + 5s interval ───
   useEffect(() => {
@@ -206,6 +273,7 @@ function FriendsPageContent() {
   useEffect(() => {
     return () => {
       if (discoveryIntervalRef.current) clearInterval(discoveryIntervalRef.current);
+      if (confirmIntervalRef.current) clearInterval(confirmIntervalRef.current);
       if (pendingIntervalRef.current) clearInterval(pendingIntervalRef.current);
     };
   }, []);
@@ -232,10 +300,8 @@ function FriendsPageContent() {
 
   const confirmUsers = useMemo(() => {
     if (!currentUser) return [];
-    return connections.filter(c =>
-      c.username !== currentUser.username && isRequestReceived(c.username)
-    );
-  }, [connections, currentUser, isRequestReceived]);
+    return confirmReceivedUsers.filter(u => u.username !== currentUser.username);
+  }, [confirmReceivedUsers, currentUser]);
 
   const friendsList = useMemo(() => {
     if (!currentUser) return [];
@@ -303,6 +369,7 @@ function FriendsPageContent() {
     } else if (received) {
       triggerHaptic(25);
       confirmFriendRequest(user.username);
+      setConfirmReceivedUsers(prev => prev.filter(u => u.username !== user.username));
     } else {
       triggerHaptic(20);
       sendFriendRequest(user.username);
@@ -344,6 +411,7 @@ function FriendsPageContent() {
 
   const isTabLoading = (tab: HubTab) => {
     if (tab === 'add') return isLoadingDiscovery;
+    if (tab === 'confirm') return isLoadingConfirm;
     if (tab === 'pending') return isLoadingPending;
     return false;
   };
@@ -457,6 +525,14 @@ function FriendsPageContent() {
             </div>
           )}
 
+          {/* Loading state for confirm */}
+          {isLoadingConfirm && activeTab === "confirm" && confirmReceivedUsers.length === 0 && (
+            <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <span className="text-sm font-bold uppercase tracking-widest">Syncing incoming requests...</span>
+            </div>
+          )}
+
           {/* Loading state for pending */}
           {isLoadingPending && activeTab === "pending" && pendingUsers.length === 0 && (
             <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground">
@@ -556,7 +632,7 @@ function FriendsPageContent() {
           )}
 
           {/* All other tabs (add, confirm, friends) */}
-          {activeTab !== 'pending' && (!isLoadingDiscovery || activeTab !== 'add' || discoveryUsers.length > 0) && (
+          {activeTab !== 'pending' && (!isLoadingDiscovery || activeTab !== 'add' || discoveryUsers.length > 0) && (!isLoadingConfirm || activeTab !== 'confirm' || confirmReceivedUsers.length > 0) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredUsers.length > 0 ? filteredUsers.map((user, i) => {
                 const friend = isFriend(user.username);
