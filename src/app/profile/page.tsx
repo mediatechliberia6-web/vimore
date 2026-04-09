@@ -85,7 +85,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { client, DATABASE_ID, COL, BUCKET_IMAGES, BUCKET } from "@/lib/appwrite";
+import { client, databases, DATABASE_ID, COL, BUCKET_IMAGES, BUCKET } from "@/lib/appwrite";
 import ProfileLoading from "./loading";
 
 const NATIONALITIES = [
@@ -147,6 +147,15 @@ export default function MyProfilePage() {
 
   useEffect(() => {
     if (!currentUser?.$id) return;
+
+    databases.getDocument(DATABASE_ID, COL.USERS, currentUser.$id)
+      .then((doc: any) => {
+        if (typeof doc.followers_count === 'number') {
+          setLiveFollowers(doc.followers_count);
+        }
+      })
+      .catch(() => {});
+
     const unsubscribe = client.subscribe(
       `databases.${DATABASE_ID}.collections.${COL.USERS}.documents.${currentUser.$id}`,
       (response) => {
