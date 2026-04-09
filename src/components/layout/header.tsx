@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { Search, Plus, Menu, Bell } from "lucide-react";
+import { Search, Plus, Menu, Bell, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CreatePostModal } from "@/components/post/create-post-modal";
@@ -10,7 +10,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNotifications } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
 import { useTranslation } from "@/context/LanguageContext";
-import { ModeSwitcher } from "@/components/layout/mode-switcher";
 import { cn } from "@/lib/utils";
 import { useMemo } from "react";
 
@@ -76,7 +75,15 @@ export function Header() {
           </Avatar>
         </Link>
 
-        <ModeSwitcher />
+        <Link href="/messages" className="relative group" onClick={() => clearPulse('MESSAGES')}>
+          <Button variant="ghost" size="icon" className={cn(
+            "rounded-full bg-secondary/50 transition-all",
+            (categoryPulses?.MESSAGES || 0) > 0 && "text-primary bg-primary/5 shadow-[0_0_10px_rgba(153,64,229,0.2)]"
+          )}>
+            <MessageCircle className="h-5 w-5" />
+          </Button>
+          <PulseBadge count={categoryPulses?.MESSAGES || 0} />
+        </Link>
 
         <Link href="/menu" className="lg:hidden relative">
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50" aria-label="Open menu">

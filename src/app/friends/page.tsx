@@ -209,7 +209,7 @@ function FriendsPageContent() {
 
     discoveryIntervalRef.current = setInterval(() => {
       fetchDiscoveryBatch();
-    }, 30000);
+    }, 90000);
 
     return () => {
       if (discoveryIntervalRef.current) {
@@ -259,7 +259,7 @@ function FriendsPageContent() {
 
     pendingIntervalRef.current = setInterval(() => {
       fetchPendingRequests();
-    }, 5000);
+    }, 90000);
 
     return () => {
       if (pendingIntervalRef.current) {
