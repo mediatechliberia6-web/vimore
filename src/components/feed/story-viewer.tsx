@@ -41,6 +41,7 @@ export function StoryViewer() {
   const [isAdActive, setIsAdActive] = useState(false);
   const [storiesSeenInSession, setStoriesSeenInSession] = useState(0);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
+  const [isAdMuted, setIsAdMuted] = useState(false);
   const [adProgress, setAdProgress] = useState(0);
   
   const requestRef = useRef<number | null>(null);
@@ -300,15 +301,23 @@ export function StoryViewer() {
               {currentStoryCampaign ? (
                 <>
                   {currentStoryCampaign.type === 'video' && currentStoryCampaign.media_url ? (
-                    <video
-                      src={currentStoryCampaign.media_url}
-                      className="w-full h-full object-cover"
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      preload="metadata"
-                    />
+                    <>
+                      <video
+                        src={currentStoryCampaign.media_url}
+                        className="w-full h-full object-cover"
+                        autoPlay
+                        muted={isAdMuted}
+                        loop
+                        playsInline
+                        preload="metadata"
+                      />
+                      <button
+                        className="absolute bottom-24 right-4 z-30 p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white"
+                        onClick={(e) => { e.stopPropagation(); setIsAdMuted(m => !m); }}
+                      >
+                        {isAdMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                      </button>
+                    </>
                   ) : currentStoryCampaign.media_url ? (
                     <Image 
                       src={currentStoryCampaign.media_url}

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, Suspense } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from "react";
 import { Header } from "@/components/layout/header";
 import { SubHeader } from "@/components/layout/sub-header";
 import { MainNav } from "@/components/layout/main-nav";
@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "next/navigation";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
+import { databases, DATABASE_ID, COL, Query } from "@/lib/appwrite";
 import { 
   Users, 
   UserPlus, 
@@ -36,7 +37,9 @@ import {
   Users2,
   Check,
   Loader2,
-  Rocket
+  Rocket,
+  Clock,
+  Ban
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -52,10 +55,10 @@ import {
 import { useTranslation } from "@/context/LanguageContext";
 import FriendsLoading from "./loading";
 
-type HubTab = "add" | "confirm" | "friends";
+type HubTab = "add" | "confirm" | "friends" | "pending";
 
 function FriendsPageContent() {
-  const { connections = [], isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, currentUser, friendUsernames, followerUsernames, isLoading, isOffline, fetchAllUsersForDiscovery } = usePosts();
+  const { connections = [], isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, currentUser, friendUsernames, followerUsernames, isLoading, isOffline } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -64,30 +67,148 @@ function FriendsPageContent() {
   const [activeTab, setActiveTab] = useState<HubTab>("add");
   const [searchQuery, setSearchQuery] = useState("");
   const [playingPreview, setPlayingPreview] = useState<string | null>(null);
-  const [allNetworkUsers, setAllNetworkUsers] = useState<any[]>([]);
+
+  // Add Friends tab state
+  const [discoveryUsers, setDiscoveryUsers] = useState<any[]>([]);
   const [isLoadingDiscovery, setIsLoadingDiscovery] = useState(false);
+
+  // Pending tab state
+  const [pendingUsers, setPendingUsers] = useState<any[]>([]);
+  const [isLoadingPending, setIsLoadingPending] = useState(false);
+  const [cancellingUser, setCancellingUser] = useState<string | null>(null);
 
   const [confirmUser, setConfirmUser] = useState<any | null>(null);
   const [confirmType, setConfirmType] = useState<"unfriend" | "cancel">("unfriend");
+
+  const discoveryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isPlayerActive = currentTrack && !isExpanded;
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as HubTab;
-    if (tabParam && ["add", "confirm", "friends"].includes(tabParam)) {
+    if (tabParam && ["add", "confirm", "friends", "pending"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    if (allNetworkUsers.length === 0 && !isLoadingDiscovery) {
-      setIsLoadingDiscovery(true);
-      fetchAllUsersForDiscovery().then((users) => {
-        setAllNetworkUsers(users);
-        setIsLoadingDiscovery(false);
-      });
+  // ─── Fetch discovery users (no attribute ordering, just limit) ───
+  const fetchDiscoveryBatch = useCallback(async () => {
+    if (!currentUser) return;
+    try {
+      const result = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+        Query.limit(50),
+      ]);
+      const mapped = result.documents.map((doc: any) => ({
+        $id: doc.$id,
+        username: doc.username,
+        name: doc.name || doc.username,
+        avatar: doc.avatar || doc.avatar_url || '',
+        followers: doc.followers_count || doc.followers || 0,
+        category: doc.category || 'CREATOR',
+        isVerified: doc.is_verified || false,
+        isOnline: doc.is_online || false,
+      }));
+      setDiscoveryUsers(mapped);
+    } catch {
+      // silent fail — keep old data
     }
-  }, [fetchAllUsersForDiscovery]);
+  }, [currentUser]);
+
+  // ─── Fetch pending sent requests ───
+  const fetchPendingRequests = useCallback(async () => {
+    if (!currentUser) return;
+    try {
+      const reqResult = await databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
+        Query.equal('from_user_id', currentUser.$id),
+        Query.equal('status', 'PENDING'),
+        Query.limit(25),
+      ]);
+
+      if (reqResult.documents.length === 0) {
+        setPendingUsers([]);
+        return;
+      }
+
+      const toIds = reqResult.documents.map((d: any) => d.to_user_id);
+      const userResults = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+        Query.equal('$id', toIds),
+        Query.limit(25),
+      ]);
+
+      const mapped = userResults.documents.map((doc: any) => ({
+        $id: doc.$id,
+        username: doc.username,
+        name: doc.name || doc.username,
+        avatar: doc.avatar || doc.avatar_url || '',
+        followers: doc.followers_count || doc.followers || 0,
+        category: doc.category || 'CREATOR',
+        isVerified: doc.is_verified || false,
+      }));
+
+      setPendingUsers(mapped);
+    } catch {
+      // silent fail
+    }
+  }, [currentUser]);
+
+  // ─── Add Friends tab: initial fetch + 30s interval ───
+  useEffect(() => {
+    if (activeTab !== 'add') {
+      if (discoveryIntervalRef.current) {
+        clearInterval(discoveryIntervalRef.current);
+        discoveryIntervalRef.current = null;
+      }
+      return;
+    }
+
+    setIsLoadingDiscovery(true);
+    fetchDiscoveryBatch().finally(() => setIsLoadingDiscovery(false));
+
+    discoveryIntervalRef.current = setInterval(() => {
+      fetchDiscoveryBatch();
+    }, 30000);
+
+    return () => {
+      if (discoveryIntervalRef.current) {
+        clearInterval(discoveryIntervalRef.current);
+        discoveryIntervalRef.current = null;
+      }
+    };
+  }, [activeTab, fetchDiscoveryBatch]);
+
+  // ─── Pending tab: initial fetch + 5s interval ───
+  useEffect(() => {
+    if (activeTab !== 'pending') {
+      if (pendingIntervalRef.current) {
+        clearInterval(pendingIntervalRef.current);
+        pendingIntervalRef.current = null;
+      }
+      return;
+    }
+
+    setIsLoadingPending(true);
+    fetchPendingRequests().finally(() => setIsLoadingPending(false));
+
+    pendingIntervalRef.current = setInterval(() => {
+      fetchPendingRequests();
+    }, 5000);
+
+    return () => {
+      if (pendingIntervalRef.current) {
+        clearInterval(pendingIntervalRef.current);
+        pendingIntervalRef.current = null;
+      }
+    };
+  }, [activeTab, fetchPendingRequests]);
+
+  // ─── Cleanup all intervals on unmount ───
+  useEffect(() => {
+    return () => {
+      if (discoveryIntervalRef.current) clearInterval(discoveryIntervalRef.current);
+      if (pendingIntervalRef.current) clearInterval(pendingIntervalRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!confirmUser) {
@@ -98,40 +219,37 @@ function FriendsPageContent() {
     };
   }, [confirmUser]);
 
-  const allAvailableUsers = useMemo(() => {
-    const userMap = new Map<string, any>();
-    connections.forEach(u => { if (u.username) userMap.set(u.username, u); });
-    allNetworkUsers.forEach(u => { if (u.username) userMap.set(u.username, u); });
-    return Array.from(userMap.values());
-  }, [connections, allNetworkUsers]);
+  // ─── Filtered lists ───
+  const addFriendsUsers = useMemo(() => {
+    if (!currentUser) return [];
+    return discoveryUsers.filter(u =>
+      u.username !== currentUser.username &&
+      !isFriend(u.username) &&
+      !isRequestSent(u.username) &&
+      !isRequestReceived(u.username)
+    );
+  }, [discoveryUsers, currentUser, isFriend, isRequestSent, isRequestReceived]);
+
+  const confirmUsers = useMemo(() => {
+    if (!currentUser) return [];
+    return connections.filter(c =>
+      c.username !== currentUser.username && isRequestReceived(c.username)
+    );
+  }, [connections, currentUser, isRequestReceived]);
+
+  const friendsList = useMemo(() => {
+    if (!currentUser) return [];
+    return connections.filter(c =>
+      c.username !== currentUser.username && isFriend(c.username)
+    );
+  }, [connections, currentUser, isFriend]);
 
   const filteredUsers = useMemo(() => {
-    if (!currentUser) return [];
-
-    let list: any[];
-
-    if (activeTab === "add") {
-      list = allNetworkUsers.filter(c =>
-        c.username !== currentUser.username &&
-        !isFriend(c.username) &&
-        !isRequestSent(c.username) &&
-        !isRequestReceived(c.username)
-      );
-      list.sort((a, b) => {
-        const aFollowsBack = followerUsernames.has(a.username) ? 1 : 0;
-        const bFollowsBack = followerUsernames.has(b.username) ? 1 : 0;
-        if (bFollowsBack !== aFollowsBack) return bFollowsBack - aFollowsBack;
-        return (b.followers || 0) - (a.followers || 0);
-      });
-    } else if (activeTab === "confirm") {
-      list = allAvailableUsers.filter(c =>
-        c.username !== currentUser.username && isRequestReceived(c.username)
-      );
-    } else {
-      list = allAvailableUsers.filter(c =>
-        c.username !== currentUser.username && isFriend(c.username)
-      );
-    }
+    let list: any[] = [];
+    if (activeTab === 'add') list = addFriendsUsers;
+    else if (activeTab === 'confirm') list = confirmUsers;
+    else if (activeTab === 'friends') list = friendsList;
+    else if (activeTab === 'pending') list = pendingUsers;
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -140,11 +258,9 @@ function FriendsPageContent() {
         (u.username || "").toLowerCase().includes(q)
       );
     }
-
     return list;
-  }, [activeTab, allAvailableUsers, allNetworkUsers, isFriend, isRequestSent, isRequestReceived, searchQuery, currentUser, followerUsernames]);
+  }, [activeTab, addFriendsUsers, confirmUsers, friendsList, pendingUsers, searchQuery]);
 
-  // Handshake Guard: Prevents build-time null-pointers
   if (isLoading || !currentUser) {
     return <FriendsLoading />;
   }
@@ -152,6 +268,7 @@ function FriendsPageContent() {
   const tabs: { id: HubTab; label: string; icon: any }[] = [
     { id: "add", label: t('friends_add'), icon: UserRoundPlus },
     { id: "confirm", label: t('friends_confirm'), icon: UserRoundCheck },
+    { id: "pending", label: "Pending", icon: Clock },
     { id: "friends", label: t('friends_my_friends'), icon: Users2 },
   ];
 
@@ -192,19 +309,50 @@ function FriendsPageContent() {
     }
   };
 
+  const handleCancelPending = async (user: any) => {
+    if (cancellingUser === user.username) return;
+    triggerHaptic(15);
+    setCancellingUser(user.username);
+    try {
+      await cancelFriendRequest(user.username);
+      // Decrement target user follower_count
+      await databases.updateDocument(DATABASE_ID, COL.USERS, user.$id, {
+        followers_count: Math.max(0, (user.followers || 1) - 1),
+      }).catch(() => {});
+      setPendingUsers(prev => prev.filter(u => u.username !== user.username));
+      toast({ title: "Request cancelled", description: `Request to @${user.username} has been cancelled.`, duration: 2500 });
+    } catch {
+      toast({ title: "Error", description: "Could not cancel request. Try again.", duration: 2500 });
+    } finally {
+      setCancellingUser(null);
+    }
+  };
+
   const confirmRemoval = () => {
     if (confirmUser) {
       triggerHaptic(30);
       const user = { ...confirmUser };
       document.body.style.pointerEvents = 'auto';
       setConfirmUser(null);
-      
       if (confirmType === "unfriend") {
         unfriendUser(user.username);
       } else {
         cancelFriendRequest(user.username);
       }
     }
+  };
+
+  const isTabLoading = (tab: HubTab) => {
+    if (tab === 'add') return isLoadingDiscovery;
+    if (tab === 'pending') return isLoadingPending;
+    return false;
+  };
+
+  const emptyMessage = () => {
+    if (activeTab === 'add') return "All network nodes synchronized. Share your referral link to attract new connections.";
+    if (activeTab === 'confirm') return "No pending friendship pulses detected.";
+    if (activeTab === 'pending') return "No outgoing requests pending. Start connecting with new nodes.";
+    return "No established friends in vault.";
   };
 
   return (
@@ -268,47 +416,61 @@ function FriendsPageContent() {
 
             <NativeAdNode type="banner-468" id="friends-top-pulse" />
 
-            <div className="flex p-1.5 bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-[2rem] shadow-xl shadow-black/5">
-              {tabs.map((tab) => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => { triggerHaptic(5); setActiveTab(tab.id); }}
-                    className={cn(
-                      "flex-1 flex items-center justify-center gap-2 py-4 rounded-full text-[10px] sm:text-xs font-black italic uppercase tracking-widest transition-all relative overflow-hidden group",
-                      isActive 
-                        ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105" 
-                        : "text-muted-foreground hover:text-foreground hover:bg-white/10"
-                    )}
-                  >
-                    <tab.icon className={cn("h-4 w-4", isActive && "fill-current")} />
-                    <span className="truncate">{tab.label}</span>
-                    {isActive && (
-                      <div className="absolute bottom-0 left-1/4 right-1/4 h-1 bg-white/40 rounded-t-full blur-sm" />
-                    )}
-                  </button>
-                );
-              })}
+            {/* Horizontally scrollable tab bar */}
+            <div className="relative">
+              <div className="flex overflow-x-auto scrollbar-hide gap-1.5 p-1.5 bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-[2rem] shadow-xl shadow-black/5 snap-x snap-mandatory">
+                {tabs.map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  const loading = isTabLoading(tab.id);
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => { triggerHaptic(5); setActiveTab(tab.id); }}
+                      className={cn(
+                        "flex-shrink-0 snap-start flex items-center justify-center gap-2 py-4 px-5 rounded-full text-[10px] sm:text-xs font-black italic uppercase tracking-widest transition-all relative overflow-hidden group min-w-max",
+                        isActive 
+                          ? "bg-primary text-white shadow-lg shadow-primary/30 scale-105" 
+                          : "text-muted-foreground hover:text-foreground hover:bg-white/10"
+                      )}
+                    >
+                      {loading && isActive ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <tab.icon className={cn("h-4 w-4", isActive && "fill-current")} />
+                      )}
+                      <span>{tab.label}</span>
+                      {isActive && (
+                        <div className="absolute bottom-0 left-1/4 right-1/4 h-1 bg-white/40 rounded-t-full blur-sm" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
-          {isLoadingDiscovery && activeTab === "add" && (
+          {/* Loading state for discovery */}
+          {isLoadingDiscovery && activeTab === "add" && discoveryUsers.length === 0 && (
             <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
               <span className="text-sm font-bold uppercase tracking-widest">Scanning network nodes...</span>
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {filteredUsers.length > 0 ? filteredUsers.map((user, i) => {
-              const friend = isFriend(user.username);
-              const sent = isRequestSent(user.username);
-              const isPlaying = playingPreview === user.username;
+          {/* Loading state for pending */}
+          {isLoadingPending && activeTab === "pending" && pendingUsers.length === 0 && (
+            <div className="flex items-center justify-center py-16 gap-3 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <span className="text-sm font-bold uppercase tracking-widest">Syncing pending requests...</span>
+            </div>
+          )}
 
-              return (
-                <div 
-                  key={user.username} 
+          {/* Pending Tab UI */}
+          {activeTab === 'pending' && (!isLoadingPending || pendingUsers.length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredUsers.length > 0 ? filteredUsers.map((user, i) => (
+                <div
+                  key={user.username}
                   className="group relative bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-6 transition-all hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/5 animate-in fade-in slide-in-from-bottom-4"
                   style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}
                 >
@@ -316,35 +478,13 @@ function FriendsPageContent() {
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-5 flex-1 min-w-0">
                         <div className="relative shrink-0">
-                          <div className={cn(
-                            "absolute -inset-2 rounded-full blur-md opacity-0 transition-all duration-700 ring-2 ring-primary/40",
-                            user.isOnline && "opacity-100 animate-pulse scale-110"
-                          )} />
-                          
-                          <div className="relative">
-                            <Avatar className={cn(
-                              "h-20 w-20 border-4 transition-all duration-500 shadow-xl",
-                              user.isOnline ? "border-primary" : "border-white/20 group-hover:border-primary/50"
-                            )}>
-                              <AvatarImage src={user.avatar} />
-                              <AvatarFallback>{user.name[0]}</AvatarFallback>
-                            </Avatar>
-                            
-                            <button 
-                              onClick={() => handlePreviewSonic(user.username, user.name)}
-                              className={cn(
-                                "absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity",
-                                isPlaying && "opacity-100 bg-primary/40"
-                              )}
-                            >
-                              {isPlaying ? <Volume2 className="h-8 w-8 text-white animate-bounce" /> : <Play className="h-8 w-8 text-white fill-current" />}
-                            </button>
+                          <Avatar className="h-20 w-20 border-4 border-primary/30 transition-all duration-500 shadow-xl group-hover:border-primary/60">
+                            <AvatarImage src={user.avatar} />
+                            <AvatarFallback>{(user.name || '?')[0]}</AvatarFallback>
+                          </Avatar>
+                          <div className="absolute -bottom-1 -right-1 bg-amber-500 text-white text-[8px] font-black uppercase px-2 py-1 rounded-full border-2 border-white dark:border-[#050505] shadow-lg">
+                            Pending
                           </div>
-                          {friend && (
-                            <div className="absolute -bottom-1 -right-1 bg-primary text-white text-[8px] font-black uppercase px-2 py-1 rounded-full border-2 border-white dark:border-[#050505] shadow-lg">
-                              Friend
-                            </div>
-                          )}
                         </div>
                         <div className="flex flex-col min-w-0">
                           <Link href={`/profile/${user.username}`} className="flex flex-col gap-0.5">
@@ -354,32 +494,23 @@ function FriendsPageContent() {
                               {user.isVerified && <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black h-4 px-2">VERIFIED</Badge>}
                             </div>
                           </Link>
-                          <div className="mt-2 flex wrap gap-1">
-                            <span className="text-[9px] font-black uppercase bg-primary/5 text-primary/70 px-2 py-0.5 rounded-md">{user.category || "CREATOR"}</span>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            <span className="text-[9px] font-black uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-md">Request Sent</span>
                           </div>
                         </div>
                       </div>
 
                       <div className="flex flex-col gap-2 shrink-0">
-                        <Button 
+                        <Button
                           size="sm"
-                          className={cn(
-                            "rounded-[1.25rem] h-11 px-6 font-black italic uppercase tracking-widest text-[10px] transition-all group/btn min-w-[120px] shadow-lg",
-                            friend ? "bg-white/10 dark:bg-white/5 text-foreground hover:bg-destructive hover:text-white" :
-                            sent ? "bg-primary/10 text-primary border border-primary/20 hover:bg-destructive hover:text-white" :
-                            "bg-primary text-white shadow-primary/20 hover:scale-105"
-                          )}
-                          onClick={() => handleAction(user)}
+                          className="rounded-[1.25rem] h-11 px-5 font-black italic uppercase tracking-widest text-[10px] transition-all min-w-[130px] shadow-lg bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive hover:text-white"
+                          onClick={() => handleCancelPending(user)}
+                          disabled={cancellingUser === user.username}
                         >
-                          <span className={cn((friend || sent) && "group-hover/btn:hidden")}>
-                            {friend ? <><UserCheck className="h-3.5 w-3.5 inline mr-1.5" /> Friends</> : 
-                             sent ? <><Check className="h-3.5 w-3.5 inline mr-1.5" /> Sent</> : 
-                             activeTab === 'confirm' ? t('friends_confirm').split(' ')[0] : t('friends_add_friend')}
-                          </span>
-                          {(friend || sent) && (
-                            <span className="hidden group-hover/btn:inline flex items-center gap-1.5">
-                              {friend ? <><UserMinus className="h-3.5 w-3.5" /> Unfriend</> : <><X className="h-3.5 w-3.5" /> Cancel</>}
-                            </span>
+                          {cancellingUser === user.username ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <><X className="h-3.5 w-3.5 inline mr-1.5" /> Cancel Request</>
                           )}
                         </Button>
                         <Link href={`/messages?open=${user.username}`} className="w-full">
@@ -405,28 +536,153 @@ function FriendsPageContent() {
                     </div>
                   </div>
                 </div>
-              );
-            }) : (
-              <div className="col-span-full py-32 text-center space-y-6 opacity-60 animate-in fade-in zoom-in-95 duration-500">
-                <div className="h-24 w-24 bg-primary/5 rounded-[2rem] flex items-center justify-center mx-auto border-2 border-dashed border-primary/20">
-                  <Heart className="h-10 w-10 text-primary/40 animate-pulse" />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">Node Cluster Silent</h3>
-                  <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest max-w-xs mx-auto">
-                    {activeTab === 'add' 
-                      ? "All network nodes synchronized. Share your referral link to attract new connections." 
-                      : activeTab === 'confirm' ? "No pending friendship pulses detected." : "No established friends in vault."}
-                  </p>
-                </div>
-                <Link href={activeTab === 'add' ? "/referrals" : "/explore"}>
-                  <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase text-[10px] h-12 px-10 shadow-lg">
-                    {activeTab === 'add' ? "Expand Star Network" : "Discover New Nodes"}
+              )) : (
+                <div className="col-span-full py-32 text-center space-y-6 opacity-60 animate-in fade-in zoom-in-95 duration-500">
+                  <div className="h-24 w-24 bg-primary/5 rounded-[2rem] flex items-center justify-center mx-auto border-2 border-dashed border-primary/20">
+                    <Clock className="h-10 w-10 text-primary/40 animate-pulse" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-black italic uppercase tracking-tighter">No Pending Pulses</h3>
+                    <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest max-w-xs mx-auto">
+                      {emptyMessage()}
+                    </p>
+                  </div>
+                  <Button onClick={() => setActiveTab('add')} variant="outline" className="rounded-full border-primary text-primary font-black uppercase text-[10px] h-12 px-10 shadow-lg">
+                    Discover New Nodes
                   </Button>
-                </Link>
-              </div>
-            )}
-          </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* All other tabs (add, confirm, friends) */}
+          {activeTab !== 'pending' && (!isLoadingDiscovery || activeTab !== 'add' || discoveryUsers.length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredUsers.length > 0 ? filteredUsers.map((user, i) => {
+                const friend = isFriend(user.username);
+                const sent = isRequestSent(user.username);
+                const isPlaying = playingPreview === user.username;
+
+                return (
+                  <div 
+                    key={user.username} 
+                    className="group relative bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-[2.5rem] p-6 transition-all hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/5 animate-in fade-in slide-in-from-bottom-4"
+                    style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}
+                  >
+                    <div className="relative space-y-6">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-5 flex-1 min-w-0">
+                          <div className="relative shrink-0">
+                            <div className={cn(
+                              "absolute -inset-2 rounded-full blur-md opacity-0 transition-all duration-700 ring-2 ring-primary/40",
+                              user.isOnline && "opacity-100 animate-pulse scale-110"
+                            )} />
+                            
+                            <div className="relative">
+                              <Avatar className={cn(
+                                "h-20 w-20 border-4 transition-all duration-500 shadow-xl",
+                                user.isOnline ? "border-primary" : "border-white/20 group-hover:border-primary/50"
+                              )}>
+                                <AvatarImage src={user.avatar} />
+                                <AvatarFallback>{(user.name || '?')[0]}</AvatarFallback>
+                              </Avatar>
+                              
+                              <button 
+                                onClick={() => handlePreviewSonic(user.username, user.name)}
+                                className={cn(
+                                  "absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity",
+                                  isPlaying && "opacity-100 bg-primary/40"
+                                )}
+                              >
+                                {isPlaying ? <Volume2 className="h-8 w-8 text-white animate-bounce" /> : <Play className="h-8 w-8 text-white fill-current" />}
+                              </button>
+                            </div>
+                            {friend && (
+                              <div className="absolute -bottom-1 -right-1 bg-primary text-white text-[8px] font-black uppercase px-2 py-1 rounded-full border-2 border-white dark:border-[#050505] shadow-lg">
+                                Friend
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <Link href={`/profile/${user.username}`} className="flex flex-col gap-0.5">
+                              <span className="font-headline font-black text-xl italic uppercase tracking-tighter truncate hover:text-primary transition-colors">{user.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">@{user.username}</span>
+                                {user.isVerified && <Badge className="bg-primary/10 text-primary border-none text-[8px] font-black h-4 px-2">VERIFIED</Badge>}
+                              </div>
+                            </Link>
+                            <div className="mt-2 flex wrap gap-1">
+                              <span className="text-[9px] font-black uppercase bg-primary/5 text-primary/70 px-2 py-0.5 rounded-md">{user.category || "CREATOR"}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2 shrink-0">
+                          <Button 
+                            size="sm"
+                            className={cn(
+                              "rounded-[1.25rem] h-11 px-6 font-black italic uppercase tracking-widest text-[10px] transition-all group/btn min-w-[120px] shadow-lg",
+                              friend ? "bg-white/10 dark:bg-white/5 text-foreground hover:bg-destructive hover:text-white" :
+                              sent ? "bg-primary/10 text-primary border border-primary/20 hover:bg-destructive hover:text-white" :
+                              "bg-primary text-white shadow-primary/20 hover:scale-105"
+                            )}
+                            onClick={() => handleAction(user)}
+                          >
+                            <span className={cn((friend || sent) && "group-hover/btn:hidden")}>
+                              {friend ? <><UserCheck className="h-3.5 w-3.5 inline mr-1.5" /> Friends</> : 
+                               sent ? <><Check className="h-3.5 w-3.5 inline mr-1.5" /> Sent</> : 
+                               activeTab === 'confirm' ? t('friends_confirm').split(' ')[0] : t('friends_add_friend')}
+                            </span>
+                            {(friend || sent) && (
+                              <span className="hidden group-hover/btn:inline flex items-center gap-1.5">
+                                {friend ? <><UserMinus className="h-3.5 w-3.5" /> Unfriend</> : <><X className="h-3.5 w-3.5" /> Cancel</>}
+                              </span>
+                            )}
+                          </Button>
+                          <Link href={`/messages?open=${user.username}`} className="w-full">
+                            <Button variant="ghost" className="w-full rounded-xl bg-white/40 dark:bg-white/5 h-10 text-muted-foreground hover:text-primary transition-all font-bold text-[10px] uppercase">
+                              Message
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-4 border-t border-primary/10">
+                        <div className="flex items-center gap-2 text-muted-foreground opacity-40">
+                          <Zap className="h-3.5 w-3.5" />
+                          <span className="text-[9px] font-black uppercase tracking-widest">
+                            {user.followers || 0} Spatial Nodes
+                          </span>
+                        </div>
+                        <Link href={`/profile/${user.username}`}>
+                          <Button variant="ghost" size="sm" className="h-7 px-3 rounded-full text-[9px] font-black uppercase tracking-widest text-primary hover:bg-primary/10">
+                            View Workspace <ArrowRight className="ml-1 h-2.5 w-2.5" />
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }) : (
+                <div className="col-span-full py-32 text-center space-y-6 opacity-60 animate-in fade-in zoom-in-95 duration-500">
+                  <div className="h-24 w-24 bg-primary/5 rounded-[2rem] flex items-center justify-center mx-auto border-2 border-dashed border-primary/20">
+                    <Heart className="h-10 w-10 text-primary/40 animate-pulse" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-black italic uppercase tracking-tighter">Node Cluster Silent</h3>
+                    <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest max-w-xs mx-auto">
+                      {emptyMessage()}
+                    </p>
+                  </div>
+                  <Link href={activeTab === 'add' ? "/referrals" : "/explore"}>
+                    <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase text-[10px] h-12 px-10 shadow-lg">
+                      {activeTab === 'add' ? "Expand Star Network" : "Discover New Nodes"}
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
 
           <NativeAdNode type="banner-468" id="friends-mid-pulse" />
 
