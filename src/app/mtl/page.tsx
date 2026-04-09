@@ -83,7 +83,20 @@ export default function MTLPage() {
 
       <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-        <div className="text-center space-y-3">
+        <div className="text-center space-y-4">
+          <div className="flex justify-center">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-600 via-primary to-indigo-700 blur-2xl opacity-30 scale-110" />
+              <Image
+                src="/mtl-logo.png"
+                alt="Media Tech Liberia Logo"
+                width={160}
+                height={160}
+                className="relative rounded-full shadow-2xl shadow-blue-900/40 border-4 border-white/10"
+                priority
+              />
+            </div>
+          </div>
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
             <Zap className="h-3 w-3" />
             Powering Africa's Digital Future
