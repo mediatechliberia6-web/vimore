@@ -1,11 +1,21 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { client, DATABASE_ID, COL, formatTimeAgo } from '@/lib/appwrite';
 import { usePosts, PostComment } from '@/context/PostContext';
 import { useNotifications } from '@/context/NotificationContext';
 import { useAdminAlerts } from '@/context/AdminAlertsContext';
 import { useFeedSignal } from '@/context/FeedSignalContext';
+
+const POST_ACTIVE_PATHS = ['/', '/reels', '/music', '/explore'];
+
+function isPostActivePage(pathname: string): boolean {
+  if (POST_ACTIVE_PATHS.includes(pathname)) return true;
+  if (pathname.startsWith('/profile/')) return true;
+  if (pathname.startsWith('/music')) return true;
+  return false;
+}
 
 const ADMIN_ALERT_SOUND = '/sounds/notification.mp3';
 
@@ -20,6 +30,9 @@ function playAdminSound(type: 'withdrawal' | 'highTicket' | 'payment') {
 }
 
 export function GlobalRealtimeListener() {
+  const pathname = usePathname();
+  const onPostPage = isPostActivePage(pathname);
+
   const {
     currentUser, selectedChatId, refreshAdminData,
     followingUserIds, applyPostCountUpdate, addStreamedComment, activeCommentPostId,
@@ -164,7 +177,7 @@ export function GlobalRealtimeListener() {
 
   // ─── Post interaction counts (likes / comments / shares) ─────────────────
   useEffect(() => {
-    if (!currentUser?.$id) return;
+    if (!currentUser?.$id || !onPostPage) return;
 
     const unsubscribe = client.subscribe(
       `databases.${DATABASE_ID}.collections.${COL.POSTS}.documents`,
@@ -206,11 +219,11 @@ export function GlobalRealtimeListener() {
     );
 
     return () => { unsubscribe(); };
-  }, [currentUser?.$id, applyPostCountUpdate, applyRemotePostEdit, incrementNewPosts, incrementPulse]);
+  }, [currentUser?.$id, onPostPage, applyPostCountUpdate, applyRemotePostEdit, incrementNewPosts, incrementPulse]);
 
   // ─── Real-time comment streaming ─────────────────────────────────────────
   useEffect(() => {
-    if (!currentUser?.$id) return;
+    if (!currentUser?.$id || !onPostPage) return;
 
     const unsubscribe = client.subscribe(
       `databases.${DATABASE_ID}.collections.${COL.POST_COMMENTS}.documents`,
@@ -239,7 +252,7 @@ export function GlobalRealtimeListener() {
     );
 
     return () => { unsubscribe(); };
-  }, [currentUser?.$id, addStreamedComment]);
+  }, [currentUser?.$id, onPostPage, addStreamedComment]);
 
   // ─── Admin financial channels ─────────────────────────────────────────────
   useEffect(() => {
