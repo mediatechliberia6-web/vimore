@@ -54,23 +54,27 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
     c.username.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const handleShareToStory = () => {
+  const handleShareToStory = async () => {
     triggerHaptic(25);
-    addStory({
-      image: post.image || post.videoUrl || '',
-      type: 'image',
-      background: 'bg-gradient-to-br from-primary to-accent',
-      postId: post.$id,
-      textOverlays: [{
-        text: `Shared from @${post.user.username}`,
-        x: 50,
-        y: 80,
-        color: "#FFFFFF"
-      }]
-    });
-    incrementShareCount(post.$id);
-    toast({ title: "Story Studio", description: "Vibe synced to your story rail." });
-    onClose();
+    try {
+      await addStory({
+        image: post.image || post.videoUrl || '',
+        type: 'image',
+        background: 'bg-gradient-to-br from-primary to-accent',
+        postId: post.$id,
+        textOverlays: [{
+          text: `Shared from @${post.user.username}`,
+          x: 50,
+          y: 80,
+          color: "#FFFFFF"
+        }]
+      });
+      incrementShareCount(post.$id);
+      toast({ title: "Story Studio", description: "Vibe synced to your story rail." });
+      onClose();
+    } catch {
+      toast({ variant: 'destructive', title: 'Story Failed', description: 'Could not sync to your story rail. Please try again.' });
+    }
   };
 
   const handleDownload = async () => {
@@ -106,10 +110,8 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
       postId: post.$id,
       sharedPostData: {
         postId: post.$id,
-        postImage: post.image || post.videoUrl,
-        postContent: post.content,
+        postContent: (post.content || '').slice(0, 80),
         postAuthorName: post.user.name,
-        postAuthorAvatar: post.user.avatar,
         postAuthorUsername: post.user.username,
       },
     });
@@ -153,7 +155,7 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <CreatePostModal sharedPost={post} initialContent="" onOpen={onClose}>
+            <CreatePostModal sharedPost={post} initialContent="">
               <Button variant="outline" className="h-24 w-full rounded-[2rem] border-primary/10 bg-white dark:bg-card hover:bg-primary/5 flex flex-col items-center justify-center gap-2 transition-all group">
                 <div className="p-3 bg-primary/10 rounded-2xl group-hover:scale-110 transition-transform"><PlusSquare className="h-6 w-6 text-primary" /></div>
                 <span className="text-[10px] font-black uppercase tracking-widest">Share as Post</span>
