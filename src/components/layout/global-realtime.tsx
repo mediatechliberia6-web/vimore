@@ -92,6 +92,7 @@ export function GlobalRealtimeListener() {
     const unsubscribe = client.subscribe(channels, (response) => {
       const events: string[] = response.events as string[];
       const payload = response.payload as any;
+      if (!payload) return;
 
       const isCreate = events.some(e => e.endsWith('.create'));
       const isUpdate = events.some(e => e.endsWith('.update'));
@@ -184,6 +185,7 @@ export function GlobalRealtimeListener() {
       (response) => {
         const events: string[] = response.events as string[];
         const payload = response.payload as any;
+        if (!payload) return;
         const postId: string = payload.$id;
         if (!postId) return;
 
@@ -230,6 +232,7 @@ export function GlobalRealtimeListener() {
       (response) => {
         const events: string[] = response.events as string[];
         const payload = response.payload as any;
+        if (!payload) return;
         const isCreate = events.some(e => e.endsWith('.create'));
         if (!isCreate) return;
 
@@ -269,6 +272,7 @@ export function GlobalRealtimeListener() {
     const unsubscribe = client.subscribe(adminChannels, (response) => {
       const events: string[] = response.events as string[];
       const payload = response.payload as any;
+      if (!payload) return;
 
       const isCreate = events.some(e => e.endsWith('.create'));
       const isUpdate = events.some(e => e.endsWith('.update'));

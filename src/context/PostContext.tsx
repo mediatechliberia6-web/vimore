@@ -1277,6 +1277,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const events: string[] = response.events as string[];
       if (!events.some(e => e.endsWith('.update'))) return;
       const payload = response.payload as any;
+      if (!payload) return;
       setCurrentUserState(prev => {
         if (!prev) return prev;
         return {
