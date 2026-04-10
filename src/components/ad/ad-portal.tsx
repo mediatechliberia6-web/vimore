@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useMusic } from '@/context/MusicContext';
 import { usePosts } from '@/context/PostContext';
 import { Zap, X } from 'lucide-react';
@@ -11,9 +11,10 @@ const DOWNLOAD_AD_DURATION = 30;
 
 export function AdPortal() {
   const { isAdPortalOpen, onAdComplete, triggerHaptic } = useMusic();
-  const { campaigns } = usePosts();
+  const { campaigns, recordCampaignImpression, recordCampaignClick } = usePosts();
   const [timeLeft, setTimeLeft] = useState(DOWNLOAD_AD_DURATION);
   const [campaignIndex, setCampaignIndex] = useState(0);
+  const trackedImpressionRef = useRef<string | null>(null);
 
   const downloadCampaigns = useMemo(() =>
     campaigns.filter((c: any) => c.is_active && c.placement === 'download'),
@@ -23,6 +24,16 @@ export function AdPortal() {
   const currentCampaign = downloadCampaigns.length > 0
     ? downloadCampaigns[campaignIndex % downloadCampaigns.length]
     : null;
+
+  useEffect(() => {
+    if (isAdPortalOpen && currentCampaign && trackedImpressionRef.current !== currentCampaign.$id) {
+      trackedImpressionRef.current = currentCampaign.$id;
+      recordCampaignImpression(currentCampaign.$id);
+    }
+    if (!isAdPortalOpen) {
+      trackedImpressionRef.current = null;
+    }
+  }, [isAdPortalOpen, currentCampaign, recordCampaignImpression]);
 
   useEffect(() => {
     if (isAdPortalOpen) {
@@ -114,6 +125,7 @@ export function AdPortal() {
                   href={currentCampaign.action_url}
                   target={currentCampaign.action_url.startsWith('http') ? '_blank' : '_self'}
                   rel="noopener noreferrer"
+                  onClick={() => recordCampaignClick(currentCampaign.$id)}
                   className="inline-flex items-center gap-2 bg-primary text-white font-black uppercase text-[11px] tracking-widest px-6 py-3 rounded-full shadow-lg hover:bg-primary/90 active:scale-95 transition-all"
                 >
                   {currentCampaign.action_label || 'Learn More'}

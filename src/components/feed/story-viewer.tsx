@@ -29,7 +29,7 @@ interface FloatingReaction {
 }
 
 export function StoryViewer() {
-  const { stories, activeStoryIndex, mutedUserNames = [], setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser, settings, recordStoryView, campaigns, sendChatMessage } = usePosts();
+  const { stories, activeStoryIndex, mutedUserNames = [], setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser, settings, recordStoryView, campaigns, sendChatMessage, recordCampaignImpression, recordCampaignClick } = usePosts();
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -48,6 +48,7 @@ export function StoryViewer() {
   const adRequestRef = useRef<number | null>(null);
   const hasRecordedCurrentSegment = useRef<string | null>(null);
   const storyCampaignIndexRef = useRef(0);
+  const trackedAdImpressionRef = useRef<string | null>(null);
 
   const activeStoryCampaigns = useMemo(() => 
     campaigns.filter((c: any) => c.is_active && c.placement === 'story'),
@@ -164,6 +165,16 @@ export function StoryViewer() {
       hasRecordedCurrentSegment.current = activeStory.$id;
     }
   }, [activeStory, isOwner, recordStoryView]);
+
+  useEffect(() => {
+    if (isAdActive && currentStoryCampaign && trackedAdImpressionRef.current !== currentStoryCampaign.$id) {
+      trackedAdImpressionRef.current = currentStoryCampaign.$id;
+      recordCampaignImpression(currentStoryCampaign.$id);
+    }
+    if (!isAdActive) {
+      trackedAdImpressionRef.current = null;
+    }
+  }, [isAdActive, currentStoryCampaign, recordCampaignImpression]);
 
   useEffect(() => {
     if (activeStoryIndex === null || isAdActive) return;
@@ -345,7 +356,7 @@ export function StoryViewer() {
                         href={currentStoryCampaign.action_url}
                         target={currentStoryCampaign.action_url.startsWith('http') ? '_blank' : '_self'}
                         rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); recordCampaignClick(currentStoryCampaign.$id); }}
                         className="inline-flex items-center gap-2 bg-white text-black font-black uppercase text-[11px] tracking-widest px-6 py-3 rounded-full shadow-xl hover:bg-white/90 active:scale-95 transition-all"
                       >
                         {currentStoryCampaign.action_label || 'Learn More'} <ChevronRight className="h-3.5 w-3.5" />

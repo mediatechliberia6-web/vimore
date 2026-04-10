@@ -342,6 +342,7 @@ interface PostContextType {
   deleteCampaign: (id: string) => Promise<void>;
   toggleCampaignStatus: (id: string) => Promise<void>;
   recordCampaignClick: (id: string) => Promise<void>;
+  recordCampaignImpression: (id: string) => Promise<void>;
   initiateCall: (contact: any, type: 'audio' | 'video') => Promise<void>;
   acceptCall: () => Promise<void>;
   endCall: (duration?: string, timedOut?: boolean) => Promise<void>;
@@ -3876,7 +3877,25 @@ export function PostProvider({ children }: { children: ReactNode }) {
     },
     createCluster, addMemberToCluster, leaveCluster, updateCluster,
     promoteUser, demoteUser,
-    addCampaign, deleteCampaign, toggleCampaignStatus, recordCampaignClick: async () => {},
+    addCampaign, deleteCampaign, toggleCampaignStatus,
+    recordCampaignClick: async (id: string) => {
+      try {
+        const current = campaigns.find((c: any) => c.$id === id);
+        if (!current) return;
+        const newClicks = (current.clicks || 0) + 1;
+        setCampaignsState(prev => prev.map((c: any) => c.$id === id ? { ...c, clicks: newClicks } : c));
+        await databases.updateDocument(DATABASE_ID, COL.AD_CAMPAIGNS, id, { clicks: newClicks });
+      } catch { /* ignore */ }
+    },
+    recordCampaignImpression: async (id: string) => {
+      try {
+        const current = campaigns.find((c: any) => c.$id === id);
+        if (!current) return;
+        const newImpressions = (current.impressions || 0) + 1;
+        setCampaignsState(prev => prev.map((c: any) => c.$id === id ? { ...c, impressions: newImpressions } : c));
+        await databases.updateDocument(DATABASE_ID, COL.AD_CAMPAIGNS, id, { impressions: newImpressions });
+      } catch { /* ignore */ }
+    },
     initiateCall, acceptCall, endCall, declineCall, refreshAdminData,
     fetchProfileByUsername, fetchProfilePosts, fetchReels, searchAllUsers, fetchComments,
     refreshProfiles,

@@ -112,7 +112,7 @@ import { useAdminAlerts } from "@/context/AdminAlertsContext";
 import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
-import { storage, BUCKET, ID, toProxyUrl, getFileUrl } from "@/lib/appwrite";
+import { storage, BUCKET, ID, toProxyUrl, getFileUrl, databases, DATABASE_ID, COL, Query } from "@/lib/appwrite";
 import Link from "next/link";
 import { 
   Area, 
@@ -187,6 +187,9 @@ export default function AdminDashboard() {
   const [isAnalyzingVibe, setIsAnalyzingVibe] = useState(false);
   const [vibeInsight, setVibeInsight] = useState<{ sentiment: number; velocity: string; engagementRate: number; insight: string } | null>(null);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [adminSentiment, setAdminSentiment] = useState<number | null>(null);
+  const [adminNegative, setAdminNegative] = useState<number | null>(null);
+  const [adminVelocity, setAdminVelocity] = useState<string | null>(null);
 
   const [govSearch, setGovSearch] = useState("");
   const [idSearch, setIdSearch] = useState("");
@@ -390,7 +393,7 @@ export default function AdminDashboard() {
         hourBuckets[h] = (hourBuckets[h] || 0) + 1;
       }
     });
-    const hours = [0, 4, 8, 12, 16, 20, 23];
+    const hours = Array.from({ length: 24 }, (_, i) => i);
     return hours.map(h => ({
       time: `${String(h).padStart(2, '0')}:00`,
       active: Math.max(0, hourBuckets[h] || 0),
@@ -540,6 +543,26 @@ export default function AdminDashboard() {
     const interval = setInterval(checkExpiry, 60000);
     return () => clearInterval(interval);
   }, [campaigns, toggleCampaignStatus]);
+
+  useEffect(() => {
+    if (activeTab !== 'intelligence') return;
+    databases.listDocuments(DATABASE_ID, COL.POSTS, [
+      Query.orderDesc('$createdAt'), Query.limit(500),
+    ]).then(res => {
+      const allP = res.documents;
+      const totalLikes = allP.reduce((s: number, p: any) => s + (p.likes_count || p.likes || 0), 0);
+      const totalUnlikes = allP.reduce((s: number, p: any) => s + (p.unlikes_count || p.unlikes || 0), 0);
+      const total = totalLikes + totalUnlikes;
+      const sentiment = total > 0 ? Math.min(99, Math.round((totalLikes / total) * 100)) : 0;
+      const negative = total > 0 ? Math.min(99, Math.round((totalUnlikes / total) * 100)) : 0;
+      const oneDayAgo = new Date(Date.now() - 86400000).toISOString();
+      const recentCount = allP.filter((p: any) => (p.$createdAt || '') > oneDayAgo).length;
+      const velocity = recentCount > 20 ? 'HIGH' : recentCount > 5 ? 'MEDIUM' : recentCount > 0 ? 'LOW' : 'IDLE';
+      setAdminSentiment(sentiment);
+      setAdminNegative(negative);
+      setAdminVelocity(velocity);
+    }).catch(() => {});
+  }, [activeTab]);
 
   if (isLoading || !currentUser) {
     return (
@@ -708,7 +731,7 @@ export default function AdminDashboard() {
                 ))}
               </div>
               <Card className="bg-card/40 border-border rounded-[2rem] p-8 shadow-sm">
-                <h3 className="text-xl font-black italic uppercase tracking-tighter mb-6">Live Network Concurrency</h3>
+                <h3 className="text-xl font-black italic uppercase tracking-tighter mb-6">Post Activity by Hour of Day</h3>
                 <div className="h-[300px] w-full">
                   <ChartContainer config={{ active: { label: "Nodes", color: "hsl(var(--primary))" } }}>
                     <ResponsiveContainer width="100%" height="100%">
@@ -1058,8 +1081,8 @@ export default function AdminDashboard() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                  { label: "Network Sentiment", value: `${intelligenceMetrics.sentiment}%`, icon: BrainCircuit, color: "text-green-400", bg: "bg-green-400/10", sub: "Positive vibes detected" },
-                  { label: "Velocity Status", value: intelligenceMetrics.velocity, icon: Zap, color: "text-amber-400", bg: "bg-amber-400/10", sub: "Content spread rate" },
+                  { label: "Network Sentiment", value: `${adminSentiment ?? intelligenceMetrics.sentiment}%`, icon: BrainCircuit, color: "text-green-400", bg: "bg-green-400/10", sub: "Positive ratio (up to 500 posts)" },
+                  { label: "Velocity Status", value: adminVelocity ?? intelligenceMetrics.velocity, icon: Zap, color: "text-amber-400", bg: "bg-amber-400/10", sub: "Content spread rate (24h)" },
                   { label: "Ad Revenue", value: `$${adStats.revenue.toLocaleString()}`, icon: Coins, color: "text-primary", bg: "bg-primary/10", sub: "This billing cycle" },
                   { label: "Handshakes", value: adStats.handshakes.toLocaleString(), icon: ArrowUpRight, color: "text-blue-400", bg: "bg-blue-400/10", sub: "Ad interactions" },
                 ].map(m => (
@@ -1073,7 +1096,12 @@ export default function AdminDashboard() {
                 <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
                   <h4 className="text-xl font-black italic uppercase tracking-tighter">Sentiment Pulse</h4>
                   <div className="space-y-4">
-                    {[{ label: "Positive", pct: intelligenceMetrics.sentiment, color: "bg-green-500" }, { label: "Neutral", pct: 100 - intelligenceMetrics.sentiment - 5, color: "bg-amber-400" }, { label: "Negative", pct: 5, color: "bg-destructive" }].map(s => (
+                    {(() => {
+                      const pos = adminSentiment ?? intelligenceMetrics.sentiment;
+                      const neg = adminNegative ?? Math.max(0, 100 - pos - Math.max(0, 100 - pos - 5));
+                      const neu = Math.max(0, 100 - pos - neg);
+                      return [{ label: "Positive", pct: pos, color: "bg-green-500" }, { label: "Neutral", pct: neu, color: "bg-amber-400" }, { label: "Negative", pct: neg, color: "bg-destructive" }];
+                    })().map(s => (
                       <div key={s.label} className="space-y-1">
                         <div className="flex justify-between text-[10px] font-black uppercase text-muted-foreground"><span>{s.label}</span><span>{s.pct}%</span></div>
                         <div className="h-2 bg-secondary/40 rounded-full overflow-hidden"><div className={cn("h-full rounded-full transition-all", s.color)} style={{ width: `${s.pct}%` }} /></div>
@@ -1669,10 +1697,10 @@ export default function AdminDashboard() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                  { label: "Uptime", value: "99.97%", icon: Activity, color: "text-green-400", bg: "bg-green-400/10", sub: "Last 30 days" },
-                  { label: "Avg Latency", value: "42ms", icon: Zap, color: "text-amber-400", bg: "bg-amber-400/10", sub: "Global CDN" },
-                  { label: "Storage Used", value: "2.4 TB", icon: HardDrive, color: "text-blue-400", bg: "bg-blue-400/10", sub: "of 10 TB allocated" },
-                  { label: "API Calls", value: "1.2M", icon: Cpu, color: "text-primary", bg: "bg-primary/10", sub: "This week" },
+                  { label: "Total Users", value: allUsers.length.toLocaleString(), icon: Activity, color: "text-green-400", bg: "bg-green-400/10", sub: "Registered nodes" },
+                  { label: "Pending Actions", value: (pendingWithdrawals.length + pendingPayments.length).toLocaleString(), icon: Zap, color: "text-amber-400", bg: "bg-amber-400/10", sub: "Awaiting review" },
+                  { label: "Active Campaigns", value: campaigns.filter((c: any) => c.is_active).length.toLocaleString(), icon: HardDrive, color: "text-blue-400", bg: "bg-blue-400/10", sub: "Running ads" },
+                  { label: "Open Tickets", value: tickets.filter((t: any) => (t.status || '').toUpperCase() === 'OPEN').length.toLocaleString(), icon: Cpu, color: "text-primary", bg: "bg-primary/10", sub: "Support queue" },
                 ].map(m => (
                   <Card key={m.label} className="bg-card/40 border-border rounded-[2rem] p-6 space-y-4 shadow-sm">
                     <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center", m.bg, m.color)}><m.icon className="h-6 w-6" /></div>
