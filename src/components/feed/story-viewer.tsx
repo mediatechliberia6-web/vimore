@@ -309,7 +309,7 @@ export function StoryViewer() {
                         muted={isAdMuted}
                         loop
                         playsInline
-                        preload="metadata"
+                        preload="none"
                       />
                       <button
                         className="absolute bottom-24 right-4 z-30 p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white"
@@ -483,7 +483,7 @@ export function StoryViewer() {
                         muted={isVideoMuted}
                         loop
                         playsInline
-                        preload="metadata"
+                        preload="none"
                       />
                       <button
                         className="absolute bottom-24 right-4 z-30 p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white"

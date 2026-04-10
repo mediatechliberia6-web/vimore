@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, forwardRef } from "react";
-import { isIOSDevice, fetchMediaAsBlob } from "@/lib/ios-media";
+import { isLegacyIOS, fetchMediaAsBlob } from "@/lib/ios-media";
 import { VideoOff } from "lucide-react";
 
 interface IOSVideoProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
@@ -22,7 +22,7 @@ export const IOSVideo = forwardRef<HTMLVideoElement, IOSVideoProps>(function IOS
   const hasHandledError = useRef(false);
 
   useEffect(() => {
-    isIOS.current = isIOSDevice();
+    isIOS.current = isLegacyIOS();
   }, []);
 
   useEffect(() => {

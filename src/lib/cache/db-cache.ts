@@ -172,11 +172,7 @@ export async function listDocumentsCached<T extends Record<string, unknown>>(
   };
 
   if (!isExpired && cached) {
-    backgroundFetch().then((result) => {
-      if (result && onUpdate && !documentsAreEqual(cached.documents, result.documents)) {
-        onUpdate(result.documents, result.total);
-      }
-    });
+    // Cache is fresh — return immediately with no network call to save data.
     return { documents: cached.documents, total: cached.total };
   }
 

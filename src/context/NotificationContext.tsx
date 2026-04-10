@@ -115,14 +115,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, [currentUser, loadNotifications]);
 
-  // Poll for new notifications every 4 seconds so users see them without refreshing
-  useEffect(() => {
-    if (!currentUser) return;
-    const interval = setInterval(() => {
-      loadNotifications(currentUser.$id);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [currentUser, loadNotifications]);
+  // Notifications are pushed via the real-time WebSocket in GlobalRealtimeListener.
+  // Polling is intentionally removed to save mobile data.
 
   const triggerSound = useCallback(() => {
     if (settings.isSilenceActive) {
@@ -231,12 +225,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, [setPulseCount]);
 
-  // Load unread message count on login and poll every 3 seconds
+  // Load unread message count once on login; increments/decrements come from the real-time WebSocket.
   useEffect(() => {
     if (!currentUser?.$id) { setUnreadMessageCount(0); return; }
     fetchUnreadMessageCount(currentUser.$id);
-    const interval = setInterval(() => fetchUnreadMessageCount(currentUser.$id), 3000);
-    return () => clearInterval(interval);
   }, [currentUser?.$id, fetchUnreadMessageCount]);
 
   const incrementUnreadMessageCount = useCallback(() => {

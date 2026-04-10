@@ -97,7 +97,7 @@ export function Stories({ onOpenCreate }: StoriesProps) {
                         className={cn("object-cover w-full h-full transition-transform group-hover:scale-110", (firstSegment as any).filter)}
                         muted
                         playsInline
-                        preload="metadata"
+                        preload="none"
                       />
                     ) : null
                   ) : isTextStory ? (
