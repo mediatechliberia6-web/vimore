@@ -75,6 +75,7 @@ export function Stories({ onOpenCreate }: StoriesProps) {
           {/* Stories Rail - Sorted with current user first */}
           {sortedStories.map(({ story, index }) => {
             const firstSegment = story.segments[0];
+            if (!firstSegment) return null;
             const isVideo = firstSegment.type === 'video';
             const mediaUrl = (firstSegment as any).mediaUrl || (firstSegment as any).image;
             const isTextStory = firstSegment.type === 'text' || (!mediaUrl && firstSegment.text);

@@ -966,6 +966,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       // Group stories by user — multiple uploads from same user become one story with many segments
       const userStoryMap: Record<string, any> = {};
       mapped.forEach(story => {
+        if (!story.segments || story.segments.length === 0) return;
         const uid = story.user_id || story.user.$id;
         if (!userStoryMap[uid]) {
           userStoryMap[uid] = { ...story };
@@ -973,7 +974,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
           userStoryMap[uid].segments = [...userStoryMap[uid].segments, ...story.segments];
         }
       });
-      setStoriesState(Object.values(userStoryMap));
+      const validStories = Object.values(userStoryMap).filter((s: any) => s.segments && s.segments.length > 0);
+      setStoriesState(validStories);
     } catch (err) {
       console.error('loadStories error:', err);
     }
