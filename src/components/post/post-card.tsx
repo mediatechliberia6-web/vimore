@@ -263,7 +263,7 @@ export function PostCard(props: PostCardProps) {
   const received = isRequestReceived(user.username);
 
   const effectiveIsVerified = isOwner ? currentUser?.isVerified : user.isVerified;
-  const isEligibleForGift = parseFollowerCount(user.followers) > 1000 && settings.isGiftingEnabled;
+  const isEligibleForGift = settings.isGiftingEnabled;
   const isHiddenByLock = isLocked && !isUnlocked && !isOwner && !isShared;
 
   const [isExpanded, setIsExpanded] = useState(false);

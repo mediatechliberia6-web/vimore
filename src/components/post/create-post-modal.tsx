@@ -182,7 +182,7 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
   const { toast } = useToast();
   
   const TRUNCATE_LIMIT = 150; 
-  const isEliteCreator = currentUser ? parseFollowerCount(currentUser.followers) >= 10000 : false;
+  const isEliteCreator = currentUser ? parseFollowerCount(currentUser.followers) >= 1000 : false;
 
   const isLimitedType = selectedTheme.id !== "none" || selectedMedia.length > 0 || mediaType !== null || isPollOpen || isLocked;
   const currentLimit = isLimitedType ? TRUNCATE_LIMIT : 2000;
