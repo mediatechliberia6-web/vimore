@@ -166,6 +166,7 @@ export interface Connection extends User {
 export interface SharedPostData {
   postId: string;
   postImage?: string;
+  postVideo?: string;
   postContent?: string;
   postAuthorName?: string;
   postAuthorAvatar?: string;
@@ -556,6 +557,16 @@ function mapDocToComment(doc: Models.Document): PostComment {
   };
 }
 
+function getChatMessagePreview(message: Partial<ChatMessage> & { type?: string }): string {
+  if (message.text) return message.text;
+  if (message.type === 'photo') return '📷 Photo';
+  if (message.type === 'video') return '🎥 Video';
+  if (message.type === 'voice') return message.voiceDuration ? `🎤 Voice message · ${message.voiceDuration}` : '🎤 Voice message';
+  if (message.type === 'call') return '📞 Call';
+  if (message.type === 'post') return '📌 Shared Post';
+  return '';
+}
+
 export function PostProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -883,11 +894,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
             const clusterId = [currentUsername, c.username].sort().join('_');
             const lastMsg = lastMsgMap[clusterId];
             if (!lastMsg) return c;
-            const preview = lastMsg.text ||
-              (lastMsg.type === 'photo' ? '📷 Photo' :
-               lastMsg.type === 'video' ? '🎥 Video' :
-               lastMsg.type === 'voice' ? '🎤 Voice message' :
-               lastMsg.type === 'call' ? '📞 Call' : '');
+            const preview = getChatMessagePreview(lastMsg);
             return { ...c, lastMessage: preview, lastTime: lastMsg.time };
           });
           setConnectionsState(enriched);
@@ -1092,11 +1099,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
       if (!isCluster && msgs.length > 0) {
         const lastMsg = msgs[msgs.length - 1];
-        const preview = lastMsg.text ||
-          (lastMsg.type === 'photo' ? '📷 Photo' :
-           lastMsg.type === 'video' ? '🎥 Video' :
-           lastMsg.type === 'voice' ? '🎤 Voice message' :
-           lastMsg.type === 'call' ? '📞 Call' : '');
+        const preview = getChatMessagePreview(lastMsg);
         setConnectionsState(prev => prev.map(c =>
           c.username === otherId ? { ...c, lastMessage: preview, lastTime: lastMsg.time } : c
         ));
@@ -2609,17 +2612,26 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const sendChatMessage = useCallback(async (recipientId: string, message: Partial<ChatMessage>) => {
     if (!currentUser) return;
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const optimistic: ChatMessage = {
       $id: 'msg_' + Date.now(),
       sender: 'me',
       senderId: currentUser.$id,
       text: message.text,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time,
       status: 'sent',
       type: message.type || 'text',
       ...message,
     };
     setChatMessages(prev => ({ ...prev, [recipientId]: [...(prev[recipientId] || []), optimistic] }));
+    setChatLastMessageAt(prev => ({ ...prev, [recipientId]: Date.now() }));
+    const preview = getChatMessagePreview(optimistic);
+    setConnectionsState(prev => prev.map(c =>
+      c.username === recipientId ? { ...c, lastMessage: preview, lastTime: time } : c
+    ));
+    setClustersState(prev => prev.map(cl =>
+      cl.$id === recipientId ? { ...cl, lastMessage: preview, lastTime: time } : cl
+    ));
 
     try {
       const isClusterMsg = clusters.some(cl => cl.$id === recipientId);
@@ -4014,6 +4026,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         c.username === clusterId || clusterId.includes(c.username)
       );
       const storageKey = matchingConn ? matchingConn.username : clusterId;
+      const displayPreview = preview || getChatMessagePreview(message);
       setChatMessages(prev => {
         const existing = prev[storageKey] || [];
         const alreadyExists = existing.some(m => m.$id === message.$id);
@@ -4024,13 +4037,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
       setChatLastIncomingAt(prev => ({ ...prev, [storageKey]: Date.now() }));
       setConnectionsState(prev => prev.map(c => {
         if (c.username === storageKey || clusterId.includes(c.username)) {
-          return { ...c, lastMessage: preview, lastTime: timeStr };
+          return { ...c, lastMessage: displayPreview, lastTime: timeStr };
         }
         return c;
       }));
       setClustersState(prev => prev.map(cl => {
         if (cl.$id === clusterId) {
-          return { ...cl, lastMessage: preview, lastTime: timeStr };
+          return { ...cl, lastMessage: displayPreview, lastTime: timeStr };
         }
         return cl;
       }));

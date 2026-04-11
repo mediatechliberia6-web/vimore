@@ -105,6 +105,7 @@ interface Comment {
 interface PostCardProps {
   $id: string;
   user: {
+    $id?: string;
     name: string;
     username: string;
     avatar: string;
@@ -600,12 +601,29 @@ export function PostCard(props: PostCardProps) {
             >
               {(sharedPost.image || sharedPost.videoUrl) && (
                 <div className="relative aspect-video w-full overflow-hidden">
-                  <Image
-                    src={sharedPost.image || sharedPost.videoUrl!}
-                    alt="Shared post"
-                    fill
-                    className="object-cover group-hover/shared:scale-105 transition-transform duration-500"
-                  />
+                  {sharedPost.videoUrl && !sharedPost.image ? (
+                    <>
+                      <video
+                        src={sharedPost.videoUrl}
+                        className="h-full w-full object-cover group-hover/shared:scale-105 transition-transform duration-500"
+                        muted
+                        playsInline
+                        preload="metadata"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="h-12 w-12 rounded-full bg-black/45 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
+                          <Play className="h-5 w-5 fill-current ml-0.5" />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <Image
+                      src={sharedPost.image!}
+                      alt="Shared post"
+                      fill
+                      className="object-cover group-hover/shared:scale-105 transition-transform duration-500"
+                    />
+                  )}
                   <div className="absolute inset-0 bg-black/10" />
                 </div>
               )}
@@ -720,6 +738,9 @@ export function PostCard(props: PostCardProps) {
               <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all", isLiked ? "text-primary bg-primary/5" : "text-muted-foreground")} onClick={handleLike}><ThumbsUp className="h-4 w-4" /> {t('post_like')}</button>
               <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all", isUnliked ? "text-destructive bg-destructive/5" : "text-muted-foreground")} onClick={handleUnlike}><ThumbsDown className="h-4 w-4" /> {t('post_unlike')}</button>
               <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground" onClick={() => openCommentHub($id)}><MessageCircle className="h-4 w-4" /> {t('post_comment')}</button>
+              {isEligibleForGift && !isOwner && (
+                <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:text-primary transition-all" onClick={() => openGiftHub({ $id: user.$id || user.username, name: user.name, username: user.username, avatar: user.avatar, role: user.role as any, isVerified: user.isVerified, followers: user.followers })}><Gift className="h-4 w-4" /> Gift</button>
+              )}
               <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground" onClick={() => setIsShareHubOpen(true)}><Share2 className="h-4 w-4" /> {t('post_share')}</button>
             </div>
           </CardFooter>

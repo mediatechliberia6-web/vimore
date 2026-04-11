@@ -65,6 +65,7 @@ interface LinkPreview {
 interface SharedPostData {
   postId: string;
   postImage?: string;
+  postVideo?: string;
   postContent?: string;
   postAuthorName?: string;
   postAuthorAvatar?: string;
@@ -556,9 +557,20 @@ export function ChatBubble({
                 )}
                 onClick={(e) => e.stopPropagation()}
               >
-                {sharedPostData.postImage && (
+                {(sharedPostData.postImage || sharedPostData.postVideo) && (
                   <div className="relative aspect-video w-full">
-                    <Image src={sharedPostData.postImage} alt="Shared Post" fill className="object-cover" />
+                    {sharedPostData.postVideo && !sharedPostData.postImage ? (
+                      <>
+                        <video src={sharedPostData.postVideo} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="h-10 w-10 rounded-full bg-black/45 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
+                            <Play className="h-4 w-4 fill-current ml-0.5" />
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <Image src={sharedPostData.postImage!} alt="Shared Post" fill className="object-cover" />
+                    )}
                     <div className="absolute inset-0 bg-black/20" />
                   </div>
                 )}

@@ -95,6 +95,7 @@ avatars, covers, post_media, story_media, reel_media, music_tracks, album_covers
 - `src/lib/appwrite.ts` exports named bucket constants (`BUCKET_IMAGES`, `BUCKET_STORIES`, `BUCKET_REEL`, `BUCKET_MUSIC`) for component compatibility
 - `BUCKET_IMAGES` maps to `post_media` bucket; `BUCKET_MUSIC` maps to `music_tracks`
 - `users` collection has both `is_verfied` (typo, original) and `is_verified` (correct, added programmatically) — code uses the correct spelling
+- Post shares support image and video previews in feed cards, stories, and message conversations; chat conversation previews use `📌 Shared Post` for shared post messages.
 
 ## AI System
 - **Only feature**: Translation powered by Groq (`llama-3.3-70b-versatile`), API key stored as `GROQ_API_KEY` env var.

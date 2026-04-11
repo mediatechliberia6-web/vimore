@@ -58,8 +58,8 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
     triggerHaptic(25);
     try {
       await addStory({
-        image: post.image || post.videoUrl || '',
-        type: 'image',
+        image: post.image || post.images?.[0] || post.videoUrl || '',
+        type: post.videoUrl && !post.image && !post.images?.[0] ? 'video' : 'image',
         background: 'bg-gradient-to-br from-primary to-accent',
         postId: post.$id,
         textOverlays: [{
@@ -110,8 +110,11 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
       postId: post.$id,
       sharedPostData: {
         postId: post.$id,
+        postImage: post.image || post.images?.[0] || undefined,
+        postVideo: post.videoUrl || undefined,
         postContent: (post.content || '').slice(0, 80),
         postAuthorName: post.user.name,
+        postAuthorAvatar: post.user.avatar,
         postAuthorUsername: post.user.username,
       },
     });
@@ -146,7 +149,11 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
         <div className="flex-1 overflow-y-auto px-6 pb-12 space-y-8">
           <div className="p-4 bg-primary/5 rounded-3xl border border-primary/10 flex items-center gap-4">
             <div className="relative h-16 w-16 rounded-2xl overflow-hidden shrink-0 shadow-lg">
-              <Image src={post.image || post.user.avatar} alt="Post" fill className="object-cover" />
+              {post.videoUrl && !post.image && !post.images?.[0] ? (
+                <video src={post.videoUrl} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+              ) : (
+                <Image src={post.image || post.images?.[0] || post.user.avatar} alt="Post" fill className="object-cover" />
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold text-primary uppercase tracking-widest mb-1">Context Node</p>

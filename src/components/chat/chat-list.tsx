@@ -236,6 +236,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                           if (lastMsg.type === 'video') return '🎥 Video';
                           if (lastMsg.type === 'voice') return `🎤 Voice message${lastMsg.voiceDuration ? ` · ${lastMsg.voiceDuration}` : ''}`;
                           if (lastMsg.type === 'call') return '📞 Call';
+                          if (lastMsg.type === 'post') return '📌 Shared Post';
                         }
                         if (messagePreviews[id]?.text) return messagePreviews[id].text;
                         return (item as any).lastMessage || "No messages yet.";
