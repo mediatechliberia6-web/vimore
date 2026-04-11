@@ -2698,7 +2698,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setCurrentUserState(prev => prev ? { ...prev, goldBalance: balance - cost } : null);
 
     try {
-      await Promise.all([
+      // Fetch post to get the owner's userId
+      let ownerId: string | null = null;
+      try {
+        const postDoc = await databases.getDocument(DATABASE_ID, COL.POSTS, postId);
+        ownerId = postDoc.user_id || null;
+      } catch { /* ignore */ }
+
+      const ops: Promise<any>[] = [
         databases.createDocument(DATABASE_ID, COL.POST_UNLOCKS, ID.unique(), {
           post_id: postId, user_id: currentUser.$id,
         }),
@@ -2710,13 +2717,35 @@ export function PostProvider({ children }: { children: ReactNode }) {
           type: 'POST_UNLOCK',
           currency: 'GOLD',
           amount: cost,
-          description: 'Post unlock',
+          description: `Post unlock — ${platformFee} Gold platform fee`,
           reference_id: postId,
           status: 'COMPLETED',
         }),
-      ]);
+      ];
+
+      // Credit 70% to the post owner
+      if (ownerId && ownerId !== currentUser.$id) {
+        const ownerDoc = await databases.getDocument(DATABASE_ID, COL.USERS, ownerId);
+        const ownerCurrentBalance = ownerDoc.gold_balance || 0;
+        ops.push(
+          databases.updateDocument(DATABASE_ID, COL.USERS, ownerId, {
+            gold_balance: ownerCurrentBalance + creatorShare,
+          }),
+          databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
+            user_id: ownerId,
+            type: 'POST_UNLOCK_EARNING',
+            currency: 'GOLD',
+            amount: creatorShare,
+            description: `Post unlock earning (70%) — ${platformFee} Gold platform fee`,
+            reference_id: postId,
+            status: 'COMPLETED',
+          }),
+        );
+      }
+
+      await Promise.all(ops);
     } catch { /* keep optimistic */ }
-    toast({ title: "Post unlocked!", description: `${creatorShare} Gold sent to creator · ${platformFee} platform fee` });
+    toast({ title: "Post unlocked!", description: `${creatorShare} Gold sent to creator · ${platformFee} Gold platform fee` });
   }, [currentUser, toast]);
 
   const subscribeToCreator = useCallback(async (username: string, cost: number) => {
@@ -2735,7 +2764,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const creatorId = creatorUser?.$id || username;
     const expiresAt = new Date(Date.now() + 30 * 86400000).toISOString();
     try {
-      await Promise.all([
+      const ops: Promise<any>[] = [
         databases.createDocument(DATABASE_ID, COL.SUBSCRIPTIONS, ID.unique(), {
           subscriber_id: currentUser.$id,
           creator_id: creatorId,
@@ -2743,10 +2772,43 @@ export function PostProvider({ children }: { children: ReactNode }) {
           expires_at: expiresAt,
           status: 'ACTIVE',
         }),
+        // Deduct full cost from subscriber
         databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { diamond_balance: balance - cost }),
-      ]);
+        // Log subscriber transaction
+        databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
+          user_id: currentUser.$id,
+          type: 'SUBSCRIPTION',
+          currency: 'DIAMOND',
+          amount: cost,
+          description: `Subscribed to @${username} — ${platformFee} Diamond platform fee`,
+          reference_id: creatorId,
+          status: 'COMPLETED',
+        }),
+      ];
+
+      // Credit 70% to the creator
+      if (creatorId && creatorId !== currentUser.$id) {
+        const creatorDoc = await databases.getDocument(DATABASE_ID, COL.USERS, creatorId);
+        const creatorCurrentBalance = creatorDoc.diamond_balance || 0;
+        ops.push(
+          databases.updateDocument(DATABASE_ID, COL.USERS, creatorId, {
+            diamond_balance: creatorCurrentBalance + creatorShare,
+          }),
+          databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
+            user_id: creatorId,
+            type: 'SUBSCRIPTION_EARNING',
+            currency: 'DIAMOND',
+            amount: creatorShare,
+            description: `Subscription earning (70%) from @${currentUser.username} — ${platformFee} Diamond platform fee`,
+            reference_id: currentUser.$id,
+            status: 'COMPLETED',
+          }),
+        );
+      }
+
+      await Promise.all(ops);
     } catch { /* keep optimistic */ }
-    toast({ title: "Subscribed!", description: `${creatorShare} Diamonds sent to @${username} · ${platformFee} platform fee` });
+    toast({ title: "Subscribed!", description: `${creatorShare} Diamonds sent to @${username} · ${platformFee} Diamond platform fee` });
   }, [currentUser, allUsers, toast]);
 
   const cancelSubscription = useCallback(async (username: string) => {
@@ -2788,10 +2850,48 @@ export function PostProvider({ children }: { children: ReactNode }) {
     });
 
     try {
-      await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, newBalance);
+      const ops: Promise<any>[] = [
+        // Deduct full amount from sender
+        databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, newBalance),
+        // Log sender transaction
+        databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
+          user_id: currentUser.$id,
+          type: 'GIFT_SENT',
+          currency,
+          amount: cost,
+          description: `Gift sent${targetUserForGift ? ` to @${targetUserForGift.username}` : ''} — ${platformFee} ${currency} platform fee`,
+          reference_id: targetUserForGift?.$id || '',
+          status: 'COMPLETED',
+        }),
+      ];
+
+      // Credit 70% to the gift recipient
+      if (targetUserForGift && targetUserForGift.$id !== currentUser.$id) {
+        const recipientDoc = await databases.getDocument(DATABASE_ID, COL.USERS, targetUserForGift.$id);
+        const recipientCurrentBalance = currency === 'GOLD'
+          ? (recipientDoc.gold_balance || 0)
+          : (recipientDoc.diamond_balance || 0);
+        const recipientUpdate = currency === 'GOLD'
+          ? { gold_balance: recipientCurrentBalance + creatorShare }
+          : { diamond_balance: recipientCurrentBalance + creatorShare };
+        ops.push(
+          databases.updateDocument(DATABASE_ID, COL.USERS, targetUserForGift.$id, recipientUpdate),
+          databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
+            user_id: targetUserForGift.$id,
+            type: 'GIFT_RECEIVED',
+            currency,
+            amount: creatorShare,
+            description: `Gift received (70%) from @${currentUser.username} — ${platformFee} ${currency} platform fee`,
+            reference_id: currentUser.$id,
+            status: 'COMPLETED',
+          }),
+        );
+      }
+
+      await Promise.all(ops);
     } catch { /* ignore */ }
-    toast({ title: "Gift sent!", description: `${creatorShare} ${currency} sent to creator · ${platformFee} platform fee` });
-  }, [currentUser, toast]);
+    toast({ title: "Gift sent!", description: `${creatorShare} ${currency} sent to creator · ${platformFee} ${currency} platform fee` });
+  }, [currentUser, targetUserForGift, toast]);
 
   const verifyUser = useCallback(async (cost: number, currency: 'DIAMOND' | 'STAR') => {
     if (!currentUser) return;

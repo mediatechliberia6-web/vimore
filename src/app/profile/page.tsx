@@ -52,6 +52,7 @@ import Link from "next/link";
 import { usePosts, Post } from "@/context/PostContext";
 import Image from "next/image";
 import { cn, dataURLtoFile, parseFollowerCount } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -361,6 +362,44 @@ export default function MyProfilePage() {
                   <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowers.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div>
                   <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowing.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
                   <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{(currentUser.posts as number) ?? 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
+                </div>
+
+                {/* Creator milestone progress bars */}
+                <div className="space-y-3 py-3">
+                  {/* Lock Post milestone — 1,000 followers */}
+                  {combinedFollowers < 1000 ? (
+                    <div className="p-3 bg-amber-500/5 rounded-2xl border border-amber-500/10 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Lock className="h-3 w-3 text-amber-500" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Post Lock Feature</span>
+                        </div>
+                        <span className="text-[10px] font-bold text-muted-foreground tabular-nums">{combinedFollowers.toLocaleString()} / 1,000</span>
+                      </div>
+                      <Progress value={Math.min((combinedFollowers / 1000) * 100, 100)} className="h-1.5 bg-amber-500/10 [&>div]:bg-amber-500" />
+                      <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest">{Math.max(0, 1000 - combinedFollowers).toLocaleString()} more followers to unlock</p>
+                    </div>
+                  ) : combinedFollowers < 10000 ? (
+                    <div className="p-3 bg-cyan-500/5 rounded-2xl border border-cyan-500/10 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Zap className="h-3 w-3 text-cyan-500" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400">Subscribe Feature</span>
+                        </div>
+                        <span className="text-[10px] font-bold text-muted-foreground tabular-nums">{combinedFollowers.toLocaleString()} / 10,000</span>
+                      </div>
+                      <Progress value={Math.min((combinedFollowers / 10000) * 100, 100)} className="h-1.5 bg-cyan-500/10 [&>div]:bg-cyan-500" />
+                      <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest">{Math.max(0, 10000 - combinedFollowers).toLocaleString()} more followers to unlock</p>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-primary/5 rounded-2xl border border-primary/10 flex items-center gap-3">
+                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Elite Creator Status Unlocked</p>
+                        <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">All creator features active</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 py-6 my-4 border-y border-primary/5 bg-primary/[0.02] px-4 rounded-[2rem]">
