@@ -2297,10 +2297,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       const expires_at = new Date(Date.now() + 86400000).toISOString();
       const rawMediaUrl = segment.mediaUrl || segment.image || '';
-      let mediaId: string | undefined = segment.fileId || undefined;
-      if (!mediaId && rawMediaUrl) {
-        mediaId = extractFileId(rawMediaUrl) || undefined;
-      }
+      // Only use explicitly provided fileId (from story media uploads).
+      // Do NOT extract from post/other media URLs — those belong to different buckets.
+      const mediaId: string | undefined = segment.fileId || undefined;
 
       const storyDoc = await databases.createDocument(DATABASE_ID, COL.STORIES, ID.unique(), {
         user_id: currentUser.$id,
@@ -2318,7 +2317,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
       };
       if (mediaId) segData.media_id = mediaId;
       if (segment.text) segData.text = segment.text;
-      if (segment.postId) segData.post_id = segment.postId;
 
       await databases.createDocument(DATABASE_ID, COL.STORY_SEGMENTS, ID.unique(), segData);
 

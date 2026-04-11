@@ -105,7 +105,7 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
     if (sharingTo || sentTo.has(conn.$id)) return;
     triggerHaptic(30);
     setSharingTo(conn.username);
-    await sendChatMessage(conn.$id, {
+    await sendChatMessage(conn.username, {
       type: 'post',
       postId: post.$id,
       sharedPostData: {
