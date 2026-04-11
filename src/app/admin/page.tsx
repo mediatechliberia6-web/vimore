@@ -151,7 +151,22 @@ import {
 import { AdminTicketTab } from "@/components/tickets/AdminTicketTab";
 import { AdminCheckTicketTab } from "@/components/tickets/AdminCheckTicketTab";
 
-type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "campaigns" | "infrastructure" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket";
+type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "campaigns" | "infrastructure" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury";
+
+interface TreasurySnapshot {
+  totalUsers: number;
+  totalGold: number;
+  totalDiamond: number;
+  totalStar: number;
+  goldUSD: number;
+  diamondUSD: number;
+  totalUSD: number;
+  totalLRD: number;
+  platformFeesUSD: number;
+  platformFeesLRD: number;
+  topHolders: { username: string; gold: number; diamond: number; usd: number }[];
+  snapshotTime: Date;
+}
 type EconomySubTab = "outbound" | "inbound";
 
 export default function AdminDashboard() {
@@ -226,6 +241,10 @@ export default function AdminDashboard() {
   const [broadcastFollowerMax, setBroadcastFollowerMax] = useState(9999999);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [ticketReplies, setTicketReplies] = useState<Record<string, string>>({});
+
+  const [treasurySnapshot, setTreasurySnapshot] = useState<TreasurySnapshot | null>(null);
+  const [isFetchingTreasury, setIsFetchingTreasury] = useState(false);
+  const [treasuryCountdown, setTreasuryCountdown] = useState(3600);
 
   // Withdrawal action dialogs
   const [withdrawalActionTarget, setWithdrawalActionTarget] = useState<{ id: string; action: 'APPROVED' | 'REJECTED' } | null>(null);
@@ -360,9 +379,9 @@ export default function AdminDashboard() {
   );
 
   const availableTabs = useMemo(() => {
-    if (isSuper) return ["pulse", "economy", "intelligence", "velocity", "identity", "safety", "users", "broadcast", "governance", "campaigns", "tickets", "check_ticket", "infrastructure", "resolution", "logs", "staff"] as AdminTab[];
+    if (isSuper) return ["pulse", "economy", "treasury", "intelligence", "velocity", "identity", "safety", "users", "broadcast", "governance", "campaigns", "tickets", "check_ticket", "infrastructure", "resolution", "logs", "staff"] as AdminTab[];
     const tabs: AdminTab[] = ["pulse", "logs"];
-    if (isFinancial) tabs.push("economy", "infrastructure");
+    if (isFinancial) tabs.push("economy", "treasury", "infrastructure");
     if (isModerator) tabs.push("intelligence", "velocity", "identity", "safety", "users", "campaigns", "resolution", "tickets", "check_ticket");
     return tabs;
   }, [isSuper, isFinancial, isModerator]);
@@ -544,6 +563,98 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [campaigns, toggleCampaignStatus]);
 
+  const fetchTreasuryData = async () => {
+    setIsFetchingTreasury(true);
+    try {
+      // Paginate through all users
+      let fetched: any[] = [];
+      let offset = 0;
+      const PAGE = 100;
+      while (true) {
+        const res = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.limit(PAGE), Query.offset(offset)]);
+        fetched = [...fetched, ...res.documents];
+        if (res.documents.length < PAGE) break;
+        offset += PAGE;
+      }
+
+      let totalGold = 0, totalDiamond = 0, totalStar = 0;
+      fetched.forEach(u => {
+        totalGold += u.gold_balance || 0;
+        totalDiamond += u.diamond_balance || 0;
+        totalStar += u.star_balance || 0;
+      });
+
+      const GOLD_RATE = 0.01;
+      const DIAMOND_RATE = 0.25;
+      const LD_MULTIPLIER = 190;
+      const goldUSD = totalGold * GOLD_RATE;
+      const diamondUSD = totalDiamond * DIAMOND_RATE;
+      const totalUSD = goldUSD + diamondUSD;
+      const totalLRD = totalUSD * LD_MULTIPLIER;
+
+      // Calculate platform fees from transactions (30% of all sender-side tx amounts)
+      let pfGold = 0, pfDiamond = 0;
+      try {
+        const txRes = await databases.listDocuments(DATABASE_ID, COL.TRANSACTIONS, [
+          Query.orderDesc('$createdAt'), Query.limit(500),
+        ]);
+        txRes.documents.forEach((tx: any) => {
+          const senderTypes = ['GIFT_SENT', 'POST_UNLOCK', 'SUBSCRIPTION'];
+          if (!senderTypes.includes(tx.type)) return;
+          const cut = (tx.amount || 0) * 0.3;
+          if (tx.currency === 'GOLD') pfGold += cut;
+          else if (tx.currency === 'DIAMOND') pfDiamond += cut;
+        });
+      } catch { /* ignore */ }
+
+      const platformFeesUSD = pfGold * GOLD_RATE + pfDiamond * DIAMOND_RATE;
+      const platformFeesLRD = platformFeesUSD * LD_MULTIPLIER;
+
+      const topHolders = fetched
+        .map(u => ({
+          username: u.username || 'unknown',
+          gold: u.gold_balance || 0,
+          diamond: u.diamond_balance || 0,
+          usd: (u.gold_balance || 0) * GOLD_RATE + (u.diamond_balance || 0) * DIAMOND_RATE,
+        }))
+        .sort((a, b) => b.usd - a.usd)
+        .slice(0, 20);
+
+      setTreasurySnapshot({
+        totalUsers: fetched.length,
+        totalGold,
+        totalDiamond,
+        totalStar,
+        goldUSD,
+        diamondUSD,
+        totalUSD,
+        totalLRD,
+        platformFeesUSD,
+        platformFeesLRD,
+        topHolders,
+        snapshotTime: new Date(),
+      });
+      setTreasuryCountdown(3600);
+    } catch { /* ignore */ }
+    finally { setIsFetchingTreasury(false); }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'treasury') return;
+    fetchTreasuryData();
+    // Countdown timer — tick every second, refetch at 0
+    const ticker = setInterval(() => {
+      setTreasuryCountdown(prev => {
+        if (prev <= 1) {
+          fetchTreasuryData();
+          return 3600;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(ticker);
+  }, [activeTab]);
+
   useEffect(() => {
     if (activeTab !== 'intelligence') return;
     databases.listDocuments(DATABASE_ID, COL.POSTS, [
@@ -583,6 +694,7 @@ export default function AdminDashboard() {
   const TABS_DATA = {
     pulse: { label: "Pulse", icon: Activity },
     economy: { label: "Economy", icon: Coins },
+    treasury: { label: "Treasury", icon: BarChart3 },
     intelligence: { label: "Intelligence", icon: BrainCircuit },
     velocity: { label: "Velocity", icon: TrendingUp },
     identity: { label: "Identity", icon: UserPlus },
@@ -2002,6 +2114,216 @@ export default function AdminDashboard() {
 
           {activeTab === 'check_ticket' && (
             <AdminCheckTicketTab />
+          )}
+
+          {activeTab === 'treasury' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              {/* Header */}
+              <div className="flex items-start justify-between flex-wrap gap-4 px-2">
+                <div className="space-y-1">
+                  <h3 className="text-3xl font-black italic uppercase tracking-tighter">Treasury Ledger</h3>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Platform Balance Sheet — Auto-Refreshes Every Hour</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {treasurySnapshot && (
+                    <div className="flex flex-col items-end">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Last Snapshot</span>
+                      <span className="text-[10px] font-black text-primary">{treasurySnapshot.snapshotTime.toLocaleTimeString()}</span>
+                    </div>
+                  )}
+                  <div className="flex flex-col items-center bg-secondary/40 rounded-2xl px-4 py-2 min-w-[80px]">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Next Refresh</span>
+                    <span className="text-sm font-black tabular-nums text-primary">
+                      {String(Math.floor(treasuryCountdown / 60)).padStart(2, '0')}:{String(treasuryCountdown % 60).padStart(2, '0')}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isFetchingTreasury}
+                    onClick={() => { fetchTreasuryData(); }}
+                    className="h-10 rounded-2xl border-primary/20 gap-2 font-black uppercase text-[9px] tracking-widest"
+                  >
+                    {isFetchingTreasury ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+
+              {isFetchingTreasury && !treasurySnapshot && (
+                <div className="flex flex-col items-center justify-center py-24 gap-4">
+                  <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Scanning All User Nodes...</p>
+                </div>
+              )}
+
+              {treasurySnapshot && (
+                <>
+                  {/* Rates Reference */}
+                  <div className="flex flex-wrap gap-3 px-2">
+                    {[
+                      { label: "Gold Rate", value: "$0.01 / Gold", color: "text-amber-500", bg: "bg-amber-500/10" },
+                      { label: "Diamond Rate", value: "$0.25 / Diamond", color: "text-cyan-500", bg: "bg-cyan-500/10" },
+                      { label: "LRD Rate", value: "L$190 / $1 USD", color: "text-green-500", bg: "bg-green-500/10" },
+                      { label: "Platform Cut", value: "30% per tx", color: "text-primary", bg: "bg-primary/10" },
+                    ].map(r => (
+                      <div key={r.label} className={`flex items-center gap-2 px-4 py-2 rounded-2xl ${r.bg}`}>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${r.color}`}>{r.label}</span>
+                        <span className={`text-[11px] font-black ${r.color}`}>{r.value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Summary Stat Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[
+                      {
+                        label: "Total User Holdings",
+                        value: `$${treasurySnapshot.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        sub: `L$${Math.round(treasurySnapshot.totalLRD).toLocaleString()}`,
+                        icon: Globe,
+                        color: "text-primary",
+                        bg: "bg-primary/10",
+                        desc: "Sum of all user Gold + Diamond → USD",
+                      },
+                      {
+                        label: "Gold in Circulation",
+                        value: `${treasurySnapshot.totalGold.toLocaleString()} GD`,
+                        sub: `$${treasurySnapshot.goldUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`,
+                        icon: Coins,
+                        color: "text-amber-500",
+                        bg: "bg-amber-500/10",
+                        desc: "All user gold_balance combined",
+                      },
+                      {
+                        label: "Diamonds in Circulation",
+                        value: `${treasurySnapshot.totalDiamond.toLocaleString()} DM`,
+                        sub: `$${treasurySnapshot.diamondUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`,
+                        icon: Gem,
+                        color: "text-cyan-500",
+                        bg: "bg-cyan-500/10",
+                        desc: "All user diamond_balance combined",
+                      },
+                      {
+                        label: "Platform Fees Earned",
+                        value: `$${treasurySnapshot.platformFeesUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        sub: `L$${Math.round(treasurySnapshot.platformFeesLRD).toLocaleString()}`,
+                        icon: TrendingUp,
+                        color: "text-green-500",
+                        bg: "bg-green-500/10",
+                        desc: "30% cut from gifts, unlocks & subscriptions",
+                      },
+                    ].map(m => (
+                      <Card key={m.label} className="bg-card/40 border-border rounded-[2rem] overflow-hidden group hover:border-primary/20 transition-all">
+                        <CardContent className="p-6 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{m.label}</span>
+                            <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${m.bg} ${m.color}`}><m.icon className="h-4 w-4" /></div>
+                          </div>
+                          <div>
+                            <p className={`text-2xl font-black italic tracking-tighter ${m.color}`}>{m.value}</p>
+                            <p className="text-[10px] font-bold text-muted-foreground mt-0.5">{m.sub}</p>
+                          </div>
+                          <p className="text-[9px] text-muted-foreground/70 uppercase font-bold tracking-widest leading-relaxed">{m.desc}</p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Currency breakdown bar */}
+                  <Card className="bg-card/40 border-border rounded-[2rem] p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-black italic uppercase tracking-tighter">Holdings Breakdown</h4>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{treasurySnapshot.totalUsers.toLocaleString()} Active Nodes</span>
+                    </div>
+                    {treasurySnapshot.totalUSD > 0 && (
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-[9px] font-black uppercase tracking-widest">
+                            <span className="text-amber-500">Gold Holdings</span>
+                            <span className="text-amber-500">{treasurySnapshot.totalUSD > 0 ? ((treasurySnapshot.goldUSD / treasurySnapshot.totalUSD) * 100).toFixed(1) : 0}%</span>
+                          </div>
+                          <div className="h-3 bg-secondary/30 rounded-full overflow-hidden">
+                            <div className="h-full bg-amber-500 rounded-full transition-all duration-700" style={{ width: `${treasurySnapshot.totalUSD > 0 ? (treasurySnapshot.goldUSD / treasurySnapshot.totalUSD) * 100 : 0}%` }} />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-[9px] font-black uppercase tracking-widest">
+                            <span className="text-cyan-500">Diamond Holdings</span>
+                            <span className="text-cyan-500">{treasurySnapshot.totalUSD > 0 ? ((treasurySnapshot.diamondUSD / treasurySnapshot.totalUSD) * 100).toFixed(1) : 0}%</span>
+                          </div>
+                          <div className="h-3 bg-secondary/30 rounded-full overflow-hidden">
+                            <div className="h-full bg-cyan-500 rounded-full transition-all duration-700" style={{ width: `${treasurySnapshot.totalUSD > 0 ? (treasurySnapshot.diamondUSD / treasurySnapshot.totalUSD) * 100 : 0}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-border/50">
+                      {[
+                        { label: "Gold (GD)", value: treasurySnapshot.totalGold.toLocaleString(), color: "text-amber-500" },
+                        { label: "Diamond (DM)", value: treasurySnapshot.totalDiamond.toLocaleString(), color: "text-cyan-500" },
+                        { label: "Stars (ST)", value: treasurySnapshot.totalStar.toLocaleString(), color: "text-yellow-500" },
+                        { label: "Combined USD", value: `$${treasurySnapshot.totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, color: "text-primary" },
+                      ].map(s => (
+                        <div key={s.label} className="text-center">
+                          <p className={`text-lg font-black italic tracking-tighter ${s.color}`}>{s.value}</p>
+                          <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">{s.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+
+                  {/* Top 20 holders table */}
+                  <Card className="bg-card/40 border-border rounded-[2rem] overflow-hidden">
+                    <div className="p-6 border-b border-border">
+                      <h4 className="text-sm font-black italic uppercase tracking-tighter">Top 20 Holders by USD Value</h4>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-1">Ranked by combined Gold + Diamond balance</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20">
+                            <th className="px-6 py-3">#</th>
+                            <th className="px-6 py-3">Username</th>
+                            <th className="px-6 py-3 text-amber-500">Gold (GD)</th>
+                            <th className="px-6 py-3 text-cyan-500">Diamond (DM)</th>
+                            <th className="px-6 py-3 text-right text-primary">USD Value</th>
+                            <th className="px-6 py-3 text-right text-green-500">LRD Value</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {treasurySnapshot.topHolders.map((h, i) => (
+                            <tr key={h.username} className="hover:bg-secondary/10 transition-colors">
+                              <td className="px-6 py-3">
+                                <span className={`text-[10px] font-black ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-amber-600' : 'text-muted-foreground'}`}>#{i + 1}</span>
+                              </td>
+                              <td className="px-6 py-3">
+                                <span className="text-sm font-bold">@{h.username}</span>
+                              </td>
+                              <td className="px-6 py-3">
+                                <span className="text-[11px] font-black text-amber-500">{h.gold.toLocaleString()}</span>
+                              </td>
+                              <td className="px-6 py-3">
+                                <span className="text-[11px] font-black text-cyan-500">{h.diamond.toLocaleString()}</span>
+                              </td>
+                              <td className="px-6 py-3 text-right">
+                                <span className="text-[11px] font-black text-primary">${h.usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </td>
+                              <td className="px-6 py-3 text-right">
+                                <span className="text-[11px] font-black text-green-500">L${Math.round(h.usd * 190).toLocaleString()}</span>
+                              </td>
+                            </tr>
+                          ))}
+                          {treasurySnapshot.topHolders.length === 0 && (
+                            <tr><td colSpan={6} className="px-6 py-10 text-center text-muted-foreground text-sm font-bold">No user balance data available.</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                </>
+              )}
+            </div>
           )}
         </div>
       </main>
