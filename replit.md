@@ -220,3 +220,9 @@ Indexes created: `friend_requests` (sender/receiver_username), `follows` (follow
 - `applyRemotePostEdit` is added to PostContext type and value: maps over `posts` state and updates the matching post's `content` in place, so all users see edited posts instantly without refreshing.
 
 **Appwrite index needed**: `messages` collection requires a `receiver_id` attribute index for the unread count query. Until created, the query fails silently (caught and ignored).
+
+## Replit Migration Status (April 2026)
+- Migrated the imported Next.js project to run on Replit without rewriting the app.
+- Installed existing npm dependencies from `package.json`.
+- Replit workflow `Start application` runs `npm run dev` on port 5000.
+- Verified `/login` renders successfully in the Replit preview; unauthenticated Appwrite 401 responses during session checks are expected before login.
