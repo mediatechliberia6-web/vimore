@@ -57,13 +57,17 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
   const handleShareToStory = async () => {
     triggerHaptic(25);
     try {
+      const storyMedia = post.image || post.images?.[0] || post.videoUrl || '';
+      const isVideoStory = !!post.videoUrl && !post.image && !post.images?.[0];
+      const storyText = `Shared from @${post.user.username}${post.content ? `: ${post.content}` : ''}`;
       await addStory({
-        image: post.image || post.images?.[0] || post.videoUrl || '',
-        type: post.videoUrl && !post.image && !post.images?.[0] ? 'video' : 'image',
+        image: storyMedia,
+        type: storyMedia ? (isVideoStory ? 'video' : 'image') : 'text',
+        text: storyMedia ? undefined : storyText.slice(0, 180),
         background: 'bg-gradient-to-br from-primary to-accent',
         postId: post.$id,
         textOverlays: [{
-          text: `Shared from @${post.user.username}`,
+          text: storyMedia ? `Shared from @${post.user.username}` : 'Shared Post',
           x: 50,
           y: 80,
           color: "#FFFFFF"
