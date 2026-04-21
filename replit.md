@@ -90,6 +90,15 @@ avatars, covers, post_media, story_media, reel_media, music_tracks, album_covers
 - Light-mode pages (login/signup): forced white bg, no dark: variants
 - Dark-mode app: `bg-[#020202]` / `bg-[#050505]`
 
+## PWA / APK Packaging
+- `public/manifest.json` — full PWABuilder-compliant manifest (name, short_name, id, scope, start_url, display, display_override, orientation, theme_color `#6200ea`, background_color `#ffffff`, icons 192/512 any+maskable, apple-touch-icon 180, screenshots narrow+wide, shortcuts, share_target, launch_handler, edge_side_panel, protocol_handlers, categories, lang, dir).
+- `public/sw.js` — service worker v3: precaches app shell, cache-first media + static assets, network-first navigations with offline fallback.
+- `public/offline.html` — offline fallback page.
+- `public/icons/` — icon-192, icon-512, maskable variants, apple-touch-icon, generated from the ViMore launcher logo.
+- Registered via `src/components/layout/service-worker-register.tsx` mounted in `src/app/layout.tsx`.
+- `next.config.ts` sets `Service-Worker-Allowed: /`, `application/manifest+json` MIME type, and no-cache on `/sw.js`.
+- To rebuild icons after a logo update, re-run: `magick <logo.png> -resize NxN public/icons/icon-N.png`.
+
 ## Developer Notes
 - `src/lib/mock-data.ts` is intentionally empty — all data comes from Appwrite
 - `src/lib/appwrite.ts` exports named bucket constants (`BUCKET_IMAGES`, `BUCKET_STORIES`, `BUCKET_REEL`, `BUCKET_MUSIC`) for component compatibility

@@ -1,19 +1,26 @@
 /**
  * ViMore Service Worker
- * - Cache-First for media assets (images, video, audio)
+ * - Precaches the app shell and core icons
+ * - Cache-First for media & static assets
  * - Network-First with cache fallback for page navigation
- * - Offline page when network fails and no cache exists
+ * - Offline fallback page when network and cache both fail
  */
 
-const MEDIA_CACHE = 'vimore-media-v2';
-const PAGE_CACHE = 'vimore-pages-v2';
-const CACHE_NAMES = [MEDIA_CACHE, PAGE_CACHE];
+const SW_VERSION = 'v3';
+const MEDIA_CACHE = `vimore-media-${SW_VERSION}`;
+const PAGE_CACHE = `vimore-pages-${SW_VERSION}`;
+const STATIC_CACHE = `vimore-static-${SW_VERSION}`;
+const CACHE_NAMES = [MEDIA_CACHE, PAGE_CACHE, STATIC_CACHE];
 
 const OFFLINE_URL = '/offline.html';
 
 const APP_SHELL_URLS = [
   '/',
   '/offline.html',
+  '/manifest.json',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/apple-touch-icon.png',
 ];
 
 const MEDIA_EXTENSIONS = [
@@ -22,17 +29,18 @@ const MEDIA_EXTENSIONS = [
   '.mp3', '.ogg', '.wav', '.aac', '.m4a', '.flac', '.opus',
 ];
 
+const STATIC_EXTENSIONS = ['.css', '.js', '.woff', '.woff2', '.ttf', '.otf'];
+
 const APPWRITE_FILE_PATTERNS = [
   '/v1/storage/buckets/',
   '/files/',
 ];
 
 const SKIP_PATTERNS = [
-  '/_next/',
+  '/_next/webpack-hmr',
   '/api/',
   'chrome-extension://',
   'hot-update',
-  'localhost',
 ];
 
 function shouldSkip(url) {
@@ -54,20 +62,34 @@ function isMediaUrl(url) {
   }
 }
 
+function isStaticAsset(url) {
+  try {
+    const parsed = new URL(url);
+    const lower = parsed.pathname.toLowerCase().split('?')[0];
+    return STATIC_EXTENSIONS.some(ext => lower.endsWith(ext));
+  } catch {
+    return false;
+  }
+}
+
 function isNavigationRequest(request) {
   return request.mode === 'navigate';
 }
 
-// ─── Install: cache app shell ─────────────────────────────────────────────────
+// ─── Install: precache app shell ──────────────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(PAGE_CACHE).then((cache) => {
-      return cache.addAll(APP_SHELL_URLS).catch(() => {});
-    }).then(() => self.skipWaiting())
+    caches.open(PAGE_CACHE).then((cache) =>
+      Promise.all(
+        APP_SHELL_URLS.map((url) =>
+          cache.add(new Request(url, { cache: 'reload' })).catch(() => {})
+        )
+      )
+    ).then(() => self.skipWaiting())
   );
 });
 
-// ─── Activate: delete old caches ─────────────────────────────────────────────
+// ─── Activate: cleanup old caches ─────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
@@ -108,12 +130,29 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Static assets (css/js/fonts): cache-first
+  if (isStaticAsset(url) && url.startsWith(self.location.origin)) {
+    event.respondWith(
+      caches.open(STATIC_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        try {
+          const response = await fetch(request);
+          if (response.ok) cache.put(request, response.clone());
+          return response;
+        } catch {
+          return cached || new Response('Asset unavailable', { status: 503 });
+        }
+      })
+    );
+    return;
+  }
+
   // Navigation: network-first, fall back to cache, then offline page
   if (isNavigationRequest(request)) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Cache successful navigations for offline use
           if (response.ok) {
             const cloned = response.clone();
             caches.open(PAGE_CACHE).then(cache => cache.put(request, cloned)).catch(() => {});
@@ -121,13 +160,10 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(async () => {
-          // Offline: try cache first
           const cached = await caches.match(request);
           if (cached) return cached;
-          // Fall back to root (SPA routing)
           const rootCached = await caches.match('/');
           if (rootCached) return rootCached;
-          // Last resort: offline page
           const offlineCached = await caches.match(OFFLINE_URL);
           if (offlineCached) return offlineCached;
           return new Response('You are offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
@@ -136,7 +172,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Other same-origin requests: network-first with cache fallback
+  // Other same-origin GETs: network-first with cache fallback
   if (url.startsWith(self.location.origin)) {
     event.respondWith(
       fetch(request).catch(async () => {
@@ -147,7 +183,7 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-// ─── Messages: manual cache control ──────────────────────────────────────────
+// ─── Messages: manual cache control ───────────────────────────────────────────
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'CLEAR_MEDIA_CACHE') {
     caches.delete(MEDIA_CACHE).then(() => {

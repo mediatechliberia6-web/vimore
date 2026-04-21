@@ -32,24 +32,44 @@ import NextTopLoader from 'nextjs-toploader';
 
 export const metadata: Metadata = {
   title: 'ViMore',
-  description: 'Connect, share, and enhance your voice with ViMore.',
+  description: 'ViMore — Connect, share, and enhance your voice. Social feeds, music, reels, messaging, and creator earnings all in one place.',
+  applicationName: 'ViMore',
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    shortcut: '/icons/icon-192.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'ViMore',
+    startupImage: ['/icons/icon-512.png'],
+  },
+  formatDetection: {
+    telephone: false,
   },
   other: {
     "6a97888e-site-verification": "078f262e3dacd42dc814159e1a856c2d",
+    "mobile-web-app-capable": "yes",
+    "application-name": "ViMore",
+    "msapplication-TileColor": "#6200ea",
+    "msapplication-TileImage": "/icons/icon-192.png",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: '#9940E5',
+  themeColor: '#6200ea',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default async function RootLayout({
