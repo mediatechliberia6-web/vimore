@@ -25,6 +25,8 @@ import { DiagnosticErrorBoundary } from "@/components/layout/diagnostic-error-bo
 import { ThemeLogic } from "@/components/layout/theme-logic";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
 import { PwaInstallPrompt } from "@/components/layout/pwa-install-prompt";
+import { AppBadgeSync } from "@/components/layout/app-badge-sync";
+import { PushAutoSubscribe } from "@/components/layout/push-auto-subscribe";
 import { NotificationScheduler } from "@/components/layout/notification-scheduler";
 import { GlobalRealtimeListener } from "@/components/layout/global-realtime";
 import { AdminAlertsProvider } from "@/context/AdminAlertsContext";
@@ -131,6 +133,8 @@ export default async function RootLayout({
                         <SuspensionGate>
                         <GlobalRealtimeListener />
                         <NotificationScheduler />
+                        <AppBadgeSync />
+                        <PushAutoSubscribe />
                         {children}
                         <MusicPlayer />
                         <AlbumDetail />

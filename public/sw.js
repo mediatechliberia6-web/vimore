@@ -183,14 +183,117 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-// ─── Messages: manual cache control ───────────────────────────────────────────
+// ─── Messages: manual cache + badge control ───────────────────────────────────
 self.addEventListener('message', (event) => {
-  if (event.data?.type === 'CLEAR_MEDIA_CACHE') {
+  const data = event.data || {};
+
+  if (data.type === 'CLEAR_MEDIA_CACHE') {
     caches.delete(MEDIA_CACHE).then(() => {
       event.source?.postMessage({ type: 'MEDIA_CACHE_CLEARED' });
     });
   }
-  if (event.data?.type === 'SKIP_WAITING') {
+  if (data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  // Badge sync from the client — pass a numeric count
+  if (data.type === 'SET_BADGE') {
+    const count = Number(data.count) || 0;
+    try {
+      if (count > 0 && self.navigator.setAppBadge) {
+        self.navigator.setAppBadge(count).catch(() => {});
+      } else if (self.navigator.clearAppBadge) {
+        self.navigator.clearAppBadge().catch(() => {});
+      }
+    } catch {}
+  }
+  if (data.type === 'CLEAR_BADGE') {
+    try {
+      if (self.navigator.clearAppBadge) self.navigator.clearAppBadge().catch(() => {});
+    } catch {}
+  }
+});
+
+// ─── Push notifications ───────────────────────────────────────────────────────
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { title: 'ViMore', body: event.data ? event.data.text() : '' };
+  }
+
+  const title = payload.title || 'ViMore';
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/icons/icon-192.png',
+    badge: payload.badge || '/icons/icon-192.png',
+    image: payload.image,
+    tag: payload.tag || 'vimore-notification',
+    renotify: Boolean(payload.renotify),
+    requireInteraction: Boolean(payload.requireInteraction),
+    silent: Boolean(payload.silent),
+    vibrate: payload.vibrate || [120, 60, 120],
+    timestamp: payload.timestamp || Date.now(),
+    data: {
+      url: payload.url || '/notifications',
+      ...payload.data,
+    },
+    actions: payload.actions || [],
+  };
+
+  event.waitUntil(
+    (async () => {
+      try {
+        await self.registration.showNotification(title, options);
+      } catch {}
+      // Bump the app icon badge
+      try {
+        if (self.navigator.setAppBadge) {
+          const count = Number(payload.badgeCount);
+          if (count > 0) await self.navigator.setAppBadge(count);
+          else await self.navigator.setAppBadge();
+        }
+      } catch {}
+      // Let any open clients know to refresh their unread counters
+      const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      clientsList.forEach((c) => c.postMessage({ type: 'PUSH_RECEIVED', payload }));
+    })()
+  );
+});
+
+// ─── Notification click: focus or open the app ────────────────────────────────
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    (async () => {
+      const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const client of allClients) {
+        try {
+          const clientUrl = new URL(client.url);
+          if (clientUrl.origin === self.location.origin && 'focus' in client) {
+            client.postMessage({ type: 'NOTIFICATION_CLICK', url: targetUrl });
+            await client.focus();
+            if ('navigate' in client) {
+              try { await client.navigate(targetUrl); } catch {}
+            }
+            return;
+          }
+        } catch {}
+      }
+      if (self.clients.openWindow) {
+        await self.clients.openWindow(targetUrl);
+      }
+    })()
+  );
+});
+
+// ─── Subscription changed: client will re-subscribe ───────────────────────────
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsList) => {
+      clientsList.forEach((c) => c.postMessage({ type: 'PUSH_SUBSCRIPTION_CHANGED' }));
+    })
+  );
 });

@@ -98,6 +98,11 @@ avatars, covers, post_media, story_media, reel_media, music_tracks, album_covers
 - Registered via `src/components/layout/service-worker-register.tsx` mounted in `src/app/layout.tsx`.
 - `next.config.ts` sets `Service-Worker-Allowed: /`, `application/manifest+json` MIME type, and no-cache on `/sw.js`.
 - To rebuild icons after a logo update, re-run: `magick <logo.png> -resize NxN public/icons/icon-N.png`.
+- Install UI: `src/components/layout/pwa-install-prompt.tsx` captures `beforeinstallprompt` and shows a ViMore-branded install card (dismissed state remembered for 7 days).
+- Push notifications: `public/sw.js` handles `push`, `notificationclick`, `pushsubscriptionchange`. Client helpers in `src/lib/push-notifications.ts` (`subscribeToPush`, `unsubscribeFromPush`). `PushAutoSubscribe` attempts a silent subscribe after first user interaction when `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is set.
+- API routes `/api/push/subscribe` + `/api/push/unsubscribe` persist subscriptions in the Appwrite `push_subscriptions` collection (fields: `endpoint`, `p256dh`, `auth`, `expiration_time`, `user_id`, `created_at`, `updated_at`). Routes no-op gracefully if the collection is missing.
+- App icon badging: `src/components/layout/app-badge-sync.tsx` calls `navigator.setAppBadge(unreadCount + unreadMessageCount)` whenever totals change, and forwards to the SW so the badge is refreshed while the tab is closed. Works on Android Chrome/Edge and installed PWAs that support the Badging API.
+- To actually send pushes to devices, run a backend worker that reads from `push_subscriptions` and POSTs to each endpoint using `web-push` with your VAPID private key. The SW payload schema it expects: `{ title, body, icon?, badge?, image?, url?, tag?, renotify?, requireInteraction?, badgeCount?, data? }`.
 
 ## Developer Notes
 - `src/lib/mock-data.ts` is intentionally empty — all data comes from Appwrite
