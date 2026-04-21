@@ -24,6 +24,7 @@ import { SuspensionGate } from "@/components/layout/suspension-gate";
 import { DiagnosticErrorBoundary } from "@/components/layout/diagnostic-error-boundary";
 import { ThemeLogic } from "@/components/layout/theme-logic";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
+import { PwaInstallPrompt } from "@/components/layout/pwa-install-prompt";
 import { NotificationScheduler } from "@/components/layout/notification-scheduler";
 import { GlobalRealtimeListener } from "@/components/layout/global-realtime";
 import { AdminAlertsProvider } from "@/context/AdminAlertsContext";
@@ -99,6 +100,7 @@ export default async function RootLayout({
       </head>
       <body className="font-body antialiased bg-background text-foreground" suppressHydrationWarning>
         <ServiceWorkerRegister />
+        <PwaInstallPrompt />
         <NextTopLoader 
           color="#9940E5" 
           initialPosition={0.08} 
