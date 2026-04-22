@@ -36,7 +36,7 @@ interface ChatListProps {
 }
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
-  const { connections = [], clusters = [], triggerHaptic, settings, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, markChatMessagesRead, chatLastMessageAt, chatLastIncomingAt, chatReadReceipts } = usePosts();
+  const { connections = [], clusters = [], triggerHaptic, settings, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, markChatMessagesRead, chatLastMessageAt, chatLastIncomingAt, chatReadReceipts, chatUnreadCounts } = usePosts();
   const { categoryPulses, clearPulse, messagePreviews } = useNotifications();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -243,7 +243,19 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                       })()}
                     </p>
                     {pinnedUsernames.has(id) && <Pin className="h-3 w-3 text-muted-foreground/40 rotate-45" />}
-                    {hasNewPulse && <div className="h-2 w-2 bg-primary rounded-full shadow-[0_0_8px_rgba(153,64,229,0.8)]" />}
+                    {(() => {
+                      const count = (chatUnreadCounts && chatUnreadCounts[id]) || 0;
+                      if (!isSelected && count > 0) {
+                        return (
+                          <span className="min-w-[18px] h-[18px] px-1.5 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center shadow-[0_0_8px_rgba(153,64,229,0.8)]">
+                            {count > 99 ? '99+' : count}
+                          </span>
+                        );
+                      }
+                      return hasNewPulse ? (
+                        <div className="h-2 w-2 bg-primary rounded-full shadow-[0_0_8px_rgba(153,64,229,0.8)]" />
+                      ) : null;
+                    })()}
                   </div>
                 </div>
               </div>

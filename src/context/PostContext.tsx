@@ -390,6 +390,7 @@ interface PostContextType {
   chatLastMessageAt: Record<string, number>;
   chatLastIncomingAt: Record<string, number>;
   chatReadReceipts: Record<string, string>;
+  chatUnreadCounts: Record<string, number>;
   fetchProfilePosts: (userId: string, cursor?: string | null) => Promise<{ posts: Post[]; cursor: string | null; hasMore: boolean }>;
   fetchReels: (cursor?: string | null) => Promise<{ posts: Post[]; cursor: string | null; hasMore: boolean }>;
 }
@@ -633,6 +634,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => { chatMessagesRef.current = chatMessages; }, [chatMessages]);
   const [chatReadReceipts, setChatReadReceipts] = useState<Record<string, string>>({});
   const [chatReadReceiptDocIds, setChatReadReceiptDocIds] = useState<Record<string, string>>({});
+  const [chatUnreadCounts, setChatUnreadCounts] = useState<Record<string, number>>({});
 
   const [selectedPostId, setSelectedPostIdState] = useState<string | null>(null);
   const [selectedChatId, setSelectedChatIdState] = useState<string | null>(null);
@@ -1212,6 +1214,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (result.documents.length === 0) return;
 
       const latestPerCluster: Record<string, number> = {};
+      const countsPerCluster: Record<string, number> = {};
       for (const doc of result.documents) {
         const clusterId: string = doc.cluster_id || '';
         if (!clusterId) continue;
@@ -1219,17 +1222,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
         if (!latestPerCluster[clusterId] || ts > latestPerCluster[clusterId]) {
           latestPerCluster[clusterId] = ts;
         }
+        countsPerCluster[clusterId] = (countsPerCluster[clusterId] || 0) + 1;
       }
 
       const signals: Record<string, number> = {};
+      const counts: Record<string, number> = {};
       for (const [clusterId, ts] of Object.entries(latestPerCluster)) {
         const parts = clusterId.split('_');
         const otherUsername = parts.find(p => p !== userUsername);
         const storageKey = (parts.length === 2 && otherUsername) ? otherUsername : clusterId;
         signals[storageKey] = ts;
+        counts[storageKey] = countsPerCluster[clusterId] || 0;
       }
 
       setChatLastIncomingAt(prev => ({ ...prev, ...signals }));
+      setChatUnreadCounts(prev => ({ ...prev, ...counts }));
 
       if (typeof window !== 'undefined') {
         try {
@@ -4151,6 +4158,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     chatLastMessageAt,
     chatLastIncomingAt,
     chatReadReceipts,
+    chatUnreadCounts,
     recordView, recordStoryView,
     updateUserIdentity,
     handleReportAction, handleTicketAction, replyToTicket,
@@ -4172,6 +4180,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
       setChatLastMessageAt(prev => ({ ...prev, [storageKey]: Date.now() }));
       setChatLastIncomingAt(prev => ({ ...prev, [storageKey]: Date.now() }));
+      // Bump unread count only if this chat isn't currently open.
+      if (selectedChatId !== storageKey) {
+        setChatUnreadCounts(prev => ({ ...prev, [storageKey]: (prev[storageKey] || 0) + 1 }));
+      }
       setConnectionsState(prev => prev.map(c => {
         if (c.username === storageKey || clusterId.includes(c.username)) {
           return { ...c, lastMessage: displayPreview, lastTime: timeStr };
@@ -4190,6 +4202,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     },
     markChatMessagesRead: (chatId: string) => {
       if (!currentUser) return;
+      setChatUnreadCounts(prev => (prev[chatId] ? { ...prev, [chatId]: 0 } : prev));
       const msgs = chatMessages[chatId] || [];
       const unreadMsgs = msgs.filter(m => m.sender === 'them' && m.status !== 'read');
       setChatMessages(prev => ({
