@@ -622,6 +622,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [activeSubscriptions, setActiveSubscriptionsState] = useState<Set<string>>(new Set());
   const [chatLastMessageAt, setChatLastMessageAt] = useState<Record<string, number>>({});
   const [chatLastIncomingAt, setChatLastIncomingAt] = useState<Record<string, number>>({});
+  // Refs let loadChatMessages resolve username -> user $id without subscribing to state
+  const connectionsRef = useRef<Connection[]>([]);
+  const allUsersRef = useRef<User[]>([]);
+  const chatLastMessageAtRef = useRef<Record<string, number>>({});
+  const chatMessagesRef = useRef<Record<string, ChatMessage[]>>({});
+  useEffect(() => { connectionsRef.current = connections; }, [connections]);
+  useEffect(() => { allUsersRef.current = allUsers; }, [allUsers]);
+  useEffect(() => { chatLastMessageAtRef.current = chatLastMessageAt; }, [chatLastMessageAt]);
+  useEffect(() => { chatMessagesRef.current = chatMessages; }, [chatMessages]);
   const [chatReadReceipts, setChatReadReceipts] = useState<Record<string, string>>({});
   const [chatReadReceiptDocIds, setChatReadReceiptDocIds] = useState<Record<string, string>>({});
 
@@ -1045,14 +1054,64 @@ export function PostProvider({ children }: { children: ReactNode }) {
       ? otherId
       : (currentUsername ? [currentUsername, otherId].sort().join('_') : [userId, otherId].sort().join('_'));
     try {
-      // Fetch all recent messages from the collection without relying on any custom index,
-      // then filter by cluster_id in JavaScript.
-      const result = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
-        Query.orderAsc('$createdAt'),
-        Query.limit(500),
-      ]);
+      // Resolve the other user's $id (DM only) so we can use the indexed sender_id/receiver_id
+      // pair instead of scanning the whole messages collection by cluster_id.
+      let otherUserId: string | null = null;
+      if (!isCluster) {
+        const conn = connectionsRef.current.find(c => c.username === otherId);
+        if (conn?.$id) {
+          otherUserId = conn.$id;
+        } else {
+          const u = allUsersRef.current.find(x => x.username === otherId);
+          if (u?.$id) otherUserId = u.$id;
+        }
+      }
 
-      const all = result.documents.filter(doc => doc.cluster_id === clusterId);
+      let all: any[] = [];
+
+      if (!isCluster && otherUserId) {
+        // FAST PATH (DM): two parallel queries on already-used indexed fields.
+        // Each side returns ≤80 of *just this thread's* messages, ordered newest-first.
+        const [aRes, bRes] = await Promise.allSettled([
+          databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
+            Query.equal('sender_id', userId),
+            Query.equal('receiver_id', otherUserId),
+            Query.orderDesc('$createdAt'),
+            Query.limit(80),
+          ]),
+          databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
+            Query.equal('sender_id', otherUserId),
+            Query.equal('receiver_id', userId),
+            Query.orderDesc('$createdAt'),
+            Query.limit(80),
+          ]),
+        ]);
+        const merged: any[] = [];
+        if (aRes.status === 'fulfilled') merged.push(...aRes.value.documents);
+        if (bRes.status === 'fulfilled') merged.push(...bRes.value.documents);
+        // Dedupe + sort ascending (oldest -> newest) for display
+        const seen = new Set<string>();
+        all = merged
+          .filter(d => (seen.has(d.$id) ? false : (seen.add(d.$id), true)))
+          .sort((x, y) => new Date(x.$createdAt).getTime() - new Date(y.$createdAt).getTime());
+      } else {
+        // CLUSTER (group) PATH: cache-first delta. We already have the previous batch
+        // in chatMessages/chatLastMessageAt; only ask Appwrite for messages newer than that.
+        const cachedTs = (chatLastMessageAtRef.current[otherId] || 0);
+        const queries: any[] = [
+          Query.orderDesc('$createdAt'),
+          Query.limit(120),
+        ];
+        if (cachedTs > 0) {
+          queries.unshift(Query.greaterThan('$createdAt', new Date(cachedTs - 1000).toISOString()));
+        }
+        const result = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, queries);
+        const fresh = result.documents.filter(doc => doc.cluster_id === clusterId);
+        // Combine with what's already in cache (mapped back to raw shape isn't needed —
+        // we'll just merge by $id below after we transform). For cluster threads with no
+        // prior cache we fall back to taking just `fresh` ascending.
+        all = fresh.sort((x: any, y: any) => new Date(x.$createdAt).getTime() - new Date(y.$createdAt).getTime());
+      }
 
       const msgs: ChatMessage[] = all.map(doc => {
         let callData: ChatMessage['callData'] | undefined;
@@ -1084,12 +1143,26 @@ export function PostProvider({ children }: { children: ReactNode }) {
         };
       });
 
-      setChatMessages(prev => ({ ...prev, [otherId]: msgs }));
+      setChatMessages(prev => {
+        if (isCluster) {
+          // Cluster path returns a delta; merge with whatever we already cached.
+          const existing = prev[otherId] || [];
+          const seen = new Set<string>(existing.map(m => m.$id));
+          const additions = msgs.filter(m => !seen.has(m.$id));
+          if (additions.length === 0) return prev;
+          const merged = [...existing, ...additions].sort(
+            (a, b) => (a.createdAt || 0) - (b.createdAt || 0)
+          );
+          return { ...prev, [otherId]: merged };
+        }
+        // DM path returns the full window for this conversation; replace.
+        return { ...prev, [otherId]: msgs };
+      });
 
       if (all.length > 0) {
         const lastDoc = all[all.length - 1];
         const ts = lastDoc.$createdAt ? new Date(lastDoc.$createdAt).getTime() : Date.now();
-        setChatLastMessageAt(prev => ({ ...prev, [otherId]: ts }));
+        setChatLastMessageAt(prev => ({ ...prev, [otherId]: Math.max(prev[otherId] || 0, ts) }));
       }
 
       const lastIncomingMsg = msgs.filter(m => m.sender === 'them' && m.createdAt).at(-1);
@@ -1164,6 +1237,68 @@ export function PostProvider({ children }: { children: ReactNode }) {
         } catch { /* ignore */ }
       }
     } catch { /* silent — non-critical */ }
+  }, []);
+
+  // Backfill last-message timestamps for every DM/cluster the user is part of so the
+  // conversation list is correctly ordered by recency on first paint — even for chats
+  // that haven't been opened yet. Uses only already-indexed fields (sender_id /
+  // receiver_id / $createdAt) — no new Appwrite indexes required.
+  const loadConversationMetadata = useCallback(async (userId: string, userUsername: string) => {
+    try {
+      const [sentRes, recvRes] = await Promise.allSettled([
+        databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
+          Query.equal('sender_id', userId),
+          Query.orderDesc('$createdAt'),
+          Query.limit(200),
+        ]),
+        databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
+          Query.equal('receiver_id', userId),
+          Query.orderDesc('$createdAt'),
+          Query.limit(200),
+        ]),
+      ]);
+
+      const docs: any[] = [];
+      if (sentRes.status === 'fulfilled') docs.push(...sentRes.value.documents);
+      if (recvRes.status === 'fulfilled') docs.push(...recvRes.value.documents);
+      if (docs.length === 0) return;
+
+      // Per-conversation: latest timestamp + latest body for preview.
+      const latestPerKey: Record<string, { ts: number; body: string }> = {};
+      for (const doc of docs) {
+        const clusterId: string = doc.cluster_id || '';
+        if (!clusterId) continue;
+        const parts = clusterId.split('_');
+        const otherUsername = parts.length === 2 ? parts.find(p => p !== userUsername) : undefined;
+        const storageKey = (parts.length === 2 && otherUsername) ? otherUsername : clusterId;
+        const ts = doc.$createdAt ? new Date(doc.$createdAt).getTime() : Date.now();
+        if (!latestPerKey[storageKey] || ts > latestPerKey[storageKey].ts) {
+          latestPerKey[storageKey] = { ts, body: String(doc.message_text || doc.body || '') };
+        }
+      }
+
+      const tsMap: Record<string, number> = {};
+      for (const [k, v] of Object.entries(latestPerKey)) tsMap[k] = v.ts;
+      setChatLastMessageAt(prev => {
+        const next = { ...prev };
+        for (const [k, ts] of Object.entries(tsMap)) {
+          next[k] = Math.max(prev[k] || 0, ts);
+        }
+        return next;
+      });
+
+      // Patch connection previews for chats that already exist in our connection list.
+      setConnectionsState(prev => prev.map(c => {
+        const meta = latestPerKey[c.username];
+        if (!meta) return c;
+        const dt = new Date(meta.ts);
+        return {
+          ...c,
+          lastMessage: meta.body || c.lastMessage,
+          lastTime: dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+      }));
+    } catch { /* non-critical */ }
   }, []);
 
   const loadUserWithdrawals = useCallback(async (userId: string) => {
@@ -1242,6 +1377,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       ]);
 
       loadUnreadSignals(authUser.$id, profileDoc.username || '').catch(() => {});
+      loadConversationMetadata(authUser.$id, profileDoc.username || '').catch(() => {});
     } catch (err: any) {
       // Network failure (offline) but we have a cached session → go offline mode
       const isNetworkError = (typeof navigator !== 'undefined' && !navigator.onLine) ||
@@ -1265,7 +1401,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoadingState(false);
     }
-  }, [loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns, loadChatReadReceipts, loadUnreadSignals]);
+  }, [loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns, loadChatReadReceipts, loadUnreadSignals, loadConversationMetadata]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1496,6 +1632,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       ]);
 
       loadUnreadSignals(authUser.$id, profileDoc.username || '').catch(() => {});
+      loadConversationMetadata(authUser.$id, profileDoc.username || '').catch(() => {});
       setIsLoadingState(false);
       toast({ title: "Welcome back!", description: "You are now signed in." });
       return { success: true };
@@ -1505,7 +1642,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const msg = formatErrorDescription(err, null) || 'Invalid credentials. Please try again.';
       return { success: false, message: msg };
     }
-  }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns, loadChatReadReceipts, loadUnreadSignals]);
+  }, [toast, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns, loadChatReadReceipts, loadUnreadSignals, loadConversationMetadata]);
 
   const signup = useCallback(async (data: any) => {
     setIsLoadingState(true);
