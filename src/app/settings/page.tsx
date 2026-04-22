@@ -55,6 +55,7 @@ import {
   Gauge
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AcronymCard } from "@/components/branding/acronym-meaning";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
