@@ -608,6 +608,10 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        <section className="pt-10">
+          <AcronymCard />
+        </section>
+
         <section className="pt-10 pb-20">
           <NativeAdNode type="banner-468" id="settings-bottom-pulse" />
           <Button variant="outline" className="w-full h-14 rounded-2xl border-destructive/20 text-destructive font-black italic uppercase tracking-widest text-[10px] hover:bg-destructive/5 transition-all active:scale-95 shadow-lg shadow-destructive/5 mt-8" onClick={logout}>

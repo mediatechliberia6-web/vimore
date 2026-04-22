@@ -19,6 +19,7 @@ import { account } from "@/lib/appwrite";
 import { Button } from "@/components/ui/button";
 import { CreateStoryModal } from "@/components/feed/create-story-modal";
 import { useFeedSignal } from "@/context/FeedSignalContext";
+import { AcronymRibbon } from "@/components/branding/acronym-meaning";
 
 function EmailVerificationGate({ email }: { email?: string }) {
   const [resendLoading, setResendLoading] = useState(false);
@@ -334,6 +335,9 @@ export default function Home() {
                     <div className="text-muted-foreground/20 text-[8px] font-black uppercase tracking-[0.5em]">Network End</div>
                   )}
                 </div>
+                {!isFeedLoading && !hasMoreFeed && (
+                  <AcronymRibbon className="mt-4 rounded-[1.5rem]" />
+                )}
               </>
             ) : !isLoading && (
               <div className="py-32 text-center bg-white dark:bg-card rounded-[2.5rem] border border-dashed border-primary/10 shadow-sm flex flex-col items-center justify-center space-y-6 px-12 animate-in fade-in zoom-in duration-700">

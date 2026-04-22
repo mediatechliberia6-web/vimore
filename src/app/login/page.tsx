@@ -10,6 +10,7 @@ import { usePosts } from "@/context/PostContext";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { getSecurityQuestion, verifySecurityAnswer } from "@/lib/appwrite";
+import { AcronymCaption } from "@/components/branding/acronym-meaning";
 
 type ForgotStep = "id" | "question" | "newpass" | "done";
 
@@ -197,16 +198,22 @@ export default function LoginPage() {
 
       <div className="relative z-10 flex flex-col min-h-screen">
         <header className="flex items-center justify-between px-6 pt-12 pb-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3">
             <div className="h-10 w-10 rounded-2xl bg-[#9940E5] flex items-center justify-center shadow-lg shadow-violet-200">
               <Zap className="h-5 w-5 text-white fill-white" />
             </div>
-            <span className="text-xl font-black italic uppercase tracking-tighter text-gray-900">ViMore</span>
+            <div className="flex flex-col leading-tight">
+              <span className="text-xl font-black italic uppercase tracking-tighter text-gray-900">ViMore</span>
+              <AcronymCaption light className="hidden sm:block mt-0.5" />
+            </div>
           </div>
           <Link href="/signup">
             <span className="text-sm font-bold text-[#9940E5] hover:text-violet-700 transition-colors">Sign Up</span>
           </Link>
         </header>
+        <div className="px-6 sm:hidden -mt-2 mb-2">
+          <AcronymCaption light />
+        </div>
 
         <div className="flex-1 flex flex-col justify-center px-6 py-8 max-w-sm mx-auto w-full">
 

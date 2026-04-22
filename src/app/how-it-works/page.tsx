@@ -34,6 +34,7 @@ import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
+import { AcronymHero } from "@/components/branding/acronym-meaning";
 
 interface ProtocolCardProps {
   id: string;
@@ -225,6 +226,8 @@ export default function HowItWorks() {
             </p>
           </div>
         </section>
+
+        <AcronymHero />
 
         <NativeAdNode type="banner-468" id="how-top-pulse" />
 
