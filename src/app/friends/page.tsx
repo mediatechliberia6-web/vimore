@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "next/navigation";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
-import { databases, DATABASE_ID, COL, Query } from "@/lib/appwrite";
+import { databases, DATABASE_ID, COL, Query, getFileUrl, BUCKET, avatarFallback } from "@/lib/appwrite";
 import { 
   Users, 
   UserPlus, 
@@ -108,7 +108,9 @@ function FriendsPageContent() {
         $id: doc.$id,
         username: doc.username,
         name: doc.name || doc.username,
-        avatar: doc.avatar || doc.avatar_url || '',
+        avatar: doc.avatar_id
+          ? getFileUrl(BUCKET.AVATARS, doc.avatar_id)
+          : (doc.avatar || doc.avatar_url || avatarFallback(doc.name || doc.username || 'U')),
         followers: doc.followers_count || doc.followers || 0,
         category: doc.category || 'CREATOR',
         isVerified: doc.is_verified || false,
@@ -145,7 +147,9 @@ function FriendsPageContent() {
         $id: doc.$id,
         username: doc.username,
         name: doc.name || doc.username,
-        avatar: doc.avatar || doc.avatar_url || '',
+        avatar: doc.avatar_id
+          ? getFileUrl(BUCKET.AVATARS, doc.avatar_id)
+          : (doc.avatar || doc.avatar_url || avatarFallback(doc.name || doc.username || 'U')),
         followers: doc.followers_count || doc.followers || 0,
         category: doc.category || 'CREATOR',
         isVerified: doc.is_verified || false,
@@ -182,7 +186,9 @@ function FriendsPageContent() {
         $id: doc.$id,
         username: doc.username,
         name: doc.name || doc.username,
-        avatar: doc.avatar || doc.avatar_url || '',
+        avatar: doc.avatar_id
+          ? getFileUrl(BUCKET.AVATARS, doc.avatar_id)
+          : (doc.avatar || doc.avatar_url || avatarFallback(doc.name || doc.username || 'U')),
         followers: doc.followers_count || doc.followers || 0,
         category: doc.category || 'CREATOR',
         isVerified: doc.is_verified || false,

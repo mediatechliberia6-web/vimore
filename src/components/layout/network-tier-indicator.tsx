@@ -9,8 +9,7 @@ export function NetworkTierIndicator() {
   const { tier, effectiveType, downlink, saveData, isOnline, forcedTier, setForcedTier } = useNetwork();
   const [open, setOpen] = useState(false);
 
-  // Hide when on rich tier and online (no point cluttering the header)
-  if (tier === 'rich' && isOnline && !forcedTier) return null;
+  // Always show the indicator so users can see and control their network mode.
 
   const dotColor =
     !isOnline ? 'bg-red-500'
@@ -36,7 +35,7 @@ export function NetworkTierIndicator() {
         <span className={cn("absolute top-1.5 right-1.5 h-2 w-2 rounded-full ring-2 ring-white dark:ring-background", dotColor)} />
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-card border border-border rounded-xl shadow-xl p-3 z-[60] text-xs">
+        <div className="absolute left-0 mt-2 w-64 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-card border border-border rounded-xl shadow-xl p-3 z-[60] text-xs">
           <div className="flex items-center gap-2 mb-2">
             <Gauge className="h-4 w-4 text-primary" />
             <span className="font-semibold text-sm">{label}</span>
