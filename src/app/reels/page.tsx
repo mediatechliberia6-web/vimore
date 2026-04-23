@@ -27,6 +27,8 @@ import {
   Play,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useNetwork } from "@/context/NetworkContext";
+import { getAdaptivePreview } from "@/lib/adaptive-media";
 import { Input } from "@/components/ui/input";
 import { cn, saveFileToDevice } from "@/lib/utils";
 import { usePosts } from "@/context/PostContext";
@@ -296,7 +298,7 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
         <div className="mx-4 mb-4 flex items-center gap-3 p-3 bg-white/5 rounded-2xl border border-white/10">
           <div className="w-14 h-16 rounded-xl overflow-hidden bg-black flex-shrink-0 relative">
             {reel.image ? (
-              <Image src={reel.image} alt="" fill className="object-cover" sizes="56px" />
+              <Image src={getAdaptivePreview(reel.image, 'thumb', netTier) || reel.image} alt="" fill className="object-cover" sizes="56px" />
             ) : (
               <div className="w-full h-full bg-white/10 flex items-center justify-center">
                 <Music2 className="w-5 h-5 text-white/40" />
@@ -430,6 +432,7 @@ function ReelItem({
     cancelFriendRequest,
     followingUsernames,
   } = usePosts();
+  const { tier: netTier } = useNetwork();
   const { triggerHaptic } = useMusic();
   const [showHeart, setShowHeart] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -534,7 +537,7 @@ function ReelItem({
       <video
         ref={combinedVideoRef}
         src={reel.videoUrl}
-        poster={reel.image}
+        poster={getAdaptivePreview(reel.image, 'fullscreen', netTier) || reel.image}
         loop
         playsInline
         muted={isMuted}
@@ -600,7 +603,7 @@ function ReelItem({
         <div className="relative">
           <Link href={reel.isCampaignReel ? "/" : `/profile/${reel.user.username}`}>
             <Avatar className="h-11 w-11 border-2 border-white shadow-xl">
-              <AvatarImage src={reel.user.avatar} />
+              <AvatarImage src={getAdaptivePreview(reel.user.avatar, 'avatar', netTier) || reel.user.avatar} />
               <AvatarFallback>{reel.user.name[0]}</AvatarFallback>
             </Avatar>
           </Link>

@@ -7,6 +7,8 @@ import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye, BellOff
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { usePosts, StorySegment } from "@/context/PostContext";
+import { useNetwork } from "@/context/NetworkContext";
+import { getAdaptivePreview } from "@/lib/adaptive-media";
 import { databases, DATABASE_ID, COL, ID } from "@/lib/appwrite";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -30,6 +32,7 @@ interface FloatingReaction {
 
 export function StoryViewer() {
   const { stories, activeStoryIndex, mutedUserNames = [], setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser, settings, recordStoryView, campaigns, sendChatMessage, recordCampaignImpression, recordCampaignClick } = usePosts();
+  const { tier } = useNetwork();
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -315,6 +318,7 @@ export function StoryViewer() {
                     <>
                       <video
                         src={currentStoryCampaign.media_url}
+                        preload={tier === 'lite' ? 'none' : 'metadata'}
                         className="w-full h-full object-cover"
                         autoPlay
                         muted={isAdMuted}
@@ -331,7 +335,7 @@ export function StoryViewer() {
                     </>
                   ) : currentStoryCampaign.media_url ? (
                     <Image 
-                      src={currentStoryCampaign.media_url}
+                      src={getAdaptivePreview(currentStoryCampaign.media_url, 'story', tier) || currentStoryCampaign.media_url}
                       alt={currentStoryCampaign.title || "Sponsored"}
                       fill
                       className="object-cover"
@@ -402,7 +406,7 @@ export function StoryViewer() {
                       "h-10 w-10 border-2",
                       activeStory.isCloseFriends ? "border-[#42b72a]" : "border-white/20"
                     )}>
-                      <AvatarImage src={activeStory.user.avatar} />
+                      <AvatarImage src={getAdaptivePreview(activeStory.user.avatar, 'avatar', tier) || activeStory.user.avatar} />
                       <AvatarFallback>{activeStory.user.name[0]}</AvatarFallback>
                     </Avatar>
                   </Link>
@@ -467,7 +471,7 @@ export function StoryViewer() {
                   <div className="relative">
                     <div className="absolute -inset-4 bg-primary/20 blur-3xl rounded-full animate-pulse" />
                     <Avatar className="h-32 w-32 border-4 border-primary shadow-2xl relative z-10">
-                      <AvatarImage src={activeStory.user.avatar} />
+                      <AvatarImage src={getAdaptivePreview(activeStory.user.avatar, 'avatar', tier) || activeStory.user.avatar} />
                       <AvatarFallback>{activeStory.user.name[0]}</AvatarFallback>
                     </Avatar>
                   </div>
@@ -489,6 +493,7 @@ export function StoryViewer() {
                     <>
                       <video
                         src={(currentSegment as any).mediaUrl || (currentSegment as any).image}
+                        preload={tier === 'lite' ? 'none' : 'metadata'}
                         className="w-full h-full object-cover"
                         autoPlay
                         muted={isVideoMuted}
@@ -505,7 +510,7 @@ export function StoryViewer() {
                     </>
                   ) : ((currentSegment as any).mediaUrl || (currentSegment as any).image) ? (
                     <Image 
-                      src={(currentSegment as any).mediaUrl || (currentSegment as any).image} 
+                      src={getAdaptivePreview((currentSegment as any).mediaUrl || (currentSegment as any).image, 'story', tier) || (currentSegment as any).mediaUrl || (currentSegment as any).image} 
                       alt="Story Content" 
                       fill 
                       className={cn("object-cover", (currentSegment as any).filter)}

@@ -7,6 +7,8 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import Image from "next/image";
 import { Plus } from "lucide-react";
 import { usePosts } from "@/context/PostContext";
+import { useNetwork } from "@/context/NetworkContext";
+import { getAdaptivePreview } from "@/lib/adaptive-media";
 import { StoryViewer } from "./story-viewer";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +18,7 @@ interface StoriesProps {
 
 export function Stories({ onOpenCreate }: StoriesProps) {
   const { stories, setActiveStoryIndex, currentUser, triggerHaptic, settings } = usePosts();
+  const { tier } = useNetwork();
 
   /**
    * Spatial Sorting Handshake:
@@ -50,7 +53,7 @@ export function Stories({ onOpenCreate }: StoriesProps) {
             <div className="relative h-3/4 w-full overflow-hidden bg-primary/10">
               {currentUser?.avatar ? (
                 <Image 
-                  src={currentUser.avatar} 
+                  src={getAdaptivePreview(currentUser.avatar, 'thumb', tier) || currentUser.avatar} 
                   alt="My Profile" 
                   fill 
                   className="object-cover transition-transform group-hover:scale-110" 
@@ -107,7 +110,7 @@ export function Stories({ onOpenCreate }: StoriesProps) {
                   ) : (
                     mediaUrl ? (
                       <Image 
-                        src={mediaUrl} 
+                        src={getAdaptivePreview(mediaUrl, 'thumb', tier) || mediaUrl} 
                         alt={story.user.name} 
                         fill 
                         className={cn("object-cover transition-transform group-hover:scale-110", (firstSegment as any).filter)} 
@@ -126,7 +129,7 @@ export function Stories({ onOpenCreate }: StoriesProps) {
                     settings.isFreeMode ? "h-16 w-16" : "h-8 w-8",
                     story.isCloseFriends ? "border-[#42b72a]" : "border-primary"
                   )}>
-                    <AvatarImage src={story.user.avatar} />
+                    <AvatarImage src={getAdaptivePreview(story.user.avatar, 'avatar', tier) || story.user.avatar} />
                     <AvatarFallback>{story.user.name[0]}</AvatarFallback>
                   </Avatar>
                 </div>
