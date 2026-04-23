@@ -1799,10 +1799,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const uploadMedia = useCallback(async (file: File, bucketId: string = BUCKET.POST_MEDIA): Promise<string> => {
     let toUpload = file;
-    try {
-      const { compressForUpload } = await import('@/lib/media-compression');
-      toUpload = await compressForUpload(file);
-    } catch { /* fall back to original */ }
     const result = await storage.createFile(bucketId, ID.unique(), toUpload);
     return getFileUrl(bucketId, result.$id);
   }, []);

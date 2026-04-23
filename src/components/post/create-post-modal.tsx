@@ -332,34 +332,9 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
         e.target.value = '';
         return;
       }
-      if (file.size > VIDEO_SIZE_LIMIT) {
-        triggerHaptic(25);
-        setIsCompressing(true);
-        setCompressionProgress(0);
-        
-        toast({ title: "Optimizing Video", description: `Node size (${formatBytes(file.size)}) exceeds limit. Throttling...` });
-
-        const duration = 2000;
-        const interval = 50;
-        const steps = duration / interval;
-        let currentStep = 0;
-
-        const timer = setInterval(() => {
-          currentStep++;
-          setCompressionProgress((currentStep / steps) * 100);
-          if (currentStep >= steps) {
-            clearInterval(timer);
-            setIsCompressing(false);
-            setMediaType('video');
-            setStagedFiles([file]);
-            setSelectedMedia([URL.createObjectURL(file)]);
-          }
-        }, interval);
-      } else {
-        setMediaType('video');
-        setStagedFiles([file]);
-        setSelectedMedia([URL.createObjectURL(file)]);
-      }
+      setMediaType('video');
+      setStagedFiles([file]);
+      setSelectedMedia([URL.createObjectURL(file)]);
     } else {
       setMediaType('image');
       setStagedFiles(prev => [...prev, ...fileArray].slice(0, 6));

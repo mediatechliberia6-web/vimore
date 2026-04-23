@@ -75,10 +75,6 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
       let finalFileId = "";
       if (selectedFile) {
         let toUpload = selectedFile;
-        try {
-          const { compressForUpload } = await import('@/lib/media-compression');
-          toUpload = await compressForUpload(selectedFile);
-        } catch { /* fall back to original */ }
         const fileId = ID.unique();
         const uploadResult = await storage.createFile(BUCKET_STORIES, fileId, toUpload);
         finalFileId = uploadResult.$id;
