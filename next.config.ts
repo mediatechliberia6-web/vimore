@@ -47,6 +47,14 @@ const nextConfig: NextConfig = {
           { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
         ],
       },
+      {
+        source: '/.well-known/assetlinks.json',
+        headers: [
+          { key: 'Content-Type', value: 'application/json; charset=utf-8' },
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+        ],
+      },
     ];
   },
   typescript: {

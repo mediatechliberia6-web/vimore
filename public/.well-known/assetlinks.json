@@ -2,7 +2,9 @@
   "relation": ["delegate_permission/common.handle_all_urls"],
   "target": {
     "namespace": "android_app",
-    "package_name": "vimore.cfd",
-    "sha256_cert_fingerprints": ["AB:88:05:34:69:DA:F6:16:FE:05:18:00:F7:F4:F8:9F:4C:19:F7:45:01:0B:D8:8C:2F:5C:AC:9C:11:1D:C0:63"]
+    "package_name": "cfd.mediatech.vimore",
+    "sha256_cert_fingerprints": [
+      "E1:C6:8D:3A:06:6E:05:36:9F:67:9B:C6:6A:5D:87:75:A8:91:7D:C4:9B:6F:94:FF:C1:BC:81:D6:0A:9D:06:12"
+    ]
   }
 }]
