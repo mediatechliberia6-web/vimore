@@ -1,9 +1,9 @@
 import 'server-only';
 import { Client, Databases, Users } from 'node-appwrite';
 
-const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
-const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
-const API_KEY = process.env.APPWRITE_API_KEY!;
+const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1';
+const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
+const API_KEY = process.env.APPWRITE_API_KEY || '';
 
 export const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'vimoreprod';
 

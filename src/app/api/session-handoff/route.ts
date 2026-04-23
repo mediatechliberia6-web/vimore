@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Client, Account } from 'appwrite';
 import { getAdminUsers } from '@/lib/appwrite-server';
 
-const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
-const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
+const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1';
+const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
 const COOKIE_NAME = `a_session_${PROJECT_ID.toLowerCase()}`;
 
 export async function GET(request: NextRequest) {
