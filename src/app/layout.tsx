@@ -31,6 +31,7 @@ import { NotificationScheduler } from "@/components/layout/notification-schedule
 import { GlobalRealtimeListener } from "@/components/layout/global-realtime";
 import { AdminAlertsProvider } from "@/context/AdminAlertsContext";
 import { FeedSignalProvider } from "@/context/FeedSignalContext";
+import { NetworkProvider } from "@/context/NetworkContext";
 import NextTopLoader from 'nextjs-toploader';
 
 export const metadata: Metadata = {
@@ -114,6 +115,7 @@ export default async function RootLayout({
           speed={200} 
           shadow="0 0 10px #9940E5,0 0 5px #9940E5"
         />
+        <NetworkProvider>
         <FeedSignalProvider>
         <AdminAlertsProvider>
         <PostProvider>
@@ -160,6 +162,7 @@ export default async function RootLayout({
         </PostProvider>
         </AdminAlertsProvider>
         </FeedSignalProvider>
+        </NetworkProvider>
       </body>
     </html>
   );

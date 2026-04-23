@@ -5,6 +5,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import { IOSImage } from "@/components/ui/ios-image";
 import { IOSVideo } from "@/components/ui/ios-video";
+import { useNetwork } from "@/context/NetworkContext";
 import Link from "next/link";
 import { 
   ThumbsUp, 
@@ -176,8 +177,11 @@ function FeedVideo({ videoUrl, postId, isShared }: { videoUrl: string; postId: s
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(false);
   const router = useRouter();
+  const { tier } = useNetwork();
+  const allowAutoplay = tier === 'rich';
 
   useEffect(() => {
+    if (!allowAutoplay) return;
     const video = videoRef.current;
     if (!video) return;
     const observer = new IntersectionObserver(
@@ -198,7 +202,7 @@ function FeedVideo({ videoUrl, postId, isShared }: { videoUrl: string; postId: s
     );
     observer.observe(video);
     return () => observer.disconnect();
-  }, [videoUrl]);
+  }, [videoUrl, allowAutoplay]);
 
   const toggleMute = (e: React.MouseEvent) => {
     e.stopPropagation();

@@ -7,6 +7,7 @@ import { usePosts, PostComment } from '@/context/PostContext';
 import { useNotifications } from '@/context/NotificationContext';
 import { useAdminAlerts } from '@/context/AdminAlertsContext';
 import { useFeedSignal } from '@/context/FeedSignalContext';
+import { useNetwork } from '@/context/NetworkContext';
 
 const POST_ACTIVE_PATHS = ['/', '/reels', '/music', '/explore'];
 
@@ -32,6 +33,9 @@ function playAdminSound(type: 'withdrawal' | 'highTicket' | 'payment') {
 export function GlobalRealtimeListener() {
   const pathname = usePathname();
   const onPostPage = isPostActivePage(pathname);
+  const { tier } = useNetwork();
+  // On Lite networks, skip ambient post / comment streams to save bytes + battery.
+  const ambientRealtimeEnabled = tier !== 'lite';
 
   const {
     currentUser, selectedChatId, refreshAdminData,
@@ -178,7 +182,7 @@ export function GlobalRealtimeListener() {
 
   // ─── Post interaction counts (likes / comments / shares) ─────────────────
   useEffect(() => {
-    if (!currentUser?.$id || !onPostPage) return;
+    if (!currentUser?.$id || !onPostPage || !ambientRealtimeEnabled) return;
 
     const unsubscribe = client.subscribe(
       `databases.${DATABASE_ID}.collections.${COL.POSTS}.documents`,
@@ -221,11 +225,11 @@ export function GlobalRealtimeListener() {
     );
 
     return () => { unsubscribe(); };
-  }, [currentUser?.$id, onPostPage, applyPostCountUpdate, applyRemotePostEdit, incrementNewPosts, incrementPulse]);
+  }, [currentUser?.$id, onPostPage, ambientRealtimeEnabled, applyPostCountUpdate, applyRemotePostEdit, incrementNewPosts, incrementPulse]);
 
   // ─── Real-time comment streaming ─────────────────────────────────────────
   useEffect(() => {
-    if (!currentUser?.$id || !onPostPage) return;
+    if (!currentUser?.$id || !onPostPage || !ambientRealtimeEnabled) return;
 
     const unsubscribe = client.subscribe(
       `databases.${DATABASE_ID}.collections.${COL.POST_COMMENTS}.documents`,
@@ -255,7 +259,7 @@ export function GlobalRealtimeListener() {
     );
 
     return () => { unsubscribe(); };
-  }, [currentUser?.$id, onPostPage, addStreamedComment]);
+  }, [currentUser?.$id, onPostPage, ambientRealtimeEnabled, addStreamedComment]);
 
   // ─── Admin financial channels ─────────────────────────────────────────────
   useEffect(() => {

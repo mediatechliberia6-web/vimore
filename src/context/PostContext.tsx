@@ -663,7 +663,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
     feedCursorRef.current = null;
     setHasMoreFeed(true);
     try {
-      const feedQueries = [Query.orderDesc('$createdAt'), Query.limit(15)];
+      const tier = (typeof window !== 'undefined' && (window as any).__vimoreNetTier) || 'rich';
+      const pageSize = tier === 'lite' ? 5 : tier === 'standard' ? 10 : 15;
+      const feedQueries = [Query.orderDesc('$createdAt'), Query.limit(pageSize)];
       const postsResult = await databases.listDocuments(DATABASE_ID, COL.POSTS, feedQueries);
 
       const authorIds = [...new Set(postsResult.documents.map((p: any) => p.user_id).filter(Boolean))];
@@ -683,7 +685,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (postsResult.documents.length > 0) {
         feedCursorRef.current = postsResult.documents[postsResult.documents.length - 1].$id;
       }
-      setHasMoreFeed(postsResult.documents.length === 15);
+      setHasMoreFeed(postsResult.documents.length === pageSize);
     } catch (err) {
       logAppwriteError('loadFeed', err);
       const cachedPosts = offlineCache.getPosts() as any[];
@@ -695,10 +697,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (!feedCursorRef.current || isFeedLoading) return;
     setIsFeedLoading(true);
     try {
+      const tier = (typeof window !== 'undefined' && (window as any).__vimoreNetTier) || 'rich';
+      const pageSize = tier === 'lite' ? 5 : tier === 'standard' ? 10 : 15;
       const postsResult = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
         Query.orderDesc('$createdAt'),
         Query.cursorAfter(feedCursorRef.current),
-        Query.limit(15),
+        Query.limit(pageSize),
       ]);
 
       const authorIds = [...new Set(postsResult.documents.map((p: any) => p.user_id).filter(Boolean))];
