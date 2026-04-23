@@ -10,7 +10,6 @@ import { subscribeToPush, isPushSupported } from '@/lib/push-notifications';
 export function PushAutoSubscribe() {
   useEffect(() => {
     if (!isPushSupported()) return;
-    if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return;
     if (Notification.permission === 'denied') return;
 
     const tryOnce = () => {

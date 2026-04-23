@@ -39,9 +39,11 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 export async function subscribeToPush(): Promise<PushSubscription | null> {
   if (!isPushSupported()) return null;
 
-  const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const vapidKey =
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
+    'BN-Vcojg4rvXtL-yblX7DJmXM20TkHa1WeVY0Ne3rxRxiE5fkchSn_dCxaITKzjl5VcrKeGjObQKyT2X9pM_sNA';
   if (!vapidKey) {
-    console.warn('[push] NEXT_PUBLIC_VAPID_PUBLIC_KEY not set; skipping subscribe.');
+    console.warn('[push] VAPID public key not set; skipping subscribe.');
     return null;
   }
 
