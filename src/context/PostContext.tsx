@@ -2842,8 +2842,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
                 recipientId: rid,
               },
               actions: [
+                { action: 'reply', type: 'text', title: 'Reply', placeholder: 'Type a message…' },
                 { action: 'mark-read', title: 'Mark as read' },
-                { action: 'open', title: 'Open' },
               ],
             });
           });

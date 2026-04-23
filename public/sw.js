@@ -6,7 +6,7 @@
  * - Offline fallback page when network and cache both fail
  */
 
-const SW_VERSION = 'v4';
+const SW_VERSION = 'v5';
 const MEDIA_CACHE = `vimore-media-${SW_VERSION}`;
 const PAGE_CACHE = `vimore-pages-${SW_VERSION}`;
 const STATIC_CACHE = `vimore-static-${SW_VERSION}`;
@@ -268,6 +268,52 @@ self.addEventListener('notificationclick', (event) => {
   const targetUrl = data.url || '/';
 
   event.notification.close();
+
+  // "Reply" inline text action (Android Chrome): send the typed message
+  if (action === 'reply') {
+    const replyText = (event.reply || '').trim();
+    event.waitUntil(
+      (async () => {
+        if (replyText && data.recipientId && data.senderId && data.clusterId) {
+          try {
+            // The "sender" of the reply is the current user (the one who received
+            // the original push), and the receiver is the original message's sender.
+            await fetch('/api/messages/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                senderId: data.recipientId,
+                receiverId: data.senderId,
+                clusterId: data.clusterId,
+                text: replyText,
+              }),
+              keepalive: true,
+            });
+            // Also mark the original messages as read since the user just replied
+            await fetch('/api/messages/mark-read', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                recipientId: data.recipientId,
+                senderId: data.senderId,
+                clusterId: data.clusterId,
+              }),
+              keepalive: true,
+            });
+          } catch {}
+        }
+        try { if (self.navigator.clearAppBadge) await self.navigator.clearAppBadge(); } catch {}
+        const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        clientsList.forEach((c) => c.postMessage({
+          type: 'QUICK_REPLY_SENT',
+          clusterId: data.clusterId,
+          senderId: data.senderId,
+          text: replyText,
+        }));
+      })()
+    );
+    return;
+  }
 
   // "Mark as read" action: silently mark messages read without opening the app
   if (action === 'mark-read') {
