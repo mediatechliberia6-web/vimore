@@ -11,6 +11,7 @@ import {
 
 import { formatErrorDescription, logAppwriteError } from '@/lib/appwrite-error';
 import { offlineCache } from '@/lib/offline-cache';
+import { firePush } from '@/lib/push-fire';
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
@@ -2811,6 +2812,32 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (message.postId) docData.post_id = message.postId;
       if (message.sharedPostData) docData.shared_post_data = JSON.stringify(message.sharedPostData);
       await databases.createDocument(DATABASE_ID, COL.MESSAGES, ID.unique(), docData);
+
+      // Deliver a Web Push to the recipient(s) for the new chat message
+      try {
+        const recipientIds: string[] = [];
+        if (isClusterMsg) {
+          const cluster = clusters.find(cl => cl.$id === recipientId);
+          (cluster?.members || [])
+            .map((m: any) => m.$id || m.userId || m.id)
+            .filter(Boolean)
+            .filter((id: string) => id !== currentUser.$id)
+            .forEach((id: string) => recipientIds.push(id));
+        } else if (docData.receiver_id) {
+          recipientIds.push(docData.receiver_id);
+        }
+        if (recipientIds.length) {
+          firePush({
+            userIds: recipientIds,
+            title: currentUser.name || currentUser.username || 'New message',
+            body: preview,
+            url: `/messages?chat=${encodeURIComponent(recipientId)}`,
+            icon: currentUser.avatar || '/icons/icon-192.png',
+            tag: `vimore-chat-${clusterId}`,
+            data: { type: 'MESSAGE', clusterId, senderId: currentUser.$id },
+          });
+        }
+      } catch { /* push is best-effort */ }
     } catch (err: any) {
       setChatMessages(prev => ({
         ...prev,

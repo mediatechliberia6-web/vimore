@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { usePosts } from '@/context/PostContext';
 import { databases, DATABASE_ID, COL, ID, Query } from '@/lib/appwrite';
+import { firePush } from '@/lib/push-fire';
 
 export type SignalType = 'SOCIAL' | 'SONIC' | 'POST' | 'SYSTEM';
 export type PulseCategory = 'HOME' | 'FRIENDS' | 'MUSIC' | 'MESSAGES' | 'ADMIN';
@@ -165,6 +166,26 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), notifData).catch((err) => {
         console.error('addSignal DB write failed:', err);
       });
+
+      // Deliver a Web Push to the recipient for ALL notification types
+      // (SOCIAL, SONIC, POST, SYSTEM, ADMIN, etc.) — works in background too.
+      if (targetUserId !== currentUser?.$id) {
+        firePush({
+          userId: targetUserId,
+          title: signal.title || 'ViMore',
+          body: signal.content || '',
+          url: signal.actionHref || '/notifications',
+          icon: signal.avatar || '/icons/icon-192.png',
+          image: signal.image,
+          tag: `vimore-${signal.type.toLowerCase()}`,
+          data: {
+            type: signal.type,
+            postId: signal.postId,
+            trackId: signal.trackId,
+            targetUsername: signal.targetUsername,
+          },
+        });
+      }
     }
   }, [triggerSound, triggerHaptic, currentUser]);
 
