@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "vimore.cfd",
+    "sha256_cert_fingerprints": ["AB:88:05:34:69:DA:F6:16:FE:05:18:00:F7:F4:F8:9F:4C:19:F7:45:01:0B:D8:8C:2F:5C:AC:9C:11:1D:C0:63"]
+  }
+}]
