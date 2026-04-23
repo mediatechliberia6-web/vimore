@@ -6,6 +6,7 @@ import Image from "next/image";
 import { IOSImage } from "@/components/ui/ios-image";
 import { IOSVideo } from "@/components/ui/ios-video";
 import { useNetwork } from "@/context/NetworkContext";
+import { getAdaptivePreview } from "@/lib/adaptive-media";
 import Link from "next/link";
 import { 
   ThumbsUp, 
@@ -251,6 +252,7 @@ export function PostCard(props: PostCardProps) {
     currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, voteOnPostPoll, settings, recordCampaignClick, recordView, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, submitReport,
     postCountOverrides,
   } = usePosts();
+  const { tier } = useNetwork();
 
   const { addSignal } = useNotifications();
   const { triggerHaptic } = useMusic();
@@ -477,7 +479,7 @@ export function PostCard(props: PostCardProps) {
 
         <CardHeader className={cn("flex flex-row items-center justify-between space-y-0 p-3", isShared ? "pb-1" : "bg-white dark:bg-card")}>
           <div className="flex items-center gap-2">
-            <Link href={isCampaign ? "#" : `/profile/${user.username}`}><Avatar className={cn("border border-primary/10 hover:opacity-80 transition-opacity", isShared ? "h-7 w-7" : "h-10 w-10")}><AvatarImage src={isCampaign ? "/icon.svg" : user.avatar} /><AvatarFallback>{user.name[0]}</AvatarFallback></Avatar></Link>
+            <Link href={isCampaign ? "#" : `/profile/${user.username}`}><Avatar className={cn("border border-primary/10 hover:opacity-80 transition-opacity", isShared ? "h-7 w-7" : "h-10 w-10")}><AvatarImage src={isCampaign ? "/icon.svg" : getAdaptivePreview(user.avatar, 'avatar', tier) || user.avatar} /><AvatarFallback>{user.name[0]}</AvatarFallback></Avatar></Link>
             <div className="flex flex-col">
               <div className="flex flex-wrap items-center gap-1.5">
                 <div className="flex items-center gap-1">
@@ -575,7 +577,7 @@ export function PostCard(props: PostCardProps) {
                 ) : (
                   <div className={cn("relative mt-2", isShared ? "-mx-1" : "-mx-3 sm:mx-0")}>
                     {allImages.length > 1 && <div className="absolute top-3 right-3 z-20 bg-black/40 backdrop-blur-md px-2 py-1 rounded-xl border border-white/10 text-white text-[10px] font-black">{currentSlide + 1}/{allImages.length}</div>}
-                    <Carousel className="w-full" setApi={(api) => api?.on("select", () => setCurrentSlide(api.selectedScrollSnap()))}><CarouselContent>{allImages.map((img, i) => (<CarouselItem key={i}><div className="relative aspect-[4/5] overflow-hidden rounded-lg cursor-pointer" onClick={() => setSelectedImageUrl(img)}><IOSImage src={img} alt="Post" className="w-full h-full object-cover" /></div></CarouselItem>))}</CarouselContent></Carousel>
+                    <Carousel className="w-full" setApi={(api) => api?.on("select", () => setCurrentSlide(api.selectedScrollSnap()))}><CarouselContent>{allImages.map((img, i) => (<CarouselItem key={i}><div className="relative aspect-[4/5] overflow-hidden rounded-lg cursor-pointer" onClick={() => setSelectedImageUrl(img)}><IOSImage src={getAdaptivePreview(img, 'feed', tier) || img} alt="Post" className="w-full h-full object-cover" /></div></CarouselItem>))}</CarouselContent></Carousel>
                   </div>
                 )
               )}
@@ -622,7 +624,7 @@ export function PostCard(props: PostCardProps) {
                     </>
                   ) : (
                     <Image
-                      src={sharedPost.image!}
+                      src={getAdaptivePreview(sharedPost.image!, 'thumb', tier) || sharedPost.image!}
                       alt="Shared post"
                       fill
                       className="object-cover group-hover/shared:scale-105 transition-transform duration-500"
@@ -634,7 +636,7 @@ export function PostCard(props: PostCardProps) {
               <div className="p-3 space-y-1.5">
                 <div className="flex items-center gap-2">
                   <Avatar className="h-6 w-6 border border-primary/10 shrink-0">
-                    <AvatarImage src={sharedPost.user?.avatar} />
+                    <AvatarImage src={getAdaptivePreview(sharedPost.user?.avatar, 'avatar', tier) || sharedPost.user?.avatar} />
                     <AvatarFallback>{sharedPost.user?.name?.[0] || '?'}</AvatarFallback>
                   </Avatar>
                   <span className="text-[11px] font-black text-foreground uppercase tracking-widest truncate">{sharedPost.user?.name}</span>

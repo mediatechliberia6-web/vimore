@@ -10,6 +10,8 @@ import { NetworkTierIndicator } from "@/components/layout/network-tier-indicator
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNotifications } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
+import { useNetwork } from "@/context/NetworkContext";
+import { getAdaptivePreview } from "@/lib/adaptive-media";
 import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import { useMemo } from "react";
@@ -27,6 +29,7 @@ export function Header() {
   const { unreadCount = 0, categoryPulses = { MESSAGES: 0, HOME: 0, FRIENDS: 0, MUSIC: 0, ADMIN: 0 }, clearPulse } = useNotifications();
   const { setSearchOpen, currentUser = { name: "Guest", avatar: "" }, settings } = usePosts();
   const { t } = useTranslation();
+  const { tier } = useNetwork();
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-primary/10 px-4 py-2 flex items-center justify-between shadow-sm">
@@ -72,7 +75,7 @@ export function Header() {
         
         <Link href="/profile" className="hidden sm:block ml-2 group">
           <Avatar className="h-9 w-9 border-2 border-primary/10 transition-transform group-hover:scale-105">
-            {!settings?.isFreeMode && <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />}
+            {!settings?.isFreeMode && <AvatarImage src={getAdaptivePreview(currentUser?.avatar, 'avatar', tier) || currentUser?.avatar} alt={currentUser?.name} />}
             <AvatarFallback>{currentUser?.name?.[0] || 'V'}</AvatarFallback>
           </Avatar>
         </Link>
