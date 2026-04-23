@@ -425,14 +425,24 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       let coverId: string | undefined;
 
       if (track.audioFile instanceof File) {
-        const audioDoc = await storage.createFile(BUCKET.MUSIC_TRACKS, ID.unique(), track.audioFile);
+        let audioFile = track.audioFile;
+        try {
+          const { compressForUpload } = await import('@/lib/media-compression');
+          audioFile = await compressForUpload(track.audioFile);
+        } catch { /* fall back to original */ }
+        const audioDoc = await storage.createFile(BUCKET.MUSIC_TRACKS, ID.unique(), audioFile);
         audioId = audioDoc.$id;
       } else if (track.audioUrl) {
         audioId = extractFileId(track.audioUrl) || undefined;
       }
 
       if (track.coverFile instanceof File) {
-        const coverDoc = await storage.createFile(BUCKET.ALBUM_COVERS, ID.unique(), track.coverFile);
+        let coverFile = track.coverFile;
+        try {
+          const { compressForUpload } = await import('@/lib/media-compression');
+          coverFile = await compressForUpload(track.coverFile);
+        } catch { /* fall back to original */ }
+        const coverDoc = await storage.createFile(BUCKET.ALBUM_COVERS, ID.unique(), coverFile);
         coverId = coverDoc.$id;
       } else if (track.cover) {
         coverId = extractFileId(track.cover) || undefined;
@@ -473,7 +483,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     try {
       let coverId: string | undefined;
       if (album.coverFile instanceof File) {
-        const coverDoc = await storage.createFile(BUCKET.ALBUM_COVERS, ID.unique(), album.coverFile);
+        let coverFile = album.coverFile;
+        try {
+          const { compressForUpload } = await import('@/lib/media-compression');
+          coverFile = await compressForUpload(album.coverFile);
+        } catch { /* fall back to original */ }
+        const coverDoc = await storage.createFile(BUCKET.ALBUM_COVERS, ID.unique(), coverFile);
         coverId = coverDoc.$id;
       } else if (album.cover) {
         coverId = extractFileId(album.cover) || undefined;

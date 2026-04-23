@@ -45,6 +45,8 @@ import {
 import { cn } from "@/lib/utils";
 import { playNotificationSound } from "@/lib/notification-sound";
 import { Connection, Cluster, usePosts } from "@/context/PostContext";
+import { useNetwork } from "@/context/NetworkContext";
+import { getAdaptivePreview } from "@/lib/adaptive-media";
 import { ChatBubble } from "./chat-bubble";
 import { ChatInput } from "./chat-input";
 import { useMusic } from "@/context/MusicContext";
@@ -80,6 +82,7 @@ interface ChatWindowProps {
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const { currentUser, triggerHaptic, leaveCluster, connections = [], addMemberToCluster, updateCluster, settings, chatMessages, sendChatMessage, uploadMedia, friendUsernames, acceptedStrangerUsernames, acceptMessageRequest, declineMessageRequest, deleteMessage, editMessage } = usePosts();
+  const { tier: netTier } = useNetwork();
   const { t } = useTranslation();
   const { toast } = useToast();
   
@@ -208,11 +211,11 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             <div className="relative shrink-0">
               {isCluster ? (
                 <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-[1rem] bg-primary/10 flex items-center justify-center relative overflow-hidden border border-primary/5">
-                  {(contact as Cluster).avatar ? <img src={(contact as Cluster).avatar} alt="Cluster" className="w-full h-full object-cover" /> : <Layers className="h-5 w-5 text-primary" />}
+                  {(contact as Cluster).avatar ? <img src={getAdaptivePreview((contact as Cluster).avatar, 'avatar', netTier) || (contact as Cluster).avatar} alt="Cluster" className="w-full h-full object-cover" /> : <Layers className="h-5 w-5 text-primary" />}
                 </div>
               ) : (
                 <Avatar className="h-10 w-10 sm:h-11 sm:w-11 border-2 border-primary/10">
-                  <AvatarImage src={(contact as Connection).avatar} />
+                  <AvatarImage src={getAdaptivePreview((contact as Connection).avatar, 'avatar', netTier) || (contact as Connection).avatar} />
                   <AvatarFallback>{contact.name[0]}</AvatarFallback>
                 </Avatar>
               )}
@@ -261,7 +264,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
               <div key={msg.$id} id={`msg-${msg.$id}`} className="flex flex-col gap-1">
                 {isCluster && !msg.isMe && msg.senderName && (
                   <div className="flex items-center gap-2 ml-2 mb-1">
-                    <Avatar className="h-5 w-5 border border-primary/10 shadow-sm"><AvatarImage src={msg.senderAvatar} /></Avatar>
+                    <Avatar className="h-5 w-5 border border-primary/10 shadow-sm"><AvatarImage src={getAdaptivePreview(msg.senderAvatar, 'avatar', netTier) || msg.senderAvatar} /></Avatar>
                     <span className="text-[10px] font-black uppercase text-primary/60 tracking-widest">{msg.senderName}</span>
                   </div>
                 )}
@@ -332,7 +335,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                                 {(connections || []).filter(c => friendUsernames.has(c.username) && !((contact as Cluster).members || []).some(m => m.username === c.username)).filter(c => !addNodeSearch || c.name.toLowerCase().includes(addNodeSearch.toLowerCase()) || c.username.toLowerCase().includes(addNodeSearch.toLowerCase())).map((c) => (
                                   <button key={c.username} onClick={() => handleAddNode(c)} className="w-full flex items-center justify-between p-3 rounded-2xl transition-all hover:bg-secondary/40">
                                     <div className="flex items-center gap-3">
-                                      <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={c.avatar} /></Avatar>
+                                      <Avatar className="h-10 w-10 border border-primary/10"><AvatarImage src={getAdaptivePreview(c.avatar, 'avatar', netTier) || c.avatar} /></Avatar>
                                       <div className="text-left"><p className="font-bold text-sm leading-none">{c.name}</p><p className="text-[10px] text-muted-foreground font-black uppercase mt-1">@{c.username}</p></div>
                                     </div>
                                     <Plus className="h-4 w-4 text-primary" />
@@ -351,7 +354,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                   {((contact as Cluster).members || []).map(m => (
                     <div key={m.username} className="flex items-center justify-between p-3 rounded-2xl bg-secondary/20 hover:bg-secondary/40 transition-all group">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10 border border-primary/5 shadow-sm group-hover:scale-105 transition-transform"><AvatarImage src={m.avatar} /></Avatar>
+                        <Avatar className="h-10 w-10 border border-primary/5 shadow-sm group-hover:scale-105 transition-transform"><AvatarImage src={getAdaptivePreview(m.avatar, 'avatar', netTier) || m.avatar} /></Avatar>
                         <div className="flex flex-col"><span className="text-sm font-bold truncate max-w-[120px]">{m.name}</span><span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">@{m.username}</span></div>
                       </div>
                     </div>
