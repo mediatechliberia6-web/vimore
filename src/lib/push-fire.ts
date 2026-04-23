@@ -14,6 +14,7 @@ export interface FirePushOptions {
   tag?: string;
   badgeCount?: number;
   data?: Record<string, any>;
+  actions?: { action: string; title: string; icon?: string }[];
 }
 
 export function firePush(opts: FirePushOptions): void {
@@ -30,6 +31,7 @@ export function firePush(opts: FirePushOptions): void {
     tag: opts.tag,
     badgeCount: opts.badgeCount,
     data: opts.data,
+    actions: opts.actions,
   };
 
   // Use sendBeacon when possible so the request survives navigation

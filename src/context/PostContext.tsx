@@ -2827,14 +2827,25 @@ export function PostProvider({ children }: { children: ReactNode }) {
           recipientIds.push(docData.receiver_id);
         }
         if (recipientIds.length) {
-          firePush({
-            userIds: recipientIds,
-            title: currentUser.name || currentUser.username || 'New message',
-            body: preview,
-            url: `/messages?chat=${encodeURIComponent(recipientId)}`,
-            icon: currentUser.avatar || '/icons/icon-192.png',
-            tag: `vimore-chat-${clusterId}`,
-            data: { type: 'MESSAGE', clusterId, senderId: currentUser.$id },
+          recipientIds.forEach((rid) => {
+            firePush({
+              userId: rid,
+              title: currentUser.name || currentUser.username || 'New message',
+              body: preview,
+              url: `/messages?chat=${encodeURIComponent(recipientId)}`,
+              icon: currentUser.avatar || '/icons/icon-192.png',
+              tag: `vimore-chat-${clusterId}`,
+              data: {
+                type: 'MESSAGE',
+                clusterId,
+                senderId: currentUser.$id,
+                recipientId: rid,
+              },
+              actions: [
+                { action: 'mark-read', title: 'Mark as read' },
+                { action: 'open', title: 'Open' },
+              ],
+            });
           });
         }
       } catch { /* push is best-effort */ }

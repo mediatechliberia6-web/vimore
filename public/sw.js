@@ -6,7 +6,7 @@
  * - Offline fallback page when network and cache both fail
  */
 
-const SW_VERSION = 'v3';
+const SW_VERSION = 'v4';
 const MEDIA_CACHE = `vimore-media-${SW_VERSION}`;
 const PAGE_CACHE = `vimore-pages-${SW_VERSION}`;
 const STATIC_CACHE = `vimore-static-${SW_VERSION}`;
@@ -263,9 +263,44 @@ self.addEventListener('push', (event) => {
 
 // ─── Notification click: focus or open the app ────────────────────────────────
 self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const targetUrl = event.notification.data?.url || '/';
+  const action = event.action;
+  const data = event.notification.data || {};
+  const targetUrl = data.url || '/';
 
+  event.notification.close();
+
+  // "Mark as read" action: silently mark messages read without opening the app
+  if (action === 'mark-read') {
+    event.waitUntil(
+      (async () => {
+        try {
+          await fetch('/api/messages/mark-read', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recipientId: data.recipientId,
+              senderId: data.senderId,
+              clusterId: data.clusterId,
+            }),
+            keepalive: true,
+          });
+        } catch {}
+        // Update badge & inform any open clients
+        try {
+          if (self.navigator.clearAppBadge) await self.navigator.clearAppBadge();
+        } catch {}
+        const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        clientsList.forEach((c) => c.postMessage({
+          type: 'MESSAGES_MARKED_READ',
+          senderId: data.senderId,
+          clusterId: data.clusterId,
+        }));
+      })()
+    );
+    return;
+  }
+
+  // Default click (or "open" action): focus / navigate the app
   event.waitUntil(
     (async () => {
       const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
