@@ -20,6 +20,25 @@ const config: CapacitorConfig = {
     captureInput: true,
     webContentsDebuggingEnabled: false,
   },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 1500,
+      launchAutoHide: true,
+      backgroundColor: '#6200ea',
+      androidScaleType: 'CENTER_CROP',
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true,
+    },
+    StatusBar: {
+      backgroundColor: '#6200ea',
+      style: 'DARK',
+      overlaysWebView: false,
+    },
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert'],
+    },
+  },
 };
 
 export default config;
