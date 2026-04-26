@@ -26,6 +26,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
+import { useNetwork } from "@/context/NetworkContext";
+import { getAdaptivePreview } from "@/lib/adaptive-media";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -33,6 +35,7 @@ import Image from "next/image";
 type SearchTab = "all" | "people" | "audio" | "nodes";
 
 export function SearchPortal() {
+  const { tier } = useNetwork();
   const router = useRouter();
   const { isSearchOpen, setSearchOpen, connections, posts, setSelectedPostId, triggerHaptic, settings, searchAllUsers } = usePosts();
   const { setTrack, globalSongs } = useMusic();
@@ -267,7 +270,7 @@ export function SearchPortal() {
                       >
                         <div className="flex items-center gap-4">
                           <Avatar className="h-12 w-12 border-2 border-primary/10 group-hover:scale-105 transition-transform">
-                            <AvatarImage src={person.avatar} />
+                            <AvatarImage src={getAdaptivePreview(person.avatar, 'avatar', tier) || person.avatar} />
                             <AvatarFallback>{person.name[0]}</AvatarFallback>
                           </Avatar>
                           <div className="flex flex-col">
@@ -332,7 +335,7 @@ export function SearchPortal() {
                       >
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8 border border-primary/10">
-                            <AvatarImage src={post.user.avatar} />
+                            <AvatarImage src={getAdaptivePreview(post.user.avatar, 'avatar', tier) || post.user.avatar} />
                             <AvatarFallback>{post.user.name[0]}</AvatarFallback>
                           </Avatar>
                           <span className="text-xs font-bold">{post.user.name}</span>

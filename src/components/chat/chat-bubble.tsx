@@ -35,6 +35,8 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
+import { useNetwork } from "@/context/NetworkContext";
+import { getAdaptivePreview } from "@/lib/adaptive-media";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -118,6 +120,7 @@ export function ChatBubble({
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const { setSelectedImageUrl, setSelectedVideoUrl, settings } = usePosts();
+  const { tier } = useNetwork();
   const { toast } = useToast();
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
@@ -577,7 +580,7 @@ export function ChatBubble({
                 <div className="p-3 space-y-2">
                   <div className="flex items-center gap-2">
                     <Avatar className="h-6 w-6 border border-white/20 shrink-0">
-                      <AvatarImage src={sharedPostData.postAuthorAvatar} />
+                      <AvatarImage src={getAdaptivePreview(sharedPostData.postAuthorAvatar, 'avatar', tier) || sharedPostData.postAuthorAvatar} />
                       <AvatarFallback>{sharedPostData.postAuthorName?.[0] || '?'}</AvatarFallback>
                     </Avatar>
                     <span className={cn("text-[11px] font-black uppercase tracking-widest truncate", isMe ? "text-white/80" : "text-foreground")}>
@@ -625,7 +628,7 @@ export function ChatBubble({
                 isMe ? "bg-white/10" : "bg-primary/5"
               )}>
                 <Avatar className="h-12 w-12 border-2 border-white/20">
-                  <AvatarImage src={taggedUser.avatar} />
+                  <AvatarImage src={getAdaptivePreview(taggedUser.avatar, 'avatar', tier) || taggedUser.avatar} />
                   <AvatarFallback>{taggedUser.name[0]}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">

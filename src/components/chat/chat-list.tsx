@@ -26,6 +26,8 @@ import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useNotifications } from "@/context/NotificationContext";
 import { useTranslation } from "@/context/LanguageContext";
+import { useNetwork } from "@/context/NetworkContext";
+import { getAdaptivePreview } from "@/lib/adaptive-media";
 import { useToast } from "@/hooks/use-toast";
 import { CreateClusterModal } from "./create-cluster-modal";
 import Link from "next/link";
@@ -36,6 +38,7 @@ interface ChatListProps {
 }
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
+  const { tier } = useNetwork();
   const { connections = [], clusters = [], triggerHaptic, settings, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, markChatMessagesRead, chatLastMessageAt, chatLastIncomingAt, chatReadReceipts, chatUnreadCounts } = usePosts();
   const { categoryPulses, clearPulse, messagePreviews } = useNotifications();
   const { t } = useTranslation();
@@ -209,10 +212,10 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                 <div className="relative shrink-0">
                   {item.isGroup ? (
                     <div className="h-12 w-12 rounded-[1rem] bg-primary/10 flex items-center justify-center relative overflow-hidden border border-primary/5">
-                      {item.avatar ? <img src={item.avatar} alt="Cluster" className="w-full h-full object-cover" /> : <div className="relative w-full h-full">{(item as any).members?.slice(0, 2).map((m: any, i: number) => (<Avatar key={m.username} className={cn("absolute h-8 w-8 border-2 border-white dark:border-card", i === 0 ? "top-0 left-0" : "bottom-0 right-0")}><AvatarImage src={m.avatar} /></Avatar>))}</div>}
+                      {item.avatar ? <img src={getAdaptivePreview(item.avatar, 'avatar', tier) || item.avatar} alt="Cluster" className="w-full h-full object-cover" /> : <div className="relative w-full h-full">{(item as any).members?.slice(0, 2).map((m: any, i: number) => (<Avatar key={m.username} className={cn("absolute h-8 w-8 border-2 border-white dark:border-card", i === 0 ? "top-0 left-0" : "bottom-0 right-0")}><AvatarImage src={getAdaptivePreview(m.avatar, 'avatar', tier) || m.avatar} /></Avatar>))}</div>}
                     </div>
                   ) : (
-                    <Avatar className="h-12 w-12 border-2 border-primary/5"><AvatarImage src={(item as any).avatar} /><AvatarFallback>{item.name[0]}</AvatarFallback></Avatar>
+                    <Avatar className="h-12 w-12 border-2 border-primary/5"><AvatarImage src={getAdaptivePreview((item as any).avatar, 'avatar', tier) || (item as any).avatar} /><AvatarFallback>{item.name[0]}</AvatarFallback></Avatar>
                   )}
                   {isOnlineVisible && <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-card rounded-full animate-pulse" />}
                 </div>

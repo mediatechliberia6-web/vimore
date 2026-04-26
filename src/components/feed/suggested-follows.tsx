@@ -11,11 +11,14 @@ import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useTranslation } from "@/context/LanguageContext";
+import { useNetwork } from "@/context/NetworkContext";
+import { getAdaptivePreview } from "@/lib/adaptive-media";
 
 export function SuggestedFollows() {
   const { connections, posts, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, cancelFriendRequest, isFollowing, currentUser } = usePosts();
   const { triggerHaptic } = useMusic();
   const { t } = useTranslation();
+  const { tier } = useNetwork();
 
   const suggestions = useMemo(() => {
     const now = Date.now();
@@ -97,7 +100,7 @@ export function SuggestedFollows() {
                 <Link href={`/profile/${person.username}`} className={cn("relative group/avatar", person.isBoosted && "mt-3")}>
                   <div className={cn("absolute -inset-1 blur-md rounded-full opacity-0 group-hover/avatar:opacity-100 transition-opacity", person.isBoosted ? "bg-primary/30" : "bg-primary/20")} />
                   <Avatar className={cn("h-20 w-20 border-4 shadow-lg transition-transform group-hover/avatar:scale-105", person.isBoosted ? "border-primary/30" : "border-white dark:border-card")}>
-                    <AvatarImage src={person.avatar} />
+                    <AvatarImage src={getAdaptivePreview(person.avatar, 'avatar', tier) || person.avatar} />
                     <AvatarFallback>{person.name?.[0] || '?'}</AvatarFallback>
                   </Avatar>
                 </Link>

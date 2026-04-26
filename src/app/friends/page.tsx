@@ -53,11 +53,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useTranslation } from "@/context/LanguageContext";
+import { useNetwork } from "@/context/NetworkContext";
+import { getAdaptivePreview } from "@/lib/adaptive-media";
 import FriendsLoading from "./loading";
 
 type HubTab = "add" | "confirm" | "friends" | "pending";
 
 function FriendsPageContent() {
+  const { tier } = useNetwork();
   const { connections = [], isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, currentUser, friendUsernames, followerUsernames, isLoading, isOffline } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { t } = useTranslation();
@@ -561,7 +564,7 @@ function FriendsPageContent() {
                       <div className="flex items-center gap-5 flex-1 min-w-0">
                         <div className="relative shrink-0">
                           <Avatar className="h-20 w-20 border-4 border-primary/30 transition-all duration-500 shadow-xl group-hover:border-primary/60">
-                            <AvatarImage src={user.avatar} />
+                            <AvatarImage src={getAdaptivePreview(user.avatar, 'avatar', tier) || user.avatar} />
                             <AvatarFallback>{(user.name || '?')[0]}</AvatarFallback>
                           </Avatar>
                           <div className="absolute -bottom-1 -right-1 bg-amber-500 text-white text-[8px] font-black uppercase px-2 py-1 rounded-full border-2 border-white dark:border-[#050505] shadow-lg">
@@ -665,7 +668,7 @@ function FriendsPageContent() {
                                 "h-20 w-20 border-4 transition-all duration-500 shadow-xl",
                                 user.isOnline ? "border-primary" : "border-white/20 group-hover:border-primary/50"
                               )}>
-                                <AvatarImage src={user.avatar} />
+                                <AvatarImage src={getAdaptivePreview(user.avatar, 'avatar', tier) || user.avatar} />
                                 <AvatarFallback>{(user.name || '?')[0]}</AvatarFallback>
                               </Avatar>
                               

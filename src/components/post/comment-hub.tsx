@@ -27,6 +27,8 @@ import { Input } from "@/components/ui/input";
 import { usePosts, PostComment } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
+import { useNetwork } from "@/context/NetworkContext";
+import { getAdaptivePreview } from "@/lib/adaptive-media";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
@@ -42,6 +44,7 @@ interface CommentNodeProps {
 export function CommentNode({ comment, postId, onReply, allComments, level = 0 }: CommentNodeProps) {
   const { triggerHaptic } = useMusic();
   const { t } = useTranslation();
+  const { tier } = useNetwork();
   const [isLiked, setIsLiked] = useState(false);
   const [showReplies, setShowReplies] = useState(true);
 
@@ -60,7 +63,7 @@ export function CommentNode({ comment, postId, onReply, allComments, level = 0 }
     <div className={cn("space-y-4", level > 0 && "ml-10 mt-4 border-l-2 border-primary/5 pl-4")}>
       <div className="group relative flex gap-3 animate-in fade-in slide-in-from-left-2 duration-300">
         <Avatar className={cn(level > 0 ? "h-7 w-7" : "h-9 w-9", "border border-primary/10 shadow-sm")}>
-          <AvatarImage src={comment.userAvatar} />
+          <AvatarImage src={getAdaptivePreview(comment.userAvatar, 'avatar', tier) || comment.userAvatar} />
           <AvatarFallback>{comment.userName[0]}</AvatarFallback>
         </Avatar>
         
