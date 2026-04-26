@@ -6,7 +6,7 @@
  * - Offline fallback page when network and cache both fail
  */
 
-const SW_VERSION = 'v6';
+const SW_VERSION = 'v7';
 const MEDIA_CACHE = `vimore-media-${SW_VERSION}`;
 const PAGE_CACHE = `vimore-pages-${SW_VERSION}`;
 const STATIC_CACHE = `vimore-static-${SW_VERSION}`;
@@ -148,26 +148,30 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation: network-first, fall back to cache, then offline page
+  // Navigation: stale-while-revalidate — instant cached page, refresh in background.
+  // Saves bytes + latency for repeat visits. Falls back to offline page if no cache.
   if (isNavigationRequest(request)) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const cloned = response.clone();
-            caches.open(PAGE_CACHE).then(cache => cache.put(request, cloned)).catch(() => {});
-          }
-          return response;
-        })
-        .catch(async () => {
-          const cached = await caches.match(request);
-          if (cached) return cached;
-          const rootCached = await caches.match('/');
-          if (rootCached) return rootCached;
-          const offlineCached = await caches.match(OFFLINE_URL);
-          if (offlineCached) return offlineCached;
-          return new Response('You are offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
-        })
+      caches.open(PAGE_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        const networkPromise = fetch(request)
+          .then((response) => {
+            if (response.ok) {
+              try { cache.put(request, response.clone()); } catch {}
+            }
+            return response;
+          })
+          .catch(async () => {
+            if (cached) return cached;
+            const rootCached = await caches.match('/');
+            if (rootCached) return rootCached;
+            const offlineCached = await caches.match(OFFLINE_URL);
+            if (offlineCached) return offlineCached;
+            return new Response('You are offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+          });
+        // Serve cached immediately when available, while background fetch refreshes
+        return cached || networkPromise;
+      })
     );
     return;
   }

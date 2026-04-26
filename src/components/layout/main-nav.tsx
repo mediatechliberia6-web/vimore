@@ -1,7 +1,7 @@
 
 "use client";
 
-import Link from "next/link";
+import { LiteLink as Link } from "@/components/ui/lite-link";
 import { usePathname } from "next/navigation";
 import { Home, User, MessageCircle, PlusSquare, Compass, Menu, Music2, Bell, Activity, Film, Megaphone, Sparkles, Ticket, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";

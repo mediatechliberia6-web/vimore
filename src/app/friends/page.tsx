@@ -54,13 +54,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useTranslation } from "@/context/LanguageContext";
 import { useNetwork } from "@/context/NetworkContext";
-import { getAdaptivePreview } from "@/lib/adaptive-media";
+import { getAdaptivePreview, adaptiveFeedPageSize } from "@/lib/adaptive-media";
 import FriendsLoading from "./loading";
 
 type HubTab = "add" | "confirm" | "friends" | "pending";
 
 function FriendsPageContent() {
   const { tier } = useNetwork();
+  // Adaptive page sizes: Lite=5, Standard=10, Rich=15 — multiply for friend lists
+  const pageMultiplier = tier === 'lite' ? 4 : tier === 'standard' ? 6 : 10;
+  const friendsPageLimit = adaptiveFeedPageSize(tier) * pageMultiplier;
+  const requestsPageLimit = Math.max(10, Math.floor(friendsPageLimit / 2));
   const { connections = [], isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, currentUser, friendUsernames, followerUsernames, isLoading, isOffline } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { t } = useTranslation();
@@ -105,7 +109,7 @@ function FriendsPageContent() {
     if (!currentUser) return;
     try {
       const result = await databases.listDocuments(DATABASE_ID, COL.USERS, [
-        Query.limit(50),
+        Query.limit(friendsPageLimit),
       ]);
       const mapped = result.documents.map((doc: any) => ({
         $id: doc.$id,
@@ -132,7 +136,7 @@ function FriendsPageContent() {
       const reqResult = await databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
         Query.equal('from_user_id', currentUser.$id),
         Query.equal('status', 'PENDING'),
-        Query.limit(25),
+        Query.limit(requestsPageLimit),
       ]);
 
       if (reqResult.documents.length === 0) {
@@ -143,7 +147,7 @@ function FriendsPageContent() {
       const toIds = reqResult.documents.map((d: any) => d.to_user_id);
       const userResults = await databases.listDocuments(DATABASE_ID, COL.USERS, [
         Query.equal('$id', toIds),
-        Query.limit(25),
+        Query.limit(requestsPageLimit),
       ]);
 
       const mapped = userResults.documents.map((doc: any) => ({
@@ -171,7 +175,7 @@ function FriendsPageContent() {
       const reqResult = await databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
         Query.equal('to_user_id', currentUser.$id),
         Query.equal('status', 'PENDING'),
-        Query.limit(50),
+        Query.limit(friendsPageLimit),
       ]);
 
       if (reqResult.documents.length === 0) {
@@ -182,7 +186,7 @@ function FriendsPageContent() {
       const fromIds = reqResult.documents.map((d: any) => d.from_user_id);
       const userResults = await databases.listDocuments(DATABASE_ID, COL.USERS, [
         Query.equal('$id', fromIds),
-        Query.limit(50),
+        Query.limit(friendsPageLimit),
       ]);
 
       const mapped = userResults.documents.map((doc: any) => ({

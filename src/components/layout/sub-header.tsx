@@ -1,7 +1,7 @@
 
 "use client";
 
-import Link from "next/link";
+import { LiteLink as Link } from "@/components/ui/lite-link";
 import { 
   Home, 
   Users, 

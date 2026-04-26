@@ -8,6 +8,7 @@ import { useNotifications } from '@/context/NotificationContext';
 import { useAdminAlerts } from '@/context/AdminAlertsContext';
 import { useFeedSignal } from '@/context/FeedSignalContext';
 import { useNetwork } from '@/context/NetworkContext';
+import { startDataBudgetTracker } from '@/lib/data-budget';
 
 const POST_ACTIVE_PATHS = ['/', '/reels', '/music', '/explore'];
 
@@ -36,6 +37,9 @@ export function GlobalRealtimeListener() {
   const { tier } = useNetwork();
   // On Lite networks, skip ambient post / comment streams to save bytes + battery.
   const ambientRealtimeEnabled = tier !== 'lite';
+
+  // Mount-once data budget tracker (uses PerformanceObserver to count bytes).
+  useEffect(() => { startDataBudgetTracker(); }, []);
 
   const {
     currentUser, selectedChatId, refreshAdminData,

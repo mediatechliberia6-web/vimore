@@ -50,7 +50,7 @@ import { useMusic } from "@/context/MusicContext";
 import { useNotifications, PulseCategory } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
 import { useTranslation } from "@/context/LanguageContext";
-import Link from "next/link";
+import { LiteLink as Link } from "@/components/ui/lite-link";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { NativeAdNode } from "@/components/ad/native-ad-node";

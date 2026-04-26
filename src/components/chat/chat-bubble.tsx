@@ -564,7 +564,7 @@ export function ChatBubble({
                   <div className="relative aspect-video w-full">
                     {sharedPostData.postVideo && !sharedPostData.postImage ? (
                       <>
-                        <video src={sharedPostData.postVideo} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+                        <video src={sharedPostData.postVideo} className="h-full w-full object-cover" muted playsInline preload="none" />
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="h-10 w-10 rounded-full bg-black/45 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
                             <Play className="h-4 w-4 fill-current ml-0.5" />

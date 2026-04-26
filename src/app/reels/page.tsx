@@ -435,7 +435,8 @@ function ReelItem({
   const { tier: netTier } = useNetwork();
   const { triggerHaptic } = useMusic();
   const [showHeart, setShowHeart] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(true);
+  // On Lite, default to paused so the Play overlay shows (tap-to-stream)
+  const [isPlaying, setIsPlaying] = useState(() => netTier !== 'lite');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [seekFlash, setSeekFlash] = useState<'left' | 'right' | null>(null);
@@ -788,6 +789,7 @@ function ReelItem({
 
 export default function ReelsPage() {
   const { campaigns, openCommentHub, fetchComments, friendUsernames, followingUsernames, settings, isOffline, fetchReels, postCountOverrides } = usePosts();
+  const { tier: pageTier } = useNetwork();
 
   const [reelsList, setReelsList] = useState<Post[]>([]);
   const [reelsCursor, setReelsCursor] = useState<string | null>(null);
@@ -907,7 +909,12 @@ export default function ReelsPage() {
           if (entry.isIntersecting) {
             setActiveIndex(idx);
             video.muted = isMuted;
-            video.play().catch(() => {});
+            // Lite Mode: do NOT auto-stream the reel. Show poster + Play button.
+            if (pageTier !== 'lite') {
+              video.play().catch(() => {});
+            } else {
+              try { video.pause(); } catch {}
+            }
           } else {
             video.pause();
             video.currentTime = 0;
@@ -922,7 +929,7 @@ export default function ReelsPage() {
     });
 
     return () => observer.disconnect();
-  }, [activeFeed.length, isMuted]);
+  }, [activeFeed.length, isMuted, pageTier]);
 
   useEffect(() => {
     const video = videoRefs.current[activeIndex];

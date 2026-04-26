@@ -70,8 +70,9 @@ import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useNotifications } from "@/context/NotificationContext";
 import { useTranslation } from "@/context/LanguageContext";
-import { ShareHub } from "./share-hub";
-import { BoostPortal } from "./boost-portal";
+import dynamic from "next/dynamic";
+const ShareHub = dynamic(() => import("./share-hub").then(m => ({ default: m.ShareHub })), { ssr: false });
+const BoostPortal = dynamic(() => import("./boost-portal").then(m => ({ default: m.BoostPortal })), { ssr: false });
 import { RichText } from "./rich-text";
 import { useRouter } from "next/navigation";
 import {
@@ -614,7 +615,7 @@ export function PostCard(props: PostCardProps) {
                         className="h-full w-full object-cover group-hover/shared:scale-105 transition-transform duration-500"
                         muted
                         playsInline
-                        preload="metadata"
+                        preload="none"
                       />
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div className="h-12 w-12 rounded-full bg-black/45 backdrop-blur-md flex items-center justify-center text-white border border-white/20">

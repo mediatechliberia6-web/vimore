@@ -95,13 +95,23 @@ export function Stories({ onOpenCreate }: StoriesProps) {
                 {!settings.isFreeMode && (
                   isVideo ? (
                     mediaUrl ? (
-                      <video 
-                        src={mediaUrl} 
-                        className={cn("object-cover w-full h-full transition-transform group-hover:scale-110", (firstSegment as any).filter)}
-                        muted
-                        playsInline
-                        preload="none"
-                      />
+                      tier === 'lite' ? (
+                        // Lite Mode: render thumb image, never load the video element
+                        <div className="w-full h-full bg-black/60 flex items-center justify-center">
+                          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20" />
+                          <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center relative z-10">
+                            <svg className="h-4 w-4 text-white fill-current ml-0.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                          </div>
+                        </div>
+                      ) : (
+                        <video 
+                          src={mediaUrl} 
+                          className={cn("object-cover w-full h-full transition-transform group-hover:scale-110", (firstSegment as any).filter)}
+                          muted
+                          playsInline
+                          preload="none"
+                        />
+                      )
                     ) : null
                   ) : isTextStory ? (
                     <div className="w-full h-full flex items-center justify-center p-3 text-center">

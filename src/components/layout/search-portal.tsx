@@ -27,7 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useNetwork } from "@/context/NetworkContext";
-import { getAdaptivePreview } from "@/lib/adaptive-media";
+import { getAdaptivePreview, adaptiveDebounceMs } from "@/lib/adaptive-media";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -70,7 +70,7 @@ export function SearchPortal() {
     }
   }, [isSearchOpen]);
 
-  // Live user search with debounce
+  // Live user search with adaptive debounce (Lite=600ms, Standard=350ms, Rich=200ms)
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     if (!query.trim()) { setLiveUsers([]); return; }
@@ -81,9 +81,9 @@ export function SearchPortal() {
         setLiveUsers(results);
       } catch { setLiveUsers([]); }
       finally { setIsSearchingUsers(false); }
-    }, 400);
+    }, adaptiveDebounceMs(tier));
     return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
-  }, [query, searchAllUsers]);
+  }, [query, searchAllUsers, tier]);
 
   const saveSearch = (term: string) => {
     if (!term.trim()) return;

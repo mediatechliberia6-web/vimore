@@ -1,7 +1,7 @@
 
 "use client";
 
-import Link from "next/link";
+import { LiteLink as Link } from "@/components/ui/lite-link";
 import { Search, Plus, Menu, Bell, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

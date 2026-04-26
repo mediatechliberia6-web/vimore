@@ -154,7 +154,7 @@ export function ShareHub({ isOpen, onClose, post }: ShareHubProps) {
           <div className="p-4 bg-primary/5 rounded-3xl border border-primary/10 flex items-center gap-4">
             <div className="relative h-16 w-16 rounded-2xl overflow-hidden shrink-0 shadow-lg">
               {post.videoUrl && !post.image && !post.images?.[0] ? (
-                <video src={post.videoUrl} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+                <video src={post.videoUrl} className="h-full w-full object-cover" muted playsInline preload="none" />
               ) : (
                 <Image src={post.image || post.images?.[0] || post.user.avatar} alt="Post" fill className="object-cover" />
               )}

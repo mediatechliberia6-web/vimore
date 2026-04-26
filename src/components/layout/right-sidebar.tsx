@@ -1,7 +1,7 @@
 
 "use client";
 
-import Link from "next/link";
+import { LiteLink as Link } from "@/components/ui/lite-link";
 import { Search, TrendingUp, Users, UserRoundPlus, Check, UserRoundX, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

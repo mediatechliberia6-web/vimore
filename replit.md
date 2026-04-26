@@ -241,3 +241,19 @@ Indexes created: `friend_requests` (sender/receiver_username), `follows` (follow
 - Installed existing npm dependencies from `package.json`.
 - Replit workflow `Start application` runs `npm run dev` on port 5000.
 - Verified `/login` renders successfully in the Replit preview; unauthenticated Appwrite 401 responses during session checks are expected before login.
+
+## Data-Saving Pass (April 2026) — Lite-Mode Hardening
+Implemented all 9 strategies to extend a 100MB monthly bundle:
+1. **Reels autoplay off on Lite** — `IntersectionObserver` skips `video.play()` when `tier==='lite'`; ReelCard `isPlaying` defaults to `false` on Lite so the play overlay is shown (tap-to-stream).
+2. **Lazy-loaded images** — wired in earlier rounds via `getAdaptivePreview` in chat-list, friends, comment-hub, suggested-follows, search-portal, chat-bubble.
+3. **Real-time pause on Lite** — `global-realtime.tsx` already gates ambient post-counts + comment streams behind `ambientRealtimeEnabled = tier !== 'lite'`. Admin channels intentionally remain live.
+4. **Smaller fetch limits on Lite** — `friends/page.tsx` uses `adaptiveFeedPageSize(tier)` × multiplier (Lite=20, Standard=60, Rich=150).
+5. **Disabled Link prefetch on Lite** — new `LiteLink` wrapper (`src/components/ui/lite-link.tsx`) swapped into `header`, `sub-header`, `main-nav`, `right-sidebar`, `menu` so route bundles are NOT background-fetched on Lite.
+6. **Tap-to-translate** — already manual button (chat-bubble:149, post-card:377). Verified, no auto-firing.
+7. **Smarter Service Worker (v6→v7)** — navigation switched from network-first to **stale-while-revalidate**: cached pages serve instantly while a background fetch refreshes them. Saves repeat-page bytes.
+8. **Code splitting** — `ShareHub` and `BoostPortal` in `post-card.tsx` switched to `next/dynamic({ ssr: false })` so the heavy share/boost dialogs are only fetched on demand.
+9. **Visible Data Budget badge** — new `src/lib/data-budget.ts` (PerformanceObserver + localStorage). Tracker mounted in `global-realtime.tsx`. Settings → Lite Mode card now shows Today / This-month bytes, a configurable monthly cap (MB) with a colored progress bar (Healthy / Approaching / Almost-full).
+
+Also normalized: `preload="metadata"` → `preload="none"` on every shared-post `<video>` (post-card, chat-bubble, share-hub) so feed scrolls download zero video bytes until tap. Stories thumbnails on Lite render a static placeholder instead of a `<video>` element.
+
+Files added: `src/lib/data-budget.ts`, `src/components/ui/lite-link.tsx`.
