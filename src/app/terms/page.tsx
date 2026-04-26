@@ -42,6 +42,8 @@ export default function TermsOfServicePage() {
             <p className="text-muted-foreground leading-relaxed">
               By materializing an account on ViMore, you enter into a binding social contract with <strong>Media Tech Liberia (MTL)</strong>. You agree to uphold the high-velocity integrity of our global network and comply with all architectural protocols.
             </p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest italic">Effective Date: April 14, 2026 | Revision v1.0</p>
+            <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest italic">Media Tech Liberia · Founded December 19, 2025</p>
           </section>
 
           <section className="space-y-6">

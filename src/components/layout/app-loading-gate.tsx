@@ -103,7 +103,7 @@ export function AppLoadingGate({ children }: { children: React.ReactNode }) {
 
               <footer className="absolute bottom-12 left-0 right-0 flex flex-col items-center gap-2 opacity-20">
                 <p className="text-[9px] font-black uppercase tracking-[0.4em] text-foreground">ViMore Sentry v1.5</p>
-                <p className="text-[8px] font-bold uppercase tracking-widest text-primary italic">From Media Tech Liberia</p>
+                <p className="text-[8px] font-bold uppercase tracking-widest text-primary italic">© 2026 ViMore by Media Tech Liberia</p>
               </footer>
             </div>
           ) : (

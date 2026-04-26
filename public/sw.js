@@ -6,7 +6,7 @@
  * - Offline fallback page when network and cache both fail
  */
 
-const SW_VERSION = 'v5';
+const SW_VERSION = 'v6';
 const MEDIA_CACHE = `vimore-media-${SW_VERSION}`;
 const PAGE_CACHE = `vimore-pages-${SW_VERSION}`;
 const STATIC_CACHE = `vimore-static-${SW_VERSION}`;

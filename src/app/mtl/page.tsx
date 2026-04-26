@@ -104,8 +104,15 @@ export default function MTLPage() {
           <h2 className="text-3xl font-black tracking-tight text-foreground leading-tight">
             Media Tech <span className="text-primary">Liberia</span>
           </h2>
+          <div className="inline-flex items-center gap-2 bg-amber-500/10 text-amber-700 dark:text-amber-300 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+            <Star className="h-3 w-3" />
+            Founded December 19, 2025 · Monrovia, Liberia
+          </div>
           <p className="text-sm text-muted-foreground font-medium leading-relaxed max-w-md mx-auto">
             A next-generation technology company building the social media and creator economy platform for Africa — born in Liberia, built for the world.
+          </p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 italic pt-2">
+            ViMore launched April 14, 2026
           </p>
         </div>
 

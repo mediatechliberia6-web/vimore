@@ -292,7 +292,7 @@ export default function AccountCenter() {
           </Button>
           <div className="opacity-30 text-center">
             <p className="text-[9px] font-black uppercase tracking-[0.4em] text-foreground">Account Core v1.5</p>
-            <p className="text-[8px] font-bold uppercase tracking-widest text-primary italic">From Media Tech Liberia</p>
+            <p className="text-[8px] font-bold uppercase tracking-widest text-primary italic">© 2026 ViMore by Media Tech Liberia</p>
           </div>
         </div>
       </main>

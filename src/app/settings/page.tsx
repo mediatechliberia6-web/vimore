@@ -80,6 +80,7 @@ import {
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
+import { useNetwork } from "@/context/NetworkContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
@@ -91,6 +92,7 @@ export default function SettingsPage() {
   const { settings, updateSettings, triggerHaptic, currentUser, connections, posts, savedPostIds, activeSubscriptions, cancelSubscription, seenPostIds, archiveIdentityNode, isLoading, logout, enrollHardwareBiometrics } = usePosts();
   const { currentTrack, isExpanded, downloadedSongIds, userSongs } = useMusic();
   const { t } = useTranslation();
+  const { tier, effectiveType, forcedTier, setForcedTier, saveData } = useNetwork();
   const { toast } = useToast();
   
   const [isSyncing, setIsSyncing] = useState(false);
@@ -221,6 +223,60 @@ export default function SettingsPage() {
         </section>
 
         <NativeAdNode type="banner-468" id="settings-top-pulse" />
+
+        {/* NETWORK OPTIMIZATION (LITE MODE) */}
+        <section className="space-y-4">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-2">Network Optimization</h3>
+          <div className="bg-white dark:bg-card rounded-[2.5rem] border border-border shadow-xl shadow-black/5 p-6 space-y-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-0.5 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <ZapOff className="h-4 w-4 text-primary shrink-0" />
+                  <p className="font-bold text-sm">Lite Mode</p>
+                  <Badge className={cn(
+                    "text-[9px] font-black uppercase tracking-widest border-none",
+                    tier === 'lite' ? "bg-amber-500/15 text-amber-600" : tier === 'standard' ? "bg-blue-500/15 text-blue-600" : "bg-emerald-500/15 text-emerald-600"
+                  )}>{tier}</Badge>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-black break-words">
+                  Detected: {effectiveType}{saveData ? " · save-data on" : ""}
+                </p>
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Lite Mode shrinks images, lowers video quality, disables auto-play and reduces real-time sync — built for 2G/3G and Save-Data users across Africa.
+            </p>
+            <div className="grid grid-cols-3 gap-2 bg-secondary/40 p-1.5 rounded-2xl">
+              <button
+                onClick={() => { triggerHaptic(10); setForcedTier(null); }}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 px-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                  forcedTier === null ? "bg-white dark:bg-zinc-800 text-primary shadow-md" : "text-muted-foreground"
+                )}
+              >
+                Auto
+              </button>
+              <button
+                onClick={() => { triggerHaptic(10); setForcedTier('lite'); }}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 px-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                  forcedTier === 'lite' ? "bg-white dark:bg-zinc-800 text-amber-600 shadow-md" : "text-muted-foreground"
+                )}
+              >
+                Lite
+              </button>
+              <button
+                onClick={() => { triggerHaptic(10); setForcedTier('rich'); }}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 px-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                  forcedTier === 'rich' ? "bg-white dark:bg-zinc-800 text-emerald-600 shadow-md" : "text-muted-foreground"
+                )}
+              >
+                Full
+              </button>
+            </div>
+          </div>
+        </section>
 
         {/* SUBSCRIPTIONS */}
         <section className="space-y-4">

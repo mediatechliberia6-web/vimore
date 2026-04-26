@@ -164,7 +164,7 @@ export default function ComingSoonPage() {
 
         <div className="text-center space-y-3 py-8">
           <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground">ViMore Network</p>
-          <p className="text-[9px] font-bold uppercase tracking-widest text-primary italic">From Media Tech Liberia</p>
+          <p className="text-[9px] font-bold uppercase tracking-widest text-primary italic">© 2026 ViMore by Media Tech Liberia</p>
         </div>
       </main>
 

@@ -42,7 +42,8 @@ export default function PrivacyPolicyPage() {
             <p className="text-muted-foreground leading-relaxed">
               At ViMore, under the architectural leadership of <strong>Amos B. Kortu</strong> and <strong>Media Tech Liberia (MTL)</strong>, we believe your digital signature is your property. This policy materializes our commitment to protecting your identity while synchronizing high-velocity vibes across our global clusters.
             </p>
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest italic">Effective Date: October 2023 | Revision v1.5</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest italic">Effective Date: April 14, 2026 | Revision v1.5</p>
+            <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest italic">Media Tech Liberia · Founded December 19, 2025</p>
           </section>
 
           <section className="space-y-6">

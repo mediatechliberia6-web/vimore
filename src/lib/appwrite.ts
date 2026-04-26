@@ -86,6 +86,44 @@ export function getDirectFileUrl(bucketId: string, fileId: string): string {
   return `${ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/view?project=${PROJECT_ID}`;
 }
 
+export interface PreviewOptions {
+  width?: number;
+  height?: number;
+  quality?: number;
+  output?: 'jpg' | 'jpeg' | 'png' | 'webp' | 'gif';
+}
+
+export function getFilePreview(bucketId: string, fileId: string, opts: PreviewOptions = {}): string {
+  if (!fileId) return '';
+  const params = new URLSearchParams({ project: PROJECT_ID });
+  if (opts.width) params.set('width', String(opts.width));
+  if (opts.height) params.set('height', String(opts.height));
+  if (opts.quality) params.set('quality', String(opts.quality));
+  if (opts.output) params.set('output', opts.output);
+  return `${ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/preview?${params.toString()}`;
+}
+
+export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+const AVATAR_SIZES: Record<AvatarSize, number> = { xs: 48, sm: 80, md: 128, lg: 240, xl: 480 };
+
+export function getAvatarUrl(bucketId: string, fileId: string, size: AvatarSize = 'md'): string {
+  if (!fileId) return '';
+  const tier: string = typeof window !== 'undefined' ? ((window as any).__vimoreNetTier || 'rich') : 'rich';
+  const px = AVATAR_SIZES[size];
+  const quality = tier === 'lite' ? 50 : tier === 'standard' ? 70 : 80;
+  const liteScale = tier === 'lite' ? 0.6 : tier === 'standard' ? 0.8 : 1;
+  const dim = Math.round(px * liteScale);
+  return getFilePreview(bucketId, fileId, { width: dim, height: dim, quality, output: 'webp' });
+}
+
+export function getImageUrl(bucketId: string, fileId: string, maxWidth: number = 720): string {
+  if (!fileId) return '';
+  const tier: string = typeof window !== 'undefined' ? ((window as any).__vimoreNetTier || 'rich') : 'rich';
+  const quality = tier === 'lite' ? 55 : tier === 'standard' ? 70 : 80;
+  const widthScale = tier === 'lite' ? 0.5 : tier === 'standard' ? 0.75 : 1;
+  return getFilePreview(bucketId, fileId, { width: Math.round(maxWidth * widthScale), quality, output: 'webp' });
+}
+
 export function extractFileId(url: string): string | null {
   if (!url) return null;
   const proxyMatch = url.match(/^\/api\/file\/[^/]+\/([^/?]+)/);
