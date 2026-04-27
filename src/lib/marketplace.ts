@@ -41,7 +41,6 @@ export interface CreateProductInput {
   files: File[];
 }
 
-const ADMIN_TEAM_ID = process.env.NEXT_PUBLIC_ADMIN_TEAM_ID || 'admin';
 
 export function normalizePhoneE164(raw: string): string {
   const trimmed = (raw || '').trim();
@@ -101,8 +100,6 @@ export async function uploadProductImage(file: File, sellerId: string): Promise<
       Permission.read(Role.any()),
       Permission.update(Role.user(sellerId)),
       Permission.delete(Role.user(sellerId)),
-      Permission.update(Role.team(ADMIN_TEAM_ID)),
-      Permission.delete(Role.team(ADMIN_TEAM_ID)),
     ]
   );
   return created.$id;
@@ -199,8 +196,6 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
         Permission.read(Role.any()),
         Permission.update(Role.user(input.sellerId)),
         Permission.delete(Role.user(input.sellerId)),
-        Permission.update(Role.team(ADMIN_TEAM_ID)),
-        Permission.delete(Role.team(ADMIN_TEAM_ID)),
       ]
     );
     return mapProduct(doc);

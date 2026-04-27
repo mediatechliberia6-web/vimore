@@ -55,7 +55,7 @@ ViMore is a Next.js 15 social networking and creator platform with a violet (#99
 
 **Photos**: client-side compressed to ≤400 KB / 1280 px before upload to bucket `Marketplace_Images` (jpg/png/webp, file-level security ON). Listing thumbnails use Appwrite preview transform (`width=400&quality=60&output=webp`) to stay under ~25 KB.
 
-**Permissions**: Each Products document is created with read=Any, update/delete=owner + `Permission.team('admin')` (team ID from `NEXT_PUBLIC_ADMIN_TEAM_ID`, default `admin`). Owner-only delete in UI; admins can delete from the Reports moderation queue.
+**Permissions**: Each Products document is created with read=Any, update/delete=owner only (`Role.user(sellerId)`). Owner-only delete in UI; admins moderate (delete product / warn seller / resolve / dismiss) from the Reports queue using the server-side `APPWRITE_API_KEY` path in `lib/appwrite-server.ts`, which bypasses document permissions.
 
 **Reports**: Reuses the existing `reports` collection with `target_type='PRODUCT'` and a JSON `target_meta` string (`{ productName, sellerUsername, sellerId, thumbnailFileId }`). Surfaces in `/admin → Safety/Reports` with View / Delete Product / Warn Seller (SOFT or FINAL) / Resolve / Dismiss actions.
 
@@ -67,9 +67,8 @@ ViMore is a Next.js 15 social networking and creator platform with a violet (#99
 
 ### Manual Appwrite Setup Required
 Before Marketplace works, create in the Appwrite console (no custom indexes — list endpoints fetch the whole collection and filter client-side):
-1. **Team** named `admin` (members = your admin users) — used for `Permission.team('admin')` moderation.
-2. **Bucket** `Marketplace_Images` — max 400 KB, allowed jpg/png/webp, file security ON.
-3. **Collection** `Products` (security: enabled) with attributes:
+1. **Bucket** `Marketplace_Images` — max 400 KB, allowed jpg/png/webp, file security ON.
+2. **Collection** `Products` (security: enabled) with attributes:
    - `sellerId` (String 50, required), `sellerName` (String 80), `sellerUsername` (String 50), `sellerAvatarFileId` (String 50)
    - `name` (String 120, required), `description` (String 2000), `location` (String 120)
    - `priceAmount` (Double, required), `priceCurrency` (Enum: LRD, USD, required)
