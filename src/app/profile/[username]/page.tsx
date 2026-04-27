@@ -34,8 +34,10 @@ import {
   UserRoundCheck,
   UserRoundX,
   X,
-  Check
+  Check,
+  ShoppingBag
 } from "lucide-react";
+import { UserListings } from "@/components/marketplace/UserListings";
 import Link from "next/link";
 import { usePosts, User, Post } from "@/context/PostContext";
 import { useNotifications } from "@/context/NotificationContext";
@@ -379,6 +381,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
             <Tabs defaultValue="all" className="w-full mt-2">
               <TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0">
                 <TabsTrigger value="all" className="flex-1 font-bold text-sm">Posts</TabsTrigger>
+                <TabsTrigger value="listings" className="flex-1 font-bold text-sm flex items-center gap-1.5"><ShoppingBag className="h-3.5 w-3.5" />Listings</TabsTrigger>
                 <TabsTrigger value="media" className="flex-1 font-bold text-sm">Media</TabsTrigger>
               </TabsList>
               <TabsContent value="all" className="p-4 space-y-4">
@@ -429,6 +432,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                     <div className="col-span-3 py-20 text-center text-muted-foreground"><p className="font-bold">No media shared yet</p></div>
                   )}
                 </div>
+              </TabsContent>
+              <TabsContent value="listings" className="p-4">
+                {displayUser ? <UserListings sellerId={displayUser.$id} isOwner={!!isMe} /> : null}
               </TabsContent>
             </Tabs>
           </div>

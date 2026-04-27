@@ -46,8 +46,10 @@ import {
   Users,
   EyeOff,
   Smartphone,
-  Film
+  Film,
+  ShoppingBag
 } from "lucide-react";
+import { UserListings } from "@/components/marketplace/UserListings";
 import Link from "next/link";
 import { usePosts, Post } from "@/context/PostContext";
 import Image from "next/image";
@@ -419,10 +421,11 @@ export default function MyProfilePage() {
             </div>
             
             <Tabs defaultValue="all" className="w-full mt-2">
-              <TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0">
+              <TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0 overflow-x-auto">
                 <TabsTrigger value="all" className="flex-1 font-bold text-sm">Posts</TabsTrigger>
                 <TabsTrigger value="reels" className="flex-1 font-bold text-sm flex items-center gap-1.5"><Film className="h-3.5 w-3.5" />Reels</TabsTrigger>
                 <TabsTrigger value="music" className="flex-1 font-bold text-sm">Music</TabsTrigger>
+                <TabsTrigger value="listings" className="flex-1 font-bold text-sm flex items-center gap-1.5"><ShoppingBag className="h-3.5 w-3.5" />Listings</TabsTrigger>
                 <TabsTrigger value="media" className="flex-1 font-bold text-sm">Media</TabsTrigger>
               </TabsList>
               <TabsContent value="all" className="p-4 space-y-4">
@@ -614,6 +617,9 @@ export default function MyProfilePage() {
                     )}
                   </div>
                 )}
+              </TabsContent>
+              <TabsContent value="listings" className="p-4">
+                {currentUser ? <UserListings sellerId={currentUser.$id} isOwner={true} /> : null}
               </TabsContent>
               <TabsContent value="media" className="p-4"><div className="grid grid-cols-3 gap-2">{postedImages.map((url, i) => (<div key={i} onClick={() => !settings.isFreeMode && setSelectedImageUrl(url)} className={cn("aspect-square relative rounded-xl overflow-hidden shadow-lg", !settings.isFreeMode ? "cursor-pointer hover:scale-[1.02] transition-transform" : "bg-secondary/20 flex items-center justify-center")}> {!settings.isFreeMode ? <Image src={url} alt="Shared" fill className="object-cover" /> : <ImageIcon className="h-6 w-6 text-muted-foreground/20" />}</div>))}{postedImages.length === 0 && <p className="col-span-3 text-center text-xs opacity-40 py-10">No images shared in the network.</p>}</div></TabsContent>
             </Tabs>
