@@ -406,7 +406,7 @@ export default function ProfessionalDashboard() {
                 </div>
                 <h3 className="text-2xl font-black italic uppercase tracking-tighter">Economy Intelligence</h3>
               </div>
-              <Badge variant="outline" className="border-amber-500/20 text-amber-500 text-[9px] font-black uppercase tracking-widest">70/30 SPLIT ACTIVE</Badge>
+              <Badge variant="outline" className="border-amber-500/20 text-amber-500 text-[9px] font-black uppercase tracking-widest">90/10 SPLIT ACTIVE</Badge>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

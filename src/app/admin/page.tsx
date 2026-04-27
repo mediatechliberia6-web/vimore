@@ -592,7 +592,7 @@ export default function AdminDashboard() {
       const totalUSD = goldUSD + diamondUSD;
       const totalLRD = totalUSD * LD_MULTIPLIER;
 
-      // Calculate platform fees from transactions (30% of all sender-side tx amounts)
+      // Calculate platform fees from transactions (10% of all sender-side tx amounts)
       let pfGold = 0, pfDiamond = 0;
       try {
         const txRes = await databases.listDocuments(DATABASE_ID, COL.TRANSACTIONS, [
@@ -601,7 +601,7 @@ export default function AdminDashboard() {
         txRes.documents.forEach((tx: any) => {
           const senderTypes = ['GIFT_SENT', 'POST_UNLOCK', 'SUBSCRIPTION'];
           if (!senderTypes.includes(tx.type)) return;
-          const cut = (tx.amount || 0) * 0.3;
+          const cut = (tx.amount || 0) * 0.1;
           if (tx.currency === 'GOLD') pfGold += cut;
           else if (tx.currency === 'DIAMOND') pfDiamond += cut;
         });
@@ -2224,7 +2224,7 @@ export default function AdminDashboard() {
                       { label: "Gold Rate", value: "$0.01 / Gold", color: "text-amber-500", bg: "bg-amber-500/10" },
                       { label: "Diamond Rate", value: "$0.25 / Diamond", color: "text-cyan-500", bg: "bg-cyan-500/10" },
                       { label: "LRD Rate", value: "L$190 / $1 USD", color: "text-green-500", bg: "bg-green-500/10" },
-                      { label: "Platform Cut", value: "30% per tx", color: "text-primary", bg: "bg-primary/10" },
+                      { label: "Platform Cut", value: "10% per tx", color: "text-primary", bg: "bg-primary/10" },
                     ].map(r => (
                       <div key={r.label} className={`flex items-center gap-2 px-4 py-2 rounded-2xl ${r.bg}`}>
                         <span className={`text-[10px] font-black uppercase tracking-widest ${r.color}`}>{r.label}</span>
@@ -2270,7 +2270,7 @@ export default function AdminDashboard() {
                         icon: TrendingUp,
                         color: "text-green-500",
                         bg: "bg-green-500/10",
-                        desc: "30% cut from gifts, unlocks & subscriptions",
+                        desc: "10% cut from gifts, unlocks & subscriptions",
                       },
                     ].map(m => (
                       <Card key={m.label} className="bg-card/40 border-border rounded-[2rem] overflow-hidden group hover:border-primary/20 transition-all">

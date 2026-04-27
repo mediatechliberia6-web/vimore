@@ -167,7 +167,7 @@ export default function HowItWorks() {
       color: "text-green-500",
       bg: "bg-green-500/10",
       details: [
-        "THE 70/30 SPLIT: Creators receive exactly 70% of all monetized pulses. The remaining 30% maintains the MTL high-fidelity clusters.",
+        "THE 90/10 SPLIT: Creators receive exactly 90% of all monetized pulses. The remaining 10% maintains the MTL high-fidelity clusters.",
         "WITHDRAWAL PORTAL: Convert your vault energy (Gold/Diamonds) into real assets via secure Orange/MTN MoMo handshakes.",
         "GROQ AI AUDIT: Every financial pulse is verified by our AI auditor node to ensure system integrity and prevent fraudulent handshakes."
       ]

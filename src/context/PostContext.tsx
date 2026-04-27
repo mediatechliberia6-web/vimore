@@ -2918,7 +2918,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (balance < cost) {
       throw new Error(`Insufficient Gold balance. You need ${cost} Gold but only have ${balance}.`);
     }
-    const creatorShare = Math.floor(cost * 0.7);
+    const creatorShare = Math.floor(cost * 0.9);
     const platformFee = cost - creatorShare;
 
     setUnlockedPostIdsState(p => new Set(p).add(postId));
@@ -2950,7 +2950,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         }),
       ];
 
-      // Credit 70% to the post owner
+      // Credit 90% to the post owner
       if (ownerId && ownerId !== currentUser.$id) {
         const ownerDoc = await databases.getDocument(DATABASE_ID, COL.USERS, ownerId);
         const ownerCurrentBalance = ownerDoc.gold_balance || 0;
@@ -2963,7 +2963,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
             type: 'POST_UNLOCK_EARNING',
             currency: 'GOLD',
             amount: creatorShare,
-            description: `Post unlock earning (70%) — ${platformFee} Gold platform fee`,
+            description: `Post unlock earning (90%) — ${platformFee} Gold platform fee`,
             reference_id: postId,
             status: 'COMPLETED',
           }),
@@ -2981,7 +2981,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (balance < cost) {
       throw new Error(`Insufficient Diamond balance. You need ${cost} Diamonds but only have ${balance}.`);
     }
-    const creatorShare = Math.floor(cost * 0.7);
+    const creatorShare = Math.floor(cost * 0.9);
     const platformFee = cost - creatorShare;
 
     setActiveSubscriptionsState(p => new Set(p).add(username));
@@ -3013,7 +3013,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         }),
       ];
 
-      // Credit 70% to the creator
+      // Credit 90% to the creator
       if (creatorId && creatorId !== currentUser.$id) {
         const creatorDoc = await databases.getDocument(DATABASE_ID, COL.USERS, creatorId);
         const creatorCurrentBalance = creatorDoc.diamond_balance || 0;
@@ -3026,7 +3026,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
             type: 'SUBSCRIPTION_EARNING',
             currency: 'DIAMOND',
             amount: creatorShare,
-            description: `Subscription earning (70%) from @${currentUser.username} — ${platformFee} Diamond platform fee`,
+            description: `Subscription earning (90%) from @${currentUser.username} — ${platformFee} Diamond platform fee`,
             reference_id: currentUser.$id,
             status: 'COMPLETED',
           }),
@@ -3067,7 +3067,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (currency === 'DIAMOND' && diamondBal < cost) {
       throw new Error(`Insufficient Diamond balance. You need ${cost} Diamonds but only have ${diamondBal}.`);
     }
-    const creatorShare = Math.floor(cost * 0.7);
+    const creatorShare = Math.floor(cost * 0.9);
     const platformFee = cost - creatorShare;
 
     const newBalance = currency === 'GOLD' ? { gold_balance: goldBal - cost } : { diamond_balance: diamondBal - cost };
@@ -3092,7 +3092,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         }),
       ];
 
-      // Credit 70% to the gift recipient
+      // Credit 90% to the gift recipient
       if (targetUserForGift && targetUserForGift.$id !== currentUser.$id) {
         const recipientDoc = await databases.getDocument(DATABASE_ID, COL.USERS, targetUserForGift.$id);
         const recipientCurrentBalance = currency === 'GOLD'
@@ -3108,7 +3108,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
             type: 'GIFT_RECEIVED',
             currency,
             amount: creatorShare,
-            description: `Gift received (70%) from @${currentUser.username} — ${platformFee} ${currency} platform fee`,
+            description: `Gift received (90%) from @${currentUser.username} — ${platformFee} ${currency} platform fee`,
             reference_id: currentUser.$id,
             status: 'COMPLETED',
           }),

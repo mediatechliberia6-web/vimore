@@ -201,7 +201,7 @@ export function GiftHub() {
               </div>
               <div className="text-center space-y-1">
                 <h3 className="text-2xl font-black italic uppercase tracking-tighter text-foreground">Sync Confirmed</h3>
-                <p className="text-sm text-muted-foreground uppercase font-bold">70% Energy Materialized in Creator Vault</p>
+                <p className="text-sm text-muted-foreground uppercase font-bold">90% Energy Materialized in Creator Vault</p>
               </div>
             </div>
           ) : (
@@ -212,7 +212,7 @@ export function GiftHub() {
                   <TabsTrigger value="diamond" className="rounded-lg text-[10px] font-black uppercase px-6">Diamonds</TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-[8px] font-black uppercase border-primary/20 text-primary">70/30 Split Active</Badge>
+                  <Badge variant="outline" className="text-[8px] font-black uppercase border-primary/20 text-primary">90/10 Split Active</Badge>
                 </div>
               </div>
 
