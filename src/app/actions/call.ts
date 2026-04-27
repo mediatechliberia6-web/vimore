@@ -3,7 +3,7 @@
 import { RtcTokenBuilder, RtcRole } from 'agora-token';
 
 export async function generateAgoraToken(channelName: string, uid: number): Promise<string> {
-  const appId = process.env.NEXT_PUBLIC_AGORA_APP_ID;
+  const appId = process.env.NEXT_PUBLIC_AGORA_APP_ID || '4afa1dbbd2ee4695ad1d29eaa0310ca3';
   const appCertificate = process.env.AGORA_APP_CERTIFICATE;
 
   if (!appId || !appCertificate) {

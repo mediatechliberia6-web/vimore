@@ -12,19 +12,19 @@ ViMore is a Next.js 15 social networking and creator platform with a violet (#99
 - **Auth**: Appwrite account sessions — `PostContext.checkSession()` calls `account.get()` on mount
 
 ## Environment Variables
-| Variable | Scope | Purpose |
-|----------|-------|---------|
-| `NEXT_PUBLIC_APPWRITE_ENDPOINT` | shared | Appwrite API URL |
-| `NEXT_PUBLIC_APPWRITE_PROJECT_ID` | shared | Appwrite project ID |
-| `NEXT_PUBLIC_APPWRITE_DATABASE_ID` | shared | Appwrite database ID |
-| `APPWRITE_DATABASE_ID` | shared | Appwrite database ID (server) |
-| `APPWRITE_API_KEY` | shared | Appwrite server-side API key |
-| `GROQ_API_KEY` | shared | Groq AI API key (translations) |
-| `NEXT_PUBLIC_AGORA_APP_ID` | shared | Agora App ID (client-side RTC) |
-| `AGORA_APP_CERTIFICATE` | shared | Agora certificate (server-side token generation) |
-| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | shared | Web push VAPID public key (client subscribe) |
-| `VAPID_PRIVATE_KEY` | shared | Web push VAPID private key (server send) |
-| `VAPID_SUBJECT` | shared | Web push VAPID subject — `mailto:you@domain.com` |
+All public/non-secret values (Appwrite endpoint/project/database IDs, Agora App ID, VAPID keys) are baked into the source as fallbacks, so deploying to Vercel only requires the **3 sensitive secrets** below.
+
+| Variable | Required on Vercel? | Purpose |
+|----------|---------------------|---------|
+| `APPWRITE_API_KEY` | ✅ **Yes** | Appwrite server-side API key — used by `lib/appwrite-server.ts` and the `/api/admin/*`, `/api/messages/*`, `/api/push/*` routes |
+| `GROQ_API_KEY` | ✅ **Yes** | Groq AI key — powers post translation, AI caption enhancer, admin Vibe Analysis (silently falls back to non-AI behavior if missing) |
+| `AGORA_APP_CERTIFICATE` | ✅ **Yes** | Agora server-side certificate — required for `/api/agora-token` to mint RTC tokens for voice/video calls |
+| `NEXT_PUBLIC_APPWRITE_ENDPOINT` | optional | Default: `https://mediatechliberia.online/v1` |
+| `NEXT_PUBLIC_APPWRITE_PROJECT_ID` | optional | Default: `vimore123` |
+| `NEXT_PUBLIC_APPWRITE_DATABASE_ID` | optional | Default: `vimoreprod` |
+| `APPWRITE_DATABASE_ID` | optional | Default: `vimoreprod` (server-side) |
+| `NEXT_PUBLIC_AGORA_APP_ID` | optional | Default: `4afa1dbbd2ee4695ad1d29eaa0310ca3` |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | optional | Defaults baked in for current VAPID key pair; override only if rotating keys |
 
 ### Admin moderation routes (server-side, use `APPWRITE_API_KEY`)
 - `POST /api/admin/products/delete` — body `{ adminUserId, productId }` — verifies admin role (`SUPER`/`MODERATOR`) server-side, deletes product doc + all its image files. Bypasses document permissions.

@@ -9,7 +9,7 @@ import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
-const APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID!;
+const APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID || '4afa1dbbd2ee4695ad1d29eaa0310ca3';
 
 export default function CallPage({ params }: { params: Promise<{ username: string }> }) {
   const resolvedParams = use(params);
