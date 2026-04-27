@@ -22,6 +22,13 @@ ViMore is a Next.js 15 social networking and creator platform with a violet (#99
 | `GROQ_API_KEY` | shared | Groq AI API key (translations) |
 | `NEXT_PUBLIC_AGORA_APP_ID` | shared | Agora App ID (client-side RTC) |
 | `AGORA_APP_CERTIFICATE` | shared | Agora certificate (server-side token generation) |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | shared | Web push VAPID public key (client subscribe) |
+| `VAPID_PRIVATE_KEY` | shared | Web push VAPID private key (server send) |
+| `VAPID_SUBJECT` | shared | Web push VAPID subject — `mailto:you@domain.com` |
+
+### Admin moderation routes (server-side, use `APPWRITE_API_KEY`)
+- `POST /api/admin/products/delete` — body `{ adminUserId, productId }` — verifies admin role (`SUPER`/`MODERATOR`) server-side, deletes product doc + all its image files. Bypasses document permissions.
+- `POST /api/admin/users/warn` — body `{ adminUserId, userId, message, severity }` — verifies admin role, increments warning count, writes notification.
 
 ## Key Routes
 | Path | Description |
