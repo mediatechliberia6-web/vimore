@@ -1,5 +1,5 @@
 import 'server-only';
-import { Client, Databases, Users } from 'node-appwrite';
+import { Client, Databases, Storage, Users } from 'node-appwrite';
 
 const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1';
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
@@ -20,4 +20,8 @@ export function getAdminDatabases(): Databases {
 
 export function getAdminUsers(): Users {
   return new Users(createAdminClient());
+}
+
+export function getAdminStorage(): Storage {
+  return new Storage(createAdminClient());
 }

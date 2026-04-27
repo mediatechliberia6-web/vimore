@@ -1986,25 +1986,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const warnUser = useCallback(async (userId: string, message: string, severity: 'SOFT' | 'FINAL') => {
     if (!currentUser) return;
     const targetUser = allUsers.find(u => u.$id === userId);
-    const newCount = (targetUser?.warningCount || 0) + 1;
-    setAllUsers(prev => prev.map(u => u.$id === userId ? { ...u, warningCount: newCount } : u));
+    const optimisticCount = (targetUser?.warningCount || 0) + 1;
+    setAllUsers(prev => prev.map(u => u.$id === userId ? { ...u, warningCount: optimisticCount } : u));
     try {
-      await databases.updateDocument(DATABASE_ID, COL.USERS, userId, {
-        warning_count: newCount,
-        last_warning_severity: severity,
-        last_warning_at: new Date().toISOString(),
-        last_warning_by: currentUser.username,
+      const res = await fetch('/api/admin/users/warn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminUserId: currentUser.$id, userId, message, severity }),
       });
-      await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
-        user_id: userId,
-        from_user_id: currentUser.$id,
-        type: 'SYSTEM',
-        title: severity === 'FINAL' ? 'Final Warning' : 'Account Warning',
-        content: message,
-        message: message,
-        is_read: false,
-      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Warning failed');
+      if (typeof data?.warning_count === 'number') {
+        setAllUsers(prev => prev.map(u => u.$id === userId ? { ...u, warningCount: data.warning_count } : u));
+      }
     } catch (err: any) {
+      setAllUsers(prev => prev.map(u => u.$id === userId ? { ...u, warningCount: targetUser?.warningCount || 0 } : u));
       logAppwriteError('warnUser', err);
       toast({ variant: 'destructive', title: 'Warning Failed', description: formatErrorDescription(err, currentUser?.role) });
     }
@@ -4408,8 +4404,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
     adminDeleteProduct: async (productId: string) => {
       if (!currentUser) return;
       try {
-        const { deleteProduct } = await import('@/lib/marketplace');
-        await deleteProduct(productId);
+        const res = await fetch('/api/admin/products/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminUserId: currentUser.$id, productId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || 'Delete failed');
         toast({ title: 'Product Deleted', description: 'Listing removed from the marketplace.' });
       } catch (err: any) {
         logAppwriteError('adminDeleteProduct', err);
