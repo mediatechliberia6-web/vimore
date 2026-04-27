@@ -62,30 +62,20 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
         .map(cl => ({ ...cl, isGroup: true }))
     ];
 
-    // 2. Partition by Friendship and Acceptance
-    let requests: any[] = [];
+    // Open inbox: every conversation (friends, clusters, strangers with messages)
+    // appears in the main list. No friend gate, no requests partition.
+    const requests: any[] = [];
+    const seen = new Set<string>();
     let mains: any[] = [];
 
     allItems.forEach(item => {
       const id = (item as any).username || (item as any).$id;
-      const hasMessages = chatMessages[id] && chatMessages[id].length > 0;
-      
-      if (item.isGroup) {
-        mains.push(item);
-        return;
-      }
-
-      const isFriendNode = friendUsernames.has(id);
-      const isAccepted = acceptedStrangerUsernames.has(id);
-
-      if (isFriendNode || isAccepted) {
-        mains.push(item);
-      } else if (hasMessages) {
-        requests.push(item);
-      }
+      if (seen.has(id)) return;
+      seen.add(id);
+      mains.push(item);
     });
 
-    let list = showRequests ? requests : mains;
+    let list = mains;
 
     if (activeFilter === "clusters") {
       list = list.filter(item => item.isGroup);
@@ -150,38 +140,23 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
           </Link>
           <div className="space-y-0.5">
             <h2 className="text-2xl font-black italic uppercase tracking-tighter">
-              {showRequests ? t('chat_requests') : t('nav_messages')}
+              {t('nav_messages')}
             </h2>
             <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">
-              {showRequests ? `${requestCount} PENDING PULSES` : `${(connections?.length || 0) + (clusters?.length || 0)} ${t('chat_nodes_online')}`}
+              {`${(connections?.length || 0) + (clusters?.length || 0)} ${t('chat_nodes_online')}`}
             </span>
           </div>
         </div>
         <div className="flex items-center gap-1">
-          {requestCount > 0 && (
-            <button 
-              onClick={handleToggleRequests}
-              className={cn(
-                "relative h-9 px-4 rounded-xl flex items-center justify-center gap-2 transition-all font-black text-[9px] uppercase tracking-widest border",
-                showRequests ? "bg-primary text-white border-primary" : "bg-primary/5 text-primary border-primary/10 hover:bg-primary/10"
-              )}
-            >
-              <Mail className="h-3.5 w-3.5" />
-              {showRequests ? "Show Main" : t('chat_requests')}
-              {!showRequests && <div className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-red-500 rounded-full animate-pulse border-2 border-white dark:border-card" />}
-            </button>
-          )}
-          {!showRequests && (
-            <CreateClusterModal>
-              <button className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-all active:scale-90" title={t('chat_materialize_cluster')}><Layers className="h-4 w-4" /></button>
-            </CreateClusterModal>
-          )}
+          <CreateClusterModal>
+            <button className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-all active:scale-90" title={t('chat_materialize_cluster')}><Layers className="h-4 w-4" /></button>
+          </CreateClusterModal>
         </div>
       </div>
 
       <div className="p-4 space-y-4">
         <div className="relative group"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary" /><Input placeholder={t('chat_query_nodes')} className="pl-10 h-10 bg-secondary/30 border-none rounded-xl text-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div>
-        {!showRequests && (
+        {true && (
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
             <Button variant={activeFilter === "all" ? "default" : "secondary"} size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest" onClick={() => { triggerHaptic(5); setActiveFilter("all"); }}>{t('ui_all')}</Button>
             <Button variant={activeFilter === "clusters" ? "default" : "secondary"} size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest gap-1.5" onClick={() => { triggerHaptic(5); setActiveFilter("clusters"); }}><Layers className="h-3 w-3" /> {t('admin_clusters')}</Button>

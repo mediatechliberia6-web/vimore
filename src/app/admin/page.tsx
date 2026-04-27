@@ -170,7 +170,7 @@ interface TreasurySnapshot {
 type EconomySubTab = "outbound" | "inbound";
 
 export default function AdminDashboard() {
-  const { withdrawalHistory, paymentRequests, reports, tickets, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus, updateUserIdentity, handleReportAction, handleTicketAction, replyToTicket, submitTicket, uploadMedia, isLoading, allUsers, refreshAllUsers, banUser, suspendUser, warnUser, sendAdminBroadcast, broadcastHistory } = usePosts();
+  const { withdrawalHistory, paymentRequests, reports, tickets, processWithdrawal, approvePaymentRequest, rejectPaymentRequest, triggerHaptic, posts, settings, updateSettings, auditLogs, addAuditLog, adStats, intelligenceMetrics, connections, campaigns, currentUser, staff, promoteUser, demoteUser, refreshAdminData, addCampaign, deleteCampaign, toggleCampaignStatus, updateUserIdentity, handleReportAction, handleTicketAction, replyToTicket, submitTicket, uploadMedia, isLoading, allUsers, refreshAllUsers, banUser, suspendUser, warnUser, sendAdminBroadcast, broadcastHistory, adminDeleteProduct } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
   const {
@@ -1403,25 +1403,84 @@ export default function AdminDashboard() {
               <Card className="bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
-                    <thead><tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20"><th className="px-8 py-4">Reported Node</th><th className="px-8 py-4">Reason</th><th className="px-8 py-4">Details</th><th className="px-8 py-4">Reporter</th><th className="px-8 py-4">Status</th><th className="px-8 py-4 text-right">Action</th></tr></thead>
+                    <thead><tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20"><th className="px-8 py-4">Type</th><th className="px-8 py-4">Reported</th><th className="px-8 py-4">Reason</th><th className="px-8 py-4">Details</th><th className="px-8 py-4">Reporter</th><th className="px-8 py-4">Status</th><th className="px-8 py-4 text-right">Action</th></tr></thead>
                     <tbody className="divide-y divide-border">
-                      {reports.length > 0 ? reports.map((r: any) => (
-                        <tr key={r.$id} className="hover:bg-secondary/10 transition-colors">
-                          <td className="px-8 py-5"><span className="font-bold text-sm">@{r.reportedUsername}</span></td>
-                          <td className="px-8 py-5"><Badge variant="outline" className={cn("text-[9px] font-black uppercase", r.reason === 'Spam' ? "border-amber-400/30 text-amber-400" : r.reason === 'Harassment' ? "border-destructive/30 text-destructive" : r.reason === 'Hate Speech' ? "border-red-600/30 text-red-500" : "border-border text-muted-foreground")}>{r.reason}</Badge></td>
-                          <td className="px-8 py-5"><p className="text-xs text-muted-foreground max-w-[200px] line-clamp-2">{r.details}</p></td>
-                          <td className="px-8 py-5"><span className="text-xs font-bold text-muted-foreground">@{r.reporterUsername}</span></td>
-                          <td className="px-8 py-5"><Badge className={cn("text-[9px] font-black uppercase border-none", r.status === 'PENDING' ? "bg-amber-400/10 text-amber-400" : "bg-green-500/10 text-green-500")}>{r.status}</Badge></td>
-                          <td className="px-8 py-5 text-right">
-                            {r.status === 'PENDING' && (
-                              <div className="flex items-center justify-end gap-2">
-                                <Button size="sm" className="h-8 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white text-[9px] font-black uppercase" onClick={() => { triggerHaptic(30); handleReportAction(r.$id, 'RESOLVED'); addAuditLog('REPORT_RESOLVED', `Report ${r.$id} against @${r.reportedUsername} marked resolved`); toast({ title: "Report Resolved" }); }}><Check className="h-3 w-3 mr-1" />Resolve</Button>
-                                <Button size="sm" className="h-8 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white text-[9px] font-black uppercase" onClick={() => { triggerHaptic(80); handleReportAction(r.$id, 'DISMISSED'); addAuditLog('REPORT_DISMISSED', `Report ${r.$id} against @${r.reportedUsername} dismissed`); toast({ title: "Report Dismissed" }); }}><X className="h-3 w-3 mr-1" />Dismiss</Button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      )) : (<tr><td colSpan={6} className="py-24 text-center opacity-40 italic text-xs uppercase">Safety shields nominal — no reports</td></tr>)}
+                      {reports.length > 0 ? reports.map((r: any) => {
+                        const isProduct = r.target_type === 'PRODUCT';
+                        let meta: any = null;
+                        if (r.target_meta) { try { meta = typeof r.target_meta === 'string' ? JSON.parse(r.target_meta) : r.target_meta; } catch { meta = null; } }
+                        const reporter = allUsers.find(u => u.$id === r.reporter_id);
+                        const reportedUser = isProduct
+                          ? allUsers.find(u => u.$id === meta?.sellerId || u.username === meta?.sellerUsername)
+                          : allUsers.find(u => u.$id === r.target_id || u.username === r.target_id);
+                        const reportedLabel = isProduct
+                          ? (meta?.productName || 'Product')
+                          : (reportedUser?.username || r.reportedUsername || r.target_id);
+                        const reporterLabel = reporter?.username || r.reporterUsername || r.reporter_id;
+                        return (
+                          <tr key={r.$id} className="hover:bg-secondary/10 transition-colors">
+                            <td className="px-8 py-5">
+                              <Badge className={cn("text-[9px] font-black uppercase border-none", isProduct ? "bg-primary/10 text-primary" : "bg-amber-400/10 text-amber-400")}>
+                                {isProduct ? 'PRODUCT' : (r.target_type || 'USER')}
+                              </Badge>
+                            </td>
+                            <td className="px-8 py-5">
+                              {isProduct ? (
+                                <div className="flex items-center gap-2">
+                                  {meta?.thumbnailFileId && (
+                                    <img src={`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1'}/storage/buckets/Marketplace_Images/files/${meta.thumbnailFileId}/preview?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123'}&width=64&height=64&quality=60&output=webp`} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="font-bold text-sm truncate max-w-[180px]">{reportedLabel}</p>
+                                    {meta?.sellerUsername && <p className="text-[10px] text-muted-foreground">@{meta.sellerUsername}</p>}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="font-bold text-sm">@{reportedLabel}</span>
+                              )}
+                            </td>
+                            <td className="px-8 py-5"><Badge variant="outline" className={cn("text-[9px] font-black uppercase", r.reason === 'Spam' ? "border-amber-400/30 text-amber-400" : r.reason === 'Harassment' ? "border-destructive/30 text-destructive" : "border-border text-muted-foreground")}>{r.reason}</Badge></td>
+                            <td className="px-8 py-5"><p className="text-xs text-muted-foreground max-w-[200px] line-clamp-2">{r.details}</p></td>
+                            <td className="px-8 py-5"><span className="text-xs font-bold text-muted-foreground">@{reporterLabel}</span></td>
+                            <td className="px-8 py-5"><Badge className={cn("text-[9px] font-black uppercase border-none", r.status === 'PENDING' ? "bg-amber-400/10 text-amber-400" : r.status === 'RESOLVED' ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground")}>{r.status}</Badge></td>
+                            <td className="px-8 py-5 text-right">
+                              {r.status === 'PENDING' && (
+                                <div className="flex flex-wrap items-center justify-end gap-1.5">
+                                  {isProduct && (
+                                    <>
+                                      <Button asChild size="sm" variant="ghost" className="h-8 rounded-xl text-[9px] font-black uppercase">
+                                        <a href={`/marketplace/${r.target_id}`} target="_blank" rel="noopener"><Eye className="h-3 w-3 mr-1" />View</a>
+                                      </Button>
+                                      <Button size="sm" className="h-8 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white text-[9px] font-black uppercase" onClick={async () => {
+                                        triggerHaptic(80);
+                                        if (!confirm(`Delete product "${reportedLabel}"? This cannot be undone.`)) return;
+                                        try {
+                                          await adminDeleteProduct(r.target_id);
+                                          await handleReportAction(r.$id, 'RESOLVED');
+                                          addAuditLog('PRODUCT_DELETED_BY_ADMIN', `Product ${r.target_id} ("${reportedLabel}") deleted from report ${r.$id}`);
+                                        } catch { /* toast already shown */ }
+                                      }}><Trash2 className="h-3 w-3 mr-1" />Delete</Button>
+                                      {meta?.sellerId && (
+                                        <Button size="sm" className="h-8 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white text-[9px] font-black uppercase" onClick={async () => {
+                                          triggerHaptic(50);
+                                          const severity = confirm('Send FINAL warning?\n\nOK = FINAL warning\nCancel = SOFT warning') ? 'FINAL' : 'SOFT';
+                                          const msg = `Your product "${reportedLabel}" was reported for: ${r.reason}. Please review ViMore Marketplace policies.`;
+                                          await warnUser(meta.sellerId, msg, severity as 'SOFT' | 'FINAL');
+                                          await handleReportAction(r.$id, 'RESOLVED');
+                                          addAuditLog('USER_WARNED_FROM_PRODUCT_REPORT', `Warned @${meta.sellerUsername} (${severity}) for product ${r.target_id}`);
+                                          toast({ title: `${severity} warning sent` });
+                                        }}><AlertTriangle className="h-3 w-3 mr-1" />Warn</Button>
+                                      )}
+                                    </>
+                                  )}
+                                  <Button size="sm" className="h-8 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white text-[9px] font-black uppercase" onClick={() => { triggerHaptic(30); handleReportAction(r.$id, 'RESOLVED'); addAuditLog(isProduct ? 'PRODUCT_REPORT_RESOLVED' : 'REPORT_RESOLVED', `Report ${r.$id} marked resolved`); toast({ title: "Report Resolved" }); }}><Check className="h-3 w-3 mr-1" />Resolve</Button>
+                                  <Button size="sm" className="h-8 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white text-[9px] font-black uppercase" onClick={() => { triggerHaptic(80); handleReportAction(r.$id, 'DISMISSED'); addAuditLog(isProduct ? 'PRODUCT_REPORT_DISMISSED' : 'REPORT_DISMISSED', `Report ${r.$id} dismissed`); toast({ title: "Report Dismissed" }); }}><X className="h-3 w-3 mr-1" />Dismiss</Button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      }) : (<tr><td colSpan={7} className="py-24 text-center opacity-40 italic text-xs uppercase">Safety shields nominal — no reports</td></tr>)}
                     </tbody>
                   </table>
                 </div>

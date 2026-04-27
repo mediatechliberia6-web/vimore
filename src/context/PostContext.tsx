@@ -375,6 +375,7 @@ interface PostContextType {
   unblockUser: (username: string) => Promise<void>;
   blockedUsernames: string[];
   submitReport: (data: { reportedUsername: string; reason: string; details: string }) => Promise<void>;
+  adminDeleteProduct: (productId: string) => Promise<void>;
   fetchAllUsersForDiscovery: () => Promise<User[]>;
   allUsers: User[];
   refreshAllUsers: () => Promise<void>;
@@ -874,6 +875,33 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (friendsReceivedResult.status === 'fulfilled') {
         friendsReceivedResult.value.documents.forEach((f: any) => { if (f.from_user_id) allUserIds.add(f.from_user_id); });
       }
+
+      // Open inbox: also include anyone who has ever exchanged DMs with this user,
+      // so non-friends still show up in the conversation list.
+      try {
+        const [sentMsgs, recvMsgs] = await Promise.allSettled([
+          databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
+            Query.equal('sender_id', userId),
+            Query.orderDesc('$createdAt'),
+            Query.limit(500),
+          ]),
+          databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
+            Query.equal('receiver_id', userId),
+            Query.orderDesc('$createdAt'),
+            Query.limit(500),
+          ]),
+        ]);
+        if (sentMsgs.status === 'fulfilled') {
+          sentMsgs.value.documents.forEach((m: any) => {
+            if (m.receiver_id && m.receiver_id !== userId) allUserIds.add(m.receiver_id);
+          });
+        }
+        if (recvMsgs.status === 'fulfilled') {
+          recvMsgs.value.documents.forEach((m: any) => {
+            if (m.sender_id && m.sender_id !== userId) allUserIds.add(m.sender_id);
+          });
+        }
+      } catch { /* ignore — friends/follows already loaded */ }
 
       const userIdsArr = Array.from(allUserIds).filter(id => id !== userId);
       if (userIdsArr.length === 0) { setConnectionsState([]); return; }
@@ -4346,6 +4374,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
           await databases.deleteDocument(DATABASE_ID, COL.BLOCKED_USERS, doc.$id);
         }
       } catch { /* keep optimistic */ }
+    },
+    adminDeleteProduct: async (productId: string) => {
+      if (!currentUser) return;
+      try {
+        const { deleteProduct } = await import('@/lib/marketplace');
+        await deleteProduct(productId);
+        toast({ title: 'Product Deleted', description: 'Listing removed from the marketplace.' });
+      } catch (err: any) {
+        logAppwriteError('adminDeleteProduct', err);
+        toast({ variant: 'destructive', title: 'Could not delete product', description: err?.message || 'Try again.' });
+        throw err;
+      }
     },
     submitReport: async (data: { reportedUsername: string; reason: string; details: string }) => {
       if (!currentUser) return;

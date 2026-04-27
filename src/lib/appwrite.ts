@@ -45,6 +45,7 @@ export const COL = {
   EVENTS: 'events',
   TICKETS: 'tickets',
   CHAT_READ_RECEIPTS: 'chat_read_receipts',
+  PRODUCTS: 'Products',
 } as const;
 
 export const BUCKET = {
@@ -59,6 +60,7 @@ export const BUCKET = {
   PAYMENT_SCREENSHOTS: 'payment_screenshots',
   MESSAGE_MEDIA: 'message_media',
   EVENT_FLYERS: 'event_flyers',
+  MARKETPLACE_IMAGES: 'Marketplace_Images',
 } as const;
 
 export const BUCKET_IMAGES = BUCKET.POST_MEDIA;

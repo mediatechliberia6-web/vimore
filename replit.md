@@ -43,6 +43,35 @@ ViMore is a Next.js 15 social networking and creator platform with a violet (#99
 | `/profile` | Current user profile |
 | `/settings` | App settings |
 | `/tickets` | ViMore Ticket System — browse events & manage user tickets |
+| `/marketplace` | Marketplace — browse all products, data-lite grid |
+| `/marketplace/new` | Seller form — list a new product (max 2 photos) |
+| `/marketplace/[productId]` | Product detail — photos, description, contact buttons |
+| `/chat/[userId]` | Open-DM shim that redirects to `/messages?with=USERID` |
+
+## Marketplace
+**Goal**: Data-lite product listings with three contact paths (WhatsApp, in-app ViMore Chat, Direct Call).
+
+**Listing fields**: name, price (LRD or USD), location, description, phone (E.164), up to 2 photos.
+
+**Photos**: client-side compressed to ≤400 KB / 1280 px before upload to bucket `Marketplace_Images` (jpg/png/webp, file-level security ON). Listing thumbnails use Appwrite preview transform (`width=400&quality=60&output=webp`) to stay under ~25 KB.
+
+**Permissions**: Each Products document is created with read=Any, update/delete=owner + `Permission.team('admin')` (team ID from `NEXT_PUBLIC_ADMIN_TEAM_ID`, default `admin`). Owner-only delete in UI; admins can delete from the Reports moderation queue.
+
+**Reports**: Reuses the existing `reports` collection with `target_type='PRODUCT'` and a JSON `target_meta` string (`{ productName, sellerUsername, sellerId, thumbnailFileId }`). Surfaces in `/admin → Safety/Reports` with View / Delete Product / Warn Seller (SOFT or FINAL) / Resolve / Dismiss actions.
+
+**Open Messaging**: The friend/request gate has been removed from `chat-list.tsx`. Strangers can DM anyone and the conversation appears directly in the recipient's main inbox (Messages collection peers are merged into the connections list in `PostContext.loadConnections`).
+
+### Manual Appwrite Setup Required
+Before Marketplace works, create in the Appwrite console (no custom indexes — list endpoints fetch the whole collection and filter client-side):
+1. **Team** named `admin` (members = your admin users) — used for `Permission.team('admin')` moderation.
+2. **Bucket** `Marketplace_Images` — max 400 KB, allowed jpg/png/webp, file security ON.
+3. **Collection** `Products` (security: enabled) with attributes:
+   - `sellerId` (String 50, required), `sellerName` (String 80), `sellerUsername` (String 50), `sellerAvatarFileId` (String 50)
+   - `name` (String 120, required), `description` (String 2000), `location` (String 120)
+   - `priceAmount` (Double, required), `priceCurrency` (Enum: LRD, USD, required)
+   - `phoneNumber` (String 20, required), `imageFileIds` (String 50, array, max 2)
+   - `status` (Enum: active, sold, paused, default `active`)
+4. **Reports** collection — add `target_meta` (String 500, optional) attribute.
 
 ## ViMore Ticket System
 **User page** (`/tickets`): Two tabs — Find Events (sorted by highest price, instant search) and My Tickets. Users can buy tickets for themselves or gift them to another user. Uses diamond currency. Tickets have 15-character unique serial numbers and display QR codes generated on-the-fly. Expired tickets are auto-deleted. 6-stage reminder notifications sent for upcoming events.
