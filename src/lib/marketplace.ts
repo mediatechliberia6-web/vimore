@@ -20,7 +20,12 @@ export interface ProductDoc {
   phoneNumber: string;
   imageFileIds: string[];
   status: ProductStatus;
+  featuredUntil?: string | null;
 }
+
+export const BOOST_DAYS_PER_DIAMOND = 5;
+export const BOOST_MIN_DIAMONDS = 2;
+export const BOOST_MAX_DIAMONDS = 10;
 
 export interface CreateProductInput {
   sellerId: string;
@@ -120,7 +125,26 @@ function mapProduct(doc: any): ProductDoc {
     phoneNumber: doc.phoneNumber || '',
     imageFileIds: Array.isArray(doc.imageFileIds) ? doc.imageFileIds : [],
     status: (doc.status || 'active') as ProductStatus,
+    featuredUntil: doc.featuredUntil || null,
   };
+}
+
+export function isFeatured(p: ProductDoc): boolean {
+  if (!p.featuredUntil) return false;
+  return new Date(p.featuredUntil).getTime() > Date.now();
+}
+
+export async function boostProductFeatured(productId: string, diamonds: number): Promise<string> {
+  if (diamonds < BOOST_MIN_DIAMONDS || diamonds > BOOST_MAX_DIAMONDS) {
+    throw new Error(`Boost must be between ${BOOST_MIN_DIAMONDS} and ${BOOST_MAX_DIAMONDS} Diamonds.`);
+  }
+  const days = diamonds * BOOST_DAYS_PER_DIAMOND;
+  const existing = await getProduct(productId);
+  const now = Date.now();
+  const startMs = existing?.featuredUntil ? Math.max(now, new Date(existing.featuredUntil).getTime()) : now;
+  const newUntil = new Date(startMs + days * 24 * 60 * 60 * 1000).toISOString();
+  await databases.updateDocument(DATABASE_ID, COL.PRODUCTS, productId, { featuredUntil: newUntil });
+  return newUntil;
 }
 
 export async function listProducts(opts: { limit?: number; cursorAfter?: string } = {}): Promise<ProductDoc[]> {

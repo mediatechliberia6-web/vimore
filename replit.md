@@ -61,6 +61,10 @@ ViMore is a Next.js 15 social networking and creator platform with a violet (#99
 
 **Open Messaging**: The friend/request gate has been removed from `chat-list.tsx`. Strangers can DM anyone and the conversation appears directly in the recipient's main inbox (Messages collection peers are merged into the connections list in `PostContext.loadConnections`).
 
+**Featured Listing Boost**: Sellers can promote a listing to the top of the marketplace using Diamonds. Pricing: **2 Diamonds = 10 days** (5 days per Diamond), min 2D, max 10D (= 50 days). Stacks on top of any existing boost. Featured products get a cyan "FEATURED" badge and float above non-featured ones in both the marketplace grid and profile listings tab. Implemented via `boostMarketplaceListing` in `PostContext` (deducts diamonds, writes a `MARKETPLACE_BOOST` transaction) and `boostProductFeatured` in `lib/marketplace.ts` (updates the `featuredUntil` datetime on the Products doc).
+
+**Safety Warning**: A persistent amber banner on `/marketplace` and on every product detail page warns buyers to **inspect and receive the product before paying** — ViMore is not responsible for off-platform transactions.
+
 ### Manual Appwrite Setup Required
 Before Marketplace works, create in the Appwrite console (no custom indexes — list endpoints fetch the whole collection and filter client-side):
 1. **Team** named `admin` (members = your admin users) — used for `Permission.team('admin')` moderation.
@@ -71,6 +75,7 @@ Before Marketplace works, create in the Appwrite console (no custom indexes — 
    - `priceAmount` (Double, required), `priceCurrency` (Enum: LRD, USD, required)
    - `phoneNumber` (String 20, required), `imageFileIds` (String 50, array, max 2)
    - `status` (Enum: active, sold, paused, default `active`)
+   - `featuredUntil` (Datetime, optional) — used by the Featured Listing Boost feature
 4. **Reports** collection — add `target_meta` (String 500, optional) attribute.
 
 ## ViMore Ticket System

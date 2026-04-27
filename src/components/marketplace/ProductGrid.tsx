@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Loader2, ShoppingBag, SlidersHorizontal, X } from "lucide-react";
-import { listProducts, ProductDoc, ProductCurrency } from "@/lib/marketplace";
+import { listProducts, ProductDoc, ProductCurrency, isFeatured } from "@/lib/marketplace";
 import { ProductCard } from "./ProductCard";
 
 const CACHE_KEY = "vimore_marketplace_cache_v1";
@@ -73,6 +73,8 @@ export function ProductGrid() {
     } else {
       sorted.sort((a, b) => new Date(b.$createdAt).getTime() - new Date(a.$createdAt).getTime());
     }
+    // Featured listings always float to the top
+    sorted.sort((a, b) => Number(isFeatured(b)) - Number(isFeatured(a)));
     return sorted;
   }, [products, search, currencyFilter, minPrice, maxPrice, sortKey]);
 

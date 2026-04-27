@@ -13,8 +13,9 @@ import { ContactButtons } from "@/components/marketplace/ContactButtons";
 import { ReportProductDialog } from "@/components/marketplace/ReportProductDialog";
 import { usePosts } from "@/context/PostContext";
 import { useToast } from "@/hooks/use-toast";
-import { ProductDoc, getProduct, deleteProduct, updateProductStatus, getProductImageUrl, formatPrice } from "@/lib/marketplace";
-import { ArrowLeft, MapPin, Trash2, Flag, Loader2, Calendar, CheckCircle2, RotateCcw } from "lucide-react";
+import { ProductDoc, getProduct, deleteProduct, updateProductStatus, getProductImageUrl, formatPrice, isFeatured } from "@/lib/marketplace";
+import { BoostDialog } from "@/components/marketplace/BoostDialog";
+import { ArrowLeft, MapPin, Trash2, Flag, Loader2, Calendar, CheckCircle2, RotateCcw, Rocket, Sparkles, ShieldAlert } from "lucide-react";
 
 export default function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>();
@@ -100,6 +101,14 @@ export default function ProductDetailPage() {
                 </ReportProductDialog>
               )}
               {isOwner && (
+                <BoostDialog product={product} onBoosted={(newUntil) => setProduct(p => p ? { ...p, featuredUntil: newUntil } : p)}>
+                  <Button variant="ghost" size="sm" className="rounded-xl gap-1.5 text-cyan-500 hover:bg-cyan-500/10">
+                    {isFeatured(product) ? <Sparkles className="h-4 w-4" /> : <Rocket className="h-4 w-4" />}
+                    <span className="text-[10px] font-black uppercase tracking-widest">{isFeatured(product) ? 'Featured' : 'Boost'}</span>
+                  </Button>
+                </BoostDialog>
+              )}
+              {isOwner && (
                 <Button variant="ghost" size="sm" className="rounded-xl gap-1.5" onClick={handleToggleStatus} disabled={togglingStatus}>
                   {togglingStatus ? <Loader2 className="h-4 w-4 animate-spin" /> : product.status === 'sold' ? <RotateCcw className="h-4 w-4 text-primary" /> : <CheckCircle2 className="h-4 w-4 text-green-500" />}
                   <span className="text-[10px] font-black uppercase tracking-widest">{product.status === 'sold' ? 'Reactivate' : 'Mark Sold'}</span>
@@ -141,6 +150,11 @@ export default function ProductDetailPage() {
             {product.status === 'sold' && (
               <div className="absolute top-4 left-4 bg-destructive text-destructive-foreground px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest shadow-lg">Sold</div>
             )}
+            {product.status === 'active' && isFeatured(product) && (
+              <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-cyan-500 text-white px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest shadow-lg">
+                <Sparkles className="h-3 w-3" /> Featured
+              </div>
+            )}
           </div>
 
           {product.imageFileIds.length > 1 && (
@@ -181,9 +195,18 @@ export default function ProductDetailPage() {
             </div>
 
             {!isOwner && (
-              <div className="sticky bottom-4 bg-background/95 backdrop-blur rounded-2xl p-3 border border-border/40 shadow-lg">
-                <ContactButtons product={product} />
-              </div>
+              <>
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 flex items-start gap-2.5">
+                  <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">Receive the product before paying</p>
+                    <p className="text-[11px] text-amber-900/80 dark:text-amber-100/70 leading-snug mt-0.5">Inspect in person and confirm before sending money. ViMore is not responsible for off-platform transactions.</p>
+                  </div>
+                </div>
+                <div className="sticky bottom-4 bg-background/95 backdrop-blur rounded-2xl p-3 border border-border/40 shadow-lg">
+                  <ContactButtons product={product} />
+                </div>
+              </>
             )}
           </div>
         </main>

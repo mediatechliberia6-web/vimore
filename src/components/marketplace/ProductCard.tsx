@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { MapPin, Trash2, Flag, Loader2 } from "lucide-react";
+import { MapPin, Trash2, Flag, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { usePosts } from "@/context/PostContext";
-import { ProductDoc, deleteProduct, getProductImageUrl, formatPrice } from "@/lib/marketplace";
+import { ProductDoc, deleteProduct, getProductImageUrl, formatPrice, isFeatured } from "@/lib/marketplace";
 import { ContactButtons } from "./ContactButtons";
 import { ReportProductDialog } from "./ReportProductDialog";
 
@@ -57,6 +57,11 @@ export function ProductCard({ product, onDeleted }: Props) {
         )}
         {product.status !== 'active' && (
           <span className="absolute top-2 left-2 bg-black/70 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full">{product.status}</span>
+        )}
+        {product.status === 'active' && isFeatured(product) && (
+          <span className="absolute top-2 left-2 flex items-center gap-1 bg-cyan-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full shadow-md">
+            <Sparkles className="h-2.5 w-2.5" /> Featured
+          </span>
         )}
       </Link>
 

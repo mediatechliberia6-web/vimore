@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ShoppingBag, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "./ProductCard";
-import { listProducts, ProductDoc } from "@/lib/marketplace";
+import { listProducts, ProductDoc, isFeatured } from "@/lib/marketplace";
 
 interface Props {
   sellerId: string;
@@ -38,8 +38,8 @@ export function UserListings({ sellerId, isOwner }: Props) {
 
   const filtered = useMemo(() => {
     if (!products) return [];
-    if (filter === "all") return products;
-    return products.filter(p => p.status === filter);
+    const list = filter === "all" ? products : products.filter(p => p.status === filter);
+    return [...list].sort((a, b) => Number(isFeatured(b)) - Number(isFeatured(a)));
   }, [products, filter]);
 
   const counts = useMemo(() => {

@@ -376,6 +376,7 @@ interface PostContextType {
   blockedUsernames: string[];
   submitReport: (data: { reportedUsername: string; reason: string; details: string }) => Promise<void>;
   adminDeleteProduct: (productId: string) => Promise<void>;
+  boostMarketplaceListing: (productId: string, diamonds: number) => Promise<string>;
   fetchAllUsersForDiscovery: () => Promise<User[]>;
   allUsers: User[];
   refreshAllUsers: () => Promise<void>;
@@ -4374,6 +4375,35 @@ export function PostProvider({ children }: { children: ReactNode }) {
           await databases.deleteDocument(DATABASE_ID, COL.BLOCKED_USERS, doc.$id);
         }
       } catch { /* keep optimistic */ }
+    },
+    boostMarketplaceListing: async (productId: string, diamonds: number) => {
+      if (!currentUser) throw new Error('Not signed in');
+      const balance = currentUser.diamondBalance || 0;
+      if (balance < diamonds) throw new Error(`You need ${diamonds} Diamonds but only have ${balance}.`);
+      try {
+        const { boostProductFeatured, BOOST_DAYS_PER_DIAMOND } = await import('@/lib/marketplace');
+        const newUntil = await boostProductFeatured(productId, diamonds);
+        const days = diamonds * BOOST_DAYS_PER_DIAMOND;
+        await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { diamond_balance: balance - diamonds });
+        setCurrentUserState(prev => prev ? { ...prev, diamondBalance: balance - diamonds } : null);
+        try {
+          await databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
+            user_id: currentUser.$id,
+            type: 'MARKETPLACE_BOOST',
+            currency: 'DIAMOND',
+            amount: -diamonds,
+            description: `Featured listing boost — ${days} days`,
+            reference_id: productId,
+            status: 'COMPLETED',
+          });
+        } catch { /* non-fatal */ }
+        toast({ title: 'Listing Featured!', description: `Promoted for ${days} days.` });
+        return newUntil;
+      } catch (err: any) {
+        logAppwriteError('boostMarketplaceListing', err);
+        toast({ variant: 'destructive', title: 'Boost failed', description: err?.message || 'Try again.' });
+        throw err;
+      }
     },
     adminDeleteProduct: async (productId: string) => {
       if (!currentUser) return;
