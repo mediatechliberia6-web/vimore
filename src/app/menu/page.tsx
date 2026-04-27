@@ -35,7 +35,8 @@ import {
   X,
   Megaphone,
   Zap,
-  Ticket
+  Ticket,
+  ShoppingBag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -107,6 +108,7 @@ export default function MenuPage() {
     { label: t('menu_currency_hub'), icon: Coins, color: "text-amber-500", bg: "bg-amber-50", href: "/currency" },
     { label: t('menu_earnings_hub'), icon: TrendingUp, color: "text-green-500", bg: "bg-green-50", href: "/earnings" },
     { label: "Event Tickets", icon: Ticket, color: "text-orange-500", bg: "bg-orange-50", href: "/tickets", dotOnly: true },
+    { label: "Marketplace", icon: ShoppingBag, color: "text-fuchsia-500", bg: "bg-fuchsia-50", href: "/marketplace" },
     { label: t('menu_star_network'), icon: Star, color: "text-yellow-500", bg: "bg-yellow-50", href: "/referrals" },
     { label: t('menu_community'), icon: Users, color: "text-emerald-500", bg: "bg-emerald-50", href: "/friends", badge: pendingFriendRequests },
     { label: t('menu_messages'), icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-50", href: "/messages", badge: unseenMsgCount },

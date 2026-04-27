@@ -188,6 +188,10 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
   }
 }
 
+export async function updateProductStatus(productId: string, status: ProductStatus): Promise<void> {
+  await databases.updateDocument(DATABASE_ID, COL.PRODUCTS, productId, { status });
+}
+
 export async function deleteProduct(productId: string): Promise<void> {
   const doc = await getProduct(productId);
   if (!doc) return;

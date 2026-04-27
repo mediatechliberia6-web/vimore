@@ -13,8 +13,8 @@ import { ContactButtons } from "@/components/marketplace/ContactButtons";
 import { ReportProductDialog } from "@/components/marketplace/ReportProductDialog";
 import { usePosts } from "@/context/PostContext";
 import { useToast } from "@/hooks/use-toast";
-import { ProductDoc, getProduct, deleteProduct, getProductImageUrl, formatPrice } from "@/lib/marketplace";
-import { ArrowLeft, MapPin, Trash2, Flag, Loader2, Calendar } from "lucide-react";
+import { ProductDoc, getProduct, deleteProduct, updateProductStatus, getProductImageUrl, formatPrice } from "@/lib/marketplace";
+import { ArrowLeft, MapPin, Trash2, Flag, Loader2, Calendar, CheckCircle2, RotateCcw } from "lucide-react";
 
 export default function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>();
@@ -24,6 +24,7 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<ProductDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [togglingStatus, setTogglingStatus] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
 
   useEffect(() => {
@@ -50,6 +51,21 @@ export default function ProductDetailPage() {
   }
 
   const isOwner = currentUser?.$id === product.sellerId;
+
+  const handleToggleStatus = async () => {
+    if (!product) return;
+    setTogglingStatus(true);
+    const next = product.status === 'sold' ? 'active' : 'sold';
+    try {
+      await updateProductStatus(product.$id, next);
+      setProduct({ ...product, status: next });
+      toast({ title: next === 'sold' ? 'Marked as Sold' : 'Listing reactivated' });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Could not update', description: err?.message || 'Try again.' });
+    } finally {
+      setTogglingStatus(false);
+    }
+  };
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -84,6 +100,12 @@ export default function ProductDetailPage() {
                 </ReportProductDialog>
               )}
               {isOwner && (
+                <Button variant="ghost" size="sm" className="rounded-xl gap-1.5" onClick={handleToggleStatus} disabled={togglingStatus}>
+                  {togglingStatus ? <Loader2 className="h-4 w-4 animate-spin" /> : product.status === 'sold' ? <RotateCcw className="h-4 w-4 text-primary" /> : <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                  <span className="text-[10px] font-black uppercase tracking-widest">{product.status === 'sold' ? 'Reactivate' : 'Mark Sold'}</span>
+                </Button>
+              )}
+              {isOwner && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="ghost" size="sm" className="rounded-xl text-destructive hover:bg-destructive/10 gap-1.5" disabled={deleting}>
@@ -106,15 +128,18 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          <div className="aspect-square bg-secondary/40 rounded-3xl overflow-hidden mb-3">
+          <div className="relative aspect-square bg-secondary/40 rounded-3xl overflow-hidden mb-3">
             {product.imageFileIds[activeImg] ? (
               <img
                 src={getProductImageUrl(product.imageFileIds[activeImg], 'detail')}
                 alt={product.name}
-                className="w-full h-full object-cover"
+                className={`w-full h-full object-cover ${product.status === 'sold' ? 'grayscale opacity-70' : ''}`}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs uppercase tracking-widest">No Image</div>
+            )}
+            {product.status === 'sold' && (
+              <div className="absolute top-4 left-4 bg-destructive text-destructive-foreground px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest shadow-lg">Sold</div>
             )}
           </div>
 
