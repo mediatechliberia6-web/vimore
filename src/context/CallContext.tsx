@@ -197,27 +197,28 @@ export function CallProvider({ children }: { children: ReactNode }) {
       callerId: currentUser.$id,
     };
 
+    sync({
+      status: 'outgoing',
+      contact,
+      callType: type,
+      roomId,
+      incomingSignalId: null,
+      outgoingSignalId: null,
+      startedAt: null,
+    });
+
+    clearRingTimer();
+    ringTimerRef.current = setTimeout(() => { missedCall(); }, RING_TIMEOUT_MS);
+
     try {
       const doc = await createSignal('CALL_INCOMING', currentUser.$id, contact.$id, sigData);
       seenSignalIds.current.add(doc.$id);
-
-      sync({
-        status: 'outgoing',
-        contact,
-        callType: type,
-        roomId,
-        incomingSignalId: null,
-        outgoingSignalId: doc.$id,
-        startedAt: null,
-      });
-
-      clearRingTimer();
-      ringTimerRef.current = setTimeout(() => { missedCall(); }, RING_TIMEOUT_MS);
+      sync({ ...callStateRef.current, outgoingSignalId: doc.$id });
     } catch (err: any) {
-      console.error('[Call] Failed to initiate call:', err);
+      console.error('[Call] Signal failed — call may not connect:', err);
       toast({
-        title: 'Call failed',
-        description: err?.message || 'Could not connect. Please try again.',
+        title: 'Could not reach the other party',
+        description: 'Tap cancel and try again.',
         variant: 'destructive',
       });
     }
