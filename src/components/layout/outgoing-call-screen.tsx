@@ -1,9 +1,36 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PhoneOff, Video, Phone, MicOff } from 'lucide-react';
+import { PhoneOff, Video, Phone } from 'lucide-react';
 import { useCall } from '@/context/CallContext';
+
+function useRingback(active: boolean) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (!audioRef.current) {
+      const audio = new Audio('/sounds/ringtone.wav');
+      audio.loop = true;
+      audio.volume = 0.6;
+      audioRef.current = audio;
+    }
+
+    if (active) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {});
+    } else {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+
+    return () => {
+      audioRef.current?.pause();
+    };
+  }, [active]);
+}
 
 function useElapsedTimer(active: boolean) {
   const [elapsed, setElapsed] = useState(0);
@@ -23,6 +50,8 @@ export function OutgoingCallScreen() {
   const isVisible = callState.status === 'outgoing';
   const elapsed = useElapsedTimer(isVisible);
 
+  useRingback(isVisible);
+
   if (!isVisible || !callState.contact) return null;
 
   const { contact, callType } = callState;
@@ -36,11 +65,9 @@ export function OutgoingCallScreen() {
       </div>
 
       <div className="relative flex-1 flex flex-col items-center justify-center gap-8 px-8">
-        <div className="flex flex-col items-center gap-2">
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-400">
-            {isVideo ? 'Video' : 'Voice'} Call
-          </span>
-        </div>
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-400">
+          {isVideo ? 'Video' : 'Voice'} Call
+        </span>
 
         <div className="relative flex items-center justify-center">
           <span className="absolute inline-flex h-52 w-52 rounded-full border border-violet-500/20 animate-ping" style={{ animationDuration: '2s' }} />
@@ -77,16 +104,14 @@ export function OutgoingCallScreen() {
       </div>
 
       <div className="relative pb-16 pt-8 flex flex-col items-center gap-6">
-        <div className="flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <button
-              onClick={cancelCall}
-              className="h-16 w-16 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 transition-all flex items-center justify-center shadow-xl shadow-red-500/40"
-            >
-              <PhoneOff className="h-7 w-7 text-white" />
-            </button>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Cancel</span>
-          </div>
+        <div className="flex flex-col items-center gap-3">
+          <button
+            onClick={cancelCall}
+            className="h-16 w-16 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 transition-all flex items-center justify-center shadow-xl shadow-red-500/40"
+          >
+            <PhoneOff className="h-7 w-7 text-white" />
+          </button>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Cancel</span>
         </div>
       </div>
     </div>

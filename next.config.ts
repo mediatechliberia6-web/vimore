@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
               `connect-src 'self' ${APPWRITE_ENDPOINT} wss: ws: https:`,
               `img-src 'self' data: blob: ${APPWRITE_ENDPOINT} https:`,
               `media-src 'self' blob: ${APPWRITE_ENDPOINT} https:`,
-              `frame-src 'self'`,
+              `frame-src 'self' https:`,
               `worker-src 'self' blob:`,
             ].join('; '),
           },
