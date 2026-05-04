@@ -39,7 +39,6 @@ export const COL = {
   SUPPORT_TICKETS: 'support_tickets',
   AD_CAMPAIGNS: 'ad_campaigns',
   AUDIT_LOGS: 'audit_logs',
-  CALL_LOGS: 'call_logs',
   ADMIN_NOTIFICATIONS: 'admin_notifications',
   USER_BANS: 'user_bans',
   EVENTS: 'events',

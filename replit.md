@@ -276,11 +276,21 @@ Indexes created: `friend_requests` (sender/receiver_username), `follows` (follow
 
 **Appwrite index needed**: `messages` collection requires a `receiver_id` attribute index for the unread count query. Until created, the query fails silently (caught and ignored).
 
-## Replit Migration Status (April 2026)
+## Replit Migration Status (May 2026)
 - Migrated the imported Next.js project to run on Replit without rewriting the app.
 - Installed existing npm dependencies from `package.json`.
 - Replit workflow `Start application` runs `npm run dev` on port 5000.
 - Verified `/login` renders successfully in the Replit preview; unauthenticated Appwrite 401 responses during session checks are expected before login.
+- **Audio/Video Calls removed**: All Agora-based call functionality has been fully removed:
+  - Deleted `src/app/messages/call/[username]/page.tsx` (call UI page)
+  - Deleted `src/app/actions/call.ts` (Agora token server action)
+  - Deleted `src/app/api/agora-token/route.ts` (token API route)
+  - Deleted `src/lib/agora.ts` (Agora config)
+  - Deleted `src/components/layout/incoming-call-overlay.tsx`
+  - Removed `CallState` interface, `callState`, `initiateCall`, `acceptCall`, `endCall`, `declineCall`, `saveCallMessage`, and the call-signal polling loop from `PostContext.tsx`
+  - Removed `CALL_LOGS` from `COL` in `appwrite.ts`
+  - Uninstalled `agora-rtc-sdk-ng` and `agora-token` npm packages
+  - Note: The marketplace `ContactButtons` "Call" button (a standard `tel:` phone link) was intentionally kept
 
 ## Data-Saving Pass (April 2026) — Lite-Mode Hardening
 Implemented all 9 strategies to extend a 100MB monthly bundle:

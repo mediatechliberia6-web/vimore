@@ -18,7 +18,6 @@ import { SearchPortal } from "@/components/layout/search-portal";
 import { FontScaleWrapper } from "@/components/layout/font-scale-wrapper";
 import { CommentHub } from "@/components/post/comment-hub";
 import { GiftHub } from "@/components/post/gift-hub";
-import { IncomingCallOverlay } from "@/components/layout/incoming-call-overlay";
 import { AppLoadingGate } from "@/components/layout/app-loading-gate";
 import { SuspensionGate } from "@/components/layout/suspension-gate";
 import { DiagnosticErrorBoundary } from "@/components/layout/diagnostic-error-boundary";
@@ -149,7 +148,6 @@ export default async function RootLayout({
                         <SearchPortal />
                         <CommentHub />
                         <GiftHub />
-                        <IncomingCallOverlay />
                         <Toaster />
                         </SuspensionGate>
                       </AppLoadingGate>
