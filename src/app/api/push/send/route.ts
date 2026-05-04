@@ -5,12 +5,9 @@ import { Query } from 'node-appwrite';
 
 const SUBS_COLLECTION = 'push_subscriptions';
 
-const VAPID_PUBLIC =
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
-  'BN-Vcojg4rvXtL-yblX7DJmXM20TkHa1WeVY0Ne3rxRxiE5fkchSn_dCxaITKzjl5VcrKeGjObQKyT2X9pM_sNA';
-const VAPID_PRIVATE =
-  process.env.VAPID_PRIVATE_KEY || 'Tn-Eli45aOz2H0DoRPtr47Q99QZRQd8lYahqq61wwVk';
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:amoskortub@gmail.com';
+const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || '';
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || '';
 
 let vapidConfigured = false;
 function ensureVapid() {
