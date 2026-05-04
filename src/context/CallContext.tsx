@@ -271,105 +271,85 @@ export function CallProvider({ children }: { children: ReactNode }) {
       const cs = callStateRef.current;
       const since = new Date(Date.now() - 65_000).toISOString();
 
+      let docs: any[] = [];
+      try {
+        const res = await databases.listDocuments(DATABASE_ID, COLLECTION, [
+          Query.greaterThanEqual('$createdAt', since),
+          Query.orderDesc('$createdAt'),
+          Query.limit(25),
+        ]);
+        docs = res.documents as any[];
+      } catch { return; }
+
+      const forme = docs.filter(
+        (d) => d.to_user_id === currentUser.$id && !seenSignalIds.current.has(d.$id),
+      );
+
       if (cs.status === 'idle') {
-        try {
-          const res = await databases.listDocuments(DATABASE_ID, COLLECTION, [
-            Query.equal('to_user_id', currentUser.$id),
-            Query.equal('type', 'CALL_INCOMING'),
-            Query.greaterThanEqual('$createdAt', since),
-            Query.orderDesc('$createdAt'),
-            Query.limit(1),
-          ]);
-          const doc = res.documents[0] as any;
-          if (doc && !seenSignalIds.current.has(doc.$id)) {
-            seenSignalIds.current.add(doc.$id);
-            const contact: CallContact = {
-              $id: doc.from_user_id,
-              name: doc.caller_name || '',
-              username: doc.caller_username || '',
-              avatar: doc.caller_avatar || '',
-            };
-            sync({
-              status: 'incoming',
-              contact,
-              callType: doc.call_type as CallType,
-              roomId: doc.room_id,
-              incomingSignalId: doc.$id,
-              outgoingSignalId: null,
-              startedAt: null,
-            });
-            clearRingTimer();
-            ringTimerRef.current = setTimeout(() => {
-              const s = callStateRef.current;
-              if (s.status === 'incoming' && s.incomingSignalId === doc.$id) {
-                if (s.incomingSignalId) deleteSignal(s.incomingSignalId);
-                doReset();
-              }
-            }, RING_TIMEOUT_MS);
-          }
-        } catch { /* poll fail — ignore */ }
+        const incoming = forme.find((d) => d.type === 'CALL_INCOMING');
+        if (incoming) {
+          seenSignalIds.current.add(incoming.$id);
+          const contact: CallContact = {
+            $id: incoming.from_user_id,
+            name: incoming.caller_name || '',
+            username: incoming.caller_username || '',
+            avatar: incoming.caller_avatar || '',
+          };
+          sync({
+            status: 'incoming',
+            contact,
+            callType: incoming.call_type as CallType,
+            roomId: incoming.room_id,
+            incomingSignalId: incoming.$id,
+            outgoingSignalId: null,
+            startedAt: null,
+          });
+          clearRingTimer();
+          ringTimerRef.current = setTimeout(() => {
+            const s = callStateRef.current;
+            if (s.status === 'incoming' && s.incomingSignalId === incoming.$id) {
+              if (s.incomingSignalId) deleteSignal(s.incomingSignalId);
+              doReset();
+            }
+          }, RING_TIMEOUT_MS);
+        }
       }
 
       if (cs.status === 'outgoing' && cs.outgoingSignalId) {
-        try {
-          const res = await databases.listDocuments(DATABASE_ID, COLLECTION, [
-            Query.equal('to_user_id', currentUser.$id),
-            Query.oneOf('type', ['CALL_ACCEPTED', 'CALL_DECLINED']),
-            Query.greaterThanEqual('$createdAt', since),
-            Query.orderDesc('$createdAt'),
-            Query.limit(1),
-          ]);
-          const doc = res.documents[0] as any;
-          if (doc && !seenSignalIds.current.has(doc.$id)) {
-            seenSignalIds.current.add(doc.$id);
-            deleteSignal(doc.$id);
-            if (doc.type === 'CALL_ACCEPTED') {
-              clearRingTimer();
-              sync({ ...callStateRef.current, status: 'active', startedAt: Date.now() });
-            } else {
-              clearRingTimer();
-              if (cs.contact) writeCallBubble(cs.contact, cs.callType, 'missed');
-              doReset();
-            }
+        const response = forme.find(
+          (d) => d.type === 'CALL_ACCEPTED' || d.type === 'CALL_DECLINED',
+        );
+        if (response) {
+          seenSignalIds.current.add(response.$id);
+          deleteSignal(response.$id);
+          if (response.type === 'CALL_ACCEPTED') {
+            clearRingTimer();
+            sync({ ...callStateRef.current, status: 'active', startedAt: Date.now() });
+          } else {
+            clearRingTimer();
+            if (cs.contact) writeCallBubble(cs.contact, cs.callType, 'missed');
+            doReset();
           }
-        } catch { /* poll fail — ignore */ }
+        }
       }
 
       if (cs.status === 'active') {
-        try {
-          const res = await databases.listDocuments(DATABASE_ID, COLLECTION, [
-            Query.equal('to_user_id', currentUser.$id),
-            Query.equal('type', 'CALL_ENDED'),
-            Query.greaterThanEqual('$createdAt', since),
-            Query.orderDesc('$createdAt'),
-            Query.limit(1),
-          ]);
-          const doc = res.documents[0] as any;
-          if (doc && !seenSignalIds.current.has(doc.$id)) {
-            seenSignalIds.current.add(doc.$id);
-            deleteSignal(doc.$id);
-            doReset();
-          }
-        } catch { /* poll fail — ignore */ }
+        const ended = forme.find((d) => d.type === 'CALL_ENDED');
+        if (ended) {
+          seenSignalIds.current.add(ended.$id);
+          deleteSignal(ended.$id);
+          doReset();
+        }
       }
 
       if (cs.status === 'incoming') {
-        try {
-          const res = await databases.listDocuments(DATABASE_ID, COLLECTION, [
-            Query.equal('to_user_id', currentUser.$id),
-            Query.equal('type', 'CALL_CANCELLED'),
-            Query.greaterThanEqual('$createdAt', since),
-            Query.orderDesc('$createdAt'),
-            Query.limit(1),
-          ]);
-          const doc = res.documents[0] as any;
-          if (doc && !seenSignalIds.current.has(doc.$id)) {
-            seenSignalIds.current.add(doc.$id);
-            deleteSignal(doc.$id);
-            clearRingTimer();
-            doReset();
-          }
-        } catch { /* poll fail — ignore */ }
+        const cancelled = forme.find((d) => d.type === 'CALL_CANCELLED');
+        if (cancelled) {
+          seenSignalIds.current.add(cancelled.$id);
+          deleteSignal(cancelled.$id);
+          clearRingTimer();
+          doReset();
+        }
       }
     };
 
