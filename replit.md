@@ -276,6 +276,42 @@ Indexes created: `friend_requests` (sender/receiver_username), `follows` (follow
 
 **Appwrite index needed**: `messages` collection requires a `receiver_id` attribute index for the unread count query. Until created, the query fails silently (caught and ignored).
 
+## Zegocloud 1-1 Calling System (May 2026)
+
+Full 1-1 audio and video calling built with Zegocloud, replacing the old Agora system.
+
+### Architecture
+- **`src/lib/zego.ts`** — App ID constant, `buildRoomId()`, shared `CallType`/`CallSignalData` types
+- **`src/app/api/zego-token/route.ts`** — Server-side Token04 generation using AES-128-CBC + Zegocloud's algorithm. POST `{ userId, roomId }` → `{ token, appID }`
+- **`src/context/CallContext.tsx`** — Full call state machine (idle → outgoing/incoming → active). Polls Appwrite `notifications` collection every 2s for call signals. Caller always writes call bubbles (missed/ended). 60-second ring timeout on both sides.
+- **`src/components/layout/incoming-call-overlay.tsx`** — Full-screen incoming call UI (z-600) with programmatic ringtone (Web Audio API oscillator), animated violet pulse rings, Accept/Decline buttons.
+- **`src/components/layout/outgoing-call-screen.tsx`** — Full-screen outgoing/dialing UI (z-500) with animated pulse rings and live elapsed counter. Cancel button immediately cancels.
+- **`src/components/layout/active-call-screen.tsx`** — Active call screen (z-550). Audio calls show avatar + timer + controls. Video calls mount `@zegocloud/zego-uikit-prebuilt` UIKit to a div container. Mute/video-off/speaker/end controls.
+
+### Call Signal Flow (via Appwrite notifications collection)
+| Signal Type | Direction | Meaning |
+|---|---|---|
+| `CALL_INCOMING` | caller → callee | New call invitation |
+| `CALL_ACCEPTED` | callee → caller | Callee answered |
+| `CALL_DECLINED` | callee → caller | Callee rejected |
+| `CALL_CANCELLED` | caller → callee | Caller cancelled/timed out |
+| `CALL_ENDED` | either → other | Active call ended by other side |
+
+### Environment Variables
+| Variable | Purpose |
+|---|---|
+| `NEXT_PUBLIC_ZEGO_APP_ID` | Zegocloud App ID (public, from console.zegocloud.com) |
+| `ZEGO_SERVER_SECRET` | Zegocloud server secret — used only in `/api/zego-token` for token signing |
+
+### UI Integration
+- Call buttons (Phone + Video icons) appear in `chat-window.tsx` header for all accepted 1-1 DMs (hidden for clusters and STRANGER PULSE requests)
+- Buttons are disabled when a call is already in progress
+- Call bubbles (missed/ended) use the existing `ChatBubble` `type="call"` rendering path — `callData` is stored as JSON in the message `text` field
+- `CallProvider` is mounted inside `PostProvider` in `layout.tsx` so it can use `usePosts()` for `currentUser` and `sendChatMessage`
+- All three screen components (`IncomingCallOverlay`, `OutgoingCallScreen`, `ActiveCallScreen`) are mounted in the main `AppLoadingGate` section of `layout.tsx`
+
+---
+
 ## Replit Migration Status (May 2026)
 - Migrated the imported Next.js project to run on Replit without rewriting the app.
 - Installed existing npm dependencies from `package.json`.

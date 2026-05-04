@@ -40,11 +40,14 @@ import {
   Plus,
   Loader2,
   Check,
-  Ban
+  Ban,
+  Phone,
+  Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playNotificationSound } from "@/lib/notification-sound";
 import { Connection, Cluster, usePosts } from "@/context/PostContext";
+import { useCall } from "@/context/CallContext";
 import { useNetwork } from "@/context/NetworkContext";
 import { getAdaptivePreview } from "@/lib/adaptive-media";
 import { ChatBubble } from "./chat-bubble";
@@ -82,6 +85,7 @@ interface ChatWindowProps {
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const { currentUser, triggerHaptic, leaveCluster, connections = [], addMemberToCluster, updateCluster, settings, chatMessages, sendChatMessage, uploadMedia, friendUsernames, acceptedStrangerUsernames, acceptMessageRequest, declineMessageRequest, deleteMessage, editMessage } = usePosts();
+  const { initiateCall, callState } = useCall();
   const { tier: netTier } = useNetwork();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -230,6 +234,36 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
           </div>
           
           <div className="flex items-center gap-1">
+            {!isCluster && !isRequest && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full h-10 w-10 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all disabled:opacity-40"
+                  disabled={callState.status !== 'idle'}
+                  onClick={() => {
+                    triggerHaptic(20);
+                    const conn = contact as Connection;
+                    initiateCall({ $id: conn.$id, name: conn.name, username: conn.username, avatar: conn.avatar }, 'audio');
+                  }}
+                >
+                  <Phone className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full h-10 w-10 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all disabled:opacity-40"
+                  disabled={callState.status !== 'idle'}
+                  onClick={() => {
+                    triggerHaptic(20);
+                    const conn = contact as Connection;
+                    initiateCall({ $id: conn.$id, name: conn.name, username: conn.username, avatar: conn.avatar }, 'video');
+                  }}
+                >
+                  <Video className="h-5 w-5" />
+                </Button>
+              </>
+            )}
             <Button variant="ghost" size="icon" className={cn("rounded-full transition-all", showVault ? "bg-primary/10 text-primary" : "text-muted-foreground")} onClick={() => { triggerHaptic(5); setShowVault(!showVault); }}>
               {isCluster ? <Bookmark className="h-5 w-5" /> : <InfoIcon className="h-5 w-5" />}
             </Button>
