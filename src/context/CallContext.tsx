@@ -4,12 +4,13 @@ import {
   createContext, useContext, useState, useRef, useEffect, useCallback, ReactNode,
 } from 'react';
 import { databases, ID, Query, COL, DATABASE_ID } from '@/lib/appwrite';
-import { usePosts, Connection } from '@/context/PostContext';
-import { ZEGO_APP_ID, buildRoomId, CallType, CallSignalData, CallSignalType } from '@/lib/zego';
+import { usePosts } from '@/context/PostContext';
+import { buildRoomId, CallType, CallSignalType } from '@/lib/zego';
 import { useToast } from '@/hooks/use-toast';
 
 const RING_TIMEOUT_MS = 60_000;
 const POLL_MS = 2_000;
+const COLLECTION = COL.CALL_SIGNALS;
 
 export interface CallContact {
   $id: string;
@@ -61,20 +62,29 @@ function createSignal(
   type: CallSignalType,
   fromId: string,
   toId: string,
-  data: CallSignalData,
+  roomId: string,
+  callType: CallType,
+  callerName: string,
+  callerUsername: string,
+  callerId: string,
+  callerAvatar: string,
 ) {
-  return databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+  return databases.createDocument(DATABASE_ID, COLLECTION, ID.unique(), {
     type,
     from_user_id: fromId,
     to_user_id: toId,
-    data: JSON.stringify(data),
-    is_read: false,
+    room_id: roomId,
+    call_type: callType,
+    caller_name: callerName,
+    caller_username: callerUsername,
+    caller_id: callerId,
+    caller_avatar: callerAvatar,
   });
 }
 
 async function deleteSignal(docId: string) {
   try {
-    await databases.deleteDocument(DATABASE_ID, COL.NOTIFICATIONS, docId);
+    await databases.deleteDocument(DATABASE_ID, COLLECTION, docId);
   } catch { /* already gone */ }
 }
 
@@ -125,10 +135,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     const cs = callStateRef.current;
     if (cs.status === 'idle') return;
 
-    const contact = cs.contact;
-    const callType = cs.callType;
-    const roomId = cs.roomId;
-    const startedAt = cs.startedAt;
+    const { contact, callType, roomId, startedAt } = cs;
 
     if (cs.outgoingSignalId) deleteSignal(cs.outgoingSignalId);
     if (cs.incomingSignalId) deleteSignal(cs.incomingSignalId);
@@ -139,11 +146,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
       const secs = durationSec % 60;
       const durationStr = `${mins}:${secs.toString().padStart(2, '0')}`;
 
-      const sigData: CallSignalData = {
-        roomId, callType, callerName: currentUser.name, callerAvatar: currentUser.avatar,
-        callerUsername: currentUser.username, callerId: currentUser.$id,
-      };
-      createSignal('CALL_ENDED', currentUser.$id, contact.$id, sigData).catch(() => {});
+      createSignal(
+        'CALL_ENDED',
+        currentUser.$id, contact.$id,
+        roomId, callType,
+        currentUser.name, currentUser.username, currentUser.$id, currentUser.avatar,
+      ).catch(() => {});
       writeCallBubble(contact, callType, 'ended', durationStr);
     }
 
@@ -155,12 +163,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
     if (cs.status !== 'outgoing') return;
     if (cs.outgoingSignalId) deleteSignal(cs.outgoingSignalId);
     if (cs.contact && currentUser) {
-      const sigData: CallSignalData = {
-        roomId: cs.roomId, callType: cs.callType,
-        callerName: currentUser.name, callerAvatar: currentUser.avatar,
-        callerUsername: currentUser.username, callerId: currentUser.$id,
-      };
-      createSignal('CALL_CANCELLED', currentUser.$id, cs.contact.$id, sigData).catch(() => {});
+      createSignal(
+        'CALL_CANCELLED',
+        currentUser.$id, cs.contact.$id,
+        cs.roomId, cs.callType,
+        currentUser.name, currentUser.username, currentUser.$id, currentUser.avatar,
+      ).catch(() => {});
     }
     doReset();
   }, [currentUser, doReset]);
@@ -170,12 +178,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
     if (!cs.contact || cs.status !== 'outgoing') return;
     if (cs.outgoingSignalId) deleteSignal(cs.outgoingSignalId);
     if (cs.contact && currentUser) {
-      const sigData: CallSignalData = {
-        roomId: cs.roomId, callType: cs.callType,
-        callerName: currentUser.name, callerAvatar: currentUser.avatar,
-        callerUsername: currentUser.username, callerId: currentUser.$id,
-      };
-      createSignal('CALL_CANCELLED', currentUser.$id, cs.contact.$id, sigData).catch(() => {});
+      createSignal(
+        'CALL_CANCELLED',
+        currentUser.$id, cs.contact.$id,
+        cs.roomId, cs.callType,
+        currentUser.name, currentUser.username, currentUser.$id, currentUser.avatar,
+      ).catch(() => {});
       writeCallBubble(cs.contact, cs.callType, 'missed');
     }
     doReset();
@@ -189,13 +197,6 @@ export function CallProvider({ children }: { children: ReactNode }) {
     if (callStateRef.current.status !== 'idle') return;
 
     const roomId = buildRoomId(currentUser.username, contact.username);
-    const sigData: CallSignalData = {
-      roomId, callType: type,
-      callerName: currentUser.name || currentUser.username,
-      callerAvatar: currentUser.avatar,
-      callerUsername: currentUser.username,
-      callerId: currentUser.$id,
-    };
 
     sync({
       status: 'outgoing',
@@ -211,11 +212,19 @@ export function CallProvider({ children }: { children: ReactNode }) {
     ringTimerRef.current = setTimeout(() => { missedCall(); }, RING_TIMEOUT_MS);
 
     try {
-      const doc = await createSignal('CALL_INCOMING', currentUser.$id, contact.$id, sigData);
+      const doc = await createSignal(
+        'CALL_INCOMING',
+        currentUser.$id, contact.$id,
+        roomId, type,
+        currentUser.name || currentUser.username,
+        currentUser.username,
+        currentUser.$id,
+        currentUser.avatar,
+      );
       seenSignalIds.current.add(doc.$id);
       sync({ ...callStateRef.current, outgoingSignalId: doc.$id });
     } catch (err: any) {
-      console.error('[Call] Signal failed — call may not connect:', err);
+      console.error('[Call] Signal failed:', err);
       toast({
         title: 'Could not reach the other party',
         description: 'Tap cancel and try again.',
@@ -229,12 +238,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
     if (cs.status !== 'incoming' || !cs.contact || !currentUser) return;
     clearRingTimer();
 
-    const sigData: CallSignalData = {
-      roomId: cs.roomId, callType: cs.callType,
-      callerName: currentUser.name, callerAvatar: currentUser.avatar,
-      callerUsername: currentUser.username, callerId: currentUser.$id,
-    };
-    createSignal('CALL_ACCEPTED', currentUser.$id, cs.contact.$id, sigData).catch(() => {});
+    createSignal(
+      'CALL_ACCEPTED',
+      currentUser.$id, cs.contact.$id,
+      cs.roomId, cs.callType,
+      currentUser.name, currentUser.username, currentUser.$id, currentUser.avatar,
+    ).catch(() => {});
     if (cs.incomingSignalId) deleteSignal(cs.incomingSignalId);
 
     sync({ ...cs, status: 'active', incomingSignalId: null, startedAt: Date.now() });
@@ -245,12 +254,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
     if (cs.status !== 'incoming' || !cs.contact || !currentUser) return;
     clearRingTimer();
 
-    const sigData: CallSignalData = {
-      roomId: cs.roomId, callType: cs.callType,
-      callerName: currentUser.name, callerAvatar: currentUser.avatar,
-      callerUsername: currentUser.username, callerId: currentUser.$id,
-    };
-    createSignal('CALL_DECLINED', currentUser.$id, cs.contact.$id, sigData).catch(() => {});
+    createSignal(
+      'CALL_DECLINED',
+      currentUser.$id, cs.contact.$id,
+      cs.roomId, cs.callType,
+      currentUser.name, currentUser.username, currentUser.$id, currentUser.avatar,
+    ).catch(() => {});
     if (cs.incomingSignalId) deleteSignal(cs.incomingSignalId);
     doReset();
   }, [currentUser, doReset]);
@@ -264,7 +273,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
       if (cs.status === 'idle') {
         try {
-          const res = await databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
+          const res = await databases.listDocuments(DATABASE_ID, COLLECTION, [
             Query.equal('to_user_id', currentUser.$id),
             Query.equal('type', 'CALL_INCOMING'),
             Query.greaterThanEqual('$createdAt', since),
@@ -274,18 +283,17 @@ export function CallProvider({ children }: { children: ReactNode }) {
           const doc = res.documents[0] as any;
           if (doc && !seenSignalIds.current.has(doc.$id)) {
             seenSignalIds.current.add(doc.$id);
-            const data: CallSignalData = JSON.parse(doc.data || '{}');
             const contact: CallContact = {
               $id: doc.from_user_id,
-              name: data.callerName,
-              username: data.callerUsername,
-              avatar: data.callerAvatar,
+              name: doc.caller_name || '',
+              username: doc.caller_username || '',
+              avatar: doc.caller_avatar || '',
             };
             sync({
               status: 'incoming',
               contact,
-              callType: data.callType,
-              roomId: data.roomId,
+              callType: doc.call_type as CallType,
+              roomId: doc.room_id,
               incomingSignalId: doc.$id,
               outgoingSignalId: null,
               startedAt: null,
@@ -304,7 +312,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
       if (cs.status === 'outgoing' && cs.outgoingSignalId) {
         try {
-          const res = await databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
+          const res = await databases.listDocuments(DATABASE_ID, COLLECTION, [
             Query.equal('to_user_id', currentUser.$id),
             Query.oneOf('type', ['CALL_ACCEPTED', 'CALL_DECLINED']),
             Query.greaterThanEqual('$createdAt', since),
@@ -329,7 +337,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
       if (cs.status === 'active') {
         try {
-          const res = await databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
+          const res = await databases.listDocuments(DATABASE_ID, COLLECTION, [
             Query.equal('to_user_id', currentUser.$id),
             Query.equal('type', 'CALL_ENDED'),
             Query.greaterThanEqual('$createdAt', since),
@@ -347,7 +355,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
       if (cs.status === 'incoming') {
         try {
-          const res = await databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
+          const res = await databases.listDocuments(DATABASE_ID, COLLECTION, [
             Query.equal('to_user_id', currentUser.$id),
             Query.equal('type', 'CALL_CANCELLED'),
             Query.greaterThanEqual('$createdAt', since),

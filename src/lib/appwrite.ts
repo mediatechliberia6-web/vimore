@@ -45,6 +45,7 @@ export const COL = {
   TICKETS: 'tickets',
   CHAT_READ_RECEIPTS: 'chat_read_receipts',
   PRODUCTS: 'Products',
+  CALL_SIGNALS: 'call_signals',
 } as const;
 
 export const BUCKET = {
