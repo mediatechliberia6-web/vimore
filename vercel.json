@@ -1,5 +1,64 @@
 {
   "installCommand": "npm install --legacy-peer-deps",
   "buildCommand": "npm run build",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "functions": {
+    "src/app/api/push/send/route.ts": {
+      "memory": 1024
+    },
+    "src/app/api/push/subscribe/route.ts": {
+      "memory": 512
+    },
+    "src/app/api/push/unsubscribe/route.ts": {
+      "memory": 512
+    },
+    "src/app/api/messages/send/route.ts": {
+      "memory": 512
+    },
+    "src/app/api/messages/mark-read/route.ts": {
+      "memory": 512
+    },
+    "src/app/api/file/[bucket]/[fileId]/route.ts": {
+      "memory": 512
+    },
+    "src/app/api/link-preview/route.ts": {
+      "memory": 512
+    },
+    "src/app/api/session-handoff/route.ts": {
+      "memory": 512
+    },
+    "src/app/api/zego-token/route.ts": {
+      "memory": 256
+    },
+    "src/app/api/admin/products/delete/route.ts": {
+      "memory": 512
+    },
+    "src/app/api/admin/users/warn/route.ts": {
+      "memory": 512
+    },
+    "src/app/api/zego/login/route.ts": {
+      "memory": 128
+    },
+    "src/app/api/zego/logout/route.ts": {
+      "memory": 128
+    },
+    "src/app/api/zego/room_create/route.ts": {
+      "memory": 128
+    },
+    "src/app/api/zego/room_close/route.ts": {
+      "memory": 128
+    },
+    "src/app/api/zego/stream_create/route.ts": {
+      "memory": 128
+    },
+    "src/app/api/zego/stream_close/route.ts": {
+      "memory": 128
+    },
+    "src/app/api/zego/notify/censor_audio/route.ts": {
+      "memory": 128
+    },
+    "src/app/api/zego/notify/censor_video/route.ts": {
+      "memory": 128
+    }
+  }
 }

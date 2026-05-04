@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
 import { ID } from 'node-appwrite';
 
+export const maxDuration = 30;
+
 const USERS_COLLECTION = 'users';
 const NOTIFICATIONS_COLLECTION = 'notifications';
 

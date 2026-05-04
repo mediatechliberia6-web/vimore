@@ -3,6 +3,8 @@ import webpush from 'web-push';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
 import { Query } from 'node-appwrite';
 
+export const maxDuration = 30;
+
 const SUBS_COLLECTION = 'push_subscriptions';
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';

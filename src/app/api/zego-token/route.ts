@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
+export const maxDuration = 10;
+
 const APP_ID = parseInt(process.env.NEXT_PUBLIC_ZEGO_APP_ID || '0', 10);
 const SERVER_SECRET = process.env.ZEGO_SERVER_SECRET || '';
 

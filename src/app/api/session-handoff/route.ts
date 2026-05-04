@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Client, Account } from 'appwrite';
 import { getAdminUsers } from '@/lib/appwrite-server';
 
+export const maxDuration = 15;
+
 const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1';
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
 const COOKIE_NAME = `a_session_${PROJECT_ID.toLowerCase()}`;

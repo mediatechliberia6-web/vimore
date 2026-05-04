@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from 'next';
+
+export const maxDuration = 30;
 import './globals.css';
 import { headers } from 'next/headers';
 import { Toaster } from "@/components/ui/toaster";

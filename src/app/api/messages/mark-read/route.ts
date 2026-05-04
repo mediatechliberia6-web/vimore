@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
 import { Query } from 'node-appwrite';
 
+export const maxDuration = 15;
+
 const MESSAGES_COLLECTION = 'messages';
 
 /**

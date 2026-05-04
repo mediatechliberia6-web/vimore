@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
 import { ID, Query } from 'node-appwrite';
 
+export const maxDuration = 15;
+
 const COLLECTION_ID = 'push_subscriptions';
 
 export async function POST(req: NextRequest) {

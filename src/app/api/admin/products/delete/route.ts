@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, getAdminStorage, DATABASE_ID } from '@/lib/appwrite-server';
 
+export const maxDuration = 30;
+
 const PRODUCTS_COLLECTION = 'Products';
 const USERS_COLLECTION = 'users';
 const MARKETPLACE_BUCKET = 'Marketplace_Images';
