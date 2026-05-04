@@ -98,6 +98,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const seenSignalIds = useRef<Set<string>>(new Set());
   const writingBubble = useRef(false);
+  const cleanupCounter = useRef(0);
 
   const sync = (s: CallState) => {
     callStateRef.current = s;
@@ -267,9 +268,29 @@ export function CallProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!currentUser) return;
 
+    const runCleanup = async () => {
+      const cutoff = new Date(Date.now() - 2 * 60_000).toISOString();
+      try {
+        const res = await databases.listDocuments(DATABASE_ID, COLLECTION, [
+          Query.lessThan('$createdAt', cutoff),
+          Query.orderAsc('$createdAt'),
+          Query.limit(50),
+        ]);
+        const mine = (res.documents as any[]).filter(
+          (d) => d.from_user_id === currentUser!.$id || d.to_user_id === currentUser!.$id,
+        );
+        await Promise.all(mine.map((d) => deleteSignal(d.$id)));
+      } catch { /* best-effort */ }
+    };
+
     const poll = async () => {
       const cs = callStateRef.current;
       const since = new Date(Date.now() - 65_000).toISOString();
+
+      cleanupCounter.current += 1;
+      if (cleanupCounter.current % 15 === 0) {
+        runCleanup();
+      }
 
       let docs: any[] = [];
       try {
