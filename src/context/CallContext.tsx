@@ -6,6 +6,7 @@ import {
 import { databases, ID, Query, COL, DATABASE_ID } from '@/lib/appwrite';
 import { usePosts, Connection } from '@/context/PostContext';
 import { ZEGO_APP_ID, buildRoomId, CallType, CallSignalData, CallSignalType } from '@/lib/zego';
+import { useToast } from '@/hooks/use-toast';
 
 const RING_TIMEOUT_MS = 60_000;
 const POLL_MS = 2_000;
@@ -79,6 +80,7 @@ async function deleteSignal(docId: string) {
 
 export function CallProvider({ children }: { children: ReactNode }) {
   const { currentUser, sendChatMessage } = usePosts();
+  const { toast } = useToast();
 
   const [callState, setCallState] = useState<CallState>(IDLE);
   const callStateRef = useRef<CallState>(IDLE);
@@ -180,7 +182,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
   }, [currentUser, writeCallBubble, doReset]);
 
   const initiateCall = useCallback(async (contact: CallContact, type: CallType) => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      toast({ title: 'Not logged in', description: 'Please log in to make calls.', variant: 'destructive' });
+      return;
+    }
     if (callStateRef.current.status !== 'idle') return;
 
     const roomId = buildRoomId(currentUser.username, contact.username);
@@ -192,22 +197,31 @@ export function CallProvider({ children }: { children: ReactNode }) {
       callerId: currentUser.$id,
     };
 
-    const doc = await createSignal('CALL_INCOMING', currentUser.$id, contact.$id, sigData);
-    seenSignalIds.current.add(doc.$id);
+    try {
+      const doc = await createSignal('CALL_INCOMING', currentUser.$id, contact.$id, sigData);
+      seenSignalIds.current.add(doc.$id);
 
-    sync({
-      status: 'outgoing',
-      contact,
-      callType: type,
-      roomId,
-      incomingSignalId: null,
-      outgoingSignalId: doc.$id,
-      startedAt: null,
-    });
+      sync({
+        status: 'outgoing',
+        contact,
+        callType: type,
+        roomId,
+        incomingSignalId: null,
+        outgoingSignalId: doc.$id,
+        startedAt: null,
+      });
 
-    clearRingTimer();
-    ringTimerRef.current = setTimeout(() => { missedCall(); }, RING_TIMEOUT_MS);
-  }, [currentUser, missedCall]);
+      clearRingTimer();
+      ringTimerRef.current = setTimeout(() => { missedCall(); }, RING_TIMEOUT_MS);
+    } catch (err: any) {
+      console.error('[Call] Failed to initiate call:', err);
+      toast({
+        title: 'Call failed',
+        description: err?.message || 'Could not connect. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  }, [currentUser, missedCall, toast]);
 
   const acceptCall = useCallback(() => {
     const cs = callStateRef.current;
