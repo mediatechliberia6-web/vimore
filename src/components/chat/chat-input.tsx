@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
   onSend: (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string; file?: File }) => void;
+  onTyping?: () => void;
+  onStopTyping?: () => void;
 }
 
 const VIDEO_UPLOAD_LIMIT = 300;
@@ -32,7 +34,7 @@ function formatDuration(seconds: number) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export function ChatInput({ onSend }: ChatInputProps) {
+export function ChatInput({ onSend, onTyping, onStopTyping }: ChatInputProps) {
   const [text, setText] = useState("");
   const [isViewOnceEnabled, setIsViewOnceEnabled] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -64,6 +66,7 @@ export function ChatInput({ onSend }: ChatInputProps) {
     e?.preventDefault();
     if (!text.trim()) return;
     triggerHaptic(10);
+    onStopTyping?.();
     onSend(text, { isViewOnce: isViewOnceEnabled });
     setText("");
     setIsViewOnceEnabled(false);
@@ -330,7 +333,7 @@ export function ChatInput({ onSend }: ChatInputProps) {
               placeholder="Type a high-velocity message..." 
               className={cn("h-12 border-none rounded-2xl px-6 pr-12 bg-secondary/30", isViewOnceEnabled && "italic font-bold")}
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => { setText(e.target.value); if (e.target.value) onTyping?.(); else onStopTyping?.(); }}
               onKeyDown={handleKeyDown}
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2">

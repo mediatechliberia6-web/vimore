@@ -93,8 +93,9 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const [showVault, setShowVault] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const typingShowRef = useRef<NodeJS.Timeout | null>(null);
+  const typingAutoHideRef = useRef<NodeJS.Timeout | null>(null);
+  const stopTypingDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const typingDocCreatedRef = useRef(false);
   const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
   const [addNodeSearch, setAddNodeSearch] = useState("");
   const [editClusterName, setEditClusterName] = useState((contact as Cluster)?.name || "");
@@ -143,28 +144,93 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     prevMsgCountRef.current = count;
   }, [messages, currentUser?.username, settings.isSilenceActive]);
 
+  // ── Real-time typing indicator subscription ───────────────────────────────
   useEffect(() => {
-    if (isCluster) return;
-    const last = messages[messages.length - 1];
-    if (!last || last.sender === 'me') return;
+    if (!currentUser?.$id || isCluster) return;
 
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    if (typingShowRef.current) clearTimeout(typingShowRef.current);
-    setIsOtherTyping(false);
+    let unsubscribe: (() => void) | null = null;
 
-    const delay = 6000 + Math.random() * 14000;
-    const duration = 2500 + Math.random() * 3500;
+    import('@/lib/appwrite').then(({ client, DATABASE_ID, COL }) => {
+      const channel = `databases.${DATABASE_ID}.collections.${COL.TYPING_INDICATORS}.documents`;
 
-    typingTimeoutRef.current = setTimeout(() => {
-      setIsOtherTyping(true);
-      typingShowRef.current = setTimeout(() => setIsOtherTyping(false), duration);
-    }, delay);
+      unsubscribe = client.subscribe(channel, (response) => {
+        const events = response.events as string[];
+        const payload = response.payload as any;
+        if (!payload) return;
+
+        const isMyChat =
+          payload.receiver_username === currentUser.username &&
+          payload.sender_username === contactId;
+
+        if (!isMyChat) return;
+
+        const isDelete = events.some(e => e.endsWith('.delete'));
+
+        if (isDelete) {
+          setIsOtherTyping(false);
+          if (typingAutoHideRef.current) clearTimeout(typingAutoHideRef.current);
+        } else {
+          setIsOtherTyping(true);
+          if (typingAutoHideRef.current) clearTimeout(typingAutoHideRef.current);
+          typingAutoHideRef.current = setTimeout(() => setIsOtherTyping(false), 4000);
+        }
+      });
+    }).catch(() => {});
 
     return () => {
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      if (typingShowRef.current) clearTimeout(typingShowRef.current);
+      unsubscribe?.();
+      if (typingAutoHideRef.current) clearTimeout(typingAutoHideRef.current);
     };
-  }, [messages, isCluster]);
+  }, [currentUser?.$id, currentUser?.username, contactId, isCluster]);
+
+  // ── Typing sender helpers ─────────────────────────────────────────────────
+  const typingDocId = useMemo(() => {
+    if (!currentUser?.$id || isCluster) return '';
+    const raw = `${currentUser.$id.slice(0, 17)}_${contactId.slice(0, 17)}`;
+    return raw.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 36);
+  }, [currentUser?.$id, contactId, isCluster]);
+
+  const clearTypingDoc = useCallback(async () => {
+    if (!typingDocCreatedRef.current || !typingDocId) return;
+    typingDocCreatedRef.current = false;
+    try {
+      const { databases, DATABASE_ID, COL } = await import('@/lib/appwrite');
+      await databases.deleteDocument(DATABASE_ID, COL.TYPING_INDICATORS, typingDocId);
+    } catch { /* already deleted or never created */ }
+  }, [typingDocId]);
+
+  const handleTyping = useCallback(async () => {
+    if (isCluster || !currentUser?.$id || !typingDocId) return;
+    if (stopTypingDebounceRef.current) clearTimeout(stopTypingDebounceRef.current);
+    stopTypingDebounceRef.current = setTimeout(() => { clearTypingDoc(); }, 2000);
+    if (typingDocCreatedRef.current) return;
+    try {
+      const { databases, DATABASE_ID, COL } = await import('@/lib/appwrite');
+      const docData = {
+        sender_id: currentUser.$id,
+        sender_username: currentUser.username,
+        receiver_username: contactId,
+      };
+      await databases.createDocument(DATABASE_ID, COL.TYPING_INDICATORS, typingDocId, docData);
+      typingDocCreatedRef.current = true;
+    } catch (err: any) {
+      if (err?.code === 409) {
+        typingDocCreatedRef.current = true;
+      }
+    }
+  }, [isCluster, currentUser?.$id, currentUser?.username, contactId, typingDocId, clearTypingDoc]);
+
+  const handleStopTyping = useCallback(() => {
+    if (stopTypingDebounceRef.current) clearTimeout(stopTypingDebounceRef.current);
+    clearTypingDoc();
+  }, [clearTypingDoc]);
+
+  useEffect(() => {
+    return () => {
+      if (stopTypingDebounceRef.current) clearTimeout(stopTypingDebounceRef.current);
+      clearTypingDoc();
+    };
+  }, [clearTypingDoc]);
 
   const handleSend = async (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string; file?: File }) => {
     triggerHaptic(10);
@@ -343,7 +409,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             </div>
           </div>
         ) : (
-          <ChatInput onSend={handleSend} />
+          <ChatInput onSend={handleSend} onTyping={handleTyping} onStopTyping={handleStopTyping} />
         )}
       </div>
 
