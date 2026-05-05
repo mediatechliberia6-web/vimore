@@ -26,9 +26,6 @@ import {
   Pencil,
   Check,
   X as XIcon,
-  Phone,
-  Video,
-  PhoneMissed
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -55,7 +52,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { aiTranslatePostAction } from "@/app/actions/ai";
-import { useToast } from "@/hooks/use-toast";
 
 interface LinkPreview {
   title: string;
@@ -80,19 +76,13 @@ interface ChatBubbleProps {
   text?: string;
   time: string;
   status?: "sent" | "delivered" | "read";
-  type?: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace" | "call" | "post";
+  type?: "text" | "photo" | "video" | "link" | "tag" | "workspace" | "post";
   mediaUrl?: string;
-  voiceDuration?: string;
   linkData?: LinkPreview;
   reactions?: string[];
   isViewOnce?: boolean;
   isViewed?: boolean;
   isDownloaded?: boolean;
-  callData?: {
-    type: 'audio' | 'video';
-    status: 'started' | 'missed' | 'ended';
-    duration?: string;
-  };
   taggedUser?: {
     name: string;
     username: string;
@@ -116,20 +106,16 @@ interface ChatBubbleProps {
 }
 
 export function ChatBubble({ 
-  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, callData, postId, sharedPostData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete, onEdit
+  id, isMe, text, time, status, type = "text", mediaUrl, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, postId, sharedPostData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete, onEdit
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const { setSelectedImageUrl, setSelectedVideoUrl, settings } = usePosts();
   const { tier } = useNetwork();
-  const { toast } = useToast();
-  const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
-  const [elapsedTime, setElapsedTime] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(text || '');
-  const [voiceWaveHeights, setVoiceWaveHeights] = useState<number[]>([]);
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [browserLang, setBrowserLang] = useState<string>('en');
@@ -156,33 +142,16 @@ export function ChatBubble({
   };
   
   const videoRef = useRef<HTMLVideoElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
   
   const isRead = status === "read";
 
-  const formatDisplayTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   useEffect(() => {
-    if (type === 'voice') {
-      setVoiceWaveHeights([...Array(12)].map(() => 20 + Math.random() * 80));
-    }
-
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      if (timerRef.current) clearInterval(timerRef.current);
       if (typeof document !== 'undefined') {
         document.body.style.pointerEvents = 'auto';
       }
     };
-  }, [type]);
+  }, []);
 
   useEffect(() => {
     if (!isDeleteDialogOpen) {
@@ -257,54 +226,6 @@ export function ChatBubble({
     setIsPlayingVideo(!isPlayingVideo);
   };
 
-  const toggleVoice = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!mediaUrl) return;
-    if (settings.isFreeMode) return;
-    triggerHaptic(10);
-
-    if (!audioRef.current) {
-      const audio = new Audio(mediaUrl);
-      audio.onended = () => {
-        setIsPlayingVoice(false);
-        setElapsedTime(0);
-        if (timerRef.current) clearInterval(timerRef.current);
-        audioRef.current = null;
-      };
-      audioRef.current = audio;
-    }
-
-    if (isPlayingVoice) {
-      audioRef.current.pause();
-      setIsPlayingVoice(false);
-      if (timerRef.current) clearInterval(timerRef.current);
-    } else {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(err => {
-        console.warn("Voice playback failed:", err);
-        setIsPlayingVoice(false);
-        audioRef.current = null;
-        // Show a helpful message — on iOS, older webm voice notes can't play
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        toast({
-          variant: "destructive",
-          title: "Can't Play Voice Note",
-          description: isIOS
-            ? "This voice note was recorded in a format not supported by iPhone. Ask the sender to record a new one — new notes will play on all devices."
-            : "Voice note playback failed. Please try again.",
-        });
-      });
-      setIsPlayingVoice(true);
-      
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = setInterval(() => {
-        if (audioRef.current) {
-          setElapsedTime(audioRef.current.currentTime);
-        }
-      }, 100);
-    }
-  };
-
   const renderFormattedText = (content?: string) => {
     if (!content) return null;
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -348,9 +269,8 @@ export function ChatBubble({
             ? "bg-primary text-white rounded-2xl rounded-tr-none" 
             : "bg-white dark:bg-card text-foreground rounded-2xl rounded-tl-none border border-primary/5",
           (type === "photo" || type === "video" || type === "workspace") && "p-1 pb-0",
-          type === "call" && "bg-secondary/20 dark:bg-zinc-900 border-none px-6 py-4 rounded-3xl"
         )}>
-          {isMe && type !== "call" && (
+          {isMe && (
             <div className="absolute top-1 right-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -372,71 +292,14 @@ export function ChatBubble({
             </div>
           )}
 
-          {type !== "call" && (
-            <div className={cn(
-              "absolute top-0 w-4 h-4 z-10",
-              isMe 
-                ? "-right-2 bg-primary [clip-path:polygon(0_0,0_100%,100%_0)]" 
-                : "-left-2 bg-white dark:bg-card [clip-path:polygon(100%_0,100%_100%,0_0)]"
-            )} />
-          )}
+          <div className={cn(
+            "absolute top-0 w-4 h-4 z-10",
+            isMe 
+              ? "-right-2 bg-primary [clip-path:polygon(0_0,0_100%,100%_0)]" 
+              : "-left-2 bg-white dark:bg-card [clip-path:polygon(100%_0,100%_100%,0_0)]"
+          )} />
 
           <div className="flex flex-col">
-            {type === "call" && callData && (
-              <div className="flex flex-col gap-3 min-w-[220px]">
-                <div className="flex items-center gap-3">
-                  {/* Icon column */}
-                  <div className={cn(
-                    "h-11 w-11 rounded-2xl flex items-center justify-center shrink-0",
-                    callData.status === 'missed'
-                      ? "bg-destructive/10 text-destructive"
-                      : "bg-primary/10 text-primary"
-                  )}>
-                    {callData.status === 'missed' ? (
-                      <PhoneMissed className="h-5 w-5" />
-                    ) : callData.type === 'video' ? (
-                      <Video className="h-5 w-5" />
-                    ) : (
-                      <Phone className="h-5 w-5" />
-                    )}
-                  </div>
-
-                  {/* Text column */}
-                  <div className="flex flex-col min-w-0">
-                    <span className={cn(
-                      "text-sm font-black uppercase tracking-tight leading-tight",
-                      callData.status === 'missed' ? "text-destructive" : "text-foreground"
-                    )}>
-                      {callData.status === 'missed'
-                        ? (isMe ? 'Missed Call' : 'Missed Call')
-                        : callData.status === 'ended'
-                          ? (isMe ? 'Outgoing Call' : 'Incoming Call')
-                          : (isMe ? 'Outgoing Call' : 'Incoming Call')}
-                    </span>
-                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                      <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                        {callData.type === 'video' ? 'Video' : 'Voice'}
-                      </span>
-                      {callData.duration && callData.status === 'ended' && (
-                        <>
-                          <span className="text-[10px] text-muted-foreground/40">·</span>
-                          <span className="text-[10px] font-black text-primary uppercase tracking-widest">{callData.duration}</span>
-                        </>
-                      )}
-                      {callData.status === 'missed' && (
-                        <>
-                          <span className="text-[10px] text-muted-foreground/40">·</span>
-                          <span className="text-[10px] font-black text-destructive uppercase tracking-widest">No Answer</span>
-                        </>
-                      )}
-                    </div>
-                    <span className="text-[9px] text-muted-foreground/50 uppercase tracking-widest mt-0.5">{time}</span>
-                  </div>
-                </div>
-
-              </div>
-            )}
-
             {isViewOnce && (type === "photo" || type === "video") && (
               <div className="p-3 min-w-[200px]">
                 {isViewed ? (
@@ -703,7 +566,6 @@ export function ChatBubble({
               "flex items-center justify-end gap-1.5 px-3 pb-2",
               isMe ? "text-white/60" : "text-muted-foreground",
               (type === "photo" || type === "video") && !text && "absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-md text-white/80",
-              type === "call" && "mt-2"
             )}>
               <span className="text-[9px] font-bold uppercase tracking-wider">{time}</span>
               {isMe && (

@@ -12,8 +12,6 @@ ViMore is a social networking and creator platform featuring social feeds, music
 - `NEXT_PUBLIC_APPWRITE_PROJECT_ID`: Defaults to `vimore123`
 - `NEXT_PUBLIC_APPWRITE_DATABASE_ID`: Defaults to `vimoreprod`
 - `NEXT_PUBLIC_AGORA_APP_ID`: Defaults to `4afa1dbbd2ee4695ad1d29eaa0310ca3`
-- `NEXT_PUBLIC_ZEGO_APP_ID`: Zegocloud App ID
-- `ZEGO_SERVER_SECRET`: Zegocloud server secret
 
 **Commands:**
 - `npm run dev`: Starts the application locally on port 5000.
@@ -22,18 +20,18 @@ ViMore is a social networking and creator platform featuring social feeds, music
 
 - **Framework**: Next.js 15 (App Router)
 - **Styling**: Tailwind CSS, shadcn/ui
-- **State Management**: React Context API (`PostContext`, `MusicContext`, `NotificationContext`, `LanguageContext`, `CallContext`)
+- **State Management**: React Context API (`PostContext`, `MusicContext`, `NotificationContext`, `LanguageContext`)
 - **Backend**: Appwrite (Database, Storage, Auth)
 - **AI**: Groq
-- **Real-time Communication**: Zegocloud (for 1-1 audio/video calls)
+- **Real-time Communication**: Zegocloud (removed — call features fully removed)
 - **Build Tool**: Next.js
 
 ## Where things live
 
 - `src/app/`: Next.js App Router pages and API routes.
 - `src/components/`: Reusable React components.
-- `src/context/`: React Context API providers (`PostContext.tsx`, `MusicContext.tsx`, `NotificationContext.tsx`, `CallContext.tsx`).
-- `src/lib/`: Utility functions and Appwrite/Zegocloud configurations (`appwrite.ts`, `zego.ts`, `push-notifications.ts`, `utils.ts`, `data-budget.ts`).
+- `src/context/`: React Context API providers (`PostContext.tsx`, `MusicContext.tsx`, `NotificationContext.tsx`).
+- `src/lib/`: Utility functions and Appwrite configurations (`appwrite.ts`, `push-notifications.ts`, `utils.ts`, `data-budget.ts`).
 - `public/`: Static assets, PWA manifest (`manifest.json`), service worker (`sw.js`), offline page (`offline.html`), icons.
 - `appwrite.json`: Appwrite collections and bucket definitions (source of truth for DB schema).
 - `next.config.ts`: Next.js configuration, including PWA settings.

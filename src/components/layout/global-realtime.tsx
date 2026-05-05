@@ -122,9 +122,7 @@ export function GlobalRealtimeListener() {
               ? String(payload.text).slice(0, 80)
               : payload.media_url
                 ? '📷 Media'
-                : payload.voice_url
-                  ? '🎤 Voice note'
-                  : 'New message';
+                : 'New message';
           const timeStr = payload.$createdAt ? formatTimeAgo(payload.$createdAt) : 'Just now';
           if (clusterId) {
             updateMessagePreview(clusterId, rawText, timeStr);
@@ -139,7 +137,6 @@ export function GlobalRealtimeListener() {
               status: 'delivered' as const,
               type: (payload.type || 'text') as any,
               mediaUrl: payload.media_url || undefined,
-              voiceDuration: payload.voice_duration || undefined,
             };
             addIncomingMessage(clusterId, incomingMsg, rawText, timeStr);
           }

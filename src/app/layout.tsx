@@ -33,10 +33,6 @@ import { GlobalRealtimeListener } from "@/components/layout/global-realtime";
 import { AdminAlertsProvider } from "@/context/AdminAlertsContext";
 import { FeedSignalProvider } from "@/context/FeedSignalContext";
 import { NetworkProvider } from "@/context/NetworkContext";
-import { CallProvider } from "@/context/CallContext";
-import { IncomingCallOverlay } from "@/components/layout/incoming-call-overlay";
-import { OutgoingCallScreen } from "@/components/layout/outgoing-call-screen";
-import { ActiveCallScreen } from "@/components/layout/active-call-screen";
 import NextTopLoader from 'nextjs-toploader';
 
 export const metadata: Metadata = {
@@ -124,7 +120,6 @@ export default async function RootLayout({
         <FeedSignalProvider>
         <AdminAlertsProvider>
         <PostProvider>
-          <CallProvider>
           <LanguageProvider>
             <NotificationProvider>
               <MusicProvider>
@@ -155,9 +150,6 @@ export default async function RootLayout({
                         <SearchPortal />
                         <CommentHub />
                         <GiftHub />
-                        <IncomingCallOverlay />
-                        <OutgoingCallScreen />
-                        <ActiveCallScreen />
                         <Toaster />
                         </SuspensionGate>
                       </AppLoadingGate>
@@ -167,7 +159,6 @@ export default async function RootLayout({
               </MusicProvider>
             </NotificationProvider>
           </LanguageProvider>
-          </CallProvider>
         </PostProvider>
         </AdminAlertsProvider>
         </FeedSignalProvider>

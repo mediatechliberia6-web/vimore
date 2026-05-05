@@ -212,7 +212,6 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                           if (lastMsg.text) return lastMsg.text;
                           if (lastMsg.type === 'photo') return '📷 Photo';
                           if (lastMsg.type === 'video') return '🎥 Video';
-                          if (lastMsg.type === 'voice') return `🎤 Voice message${lastMsg.voiceDuration ? ` · ${lastMsg.voiceDuration}` : ''}`;
                           if (lastMsg.type === 'post') return '📌 Shared Post';
                         }
                         if (messagePreviews[id]?.text) return messagePreviews[id].text;

@@ -183,18 +183,12 @@ export interface ChatMessage {
   text?: string;
   time: string;
   status: "sent" | "delivered" | "read";
-  type: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace" | "call" | "post";
+  type: "text" | "photo" | "video" | "link" | "tag" | "workspace" | "post";
   mediaUrl?: string;
-  voiceDuration?: string;
   isViewOnce?: boolean;
   isViewed?: boolean;
   isDownloaded?: boolean;
   reactions?: string[];
-  callData?: {
-    type: 'audio' | 'video';
-    status: 'started' | 'missed' | 'ended';
-    duration?: string;
-  };
   createdAt?: number;
   postId?: string;
   sharedPostData?: SharedPostData;
@@ -549,8 +543,6 @@ function getChatMessagePreview(message: Partial<ChatMessage> & { type?: string }
   if (message.text) return message.text;
   if (message.type === 'photo') return '📷 Photo';
   if (message.type === 'video') return '🎥 Video';
-  if (message.type === 'voice') return message.voiceDuration ? `🎤 Voice message · ${message.voiceDuration}` : '🎤 Voice message';
-  if (message.type === 'call') return '📞 Call';
   if (message.type === 'post') return '📌 Shared Post';
   return '';
 }
@@ -1129,25 +1121,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
 
       const msgs: ChatMessage[] = all.map(doc => {
-        let callData: ChatMessage['callData'] | undefined;
-        if (doc.type === 'call' && doc.text) {
-          try { callData = JSON.parse(doc.text); } catch { /* ignore */ }
-        }
         return {
           $id: doc.$id,
           sender: doc.sender_id === userId ? 'me' : 'them',
           senderId: doc.sender_id,
-          text: doc.type === 'call' ? undefined : doc.text,
+          text: doc.text,
           time: formatTimeAgo(doc.$createdAt),
           status: doc.is_read ? 'read' : 'delivered',
           type: (doc.type || 'text') as ChatMessage['type'],
-          mediaUrl: doc.type === 'voice'
-            ? (doc.media_id ? getFileUrl(BUCKET.VOICE_MESSAGES, doc.media_id) : (doc.media_url ? toProxyUrl(doc.media_url) : undefined))
-            : (doc.media_id ? getFileUrl(BUCKET.MESSAGE_MEDIA, doc.media_id) : (doc.media_url ? toProxyUrl(doc.media_url) : undefined)),
-          voiceDuration: doc.voice_duration,
+          mediaUrl: doc.media_id ? getFileUrl(BUCKET.MESSAGE_MEDIA, doc.media_id) : (doc.media_url ? toProxyUrl(doc.media_url) : undefined),
           isViewOnce: doc.is_view_once || false,
           isViewed: doc.is_viewed || false,
-          callData,
           senderName: doc.sender_name,
           senderAvatar: doc.sender_avatar,
           createdAt: doc.$createdAt ? new Date(doc.$createdAt).getTime() : undefined,
@@ -2709,7 +2693,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
         if (fid) docData.media_id = fid;
         docData.media_url = message.mediaUrl;
       }
-      if (message.voiceDuration) docData.voice_duration = message.voiceDuration;
       if (message.postId) docData.post_id = message.postId;
       if (message.sharedPostData) docData.shared_post_data = JSON.stringify(message.sharedPostData);
       await databases.createDocument(DATABASE_ID, COL.MESSAGES, ID.unique(), docData);

@@ -27,38 +27,11 @@
     "src/app/api/session-handoff/route.ts": {
       "memory": 512
     },
-    "src/app/api/zego-token/route.ts": {
-      "memory": 256
-    },
     "src/app/api/admin/products/delete/route.ts": {
       "memory": 512
     },
     "src/app/api/admin/users/warn/route.ts": {
       "memory": 512
     },
-    "src/app/api/zego/login/route.ts": {
-      "memory": 128
-    },
-    "src/app/api/zego/logout/route.ts": {
-      "memory": 128
-    },
-    "src/app/api/zego/room_create/route.ts": {
-      "memory": 128
-    },
-    "src/app/api/zego/room_close/route.ts": {
-      "memory": 128
-    },
-    "src/app/api/zego/stream_create/route.ts": {
-      "memory": 128
-    },
-    "src/app/api/zego/stream_close/route.ts": {
-      "memory": 128
-    },
-    "src/app/api/zego/notify/censor_audio/route.ts": {
-      "memory": 128
-    },
-    "src/app/api/zego/notify/censor_video/route.ts": {
-      "memory": 128
-    }
   }
 }
