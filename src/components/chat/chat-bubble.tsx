@@ -76,8 +76,9 @@ interface ChatBubbleProps {
   text?: string;
   time: string;
   status?: "sent" | "delivered" | "read";
-  type?: "text" | "photo" | "video" | "link" | "tag" | "workspace" | "post";
+  type?: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace" | "post";
   mediaUrl?: string;
+  voiceDuration?: string;
   linkData?: LinkPreview;
   reactions?: string[];
   isViewOnce?: boolean;
@@ -106,13 +107,18 @@ interface ChatBubbleProps {
 }
 
 export function ChatBubble({ 
-  id, isMe, text, time, status, type = "text", mediaUrl, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, postId, sharedPostData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete, onEdit
+  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, postId, sharedPostData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete, onEdit
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const { setSelectedImageUrl, setSelectedVideoUrl, settings } = usePosts();
   const { tier } = useNetwork();
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
+  const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const [voiceElapsed, setVoiceElapsed] = useState(0);
+  const [voiceAccepted, setVoiceAccepted] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const voiceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(text || '');
@@ -142,14 +148,59 @@ export function ChatBubble({
   };
   
   const videoRef = useRef<HTMLVideoElement>(null);
-  
+
   const isRead = status === "read";
+
+  const stopVoice = () => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+    setIsPlayingVoice(false);
+    setVoiceElapsed(0);
+  };
+
+  const playVoice = () => {
+    if (!mediaUrl) return;
+    triggerHaptic(10);
+    setVoiceAccepted(true);
+
+    if (isPlayingVoice) { stopVoice(); return; }
+
+    if (!audioRef.current) {
+      audioRef.current = new Audio(mediaUrl);
+      audioRef.current.onended = () => { stopVoice(); };
+      audioRef.current.onerror = () => { stopVoice(); };
+    }
+
+    audioRef.current.currentTime = 0;
+    audioRef.current.play().catch(() => { stopVoice(); });
+    setIsPlayingVoice(true);
+    setVoiceElapsed(0);
+    if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+    voiceTimerRef.current = setInterval(() => {
+      if (audioRef.current) setVoiceElapsed(audioRef.current.currentTime);
+    }, 100);
+  };
+
+  const formatVoiceTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const parseDurationSecs = (dur?: string) => {
+    if (!dur) return 0;
+    const [m, s] = dur.split(':').map(Number);
+    return (m || 0) * 60 + (s || 0);
+  };
+
+  const voiceTotalSecs = parseDurationSecs(voiceDuration);
+  const voiceProgress = voiceTotalSecs > 0 ? Math.min((voiceElapsed / voiceTotalSecs) * 100, 100) : 0;
 
   useEffect(() => {
     return () => {
-      if (typeof document !== 'undefined') {
-        document.body.style.pointerEvents = 'auto';
-      }
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+      if (typeof document !== 'undefined') document.body.style.pointerEvents = 'auto';
     };
   }, []);
 
@@ -300,6 +351,72 @@ export function ChatBubble({
           )} />
 
           <div className="flex flex-col">
+
+            {type === "voice" && (
+              <div className={cn(
+                "flex items-center gap-3 px-4 py-3 min-w-[220px] max-w-[280px]",
+              )}>
+                <button
+                  onClick={playVoice}
+                  className={cn(
+                    "h-10 w-10 rounded-full flex items-center justify-center shrink-0 transition-all active:scale-90",
+                    isMe
+                      ? "bg-white/20 hover:bg-white/30 text-white"
+                      : "bg-primary/10 hover:bg-primary/20 text-primary"
+                  )}
+                >
+                  {isPlayingVoice
+                    ? <Pause className="h-4 w-4 fill-current" />
+                    : <Play className="h-4 w-4 fill-current ml-0.5" />
+                  }
+                </button>
+
+                <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+                  <div className={cn(
+                    "relative h-1.5 rounded-full overflow-hidden",
+                    isMe ? "bg-white/20" : "bg-primary/15"
+                  )}>
+                    <div
+                      className={cn("h-full rounded-full transition-all duration-100", isMe ? "bg-white/80" : "bg-primary")}
+                      style={{ width: `${voiceAccepted ? voiceProgress : 0}%` }}
+                    />
+                    {!voiceAccepted && (
+                      <div className="absolute inset-0 flex gap-0.5 items-center px-0.5">
+                        {Array.from({ length: 18 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className={cn("flex-1 rounded-full", isMe ? "bg-white/30" : "bg-primary/25")}
+                            style={{ height: `${30 + Math.sin(i * 0.8) * 50 + (i % 3) * 15}%` }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {voiceAccepted && isPlayingVoice && (
+                      <div className="absolute inset-0 flex gap-0.5 items-center px-0.5 opacity-30">
+                        {Array.from({ length: 18 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className={cn("flex-1 rounded-full", isMe ? "bg-white" : "bg-primary")}
+                            style={{ height: `${30 + Math.sin(i * 0.8) * 50 + (i % 3) * 15}%` }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={cn("text-[10px] font-black uppercase tracking-widest", isMe ? "text-white/60" : "text-muted-foreground")}>
+                      {isPlayingVoice ? formatVoiceTime(voiceElapsed) : (voiceDuration || '0:00')}
+                    </span>
+                    {!voiceAccepted && !isMe && (
+                      <span className={cn("text-[9px] font-black uppercase tracking-widest", "text-primary/60")}>
+                        Tap to play
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {isViewOnce && (type === "photo" || type === "video") && (
               <div className="p-3 min-w-[200px]">
                 {isViewed ? (

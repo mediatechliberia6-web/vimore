@@ -183,8 +183,9 @@ export interface ChatMessage {
   text?: string;
   time: string;
   status: "sent" | "delivered" | "read";
-  type: "text" | "photo" | "video" | "link" | "tag" | "workspace" | "post";
+  type: "text" | "photo" | "video" | "link" | "voice" | "tag" | "workspace" | "post";
   mediaUrl?: string;
+  voiceDuration?: string;
   isViewOnce?: boolean;
   isViewed?: boolean;
   isDownloaded?: boolean;
@@ -543,6 +544,7 @@ function getChatMessagePreview(message: Partial<ChatMessage> & { type?: string }
   if (message.text) return message.text;
   if (message.type === 'photo') return '📷 Photo';
   if (message.type === 'video') return '🎥 Video';
+  if (message.type === 'voice') return message.voiceDuration ? `🎤 Voice · ${message.voiceDuration}` : '🎤 Voice message';
   if (message.type === 'post') return '📌 Shared Post';
   return '';
 }
@@ -1129,7 +1131,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
           time: formatTimeAgo(doc.$createdAt),
           status: doc.is_read ? 'read' : 'delivered',
           type: (doc.type || 'text') as ChatMessage['type'],
-          mediaUrl: doc.media_id ? getFileUrl(BUCKET.MESSAGE_MEDIA, doc.media_id) : (doc.media_url ? toProxyUrl(doc.media_url) : undefined),
+          mediaUrl: doc.type === 'voice'
+            ? (doc.media_id ? getFileUrl(BUCKET.VOICE_MESSAGES, doc.media_id) : (doc.media_url ? toProxyUrl(doc.media_url) : undefined))
+            : (doc.media_id ? getFileUrl(BUCKET.MESSAGE_MEDIA, doc.media_id) : (doc.media_url ? toProxyUrl(doc.media_url) : undefined)),
+          voiceDuration: doc.voice_duration || undefined,
           isViewOnce: doc.is_view_once || false,
           isViewed: doc.is_viewed || false,
           senderName: doc.sender_name,
@@ -2693,6 +2698,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         if (fid) docData.media_id = fid;
         docData.media_url = message.mediaUrl;
       }
+      if (message.voiceDuration) docData.voice_duration = message.voiceDuration;
       if (message.postId) docData.post_id = message.postId;
       if (message.sharedPostData) docData.shared_post_data = JSON.stringify(message.sharedPostData);
       await databases.createDocument(DATABASE_ID, COL.MESSAGES, ID.unique(), docData);

@@ -92,6 +92,9 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   
   const [showVault, setShowVault] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+  const [isOtherTyping, setIsOtherTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingShowRef = useRef<NodeJS.Timeout | null>(null);
   const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
   const [addNodeSearch, setAddNodeSearch] = useState("");
   const [editClusterName, setEditClusterName] = useState((contact as Cluster)?.name || "");
@@ -140,7 +143,30 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     prevMsgCountRef.current = count;
   }, [messages, currentUser?.username, settings.isSilenceActive]);
 
-  const handleSend = async (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video'; duration?: string; file?: File }) => {
+  useEffect(() => {
+    if (isCluster) return;
+    const last = messages[messages.length - 1];
+    if (!last || last.sender === 'me') return;
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    if (typingShowRef.current) clearTimeout(typingShowRef.current);
+    setIsOtherTyping(false);
+
+    const delay = 6000 + Math.random() * 14000;
+    const duration = 2500 + Math.random() * 3500;
+
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsOtherTyping(true);
+      typingShowRef.current = setTimeout(() => setIsOtherTyping(false), duration);
+    }, delay);
+
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (typingShowRef.current) clearTimeout(typingShowRef.current);
+    };
+  }, [messages, isCluster]);
+
+  const handleSend = async (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string; file?: File }) => {
     triggerHaptic(10);
     
     try {
@@ -149,7 +175,8 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
       if (options?.file) {
         try {
           const { BUCKET } = await import('@/lib/appwrite');
-          finalMediaUrl = await uploadMedia(options.file, BUCKET.MESSAGE_MEDIA);
+          const bucket = options.mediaType === 'voice' ? BUCKET.VOICE_MESSAGES : BUCKET.MESSAGE_MEDIA;
+          finalMediaUrl = await uploadMedia(options.file, bucket);
         } catch (uploadErr: any) {
           toast({ variant: 'destructive', title: 'Upload Failed', description: uploadErr?.message || 'Could not upload media.' });
           return;
@@ -161,6 +188,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
         type: options?.isWorkspace ? "workspace" : (options?.mediaType || (text.includes("http") ? "link" : "text")) as any,
         isViewOnce: options?.isViewOnce,
         mediaUrl: finalMediaUrl,
+        voiceDuration: options?.duration,
       });
     } catch {
       return;
@@ -277,6 +305,22 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                 />
               </div>
             ))
+          )}
+
+          {isOtherTyping && !isCluster && (
+            <div className="flex items-end gap-2 justify-start animate-in slide-in-from-bottom-2 duration-300">
+              <Avatar className="h-7 w-7 shrink-0 border border-primary/10">
+                <AvatarImage src={getAdaptivePreview((contact as Connection).avatar, 'avatar', netTier) || (contact as Connection).avatar} />
+                <AvatarFallback>{contact.name[0]}</AvatarFallback>
+              </Avatar>
+              <div className="bg-white dark:bg-card rounded-2xl rounded-tl-none px-4 py-3 shadow-sm border border-primary/5">
+                <div className="flex items-center gap-1 h-4">
+                  <div className="h-2 w-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="h-2 w-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '160ms' }} />
+                  <div className="h-2 w-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '320ms' }} />
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
