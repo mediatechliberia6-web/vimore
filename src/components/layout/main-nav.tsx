@@ -3,7 +3,7 @@
 
 import { LiteLink as Link } from "@/components/ui/lite-link";
 import { usePathname } from "next/navigation";
-import { Home, User, MessageCircle, PlusSquare, Compass, Menu, Music2, Bell, Activity, Film, Megaphone, Sparkles, Ticket, Building2, ShoppingBag } from "lucide-react";
+import { Home, User, MessageCircle, PlusSquare, Compass, Menu, Music2, Bell, Activity, Film, Megaphone, Sparkles, Ticket, Building2, ShoppingBag, Code2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useNotifications, PulseCategory } from "@/context/NotificationContext";
@@ -43,6 +43,7 @@ export function MainNav() {
     { icon: Megaphone, label: "Advertise", href: "/advertise" },
     { icon: Sparkles, label: "Coming Soon", href: "/coming-soon" },
     { icon: Building2, label: "MTL Info", href: "/mtl" },
+    { icon: Code2, label: "Developer", href: "/developer" },
     { icon: Menu, label: t('nav_menu'), href: "/menu" },
   ];
 
