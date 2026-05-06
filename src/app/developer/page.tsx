@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   Code2, Copy, Check, Plus, Trash2, ExternalLink, Globe, ChevronRight,
-  Loader2, ShieldCheck, AlertTriangle, X,
+  Loader2, ShieldCheck, AlertTriangle, X, Zap,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
@@ -163,6 +163,19 @@ export default function DeveloperPage() {
             <li>Fetch the user profile via <code className="bg-muted px-1 rounded text-[10px]">GET /api/oauth/userinfo</code></li>
           </ol>
         </div>
+
+        <Link href="/developer/sdk">
+          <div className="bg-gradient-to-r from-violet-600 to-primary rounded-2xl p-4 flex items-center gap-4 group hover:opacity-90 transition-opacity">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+              <Zap className="h-5 w-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black text-white">Sign in with ViMore — Button & SDK</p>
+              <p className="text-[10px] text-white/70 font-bold">Copy-paste code for HTML, React, Next.js & Vanilla JS</p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-white/60 flex-shrink-0" />
+          </div>
+        </Link>
 
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Your Apps</h2>
