@@ -35,32 +35,143 @@ import { FeedSignalProvider } from "@/context/FeedSignalContext";
 import { NetworkProvider } from "@/context/NetworkContext";
 import NextTopLoader from 'nextjs-toploader';
 
+// ── Structured data: tells Google this is a real, verified organization ────────
+const JSON_LD_ORGANIZATION = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://vimore.cfd/#organization",
+      "name": "Media Tech Liberia",
+      "legalName": "Media Tech Liberia",
+      "url": "https://vimore.cfd",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://vimore.cfd/icons/icon-512.png",
+        "width": 512,
+        "height": 512,
+      },
+      "founder": {
+        "@type": "Person",
+        "name": "Amos B. Kortu",
+        "jobTitle": "Founder & Engineer",
+        "worksFor": { "@id": "https://vimore.cfd/#organization" },
+      },
+      "foundingLocation": {
+        "@type": "Country",
+        "name": "Liberia",
+      },
+      "description":
+        "Media Tech Liberia builds data-light, high-performance digital products for West Africa. ViMore is its flagship super-app for creators, vendors, and communities.",
+      "sameAs": ["https://vimore.cfd"],
+    },
+    {
+      "@type": "WebApplication",
+      "@id": "https://vimore.cfd/#app",
+      "name": "ViMore",
+      "url": "https://vimore.cfd",
+      "applicationCategory": "SocialNetworkingApplication",
+      "operatingSystem": "Android, iOS, Web",
+      "description":
+        "Liberia's premier social marketplace and creator hub — social feeds, music, reels, messaging, and creator monetization in USD and LRD, all in one data-light app.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+      },
+      "currenciesAccepted": "USD, LRD",
+      "author": { "@id": "https://vimore.cfd/#organization" },
+      "publisher": { "@id": "https://vimore.cfd/#organization" },
+    },
+  ],
+};
+
+// ── Canonical metadata ─────────────────────────────────────────────────────────
 export const metadata: Metadata = {
-  title: 'ViMore',
-  description: 'ViMore — Connect, share, and enhance your voice. Social feeds, music, reels, messaging, and creator earnings all in one place.',
-  applicationName: 'ViMore',
-  manifest: '/manifest.json',
+  metadataBase: new URL("https://vimore.cfd"),
+
+  title: "ViMore | The Liberian Super-App by Media Tech Liberia",
+  description:
+    "Experience ViMore, Liberia's premier social marketplace and creator hub. Engineered by Amos B. Kortu and Media Tech Liberia for a data-light, high-performance experience.",
+  keywords: [
+    "ViMore",
+    "Amos B. Kortu",
+    "Media Tech Liberia",
+    "Liberian Tech Startup",
+    "Creator Monetization Liberia",
+    "Data-light Social Media",
+    "Liberian Super-App",
+    "Social Media Liberia",
+    "Creator Earnings LRD USD",
+  ],
+
+  // Authorship & ownership — used by search engines to verify real people
+  authors: [{ name: "Amos B. Kortu", url: "https://vimore.cfd" }],
+  creator: "Amos B. Kortu",
+  publisher: "Media Tech Liberia",
+  applicationName: "ViMore",
+  manifest: "/manifest.json",
+  category: "social",
+
+  // Open Graph — controls how the link looks on Facebook, WhatsApp, LinkedIn
+  openGraph: {
+    type: "website",
+    locale: "en_LR",
+    url: "https://vimore.cfd",
+    siteName: "ViMore",
+    title: "ViMore - Built for Liberia by Amos B. Kortu",
+    description:
+      "A 100% free, data-light platform for Liberian creators and vendors.",
+    images: [
+      {
+        url: "/icons/icon-512.png",
+        width: 512,
+        height: 512,
+        alt: "ViMore — The Liberian Super-App",
+      },
+    ],
+  },
+
+  // Twitter / X card
+  twitter: {
+    card: "summary_large_image",
+    title: "ViMore | The Liberian Super-App",
+    description:
+      "A 100% free, data-light platform for Liberian creators and vendors.",
+    images: ["/icons/icon-512.png"],
+    creator: "@vimore_app",
+  },
+
+  // PWA icons
   icons: {
     icon: [
-      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
     apple: [
-      { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
-    shortcut: '/icons/icon-192.png',
+    shortcut: "/icons/icon-192.png",
   },
+
+  // iOS PWA
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
-    title: 'ViMore',
-    startupImage: ['/icons/icon-512.png'],
+    statusBarStyle: "default",
+    title: "ViMore",
+    startupImage: ["/icons/icon-512.png"],
   },
-  formatDetection: {
-    telephone: false,
-  },
+
+  formatDetection: { telephone: false },
+
+  // Miscellaneous identity & platform tags
   other: {
+    // Search-engine identity verification
+    "author": "Amos B. Kortu",
+    "owner": "Media Tech Liberia",
+    // Existing site-verification token
     "6a97888e-site-verification": "078f262e3dacd42dc814159e1a856c2d",
+    // PWA / Windows tile
     "mobile-web-app-capable": "yes",
     "application-name": "ViMore",
     "msapplication-TileColor": "#6200ea",
@@ -69,12 +180,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#6200ea',
-  width: 'device-width',
+  themeColor: "#6200ea",
+  width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  viewportFit: 'cover',
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({
@@ -83,85 +194,109 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const headersList = await headers();
-  const nextUrl = headersList.get('x-invoke-path') || headersList.get('x-pathname') || '';
-  const isFreeModeRoute = nextUrl.startsWith('/free-mode');
+  const nextUrl =
+    headersList.get("x-invoke-path") || headersList.get("x-pathname") || "";
+  const isFreeModeRoute = nextUrl.startsWith("/free-mode");
 
   return (
     <html lang="en">
       <head>
-        <meta httpEquiv="Content-Security-Policy" content="img-src 'self' * data: blob:; media-src 'self' * data: blob:; connect-src 'self' https://mediatechliberia.online wss: ws: https:;" />
+        {/* Security */}
+        <meta
+          httpEquiv="Content-Security-Policy"
+          content="img-src 'self' * data: blob:; media-src 'self' * data: blob:; connect-src 'self' https://mediatechliberia.online wss: ws: https:;"
+        />
+
+        {/* JSON-LD: Organization + WebApplication structured data for Google Knowledge Graph */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD_ORGANIZATION) }}
+        />
+
+        {/* Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+          rel="stylesheet"
+        />
+
         {/* Legacy Safari / iOS 12 polyfills for Promise, fetch, and URL.createObjectURL */}
-        <script dangerouslySetInnerHTML={{ __html: `
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
 (function(){
   if(typeof Promise==='undefined'){var p=document.createElement('script');p.src='https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js';document.head.appendChild(p);}
   if(typeof fetch==='undefined'){var f=document.createElement('script');f.src='https://cdn.jsdelivr.net/npm/whatwg-fetch@3.6.20/fetch.min.js';document.head.appendChild(f);}
   if(typeof URL==='undefined'||typeof URL.createObjectURL==='undefined'){var u=document.createElement('script');u.src='https://cdn.jsdelivr.net/npm/url-polyfill@1.1.12/url.min.js';document.head.appendChild(u);}
 })();
-        `}} />
+            `,
+          }}
+        />
       </head>
-      <body className="font-body antialiased bg-background text-foreground" suppressHydrationWarning>
+      <body
+        className="font-body antialiased bg-background text-foreground"
+        suppressHydrationWarning
+      >
         <ServiceWorkerRegister />
         <PwaInstallPrompt />
-        <NextTopLoader 
-          color="#9940E5" 
-          initialPosition={0.08} 
-          crawlSpeed={200} 
-          height={3} 
-          crawl={true} 
-          showSpinner={false} 
-          easing="ease" 
-          speed={200} 
+        <NextTopLoader
+          color="#9940E5"
+          initialPosition={0.08}
+          crawlSpeed={200}
+          height={3}
+          crawl={true}
+          showSpinner={false}
+          easing="ease"
+          speed={200}
           shadow="0 0 10px #9940E5,0 0 5px #9940E5"
         />
         <NetworkProvider>
-        <FeedSignalProvider>
-        <AdminAlertsProvider>
-        <PostProvider>
-          <LanguageProvider>
-            <NotificationProvider>
-              <MusicProvider>
-                <ThemeLogic />
-                <FontScaleWrapper>
-                  <DiagnosticErrorBoundary title="System Core">
-                    {isFreeModeRoute ? (
-                      <>
-                        {children}
-                        <Toaster />
-                      </>
-                    ) : (
-                      <AppLoadingGate>
-                        <SuspensionGate>
-                        <GlobalRealtimeListener />
-                        <NotificationScheduler />
-                        <AppBadgeSync />
-                        <PushAutoSubscribe />
-                        {children}
-                        <MusicPlayer />
-                        <AlbumDetail />
-                        <PlaylistDetail />
-                        <AdPortal />
-                        <MusicAdPortal />
-                        <PostPortal />
-                        <ImageViewerPortal />
-                        <VideoViewerPortal />
-                        <SearchPortal />
-                        <CommentHub />
-                        <GiftHub />
-                        <Toaster />
-                        </SuspensionGate>
-                      </AppLoadingGate>
-                    )}
-                  </DiagnosticErrorBoundary>
-                </FontScaleWrapper>
-              </MusicProvider>
-            </NotificationProvider>
-          </LanguageProvider>
-        </PostProvider>
-        </AdminAlertsProvider>
-        </FeedSignalProvider>
+          <FeedSignalProvider>
+            <AdminAlertsProvider>
+              <PostProvider>
+                <LanguageProvider>
+                  <NotificationProvider>
+                    <MusicProvider>
+                      <ThemeLogic />
+                      <FontScaleWrapper>
+                        <DiagnosticErrorBoundary title="System Core">
+                          {isFreeModeRoute ? (
+                            <>
+                              {children}
+                              <Toaster />
+                            </>
+                          ) : (
+                            <AppLoadingGate>
+                              <SuspensionGate>
+                                <GlobalRealtimeListener />
+                                <NotificationScheduler />
+                                <AppBadgeSync />
+                                <PushAutoSubscribe />
+                                {children}
+                                <MusicPlayer />
+                                <AlbumDetail />
+                                <PlaylistDetail />
+                                <AdPortal />
+                                <MusicAdPortal />
+                                <PostPortal />
+                                <ImageViewerPortal />
+                                <VideoViewerPortal />
+                                <SearchPortal />
+                                <CommentHub />
+                                <GiftHub />
+                                <Toaster />
+                              </SuspensionGate>
+                            </AppLoadingGate>
+                          )}
+                        </DiagnosticErrorBoundary>
+                      </FontScaleWrapper>
+                    </MusicProvider>
+                  </NotificationProvider>
+                </LanguageProvider>
+              </PostProvider>
+            </AdminAlertsProvider>
+          </FeedSignalProvider>
         </NetworkProvider>
       </body>
     </html>

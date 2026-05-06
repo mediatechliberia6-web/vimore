@@ -1,7 +1,7 @@
 {
-  "name": "ViMore",
+  "name": "ViMore | The Liberian Super-App",
   "short_name": "ViMore",
-  "description": "ViMore — Connect, share, and enhance your voice. Social feeds, music, reels, messaging, and creator earnings all in one place.",
+  "description": "Experience ViMore — Liberia's premier social marketplace and creator hub, engineered by Amos B. Kortu and Media Tech Liberia for a data-light, high-performance experience.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
@@ -12,7 +12,7 @@
   "background_color": "#ffffff",
   "lang": "en",
   "dir": "ltr",
-  "categories": ["social", "entertainment", "music", "lifestyle"],
+  "categories": ["social", "entertainment", "music", "lifestyle", "shopping"],
   "prefer_related_applications": false,
   "icons": [
     {
@@ -52,14 +52,14 @@
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "ViMore home screen"
+      "label": "ViMore home screen — built for Liberia"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "ViMore desktop view"
+      "label": "ViMore desktop experience"
     }
   ],
   "shortcuts": [
