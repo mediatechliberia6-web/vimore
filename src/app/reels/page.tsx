@@ -185,6 +185,7 @@ function MessagePickerSheet({
 function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) {
   const { addStory, incrementShareCount } = usePosts();
   const { triggerHaptic, triggerDownloadWithAd } = useMusic();
+  const { tier: netTier } = useNetwork();
   const { toast } = useToast();
   const [copiedLink, setCopiedLink] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -228,7 +229,7 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
 
   const handleCopyLink = async () => {
     triggerHaptic(10);
-    const link = `https://vimore.app/reels/${reel.$id}`;
+    const link = `https://vimore.cfd/reels/${reel.$id}`;
     try {
       await navigator.clipboard.writeText(link);
       setCopiedLink(true);
@@ -241,7 +242,7 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
 
   const handleExternalShare = (platform: (typeof SHARE_PLATFORMS)[0]) => {
     triggerHaptic(15);
-    const link = `https://vimore.app/reels/${reel.$id}`;
+    const link = `https://vimore.cfd/reels/${reel.$id}`;
     const text = encodeURIComponent(
       `Check this out on ViMore: ${reel.content.slice(0, 60)}`
     );

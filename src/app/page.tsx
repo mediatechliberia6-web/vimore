@@ -13,7 +13,7 @@ import { MainNav } from "@/components/layout/main-nav";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
-import { Rocket, Loader2, Mail, ChevronUp, WifiOff } from "lucide-react";
+import { Rocket, Loader2, Mail, ChevronUp, WifiOff, CheckCircle2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { account } from "@/lib/appwrite";
 import { Button } from "@/components/ui/button";

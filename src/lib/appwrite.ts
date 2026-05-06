@@ -83,11 +83,6 @@ export function getFileUrl(bucketId: string, fileId: string): string {
   return `${ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/view?project=${PROJECT_ID}`;
 }
 
-export function getDirectFileUrl(bucketId: string, fileId: string): string {
-  if (!fileId) return '';
-  return `${ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/view?project=${PROJECT_ID}`;
-}
-
 export interface PreviewOptions {
   width?: number;
   height?: number;
@@ -154,8 +149,14 @@ export function formatTimeAgo(date: Date | string): string {
   return d.toLocaleDateString();
 }
 
-export function avatarFallback(_name?: string): string {
-  return '';
+export function avatarFallback(name?: string): string {
+  if (!name) return '?';
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(w => w[0].toUpperCase())
+    .join('');
 }
 
 export async function getSecurityQuestion(vimoreId: string): Promise<string | null> {
