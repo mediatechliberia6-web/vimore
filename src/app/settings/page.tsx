@@ -52,7 +52,8 @@ import {
   FileText,
   ZapOff,
   LayoutDashboard,
-  Gauge
+  Gauge,
+  Code2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AcronymCard } from "@/components/branding/acronym-meaning";
@@ -605,6 +606,21 @@ export default function SettingsPage() {
               </div>
               <Switch checked={settings.isBiometricActive} onCheckedChange={handleBiometricToggle} disabled={isEnrollingBiometric} />
             </div>
+
+            <div className="h-px bg-border -mx-6" />
+
+            <Link href="/settings/connected-apps" className="flex items-center justify-between p-2 rounded-2xl hover:bg-secondary/40 transition-all group">
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform">
+                  <Code2 className="h-5 w-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="font-bold text-sm">Connected Apps</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-black">Third-party access & OAuth</p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground/40" />
+            </Link>
           </div>
         </section>
 
