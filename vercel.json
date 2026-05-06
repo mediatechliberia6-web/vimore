@@ -32,6 +32,6 @@
     },
     "src/app/api/admin/users/warn/route.ts": {
       "memory": 512
-    },
+    }
   }
 }
