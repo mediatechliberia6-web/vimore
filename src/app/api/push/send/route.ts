@@ -7,9 +7,9 @@ export const maxDuration = 30;
 
 const SUBS_COLLECTION = 'push_subscriptions';
 
-const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
-const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || '';
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || '';
+const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BGRfT6eaMS4SJwWAA4ZM-IR32_qDO1xAoyq3N5LqF6kLgPXLdBrC1WExJEt0daf091gcfZhlSezLv4FqWCFikk0';
+const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || 'ALEdsZJVdaVdbyZ58cux5WlvMc_qSBogjKvcIYfaqVE';
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:amoskortub@gmail.com';
 
 let vapidConfigured = false;
 function ensureVapid() {
