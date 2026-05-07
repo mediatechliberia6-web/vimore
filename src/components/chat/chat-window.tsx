@@ -41,6 +41,7 @@ import {
   Loader2,
   Check,
   Ban,
+  Mic,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playNotificationSound } from "@/lib/notification-sound";
@@ -94,6 +95,14 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const typingAutoHideRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Pending (optimistic) voice bubble shown while upload is in progress
+  const [pendingVoice, setPendingVoice] = useState<{
+    localUrl: string;
+    duration: string;
+    progress: number;
+  } | null>(null);
+  const pendingProgressRef = useRef<NodeJS.Timeout | null>(null);
   const stopTypingDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const typingDocCreatedRef = useRef(false);
   const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
@@ -232,9 +241,84 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     };
   }, [clearTypingDoc]);
 
+  // ── Typing sound (plays once when the other person starts typing) ────────
+  const prevIsOtherTypingRef = useRef(false);
+  const playTypingSound = useCallback(() => {
+    if (settings.isSilenceActive) return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      // Two soft ticks separated by 80 ms — mimics WhatsApp typing sound
+      [0, 0.08].forEach((delay) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1100, ctx.currentTime + delay);
+        osc.frequency.exponentialRampToValueAtTime(700, ctx.currentTime + delay + 0.05);
+        gain.gain.setValueAtTime(0.07, ctx.currentTime + delay);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.07);
+        osc.start(ctx.currentTime + delay);
+        osc.stop(ctx.currentTime + delay + 0.07);
+      });
+      setTimeout(() => ctx.close(), 600);
+    } catch { /* audio not available */ }
+  }, [settings.isSilenceActive]);
+
+  useEffect(() => {
+    // Only fire the sound on the rising edge (false → true)
+    if (isOtherTyping && !prevIsOtherTypingRef.current) {
+      playTypingSound();
+    }
+    prevIsOtherTypingRef.current = isOtherTyping;
+  }, [isOtherTyping, playTypingSound]);
+
   const handleSend = async (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string; file?: File }) => {
     triggerHaptic(10);
-    
+
+    // ── Voice messages: show bubble instantly, upload in background ──────────
+    if (options?.mediaType === 'voice' && options.file) {
+      const localUrl = options.mediaUrl || URL.createObjectURL(options.file);
+      const duration = options.duration || '0:00';
+
+      // Immediately show the pending bubble at 0%
+      setPendingVoice({ localUrl, duration, progress: 0 });
+
+      // Animate progress bar to ~85% to give visual feedback
+      let prog = 0;
+      pendingProgressRef.current = setInterval(() => {
+        prog = Math.min(85, prog + Math.random() * 12 + 5);
+        setPendingVoice((prev) => prev ? { ...prev, progress: Math.round(prog) } : null);
+        if (prog >= 85 && pendingProgressRef.current) clearInterval(pendingProgressRef.current);
+      }, 200);
+
+      try {
+        const { BUCKET } = await import('@/lib/appwrite');
+        const finalUrl = await uploadMedia(options.file, BUCKET.VOICE_MESSAGES);
+
+        // Jump to 100% then send the real message
+        if (pendingProgressRef.current) clearInterval(pendingProgressRef.current);
+        setPendingVoice((prev) => prev ? { ...prev, progress: 100 } : null);
+
+        await sendChatMessage(contactId, {
+          type: 'voice' as any,
+          mediaUrl: finalUrl,
+          voiceDuration: duration,
+        });
+
+        // Brief pause so user sees "100%" before the real bubble replaces it
+        setTimeout(() => setPendingVoice(null), 350);
+      } catch (err: any) {
+        if (pendingProgressRef.current) clearInterval(pendingProgressRef.current);
+        setPendingVoice(null);
+        toast({ variant: 'destructive', title: 'Upload Failed', description: err?.message || 'Could not upload voice message.' });
+      }
+      return;
+    }
+
+    // ── All other message types ───────────────────────────────────────────────
     try {
       let finalMediaUrl = options?.mediaUrl;
 
@@ -371,6 +455,30 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                 />
               </div>
             ))
+          )}
+
+          {pendingVoice && (
+            <div className="flex items-end gap-2 justify-end animate-in slide-in-from-bottom-2 duration-200">
+              <div className="flex flex-col items-end gap-1 max-w-[75%]">
+                <div className="bg-primary text-white rounded-2xl rounded-br-none px-4 py-3 flex items-center gap-3 min-w-[200px] shadow-lg shadow-primary/20">
+                  <div className="h-9 w-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                    <Mic className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-black tracking-widest">{pendingVoice.duration}</div>
+                    <div className="h-1.5 bg-white/20 rounded-full mt-1.5 overflow-hidden">
+                      <div
+                        className="h-full bg-white rounded-full transition-all duration-300 ease-out"
+                        style={{ width: `${pendingVoice.progress}%` }}
+                      />
+                    </div>
+                    <div className="text-[9px] text-white/70 mt-1 uppercase tracking-widest font-black">
+                      {pendingVoice.progress < 100 ? `Uploading ${pendingVoice.progress}%` : '✓ Sent'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {isOtherTyping && !isCluster && (

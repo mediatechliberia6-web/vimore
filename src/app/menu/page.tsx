@@ -28,6 +28,7 @@ import {
   FileText,
   Scale,
   Film,
+  Compass,
   HelpCircle,
   Building2,
   Send,
@@ -102,6 +103,7 @@ export default function MenuPage() {
 
   const menuGrid: { label: string; icon: any; color: string; bg: string; href: string; badge?: number; category?: PulseCategory; isHidden?: boolean; dotOnly?: boolean }[] = [
     { label: t('menu_home_feed'), icon: Home, color: "text-primary", bg: "bg-primary/10", href: "/", category: "HOME" },
+    { label: "Explore", icon: Compass, color: "text-sky-500", bg: "bg-sky-50", href: "/explore", dotOnly: true },
     { label: t('nav_reels'), icon: Film, color: "text-rose-500", bg: "bg-rose-50", href: "/reels", dotOnly: true },
     { label: t('menu_signals'), icon: Bell, color: "text-red-500", bg: "bg-red-50", href: "/notifications", badge: unreadCount },
     { label: t('menu_music_hub'), icon: Music2, color: "text-purple-500", bg: "bg-purple-50", href: "/music", dotOnly: true },
