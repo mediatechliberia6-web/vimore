@@ -34,9 +34,12 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { doc_id, owner_id } = await req.json();
-    if (!doc_id || !owner_id) return NextResponse.json({ error: 'doc_id and owner_id required' }, { status: 400 });
-    await deleteOAuthClient(doc_id, owner_id);
+    const body = await req.json();
+    // Accept either client_id or the legacy doc_id field — both are the same value now
+    const client_id = body.client_id || body.doc_id;
+    const { owner_id } = body;
+    if (!client_id || !owner_id) return NextResponse.json({ error: 'client_id and owner_id required' }, { status: 400 });
+    await deleteOAuthClient(client_id, owner_id);
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Server error' }, { status: 500 });
