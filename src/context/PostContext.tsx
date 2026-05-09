@@ -1442,7 +1442,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
           is_online: true,
           last_seen_at: new Date().toISOString(),
         });
-      } catch { /* ignore — non-critical */ }
+      } catch (err: any) {
+        console.warn('[presence] markOnline failed:', err?.message ?? err);
+      }
     };
 
     const markOffline = async () => {
@@ -1451,7 +1453,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
           is_online: false,
           last_seen_at: new Date().toISOString(),
         });
-      } catch { /* ignore */ }
+      } catch (err: any) {
+        console.warn('[presence] markOffline failed:', err?.message ?? err);
+      }
     };
 
     markOnline();
