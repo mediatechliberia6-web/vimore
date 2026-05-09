@@ -196,8 +196,6 @@ export default async function RootLayout({
   const headersList = await headers();
   const nextUrl =
     headersList.get("x-invoke-path") || headersList.get("x-pathname") || "";
-  const isFreeModeRoute = nextUrl.startsWith("/free-mode");
-
   return (
     <html lang="en">
       <head>
@@ -261,13 +259,7 @@ export default async function RootLayout({
                       <ThemeLogic />
                       <FontScaleWrapper>
                         <DiagnosticErrorBoundary title="System Core">
-                          {isFreeModeRoute ? (
-                            <>
-                              {children}
-                              <Toaster />
-                            </>
-                          ) : (
-                            <AppLoadingGate>
+                          <AppLoadingGate>
                               <SuspensionGate>
                                 <GlobalRealtimeListener />
                                 <NotificationScheduler />
@@ -288,7 +280,6 @@ export default async function RootLayout({
                                 <Toaster />
                               </SuspensionGate>
                             </AppLoadingGate>
-                          )}
                         </DiagnosticErrorBoundary>
                       </FontScaleWrapper>
                     </MusicProvider>

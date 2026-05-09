@@ -38,7 +38,6 @@ export interface AppSettings {
   isGiftingEnabled: boolean;
   isAiVerificationActive: boolean;
   isSensitivityFilterActive: boolean;
-  isFreeMode: boolean;
 }
 
 export interface User {
@@ -387,7 +386,7 @@ const INITIAL_SETTINGS: AppSettings = {
   showReadReceipts: true, legacyContact: null, isSilenceActive: false, silenceStart: "22:00",
   silenceEnd: "07:00", defaultStream: 'foryou', goldRate: 0.01, diamondRate: 0.25,
   ldMultiplier: 190, isMusicEnabled: true, isGiftingEnabled: true,
-  isAiVerificationActive: true, isSensitivityFilterActive: false, isFreeMode: false,
+  isAiVerificationActive: true, isSensitivityFilterActive: false,
 };
 
 const OFFICIAL_GATEWAY = {

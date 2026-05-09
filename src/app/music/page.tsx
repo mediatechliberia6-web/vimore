@@ -129,20 +129,6 @@ function MusicPageContent() {
     }
   };
 
-  if (settings.isFreeMode) {
-    return (
-      <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] flex flex-col items-center justify-center p-8 text-center">
-        <div className="h-20 w-20 bg-primary/10 rounded-[2rem] flex items-center justify-center border border-dashed border-primary/20 mb-6">
-          <Music className="h-10 w-10 text-primary/40" />
-        </div>
-        <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-3">Page Unavailable</h2>
-        <p className="text-muted-foreground text-sm font-medium max-w-xs leading-relaxed">
-          Can&apos;t access this page because Free Mode is on. Turn off Free Mode in settings to listen to music.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className={cn("min-h-screen bg-[#F0F2F5] dark:bg-background transition-colors duration-300", (isExpanded || selectedAlbum || selectedPlaylist) && "h-screen overflow-hidden")}>
       <Header />

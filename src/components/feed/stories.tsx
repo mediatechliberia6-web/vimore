@@ -88,12 +88,11 @@ export function Stories({ onOpenCreate }: StoriesProps) {
                 key={story.$id} 
                 className={cn(
                   "relative w-28 h-48 rounded-2xl overflow-hidden shrink-0 border border-primary/5 cursor-pointer group shadow-sm transition-all hover:scale-[1.02]",
-                  settings.isFreeMode ? "bg-secondary/20" : isTextStory ? ((firstSegment as any).background || "bg-gradient-to-br from-primary to-accent") : ""
+                  isTextStory ? ((firstSegment as any).background || "bg-gradient-to-br from-primary to-accent") : ""
                 )}
                 onClick={() => handleStoryClick(index)}
               >
-                {!settings.isFreeMode && (
-                  isVideo ? (
+                {isVideo ? (
                     mediaUrl ? (
                       tier === 'lite' ? (
                         // Lite Mode: render thumb image, never load the video element
@@ -126,17 +125,16 @@ export function Stories({ onOpenCreate }: StoriesProps) {
                         className={cn("object-cover transition-transform group-hover:scale-110", (firstSegment as any).filter)} 
                       />
                     ) : null
-                  )
                 )}
                 <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
                 
                 <div className={cn(
                   "absolute transition-all duration-500",
-                  settings.isFreeMode ? "inset-0 flex items-center justify-center" : "top-2 left-2"
+                  "top-2 left-2"
                 )}>
                   <Avatar className={cn(
                     "border-2 shadow-lg transition-all",
-                    settings.isFreeMode ? "h-16 w-16" : "h-8 w-8",
+                    "h-8 w-8",
                     story.isCloseFriends ? "border-[#42b72a]" : "border-primary"
                   )}>
                     <AvatarImage src={getAdaptivePreview(story.user.avatar, 'avatar', tier) || story.user.avatar} />

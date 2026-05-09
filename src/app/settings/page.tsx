@@ -82,7 +82,6 @@ import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { useNetwork } from "@/context/NetworkContext";
-import { getMonthBytes, getTodayBytes, getMonthlyCapMB, setMonthlyCapMB, formatBytes } from "@/lib/data-budget";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
@@ -101,26 +100,6 @@ export default function SettingsPage() {
   const [isLegacySelectorOpen, setIsLegacySelectorOpen] = useState(false);
   const [legacySearch, setLegacySearch] = useState("");
   const [isEnrollingBiometric, setIsEnrollingBiometric] = useState(false);
-
-  // ─── Data Budget tracker (live) ────────────────────────────────────────
-  const [budgetTick, setBudgetTick] = useState(0);
-  const [capDraft, setCapDraft] = useState<string>("");
-  useEffect(() => {
-    setCapDraft(String(getMonthlyCapMB() || ""));
-    const onUpdate = () => setBudgetTick(t => t + 1);
-    window.addEventListener('vimore_data_budget_update', onUpdate);
-    const id = setInterval(onUpdate, 4000);
-    return () => {
-      window.removeEventListener('vimore_data_budget_update', onUpdate);
-      clearInterval(id);
-    };
-  }, []);
-  const todayBytes = useMemo(() => getTodayBytes(), [budgetTick]);
-  const monthBytes = useMemo(() => getMonthBytes(), [budgetTick]);
-  const monthlyCapMB = useMemo(() => getMonthlyCapMB(), [budgetTick]);
-  const monthPercent = monthlyCapMB > 0
-    ? Math.min(100, (monthBytes / (monthlyCapMB * 1024 * 1024)) * 100)
-    : 0;
 
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -268,67 +247,6 @@ export default function SettingsPage() {
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               Lite Mode shrinks images, lowers video quality, disables auto-play and reduces real-time sync — built for 2G/3G and Save-Data users across Africa.
             </p>
-
-            {/* ─── Data Budget Tracker ───────────────────────────────────── */}
-            <div className="rounded-2xl bg-secondary/40 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Database className="h-3.5 w-3.5 text-primary" />
-                  <p className="text-[11px] font-black uppercase tracking-widest">Data Used</p>
-                </div>
-                <Badge className="bg-background text-foreground/70 border border-border text-[9px] font-black uppercase tracking-widest">
-                  {monthlyCapMB > 0 ? `${monthlyCapMB} MB cap` : 'No cap'}
-                </Badge>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-background p-3">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Today</p>
-                  <p className="text-base font-black tabular-nums">{formatBytes(todayBytes)}</p>
-                </div>
-                <div className="rounded-xl bg-background p-3">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">This month</p>
-                  <p className="text-base font-black tabular-nums">{formatBytes(monthBytes)}</p>
-                </div>
-              </div>
-              {monthlyCapMB > 0 && (
-                <div className="space-y-1.5">
-                  <Progress value={monthPercent} className="h-2" />
-                  <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                    <span>{monthPercent.toFixed(0)}% of {monthlyCapMB} MB</span>
-                    <span className={cn(monthPercent >= 90 ? "text-red-500" : monthPercent >= 70 ? "text-amber-500" : "text-emerald-600")}>
-                      {monthPercent >= 90 ? "Almost full" : monthPercent >= 70 ? "Approaching" : "Healthy"}
-                    </span>
-                  </div>
-                </div>
-              )}
-              <div className="flex items-center gap-2 pt-1">
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  placeholder="Set monthly cap (MB)"
-                  value={capDraft}
-                  onChange={(e) => setCapDraft(e.target.value.replace(/[^0-9]/g, ''))}
-                  className="h-9 text-[11px] font-bold tabular-nums"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  className="h-9 text-[10px] font-black uppercase tracking-widest"
-                  onClick={() => {
-                    const n = Number(capDraft) || 0;
-                    setMonthlyCapMB(n);
-                    triggerHaptic(10);
-                    toast({ title: n > 0 ? `Monthly cap set to ${n} MB` : 'Monthly cap cleared' });
-                  }}
-                >
-                  Save
-                </Button>
-              </div>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Tip: pair Lite Mode with a 100 MB cap so you get a heads-up before you blow the bundle.
-              </p>
-            </div>
 
             <div className="grid grid-cols-3 gap-2 bg-secondary/40 p-1.5 rounded-2xl">
               <button

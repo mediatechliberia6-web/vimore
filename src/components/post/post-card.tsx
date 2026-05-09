@@ -580,37 +580,13 @@ export function PostCard(props: PostCardProps) {
                 </div>
               )}
               {allImages.length > 0 && (
-                settings.isFreeMode ? (
-                  <div className={cn("relative mt-2 rounded-xl overflow-hidden bg-secondary/30 border border-primary/10 flex flex-col items-center justify-center gap-3 py-8 px-4", isShared ? "-mx-1" : "-mx-3 sm:mx-0")}>
-                    <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                      <Lock className="h-6 w-6" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs font-black uppercase tracking-widest text-foreground">Free Mode is On</p>
-                      <p className="text-[10px] font-bold text-muted-foreground mt-1">Turn off Free Mode to view photos</p>
-                    </div>
-                  </div>
-                ) : (
                   <div className={cn("relative mt-2", isShared ? "-mx-1" : "-mx-3 sm:mx-0")}>
                     {allImages.length > 1 && <div className="absolute top-3 right-3 z-20 bg-black/40 backdrop-blur-md px-2 py-1 rounded-xl border border-white/10 text-white text-[10px] font-black">{currentSlide + 1}/{allImages.length}</div>}
                     <Carousel className="w-full" setApi={(api) => api?.on("select", () => setCurrentSlide(api.selectedScrollSnap()))}><CarouselContent>{allImages.map((img, i) => (<CarouselItem key={i}><div className="relative aspect-[4/5] overflow-hidden rounded-lg cursor-pointer" onClick={() => setSelectedImageUrl(img)}><IOSImage src={getAdaptivePreview(img, 'feed', tier) || img} alt="Post" className="w-full h-full object-cover" /></div></CarouselItem>))}</CarouselContent></Carousel>
                   </div>
-                )
               )}
               {videoUrl && (
-                settings.isFreeMode ? (
-                  <div className={cn("relative mt-2 rounded-xl overflow-hidden bg-secondary/30 border border-primary/10 flex flex-col items-center justify-center gap-3 py-8 px-4", isShared ? "-mx-1" : "-mx-3 sm:mx-0")}>
-                    <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                      <Lock className="h-6 w-6" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs font-black uppercase tracking-widest text-foreground">Free Mode is On</p>
-                      <p className="text-[10px] font-bold text-muted-foreground mt-1">Turn off Free Mode to view videos</p>
-                    </div>
-                  </div>
-                ) : (
                   <FeedVideo videoUrl={videoUrl} postId={$id} isShared={isShared} />
-                )
               )}
             </>
           )}

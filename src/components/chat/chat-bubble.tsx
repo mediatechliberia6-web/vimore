@@ -220,7 +220,6 @@ export function ChatBubble({
 
   const handleViewOnce = () => {
     if (isViewed) return;
-    if (settings.isFreeMode) return;
     if (!isDownloaded && !isMe) {
       handleDownload();
       return;
@@ -231,7 +230,6 @@ export function ChatBubble({
 
   const handleMediaClick = () => {
     if (!mediaUrl) return;
-    if (settings.isFreeMode) return;
     triggerHaptic(10);
     if (type === 'photo') {
       setSelectedImageUrl(mediaUrl);
@@ -265,7 +263,6 @@ export function ChatBubble({
   const toggleVideo = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!videoRef.current || !mediaUrl) return;
-    if (settings.isFreeMode) return;
     triggerHaptic(10);
     if (isPlayingVideo) {
       videoRef.current.pause();

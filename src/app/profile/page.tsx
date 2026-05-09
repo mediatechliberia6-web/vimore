@@ -322,9 +322,7 @@ export default function MyProfilePage() {
           
           <div className="relative">
             <div className="relative h-48 sm:h-64 bg-gradient-to-r from-primary/20 via-accent/10 to-primary/20 overflow-hidden group">
-              {settings.isFreeMode ? (
-                <div className="absolute inset-0 bg-secondary/20 flex items-center justify-center"><EyeOff className="h-10 w-10 text-muted-foreground/20" /></div>
-              ) : currentUser.cover ? (
+              {currentUser.cover ? (
                 <Image src={currentUser.cover} alt="Cover" fill className="object-cover dark:brightness-75 transition-transform duration-700 group-hover:scale-105" />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -503,13 +501,7 @@ export default function MyProfilePage() {
                                     "h-12 w-12 rounded-xl overflow-hidden shadow-md transition-all",
                                     isActive && "ring-2 ring-primary shadow-[0_0_12px_rgba(153,64,229,0.5)]"
                                   )}>
-                                    {!settings.isFreeMode ? (
                                       <img src={song.cover} alt={song.title} className="h-full w-full object-cover" />
-                                    ) : (
-                                      <div className="h-full w-full bg-primary/10 flex items-center justify-center">
-                                        <MusicIcon className="h-5 w-5 text-primary/40" />
-                                      </div>
-                                    )}
                                   </div>
                                   {isActive && isPlaying && (
                                     <div className="absolute inset-0 flex items-end justify-center gap-[2px] pb-1.5 rounded-xl bg-black/30">
@@ -558,13 +550,7 @@ export default function MyProfilePage() {
                               className="flex-shrink-0 w-36 group text-left"
                             >
                               <div className="relative h-36 w-36 rounded-2xl overflow-hidden shadow-lg mb-2 group-hover:shadow-xl transition-all group-active:scale-95">
-                                {!settings.isFreeMode ? (
                                   <img src={album.cover} alt={album.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                ) : (
-                                  <div className="h-full w-full bg-violet-500/10 flex items-center justify-center">
-                                    <Disc3 className="h-10 w-10 text-violet-400/40" />
-                                  </div>
-                                )}
                                 <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                   <div className="h-11 w-11 bg-white rounded-full flex items-center justify-center shadow-xl">
                                     <Play className="h-5 w-5 text-primary fill-current ml-0.5" />
@@ -594,13 +580,7 @@ export default function MyProfilePage() {
                               className="w-full flex items-center gap-3 p-3 bg-secondary/30 hover:bg-secondary/60 rounded-2xl transition-all group text-left"
                             >
                               <div className="relative h-14 w-14 rounded-xl overflow-hidden shadow-md flex-shrink-0">
-                                {!settings.isFreeMode ? (
                                   <img src={pl.cover} alt={pl.title} className="h-full w-full object-cover" />
-                                ) : (
-                                  <div className="h-full w-full bg-emerald-500/10 flex items-center justify-center">
-                                    <ListMusic className="h-5 w-5 text-emerald-500/40" />
-                                  </div>
-                                )}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="font-black text-sm truncate">{pl.title}</p>
@@ -621,7 +601,7 @@ export default function MyProfilePage() {
               <TabsContent value="listings" className="p-4">
                 {currentUser ? <UserListings sellerId={currentUser.$id} isOwner={true} /> : null}
               </TabsContent>
-              <TabsContent value="media" className="p-4"><div className="grid grid-cols-3 gap-2">{postedImages.map((url, i) => (<div key={i} onClick={() => !settings.isFreeMode && setSelectedImageUrl(url)} className={cn("aspect-square relative rounded-xl overflow-hidden shadow-lg", !settings.isFreeMode ? "cursor-pointer hover:scale-[1.02] transition-transform" : "bg-secondary/20 flex items-center justify-center")}> {!settings.isFreeMode ? <Image src={url} alt="Shared" fill className="object-cover" /> : <ImageIcon className="h-6 w-6 text-muted-foreground/20" />}</div>))}{postedImages.length === 0 && <p className="col-span-3 text-center text-xs opacity-40 py-10">No images shared in the network.</p>}</div></TabsContent>
+              <TabsContent value="media" className="p-4"><div className="grid grid-cols-3 gap-2">{postedImages.map((url, i) => (<div key={i} onClick={() => setSelectedImageUrl(url)} className={cn("aspect-square relative rounded-xl overflow-hidden shadow-lg cursor-pointer hover:scale-[1.02] transition-transform")}><Image src={url} alt="Shared" fill className="object-cover" /></div>))}{postedImages.length === 0 && <p className="col-span-3 text-center text-xs opacity-40 py-10">No images shared in the network.</p>}</div></TabsContent>
             </Tabs>
           </div>
         </main>

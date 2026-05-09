@@ -6,7 +6,6 @@ import { Search, Plus, Menu, Bell, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CreatePostModal } from "@/components/post/create-post-modal";
-import { NetworkTierIndicator } from "@/components/layout/network-tier-indicator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNotifications } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
@@ -55,7 +54,6 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2">
-        <NetworkTierIndicator />
         <CreatePostModal>
           <Button variant="ghost" size="icon" className="rounded-full bg-secondary/50">
             <Plus className="h-5 w-5" />
@@ -75,7 +73,7 @@ export function Header() {
         
         <Link href="/profile" className="hidden sm:block ml-2 group">
           <Avatar className="h-9 w-9 border-2 border-primary/10 transition-transform group-hover:scale-105">
-            {!settings?.isFreeMode && <AvatarImage src={getAdaptivePreview(currentUser?.avatar, 'avatar', tier) || currentUser?.avatar} alt={currentUser?.name} />}
+            <AvatarImage src={getAdaptivePreview(currentUser?.avatar, 'avatar', tier) || currentUser?.avatar} alt={currentUser?.name} />
             <AvatarFallback>{currentUser?.name?.[0] || 'V'}</AvatarFallback>
           </Avatar>
         </Link>

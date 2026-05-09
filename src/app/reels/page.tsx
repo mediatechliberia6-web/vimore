@@ -964,23 +964,6 @@ export default function ReelsPage() {
     [openCommentHub, fetchComments]
   );
 
-  if (settings.isFreeMode) {
-    return (
-      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center p-8 text-center z-50">
-        <Link href="/" className="absolute top-4 left-4 w-9 h-9 rounded-full bg-white/10 flex items-center justify-center">
-          <ArrowLeft className="w-5 h-5 text-white" />
-        </Link>
-        <div className="h-20 w-20 bg-white/5 rounded-[2rem] flex items-center justify-center border border-dashed border-white/20 mb-6">
-          <Film className="h-10 w-10 text-white/30" />
-        </div>
-        <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-3">Page Unavailable</h2>
-        <p className="text-white/50 text-sm font-medium max-w-xs leading-relaxed">
-          Can&apos;t access this page because Free Mode is on. Turn off Free Mode in settings to watch Reels.
-        </p>
-      </div>
-    );
-  }
-
   if (isLoadingReels && reelsList.length === 0) {
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-4">

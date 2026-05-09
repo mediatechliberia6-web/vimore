@@ -466,29 +466,7 @@ export function StoryViewer() {
               )}
               onClick={handleTap}
             >
-              {settings.isFreeMode ? (
-                <div className="flex flex-col items-center gap-6 p-12 text-center">
-                  <div className="relative">
-                    <div className="absolute -inset-4 bg-primary/20 blur-3xl rounded-full animate-pulse" />
-                    <Avatar className="h-32 w-32 border-4 border-primary shadow-2xl relative z-10">
-                      <AvatarImage src={getAdaptivePreview(activeStory.user.avatar, 'avatar', tier) || activeStory.user.avatar} />
-                      <AvatarFallback>{activeStory.user.name[0]}</AvatarFallback>
-                    </Avatar>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-center gap-2">
-                      <EyeOff className="h-4 w-4 text-primary" />
-                      <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Free Mode Active</span>
-                    </div>
-                    <h3 className="text-xl font-black italic uppercase tracking-tighter text-white">Visual Suppressed</h3>
-                    <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl inline-flex items-center gap-2">
-                      <Zap className="h-3 w-3 text-primary animate-pulse" />
-                      <span className="text-[9px] font-black text-white/60 uppercase tracking-widest">High-Velocity Text Sync</span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <>
+              <>
                   {currentSegment.type === 'video' ? (
                     <>
                       <video

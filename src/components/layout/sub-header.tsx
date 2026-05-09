@@ -179,11 +179,6 @@ export function SubHeader() {
                       <EyeOff className="h-2.5 w-2.5 text-white" />
                     </div>
                   )}
-                  {settings.isFreeMode && !settings.isGhostMode && (
-                    <div className="absolute -top-1 -right-1 bg-primary rounded-full p-0.5 border border-white dark:border-background">
-                      <Zap className="h-2 w-2 text-white fill-current" />
-                    </div>
-                  )}
                 </div>
               </div>
             </DropdownMenuTrigger>

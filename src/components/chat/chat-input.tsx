@@ -81,10 +81,6 @@ export function ChatInput({ onSend, onTyping, onStopTyping }: ChatInputProps) {
   };
 
   const handleMediaTrigger = (filter: string) => {
-    if (settings.isFreeMode) {
-      toast({ variant: "destructive", title: "Free Mode Active", description: "Media sharing is disabled in Free Mode." });
-      return;
-    }
     triggerHaptic(5);
     setCurrentFilter(filter);
     setTimeout(() => {
@@ -148,10 +144,6 @@ export function ChatInput({ onSend, onTyping, onStopTyping }: ChatInputProps) {
   };
 
   const startRecording = async () => {
-    if (settings.isFreeMode) {
-      toast({ variant: "destructive", title: "Free Mode Active", description: "Voice messages are disabled in Free Mode." });
-      return;
-    }
     if (!navigator.mediaDevices?.getUserMedia) {
       toast({ variant: "destructive", title: "Not Supported", description: "Your browser does not support voice recording." });
       return;
