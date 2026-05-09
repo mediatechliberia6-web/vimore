@@ -126,7 +126,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     if (isCluster || isRequest || callPhase !== 'idle') return;
     const conn = contact as Connection;
     const avatarUrl = conn.avatar ? getAvatarUrl(BUCKET.AVATARS, conn.avatar, 'lg') : '';
-    initiateCall(conn.$id, conn.name, avatarUrl, type);
+    initiateCall(conn.$id, conn.username, conn.name, avatarUrl, type);
     triggerHaptic(10);
   }, [isCluster, isRequest, callPhase, contact, initiateCall, triggerHaptic]);
 
