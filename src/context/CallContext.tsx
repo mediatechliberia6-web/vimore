@@ -276,9 +276,20 @@ export function CallProvider({ children }: { children: ReactNode }) {
     const user = currentUserRef.current;
     if (!user || callPhaseRef.current !== 'idle') return;
 
-    setCallPhase('dialing');
+    // ── Show connecting screen IMMEDIATELY before any async work ──────────
     isCallerRef.current        = true;
     contactUsernameRef.current = contactUsername;
+    setCallPhase('dialing');
+    setCallInfo({
+      docId: '', callType, isOutgoing: true,
+      contactId, contactUsername, contactName, contactAvatar,
+    });
+
+    // ── Start 30-second "no answer" timeout right away ───────────────────
+    dialTimerRef.current = setTimeout(() => {
+      setCallError('Unable to connect — the user appears to be offline.');
+      cleanup(callDocIdRef.current ?? undefined);
+    }, DIAL_TIMEOUT_MS);
 
     try {
       const stream = await getMedia(callType);
@@ -318,18 +329,17 @@ export function CallProvider({ children }: { children: ReactNode }) {
       );
 
       callDocIdRef.current = doc.$id;
+      // Update callInfo with the real doc ID now that we have it
       setCallInfo({
         docId: doc.$id, callType, isOutgoing: true,
         contactId, contactUsername, contactName, contactAvatar,
       });
       startRingtone();
 
-      // Auto-cancel after 30 s → triggers missed-call message via cleanup
-      dialTimerRef.current = setTimeout(() => { endCall(); }, DIAL_TIMEOUT_MS);
-
     } catch (err: any) {
       console.error('[call] initiateCall error:', err);
-      cleanup();
+      if (dialTimerRef.current) { clearTimeout(dialTimerRef.current); dialTimerRef.current = null; }
+      cleanup(callDocIdRef.current ?? undefined);
       const msg = err?.name === 'NotAllowedError' || err?.message?.includes('Permission')
         ? 'Microphone permission denied. Please allow microphone access and try again.'
         : err?.name === 'NotFoundError'

@@ -8,8 +8,96 @@ import { cn } from '@/lib/utils';
 import { Phone, PhoneOff, Mic, MicOff, VideoOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+const DIAL_TIMEOUT_MS = 30;
+
 function formatDuration(s: number) {
   return `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
+}
+
+function DialingScreen({
+  callInfo,
+  isVideo,
+  localStream,
+  localVideoRef,
+  initial,
+  endCall,
+}: {
+  callInfo: { contactAvatar: string; contactName: string };
+  isVideo: boolean;
+  localStream: MediaStream | null;
+  localVideoRef: React.RefObject<HTMLVideoElement | null>;
+  initial: string;
+  endCall: () => void;
+}) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setElapsed(e => e + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const remaining = Math.max(0, DIAL_TIMEOUT_MS - elapsed);
+  const progress = (elapsed / DIAL_TIMEOUT_MS) * 100;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-gradient-to-b from-violet-950 via-violet-900 to-black select-none overflow-hidden">
+      {isVideo && localStream && (
+        <video
+          ref={localVideoRef}
+          autoPlay muted playsInline
+          className="absolute inset-0 w-full h-full object-cover opacity-[0.12] scale-x-[-1]"
+        />
+      )}
+
+      {/* Pulse rings behind avatar */}
+      <div className="relative flex items-center justify-center mb-8">
+        <span className="absolute h-52 w-52 rounded-full bg-violet-400/10 animate-ping" style={{ animationDuration: '2s' }} />
+        <span className="absolute h-40 w-40 rounded-full bg-violet-400/15 animate-ping" style={{ animationDuration: '1.5s', animationDelay: '0.4s' }} />
+        <Avatar className="relative z-10 h-28 w-28 border-4 border-white/20 shadow-[0_0_80px_rgba(139,92,246,0.4)]">
+          <AvatarImage src={callInfo.contactAvatar} />
+          <AvatarFallback className="text-5xl bg-violet-800 text-white font-black">{initial}</AvatarFallback>
+        </Avatar>
+      </div>
+
+      <div className="relative z-10 flex flex-col items-center">
+        <h2 className="text-white text-3xl font-black tracking-tight mb-1">{callInfo.contactName}</h2>
+
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-green-400 text-sm font-bold uppercase tracking-widest">Connecting</span>
+          <span className="flex gap-1 pt-0.5">
+            {[0, 1, 2].map(i => (
+              <span key={i} className="h-1.5 w-1.5 rounded-full bg-green-400 animate-bounce"
+                style={{ animationDelay: `${i * 160}ms` }} />
+            ))}
+          </span>
+        </div>
+
+        {/* Countdown ring */}
+        <div className="relative flex items-center justify-center mb-10 mt-4">
+          <svg className="absolute -rotate-90" width="56" height="56" viewBox="0 0 56 56">
+            <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
+            <circle
+              cx="28" cy="28" r="24" fill="none"
+              stroke="rgba(167,139,250,0.6)" strokeWidth="3"
+              strokeDasharray={`${2 * Math.PI * 24}`}
+              strokeDashoffset={`${2 * Math.PI * 24 * (progress / 100)}`}
+              strokeLinecap="round"
+              style={{ transition: 'stroke-dashoffset 1s linear' }}
+            />
+          </svg>
+          <span className="text-white/60 text-xs font-black tabular-nums">{remaining}s</span>
+        </div>
+
+        <button
+          onClick={endCall}
+          className="h-20 w-20 rounded-full bg-red-500 hover:bg-red-400 active:scale-95 transition-all shadow-2xl shadow-red-500/50 flex items-center justify-center border-4 border-red-400/30"
+        >
+          <PhoneOff className="h-8 w-8 text-white" />
+        </button>
+        <span className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-3">Cancel</span>
+      </div>
+    </div>
+  );
 }
 
 export function CallOverlay() {
@@ -97,42 +185,14 @@ export function CallOverlay() {
   // ── DIALING ───────────────────────────────────────────────────────────────
   if (callPhase === 'dialing') {
     return (
-      <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-gradient-to-b from-violet-950 via-violet-900 to-black select-none overflow-hidden">
-        {isVideo && localStream && (
-          <video
-            ref={localVideoRef}
-            autoPlay muted playsInline
-            className="absolute inset-0 w-full h-full object-cover opacity-[0.15] scale-x-[-1]"
-          />
-        )}
-
-        <div className="relative z-10 flex flex-col items-center">
-          <Avatar className="h-32 w-32 border-4 border-white/20 shadow-[0_0_80px_rgba(139,92,246,0.4)] mb-7">
-            <AvatarImage src={callInfo.contactAvatar} />
-            <AvatarFallback className="text-5xl bg-violet-800 text-white font-black">{initial}</AvatarFallback>
-          </Avatar>
-
-          <h2 className="text-white text-3xl font-black tracking-tight mb-2">{callInfo.contactName}</h2>
-
-          <div className="flex items-center gap-2 mb-24">
-            <span className="text-green-400 text-sm font-bold uppercase tracking-widest">Calling</span>
-            <span className="flex gap-1 pt-0.5">
-              {[0, 1, 2].map(i => (
-                <span key={i} className="h-1.5 w-1.5 rounded-full bg-green-400 animate-bounce"
-                  style={{ animationDelay: `${i * 160}ms` }} />
-              ))}
-            </span>
-          </div>
-
-          <button
-            onClick={endCall}
-            className="h-20 w-20 rounded-full bg-red-500 hover:bg-red-400 active:scale-95 transition-all shadow-2xl shadow-red-500/50 flex items-center justify-center border-4 border-red-400/30"
-          >
-            <PhoneOff className="h-8 w-8 text-white" />
-          </button>
-          <span className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-3">Cancel</span>
-        </div>
-      </div>
+      <DialingScreen
+        callInfo={callInfo}
+        isVideo={isVideo}
+        localStream={localStream}
+        localVideoRef={localVideoRef}
+        initial={initial}
+        endCall={endCall}
+      />
     );
   }
 
