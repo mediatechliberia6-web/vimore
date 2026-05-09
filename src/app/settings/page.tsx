@@ -507,22 +507,83 @@ export default function SettingsPage() {
 
             <div className="h-px bg-border -mx-6" />
 
-            <div className="flex items-center justify-between p-2">
-              <div className="flex items-center gap-4">
-                <div className={cn(
-                  "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
-                  settings.isBiometricActive ? "bg-green-500 text-white" : "bg-primary/10 text-primary"
-                )}>
-                  {isEnrollingBiometric ? <Loader2 className="h-5 w-5 animate-spin" /> : <Fingerprint className="h-5 w-5" />}
+            {/* ── DEVICE SECURITY (biometric / PIN / pattern / face / password) ── */}
+            <div className="space-y-0">
+              {/* Main toggle row */}
+              <div className="flex items-center justify-between p-2">
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
+                    settings.isBiometricActive ? "bg-green-500 text-white" : "bg-primary/10 text-primary"
+                  )}>
+                    {isEnrollingBiometric
+                      ? <Loader2 className="h-5 w-5 animate-spin" />
+                      : settings.isBiometricActive
+                        ? <ShieldCheck className="h-5 w-5" />
+                        : <Lock className="h-5 w-5" />
+                    }
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-sm">Device Security</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-black">
+                      {isEnrollingBiometric
+                        ? "Registering with your device..."
+                        : settings.isBiometricActive
+                          ? `${settings.biometricProtectedAreas?.length ?? 0} area${(settings.biometricProtectedAreas?.length ?? 0) !== 1 ? 's' : ''} protected`
+                          : "Fingerprint · Face · PIN · Pattern · Password"}
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-0.5">
-                  <p className="font-bold text-sm">{t('settings_biometric')}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase font-black">
-                    {isEnrollingBiometric ? "Registering device..." : settings.isBiometricActive ? "Messages & Earnings locked" : "Secure hubs with hardware signature"}
+                <Switch checked={settings.isBiometricActive} onCheckedChange={handleBiometricToggle} disabled={isEnrollingBiometric} />
+              </div>
+
+              {/* Expanded area selector — shown only when security is ON */}
+              {settings.isBiometricActive && (
+                <div className="mt-3 mx-2 bg-secondary/30 rounded-2xl overflow-hidden animate-in slide-in-from-top-2 duration-300">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-4 pt-3 pb-2">
+                    Protected Areas — tap to toggle
+                  </p>
+                  {([
+                    { key: 'messages', label: 'Messages',       icon: '💬', desc: 'Direct messages & chats' },
+                    { key: 'earnings', label: 'Earnings',        icon: '💰', desc: 'Wallet & earnings portal' },
+                    { key: 'currency', label: 'Currency Hub',    icon: '💎', desc: 'Diamonds & conversions' },
+                  ] as const).map(({ key, label, icon, desc }) => {
+                    const areas: string[] = settings.biometricProtectedAreas ?? [];
+                    const active = areas.includes(key);
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => {
+                          triggerHaptic(10);
+                          const next = active
+                            ? areas.filter(a => a !== key)
+                            : [...areas, key];
+                          updateSettings({ biometricProtectedAreas: next });
+                        }}
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary/50 transition-all border-t border-border/40 first:border-t-0"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-base">{icon}</span>
+                          <div className="text-left">
+                            <p className="text-xs font-bold">{label}</p>
+                            <p className="text-[9px] text-muted-foreground uppercase font-black">{desc}</p>
+                          </div>
+                        </div>
+                        <div className={cn(
+                          "h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all",
+                          active ? "bg-green-500 border-green-500" : "border-muted-foreground/30"
+                        )}>
+                          {active && <CheckCircle2 className="h-3 w-3 text-white" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-4 py-3 border-t border-border/40 flex items-center gap-1.5">
+                    <ShieldCheck className="h-3 w-3 text-green-500" />
+                    Uses your device lock — fingerprint, face, PIN, pattern or password
                   </p>
                 </div>
-              </div>
-              <Switch checked={settings.isBiometricActive} onCheckedChange={handleBiometricToggle} disabled={isEnrollingBiometric} />
+              )}
             </div>
 
             <div className="h-px bg-border -mx-6" />

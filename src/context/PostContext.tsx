@@ -23,6 +23,7 @@ export interface AppSettings {
   activeSoundSet: 'cyberpunk' | 'lofi';
   isBiometricActive: boolean;
   isHardwareEnrolled: boolean;
+  biometricProtectedAreas: string[];
   taggingPrivacy: 'everyone' | 'friends';
   discoveryVisibility: 'everyone' | 'mutual';
   showReadReceipts: boolean;
@@ -383,7 +384,8 @@ const PostContext = createContext<PostContextType | undefined>(undefined);
 const INITIAL_SETTINGS: AppSettings = {
   theme: 'light', hapticIntensity: 50, isGhostMode: false, playbackQuality: 'standard',
   fontScale: 1, isAutoFollowEnabled: true, activeSoundSet: 'cyberpunk', isBiometricActive: false,
-  isHardwareEnrolled: false, taggingPrivacy: 'everyone', discoveryVisibility: 'everyone',
+  isHardwareEnrolled: false, biometricProtectedAreas: ['messages', 'earnings', 'currency'],
+  taggingPrivacy: 'everyone', discoveryVisibility: 'everyone',
   showReadReceipts: true, legacyContact: null, isSilenceActive: false, silenceStart: "22:00",
   silenceEnd: "07:00", defaultStream: 'foryou', goldRate: 0.01, diamondRate: 0.25,
   ldMultiplier: 190, isMusicEnabled: true, isGiftingEnabled: true,
@@ -4104,17 +4106,32 @@ export function PostProvider({ children }: { children: ReactNode }) {
     enrollHardwareBiometrics: async (): Promise<boolean> => {
       if (typeof window === 'undefined' || !window.PublicKeyCredential) return false;
       try {
-        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-        if (!available) return false;
+        // We intentionally do NOT hard-gate on isUserVerifyingPlatformAuthenticatorAvailable().
+        // That API returns false on some Android devices with only PIN/pattern but no biometrics,
+        // even though credential creation succeeds. Let the OS decide which method to use
+        // (fingerprint, face ID, PIN, pattern, or password).
         const challenge = crypto.getRandomValues(new Uint8Array(32));
-        const userId = crypto.getRandomValues(new Uint8Array(16));
+        const userId    = crypto.getRandomValues(new Uint8Array(16));
         const credential = await navigator.credentials.create({
           publicKey: {
             challenge,
-            rp: { name: "ViMore", id: window.location.hostname },
-            user: { id: userId, name: currentUser?.username || "vimore-user", displayName: currentUser?.name || "ViMore User" },
-            pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
-            authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", requireResidentKey: false },
+            rp:   { name: "ViMore", id: window.location.hostname },
+            user: {
+              id:          userId,
+              name:        currentUser?.username    || "vimore-user",
+              displayName: currentUser?.name        || "ViMore User",
+            },
+            // ES256 (-7) + RS256 (-257) covers all platform authenticators
+            pubKeyCredParams: [
+              { type: "public-key", alg: -7   },
+              { type: "public-key", alg: -257 },
+            ],
+            authenticatorSelection: {
+              authenticatorAttachment: "platform",
+              // "preferred" allows the OS to fall back to PIN/pattern when no biometrics exist
+              userVerification:    "preferred",
+              requireResidentKey:  false,
+            },
             timeout: 60000,
           },
         }) as PublicKeyCredential | null;
@@ -4130,13 +4147,20 @@ export function PostProvider({ children }: { children: ReactNode }) {
     verifyHardwareBiometrics: async (): Promise<boolean> => {
       if (typeof window === 'undefined' || !window.PublicKeyCredential) return false;
       try {
-        const challenge = crypto.getRandomValues(new Uint8Array(32));
-        const credIdBase64 = localStorage.getItem('vimore_biometric_cred_id');
+        const challenge      = crypto.getRandomValues(new Uint8Array(32));
+        const credIdBase64   = localStorage.getItem('vimore_biometric_cred_id');
         const allowCredentials: PublicKeyCredentialDescriptor[] = credIdBase64
           ? [{ type: "public-key", id: Uint8Array.from(atob(credIdBase64), c => c.charCodeAt(0)), transports: ["internal" as AuthenticatorTransport] }]
           : [];
         const credential = await navigator.credentials.get({
-          publicKey: { challenge, timeout: 60000, userVerification: "required", rpId: window.location.hostname, allowCredentials },
+          publicKey: {
+            challenge,
+            timeout:          60000,
+            // "preferred" triggers fingerprint/face/PIN/pattern — whatever the device has
+            userVerification: "preferred",
+            rpId:             window.location.hostname,
+            allowCredentials,
+          },
         });
         return credential !== null;
       } catch { return false; }
