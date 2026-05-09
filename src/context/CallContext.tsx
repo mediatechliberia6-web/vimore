@@ -44,10 +44,27 @@ interface CallContextType {
 
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
+    // Google STUN — fast direct connection when possible
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    // Open Relay TURN — free public relay, no account needed, used only when
+    // a direct P2P path cannot be established (symmetric NAT, restrictive firewall)
+    {
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp',
+        'turn:openrelay.metered.ca:80?transport=tcp',
+      ],
+      username:   'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    // Metered STUN (same infrastructure as the TURN above)
+    { urls: 'stun:openrelay.metered.ca:80' },
   ],
+  // Browser prefers direct paths first; TURN is used only as a last resort
+  iceCandidatePoolSize: 10,
 };
 
 const VIDEO_CONSTRAINTS: MediaTrackConstraints = {
