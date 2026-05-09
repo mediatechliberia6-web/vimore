@@ -13,6 +13,8 @@ import { firePush } from '@/lib/push-fire';
 
 export type CallPhase = 'idle' | 'dialing' | 'ringing' | 'active';
 export type CallType  = 'video' | 'audio';
+/** Sub-phase within 'dialing': preparing = gathering ICE; ringing = receiver notified */
+export type DialStep  = 'preparing' | 'ringing';
 
 export interface CallInfo {
   docId:           string;
@@ -26,6 +28,7 @@ export interface CallInfo {
 
 interface CallContextType {
   callPhase:     CallPhase;
+  dialStep:      DialStep | null;
   callInfo:      CallInfo | null;
   callError:     string | null;
   localStream:   MediaStream | null;
@@ -96,6 +99,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const { currentUser, sendChatMessage } = usePosts();
 
   const [callPhase,    setCallPhase]    = useState<CallPhase>('idle');
+  const [dialStep,     setDialStep]     = useState<DialStep | null>(null);
   const [callInfo,     setCallInfo]     = useState<CallInfo | null>(null);
   const [callError,    setCallError]    = useState<string | null>(null);
   const [localStream,  setLocalStream]  = useState<MediaStream | null>(null);
@@ -164,6 +168,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     remoteDescSetRef.current   = false;
 
     setCallPhase('idle');
+    setDialStep(null);
     setCallInfo(null);
     setLocalStream(null);
     setRemoteStream(null);
@@ -292,10 +297,11 @@ export function CallProvider({ children }: { children: ReactNode }) {
     const user = currentUserRef.current;
     if (!user || callPhaseRef.current !== 'idle') return;
 
-    // Show connecting screen immediately
+    // Show connecting screen immediately — 'preparing' while we get media + gather ICE
     isCallerRef.current        = true;
     contactUsernameRef.current = contactUsername;
     setCallPhase('dialing');
+    setDialStep('preparing');
     setCallInfo({
       docId: '', callType, isOutgoing: true,
       contactId, contactUsername, contactName, contactAvatar,
@@ -382,6 +388,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
         docId: doc.$id, callType, isOutgoing: true,
         contactId, contactUsername, contactName, contactAvatar,
       });
+      // Switch to 'ringing' step — receiver has now been notified
+      setDialStep('ringing');
       startRingtone();
       console.log('[call] call doc created:', doc.$id);
 
@@ -605,7 +613,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
   return (
     <CallContext.Provider value={{
-      callPhase, callInfo, callError, localStream, remoteStream, isMuted, isVideoOff,
+      callPhase, dialStep, callInfo, callError, localStream, remoteStream, isMuted, isVideoOff,
       initiateCall, acceptCall, declineCall, endCall, toggleMute, switchToAudio, clearCallError,
     }}>
       {children}
