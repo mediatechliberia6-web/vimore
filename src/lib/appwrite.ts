@@ -46,6 +46,7 @@ export const COL = {
   CHAT_READ_RECEIPTS: 'chat_read_receipts',
   PRODUCTS: 'Products',
   TYPING_INDICATORS: 'typing_indicators',
+  CALLS: 'calls',
 } as const;
 
 export const BUCKET = {
