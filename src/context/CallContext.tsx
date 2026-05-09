@@ -45,27 +45,35 @@ interface CallContextType {
 
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
-    // Google STUN — fast direct connection when possible
+    // Multiple Google STUN servers — fast direct path when NAT allows it
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
-    // Open Relay TURN — free public relay, no account needed, used only when
-    // a direct P2P path cannot be established (symmetric NAT, restrictive firewall)
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    // Cloudflare STUN — reliable globally, good for West Africa
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    // Extra public STUN servers
+    { urls: 'stun:stunserver.stunprotocol.org:3478' },
+    { urls: 'stun:stun.voip.blackberry.com:3478' },
+    // OpenRelay TURN — relay of last resort for symmetric NAT / CGNAT
+    // (used only when no direct path can be established)
     {
       urls: [
         'turn:openrelay.metered.ca:80',
         'turn:openrelay.metered.ca:443',
         'turn:openrelay.metered.ca:443?transport=tcp',
-        'turn:openrelay.metered.ca:80?transport=tcp',
+        'turns:openrelay.metered.ca:443',
       ],
       username:   'openrelayproject',
       credential: 'openrelayproject',
     },
-    // Metered STUN (same infrastructure as the TURN above)
+    // Metered.ca free STUN
     { urls: 'stun:openrelay.metered.ca:80' },
   ],
-  // Browser prefers direct paths first; TURN is used only as a last resort
   iceCandidatePoolSize: 10,
+  bundlePolicy: 'max-bundle',
+  rtcpMuxPolicy: 'require',
 };
 
 const VIDEO_CONSTRAINTS: MediaTrackConstraints = {
@@ -74,8 +82,11 @@ const VIDEO_CONSTRAINTS: MediaTrackConstraints = {
   frameRate: { ideal: 20,  max: 20  },
 };
 
-/** Ring for 30 s then auto-cancel as missed (same as WhatsApp default). */
-const DIAL_TIMEOUT_MS = 30_000;
+/** Ring for 45 s before marking as missed. */
+const DIAL_TIMEOUT_MS = 45_000;
+
+/** How long to wait for ICE gathering before giving up and using what we have. */
+const ICE_GATHER_TIMEOUT_MS = 8_000;
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
@@ -102,18 +113,14 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const pcRef                = useRef<RTCPeerConnection | null>(null);
   const localStreamRef       = useRef<MediaStream | null>(null);
   const remoteDescSetRef     = useRef(false);
-  const addedCandidatesRef   = useRef<Set<string>>(new Set());
-  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
-  const localCandidatesRef   = useRef<RTCIceCandidateInit[]>([]);
-  const iceFlusherRef        = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dialTimerRef         = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ringtoneRef          = useRef<HTMLAudioElement | null>(null);
   const sendChatMessageRef   = useRef(sendChatMessage);
 
-  useEffect(() => { currentUserRef.current     = currentUser;    }, [currentUser]);
-  useEffect(() => { callPhaseRef.current        = callPhase;     }, [callPhase]);
-  useEffect(() => { callInfoRef.current         = callInfo;      }, [callInfo]);
-  useEffect(() => { sendChatMessageRef.current  = sendChatMessage; }, [sendChatMessage]);
+  useEffect(() => { currentUserRef.current    = currentUser;     }, [currentUser]);
+  useEffect(() => { callPhaseRef.current       = callPhase;      }, [callPhase]);
+  useEffect(() => { callInfoRef.current        = callInfo;       }, [callInfo]);
+  useEffect(() => { sendChatMessageRef.current = sendChatMessage; }, [sendChatMessage]);
 
   // ── Ringtone ─────────────────────────────────────────────────────────────
   const startRingtone = useCallback(() => {
@@ -137,32 +144,25 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
   // ── Full cleanup ──────────────────────────────────────────────────────────
   const cleanup = useCallback(async (docIdToDelete?: string) => {
-    // Snapshot before resetting (used for missed-call message below)
-    const wasActive      = callPhaseRef.current === 'active';
-    const wasCaller      = isCallerRef.current;
-    const snapCallType   = callInfoRef.current?.callType;
-    const snapUsername   = contactUsernameRef.current;
-    const snapUser       = currentUserRef.current;
+    const wasActive    = callPhaseRef.current === 'active';
+    const wasCaller    = isCallerRef.current;
+    const snapCallType = callInfoRef.current?.callType;
+    const snapUsername = contactUsernameRef.current;
+    const snapUser     = currentUserRef.current;
 
     stopRingtone();
-    if (dialTimerRef.current)  { clearTimeout(dialTimerRef.current);  dialTimerRef.current  = null; }
-    if (iceFlusherRef.current) { clearTimeout(iceFlusherRef.current); iceFlusherRef.current = null; }
-    if (pcRef.current)         { pcRef.current.close(); pcRef.current = null; }
+    if (dialTimerRef.current) { clearTimeout(dialTimerRef.current); dialTimerRef.current = null; }
+    if (pcRef.current)        { pcRef.current.close(); pcRef.current = null; }
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(t => t.stop());
       localStreamRef.current = null;
     }
 
-    // Reset all refs
     callDocIdRef.current       = null;
     isCallerRef.current        = false;
     contactUsernameRef.current = '';
     remoteDescSetRef.current   = false;
-    addedCandidatesRef.current.clear();
-    pendingCandidatesRef.current = [];
-    localCandidatesRef.current   = [];
 
-    // Reset state
     setCallPhase('idle');
     setCallInfo(null);
     setLocalStream(null);
@@ -170,15 +170,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
     setIsMuted(false);
     setIsVideoOff(false);
 
-    // Delete the Appwrite document (immediate)
     if (docIdToDelete) {
       try { await databases.deleteDocument(DATABASE_ID, COL.CALLS, docIdToDelete); }
       catch { /* already gone */ }
     }
 
-    // Write missed-call message into the chat thread (caller side only)
-    // This fires whenever the call ended before reaching 'active', regardless
-    // of who triggered the cleanup (timeout, manual cancel, or receiver decline).
+    // Write missed-call message into the chat thread (caller side only, when not answered)
     if (wasCaller && !wasActive && snapUsername && snapUser && snapCallType) {
       const label = snapCallType === 'video' ? 'video call' : 'voice call';
       const emoji = snapCallType === 'video' ? '📹' : '📞';
@@ -191,63 +188,35 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }
   }, [stopRingtone]);
 
-  // ── ICE candidate management ─────────────────────────────────────────────
-  const flushLocalCandidates = useCallback(async () => {
-    const docId = callDocIdRef.current;
-    if (!docId || localCandidatesRef.current.length === 0) return;
-    const field = isCallerRef.current ? 'caller_ice' : 'receiver_ice';
-    try {
-      await databases.updateDocument(DATABASE_ID, COL.CALLS, docId, {
-        [field]: JSON.stringify(localCandidatesRef.current),
-      });
-    } catch { /* transient */ }
-  }, []);
+  // ── Wait for ICE gathering to complete (vanilla ICE) ─────────────────────
+  // Instead of trickling candidates via separate Appwrite updates, we wait for
+  // gathering to finish so the SDP itself contains all candidates.  This
+  // eliminates the race condition between offer/answer and ICE candidate writes.
+  const waitForIceGathering = useCallback((pc: RTCPeerConnection): Promise<void> => {
+    return new Promise<void>((resolve) => {
+      if (pc.iceGatheringState === 'complete') { resolve(); return; }
 
-  const scheduleIceFlush = useCallback(() => {
-    if (iceFlusherRef.current) clearTimeout(iceFlusherRef.current);
-    iceFlusherRef.current = setTimeout(flushLocalCandidates, 250);
-  }, [flushLocalCandidates]);
+      const timer = setTimeout(() => {
+        // Timed out — use whatever candidates we have so far
+        pc.removeEventListener('icegatheringstatechange', onStateChange);
+        resolve();
+      }, ICE_GATHER_TIMEOUT_MS);
 
-  const processRemoteCandidates = useCallback(async (json: string) => {
-    if (!json || !pcRef.current) return;
-    try {
-      const candidates: RTCIceCandidateInit[] = JSON.parse(json);
-      for (const c of candidates) {
-        const key = JSON.stringify(c);
-        if (addedCandidatesRef.current.has(key)) continue;
-        addedCandidatesRef.current.add(key);
-        if (!remoteDescSetRef.current) {
-          pendingCandidatesRef.current.push(c);
-        } else {
-          try { await pcRef.current.addIceCandidate(new RTCIceCandidate(c)); } catch { /* skip */ }
+      function onStateChange() {
+        if (pc.iceGatheringState === 'complete') {
+          clearTimeout(timer);
+          pc.removeEventListener('icegatheringstatechange', onStateChange);
+          resolve();
         }
       }
-    } catch { /* bad JSON */ }
-  }, []);
 
-  // ── Apply remote description + drain pending candidates ──────────────────
-  const applyRemoteDesc = useCallback(async (
-    pc: RTCPeerConnection,
-    sdp: RTCSessionDescriptionInit,
-  ) => {
-    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-    remoteDescSetRef.current = true;
-    for (const c of pendingCandidatesRef.current) {
-      try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch { /* skip */ }
-    }
-    pendingCandidatesRef.current = [];
+      pc.addEventListener('icegatheringstatechange', onStateChange);
+    });
   }, []);
 
   // ── RTCPeerConnection factory ─────────────────────────────────────────────
   const createPC = useCallback(() => {
     const pc = new RTCPeerConnection(ICE_SERVERS);
-
-    pc.onicecandidate = (e) => {
-      if (e.candidate) {
-        localCandidatesRef.current.push(e.candidate.toJSON());
-        scheduleIceFlush();
-      }
-    };
 
     pc.ontrack = (e) => {
       if (e.streams?.[0]) setRemoteStream(e.streams[0]);
@@ -255,32 +224,61 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
+      console.log('[call] connectionState:', state);
       if (state === 'connected') {
         stopRingtone();
         setCallPhase('active');
-      } else if (state === 'failed' || state === 'closed') {
+      } else if (state === 'failed') {
+        console.warn('[call] connection failed — cleaning up');
         cleanup(callDocIdRef.current ?? undefined);
+      } else if (state === 'closed') {
+        if (callPhaseRef.current !== 'idle') cleanup(callDocIdRef.current ?? undefined);
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log('[call] iceConnectionState:', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'failed') {
+        // Try ICE restart before giving up
+        if (isCallerRef.current) {
+          pc.restartIce();
+          console.log('[call] ICE restart triggered');
+        }
       }
     };
 
     pcRef.current = pc;
     return pc;
-  }, [scheduleIceFlush, stopRingtone, cleanup]);
+  }, [stopRingtone, cleanup]);
 
   // ── Get user media ────────────────────────────────────────────────────────
   const getMedia = useCallback(async (callType: CallType) => {
-    let stream: MediaStream;
+    // Try with video first for video calls, fall back to audio-only
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         video: callType === 'video' ? VIDEO_CONSTRAINTS : false,
       });
-    } catch {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      localStreamRef.current = stream;
+      setLocalStream(stream);
+      return stream;
+    } catch (videoErr: any) {
+      if (callType === 'video') {
+        console.warn('[call] video getUserMedia failed, trying audio-only:', videoErr?.message);
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            video: false,
+          });
+          localStreamRef.current = stream;
+          setLocalStream(stream);
+          return stream;
+        } catch (audioErr: any) {
+          throw audioErr;
+        }
+      }
+      throw videoErr;
     }
-    localStreamRef.current = stream;
-    setLocalStream(stream);
-    return stream;
   }, []);
 
   // ══ INITIATE CALL ══════════════════════════════════════════════════════════
@@ -294,7 +292,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     const user = currentUserRef.current;
     if (!user || callPhaseRef.current !== 'idle') return;
 
-    // ── Show connecting screen IMMEDIATELY before any async work ──────────
+    // Show connecting screen immediately
     isCallerRef.current        = true;
     contactUsernameRef.current = contactUsername;
     setCallPhase('dialing');
@@ -303,31 +301,30 @@ export function CallProvider({ children }: { children: ReactNode }) {
       contactId, contactUsername, contactName, contactAvatar,
     });
 
-    // ── Start 30-second "no answer" timeout right away ───────────────────
+    // 45-second "no answer" timeout
     const capturedContactId = contactId;
     const capturedCallType  = callType;
     const capturedUser      = currentUserRef.current;
     dialTimerRef.current = setTimeout(async () => {
-      setCallError('Unable to connect — the user appears to be offline.');
-      // Write a missed-call notification so the receiver sees it when they return
+      setCallError('No answer — the user may be unavailable.');
       if (capturedUser && capturedContactId) {
         const label = capturedCallType === 'video' ? 'video call' : 'voice call';
         try {
           await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
-            user_id:            capturedContactId,
-            from_user_id:       capturedUser.$id,
-            from_user_name:     capturedUser.name || capturedUser.username || '',
-            from_user_avatar:   capturedUser.avatar
+            user_id:         capturedContactId,
+            from_user_id:    capturedUser.$id,
+            from_user_name:  capturedUser.name || capturedUser.username || '',
+            from_user_avatar: capturedUser.avatar
               ? getAvatarUrl(BUCKET.AVATARS, capturedUser.avatar, 'sm')
               : '',
-            type:       'SYSTEM',
-            title:      'Missed Call',
-            content:    `${capturedUser.name || capturedUser.username} tried to ${label} you`,
-            message:    `${capturedUser.name || capturedUser.username} tried to ${label} you`,
-            is_read:    false,
+            type:        'SYSTEM',
+            title:       'Missed Call',
+            content:     `${capturedUser.name || capturedUser.username} tried to ${label} you`,
+            message:     `${capturedUser.name || capturedUser.username} tried to ${label} you`,
+            is_read:     false,
             action_href: '/messages',
           });
-        } catch { /* non-fatal — best effort */ }
+        } catch { /* non-fatal */ }
       }
       cleanup(callDocIdRef.current ?? undefined);
     }, DIAL_TIMEOUT_MS);
@@ -337,16 +334,27 @@ export function CallProvider({ children }: { children: ReactNode }) {
       const pc     = createPC();
       stream.getTracks().forEach(t => pc.addTrack(t, stream));
 
+      // Create offer and set local description
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: callType === 'video',
       });
       await pc.setLocalDescription(offer);
 
+      // ── VANILLA ICE: wait for all candidates to be gathered ──────────
+      // This embeds all ICE candidates into the SDP so the receiver gets
+      // a complete picture in one write — no trickle race condition.
+      console.log('[call] waiting for ICE gathering...');
+      await waitForIceGathering(pc);
+      console.log('[call] ICE gathering complete, candidates in SDP');
+
+      const completeSdp = pc.localDescription!;
+
       const callerAvatar = user.avatar
         ? getAvatarUrl(BUCKET.AVATARS, user.avatar, 'lg')
         : '';
 
+      // Write the complete offer (with ICE candidates embedded) to Appwrite
       const doc = await databases.createDocument(
         DATABASE_ID, COL.CALLS, ID.unique(),
         {
@@ -357,7 +365,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
           caller_avatar:   callerAvatar,
           call_type:       callType,
           status:          'ringing',
-          offer:           JSON.stringify(offer),
+          offer:           JSON.stringify(completeSdp),
           answer:          '',
           caller_ice:      '[]',
           receiver_ice:    '[]',
@@ -370,30 +378,29 @@ export function CallProvider({ children }: { children: ReactNode }) {
       );
 
       callDocIdRef.current = doc.$id;
-      // Update callInfo with the real doc ID now that we have it
       setCallInfo({
         docId: doc.$id, callType, isOutgoing: true,
         contactId, contactUsername, contactName, contactAvatar,
       });
       startRingtone();
+      console.log('[call] call doc created:', doc.$id);
 
-      // ── Push-notify receiver so they see the call even when app is backgrounded
+      // Push-notify receiver so they see the call even when the app is backgrounded
       const callerDisplayName = user.name || user.username || 'Someone';
-      const callLabel = callType === 'video' ? 'Video Call' : 'Voice Call';
       firePush({
-        userId:           contactId,
-        title:            `📞 Incoming ${callLabel}`,
-        body:             `${callerDisplayName} is calling you`,
-        url:              '/messages',
-        tag:              `call-${doc.$id}`,
+        userId:             contactId,
+        title:              `📞 Incoming ${callType === 'video' ? 'Video' : 'Voice'} Call`,
+        body:               `${callerDisplayName} is calling you`,
+        url:                '/messages',
+        tag:                `call-${doc.$id}`,
         requireInteraction: true,
-        icon:             callerAvatar || '/icons/icon-192.png',
+        icon:               callerAvatar || '/icons/icon-192.png',
         data: {
-          type:          'incoming-call',
-          callDocId:     doc.$id,
+          type:         'incoming-call',
+          callDocId:    doc.$id,
           callType,
-          callerName:    callerDisplayName,
-          callerAvatar:  callerAvatar,
+          callerName:   callerDisplayName,
+          callerAvatar: callerAvatar,
         },
         actions: [
           { action: 'accept-call', title: '✅ Accept' },
@@ -402,24 +409,26 @@ export function CallProvider({ children }: { children: ReactNode }) {
       });
 
     } catch (err: any) {
-      console.error('[call] initiateCall error — name:', err?.name, 'message:', err?.message, 'code:', err?.code, 'full:', err);
+      console.error('[call] initiateCall failed — name:', err?.name, 'msg:', err?.message, 'code:', err?.code);
       if (dialTimerRef.current) { clearTimeout(dialTimerRef.current); dialTimerRef.current = null; }
       cleanup(callDocIdRef.current ?? undefined);
-      const msg = err?.name === 'NotAllowedError' || err?.message?.includes('Permission denied') || err?.message?.includes('permission')
-        ? 'Microphone/camera permission denied. Please allow access and try again.'
-        : err?.name === 'NotFoundError' || err?.message?.includes('not found')
-        ? 'No microphone found on this device.'
-        : err?.message?.includes('getUserMedia') || err?.message?.includes('media')
-        ? 'Could not access camera/microphone. Please check permissions.'
-        : err?.code === 401 || err?.message?.includes('401')
-        ? 'Session expired — please log in again and retry the call.'
-        : err?.code === 404 || err?.message?.includes('Collection with the requested ID could not be found')
-        ? 'Call feature is not fully set up yet. Please contact support.'
-        : `Could not start the call: ${err?.message || 'Please try again.'}`;
+
+      const msg =
+        err?.name === 'NotAllowedError' || err?.message?.includes('Permission denied')
+          ? 'Microphone/camera permission denied. Please allow access in your browser settings and try again.'
+          : err?.name === 'NotFoundError'
+          ? 'No microphone found. Please check your device and try again.'
+          : err?.name === 'NotReadableError' || err?.message?.includes('Could not start')
+          ? 'Camera or microphone is already in use by another app. Close that app and try again.'
+          : err?.code === 401 || err?.message?.includes('401')
+          ? 'Your session expired — please log in again and retry.'
+          : err?.code === 404 || err?.message?.includes('Collection with the requested ID could not be found')
+          ? 'Calls are not fully set up on the server. Please contact the admin.'
+          : `Call failed: ${err?.message || 'Unknown error. Please try again.'}`;
       setCallError(msg);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getMedia, createPC, startRingtone, cleanup]);
+  }, [getMedia, createPC, waitForIceGathering, startRingtone, cleanup]);
 
   // ══ ACCEPT CALL ════════════════════════════════════════════════════════════
   const acceptCall = useCallback(async () => {
@@ -428,28 +437,40 @@ export function CallProvider({ children }: { children: ReactNode }) {
     stopRingtone();
 
     try {
-      const doc = await databases.getDocument(DATABASE_ID, COL.CALLS, docId) as any;
-      const callType: CallType = doc.call_type || 'video';
+      const doc      = await databases.getDocument(DATABASE_ID, COL.CALLS, docId) as any;
+      const callType: CallType = doc.call_type || 'audio';
 
       const stream = await getMedia(callType);
       const pc     = createPC();
       stream.getTracks().forEach(t => pc.addTrack(t, stream));
 
-      await applyRemoteDesc(pc, JSON.parse(doc.offer));
-      if (doc.caller_ice) await processRemoteCandidates(doc.caller_ice);
+      // Apply the caller's complete offer (includes their ICE candidates)
+      const offerSdp: RTCSessionDescriptionInit = JSON.parse(doc.offer);
+      await pc.setRemoteDescription(new RTCSessionDescription(offerSdp));
+      remoteDescSetRef.current = true;
+      console.log('[call] remote description set (caller offer)');
 
+      // Create answer and set local description
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
+      // ── VANILLA ICE: wait for all answer candidates ───────────────────
+      console.log('[call] waiting for ICE gathering (answer side)...');
+      await waitForIceGathering(pc);
+      console.log('[call] ICE gathering complete, writing complete answer');
+
+      const completeAnswer = pc.localDescription!;
+
+      // Write complete answer (with ICE candidates in SDP) back to Appwrite
       await databases.updateDocument(DATABASE_ID, COL.CALLS, docId, {
         status: 'accepted',
-        answer: JSON.stringify(answer),
+        answer: JSON.stringify(completeAnswer),
       });
-    } catch (err) {
-      console.error('[call] acceptCall error:', err);
+    } catch (err: any) {
+      console.error('[call] acceptCall error — name:', err?.name, 'msg:', err?.message);
       cleanup(docId);
     }
-  }, [stopRingtone, getMedia, createPC, applyRemoteDesc, processRemoteCandidates, cleanup]);
+  }, [stopRingtone, getMedia, createPC, waitForIceGathering, cleanup]);
 
   // ══ DECLINE / END ══════════════════════════════════════════════════════════
   const declineCall = useCallback(async () => {
@@ -482,11 +503,9 @@ export function CallProvider({ children }: { children: ReactNode }) {
       if (msg.type !== 'CALL_ACTION') return;
 
       if (msg.action === 'accept') {
-        // If we're already in the ringing phase for this doc, accept it
         if (callPhaseRef.current === 'ringing' && callDocIdRef.current === msg.callDocId) {
           acceptCall();
         } else if (msg.callDocId && callPhaseRef.current === 'idle') {
-          // App was closed / backgrounded — set up the ringing state then accept
           callDocIdRef.current       = msg.callDocId;
           isCallerRef.current        = false;
           contactUsernameRef.current = '';
@@ -500,15 +519,12 @@ export function CallProvider({ children }: { children: ReactNode }) {
             contactName:     msg.callerName || 'Unknown',
             contactAvatar:   msg.callerAvatar || '',
           });
-          // Small delay so state settles before we accept
           setTimeout(() => acceptCall(), 300);
         }
       }
 
       if (msg.action === 'decline') {
-        if (callPhaseRef.current !== 'idle') {
-          declineCall();
-        }
+        if (callPhaseRef.current !== 'idle') declineCall();
       }
     };
 
@@ -527,29 +543,28 @@ export function CallProvider({ children }: { children: ReactNode }) {
       const payload = response.payload as any;
       if (!payload) return;
 
-      const userId   = currentUserRef.current?.$id;
+      const userId = currentUserRef.current?.$id;
       if (!userId) return;
 
       const isCreate = events.some(e => e.endsWith('.create'));
       const isUpdate = events.some(e => e.endsWith('.update'));
       const isDelete = events.some(e => e.endsWith('.delete'));
 
-      // ── Incoming call ──────────────────────────────────────────────────
+      // ── Incoming call (receiver side) ─────────────────────────────────
       if (isCreate && payload.receiver_id === userId && payload.status === 'ringing') {
         if (callPhaseRef.current !== 'idle') {
-          // Already in a call — immediately delete to signal busy
+          // Already in a call — signal busy by deleting the doc
           try { await databases.deleteDocument(DATABASE_ID, COL.CALLS, payload.$id); }
           catch { /* ignore */ }
           return;
         }
         callDocIdRef.current       = payload.$id;
         isCallerRef.current        = false;
-        // Store caller's username so the chat thread can be identified if needed
         contactUsernameRef.current = payload.caller_username || '';
         setCallPhase('ringing');
         setCallInfo({
           docId:           payload.$id,
-          callType:        payload.call_type || 'video',
+          callType:        payload.call_type || 'audio',
           isOutgoing:      false,
           contactId:       payload.caller_id,
           contactUsername: payload.caller_username || '',
@@ -560,31 +575,33 @@ export function CallProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // ── Updates to the active call doc ────────────────────────────────
+      // ── Updates to our active call doc ────────────────────────────────
       if (payload.$id !== callDocIdRef.current) return;
 
       if (isUpdate) {
         const isCaller = isCallerRef.current;
 
-        // Caller receives answer from receiver → set remote description
+        // Caller receives the complete answer (with ICE candidates embedded)
         if (isCaller && payload.answer && pcRef.current && !remoteDescSetRef.current) {
-          try { await applyRemoteDesc(pcRef.current, JSON.parse(payload.answer)); }
-          catch (err) { console.warn('[call] applyRemoteDesc failed:', err); }
+          try {
+            const answerSdp: RTCSessionDescriptionInit = JSON.parse(payload.answer);
+            await pcRef.current.setRemoteDescription(new RTCSessionDescription(answerSdp));
+            remoteDescSetRef.current = true;
+            console.log('[call] remote description set (receiver answer) — waiting for ICE connection');
+          } catch (err) {
+            console.warn('[call] setRemoteDescription (answer) failed:', err);
+          }
         }
-
-        // Process remote ICE candidates
-        const remoteField = isCaller ? 'receiver_ice' : 'caller_ice';
-        if (payload[remoteField]) await processRemoteCandidates(payload[remoteField]);
 
         if (payload.status === 'ended' || payload.status === 'declined') cleanup();
       }
 
-      // Doc was deleted by the other party (end / decline / timeout)
+      // Doc deleted by the other party (end / decline / timeout)
       if (isDelete) cleanup();
     });
 
     return () => { unsubscribe(); };
-  }, [currentUser?.$id, startRingtone, applyRemoteDesc, processRemoteCandidates, cleanup]);
+  }, [currentUser?.$id, startRingtone, cleanup]);
 
   return (
     <CallContext.Provider value={{
