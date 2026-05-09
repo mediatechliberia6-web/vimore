@@ -57,6 +57,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { OnlineIndicator } from "@/components/ui/online-indicator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -377,6 +378,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   };
 
   const isContactOnline = !isCluster && (contact as Connection).isOnline && !settings.isGhostMode;
+  const contactLastSeenAt = !isCluster ? (contact as Connection).lastSeenAt : null;
 
   return (
     <div className="flex flex-1 min-h-0 bg-[#F0F2F5] dark:bg-[#080808] relative overflow-hidden">
@@ -395,13 +397,31 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                   <AvatarFallback>{contact.name[0]}</AvatarFallback>
                 </Avatar>
               )}
-              {isContactOnline && !isRequest && <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full animate-pulse" />}
+              {!isCluster && !isRequest && (
+                <OnlineIndicator
+                  isOnline={!!isContactOnline}
+                  lastSeenAt={contactLastSeenAt}
+                  dotClassName="h-3 w-3"
+                  className="absolute -bottom-0.5 -right-0.5 border-2 border-white dark:border-card rounded-full"
+                />
+              )}
             </div>
             <div className="flex flex-col min-w-0 ml-1">
               <h3 className="font-bold text-sm sm:text-base truncate">{contact.name}</h3>
-              <span className={cn("text-[10px] font-black uppercase tracking-widest", isCluster ? "text-primary" : isContactOnline && !isRequest ? "text-green-500" : "text-muted-foreground")}>
-                {isCluster ? `${((contact as Cluster).members || []).length} ${t('chat_members_pulse')}` : isRequest ? "STRANGER PULSE" : isContactOnline ? t('chat_active_pulse') : t('chat_away')}
-              </span>
+              {isCluster ? (
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+                  {`${((contact as Cluster).members || []).length} ${t('chat_members_pulse')}`}
+                </span>
+              ) : isRequest ? (
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">STRANGER PULSE</span>
+              ) : (
+                <OnlineIndicator
+                  isOnline={!!isContactOnline}
+                  lastSeenAt={contactLastSeenAt}
+                  showText
+                  dotClassName="h-1.5 w-1.5"
+                />
+              )}
             </div>
           </div>
           

@@ -160,6 +160,7 @@ export interface Connection extends User {
   followsYou?: boolean;
   isGroup: false;
   isOnline?: boolean;
+  lastSeenAt?: string | null;
   lastMessage?: string;
   lastTime?: string;
 }
@@ -891,7 +892,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         cover: u.cover_id ? getFileUrl(BUCKET.COVERS, u.cover_id) : undefined,
         isVerified: u.is_verified || false,
         isGroup: false as const,
-        isOnline: false,
+        isOnline: u.is_online || false,
+        lastSeenAt: u.last_seen_at || null,
         followsYou: false,
       }));
 
@@ -1420,6 +1422,53 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
     checkSession();
   }, [checkSession]);
+
+  // ── Presence heartbeat ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!currentUser?.$id) return;
+    const userId = currentUser.$id;
+
+    const markOnline = async () => {
+      try {
+        await databases.updateDocument(DATABASE_ID, COL.USERS, userId, {
+          is_online: true,
+          last_seen_at: new Date().toISOString(),
+        });
+      } catch { /* ignore — non-critical */ }
+    };
+
+    const markOffline = async () => {
+      try {
+        await databases.updateDocument(DATABASE_ID, COL.USERS, userId, {
+          is_online: false,
+          last_seen_at: new Date().toISOString(),
+        });
+      } catch { /* ignore */ }
+    };
+
+    markOnline();
+    const interval = setInterval(markOnline, 60000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        markOffline();
+      } else {
+        markOnline();
+      }
+    };
+
+    const handleBeforeUnload = () => { markOffline(); };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      markOffline();
+    };
+  }, [currentUser?.$id]);
 
   useEffect(() => {
     if (!currentUser?.$id) return;

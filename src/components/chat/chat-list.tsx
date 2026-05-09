@@ -6,13 +6,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { OnlineIndicator } from "@/components/ui/online-indicator";
 import { 
   Search, 
-  Settings2, 
   Pin, 
-  Circle, 
   Filter,
-  MoreVertical,
   Edit2,
   Radio,
   Plus,
@@ -49,10 +47,8 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
   const [pinnedUsernames] = useState(new Set<string>());
 
   const { sortedChats, requestCount } = useMemo(() => {
-    // Handshake Guard: Handle null user during build
     if (!currentUser) return { sortedChats: [], requestCount: 0 };
 
-    // 1. Identify all conversation nodes
     const allItems = [
       ...(connections || [])
         .filter(c => c && c.username && c.username !== currentUser.username)
@@ -62,8 +58,6 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
         .map(cl => ({ ...cl, isGroup: true }))
     ];
 
-    // Open inbox: every conversation (friends, clusters, strangers with messages)
-    // appears in the main list. No friend gate, no requests partition.
     const requests: any[] = [];
     const seen = new Set<string>();
     let mains: any[] = [];
@@ -124,11 +118,6 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     onSelect(id);
   };
 
-  const handleToggleRequests = () => {
-    triggerHaptic(10);
-    setShowRequests(!showRequests);
-  };
-
   return (
     <div className="flex flex-col h-full bg-white dark:bg-card">
       <div className="p-4 sm:p-6 border-b border-primary/5 flex items-center justify-between">
@@ -174,8 +163,8 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
             const id = (item as any).username || (item as any).$id;
             const isSelected = selectedId === id;
             
-            // Respect Ghost Mode Protocol
-            const isOnlineVisible = (item as any).isOnline && !settings.isGhostMode;
+            const isOnlineVisible = !settings.isGhostMode && !item.isGroup && (item as any).isOnline;
+            const lastSeenAt = !item.isGroup ? (item as any).lastSeenAt : null;
             
             const msgs = chatMessages[id];
             const lastIncomingAt = chatLastIncomingAt[id];
@@ -192,7 +181,14 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                   ) : (
                     <Avatar className="h-12 w-12 border-2 border-primary/5"><AvatarImage src={getAdaptivePreview((item as any).avatar, 'avatar', tier) || (item as any).avatar} /><AvatarFallback>{item.name[0]}</AvatarFallback></Avatar>
                   )}
-                  {isOnlineVisible && <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-card rounded-full animate-pulse" />}
+                  {!item.isGroup && (
+                    <OnlineIndicator
+                      isOnline={!!isOnlineVisible}
+                      lastSeenAt={lastSeenAt}
+                      dotClassName="h-3.5 w-3.5"
+                      className="absolute -bottom-0.5 -right-0.5 border-2 border-white dark:border-card rounded-full"
+                    />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
@@ -205,34 +201,48 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    <p className={cn("text-xs truncate", hasNewPulse ? "text-foreground font-bold" : "text-muted-foreground")}>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <p className={cn("text-xs truncate", hasNewPulse ? "text-foreground font-bold" : "text-muted-foreground")}>
+                        {(() => {
+                          const lastMsg = chatMessages[id]?.at(-1);
+                          if (lastMsg) {
+                            if (lastMsg.text) return lastMsg.text;
+                            if (lastMsg.type === 'photo') return '📷 Photo';
+                            if (lastMsg.type === 'video') return '🎥 Video';
+                            if (lastMsg.type === 'voice') return `🎤 Voice${lastMsg.voiceDuration ? ` · ${lastMsg.voiceDuration}` : ''}`;
+                            if (lastMsg.type === 'post') return '📌 Shared Post';
+                          }
+                          if (messagePreviews[id]?.text) return messagePreviews[id].text;
+                          return (item as any).lastMessage || "No messages yet.";
+                        })()}
+                      </p>
+                      {/* Last seen text below the message preview */}
+                      {!item.isGroup && !isOnlineVisible && lastSeenAt && (
+                        <OnlineIndicator
+                          isOnline={false}
+                          lastSeenAt={lastSeenAt}
+                          showText
+                          dotClassName="h-1.5 w-1.5"
+                          className="mt-0.5"
+                        />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {pinnedUsernames.has(id) && <Pin className="h-3 w-3 text-muted-foreground/40 rotate-45" />}
                       {(() => {
-                        const lastMsg = chatMessages[id]?.at(-1);
-                        if (lastMsg) {
-                          if (lastMsg.text) return lastMsg.text;
-                          if (lastMsg.type === 'photo') return '📷 Photo';
-                          if (lastMsg.type === 'video') return '🎥 Video';
-                          if (lastMsg.type === 'voice') return `🎤 Voice${lastMsg.voiceDuration ? ` · ${lastMsg.voiceDuration}` : ''}`;
-                          if (lastMsg.type === 'post') return '📌 Shared Post';
+                        const count = (chatUnreadCounts && chatUnreadCounts[id]) || 0;
+                        if (!isSelected && count > 0) {
+                          return (
+                            <span className="min-w-[18px] h-[18px] px-1.5 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center shadow-[0_0_8px_rgba(153,64,229,0.8)]">
+                              {count > 99 ? '99+' : count}
+                            </span>
+                          );
                         }
-                        if (messagePreviews[id]?.text) return messagePreviews[id].text;
-                        return (item as any).lastMessage || "No messages yet.";
+                        return hasNewPulse ? (
+                          <div className="h-2 w-2 bg-primary rounded-full shadow-[0_0_8px_rgba(153,64,229,0.8)]" />
+                        ) : null;
                       })()}
-                    </p>
-                    {pinnedUsernames.has(id) && <Pin className="h-3 w-3 text-muted-foreground/40 rotate-45" />}
-                    {(() => {
-                      const count = (chatUnreadCounts && chatUnreadCounts[id]) || 0;
-                      if (!isSelected && count > 0) {
-                        return (
-                          <span className="min-w-[18px] h-[18px] px-1.5 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center shadow-[0_0_8px_rgba(153,64,229,0.8)]">
-                            {count > 99 ? '99+' : count}
-                          </span>
-                        );
-                      }
-                      return hasNewPulse ? (
-                        <div className="h-2 w-2 bg-primary rounded-full shadow-[0_0_8px_rgba(153,64,229,0.8)]" />
-                      ) : null;
-                    })()}
+                    </div>
                   </div>
                 </div>
               </div>

@@ -51,6 +51,7 @@ import {
   Clock,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { OnlineIndicator } from "@/components/ui/online-indicator";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { cn, parseFollowerCount, saveFileToDevice, isTextForeignToUser } from "@/lib/utils";
@@ -250,9 +251,13 @@ export function PostCard(props: PostCardProps) {
   } = props;
 
   const { 
-    currentUser, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, voteOnPostPoll, settings, recordCampaignClick, recordView, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, submitReport,
+    currentUser, connections, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, voteOnPostPoll, settings, recordCampaignClick, recordView, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, submitReport,
     postCountOverrides,
   } = usePosts();
+
+  const authorConn = connections.find(c => c.username === user.username);
+  const authorIsOnline = !isCampaign && !settings.isGhostMode && (authorConn?.isOnline || false);
+  const authorLastSeenAt = authorConn?.lastSeenAt || null;
   const { tier } = useNetwork();
 
   const { addSignal } = useNotifications();
@@ -480,7 +485,17 @@ export function PostCard(props: PostCardProps) {
 
         <CardHeader className={cn("flex flex-row items-center justify-between space-y-0 p-3", isShared ? "pb-1" : "bg-white dark:bg-card")}>
           <div className="flex items-center gap-2">
-            <Link href={isCampaign ? "#" : `/profile/${user.username}`}><Avatar className={cn("border border-primary/10 hover:opacity-80 transition-opacity", isShared ? "h-7 w-7" : "h-10 w-10")}><AvatarImage src={isCampaign ? "/icon.svg" : getAdaptivePreview(user.avatar, 'avatar', tier) || user.avatar} /><AvatarFallback>{user.name[0]}</AvatarFallback></Avatar></Link>
+            <div className="relative shrink-0">
+              <Link href={isCampaign ? "#" : `/profile/${user.username}`}><Avatar className={cn("border border-primary/10 hover:opacity-80 transition-opacity", isShared ? "h-7 w-7" : "h-10 w-10")}><AvatarImage src={isCampaign ? "/icon.svg" : getAdaptivePreview(user.avatar, 'avatar', tier) || user.avatar} /><AvatarFallback>{user.name[0]}</AvatarFallback></Avatar></Link>
+              {!isShared && (authorIsOnline || authorLastSeenAt) && (
+                <OnlineIndicator
+                  isOnline={authorIsOnline}
+                  lastSeenAt={authorLastSeenAt}
+                  dotClassName="h-2.5 w-2.5"
+                  className="absolute -bottom-0.5 -right-0.5 border-2 border-white dark:border-card rounded-full"
+                />
+              )}
+            </div>
             <div className="flex flex-col">
               <div className="flex flex-wrap items-center gap-1.5">
                 <div className="flex items-center gap-1">
