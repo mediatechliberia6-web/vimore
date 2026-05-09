@@ -12,6 +12,7 @@ export async function freeModeSignupAction(input: {
   dob: string;
   nationality: string;
   gender: string;
+  referredBy?: string;
 }): Promise<{ success: boolean; message: string }> {
   try {
     const users = getAdminUsers();
@@ -57,6 +58,34 @@ export async function freeModeSignupAction(input: {
       security_question: '',
       security_answer: '',
     });
+
+    // ── Credit referrer if a referral code was passed ──────────────────────
+    if (input.referredBy) {
+      try {
+        const referrerRes = await db.listDocuments(DATABASE_ID, COL.USERS, [
+          Query.equal('username', input.referredBy.toLowerCase().trim()),
+          Query.limit(1),
+        ]);
+        const referrerDoc = referrerRes.documents[0];
+        if (referrerDoc && referrerDoc.$id !== authUser.$id) {
+          const referralBonus = 5000;
+          await Promise.allSettled([
+            db.updateDocument(DATABASE_ID, COL.USERS, referrerDoc.$id, {
+              star_balance: (referrerDoc.star_balance || 0) + referralBonus,
+              referral_count: (referrerDoc.referral_count || 0) + 1,
+            }),
+            db.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+              user_id: referrerDoc.$id,
+              type: 'SYSTEM',
+              title: 'Referral Bonus!',
+              content: `${input.name.trim()} joined via your referral link. You earned ${referralBonus.toLocaleString()} stars!`,
+              message: `${input.name.trim()} joined via your referral link. You earned ${referralBonus.toLocaleString()} stars!`,
+              is_read: false,
+            }),
+          ]);
+        }
+      } catch { /* non-blocking — referral credit failure must not break signup */ }
+    }
 
     return { success: true, message: 'Account created! You can now log in.' };
   } catch (err: any) {

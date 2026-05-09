@@ -272,11 +272,6 @@ export default function HowItWorks() {
               <span className="text-[10px] font-black uppercase text-primary tracking-widest leading-none mb-1">{t('branding_amos')}</span>
               <span className="text-[8px] font-bold uppercase tracking-tighter text-muted-foreground">Founder & CEO</span>
             </div>
-            <div className="w-px h-6 bg-primary/20" />
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] font-black uppercase text-primary tracking-widest checkbox-none leading-none mb-1">{t('branding_aaron')}</span>
-              <span className="text-[8px] font-bold uppercase tracking-tighter text-muted-foreground">Co-founder & President</span>
-            </div>
           </div>
           <p className="text-[9px] font-black uppercase tracking-[0.4em] text-foreground">ViMore Logic v1.5.0 • MTL Core</p>
         </footer>

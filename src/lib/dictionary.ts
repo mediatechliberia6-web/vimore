@@ -30,7 +30,7 @@ const dictionaryRaw = {
     logout: "Log out",
     branding_mtl: "© 2026 ViMore by Media Tech Liberia",
     branding_amos: "Amos B. Kortu",
-    branding_aaron: "Aaron M. Tulay",
+
     ui_search: "Search",
     ui_search_vimore: "Search ViMore",
     ui_filter: "Filter",
@@ -266,7 +266,7 @@ const dictionaryRaw = {
     logout: "Cerrar sesión",
     branding_mtl: "© 2026 ViMore por Media Tech Liberia",
     branding_amos: "Amos B. Kortu",
-    branding_aaron: "Aaron M. Tulay",
+
     ui_search: "Buscar",
     ui_search_vimore: "Buscar en ViMore",
     ui_filter: "Filtrar",
@@ -502,7 +502,7 @@ const dictionaryRaw = {
     logout: "Se déconnecter",
     branding_mtl: "© 2026 ViMore par Media Tech Liberia",
     branding_amos: "Amos B. Kortu",
-    branding_aaron: "Aaron M. Tulay",
+
     ui_search: "Rechercher",
     ui_search_vimore: "Rechercher sur ViMore",
     ui_filter: "Filtrer",
@@ -738,7 +738,7 @@ const dictionaryRaw = {
     logout: "Sair",
     branding_mtl: "© 2026 ViMore par Media Tech Liberia",
     branding_amos: "Amos B. Kortu",
-    branding_aaron: "Aaron M. Tulay",
+
     ui_search: "Buscar",
     ui_search_vimore: "Buscar no ViMore",
     ui_filter: "Filtrar",
@@ -974,7 +974,7 @@ const dictionaryRaw = {
     logout: "تسجيل خروج",
     branding_mtl: "© 2026 ViMore · ميديا تيك ليبيريا",
     branding_amos: "Amos B. Kortu",
-    branding_aaron: "Aaron M. Tulay",
+
     ui_search: "بحث",
     ui_search_vimore: "البحث في ViMore",
     ui_filter: "تصفية",
@@ -1210,7 +1210,7 @@ const dictionaryRaw = {
     logout: "登出",
     branding_mtl: "© 2026 ViMore · Media Tech Liberia",
     branding_amos: "Amos B. Kortu",
-    branding_aaron: "Aaron M. Tulay",
+
     ui_search: "搜索",
     ui_search_vimore: "在 ViMore 上搜索",
     ui_filter: "筛选",

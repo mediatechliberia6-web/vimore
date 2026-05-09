@@ -94,7 +94,9 @@ import {
   ChevronDown,
   Info,
   GanttChart,
-  Undo2
+  Undo2,
+  Share2,
+  Medal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -151,7 +153,7 @@ import {
 import { AdminTicketTab } from "@/components/tickets/AdminTicketTab";
 import { AdminCheckTicketTab } from "@/components/tickets/AdminCheckTicketTab";
 
-type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "campaigns" | "infrastructure" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury";
+type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "campaigns" | "infrastructure" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury" | "referrals";
 
 interface TreasurySnapshot {
   totalUsers: number;
@@ -245,6 +247,9 @@ export default function AdminDashboard() {
   const [treasurySnapshot, setTreasurySnapshot] = useState<TreasurySnapshot | null>(null);
   const [isFetchingTreasury, setIsFetchingTreasury] = useState(false);
   const [treasuryCountdown, setTreasuryCountdown] = useState(3600);
+
+  const [referralLeaders, setReferralLeaders] = useState<any[]>([]);
+  const [isFetchingReferrals, setIsFetchingReferrals] = useState(false);
 
   // Withdrawal action dialogs
   const [withdrawalActionTarget, setWithdrawalActionTarget] = useState<{ id: string; action: 'APPROVED' | 'REJECTED' } | null>(null);
@@ -379,7 +384,7 @@ export default function AdminDashboard() {
   );
 
   const availableTabs = useMemo(() => {
-    if (isSuper) return ["pulse", "economy", "treasury", "intelligence", "velocity", "identity", "safety", "users", "broadcast", "governance", "campaigns", "tickets", "check_ticket", "infrastructure", "resolution", "logs", "staff"] as AdminTab[];
+    if (isSuper) return ["pulse", "economy", "treasury", "referrals", "intelligence", "velocity", "identity", "safety", "users", "broadcast", "governance", "campaigns", "tickets", "check_ticket", "infrastructure", "resolution", "logs", "staff"] as AdminTab[];
     const tabs: AdminTab[] = ["pulse", "logs"];
     if (isFinancial) tabs.push("economy", "treasury", "infrastructure");
     if (isModerator) tabs.push("intelligence", "velocity", "identity", "safety", "users", "campaigns", "resolution", "tickets", "check_ticket");
@@ -656,6 +661,17 @@ export default function AdminDashboard() {
   }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== 'referrals') return;
+    setIsFetchingReferrals(true);
+    databases.listDocuments(DATABASE_ID, COL.USERS, [
+      Query.orderDesc('referral_count'),
+      Query.limit(20),
+    ]).then(res => {
+      setReferralLeaders(res.documents.filter((u: any) => (u.referral_count || 0) > 0));
+    }).catch(() => {}).finally(() => setIsFetchingReferrals(false));
+  }, [activeTab]);
+
+  useEffect(() => {
     if (activeTab !== 'intelligence') return;
     databases.listDocuments(DATABASE_ID, COL.POSTS, [
       Query.orderDesc('$createdAt'), Query.limit(500),
@@ -709,6 +725,7 @@ export default function AdminDashboard() {
     staff: { label: "Staff", icon: Users },
     tickets: { label: "Tickets", icon: CalendarClock },
     check_ticket: { label: "Check Ticket", icon: QrCode2 },
+    referrals: { label: "Referrals", icon: Share2 },
   };
 
   if (isUnauthorized) {
@@ -2164,6 +2181,124 @@ export default function AdminDashboard() {
                   <div className="py-16 text-center bg-white/40 dark:bg-white/5 border border-dashed border-primary/10 rounded-[2.5rem] opacity-40 uppercase text-xs font-black">No staff assigned yet</div>
                 )}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'referrals' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="flex items-start justify-between flex-wrap gap-4 px-2">
+                <div className="space-y-1">
+                  <h3 className="text-3xl font-black italic uppercase tracking-tighter">Referral Leaderboard</h3>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Top 20 users who onboarded the most friends</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isFetchingReferrals}
+                  onClick={() => {
+                    setIsFetchingReferrals(true);
+                    databases.listDocuments(DATABASE_ID, COL.USERS, [
+                      Query.orderDesc('referral_count'),
+                      Query.limit(20),
+                    ]).then(res => {
+                      setReferralLeaders(res.documents.filter((u: any) => (u.referral_count || 0) > 0));
+                    }).catch(() => {}).finally(() => setIsFetchingReferrals(false));
+                  }}
+                  className="h-10 rounded-2xl border-primary/20 gap-2 font-black uppercase text-[9px] tracking-widest"
+                >
+                  {isFetchingReferrals ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
+                  Refresh
+                </Button>
+              </div>
+
+              {/* Summary cards */}
+              {referralLeaders.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {[
+                    {
+                      label: "Total Referrals",
+                      value: referralLeaders.reduce((s: number, u: any) => s + (u.referral_count || 0), 0).toLocaleString(),
+                      icon: Share2,
+                      color: "text-primary",
+                      bg: "bg-primary/10",
+                    },
+                    {
+                      label: "Stars Awarded",
+                      value: (referralLeaders.reduce((s: number, u: any) => s + (u.referral_count || 0), 0) * 5000).toLocaleString(),
+                      icon: Star,
+                      color: "text-amber-400",
+                      bg: "bg-amber-400/10",
+                    },
+                    {
+                      label: "Top Referrer",
+                      value: referralLeaders[0]?.name?.split(' ')[0] ?? '—',
+                      icon: Medal,
+                      color: "text-yellow-400",
+                      bg: "bg-yellow-400/10",
+                    },
+                  ].map(card => {
+                    const Icon = card.icon;
+                    return (
+                      <Card key={card.label} className="rounded-3xl border-border/40 bg-card/60">
+                        <CardContent className="p-6 flex items-center gap-4">
+                          <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${card.bg} shrink-0`}>
+                            <Icon className={`h-6 w-6 ${card.color}`} />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{card.label}</p>
+                            <p className="text-xl font-black tracking-tight">{card.value}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Leaderboard table */}
+              {isFetchingReferrals ? (
+                <div className="flex flex-col items-center justify-center py-24 gap-4">
+                  <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Loading Leaderboard...</p>
+                </div>
+              ) : referralLeaders.length === 0 ? (
+                <Card className="rounded-3xl border-border/40">
+                  <CardContent className="flex flex-col items-center justify-center py-24 gap-4">
+                    <Share2 className="h-12 w-12 text-muted-foreground/30" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">No referrals yet — share the platform to get started.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="rounded-3xl border-border/40 overflow-hidden">
+                  <div className="divide-y divide-border/40">
+                    {referralLeaders.map((user: any, i: number) => {
+                      const starsEarned = (user.referral_count || 0) * 5000;
+                      const medalColor = i === 0 ? "text-yellow-400" : i === 1 ? "text-slate-300" : i === 2 ? "text-amber-600" : "text-muted-foreground";
+                      return (
+                        <div key={user.$id} className="flex items-center gap-4 px-6 py-4 hover:bg-secondary/20 transition-colors">
+                          <div className={`w-8 text-center font-black text-sm ${medalColor}`}>
+                            {i < 3 ? <Medal className={`h-5 w-5 mx-auto ${medalColor}`} /> : <span className="text-[11px] text-muted-foreground">{i + 1}</span>}
+                          </div>
+                          <Avatar className="h-10 w-10 border border-border shrink-0">
+                            <AvatarImage src={user.avatar} />
+                            <AvatarFallback className="text-xs font-black bg-secondary">{(user.name || '?')[0]}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-black truncate">{user.name}</p>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">@{user.username}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-sm font-black text-primary">{(user.referral_count || 0).toLocaleString()} <span className="text-[10px] text-muted-foreground font-bold">referrals</span></p>
+                            <p className="text-[10px] font-bold text-amber-400">{starsEarned.toLocaleString()} ★</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              )}
+
+              <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/40 text-center">Each referral awards 5,000 stars to the referrer. Only users with at least 1 referral are shown.</p>
             </div>
           )}
 

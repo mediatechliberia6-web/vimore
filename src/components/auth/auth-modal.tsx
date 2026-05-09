@@ -38,17 +38,25 @@ export function AuthModal() {
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   
-  // Auth Form State
   const [identifier, setIdentifier] = useState(""); 
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  
-  // Identity Nodes State
   const [dob, setDob] = useState("");
   const [nationality, setNationality] = useState("Liberian");
   const [gender, setGender] = useState<'Male' | 'Female'>('Male');
 
-  // Terminal Handshake: Modal disappears when user is authenticated
+  // ── Auto-open signup tab when ?signup=1 is in the URL ───────────────────
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('signup') === '1') {
+        setMode('signup');
+        setSignupStep(1);
+      }
+    }
+  }, []);
+
+  // Modal disappears when user is authenticated
   if (currentUser?.username && currentUser.username !== 'guest_node') return null;
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -106,6 +114,10 @@ export function AuthModal() {
     
     try {
       const isEmail = identifier.includes('@');
+      // Read referral from localStorage — stored when user clicked a referral link
+      let referredBy: string | undefined;
+      try { referredBy = localStorage.getItem('vimore_referrer') || undefined; } catch { /* ignore */ }
+
       const signupPayload = {
         email: isEmail ? identifier : undefined,
         phone: !isEmail ? identifier : undefined,
@@ -114,12 +126,14 @@ export function AuthModal() {
         dob,
         nationality,
         gender,
-        referredBy: localStorage.getItem('vimore_referrer') || undefined
+        referredBy,
       };
 
       const res = await signup(signupPayload);
 
       if (res && res.success) {
+        // Clear the referral code after successful signup
+        try { localStorage.removeItem('vimore_referrer'); } catch { /* ignore */ }
         toast({ title: "Welcome to ViMore", description: "Identity node materialized successfully." });
       } else {
         setAuthError(res?.message || "Identity node creation rejected.");
@@ -189,12 +203,7 @@ export function AuthModal() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Name</Label>
-                    <Input 
-                      value={name} 
-                      onChange={(e) => setName(e.target.value)} 
-                      className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" 
-                      placeholder="Your Full Name" 
-                    />
+                    <Input value={name} onChange={(e) => setName(e.target.value)} className="h-12 bg-white/5 border-none rounded-xl text-white font-bold" placeholder="Your Full Name" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Email or Phone</Label>
@@ -210,14 +219,8 @@ export function AuthModal() {
                     <Label className="text-[10px] font-black uppercase text-white/40 ml-1">Nationality</Label>
                     <div className="relative">
                       <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
-                      <select 
-                        value={nationality} 
-                        onChange={(e) => setNationality(e.target.value)} 
-                        className="w-full h-12 pl-11 bg-white/5 border-none rounded-xl text-white font-bold appearance-none outline-none"
-                      >
-                        {NATIONALITIES.map(n => (
-                          <option key={n} value={n} className="bg-zinc-900">{n}</option>
-                        ))}
+                      <select value={nationality} onChange={(e) => setNationality(e.target.value)} className="w-full h-12 pl-11 bg-white/5 border-none rounded-xl text-white font-bold appearance-none outline-none">
+                        {NATIONALITIES.map(n => (<option key={n} value={n} className="bg-zinc-900">{n}</option>))}
                       </select>
                     </div>
                   </div>
@@ -233,7 +236,6 @@ export function AuthModal() {
               
               <div className="space-y-4">
                 <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl bg-primary text-white font-black italic uppercase tracking-[0.2em]">{isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : signupStep === 1 ? "Next Protocol" : "Materialize Identity"}</Button>
-                
                 {mode === 'signup' && (
                   <p className="text-[9px] text-white/30 text-center uppercase leading-relaxed px-4">
                     By materializing an identity, you agree to our <Link href="/terms" className="text-white/60 hover:text-primary underline">Terms of Service</Link> and <Link href="/privacy" className="text-white/60 hover:text-primary underline">Privacy Policy</Link>.
@@ -244,7 +246,6 @@ export function AuthModal() {
               <div className="text-center"><button type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setSignupStep(1); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">{mode === 'login' ? 'Materialize New Identity' : 'Back to Sync'}</button></div>
             </form>
           )}
-
         </div>
 
         <footer className="w-full flex flex-col items-center gap-4 opacity-40">
