@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Phone, PhoneOff, Mic, MicOff, VideoOff } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 function formatDuration(s: number) {
   return `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
@@ -13,10 +14,11 @@ function formatDuration(s: number) {
 
 export function CallOverlay() {
   const {
-    callPhase, callInfo, localStream, remoteStream,
+    callPhase, callInfo, callError, localStream, remoteStream,
     isMuted, isVideoOff,
-    acceptCall, declineCall, endCall, toggleMute, switchToAudio,
+    acceptCall, declineCall, endCall, toggleMute, switchToAudio, clearCallError,
   } = useCall();
+  const { toast } = useToast();
 
   const localVideoRef  = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -35,6 +37,13 @@ export function CallOverlay() {
     const id = setInterval(() => setDuration(d => d + 1), 1000);
     return () => clearInterval(id);
   }, [callPhase]);
+
+  useEffect(() => {
+    if (callError) {
+      toast({ variant: 'destructive', title: 'Call Failed', description: callError });
+      clearCallError();
+    }
+  }, [callError, toast, clearCallError]);
 
   if (callPhase === 'idle' || !callInfo) return null;
 

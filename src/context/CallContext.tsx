@@ -26,6 +26,7 @@ export interface CallInfo {
 interface CallContextType {
   callPhase:     CallPhase;
   callInfo:      CallInfo | null;
+  callError:     string | null;
   localStream:   MediaStream | null;
   remoteStream:  MediaStream | null;
   isMuted:       boolean;
@@ -36,6 +37,7 @@ interface CallContextType {
   endCall:       () => Promise<void>;
   toggleMute:    () => void;
   switchToAudio: () => void;
+  clearCallError: () => void;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -66,6 +68,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
   const [callPhase,    setCallPhase]    = useState<CallPhase>('idle');
   const [callInfo,     setCallInfo]     = useState<CallInfo | null>(null);
+  const [callError,    setCallError]    = useState<string | null>(null);
   const [localStream,  setLocalStream]  = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [isMuted,      setIsMuted]      = useState(false);
@@ -324,9 +327,15 @@ export function CallProvider({ children }: { children: ReactNode }) {
       // Auto-cancel after 30 s → triggers missed-call message via cleanup
       dialTimerRef.current = setTimeout(() => { endCall(); }, DIAL_TIMEOUT_MS);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('[call] initiateCall error:', err);
       cleanup();
+      const msg = err?.name === 'NotAllowedError' || err?.message?.includes('Permission')
+        ? 'Microphone permission denied. Please allow microphone access and try again.'
+        : err?.name === 'NotFoundError'
+        ? 'No microphone found on this device.'
+        : 'Could not start the call. Please try again.';
+      setCallError(msg);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getMedia, createPC, startRingtone, cleanup]);
@@ -380,6 +389,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
     localStreamRef.current?.getVideoTracks().forEach(t => { t.enabled = false; t.stop(); });
     setIsVideoOff(true);
   }, []);
+
+  const clearCallError = useCallback(() => setCallError(null), []);
 
   // ══ GLOBAL REALTIME SUBSCRIPTION ══════════════════════════════════════════
   useEffect(() => {
@@ -453,8 +464,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
   return (
     <CallContext.Provider value={{
-      callPhase, callInfo, localStream, remoteStream, isMuted, isVideoOff,
-      initiateCall, acceptCall, declineCall, endCall, toggleMute, switchToAudio,
+      callPhase, callInfo, callError, localStream, remoteStream, isMuted, isVideoOff,
+      initiateCall, acceptCall, declineCall, endCall, toggleMute, switchToAudio, clearCallError,
     }}>
       {children}
     </CallContext.Provider>

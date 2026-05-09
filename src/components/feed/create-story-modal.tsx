@@ -62,6 +62,8 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
   const [naturalSize, setNaturalSize] = useState({ w: 1, h: 1 });
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const lastPinchDistRef = useRef<number | null>(null);
   const isDraggingRef = useRef(false);
