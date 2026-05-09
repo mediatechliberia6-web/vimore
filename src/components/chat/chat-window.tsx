@@ -44,9 +44,10 @@ import {
   Mic,
   Phone,
   Video,
+  Camera,
 } from "lucide-react";
 import { useCall } from "@/context/CallContext";
-import { getAvatarUrl, BUCKET } from "@/lib/appwrite";
+import { getAvatarUrl, BUCKET, storage, ID, getFileUrl } from "@/lib/appwrite";
 import { cn } from "@/lib/utils";
 import { playNotificationSound } from "@/lib/notification-sound";
 import { Connection, Cluster, usePosts } from "@/context/PostContext";
@@ -113,7 +114,10 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
   const [addNodeSearch, setAddNodeSearch] = useState("");
   const [editClusterName, setEditClusterName] = useState((contact as Cluster)?.name || "");
-  const [editClusterCover, setEditClusterCover] = useState((contact as Cluster)?.cover || "");
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const logoEditRef = useRef<HTMLInputElement>(null);
+  const coverEditRef = useRef<HTMLInputElement>(null);
 
   const isRequest = useMemo(() => {
     if (isCluster) return false;
@@ -290,6 +294,38 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     prevIsOtherTypingRef.current = isOtherTyping;
   }, [isOtherTyping, playTypingSound]);
 
+  const handleLogoEdit = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !isCluster) return;
+    setLogoUploading(true);
+    try {
+      const uploaded = await storage.createFile(BUCKET.AVATARS, ID.unique(), file);
+      await updateCluster((contact as Cluster).$id, { avatarId: uploaded.$id });
+      toast({ title: "Logo Updated", description: "Cluster logo has been changed." });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: "Upload Failed", description: err.message });
+    } finally {
+      setLogoUploading(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+
+  const handleCoverEdit = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !isCluster) return;
+    setCoverUploading(true);
+    try {
+      const uploaded = await storage.createFile(BUCKET.COVERS, ID.unique(), file);
+      await updateCluster((contact as Cluster).$id, { coverId: uploaded.$id });
+      toast({ title: "Cover Updated", description: "Cluster cover has been changed." });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: "Upload Failed", description: err.message });
+    } finally {
+      setCoverUploading(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+
   const handleSend = async (text: string, options?: { isViewOnce?: boolean; isWorkspace?: boolean; mediaUrl?: string; mediaType?: 'photo' | 'video' | 'voice'; duration?: string; file?: File }) => {
     triggerHaptic(10);
 
@@ -396,15 +432,35 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
 
   return (
     <div className="flex flex-1 min-h-0 bg-[#F0F2F5] dark:bg-[#080808] relative overflow-hidden">
+      {isAdmin && (
+        <>
+          <input ref={logoEditRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={handleLogoEdit} />
+          <input ref={coverEditRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={handleCoverEdit} />
+        </>
+      )}
       <div className="flex flex-col flex-1 min-h-0 relative overflow-hidden">
         <header className="h-[76px] px-4 sm:px-6 flex items-center justify-between bg-white dark:bg-card border-b border-primary/5 shrink-0 z-20 shadow-sm">
           <div className="flex items-center gap-3 min-w-0">
             <Button variant="ghost" size="icon" className="lg:hidden rounded-full h-10 w-10 -ml-2" onClick={onBack}><ArrowLeft className="h-6 w-6" /></Button>
             <div className="relative shrink-0">
               {isCluster ? (
-                <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-[1rem] bg-primary/10 flex items-center justify-center relative overflow-hidden border border-primary/5">
-                  {(contact as Cluster).avatar ? <img src={getAdaptivePreview((contact as Cluster).avatar, 'avatar', netTier) || (contact as Cluster).avatar} alt="Cluster" className="w-full h-full object-cover" /> : <Layers className="h-5 w-5 text-primary" />}
-                </div>
+                isAdmin ? (
+                  <button
+                    type="button"
+                    onClick={() => logoEditRef.current?.click()}
+                    className="h-10 w-10 sm:h-11 sm:w-11 rounded-[1rem] bg-primary/10 flex items-center justify-center relative overflow-hidden border border-primary/5 group"
+                    title="Change cluster logo"
+                  >
+                    {(contact as Cluster).avatar ? <img src={getAdaptivePreview((contact as Cluster).avatar, 'avatar', netTier) || (contact as Cluster).avatar} alt="Cluster" className="w-full h-full object-cover" /> : <Layers className="h-5 w-5 text-primary" />}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                      {logoUploading ? <Loader2 className="h-3.5 w-3.5 text-white opacity-0 group-hover:opacity-100 animate-spin" /> : <Camera className="h-3.5 w-3.5 text-white opacity-0 group-hover:opacity-100" />}
+                    </div>
+                  </button>
+                ) : (
+                  <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-[1rem] bg-primary/10 flex items-center justify-center relative overflow-hidden border border-primary/5">
+                    {(contact as Cluster).avatar ? <img src={getAdaptivePreview((contact as Cluster).avatar, 'avatar', netTier) || (contact as Cluster).avatar} alt="Cluster" className="w-full h-full object-cover" /> : <Layers className="h-5 w-5 text-primary" />}
+                  </div>
+                )
               ) : (
                 <Avatar className="h-10 w-10 sm:h-11 sm:w-11 border-2 border-primary/10">
                   <AvatarImage src={getAdaptivePreview((contact as Connection).avatar, 'avatar', netTier) || (contact as Connection).avatar} />
@@ -640,6 +696,52 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
               <section className="space-y-4 pt-6 border-t border-primary/5">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">Cluster Settings</span>
                 <div className="space-y-3">
+
+                  {/* ── Logo ── */}
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-1">Logo</label>
+                    <button
+                      type="button"
+                      onClick={() => logoEditRef.current?.click()}
+                      disabled={logoUploading}
+                      className="w-full flex items-center gap-3 h-14 px-4 rounded-2xl bg-secondary/20 hover:bg-secondary/40 transition-all border border-dashed border-primary/20 hover:border-primary/50 disabled:opacity-50"
+                    >
+                      <div className="h-9 w-9 rounded-xl overflow-hidden bg-primary/10 shrink-0 flex items-center justify-center">
+                        {(contact as Cluster).avatar
+                          ? <img src={(contact as Cluster).avatar} className="w-full h-full object-cover" alt="logo" />
+                          : <Layers className="h-4 w-4 text-primary" />}
+                      </div>
+                      {logoUploading
+                        ? <div className="flex items-center gap-2 text-primary"><Loader2 className="h-4 w-4 animate-spin" /><span className="text-xs font-black uppercase tracking-widest">Uploading...</span></div>
+                        : <span className="text-xs font-bold text-muted-foreground">{(contact as Cluster).avatar ? 'Change logo' : 'Upload logo'}</span>
+                      }
+                      <Camera className="h-4 w-4 text-muted-foreground ml-auto" />
+                    </button>
+                  </div>
+
+                  {/* ── Cover Photo ── */}
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-1">Cover Photo</label>
+                    <button
+                      type="button"
+                      onClick={() => coverEditRef.current?.click()}
+                      disabled={coverUploading}
+                      className="w-full flex items-center gap-3 h-14 px-4 rounded-2xl bg-secondary/20 hover:bg-secondary/40 transition-all border border-dashed border-primary/20 hover:border-primary/50 disabled:opacity-50"
+                    >
+                      <div className="h-9 w-9 rounded-xl overflow-hidden bg-primary/10 shrink-0 flex items-center justify-center">
+                        {(contact as Cluster).cover
+                          ? <img src={(contact as Cluster).cover} className="w-full h-full object-cover" alt="cover" />
+                          : <ImageIcon className="h-4 w-4 text-primary" />}
+                      </div>
+                      {coverUploading
+                        ? <div className="flex items-center gap-2 text-primary"><Loader2 className="h-4 w-4 animate-spin" /><span className="text-xs font-black uppercase tracking-widest">Uploading...</span></div>
+                        : <span className="text-xs font-bold text-muted-foreground">{(contact as Cluster).cover ? 'Change cover' : 'Upload cover'}</span>
+                      }
+                      <Camera className="h-4 w-4 text-muted-foreground ml-auto" />
+                    </button>
+                  </div>
+
+                  {/* ── Name ── */}
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-1">Name</label>
                     <div className="flex gap-2">
@@ -647,13 +749,8 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                       <Button size="sm" className="h-10 rounded-2xl px-4 font-black text-[10px] uppercase" onClick={() => { updateCluster((contact as Cluster).$id, { name: editClusterName }); toast({ title: "Name updated" }); }}>Save</Button>
                     </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-1">Cover URL</label>
-                    <div className="flex gap-2">
-                      <Input value={editClusterCover} onChange={(e) => setEditClusterCover(e.target.value)} className="h-10 rounded-2xl bg-secondary/20 border-none text-sm font-bold" placeholder="Image URL..." />
-                      <Button size="sm" className="h-10 rounded-2xl px-4 font-black text-[10px] uppercase" onClick={() => { updateCluster((contact as Cluster).$id, { cover: editClusterCover }); toast({ title: "Cover updated" }); }}>Save</Button>
-                    </div>
-                  </div>
+
+                  {/* ── Lock Adding ── */}
                   <div className="flex items-center justify-between p-3 rounded-2xl bg-secondary/20">
                     <div>
                       <p className="font-bold text-sm">Lock Adding</p>

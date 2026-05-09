@@ -320,7 +320,7 @@ interface PostContextType {
   createCluster: (name: string, members: any[], logoFile?: File) => Promise<void>;
   addMemberToCluster: (clusterId: string, member: any) => Promise<void>;
   leaveCluster: (clusterId: string) => Promise<void>;
-  updateCluster: (clusterId: string, updates: { name?: string; cover?: string; isAddLocked?: boolean }) => Promise<void>;
+  updateCluster: (clusterId: string, updates: { name?: string; cover?: string; isAddLocked?: boolean; avatarId?: string; coverId?: string }) => Promise<void>;
   promoteUser: (username: string, role: any) => Promise<void>;
   demoteUser: (username: string) => Promise<void>;
   addCampaign: (data: any) => Promise<void>;
@@ -3462,8 +3462,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateCluster = async (clusterId: string, updates: { name?: string; cover?: string; isAddLocked?: boolean }) => {
-    setClustersState(prev => prev.map(cl => cl.$id === clusterId ? { ...cl, ...updates } : cl));
+  const updateCluster = async (clusterId: string, updates: { name?: string; cover?: string; isAddLocked?: boolean; avatarId?: string; coverId?: string }) => {
+    const stateUpdates: Partial<Cluster> = {};
+    if (updates.name !== undefined) stateUpdates.name = updates.name;
+    if (updates.cover !== undefined) stateUpdates.cover = updates.cover;
+    if (updates.avatarId !== undefined) stateUpdates.avatar = getFileUrl(BUCKET.AVATARS, updates.avatarId);
+    if (updates.coverId !== undefined) stateUpdates.cover = getFileUrl(BUCKET.COVERS, updates.coverId);
+    if (updates.isAddLocked !== undefined) stateUpdates.isAddLocked = updates.isAddLocked;
+    setClustersState(prev => prev.map(cl => cl.$id === clusterId ? { ...cl, ...stateUpdates } : cl));
     try {
       const dbUpdates: Record<string, any> = {};
       if (updates.name !== undefined) dbUpdates.name = updates.name;
@@ -3472,6 +3478,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         const fid = extractFileId(updates.cover);
         if (fid) dbUpdates.cover_id = fid;
       }
+      if (updates.avatarId !== undefined) dbUpdates.avatar_id = updates.avatarId;
+      if (updates.coverId !== undefined) dbUpdates.cover_id = updates.coverId;
       if (Object.keys(dbUpdates).length > 0) {
         await databases.updateDocument(DATABASE_ID, COL.CLUSTERS, clusterId, dbUpdates);
       }
