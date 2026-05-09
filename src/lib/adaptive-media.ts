@@ -1,8 +1,8 @@
 import { extractFileId, getFileUrl } from '@/lib/appwrite';
 import { getCurrentNetworkTier, NetworkTier } from '@/context/NetworkContext';
 
-const ENDPOINT = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '').replace(/\/$/, '');
-const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '';
+const ENDPOINT = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1').replace(/\/$/, '');
+const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
 
 export type MediaRole = 'avatar' | 'thumb' | 'feed' | 'story' | 'cover' | 'fullscreen';
 
