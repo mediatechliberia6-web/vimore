@@ -317,7 +317,7 @@ interface PostContextType {
   cancelSubscription: (username: string) => Promise<void>;
   incrementShareCount: (postId: string) => Promise<void>;
   viewedPostIds: Set<string>;
-  createCluster: (name: string, members: any[]) => Promise<void>;
+  createCluster: (name: string, members: any[], logoFile?: File) => Promise<void>;
   addMemberToCluster: (clusterId: string, member: any) => Promise<void>;
   leaveCluster: (clusterId: string) => Promise<void>;
   updateCluster: (clusterId: string, updates: { name?: string; cover?: string; isAddLocked?: boolean }) => Promise<void>;
@@ -3386,12 +3386,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore */ }
   };
 
-  const createCluster = async (name: string, members: any[]) => {
+  const createCluster = async (name: string, members: any[], logoFile?: File) => {
     if (!currentUser) return;
     try {
-      const clDoc = await databases.createDocument(DATABASE_ID, COL.CLUSTERS, ID.unique(), {
+      let avatarId: string | undefined;
+      if (logoFile) {
+        const uploaded = await storage.createFile(BUCKET.AVATARS, ID.unique(), logoFile);
+        avatarId = uploaded.$id;
+      }
+
+      const clDocData: Record<string, any> = {
         name, admin_id: currentUser.$id, admin_username: currentUser.username, is_add_locked: false,
-      });
+      };
+      if (avatarId) clDocData.avatar_id = avatarId;
+
+      const clDoc = await databases.createDocument(DATABASE_ID, COL.CLUSTERS, ID.unique(), clDocData);
 
       const allMembers = [currentUser, ...members];
       const joinedAt = new Date().toISOString();
@@ -3404,8 +3413,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
         })
       ));
 
+      const avatarUrl = avatarId ? getFileUrl(BUCKET.AVATARS, avatarId) : undefined;
       const newCluster: Cluster = {
         $id: clDoc.$id, name, adminUsername: currentUser.username,
+        avatar: avatarUrl,
         members: allMembers as User[], isGroup: true,
       };
       setClustersState(prev => [...prev, newCluster]);
