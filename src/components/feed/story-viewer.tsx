@@ -496,7 +496,6 @@ export function StoryViewer() {
                     />
                   ) : null}
                 </>
-              )}
 
               {currentSegment.textOverlays?.map((overlay, i) => (
                 <div 
