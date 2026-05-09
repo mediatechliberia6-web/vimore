@@ -286,8 +286,31 @@ export function CallProvider({ children }: { children: ReactNode }) {
     });
 
     // ── Start 30-second "no answer" timeout right away ───────────────────
-    dialTimerRef.current = setTimeout(() => {
+    const capturedContactId = contactId;
+    const capturedCallType  = callType;
+    const capturedUser      = currentUserRef.current;
+    dialTimerRef.current = setTimeout(async () => {
       setCallError('Unable to connect — the user appears to be offline.');
+      // Write a missed-call notification so the receiver sees it when they return
+      if (capturedUser && capturedContactId) {
+        const label = capturedCallType === 'video' ? 'video call' : 'voice call';
+        try {
+          await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+            user_id:            capturedContactId,
+            from_user_id:       capturedUser.$id,
+            from_user_name:     capturedUser.name || capturedUser.username || '',
+            from_user_avatar:   capturedUser.avatar
+              ? getAvatarUrl(BUCKET.AVATARS, capturedUser.avatar, 'sm')
+              : '',
+            type:       'SYSTEM',
+            title:      'Missed Call',
+            content:    `${capturedUser.name || capturedUser.username} tried to ${label} you`,
+            message:    `${capturedUser.name || capturedUser.username} tried to ${label} you`,
+            is_read:    false,
+            action_href: '/messages',
+          });
+        } catch { /* non-fatal — best effort */ }
+      }
       cleanup(callDocIdRef.current ?? undefined);
     }, DIAL_TIMEOUT_MS);
 

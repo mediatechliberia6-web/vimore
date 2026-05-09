@@ -40,6 +40,7 @@ export function GlobalRealtimeListener() {
     currentUser, selectedChatId, refreshAdminData,
     followingUserIds, applyPostCountUpdate, addStreamedComment, activeCommentPostId,
     addIncomingMessage, applyRemotePostEdit, refreshSocialGraph, applyReadReceipt,
+    updateConnectionPresence, connections,
   } = usePosts();
   const {
     incrementPulse, updateMessagePreview, refreshNotifications,
@@ -52,16 +53,20 @@ export function GlobalRealtimeListener() {
   } = useAdminAlerts();
   const { incrementNewPosts } = useFeedSignal();
 
-  const currentUserRef       = useRef(currentUser);
-  const selectedChatRef      = useRef(selectedChatId);
-  const followingUserIdsRef  = useRef(followingUserIds);
-  const activeCommentPostRef = useRef(activeCommentPostId);
+  const currentUserRef          = useRef(currentUser);
+  const selectedChatRef         = useRef(selectedChatId);
+  const followingUserIdsRef     = useRef(followingUserIds);
+  const activeCommentPostRef    = useRef(activeCommentPostId);
+  const updatePresenceRef       = useRef(updateConnectionPresence);
+  const connectionsRef          = useRef(connections);
   const adminRefTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
-  useEffect(() => { selectedChatRef.current = selectedChatId; }, [selectedChatId]);
-  useEffect(() => { followingUserIdsRef.current = followingUserIds; }, [followingUserIds]);
-  useEffect(() => { activeCommentPostRef.current = activeCommentPostId; }, [activeCommentPostId]);
+  useEffect(() => { currentUserRef.current       = currentUser;               }, [currentUser]);
+  useEffect(() => { selectedChatRef.current      = selectedChatId;            }, [selectedChatId]);
+  useEffect(() => { followingUserIdsRef.current  = followingUserIds;          }, [followingUserIds]);
+  useEffect(() => { activeCommentPostRef.current = activeCommentPostId;       }, [activeCommentPostId]);
+  useEffect(() => { updatePresenceRef.current    = updateConnectionPresence;  }, [updateConnectionPresence]);
+  useEffect(() => { connectionsRef.current       = connections;               }, [connections]);
 
   const debouncedAdminRefresh = useCallback(() => {
     if (adminRefTimerRef.current) clearTimeout(adminRefTimerRef.current);
@@ -330,6 +335,43 @@ export function GlobalRealtimeListener() {
     incrementPulse,
     debouncedAdminRefresh,
   ]);
+
+  // ─── Connection presence (online status + last seen) ──────────────────────
+  // Subscribe to the USERS collection so any time a contact updates
+  // is_online / last_seen_at we immediately reflect it in the UI.
+  useEffect(() => {
+    if (!currentUser?.$id) return;
+
+    const unsubscribe = client.subscribe(
+      `databases.${DATABASE_ID}.collections.${COL.USERS}.documents`,
+      (response) => {
+        const events: string[] = response.events as string[];
+        const payload = response.payload as any;
+        if (!payload) return;
+
+        const isUpdate = events.some(e => e.endsWith('.update'));
+        if (!isUpdate) return;
+
+        const changedUserId: string = payload.$id;
+        if (!changedUserId) return;
+
+        // Skip updates for the current user — their own presence is managed
+        // by the heartbeat in PostContext, not by this subscriber.
+        if (changedUserId === currentUserRef.current?.$id) return;
+
+        // Only bother updating if this person is in our connections list.
+        const isKnown = connectionsRef.current.some(c => c.$id === changedUserId);
+        if (!isKnown) return;
+
+        const isOnline: boolean   = payload.is_online   ?? false;
+        const lastSeenAt: string | null = payload.last_seen_at ?? null;
+
+        updatePresenceRef.current(changedUserId, isOnline, lastSeenAt);
+      },
+    );
+
+    return () => { unsubscribe(); };
+  }, [currentUser?.$id]);
 
   return null;
 }

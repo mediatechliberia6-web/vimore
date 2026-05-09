@@ -375,6 +375,7 @@ interface PostContextType {
   chatUnreadCounts: Record<string, number>;
   fetchProfilePosts: (userId: string, cursor?: string | null) => Promise<{ posts: Post[]; cursor: string | null; hasMore: boolean }>;
   fetchReels: (cursor?: string | null) => Promise<{ posts: Post[]; cursor: string | null; hasMore: boolean }>;
+  updateConnectionPresence: (userId: string, isOnline: boolean, lastSeenAt: string | null) => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -930,6 +931,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const cachedConns = offlineCache.getConnections() as any[];
       if (cachedConns.length > 0) setConnectionsState(cachedConns);
     }
+  }, []);
+
+  const updateConnectionPresence = useCallback((userId: string, isOnline: boolean, lastSeenAt: string | null) => {
+    setConnectionsState(prev => prev.map(c =>
+      c.$id === userId
+        ? { ...c, isOnline, lastSeenAt: lastSeenAt ?? c.lastSeenAt }
+        : c
+    ));
   }, []);
 
   const loadStories = useCallback(async () => {
@@ -4007,6 +4016,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     chatLastIncomingAt,
     chatReadReceipts,
     chatUnreadCounts,
+    updateConnectionPresence,
     recordView, recordStoryView,
     updateUserIdentity,
     handleReportAction, handleTicketAction, replyToTicket,
