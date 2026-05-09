@@ -6,7 +6,7 @@
  * - Offline fallback page when network and cache both fail
  */
 
-const SW_VERSION = 'v7';
+const SW_VERSION = 'v8';
 const MEDIA_CACHE = `vimore-media-${SW_VERSION}`;
 const PAGE_CACHE = `vimore-pages-${SW_VERSION}`;
 const STATIC_CACHE = `vimore-static-${SW_VERSION}`;
@@ -226,6 +226,8 @@ self.addEventListener('push', (event) => {
     payload = { title: 'ViMore', body: event.data ? event.data.text() : '' };
   }
 
+  const isCallPush = payload.data && payload.data.type === 'incoming-call';
+
   const title = payload.title || 'ViMore';
   const options = {
     body: payload.body || '',
@@ -234,19 +236,31 @@ self.addEventListener('push', (event) => {
     image: payload.image,
     tag: payload.tag || 'vimore-notification',
     renotify: Boolean(payload.renotify),
-    requireInteraction: Boolean(payload.requireInteraction),
+    // Call notifications must stay on screen until the user acts
+    requireInteraction: isCallPush ? true : Boolean(payload.requireInteraction),
     silent: Boolean(payload.silent),
-    vibrate: payload.vibrate || [120, 60, 120],
+    // Call notifications use a longer, more urgent vibration pattern
+    vibrate: isCallPush ? [300, 100, 300, 100, 300] : (payload.vibrate || [120, 60, 120]),
     timestamp: payload.timestamp || Date.now(),
     data: {
       url: payload.url || '/notifications',
       ...payload.data,
     },
-    actions: payload.actions || [],
+    // Call notifications get Accept / Decline inline actions
+    actions: isCallPush
+      ? [
+          { action: 'accept-call', title: '✅ Accept' },
+          { action: 'decline-call', title: '❌ Decline' },
+        ]
+      : (payload.actions || []),
   };
 
   event.waitUntil(
     (async () => {
+      // If a call push arrives while the app is in the foreground, just relay
+      // the payload to the open client — the CallContext realtime listener will
+      // already have shown the in-app overlay.  We still show the OS notification
+      // so the user sees it if they happen to be looking at another app.
       try {
         await self.registration.showNotification(title, options);
       } catch {}
@@ -258,7 +272,7 @@ self.addEventListener('push', (event) => {
           else await self.navigator.setAppBadge();
         }
       } catch {}
-      // Let any open clients know to refresh their unread counters
+      // Let any open clients know to refresh their unread counters (or show call overlay)
       const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       clientsList.forEach((c) => c.postMessage({ type: 'PUSH_RECEIVED', payload }));
     })()
@@ -272,6 +286,61 @@ self.addEventListener('notificationclick', (event) => {
   const targetUrl = data.url || '/';
 
   event.notification.close();
+
+  // ── Incoming call: Accept ─────────────────────────────────────────────────
+  if (action === 'accept-call') {
+    event.waitUntil(
+      (async () => {
+        const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        // Tell an existing app window to trigger the accept flow
+        for (const client of allClients) {
+          try {
+            const clientUrl = new URL(client.url);
+            if (clientUrl.origin === self.location.origin && 'focus' in client) {
+              client.postMessage({
+                type: 'CALL_ACTION',
+                action: 'accept',
+                callDocId: data.callDocId,
+                callType: data.callType,
+                callerName: data.callerName,
+                callerAvatar: data.callerAvatar,
+              });
+              await client.focus();
+              return;
+            }
+          } catch {}
+        }
+        // No open window — open the app and pass the action via URL param
+        if (self.clients.openWindow) {
+          const url = `/messages?call_action=accept&call_doc_id=${encodeURIComponent(data.callDocId || '')}&call_type=${encodeURIComponent(data.callType || 'audio')}&caller_name=${encodeURIComponent(data.callerName || '')}`;
+          await self.clients.openWindow(url);
+        }
+      })()
+    );
+    return;
+  }
+
+  // ── Incoming call: Decline ────────────────────────────────────────────────
+  if (action === 'decline-call') {
+    event.waitUntil(
+      (async () => {
+        if (data.callDocId) {
+          try {
+            await fetch('/api/call/decline', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ callDocId: data.callDocId }),
+              keepalive: true,
+            });
+          } catch {}
+        }
+        // Inform any open clients so they can dismiss the overlay too
+        const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        clientsList.forEach((c) => c.postMessage({ type: 'CALL_ACTION', action: 'decline', callDocId: data.callDocId }));
+      })()
+    );
+    return;
+  }
 
   // "Reply" inline text action (Android Chrome): send the typed message
   if (action === 'reply') {

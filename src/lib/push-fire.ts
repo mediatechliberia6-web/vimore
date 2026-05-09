@@ -13,6 +13,8 @@ export interface FirePushOptions {
   image?: string;
   tag?: string;
   badgeCount?: number;
+  requireInteraction?: boolean;
+  renotify?: boolean;
   data?: Record<string, any>;
   actions?: { action: string; title: string; icon?: string; type?: 'button' | 'text'; placeholder?: string }[];
 }
@@ -30,6 +32,8 @@ export function firePush(opts: FirePushOptions): void {
     image: opts.image,
     tag: opts.tag,
     badgeCount: opts.badgeCount,
+    requireInteraction: opts.requireInteraction,
+    renotify: opts.renotify,
     data: opts.data,
     actions: opts.actions,
   };

@@ -7,6 +7,7 @@ import React, {
 import { Permission, Role } from 'appwrite';
 import { databases, client, DATABASE_ID, COL, ID, getAvatarUrl, BUCKET } from '@/lib/appwrite';
 import { usePosts } from '@/context/PostContext';
+import { firePush } from '@/lib/push-fire';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -376,15 +377,45 @@ export function CallProvider({ children }: { children: ReactNode }) {
       });
       startRingtone();
 
+      // ── Push-notify receiver so they see the call even when app is backgrounded
+      const callerDisplayName = user.name || user.username || 'Someone';
+      const callLabel = callType === 'video' ? 'Video Call' : 'Voice Call';
+      firePush({
+        userId:           contactId,
+        title:            `📞 Incoming ${callLabel}`,
+        body:             `${callerDisplayName} is calling you`,
+        url:              '/messages',
+        tag:              `call-${doc.$id}`,
+        requireInteraction: true,
+        icon:             callerAvatar || '/icons/icon-192.png',
+        data: {
+          type:          'incoming-call',
+          callDocId:     doc.$id,
+          callType,
+          callerName:    callerDisplayName,
+          callerAvatar:  callerAvatar,
+        },
+        actions: [
+          { action: 'accept-call', title: '✅ Accept' },
+          { action: 'decline-call', title: '❌ Decline' },
+        ],
+      });
+
     } catch (err: any) {
-      console.error('[call] initiateCall error:', err);
+      console.error('[call] initiateCall error — name:', err?.name, 'message:', err?.message, 'code:', err?.code, 'full:', err);
       if (dialTimerRef.current) { clearTimeout(dialTimerRef.current); dialTimerRef.current = null; }
       cleanup(callDocIdRef.current ?? undefined);
-      const msg = err?.name === 'NotAllowedError' || err?.message?.includes('Permission')
-        ? 'Microphone permission denied. Please allow microphone access and try again.'
-        : err?.name === 'NotFoundError'
+      const msg = err?.name === 'NotAllowedError' || err?.message?.includes('Permission denied') || err?.message?.includes('permission')
+        ? 'Microphone/camera permission denied. Please allow access and try again.'
+        : err?.name === 'NotFoundError' || err?.message?.includes('not found')
         ? 'No microphone found on this device.'
-        : 'Could not start the call. Please try again.';
+        : err?.message?.includes('getUserMedia') || err?.message?.includes('media')
+        ? 'Could not access camera/microphone. Please check permissions.'
+        : err?.code === 401 || err?.message?.includes('401')
+        ? 'Session expired — please log in again and retry the call.'
+        : err?.code === 404 || err?.message?.includes('Collection with the requested ID could not be found')
+        ? 'Call feature is not fully set up yet. Please contact support.'
+        : `Could not start the call: ${err?.message || 'Please try again.'}`;
       setCallError(msg);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -441,6 +472,49 @@ export function CallProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearCallError = useCallback(() => setCallError(null), []);
+
+  // ══ SERVICE-WORKER MESSAGE HANDLER (accept/decline from push notification) ═
+  useEffect(() => {
+    if (typeof window === 'undefined' || !navigator.serviceWorker) return;
+
+    const handleSwMessage = (event: MessageEvent) => {
+      const msg = event.data || {};
+      if (msg.type !== 'CALL_ACTION') return;
+
+      if (msg.action === 'accept') {
+        // If we're already in the ringing phase for this doc, accept it
+        if (callPhaseRef.current === 'ringing' && callDocIdRef.current === msg.callDocId) {
+          acceptCall();
+        } else if (msg.callDocId && callPhaseRef.current === 'idle') {
+          // App was closed / backgrounded — set up the ringing state then accept
+          callDocIdRef.current       = msg.callDocId;
+          isCallerRef.current        = false;
+          contactUsernameRef.current = '';
+          setCallPhase('ringing');
+          setCallInfo({
+            docId:           msg.callDocId,
+            callType:        (msg.callType as CallType) || 'audio',
+            isOutgoing:      false,
+            contactId:       '',
+            contactUsername: '',
+            contactName:     msg.callerName || 'Unknown',
+            contactAvatar:   msg.callerAvatar || '',
+          });
+          // Small delay so state settles before we accept
+          setTimeout(() => acceptCall(), 300);
+        }
+      }
+
+      if (msg.action === 'decline') {
+        if (callPhaseRef.current !== 'idle') {
+          declineCall();
+        }
+      }
+    };
+
+    navigator.serviceWorker.addEventListener('message', handleSwMessage);
+    return () => { navigator.serviceWorker.removeEventListener('message', handleSwMessage); };
+  }, [acceptCall, declineCall]);
 
   // ══ GLOBAL REALTIME SUBSCRIPTION ══════════════════════════════════════════
   useEffect(() => {
