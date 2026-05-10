@@ -117,6 +117,11 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const pcRef                = useRef<RTCPeerConnection | null>(null);
   const localStreamRef       = useRef<MediaStream | null>(null);
   const remoteDescSetRef     = useRef(false);
+  // Set to true the moment the caller receives the answer SDP from Appwrite.
+  // Used to distinguish a truly missed call (never answered) from a call that
+  // was accepted but failed during ICE negotiation — the latter should NOT
+  // write a "Missed call" chat message.
+  const callWasAnsweredRef   = useRef(false);
   const dialTimerRef         = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ringtoneRef          = useRef<HTMLAudioElement | null>(null);
   const sendChatMessageRef   = useRef(sendChatMessage);
@@ -150,6 +155,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const cleanup = useCallback(async (docIdToDelete?: string) => {
     const wasActive    = callPhaseRef.current === 'active';
     const wasCaller    = isCallerRef.current;
+    // Snapshot BEFORE resetting the ref — was the answer SDP ever received?
+    const wasAnswered  = callWasAnsweredRef.current;
     const snapCallType = callInfoRef.current?.callType;
     const snapUsername = contactUsernameRef.current;
     const snapUser     = currentUserRef.current;
@@ -166,6 +173,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     isCallerRef.current        = false;
     contactUsernameRef.current = '';
     remoteDescSetRef.current   = false;
+    callWasAnsweredRef.current = false;
 
     setCallPhase('idle');
     setDialStep(null);
@@ -180,8 +188,13 @@ export function CallProvider({ children }: { children: ReactNode }) {
       catch { /* already gone */ }
     }
 
-    // Write missed-call message into the chat thread (caller side only, when not answered)
-    if (wasCaller && !wasActive && snapUsername && snapUser && snapCallType) {
+    // Write "Missed call" ONLY when:
+    //  • we were the caller (not the receiver)
+    //  • the call never became active (no audio/video exchange happened)
+    //  • the receiver NEVER sent back an answer SDP — i.e. they truly didn't pick up.
+    //    If wasAnswered=true it means they accepted but ICE failed — that is a
+    //    "call dropped" scenario, not a missed call, so we stay silent.
+    if (wasCaller && !wasActive && !wasAnswered && snapUsername && snapUser && snapCallType) {
       const label = snapCallType === 'video' ? 'video call' : 'voice call';
       const emoji = snapCallType === 'video' ? '📹' : '📞';
       try {
@@ -476,7 +489,32 @@ export function CallProvider({ children }: { children: ReactNode }) {
       });
     } catch (err: any) {
       console.error('[call] acceptCall error — name:', err?.name, 'msg:', err?.message);
-      cleanup(docId);
+
+      // ── BUG FIX: Do NOT delete the call doc here. ─────────────────────────
+      // Deleting the doc would fire an Appwrite 'delete' event on the caller,
+      // which triggers the caller's cleanup() → wasCaller=true, wasActive=false
+      // → writes a spurious "Missed call" message even though the receiver
+      // actually tried to pick up (e.g. camera permission denied).
+      //
+      // Instead: set status='failed' so the caller can handle it gracefully,
+      // then clean up locally only (no docId = no deletion from this side).
+      try {
+        await databases.updateDocument(DATABASE_ID, COL.CALLS, docId, { status: 'failed' });
+      } catch { /* doc may already be gone */ }
+
+      const msg =
+        err?.name === 'NotAllowedError' || err?.message?.includes('Permission denied')
+          ? 'Camera/mic permission denied. Allow access in Settings and try again.'
+          : err?.name === 'NotFoundError'
+          ? 'No microphone found. Check your device and try again.'
+          : err?.name === 'NotReadableError' || err?.message?.includes('Could not start')
+          ? 'Camera or mic is in use by another app. Close it and try again.'
+          : `Could not connect the call: ${err?.message || 'Unknown error'}`;
+      setCallError(msg);
+
+      // Clean up receiver-side resources but leave doc deletion to the caller
+      // (who will see status='failed' and call their own cleanup with docIdToDelete).
+      cleanup();
     }
   }, [stopRingtone, getMedia, createPC, waitForIceGathering, cleanup]);
 
@@ -589,22 +627,35 @@ export function CallProvider({ children }: { children: ReactNode }) {
       if (isUpdate) {
         const isCaller = isCallerRef.current;
 
-        // Caller receives the complete answer (with ICE candidates embedded)
-        if (isCaller && payload.answer && pcRef.current && !remoteDescSetRef.current) {
+        // ── Caller receives the complete answer SDP from the receiver ─────────
+        if (isCaller && payload.answer && payload.answer !== '' && pcRef.current && !remoteDescSetRef.current) {
           try {
             const answerSdp: RTCSessionDescriptionInit = JSON.parse(payload.answer);
             await pcRef.current.setRemoteDescription(new RTCSessionDescription(answerSdp));
-            remoteDescSetRef.current = true;
-            console.log('[call] remote description set (receiver answer) — waiting for ICE connection');
+            remoteDescSetRef.current   = true;
+            // Mark the call as answered — ICE negotiation is now in progress.
+            // This prevents "Missed call" from being written if ICE later fails.
+            callWasAnsweredRef.current = true;
+            console.log('[call] answer SDP applied — ICE negotiation starting');
           } catch (err) {
             console.warn('[call] setRemoteDescription (answer) failed:', err);
           }
         }
 
-        if (payload.status === 'ended' || payload.status === 'declined') cleanup();
+        // ── Status-based termination ──────────────────────────────────────────
+        if (payload.status === 'ended' || payload.status === 'declined') {
+          cleanup();
+        }
+
+        // Receiver's acceptCall() failed (camera error, permission denied, etc.)
+        // The caller owns the doc deletion — clean up with docId so the doc is removed.
+        if (payload.status === 'failed' && isCaller) {
+          setCallError('The other person could not connect their camera or microphone.');
+          cleanup(callDocIdRef.current ?? undefined);
+        }
       }
 
-      // Doc deleted by the other party (end / decline / timeout)
+      // Doc deleted by the other party (decline from notification, session expire, etc.)
       if (isDelete) cleanup();
     });
 
