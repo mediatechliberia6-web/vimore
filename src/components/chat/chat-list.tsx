@@ -37,7 +37,7 @@ interface ChatListProps {
 
 export function ChatList({ selectedId, onSelect }: ChatListProps) {
   const { tier } = useNetwork();
-  const { connections = [], clusters = [], triggerHaptic, settings, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, markChatMessagesRead, chatLastMessageAt, chatLastIncomingAt, chatReadReceipts, chatUnreadCounts } = usePosts();
+  const { connections = [], clusters = [], triggerHaptic, settings, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, markChatMessagesRead, chatLastMessageAt, chatLastIncomingAt, chatReadReceipts, chatUnreadCounts, onlineUserIds } = usePosts();
   const { categoryPulses, clearPulse, messagePreviews } = useNotifications();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -165,6 +165,15 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
             
             const isOnlineVisible = !settings.isGhostMode && !item.isGroup && (item as any).isOnline;
             const lastSeenAt = !item.isGroup ? (item as any).lastSeenAt : null;
+
+            // Group online status: count how many members are online right now
+            const memberOnlineCount = item.isGroup
+              ? ((item as any).members || []).filter((m: any) => {
+                  if (m.$id === currentUser?.$id) return !settings.isGhostMode;
+                  return onlineUserIds.has(m.$id);
+                }).length
+              : 0;
+            const isGroupActive = item.isGroup && memberOnlineCount >= 2;
             
             const msgs = chatMessages[id];
             const lastIncomingAt = chatLastIncomingAt[id];
@@ -189,6 +198,14 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                       className="absolute -bottom-0.5 -right-0.5 border-2 border-white dark:border-card rounded-full"
                     />
                   )}
+                  {item.isGroup && (
+                    <span
+                      className={cn(
+                        "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white dark:border-card transition-colors",
+                        isGroupActive ? "bg-emerald-500" : "bg-muted-foreground/30"
+                      )}
+                    />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
@@ -204,6 +221,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                     <div className="flex flex-col min-w-0 flex-1">
                       <p className={cn("text-xs truncate", hasNewPulse ? "text-foreground font-bold" : "text-muted-foreground")}>
                         {(() => {
+                          // Priority 1: messages already loaded into memory (opened this session)
                           const lastMsg = chatMessages[id]?.at(-1);
                           if (lastMsg) {
                             if (lastMsg.text) return lastMsg.text;
@@ -212,11 +230,15 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                             if (lastMsg.type === 'voice') return `🎤 Voice${lastMsg.voiceDuration ? ` · ${lastMsg.voiceDuration}` : ''}`;
                             if (lastMsg.type === 'post') return '📌 Shared Post';
                           }
+                          // Priority 2: real-time preview pushed by WebSocket
                           if (messagePreviews[id]?.text) return messagePreviews[id].text;
-                          return (item as any).lastMessage || "No messages yet.";
+                          // Priority 3: last message fetched on load for groups (set in loadClusters)
+                          //             or DM preview set in loadConnections / loadConversationMetadata
+                          if ((item as any).lastMessage) return (item as any).lastMessage;
+                          return "No messages yet.";
                         })()}
                       </p>
-                      {/* Last seen text below the message preview */}
+                      {/* DM: last seen text */}
                       {!item.isGroup && !isOnlineVisible && lastSeenAt && (
                         <OnlineIndicator
                           isOnline={false}
@@ -225,6 +247,19 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                           dotClassName="h-1.5 w-1.5"
                           className="mt-0.5"
                         />
+                      )}
+                      {/* Group: active / quiet status */}
+                      {item.isGroup && (
+                        <span className={cn(
+                          "text-[8px] font-black uppercase tracking-widest mt-0.5",
+                          isGroupActive ? "text-emerald-500" : "text-muted-foreground/50"
+                        )}>
+                          {isGroupActive
+                            ? `${memberOnlineCount} members active`
+                            : memberOnlineCount === 1
+                              ? "1 member online"
+                              : "No one online"}
+                        </span>
                       )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">

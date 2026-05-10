@@ -40,7 +40,8 @@ export function GlobalRealtimeListener() {
     currentUser, selectedChatId, refreshAdminData,
     followingUserIds, applyPostCountUpdate, addStreamedComment, activeCommentPostId,
     addIncomingMessage, applyRemotePostEdit, refreshSocialGraph, applyReadReceipt, applyClusterMemberReceipt,
-    updateConnectionPresence, connections,
+    updateConnectionPresence, connections, clusters,
+    updateUserOnlineStatus,
   } = usePosts();
   const {
     incrementPulse, updateMessagePreview, refreshNotifications,
@@ -53,20 +54,24 @@ export function GlobalRealtimeListener() {
   } = useAdminAlerts();
   const { incrementNewPosts } = useFeedSignal();
 
-  const currentUserRef          = useRef(currentUser);
-  const selectedChatRef         = useRef(selectedChatId);
-  const followingUserIdsRef     = useRef(followingUserIds);
-  const activeCommentPostRef    = useRef(activeCommentPostId);
-  const updatePresenceRef       = useRef(updateConnectionPresence);
-  const connectionsRef          = useRef(connections);
+  const currentUserRef              = useRef(currentUser);
+  const selectedChatRef             = useRef(selectedChatId);
+  const followingUserIdsRef         = useRef(followingUserIds);
+  const activeCommentPostRef        = useRef(activeCommentPostId);
+  const updatePresenceRef           = useRef(updateConnectionPresence);
+  const connectionsRef              = useRef(connections);
+  const clustersRef                 = useRef(clusters);
+  const updateUserOnlineStatusRef   = useRef(updateUserOnlineStatus);
   const adminRefTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { currentUserRef.current       = currentUser;               }, [currentUser]);
-  useEffect(() => { selectedChatRef.current      = selectedChatId;            }, [selectedChatId]);
-  useEffect(() => { followingUserIdsRef.current  = followingUserIds;          }, [followingUserIds]);
-  useEffect(() => { activeCommentPostRef.current = activeCommentPostId;       }, [activeCommentPostId]);
-  useEffect(() => { updatePresenceRef.current    = updateConnectionPresence;  }, [updateConnectionPresence]);
-  useEffect(() => { connectionsRef.current       = connections;               }, [connections]);
+  useEffect(() => { currentUserRef.current             = currentUser;               }, [currentUser]);
+  useEffect(() => { selectedChatRef.current            = selectedChatId;            }, [selectedChatId]);
+  useEffect(() => { followingUserIdsRef.current        = followingUserIds;          }, [followingUserIds]);
+  useEffect(() => { activeCommentPostRef.current       = activeCommentPostId;       }, [activeCommentPostId]);
+  useEffect(() => { updatePresenceRef.current          = updateConnectionPresence;  }, [updateConnectionPresence]);
+  useEffect(() => { connectionsRef.current             = connections;               }, [connections]);
+  useEffect(() => { clustersRef.current                = clusters;                  }, [clusters]);
+  useEffect(() => { updateUserOnlineStatusRef.current  = updateUserOnlineStatus;    }, [updateUserOnlineStatus]);
 
   const debouncedAdminRefresh = useCallback(() => {
     if (adminRefTimerRef.current) clearTimeout(adminRefTimerRef.current);
@@ -364,19 +369,25 @@ export function GlobalRealtimeListener() {
         // by the heartbeat in PostContext, not by this subscriber.
         if (changedUserId === currentUserRef.current?.$id) return;
 
-        // Only bother updating if this person is in our connections list.
-        const isKnown = connectionsRef.current.some(c => c.$id === changedUserId);
-        if (!isKnown) return;
+        // Update if this person is a DM connection OR a member of any cluster the current user is in.
+        const isConnection = connectionsRef.current.some(c => c.$id === changedUserId);
+        const isClusterMember = !isConnection && clustersRef.current.some(cl =>
+          cl.members?.some((m: any) => m.$id === changedUserId)
+        );
+        if (!isConnection && !isClusterMember) return;
 
         const isOnline: boolean   = payload.is_online   ?? false;
         const lastSeenAt: string | null = payload.last_seen_at ?? null;
 
+        // Always update the global online set (used for group active status)
+        updateUserOnlineStatusRef.current(changedUserId, isOnline);
+        // Also update the per-connection presence (DM list indicators + last seen)
         updatePresenceRef.current(changedUserId, isOnline, lastSeenAt);
       },
     );
 
     return () => { unsubscribe(); };
-  }, [currentUser?.$id]);
+  }, [currentUser?.$id, updateUserOnlineStatus]);
 
   return null;
 }

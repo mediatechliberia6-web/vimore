@@ -383,6 +383,8 @@ interface PostContextType {
   fetchProfilePosts: (userId: string, cursor?: string | null) => Promise<{ posts: Post[]; cursor: string | null; hasMore: boolean }>;
   fetchReels: (cursor?: string | null) => Promise<{ posts: Post[]; cursor: string | null; hasMore: boolean }>;
   updateConnectionPresence: (userId: string, isOnline: boolean, lastSeenAt: string | null) => void;
+  onlineUserIds: Set<string>;
+  updateUserOnlineStatus: (userId: string, isOnline: boolean) => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -626,6 +628,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [chatReadReceiptDocIds, setChatReadReceiptDocIds] = useState<Record<string, string>>({});
   const [clusterMemberReceipts, setClusterMemberReceipts] = useState<Record<string, Record<string, string>>>({});
   const [chatUnreadCounts, setChatUnreadCounts] = useState<Record<string, number>>({});
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set<string>());
 
   const [selectedPostId, setSelectedPostIdState] = useState<string | null>(null);
   const [selectedChatId, setSelectedChatIdState] = useState<string | null>(null);
@@ -950,6 +953,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
     ));
   }, []);
 
+  const updateUserOnlineStatus = useCallback((userId: string, isOnline: boolean) => {
+    setOnlineUserIds(prev => {
+      const next = new Set(prev);
+      if (isOnline) next.add(userId);
+      else next.delete(userId);
+      return next;
+    });
+  }, []);
+
   const loadStories = useCallback(async () => {
     try {
       const now = new Date().toISOString();
@@ -1074,6 +1086,51 @@ export function PostProvider({ children }: { children: ReactNode }) {
         };
       });
       setClustersState(mapped);
+
+      // ── Fetch last message per cluster (instant preview, no SW cache for DB calls) ──
+      if (clusterIds.length > 0) {
+        try {
+          const latestMsgs = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
+            Query.equal('cluster_id', clusterIds),
+            Query.orderDesc('$createdAt'),
+            Query.limit(Math.min(clusterIds.length * 5, 100)),
+          ]);
+          const lastMsgMap: Record<string, any> = {};
+          for (const doc of latestMsgs.documents) {
+            const cid: string = doc.cluster_id || '';
+            if (cid && !lastMsgMap[cid]) lastMsgMap[cid] = doc;
+          }
+          if (Object.keys(lastMsgMap).length > 0) {
+            setClustersState(prev => prev.map(cl => {
+              const doc = lastMsgMap[cl.$id];
+              if (!doc) return cl;
+              const preview = getChatMessagePreview({ text: doc.text, type: doc.type, voiceDuration: doc.voice_duration });
+              return { ...cl, lastMessage: preview, lastTime: formatTimeAgo(doc.$createdAt) };
+            }));
+            setChatLastMessageAt(prev => {
+              const next = { ...prev };
+              for (const [cid, doc] of Object.entries(lastMsgMap)) {
+                const ts = new Date((doc as any).$createdAt).getTime();
+                if (!next[cid] || ts > next[cid]) next[cid] = ts;
+              }
+              return next;
+            });
+          }
+        } catch { /* non-critical — real-time listener fills gaps */ }
+      }
+
+      // ── Pre-populate online status for all group members ──
+      const onlineIds: string[] = [];
+      for (const u of Object.values(memberUsersMap)) {
+        if ((u as any).is_online && u.$id) onlineIds.push(u.$id);
+      }
+      if (onlineIds.length > 0) {
+        setOnlineUserIds(prev => {
+          const next = new Set(prev);
+          onlineIds.forEach(id => next.add(id));
+          return next;
+        });
+      }
     } catch { /* ignore */ }
   }, []);
 
@@ -4078,6 +4135,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     clusterMemberReceipts,
     chatUnreadCounts,
     updateConnectionPresence,
+    onlineUserIds,
+    updateUserOnlineStatus,
     recordView, recordStoryView,
     updateUserIdentity,
     handleReportAction, handleTicketAction, replyToTicket,
