@@ -133,6 +133,9 @@ export function ChatBubble({
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [browserLang, setBrowserLang] = useState<string>('en');
+  const [swipeX, setSwipeX] = useState(0);
+  const touchStartXRef = useRef<number>(0);
+  const isSwiping = useRef(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') setBrowserLang(window.navigator.language.split('-')[0]);
@@ -310,6 +313,33 @@ export function ChatBubble({
 
   const showMediaPlaceholder = isViewOnce && !isViewed && !isDownloaded && !isMe;
 
+  const SWIPE_THRESHOLD = 60;
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX;
+    isSwiping.current = false;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!onReply) return;
+    const dx = e.touches[0].clientX - touchStartXRef.current;
+    const swipeDir = isMe ? -1 : 1;
+    const delta = dx * swipeDir;
+    if (delta > 0) {
+      isSwiping.current = true;
+      setSwipeX(Math.min(delta, SWIPE_THRESHOLD + 10));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (isSwiping.current && swipeX >= SWIPE_THRESHOLD && onReply) {
+      triggerHaptic(20);
+      onReply(id);
+    }
+    setSwipeX(0);
+    isSwiping.current = false;
+  };
+
   return (
     <>
       <div 
@@ -318,6 +348,10 @@ export function ChatBubble({
           isMe ? "justify-end" : "justify-start"
         )}
         onDoubleClick={handleDoubleClick}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={swipeX > 0 ? { transform: `translateX(${isMe ? -swipeX : swipeX}px)`, transition: swipeX === 0 ? 'transform 0.2s ease' : 'none' } : { transition: 'transform 0.2s ease' }}
       >
         {/* Reply hover button for "them" messages — appears to the right of the bubble */}
       {!isMe && onReply && (

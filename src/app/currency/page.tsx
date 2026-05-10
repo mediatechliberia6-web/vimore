@@ -41,16 +41,16 @@ import { useRouter } from "next/navigation";
 import { BiometricGate } from "@/components/layout/biometric-gate";
 
 const GOLD_PACKAGES = [
-  { id: "g1", gd: 200, priceLD: 500, priceUSD: 2.50, label: "Starter Pulse" },
+  { id: "g1", gd: 200, priceLD: 400, priceUSD: 2.00, label: "Starter Pulse" },
   { id: "g2", gd: 500, priceLD: 1000, priceUSD: 5.00, label: "Active Hub" },
   { id: "g3", gd: 1000, priceLD: 2000, priceUSD: 10.00, label: "VIP Cluster", isVIP: true },
   { id: "g4", gd: 3000, priceLD: 6000, priceUSD: 30.00, label: "V.VIP Network", isVVIP: true },
 ];
 
 const DIAMOND_PACKAGES = [
-  { id: "d1", d: 25, priceLD: 1300, priceUSD: 6.50, label: "Gem Spike" },
-  { id: "d2", d: 50, priceLD: 2600, priceUSD: 13.00, label: "Vault Refill" },
-  { id: "d3", d: 100, priceLD: 5000, priceUSD: 25.00, label: "VIP Crystalline", isVIP: true },
+  { id: "d1", d: 25, priceLD: 1200, priceUSD: 6.25, label: "Gem Spike" },
+  { id: "d2", d: 50, priceLD: 2350, priceUSD: 12.50, label: "Vault Refill" },
+  { id: "d3", d: 100, priceLD: 4700, priceUSD: 25.00, label: "VIP Crystalline", isVIP: true },
 ];
 
 export default function CurrencyHub() {

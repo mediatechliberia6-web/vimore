@@ -18,7 +18,8 @@ import {
   CheckCircle2,
   Zap,
   EyeOff,
-  Activity
+  Activity,
+  Wifi,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,6 +30,7 @@ import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useNotifications, PulseCategory } from "@/context/NotificationContext";
 import { useTranslation } from "@/context/LanguageContext";
+import { useNetwork } from "@/context/NetworkContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,6 +57,14 @@ export function SubHeader() {
   const { categoryPulses = { HOME: 0, FRIENDS: 0, MUSIC: 0, MESSAGES: 0, ADMIN: 0 }, clearPulse } = useNotifications();
   const pendingRequests = receivedRequestUsernames?.size || 0;
   const { t } = useTranslation();
+  const { tier, setForcedTier } = useNetwork();
+
+  const cycleTier = () => {
+    triggerHaptic(10);
+    if (tier === 'lite') setForcedTier('standard');
+    else if (tier === 'standard') setForcedTier('rich');
+    else setForcedTier('lite');
+  };
 
   const userRole = (currentUser as any)?.role || 'USER';
   const isAdmin = userRole === 'SUPER' || userRole === 'MODERATOR' || userRole === 'FINANCIAL';
@@ -220,6 +230,37 @@ export function SubHeader() {
                   </div>
                   <span className="text-sm font-black tabular-nums">{currentUser?.diamondBalance || 0}</span>
                 </div>
+              </div>
+
+              <DropdownMenuSeparator className="bg-primary/5" />
+
+              <div className="px-2 pb-1">
+                <button
+                  onClick={cycleTier}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl bg-secondary/20 border border-transparent hover:border-primary/10 transition-all active:scale-95"
+                >
+                  <div className="flex items-center gap-2">
+                    <Wifi className={cn(
+                      "h-4 w-4",
+                      tier === 'lite' ? "text-amber-500" : tier === 'standard' ? "text-blue-500" : "text-emerald-500"
+                    )} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Network Mode</span>
+                  </div>
+                  <div className={cn(
+                    "flex items-center gap-1.5 px-2 h-5 rounded-full text-[9px] font-black uppercase tracking-widest",
+                    tier === 'lite'
+                      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                      : tier === 'standard'
+                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                      : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                  )}>
+                    <span className={cn(
+                      "h-1.5 w-1.5 rounded-full shrink-0",
+                      tier === 'lite' ? "bg-amber-500" : tier === 'standard' ? "bg-blue-500" : "bg-emerald-500 animate-pulse"
+                    )} />
+                    {tier === 'lite' ? 'Lite' : tier === 'standard' ? 'Standard' : 'Rich'}
+                  </div>
+                </button>
               </div>
 
               <DropdownMenuSeparator className="bg-primary/5" />

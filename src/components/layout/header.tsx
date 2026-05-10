@@ -71,24 +71,6 @@ export function Header() {
         </Link>
 
         
-        <div
-          title={`Network: ${tier === 'lite' ? 'Lite mode — reduced quality' : tier === 'standard' ? 'Standard mode' : 'Rich mode — full quality'}`}
-          className={cn(
-            "flex items-center gap-1 px-2 h-6 rounded-full text-[9px] font-black uppercase tracking-widest select-none cursor-default",
-            tier === 'lite'
-              ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-              : tier === 'standard'
-              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-              : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-          )}
-        >
-          <span className={cn(
-            "h-1.5 w-1.5 rounded-full shrink-0",
-            tier === 'lite' ? "bg-amber-500" : tier === 'standard' ? "bg-blue-500" : "bg-emerald-500 animate-pulse"
-          )} />
-          {tier === 'lite' ? 'Lite' : tier === 'standard' ? 'Std' : 'Rich'}
-        </div>
-
         <Link href="/profile" className="hidden sm:block ml-1 group">
           <Avatar className="h-9 w-9 border-2 border-primary/10 transition-transform group-hover:scale-105">
             <AvatarImage src={getAdaptivePreview(currentUser?.avatar, 'avatar', tier) || currentUser?.avatar} alt={currentUser?.name} />
