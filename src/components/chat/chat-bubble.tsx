@@ -25,6 +25,8 @@ import {
   Pencil,
   Check,
   X as XIcon,
+  CornerUpLeft,
+  Mic as MicIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -104,10 +106,16 @@ interface ChatBubbleProps {
   onDelete?: (id: string) => void;
   onEdit?: (id: string, newText: string) => void;
   seenByAvatars?: { name: string; avatar: string }[];
+  replyToId?: string;
+  replyToText?: string;
+  replyToSenderName?: string;
+  replyToType?: string;
+  onReply?: (id: string) => void;
+  onScrollToReply?: (id: string) => void;
 }
 
 export function ChatBubble({ 
-  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, postId, sharedPostData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete, onEdit, seenByAvatars = []
+  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, postId, sharedPostData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete, onEdit, seenByAvatars = [], replyToId, replyToText, replyToSenderName, replyToType, onReply, onScrollToReply
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const { setSelectedImageUrl, setSelectedVideoUrl, settings } = usePosts();
@@ -311,7 +319,17 @@ export function ChatBubble({
         )}
         onDoubleClick={handleDoubleClick}
       >
-        <div className={cn(
+        {/* Reply hover button for "them" messages — appears to the right of the bubble */}
+      {!isMe && onReply && (
+        <button
+          onClick={(e) => { e.stopPropagation(); triggerHaptic(10); onReply(id); }}
+          className="opacity-0 group-hover:opacity-100 transition-opacity self-end mb-2 ml-1 h-7 w-7 rounded-full bg-white dark:bg-card border border-primary/10 shadow-sm flex items-center justify-center text-primary hover:bg-primary/10 active:scale-90 shrink-0"
+        >
+          <CornerUpLeft className="h-3.5 w-3.5" />
+        </button>
+      )}
+
+      <div className={cn(
           "relative max-w-[85%] sm:max-w-[70%] shadow-md overflow-hidden",
           isMe 
             ? "bg-primary text-white rounded-2xl rounded-tr-none" 
@@ -327,6 +345,11 @@ export function ChatBubble({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="rounded-xl">
+                  {onReply && (
+                    <DropdownMenuItem className="gap-2" onSelect={() => { triggerHaptic(10); onReply(id); }}>
+                      <CornerUpLeft className="h-3.5 w-3.5" /> Reply
+                    </DropdownMenuItem>
+                  )}
                   {type === 'text' && !!text && (
                     <DropdownMenuItem className="gap-2" onSelect={() => { setEditText(text); setIsEditing(true); }}>
                       <Pencil className="h-3.5 w-3.5" /> Edit Message
@@ -348,6 +371,31 @@ export function ChatBubble({
           )} />
 
           <div className="flex flex-col">
+
+            {/* ── Reply quote card ─────────────────────────────────────────── */}
+            {replyToId && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onScrollToReply?.(replyToId); }}
+                className={cn(
+                  "mx-2 mt-2 mb-0 flex items-start gap-2 rounded-xl text-left transition-opacity hover:opacity-75 border-l-[3px] pl-2 pr-3 py-1.5 w-[calc(100%-1rem)]",
+                  isMe ? "border-white/60 bg-black/15" : "border-primary bg-primary/8"
+                )}
+              >
+                <div className="flex flex-col min-w-0 gap-0.5 overflow-hidden flex-1">
+                  <span className={cn("text-[10px] font-black uppercase tracking-wider truncate leading-none", isMe ? "text-white/80" : "text-primary")}>
+                    {replyToSenderName || 'Unknown'}
+                  </span>
+                  <span className={cn("text-xs truncate leading-snug opacity-70", isMe ? "text-white" : "text-foreground")}>
+                    {replyToType && replyToType !== 'text'
+                      ? (replyToType === 'voice' ? '🎙 Voice message' : replyToType === 'photo' ? '🖼 Photo' : replyToType === 'video' ? '🎥 Video' : `📎 ${replyToType}`)
+                      : (replyToText || '…')}
+                  </span>
+                </div>
+                {replyToType === 'voice' && <MicIcon className={cn("h-3.5 w-3.5 shrink-0 self-center opacity-50", isMe ? "text-white" : "text-primary")} />}
+                {replyToType === 'photo' && <ImageIcon className={cn("h-3.5 w-3.5 shrink-0 self-center opacity-50", isMe ? "text-white" : "text-primary")} />}
+                {replyToType === 'video' && <VideoIcon className={cn("h-3.5 w-3.5 shrink-0 self-center opacity-50", isMe ? "text-white" : "text-primary")} />}
+              </button>
+            )}
 
             {type === "voice" && (
               <div className={cn(

@@ -11,6 +11,7 @@ import {
   Search,
   ChevronDown,
   Mic,
+  CornerUpLeft,
   Bookmark,
   X,
   Zap,
@@ -96,6 +97,12 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   const [showVault, setShowVault] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{
+    id: string;
+    text: string;
+    senderName: string;
+    type: string;
+  } | null>(null);
   const typingAutoHideRef = useRef<NodeJS.Timeout | null>(null);
 
   // Pending (optimistic) voice bubble shown while upload is in progress
@@ -386,7 +393,14 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
           type: 'voice' as any,
           mediaUrl: finalUrl,
           voiceDuration: duration,
+          ...(replyingTo ? {
+            replyToId: replyingTo.id,
+            replyToText: replyingTo.text,
+            replyToSenderName: replyingTo.senderName,
+            replyToType: replyingTo.type,
+          } : {}),
         });
+        setReplyingTo(null);
 
         // Brief pause so user sees "100%" before the real bubble replaces it
         setTimeout(() => setPendingVoice(null), 350);
@@ -419,7 +433,14 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
         isViewOnce: options?.isViewOnce,
         mediaUrl: finalMediaUrl,
         voiceDuration: options?.duration,
+        ...(replyingTo ? {
+          replyToId: replyingTo.id,
+          replyToText: replyingTo.text,
+          replyToSenderName: replyingTo.senderName,
+          replyToType: replyingTo.type,
+        } : {}),
       });
+      setReplyingTo(null);
     } catch {
       return;
     }
@@ -572,6 +593,22 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                   onExternalLink={handleExternalLink}
                   onDelete={(msgId) => deleteMessage(msgId, contactId)}
                   onEdit={(msgId, newText) => editMessage(msgId, contactId, newText)}
+                  onReply={(msgId) => {
+                    const m = messages.find(x => x.$id === msgId);
+                    if (!m) return;
+                    const senderName = m.sender === 'me' ? (currentUser?.name || 'You') : (m.senderName || contact.name);
+                    const previewText = m.type === 'text' ? (m.text || '') : '';
+                    setReplyingTo({ id: msgId, text: previewText, senderName, type: m.type });
+                    triggerHaptic(10);
+                  }}
+                  onScrollToReply={(msgId) => {
+                    const el = document.getElementById(`msg-${msgId}`);
+                    if (el) {
+                      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      el.classList.add('ring-2', 'ring-primary/40', 'rounded-2xl');
+                      setTimeout(() => el.classList.remove('ring-2', 'ring-primary/40', 'rounded-2xl'), 1200);
+                    }
+                  }}
                 />
               </div>
             ))
@@ -637,7 +674,26 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
             </div>
           </div>
         ) : (
-          <ChatInput onSend={handleSend} onTyping={handleTyping} onStopTyping={handleStopTyping} />
+          <>
+            {replyingTo && (
+              <div className="flex items-center gap-3 px-4 py-2 bg-white dark:bg-card border-t border-primary/5 animate-in slide-in-from-bottom-2 duration-200">
+                <div className="flex-1 flex items-start gap-2 border-l-4 border-primary pl-3 min-w-0">
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary truncate">{replyingTo.senderName}</span>
+                    <span className="text-xs text-muted-foreground truncate">
+                      {replyingTo.type !== 'text' 
+                        ? (replyingTo.type === 'voice' ? '🎙 Voice message' : replyingTo.type === 'photo' ? '🖼 Photo' : replyingTo.type === 'video' ? '🎥 Video' : `📎 ${replyingTo.type}`)
+                        : replyingTo.text}
+                    </span>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full shrink-0 hover:bg-secondary/80" onClick={() => setReplyingTo(null)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            <ChatInput onSend={handleSend} onTyping={handleTyping} onStopTyping={handleStopTyping} />
+          </>
         )}
       </div>
 

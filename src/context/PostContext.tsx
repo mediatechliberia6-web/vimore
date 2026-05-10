@@ -194,6 +194,10 @@ export interface ChatMessage {
   createdAt?: number;
   postId?: string;
   sharedPostData?: SharedPostData;
+  replyToId?: string;
+  replyToText?: string;
+  replyToSenderName?: string;
+  replyToType?: string;
 }
 
 interface PostContextType {
@@ -1159,6 +1163,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
           sharedPostData: doc.shared_post_data
             ? (() => { try { return typeof doc.shared_post_data === 'string' ? JSON.parse(doc.shared_post_data) : doc.shared_post_data; } catch { return undefined; } })()
             : undefined,
+          replyToId: doc.reply_to_id || undefined,
+          replyToText: doc.reply_to_text || undefined,
+          replyToSenderName: doc.reply_to_sender_name || undefined,
+          replyToType: doc.reply_to_type || undefined,
         };
       });
 
@@ -2806,6 +2814,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (message.voiceDuration) docData.voice_duration = message.voiceDuration;
       if (message.postId) docData.post_id = message.postId;
       if (message.sharedPostData) docData.shared_post_data = JSON.stringify(message.sharedPostData);
+      if (message.replyToId) docData.reply_to_id = message.replyToId;
+      if (message.replyToText) docData.reply_to_text = message.replyToText;
+      if (message.replyToSenderName) docData.reply_to_sender_name = message.replyToSenderName;
+      if (message.replyToType) docData.reply_to_type = message.replyToType;
       await databases.createDocument(DATABASE_ID, COL.MESSAGES, ID.unique(), docData);
 
       // Deliver a Web Push to the recipient(s) for the new chat message

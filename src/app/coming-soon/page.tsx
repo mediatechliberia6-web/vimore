@@ -27,16 +27,6 @@ const features = [
       "Go live to your entire network in real time. Whether you're sharing breaking news, hosting a Q&A, performing, or just vibing — ViMore Live puts the broadcast studio in your pocket with zero buffering and full audience engagement tools.",
   },
   {
-    emoji: "↩️",
-    title: "Reply to Messages",
-    tag: "Chat",
-    tagColor: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-    accent: "from-blue-500/10 to-blue-500/5",
-    border: "border-blue-200/60 dark:border-blue-800/30",
-    description:
-      "Keep conversations organised and on-point. Quote any message in a thread, reply directly with full context preserved, and never lose track of what sparked a discussion — even in high-speed group clusters.",
-  },
-  {
     emoji: "📖",
     title: "Stories & Highlights",
     tag: "Content",
@@ -45,16 +35,6 @@ const features = [
     border: "border-amber-200/60 dark:border-amber-800/30",
     description:
       "Ephemeral moments that live for 24 hours, plus permanent highlights you curate on your profile. Express yourself freely without cluttering your main feed — and let your best moments shine forever in Highlights.",
-  },
-  {
-    emoji: "🛒",
-    title: "ViMore Shop",
-    tag: "Commerce",
-    tagColor: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
-    accent: "from-green-500/10 to-green-500/5",
-    border: "border-green-200/60 dark:border-green-800/30",
-    description:
-      "Buy and sell directly inside ViMore without leaving the app. Tag products in posts, create storefronts, and let your audience shop what they see. Commerce meets community — seamlessly integrated into your social experience.",
   },
   {
     emoji: "🎭",
