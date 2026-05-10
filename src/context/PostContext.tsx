@@ -1166,7 +1166,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
           const seen = new Set<string>(existing.map(m => m.$id));
           const additions = msgs.filter(m => !seen.has(m.$id));
           if (additions.length === 0) return prev;
-          const merged = [...existing, ...additions].sort(
+          // Remove optimistic messages (temp IDs starting with 'msg_') that now
+          // have a real server counterpart in the additions — avoids duplicates.
+          const serverKeys = new Set(
+            additions.map(m => `${m.senderId}|${m.text ?? ''}|${m.type}`)
+          );
+          const dedupedExisting = existing.filter(m => {
+            if (!m.$id.startsWith('msg_')) return true;
+            return !serverKeys.has(`${m.senderId}|${m.text ?? ''}|${m.type}`);
+          });
+          const merged = [...dedupedExisting, ...additions].sort(
             (a, b) => (a.createdAt || 0) - (b.createdAt || 0)
           );
           return { ...prev, [otherId]: merged };

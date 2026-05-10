@@ -31,8 +31,6 @@ import { PushAutoSubscribe } from "@/components/layout/push-auto-subscribe";
 import { NotificationScheduler } from "@/components/layout/notification-scheduler";
 import { GlobalRealtimeListener } from "@/components/layout/global-realtime";
 import { AdminAlertsProvider } from "@/context/AdminAlertsContext";
-import { CallProvider } from "@/context/CallContext";
-import { CallOverlay } from "@/components/chat/call-overlay";
 import { FeedSignalProvider } from "@/context/FeedSignalContext";
 import { NetworkProvider } from "@/context/NetworkContext";
 import NextTopLoader from 'nextjs-toploader';
@@ -258,7 +256,6 @@ export default async function RootLayout({
                 <LanguageProvider>
                   <NotificationProvider>
                     <MusicProvider>
-                      <CallProvider>
                       <ThemeLogic />
                       <FontScaleWrapper>
                         <DiagnosticErrorBoundary title="System Core">
@@ -280,13 +277,11 @@ export default async function RootLayout({
                                 <SearchPortal />
                                 <CommentHub />
                                 <GiftHub />
-                                <CallOverlay />
                                 <Toaster />
                               </SuspensionGate>
                             </AppLoadingGate>
                         </DiagnosticErrorBoundary>
                       </FontScaleWrapper>
-                      </CallProvider>
                     </MusicProvider>
                   </NotificationProvider>
                 </LanguageProvider>

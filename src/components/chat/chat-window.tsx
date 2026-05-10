@@ -41,12 +41,8 @@ import {
   Loader2,
   Check,
   Ban,
-  Mic,
-  Phone,
-  Video,
   Camera,
 } from "lucide-react";
-import { useCall } from "@/context/CallContext";
 import { getAvatarUrl, BUCKET, storage, ID, getFileUrl } from "@/lib/appwrite";
 import { cn } from "@/lib/utils";
 import { playNotificationSound } from "@/lib/notification-sound";
@@ -123,16 +119,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     if (isCluster) return false;
     return !friendUsernames.has(contactId) && !acceptedStrangerUsernames.has(contactId);
   }, [isCluster, friendUsernames, acceptedStrangerUsernames, contactId]);
-
-  const { initiateCall, callPhase } = useCall();
-
-  const handleCall = useCallback((type: 'video' | 'audio') => {
-    if (isCluster || isRequest || callPhase !== 'idle') return;
-    const conn = contact as Connection;
-    const avatarUrl = conn.avatar ? getAvatarUrl(BUCKET.AVATARS, conn.avatar, 'lg') : '';
-    initiateCall(conn.$id, conn.username, conn.name, avatarUrl, type);
-    triggerHaptic(10);
-  }, [isCluster, isRequest, callPhase, contact, initiateCall, triggerHaptic]);
 
   const messages = useMemo(() => chatMessages[contactId] || [], [chatMessages, contactId]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -496,30 +482,6 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
           </div>
           
           <div className="flex items-center gap-1">
-            {!isCluster && !isRequest && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full text-muted-foreground hover:text-primary"
-                  disabled={callPhase !== 'idle'}
-                  onClick={() => handleCall('audio')}
-                  title="Voice call"
-                >
-                  <Phone className="h-5 w-5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full text-muted-foreground hover:text-primary"
-                  disabled={callPhase !== 'idle'}
-                  onClick={() => handleCall('video')}
-                  title="Video call"
-                >
-                  <Video className="h-5 w-5" />
-                </Button>
-              </>
-            )}
             <Button variant="ghost" size="icon" className={cn("rounded-full transition-all", showVault ? "bg-primary/10 text-primary" : "text-muted-foreground")} onClick={() => { triggerHaptic(5); setShowVault(!showVault); }}>
               {isCluster ? <Bookmark className="h-5 w-5" /> : <InfoIcon className="h-5 w-5" />}
             </Button>
