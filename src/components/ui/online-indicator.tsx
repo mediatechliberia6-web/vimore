@@ -10,6 +10,8 @@ interface OnlineIndicatorProps {
   dotClassName?: string;
 }
 
+const STALE_THRESHOLD_MS = 90_000; // 90 seconds — if heartbeat missed, treat as offline
+
 function formatLastSeen(lastSeenAt: string): string {
   const date = new Date(lastSeenAt);
   if (isNaN(date.getTime())) return '';
@@ -37,7 +39,12 @@ export function OnlineIndicator({
 }: OnlineIndicatorProps) {
   const dot = dotClassName || "h-2.5 w-2.5";
 
-  if (isOnline) {
+  // Treat as offline if the last heartbeat is stale (tab killed without firing events)
+  const effectivelyOnline = isOnline && (
+    !lastSeenAt || (Date.now() - new Date(lastSeenAt).getTime()) < STALE_THRESHOLD_MS
+  );
+
+  if (effectivelyOnline) {
     return (
       <span className={cn("flex items-center gap-1.5", className)}>
         <span

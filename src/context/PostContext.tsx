@@ -369,10 +369,12 @@ interface PostContextType {
   markChatMessagesRead: (chatId: string) => void;
   applyRemotePostEdit: (postId: string, content: string) => void;
   applyReadReceipt: (storageKey: string, lastReadAt: string, docId: string) => void;
+  applyClusterMemberReceipt: (clusterId: string, userId: string, lastReadAt: string) => void;
   refreshSocialGraph: () => Promise<void>;
   chatLastMessageAt: Record<string, number>;
   chatLastIncomingAt: Record<string, number>;
   chatReadReceipts: Record<string, string>;
+  clusterMemberReceipts: Record<string, Record<string, string>>;
   chatUnreadCounts: Record<string, number>;
   fetchProfilePosts: (userId: string, cursor?: string | null) => Promise<{ posts: Post[]; cursor: string | null; hasMore: boolean }>;
   fetchReels: (cursor?: string | null) => Promise<{ posts: Post[]; cursor: string | null; hasMore: boolean }>;
@@ -618,6 +620,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   useEffect(() => { chatMessagesRef.current = chatMessages; }, [chatMessages]);
   const [chatReadReceipts, setChatReadReceipts] = useState<Record<string, string>>({});
   const [chatReadReceiptDocIds, setChatReadReceiptDocIds] = useState<Record<string, string>>({});
+  const [clusterMemberReceipts, setClusterMemberReceipts] = useState<Record<string, Record<string, string>>>({});
   const [chatUnreadCounts, setChatUnreadCounts] = useState<Record<string, number>>({});
 
   const [selectedPostId, setSelectedPostIdState] = useState<string | null>(null);
@@ -1202,6 +1205,20 @@ export function PostProvider({ children }: { children: ReactNode }) {
           c.username === otherId ? { ...c, lastMessage: preview, lastTime: lastMsg.time } : c
         ));
       }
+
+      if (isCluster) {
+        try {
+          const receiptsResult = await databases.listDocuments(DATABASE_ID, COL.CHAT_READ_RECEIPTS, [
+            Query.equal('cluster_id', otherId),
+            Query.limit(100),
+          ]);
+          const memberReceipts: Record<string, string> = {};
+          for (const doc of receiptsResult.documents) {
+            memberReceipts[doc.user_id] = doc.last_read_at;
+          }
+          setClusterMemberReceipts(prev => ({ ...prev, [otherId]: memberReceipts }));
+        } catch { /* non-critical */ }
+      }
     } catch (err: any) {
       const message = err?.message || err?.response?.message || JSON.stringify(err) || 'Unknown error loading messages';
       toast({ variant: 'destructive', title: 'Failed to Load Messages', description: message });
@@ -1469,26 +1486,42 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    // sendBeacon is reliable for tab-close/navigate — browser guarantees delivery
+    // even when async fetch would be cancelled by the browser on unload.
+    const markOfflineSync = () => {
+      try {
+        const data = JSON.stringify({ userId, isOnline: false });
+        if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+          navigator.sendBeacon('/api/presence', new Blob([data], { type: 'application/json' }));
+        } else {
+          markOffline();
+        }
+      } catch { /* ignore */ }
+    };
+
     markOnline();
-    const interval = setInterval(markOnline, 60000);
+    const interval = setInterval(markOnline, 30000); // 30s heartbeat — max 1 min stale
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        markOffline();
+        markOfflineSync();
       } else {
         markOnline();
       }
     };
 
-    const handleBeforeUnload = () => { markOffline(); };
+    const handleBeforeUnload = () => { markOfflineSync(); };
+    const handlePageHide = () => { markOfflineSync(); }; // fires on mobile/PWA navigate
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handlePageHide);
 
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handlePageHide);
       markOffline();
     };
   }, [currentUser?.$id]);
@@ -4030,6 +4063,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     chatLastMessageAt,
     chatLastIncomingAt,
     chatReadReceipts,
+    clusterMemberReceipts,
     chatUnreadCounts,
     updateConnectionPresence,
     recordView, recordStoryView,
@@ -4105,6 +4139,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
     applyReadReceipt: (storageKey: string, lastReadAt: string, docId: string) => {
       setChatReadReceipts(prev => ({ ...prev, [storageKey]: lastReadAt }));
       setChatReadReceiptDocIds(prev => ({ ...prev, [storageKey]: docId }));
+    },
+    applyClusterMemberReceipt: (clusterId: string, userId: string, lastReadAt: string) => {
+      setClusterMemberReceipts(prev => ({
+        ...prev,
+        [clusterId]: { ...(prev[clusterId] || {}), [userId]: lastReadAt },
+      }));
     },
     applyRemotePostEdit: (postId: string, content: string) => {
       setPostsState(prev => prev.map(p => p.$id === postId ? { ...p, content } : p));

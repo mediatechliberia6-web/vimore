@@ -4,7 +4,6 @@
 import { useState, useRef, useEffect } from "react";
 import { cn, isTextForeignToUser } from "@/lib/utils";
 import { 
-  CheckCheck, 
   Play, 
   Pause, 
   ExternalLink, 
@@ -104,10 +103,11 @@ interface ChatBubbleProps {
   onExternalLink?: (url: string) => void;
   onDelete?: (id: string) => void;
   onEdit?: (id: string, newText: string) => void;
+  seenByAvatars?: { name: string; avatar: string }[];
 }
 
 export function ChatBubble({ 
-  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, postId, sharedPostData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete, onEdit
+  id, isMe, text, time, status, type = "text", mediaUrl, voiceDuration, linkData, reactions = [], taggedUser, isViewOnce, isViewed, isDownloaded, workspaceData, postId, sharedPostData, onReact, onViewOnceOpen, onMediaOpen, onDownload, onExternalLink, onDelete, onEdit, seenByAvatars = []
 }: ChatBubbleProps) {
   const { triggerHaptic } = useMusic();
   const { setSelectedImageUrl, setSelectedVideoUrl, settings } = usePosts();
@@ -682,11 +682,15 @@ export function ChatBubble({
               (type === "photo" || type === "video") && !text && "absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-md text-white/80",
             )}>
               <span className="text-[9px] font-bold uppercase tracking-wider">{time}</span>
-              {isMe && (
-                <CheckCheck className={cn(
-                  "h-3 w-3",
-                  (isRead && settings.showReadReceipts) ? "text-accent" : "text-white/40"
-                )} />
+              {isMe && settings.showReadReceipts && seenByAvatars.length > 0 && (
+                <div className="flex items-center -space-x-1.5">
+                  {seenByAvatars.slice(0, 5).map((u, i) => (
+                    <Avatar key={i} className="h-[14px] w-[14px] border border-white/30 shrink-0 ring-0">
+                      <AvatarImage src={u.avatar} />
+                      <AvatarFallback className="text-[5px] bg-white/20 text-white">{u.name?.[0] || '?'}</AvatarFallback>
+                    </Avatar>
+                  ))}
+                </div>
               )}
             </div>
           </div>

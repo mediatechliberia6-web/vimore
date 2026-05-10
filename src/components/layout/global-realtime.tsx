@@ -39,7 +39,7 @@ export function GlobalRealtimeListener() {
   const {
     currentUser, selectedChatId, refreshAdminData,
     followingUserIds, applyPostCountUpdate, addStreamedComment, activeCommentPostId,
-    addIncomingMessage, applyRemotePostEdit, refreshSocialGraph, applyReadReceipt,
+    addIncomingMessage, applyRemotePostEdit, refreshSocialGraph, applyReadReceipt, applyClusterMemberReceipt,
     updateConnectionPresence, connections,
   } = usePosts();
   const {
@@ -176,13 +176,18 @@ export function GlobalRealtimeListener() {
         incrementPulse('ADMIN');
       }
 
-      if (isReceiptEvent && (isCreate || isUpdate) && payload.user_id === user?.$id) {
-        applyReadReceipt(payload.cluster_id, payload.last_read_at, payload.$id);
+      if (isReceiptEvent && (isCreate || isUpdate)) {
+        if (payload.user_id === user?.$id) {
+          applyReadReceipt(payload.cluster_id, payload.last_read_at, payload.$id);
+        } else {
+          // Another member read this cluster — update cluster member receipts
+          applyClusterMemberReceipt(payload.cluster_id, payload.user_id, payload.last_read_at);
+        }
       }
     });
 
     return () => { unsubscribe(); };
-  }, [currentUser?.$id, currentUser?.role, incrementPulse, updateMessagePreview, refreshNotifications, addIncomingMessage, incrementUnreadMessageCount, decrementUnreadMessageCount, refreshSocialGraph, applyReadReceipt]);
+  }, [currentUser?.$id, currentUser?.role, incrementPulse, updateMessagePreview, refreshNotifications, addIncomingMessage, incrementUnreadMessageCount, decrementUnreadMessageCount, refreshSocialGraph, applyReadReceipt, applyClusterMemberReceipt]);
 
   // ─── Post interaction counts (likes / comments / shares) ─────────────────
   useEffect(() => {

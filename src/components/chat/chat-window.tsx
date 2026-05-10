@@ -10,7 +10,7 @@ import {
   MoreHorizontal,
   Search,
   ChevronDown,
-  CheckCheck,
+  Mic,
   Bookmark,
   X,
   Zap,
@@ -84,7 +84,7 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ contact, onBack }: ChatWindowProps) {
-  const { currentUser, triggerHaptic, leaveCluster, connections = [], addMemberToCluster, updateCluster, settings, chatMessages, sendChatMessage, uploadMedia, friendUsernames, acceptedStrangerUsernames, acceptMessageRequest, declineMessageRequest, deleteMessage, editMessage } = usePosts();
+  const { currentUser, triggerHaptic, leaveCluster, connections = [], addMemberToCluster, updateCluster, settings, chatMessages, sendChatMessage, uploadMedia, friendUsernames, acceptedStrangerUsernames, acceptMessageRequest, declineMessageRequest, deleteMessage, editMessage, clusterMemberReceipts } = usePosts();
   const { tier: netTier } = useNetwork();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -121,6 +121,49 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   }, [isCluster, friendUsernames, acceptedStrangerUsernames, contactId]);
 
   const messages = useMemo(() => chatMessages[contactId] || [], [chatMessages, contactId]);
+
+  // Compute a map of messageId → seen-by avatars (like Messenger).
+  // Each member's avatar appears under the LAST message they've read.
+  const seenByMap = useMemo(() => {
+    const map: Record<string, { name: string; avatar: string }[]> = {};
+    if (!settings.showReadReceipts) return map;
+
+    if (!isCluster) {
+      // DM: show contact avatar under the last read message sent by me
+      const contactConn = contact as Connection;
+      const myReadMsgs = messages.filter(m => m.sender === 'me' && m.status === 'read');
+      if (myReadMsgs.length > 0) {
+        const last = myReadMsgs[myReadMsgs.length - 1];
+        map[last.$id] = [{ name: contactConn.name, avatar: (contactConn as any).avatar || '' }];
+      }
+      return map;
+    }
+
+    // Cluster: for each member show their avatar under the last msg they've seen
+    const receipts = clusterMemberReceipts[contactId] || {};
+    const members = (contact as Cluster).members || [];
+    const myMsgs = messages.filter(m => m.sender === 'me' && m.createdAt);
+
+    for (const member of members) {
+      if (member.$id === currentUser?.$id) continue; // skip self
+      const receipt = receipts[member.$id];
+      if (!receipt) continue;
+      const receiptTs = new Date(receipt).getTime();
+
+      let lastSeenMsgId: string | null = null;
+      for (const msg of myMsgs) {
+        if (msg.createdAt && msg.createdAt <= receiptTs) {
+          lastSeenMsgId = msg.$id;
+        }
+      }
+      if (lastSeenMsgId) {
+        if (!map[lastSeenMsgId]) map[lastSeenMsgId] = [];
+        map[lastSeenMsgId].push({ name: member.name, avatar: (member as any).avatar || '' });
+      }
+    }
+    return map;
+  }, [isCluster, contact, contactId, messages, clusterMemberReceipts, settings.showReadReceipts, currentUser?.$id]);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevMsgCountRef = useRef(0);
   const userScrolledUpRef = useRef(false);
@@ -524,7 +567,8 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
                   {...msg}
                   id={msg.$id}
                   isMe={msg.sender === "me"} 
-                  status={settings.showReadReceipts ? msg.status : 'sent'} 
+                  status={settings.showReadReceipts ? msg.status : 'sent'}
+                  seenByAvatars={seenByMap[msg.$id] || []}
                   onExternalLink={handleExternalLink}
                   onDelete={(msgId) => deleteMessage(msgId, contactId)}
                   onEdit={(msgId, newText) => editMessage(msgId, contactId, newText)}
