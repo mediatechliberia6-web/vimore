@@ -166,14 +166,16 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
             const isOnlineVisible = !settings.isGhostMode && !item.isGroup && (item as any).isOnline;
             const lastSeenAt = !item.isGroup ? (item as any).lastSeenAt : null;
 
-            // Group online status: count how many members are online right now
+            // Group online status: count OTHER members who are online (exclude self).
+            // We rely purely on real-time presence updates via onlineUserIds —
+            // the stale DB is_online field is not used to avoid phantom counts.
             const memberOnlineCount = item.isGroup
               ? ((item as any).members || []).filter((m: any) => {
-                  if (m.$id === currentUser?.$id) return !settings.isGhostMode;
+                  if (m.$id === currentUser?.$id) return false; // never count self
                   return onlineUserIds.has(m.$id);
                 }).length
               : 0;
-            const isGroupActive = item.isGroup && memberOnlineCount >= 2;
+            const isGroupActive = item.isGroup && memberOnlineCount >= 1;
             
             const msgs = chatMessages[id];
             const lastIncomingAt = chatLastIncomingAt[id];
@@ -255,10 +257,10 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
                           isGroupActive ? "text-emerald-500" : "text-muted-foreground/50"
                         )}>
                           {isGroupActive
-                            ? `${memberOnlineCount} members active`
-                            : memberOnlineCount === 1
-                              ? "1 member online"
-                              : "No one online"}
+                            ? memberOnlineCount === 1
+                              ? "1 member active"
+                              : `${memberOnlineCount} members active`
+                            : "Quiet"}
                         </span>
                       )}
                     </div>

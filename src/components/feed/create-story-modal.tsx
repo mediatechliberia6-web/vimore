@@ -92,9 +92,15 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
     const nw = img.naturalWidth;
     const nh = img.naturalHeight;
     setNaturalSize({ w: nw, h: nh });
-    const { cw, ch } = getContainerSize();
-    setZoom(Math.max(cw / nw, ch / nh));
-    setOffset({ x: 0, y: 0 });
+    // Container may not be painted yet — use a rAF to read its real dimensions.
+    requestAnimationFrame(() => {
+      const { cw, ch } = getContainerSize();
+      // If the container still hasn't rendered, fall back to typical phone dimensions.
+      const safeW = cw > 10 ? cw : 390;
+      const safeH = ch > 10 ? ch : 700;
+      setZoom(Math.max(safeW / nw, safeH / nh));
+      setOffset({ x: 0, y: 0 });
+    });
   };
 
   const handleFit = () => { setZoom(calcFitZoom()); setOffset({ x: 0, y: 0 }); };

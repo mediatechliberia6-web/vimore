@@ -302,6 +302,7 @@ interface PostContextType {
   addComment: (postId: string, text: string) => Promise<void>;
   addReply: (postId: string, parentId: string, text: string) => Promise<void>;
   addStory: (segment: any) => Promise<void>;
+  deleteStory: (storyId: string) => Promise<void>;
   voteOnStoryPoll: (storyId: string, segmentId: string, optionIndex: number) => Promise<void>;
   voteOnPostPoll: (postId: string, optionIndex: number) => Promise<void>;
   toggleMuteUser: (username: string) => void;
@@ -1119,18 +1120,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         } catch { /* non-critical — real-time listener fills gaps */ }
       }
 
-      // ── Pre-populate online status for all group members ──
-      const onlineIds: string[] = [];
-      for (const u of Object.values(memberUsersMap)) {
-        if ((u as any).is_online && u.$id) onlineIds.push(u.$id);
-      }
-      if (onlineIds.length > 0) {
-        setOnlineUserIds(prev => {
-          const next = new Set(prev);
-          onlineIds.forEach(id => next.add(id));
-          return next;
-        });
-      }
+      // Online status is determined solely by real-time presence events.
+      // Pre-populating from the stale `is_online` DB field causes phantom online counts.
     } catch { /* ignore */ }
   }, []);
 
@@ -1180,22 +1171,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
           .filter(d => (seen.has(d.$id) ? false : (seen.add(d.$id), true)))
           .sort((x, y) => new Date(x.$createdAt).getTime() - new Date(y.$createdAt).getTime());
       } else {
-        // CLUSTER (group) PATH: cache-first delta. We already have the previous batch
-        // in chatMessages/chatLastMessageAt; only ask Appwrite for messages newer than that.
+        // CLUSTER (group) PATH: always query by cluster_id so we only see this group's
+        // messages, then apply a delta filter if we already have a cached timestamp.
         const cachedTs = (chatLastMessageAtRef.current[otherId] || 0);
         const queries: any[] = [
+          Query.equal('cluster_id', clusterId),
           Query.orderDesc('$createdAt'),
-          Query.limit(120),
+          Query.limit(80),
         ];
         if (cachedTs > 0) {
-          queries.unshift(Query.greaterThan('$createdAt', new Date(cachedTs - 1000).toISOString()));
+          queries.push(Query.greaterThan('$createdAt', new Date(cachedTs - 1000).toISOString()));
         }
         const result = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, queries);
-        const fresh = result.documents.filter(doc => doc.cluster_id === clusterId);
-        // Combine with what's already in cache (mapped back to raw shape isn't needed —
-        // we'll just merge by $id below after we transform). For cluster threads with no
-        // prior cache we fall back to taking just `fresh` ascending.
-        all = fresh.sort((x: any, y: any) => new Date(x.$createdAt).getTime() - new Date(y.$createdAt).getTime());
+        all = result.documents.sort(
+          (x: any, y: any) => new Date(x.$createdAt).getTime() - new Date(y.$createdAt).getTime()
+        );
       }
 
       const msgs: ChatMessage[] = all.map(doc => {
@@ -1606,6 +1596,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
           followers: typeof payload.followers_count === 'number' ? payload.followers_count : prev.followers,
           following: typeof payload.following_count === 'number' ? payload.following_count : prev.following,
           posts: typeof payload.posts_count === 'number' ? payload.posts_count : prev.posts,
+          goldBalance: typeof payload.gold_balance === 'number' ? payload.gold_balance : prev.goldBalance,
+          diamondBalance: typeof payload.diamond_balance === 'number' ? payload.diamond_balance : prev.diamondBalance,
+          starBalance: typeof payload.star_balance === 'number' ? payload.star_balance : prev.starBalance,
         };
       });
     });
@@ -2549,6 +2542,31 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
     } catch (err: any) {
       logAppwriteError('addStory', err);
+      throw err;
+    }
+  };
+
+  const deleteStory = async (storyId: string) => {
+    if (!currentUser) return;
+    try {
+      // Remove from local state immediately
+      setStoriesState(prev => prev.filter(s => s.$id !== storyId));
+      // Delete segments first
+      const segsResult = await databases.listDocuments(DATABASE_ID, COL.STORY_SEGMENTS, [
+        Query.equal('story_id', storyId), Query.limit(50),
+      ]);
+      await Promise.allSettled(
+        segsResult.documents.map(async seg => {
+          if (seg.media_id) {
+            try { await storage.deleteFile(BUCKET_STORIES, seg.media_id); } catch { /* ignore */ }
+          }
+          await databases.deleteDocument(DATABASE_ID, COL.STORY_SEGMENTS, seg.$id);
+        })
+      );
+      // Delete the story doc
+      await databases.deleteDocument(DATABASE_ID, COL.STORIES, storyId);
+    } catch (err: any) {
+      logAppwriteError('deleteStory', err);
       throw err;
     }
   };
@@ -4047,7 +4065,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser,
     acceptMessageRequest: async () => {},
     declineMessageRequest: async () => {},
-    addComment, addReply, addStory,
+    addComment, addReply, addStory, deleteStory,
     voteOnStoryPoll: async () => {},
     voteOnPostPoll: async (postId: string, optionIndex: number) => {
       if (!currentUser) return;

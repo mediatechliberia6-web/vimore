@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye, BellOff, VolumeX, Volume2, EyeOff, Zap, ShieldCheck, Loader2, ExternalLink } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, MoreHorizontal, Send, Heart, Eye, BellOff, VolumeX, Volume2, EyeOff, Zap, ShieldCheck, Loader2, ExternalLink, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { usePosts, StorySegment } from "@/context/PostContext";
@@ -31,7 +31,7 @@ interface FloatingReaction {
 }
 
 export function StoryViewer() {
-  const { stories, activeStoryIndex, mutedUserNames = [], setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser, settings, recordStoryView, campaigns, sendChatMessage, recordCampaignImpression, recordCampaignClick } = usePosts();
+  const { stories, activeStoryIndex, mutedUserNames = [], setActiveStoryIndex, voteOnStoryPoll, toggleMuteUser, currentUser, settings, recordStoryView, campaigns, sendChatMessage, recordCampaignImpression, recordCampaignClick, deleteStory } = usePosts();
   const { tier } = useNetwork();
   const [segmentIndex, setSegmentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -442,14 +442,30 @@ export function StoryViewer() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 rounded-xl p-2">
-                    <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={() => toggleMuteUser(activeStory.user.name)}>
-                      <VolumeX className="h-4 w-4" />
-                      {mutedUserNames.includes(activeStory.user.name) ? "Unmute" : "Mute"} {activeStory.user.name}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="gap-2 cursor-pointer font-bold text-destructive focus:text-destructive">
-                      <BellOff className="h-4 w-4" />
-                      Notifications Off
-                    </DropdownMenuItem>
+                    {isOwner ? (
+                      <DropdownMenuItem
+                        className="gap-2 cursor-pointer font-bold text-destructive focus:text-destructive"
+                        onClick={async () => {
+                          const storyId = activeStory.$id;
+                          handleClose();
+                          try { await deleteStory(storyId); } catch { /* ignore */ }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete Story
+                      </DropdownMenuItem>
+                    ) : (
+                      <>
+                        <DropdownMenuItem className="gap-2 cursor-pointer font-bold" onClick={() => toggleMuteUser(activeStory.user.name)}>
+                          <VolumeX className="h-4 w-4" />
+                          {mutedUserNames.includes(activeStory.user.name) ? "Unmute" : "Mute"} {activeStory.user.name}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2 cursor-pointer font-bold text-destructive focus:text-destructive">
+                          <BellOff className="h-4 w-4" />
+                          Notifications Off
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
 
