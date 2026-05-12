@@ -1091,7 +1091,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       // ── Fetch last message per cluster (instant preview, no SW cache for DB calls) ──
       if (clusterIds.length > 0) {
         try {
-          const latestMsgs = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, [
+          const latestMsgs = await databases.listDocuments(DATABASE_ID, COL.GROUP_MESSAGES, [
             Query.equal('cluster_id', clusterIds),
             Query.orderDesc('$createdAt'),
             Query.limit(Math.min(clusterIds.length * 5, 100)),
@@ -1172,17 +1172,20 @@ export function PostProvider({ children }: { children: ReactNode }) {
           .sort((x, y) => new Date(x.$createdAt).getTime() - new Date(y.$createdAt).getTime());
       } else {
         // CLUSTER (group) PATH: always query by cluster_id so we only see this group's
-        // messages, then apply a delta filter if we already have a cached timestamp.
-        const cachedTs = (chatLastMessageAtRef.current[otherId] || 0);
+        // messages. Only apply a delta filter if we already have messages loaded in
+        // memory for this cluster — prevents the "1 message" bug where loadClusters
+        // pre-populates chatLastMessageAt before the conversation is ever opened.
+        const existingMsgs = chatMessagesRef.current[otherId] || [];
+        const cachedTs = existingMsgs.length > 0 ? (chatLastMessageAtRef.current[otherId] || 0) : 0;
         const queries: any[] = [
           Query.equal('cluster_id', clusterId),
           Query.orderDesc('$createdAt'),
-          Query.limit(80),
+          Query.limit(100),
         ];
         if (cachedTs > 0) {
           queries.push(Query.greaterThan('$createdAt', new Date(cachedTs - 1000).toISOString()));
         }
-        const result = await databases.listDocuments(DATABASE_ID, COL.MESSAGES, queries);
+        const result = await databases.listDocuments(DATABASE_ID, COL.GROUP_MESSAGES, queries);
         all = result.documents.sort(
           (x: any, y: any) => new Date(x.$createdAt).getTime() - new Date(y.$createdAt).getTime()
         );
@@ -2283,12 +2286,13 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const deleteMessage = async (messageId: string, chatId: string) => {
     let originalMessages: ChatMessage[] = [];
+    const isGroupChat = clustersRef.current.some(cl => cl.$id === chatId);
     setChatMessages(prev => {
       originalMessages = prev[chatId] || [];
       return { ...prev, [chatId]: originalMessages.filter(m => m.$id !== messageId) };
     });
     try {
-      await databases.deleteDocument(DATABASE_ID, COL.MESSAGES, messageId);
+      await databases.deleteDocument(DATABASE_ID, isGroupChat ? COL.GROUP_MESSAGES : COL.MESSAGES, messageId);
     } catch (err: any) {
       setChatMessages(prev => ({ ...prev, [chatId]: originalMessages }));
       logAppwriteError('deleteMessage', err);
@@ -2298,6 +2302,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const editMessage = async (messageId: string, chatId: string, newText: string) => {
     let originalMessages: ChatMessage[] = [];
+    const isGroupChat = clustersRef.current.some(cl => cl.$id === chatId);
     setChatMessages(prev => {
       originalMessages = prev[chatId] || [];
       return {
@@ -2306,7 +2311,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       };
     });
     try {
-      await databases.updateDocument(DATABASE_ID, COL.MESSAGES, messageId, { text: newText });
+      await databases.updateDocument(DATABASE_ID, isGroupChat ? COL.GROUP_MESSAGES : COL.MESSAGES, messageId, { text: newText });
     } catch (err: any) {
       setChatMessages(prev => ({ ...prev, [chatId]: originalMessages }));
       logAppwriteError('editMessage', err);
@@ -2893,7 +2898,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (message.replyToText) docData.reply_to_text = message.replyToText;
       if (message.replyToSenderName) docData.reply_to_sender_name = message.replyToSenderName;
       if (message.replyToType) docData.reply_to_type = message.replyToType;
-      await databases.createDocument(DATABASE_ID, COL.MESSAGES, ID.unique(), docData);
+      await databases.createDocument(DATABASE_ID, isClusterMsg ? COL.GROUP_MESSAGES : COL.MESSAGES, ID.unique(), docData);
 
       // Deliver a Web Push to the recipient(s) for the new chat message
       try {

@@ -21,6 +21,7 @@ export const COL = {
   FRIEND_REQUESTS: 'friend_requests',
   BLOCKED_USERS: 'blocked_users',
   MESSAGES: 'messages',
+  GROUP_MESSAGES: 'group_messages',
   CLUSTERS: 'clusters',
   CLUSTER_MEMBERS: 'cluster_members',
   TRACKS: 'tracks',

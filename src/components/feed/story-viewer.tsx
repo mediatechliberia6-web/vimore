@@ -646,10 +646,25 @@ export function StoryViewer() {
                   </div>
                 </>
               ) : (
-                <div className="flex flex-col items-center gap-2 mb-2 animate-in slide-in-from-bottom-2">
-                  <div className="h-1 w-8 bg-white/20 rounded-full mb-2" />
-                  <div className="flex items-center gap-2 text-white/40 font-bold text-[10px] uppercase tracking-[0.2em]">
-                    Owner Presence
+                <div className="flex flex-col items-center gap-3 mb-2 animate-in slide-in-from-bottom-2">
+                  <div className="h-1 w-8 bg-white/20 rounded-full" />
+                  <div className="flex items-center justify-between w-full px-1">
+                    <div className="flex items-center gap-2 bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+                      <Eye className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-white text-xs font-black tracking-tight">{activeStory.viewCount || 0} views</span>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const storyId = activeStory.$id;
+                        handleClose();
+                        deleteStory(storyId).catch(() => {});
+                      }}
+                      className="flex items-center gap-2 bg-red-500/20 backdrop-blur-md border border-red-500/30 text-red-400 rounded-full px-4 py-2 text-xs font-black uppercase tracking-widest hover:bg-red-500/30 transition-colors active:scale-95"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete Story
+                    </button>
                   </div>
                 </div>
               )}

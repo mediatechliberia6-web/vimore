@@ -94,6 +94,7 @@ export function GlobalRealtimeListener() {
 
     const channels: string[] = [
       `databases.${DATABASE_ID}.collections.${COL.MESSAGES}.documents`,
+      `databases.${DATABASE_ID}.collections.${COL.GROUP_MESSAGES}.documents`,
       `databases.${DATABASE_ID}.collections.${COL.NOTIFICATIONS}.documents`,
       `databases.${DATABASE_ID}.collections.${COL.FRIEND_REQUESTS}.documents`,
       `databases.${DATABASE_ID}.collections.${COL.CHAT_READ_RECEIPTS}.documents`,
@@ -110,7 +111,7 @@ export function GlobalRealtimeListener() {
       const isCreate = events.some(e => e.endsWith('.create'));
       const isUpdate = events.some(e => e.endsWith('.update'));
 
-      const isMessageEvent      = events.some(e => e.includes(`.${COL.MESSAGES}.`));
+      const isMessageEvent      = events.some(e => e.includes(`.${COL.MESSAGES}.`) || e.includes(`.${COL.GROUP_MESSAGES}.`));
       const isNotificationEvent = events.some(e => e.includes(`.${COL.NOTIFICATIONS}.`));
       const isFriendReqEvent    = events.some(e => e.includes(`.${COL.FRIEND_REQUESTS}.`));
       const isReportEvent       = events.some(e => e.includes(`.${COL.REPORTS}.`));
