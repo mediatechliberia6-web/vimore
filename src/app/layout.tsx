@@ -106,8 +106,8 @@ export const metadata: Metadata = {
   ],
 
   // Authorship & ownership — used by search engines to verify real people
-  authors: [{ name: "Amos B. Kortu", url: "https://vimore.cfd" }],
-  creator: "Amos B. Kortu",
+  authors: [{ name: "Media Tech Liberia", url: "https://vimore.cfd" }],
+  creator: "Media Tech Liberia",
   publisher: "Media Tech Liberia",
   applicationName: "ViMore",
   manifest: "/manifest.json",
@@ -119,7 +119,7 @@ export const metadata: Metadata = {
     locale: "en_LR",
     url: "https://vimore.cfd",
     siteName: "ViMore",
-    title: "ViMore - Built for Liberia by Amos B. Kortu",
+    title: "ViMore - Built for Liberia by Media Tech Liberia",
     description:
       "A 100% free, data-light platform for Liberian creators and vendors.",
     images: [
@@ -167,7 +167,7 @@ export const metadata: Metadata = {
   // Miscellaneous identity & platform tags
   other: {
     // Search-engine identity verification
-    "author": "Amos B. Kortu",
+    "author": "Media Tech Liberia",
     "owner": "Media Tech Liberia",
     // Existing site-verification token
     "6a97888e-site-verification": "078f262e3dacd42dc814159e1a856c2d",
