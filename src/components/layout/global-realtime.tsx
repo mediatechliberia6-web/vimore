@@ -111,7 +111,9 @@ export function GlobalRealtimeListener() {
       const isCreate = events.some(e => e.endsWith('.create'));
       const isUpdate = events.some(e => e.endsWith('.update'));
 
-      const isMessageEvent      = events.some(e => e.includes(`.${COL.MESSAGES}.`) || e.includes(`.${COL.GROUP_MESSAGES}.`));
+      const isGroupMessageEvent = events.some(e => e.includes(`.${COL.GROUP_MESSAGES}.`));
+      const isDmMessageEvent    = events.some(e => e.includes(`.${COL.MESSAGES}.`) && !e.includes(`.${COL.GROUP_MESSAGES}.`));
+      const isMessageEvent      = isGroupMessageEvent || isDmMessageEvent;
       const isNotificationEvent = events.some(e => e.includes(`.${COL.NOTIFICATIONS}.`));
       const isFriendReqEvent    = events.some(e => e.includes(`.${COL.FRIEND_REQUESTS}.`));
       const isReportEvent       = events.some(e => e.includes(`.${COL.REPORTS}.`));
@@ -123,17 +125,25 @@ export function GlobalRealtimeListener() {
       if (isMessageEvent && isCreate) {
         if (payload.sender_id !== user?.$id) {
           const clusterId: string = payload.cluster_id || '';
-          const rawText =
-            payload.text
-              ? String(payload.text).slice(0, 80)
-              : payload.type === 'voice'
-                ? '🎤 Voice message'
-                : payload.media_url
-                  ? '📷 Media'
-                  : 'New message';
-          const timeStr = payload.$createdAt ? formatTimeAgo(payload.$createdAt) : 'Just now';
-          if (clusterId) {
-            updateMessagePreview(clusterId, rawText, timeStr);
+
+          // For group messages, verify this user is actually a member of that cluster.
+          // For DMs, any message arriving on this subscription is already addressed to this user.
+          const isUserMember = isGroupMessageEvent
+            ? clustersRef.current.some(cl => cl.$id === clusterId)
+            : true;
+
+          if (clusterId && isUserMember) {
+            const rawText =
+              payload.text
+                ? String(payload.text).slice(0, 80)
+                : payload.type === 'voice'
+                  ? '🎤 Voice message'
+                  : payload.media_url
+                    ? '📷 Media'
+                    : 'New message';
+            const timeStr = payload.$createdAt ? formatTimeAgo(payload.$createdAt) : 'Just now';
+
+            // Build the incoming message object
             const incomingMsg = {
               $id: payload.$id || `msg_${Date.now()}`,
               sender: 'them' as const,
@@ -146,20 +156,29 @@ export function GlobalRealtimeListener() {
               type: (payload.type || 'text') as any,
               mediaUrl: payload.media_url || undefined,
               voiceDuration: payload.voice_duration || undefined,
+              replyToId: payload.reply_to_id || undefined,
+              replyToText: payload.reply_to_text || undefined,
+              replyToSenderName: payload.reply_to_sender_name || undefined,
+              replyToType: payload.reply_to_type || undefined,
             };
+
+            // Instantly update both the message list and the chat preview sidebar
             addIncomingMessage(clusterId, incomingMsg, rawText, timeStr);
-          }
-          const isInCurrentChat = chatId && clusterId && (clusterId === chatId || clusterId.includes(chatId));
-          if (!isInCurrentChat) {
-            incrementPulse('MESSAGES');
-            // Only increment the DB-backed unread count if this message was directed at us
-            if (payload.receiver_id === user?.$id) {
-              incrementUnreadMessageCount();
-            }
-          } else {
-            // User is in the chat — no badge needed, but decrement if we had counted it
-            if (payload.receiver_id === user?.$id) {
-              decrementUnreadMessageCount(0);
+            updateMessagePreview(clusterId, rawText, timeStr);
+
+            // Badge + unread count
+            const isInCurrentChat = chatId && clusterId === chatId;
+            if (!isInCurrentChat) {
+              incrementPulse('MESSAGES');
+              // Group: increment for all members. DM: only if directly addressed.
+              if (isGroupMessageEvent || payload.receiver_id === user?.$id) {
+                incrementUnreadMessageCount();
+              }
+            } else {
+              // User has this chat open — clear badge if it was a DM
+              if (isDmMessageEvent && payload.receiver_id === user?.$id) {
+                decrementUnreadMessageCount(0);
+              }
             }
           }
         }

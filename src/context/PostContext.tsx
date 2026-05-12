@@ -1180,7 +1180,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         const queries: any[] = [
           Query.equal('cluster_id', clusterId),
           Query.orderDesc('$createdAt'),
-          Query.limit(100),
+          Query.limit(200),
         ];
         if (cachedTs > 0) {
           queries.push(Query.greaterThan('$createdAt', new Date(cachedTs - 1000).toISOString()));
@@ -4212,8 +4212,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
           m.sender === 'them' && m.status !== 'read' ? { ...m, status: 'read' as const } : m
         ),
       }));
+      const isGroupChat = clusters.some(cl => cl.$id === chatId);
+      const msgCollection = isGroupChat ? COL.GROUP_MESSAGES : COL.MESSAGES;
       unreadMsgs.forEach(m => {
-        databases.updateDocument(DATABASE_ID, COL.MESSAGES, m.$id, { is_read: true }).catch(() => {});
+        databases.updateDocument(DATABASE_ID, msgCollection, m.$id, { is_read: true }).catch(() => {});
       });
       const now = new Date().toISOString();
       setChatReadReceipts(prev => ({ ...prev, [chatId]: now }));

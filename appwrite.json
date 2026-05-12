@@ -1,0 +1,185 @@
+{
+  "projectId": "vimore123",
+  "projectName": "ViMore",
+  "collections": [
+    {
+      "$id": "group_messages",
+      "name": "Group Messages",
+      "enabled": true,
+      "documentSecurity": false,
+      "attributes": [
+        {
+          "key": "cluster_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null
+        },
+        {
+          "key": "sender_id",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null
+        },
+        {
+          "key": "sender_name",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null
+        },
+        {
+          "key": "sender_avatar",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 512,
+          "default": null
+        },
+        {
+          "key": "type",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "size": 20,
+          "default": "text"
+        },
+        {
+          "key": "text",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 4000,
+          "default": null
+        },
+        {
+          "key": "media_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 36,
+          "default": null
+        },
+        {
+          "key": "media_url",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 2000,
+          "default": null
+        },
+        {
+          "key": "voice_duration",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 20,
+          "default": null
+        },
+        {
+          "key": "is_read",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "post_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 36,
+          "default": null
+        },
+        {
+          "key": "shared_post_data",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 8000,
+          "default": null
+        },
+        {
+          "key": "reply_to_id",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 36,
+          "default": null
+        },
+        {
+          "key": "reply_to_text",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 500,
+          "default": null
+        },
+        {
+          "key": "reply_to_sender_name",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 128,
+          "default": null
+        },
+        {
+          "key": "reply_to_type",
+          "type": "string",
+          "required": false,
+          "array": false,
+          "size": 20,
+          "default": null
+        },
+        {
+          "key": "is_view_once",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": false
+        },
+        {
+          "key": "is_viewed",
+          "type": "boolean",
+          "required": false,
+          "array": false,
+          "default": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "cluster_id_idx",
+          "type": "key",
+          "status": "available",
+          "attributes": ["cluster_id"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "sender_id_idx",
+          "type": "key",
+          "status": "available",
+          "attributes": ["sender_id"],
+          "orders": ["ASC"]
+        },
+        {
+          "key": "created_at_idx",
+          "type": "key",
+          "status": "available",
+          "attributes": ["$createdAt"],
+          "orders": ["DESC"]
+        },
+        {
+          "key": "cluster_created_idx",
+          "type": "key",
+          "status": "available",
+          "attributes": ["cluster_id", "$createdAt"],
+          "orders": ["ASC", "DESC"]
+        }
+      ]
+    }
+  ]
+}
