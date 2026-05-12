@@ -68,13 +68,13 @@
     "react-hook-form": "^7.75.0",
     "recharts": "^2.15.4",
     "server-only": "^0.0.1",
-    "tailwind-merge": "^3.5.0",
+    "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
     "web-push": "^3.6.7",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/node": "^20.19.40",
+    "@types/node": "^20.19.41",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "postcss": "^8.5.14",
