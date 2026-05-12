@@ -149,36 +149,6 @@
           "array": false,
           "default": false
         }
-      ],
-      "indexes": [
-        {
-          "key": "cluster_id_idx",
-          "type": "key",
-          "status": "available",
-          "attributes": ["cluster_id"],
-          "orders": ["ASC"]
-        },
-        {
-          "key": "sender_id_idx",
-          "type": "key",
-          "status": "available",
-          "attributes": ["sender_id"],
-          "orders": ["ASC"]
-        },
-        {
-          "key": "created_at_idx",
-          "type": "key",
-          "status": "available",
-          "attributes": ["$createdAt"],
-          "orders": ["DESC"]
-        },
-        {
-          "key": "cluster_created_idx",
-          "type": "key",
-          "status": "available",
-          "attributes": ["cluster_id", "$createdAt"],
-          "orders": ["ASC", "DESC"]
-        }
       ]
     }
   ]

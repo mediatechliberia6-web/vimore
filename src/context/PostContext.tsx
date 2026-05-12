@@ -1088,19 +1088,24 @@ export function PostProvider({ children }: { children: ReactNode }) {
       });
       setClustersState(mapped);
 
-      // ── Fetch last message per cluster (instant preview, no SW cache for DB calls) ──
+      // ── Fetch last message per cluster directly from the collection ──
       if (clusterIds.length > 0) {
         try {
-          const latestMsgs = await databases.listDocuments(DATABASE_ID, COL.GROUP_MESSAGES, [
-            Query.equal('cluster_id', clusterIds),
-            Query.orderDesc('$createdAt'),
-            Query.limit(Math.min(clusterIds.length * 5, 100)),
-          ]);
+          const perClusterResults = await Promise.allSettled(
+            clusterIds.map(cid =>
+              databases.listDocuments(DATABASE_ID, COL.GROUP_MESSAGES, [
+                Query.equal('cluster_id', cid),
+                Query.orderDesc('$createdAt'),
+                Query.limit(1),
+              ])
+            )
+          );
           const lastMsgMap: Record<string, any> = {};
-          for (const doc of latestMsgs.documents) {
-            const cid: string = doc.cluster_id || '';
-            if (cid && !lastMsgMap[cid]) lastMsgMap[cid] = doc;
-          }
+          perClusterResults.forEach((res, i) => {
+            if (res.status === 'fulfilled' && res.value.documents.length > 0) {
+              lastMsgMap[clusterIds[i]] = res.value.documents[0];
+            }
+          });
           if (Object.keys(lastMsgMap).length > 0) {
             setClustersState(prev => prev.map(cl => {
               const doc = lastMsgMap[cl.$id];
