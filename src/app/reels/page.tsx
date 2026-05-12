@@ -789,27 +789,40 @@ function ReelItem({
 }
 
 export default function ReelsPage() {
-  const { campaigns, openCommentHub, fetchComments, friendUsernames, followingUsernames, settings, isOffline, fetchReels, postCountOverrides } = usePosts();
+  const { campaigns, openCommentHub, fetchComments, friendUsernames, followingUsernames, followingUserIds, settings, isOffline, fetchReels, postCountOverrides } = usePosts();
   const { tier: pageTier } = useNetwork();
 
   const [reelsList, setReelsList] = useState<Post[]>([]);
-  const [reelsCursor, setReelsCursor] = useState<string | null>(null);
+  const [reelsPhase, setReelsPhase] = useState<'connections' | 'global'>('connections');
+  const [reelsConnCursor, setReelsConnCursor] = useState<string | null>(null);
+  const [reelsGlobalCursor, setReelsGlobalCursor] = useState<string | null>(null);
   const [hasMoreReels, setHasMoreReels] = useState(true);
   const [isLoadingReels, setIsLoadingReels] = useState(false);
   const isLoadingReelsRef = useRef(false);
+  const reelsPhaseRef = useRef<'connections' | 'global'>('connections');
+  const reelsConnCursorRef = useRef<string | null>(null);
+  const reelsGlobalCursorRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isLoadingReelsRef.current) return;
     isLoadingReelsRef.current = true;
     setIsLoadingReels(true);
-    fetchReels(null).then(({ posts, cursor, hasMore }) => {
-      setReelsList(posts);
-      setReelsCursor(cursor);
-      setHasMoreReels(hasMore);
-    }).finally(() => {
-      setIsLoadingReels(false);
-      isLoadingReelsRef.current = false;
-    });
+    const connIds = [...followingUserIds].slice(0, 100);
+    fetchReels({ phase: 'connections', connIds, connCursor: null, globalCursor: null })
+      .then(({ posts, phase, connCursor, globalCursor, hasMore }) => {
+        setReelsList(posts);
+        setReelsPhase(phase);
+        setReelsConnCursor(connCursor);
+        setReelsGlobalCursor(globalCursor);
+        setHasMoreReels(hasMore);
+        reelsPhaseRef.current = phase;
+        reelsConnCursorRef.current = connCursor;
+        reelsGlobalCursorRef.current = globalCursor;
+      }).finally(() => {
+        setIsLoadingReels(false);
+        isLoadingReelsRef.current = false;
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchReels]);
 
   const reels = useMemo(() => reelsList.map(r => {
@@ -942,19 +955,30 @@ export default function ReelsPage() {
     if (activeIndex >= feedLength - 3 && hasMoreReels && !isLoadingReelsRef.current) {
       isLoadingReelsRef.current = true;
       setIsLoadingReels(true);
-      fetchReels(reelsCursor).then(({ posts, cursor, hasMore }) => {
+      const connIds = [...followingUserIds].slice(0, 100);
+      fetchReels({
+        phase: reelsPhaseRef.current,
+        connIds,
+        connCursor: reelsConnCursorRef.current,
+        globalCursor: reelsGlobalCursorRef.current,
+      }).then(({ posts, phase, connCursor, globalCursor, hasMore }) => {
         setReelsList(prev => {
           const existingIds = new Set(prev.map(r => r.$id));
           return [...prev, ...posts.filter(r => !existingIds.has(r.$id))];
         });
-        setReelsCursor(cursor);
+        setReelsPhase(phase);
+        setReelsConnCursor(connCursor);
+        setReelsGlobalCursor(globalCursor);
         setHasMoreReels(hasMore);
+        reelsPhaseRef.current = phase;
+        reelsConnCursorRef.current = connCursor;
+        reelsGlobalCursorRef.current = globalCursor;
       }).finally(() => {
         setIsLoadingReels(false);
         isLoadingReelsRef.current = false;
       });
     }
-  }, [activeIndex, activeFeed, hasMoreReels, reelsCursor, fetchReels]);
+  }, [activeIndex, activeFeed, hasMoreReels, fetchReels, followingUserIds]);
 
   const handleOpenComment = useCallback(
     (postId: string) => {

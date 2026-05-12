@@ -382,7 +382,7 @@ interface PostContextType {
   clusterMemberReceipts: Record<string, Record<string, string>>;
   chatUnreadCounts: Record<string, number>;
   fetchProfilePosts: (userId: string, cursor?: string | null) => Promise<{ posts: Post[]; cursor: string | null; hasMore: boolean }>;
-  fetchReels: (cursor?: string | null) => Promise<{ posts: Post[]; cursor: string | null; hasMore: boolean }>;
+  fetchReels: (params: { phase: 'connections' | 'global'; connIds: string[]; connCursor: string | null; globalCursor: string | null }) => Promise<{ posts: Post[]; phase: 'connections' | 'global'; connCursor: string | null; globalCursor: string | null; hasMore: boolean }>;
   updateConnectionPresence: (userId: string, isOnline: boolean, lastSeenAt: string | null) => void;
   onlineUserIds: Set<string>;
   updateUserOnlineStatus: (userId: string, isOnline: boolean) => void;
@@ -570,6 +570,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [hasMoreFeed, setHasMoreFeed] = useState(true);
   const [isFeedLoading, setIsFeedLoading] = useState(false);
   const feedCursorRef = useRef<string | null>(null);
+  const feedPhaseRef = useRef<'connections' | 'global'>('connections');
+  const feedConnCursorRef = useRef<string | null>(null);
+  const feedGlobalCursorRef = useRef<string | null>(null);
   const [activeComments, setActiveComments] = useState<PostComment[]>([]);
   const [isLoading, setIsLoadingState] = useState(true);
   const [initError] = useState<string | null>(null);
@@ -617,10 +620,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [chatLastMessageAt, setChatLastMessageAt] = useState<Record<string, number>>({});
   const [chatLastIncomingAt, setChatLastIncomingAt] = useState<Record<string, number>>({});
   // Refs let loadChatMessages resolve username -> user $id without subscribing to state
+  const followingUserIdsRef = useRef<Set<string>>(new Set());
   const connectionsRef = useRef<Connection[]>([]);
   const allUsersRef = useRef<User[]>([]);
   const chatLastMessageAtRef = useRef<Record<string, number>>({});
   const chatMessagesRef = useRef<Record<string, ChatMessage[]>>({});
+  useEffect(() => { followingUserIdsRef.current = followingUserIds; }, [followingUserIds]);
   useEffect(() => { connectionsRef.current = connections; }, [connections]);
   useEffect(() => { allUsersRef.current = allUsers; }, [allUsers]);
   useEffect(() => { chatLastMessageAtRef.current = chatLastMessageAt; }, [chatLastMessageAt]);
@@ -649,79 +654,122 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, [settings.hapticIntensity]);
 
+  // Resolve author profiles for a list of raw post documents
+  const withAuthors = useCallback(async (docs: any[]): Promise<Post[]> => {
+    const authorIds = [...new Set(docs.map((p: any) => p.user_id).filter(Boolean))];
+    let authorsMap: Record<string, any> = {};
+    if (authorIds.length > 0) {
+      try {
+        const r = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', authorIds)]);
+        authorsMap = Object.fromEntries(r.documents.map((u: any) => [u.$id, u]));
+      } catch { /* ignore */ }
+    }
+    return docs.map((doc: any) => mapDocToPost(doc, authorsMap[doc.user_id]));
+  }, []);
+
   const loadFeed = useCallback(async () => {
+    feedPhaseRef.current = 'connections';
+    feedConnCursorRef.current = null;
+    feedGlobalCursorRef.current = null;
     feedCursorRef.current = null;
     setHasMoreFeed(true);
     try {
-      const tier = (typeof window !== 'undefined' && (window as any).__vimoreNetTier) || 'rich';
-      const pageSize = tier === 'lite' ? 5 : tier === 'standard' ? 10 : 15;
-      const feedQueries = [Query.orderDesc('$createdAt'), Query.limit(pageSize)];
-      const postsResult = await databases.listDocuments(DATABASE_ID, COL.POSTS, feedQueries);
+      const PAGE = 15;
+      const connIds = [...followingUserIdsRef.current].slice(0, 100);
 
-      const authorIds = [...new Set(postsResult.documents.map((p: any) => p.user_id).filter(Boolean))];
-      let authorsMap: Record<string, any> = {};
+      let connDocs: any[] = [];
 
-      if (authorIds.length > 0) {
+      // Phase 1: fetch connection posts first
+      if (connIds.length > 0) {
         try {
-          const authorQueries = [Query.equal('$id', authorIds)];
-          const authorsResult = await databases.listDocuments(DATABASE_ID, COL.USERS, authorQueries);
-          authorsMap = Object.fromEntries(authorsResult.documents.map((u: any) => [u.$id, u]));
-        } catch { /* ignore */ }
+          const r = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
+            Query.equal('user_id', connIds),
+            Query.orderDesc('$createdAt'),
+            Query.limit(PAGE),
+          ]);
+          connDocs = r.documents;
+          if (connDocs.length > 0) feedConnCursorRef.current = connDocs[connDocs.length - 1].$id;
+          if (connDocs.length < PAGE) feedPhaseRef.current = 'global';
+        } catch {
+          feedPhaseRef.current = 'global';
+        }
+      } else {
+        feedPhaseRef.current = 'global';
       }
 
-      const mapped = postsResult.documents.map((doc: any) => mapDocToPost(doc, authorsMap[doc.user_id]));
+      // Phase 2 fill: connections didn't fill the page — top up from global
+      let globalDocs: any[] = [];
+      if (feedPhaseRef.current === 'global') {
+        try {
+          const r = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
+            Query.orderDesc('$createdAt'),
+            Query.limit(PAGE),
+          ]);
+          const existingIds = new Set(connDocs.map((d: any) => d.$id));
+          globalDocs = r.documents.filter((d: any) => !existingIds.has(d.$id));
+          if (r.documents.length > 0) feedGlobalCursorRef.current = r.documents[r.documents.length - 1].$id;
+          setHasMoreFeed(r.documents.length === PAGE);
+        } catch {
+          setHasMoreFeed(false);
+        }
+      } else {
+        setHasMoreFeed(true);
+      }
+
+      const mapped = await withAuthors([...connDocs, ...globalDocs]);
       setPostsState(mapped);
       offlineCache.savePosts(mapped);
-      if (postsResult.documents.length > 0) {
-        feedCursorRef.current = postsResult.documents[postsResult.documents.length - 1].$id;
-      }
-      setHasMoreFeed(postsResult.documents.length === pageSize);
     } catch (err) {
       logAppwriteError('loadFeed', err);
       const cachedPosts = offlineCache.getPosts() as any[];
       if (cachedPosts.length > 0) setPostsState(cachedPosts);
     }
-  }, []);
+  }, [withAuthors]);
 
   const loadMoreFeed = useCallback(async () => {
-    if (!feedCursorRef.current || isFeedLoading) return;
+    if (isFeedLoading) return;
     setIsFeedLoading(true);
     try {
-      const tier = (typeof window !== 'undefined' && (window as any).__vimoreNetTier) || 'rich';
-      const pageSize = tier === 'lite' ? 5 : tier === 'standard' ? 10 : 15;
-      const postsResult = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
-        Query.orderDesc('$createdAt'),
-        Query.cursorAfter(feedCursorRef.current),
-        Query.limit(pageSize),
-      ]);
+      const PAGE = 15;
+      const connIds = [...followingUserIdsRef.current].slice(0, 100);
 
-      const authorIds = [...new Set(postsResult.documents.map((p: any) => p.user_id).filter(Boolean))];
-      let authorsMap: Record<string, any> = {};
-
-      if (authorIds.length > 0) {
-        try {
-          const authorsResult = await databases.listDocuments(DATABASE_ID, COL.USERS, [
-            Query.equal('$id', authorIds),
-          ]);
-          authorsMap = Object.fromEntries(authorsResult.documents.map((u: any) => [u.$id, u]));
-        } catch { /* ignore */ }
+      if (feedPhaseRef.current === 'connections' && connIds.length > 0 && feedConnCursorRef.current) {
+        // Fetch next batch of connection posts
+        const r = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
+          Query.equal('user_id', connIds),
+          Query.orderDesc('$createdAt'),
+          Query.cursorAfter(feedConnCursorRef.current),
+          Query.limit(PAGE),
+        ]);
+        if (r.documents.length > 0) feedConnCursorRef.current = r.documents[r.documents.length - 1].$id;
+        if (r.documents.length < PAGE) {
+          feedPhaseRef.current = 'global';
+          setHasMoreFeed(true); // global phase still has content
+        }
+        const mapped = await withAuthors(r.documents);
+        setPostsState(prev => {
+          const existingIds = new Set(prev.map(p => p.$id));
+          return [...prev, ...mapped.filter(p => !existingIds.has(p.$id))];
+        });
+      } else {
+        // Global phase: cursor-paginate through all posts; dedup removes already-shown ones
+        const queries: any[] = [Query.orderDesc('$createdAt'), Query.limit(PAGE)];
+        if (feedGlobalCursorRef.current) queries.push(Query.cursorAfter(feedGlobalCursorRef.current));
+        const r = await databases.listDocuments(DATABASE_ID, COL.POSTS, queries);
+        if (r.documents.length > 0) feedGlobalCursorRef.current = r.documents[r.documents.length - 1].$id;
+        setHasMoreFeed(r.documents.length === PAGE);
+        const mapped = await withAuthors(r.documents);
+        setPostsState(prev => {
+          const existingIds = new Set(prev.map(p => p.$id));
+          return [...prev, ...mapped.filter(p => !existingIds.has(p.$id))];
+        });
       }
-
-      const mapped = postsResult.documents.map((doc: any) => mapDocToPost(doc, authorsMap[doc.user_id]));
-      setPostsState(prev => {
-        const existingIds = new Set(prev.map(p => p.$id));
-        return [...prev, ...mapped.filter((p: any) => !existingIds.has(p.$id))];
-      });
-      if (postsResult.documents.length > 0) {
-        feedCursorRef.current = postsResult.documents[postsResult.documents.length - 1].$id;
-      }
-      setHasMoreFeed(postsResult.documents.length === 15);
     } catch (err) {
       logAppwriteError('loadMoreFeed', err);
     } finally {
       setIsFeedLoading(false);
     }
-  }, [isFeedLoading]);
+  }, [isFeedLoading, withAuthors]);
 
   const loadSocialGraph = useCallback(async (userId: string) => {
     try {
@@ -3251,30 +3299,69 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const fetchReels = useCallback(async (cursor?: string | null): Promise<{ posts: Post[]; cursor: string | null; hasMore: boolean }> => {
-    const queries: any[] = [
-      Query.isNotNull('video_id'),
-      Query.orderDesc('$createdAt'),
-      Query.limit(15),
-    ];
-    if (cursor) queries.push(Query.cursorAfter(cursor));
+  const fetchReels = useCallback(async (params: {
+    phase: 'connections' | 'global';
+    connIds: string[];
+    connCursor: string | null;
+    globalCursor: string | null;
+  }): Promise<{ posts: Post[]; phase: 'connections' | 'global'; connCursor: string | null; globalCursor: string | null; hasMore: boolean }> => {
+    const PAGE = 15;
+    let { phase, connIds, connCursor, globalCursor } = params;
+
     try {
-      const result = await databases.listDocuments(DATABASE_ID, COL.POSTS, queries);
-      const authorIds = [...new Set(result.documents.map((p: any) => p.user_id).filter(Boolean))];
-      let authorsMap: Record<string, any> = {};
-      if (authorIds.length > 0) {
-        try {
-          const authorsResult = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', authorIds)]);
-          authorsMap = Object.fromEntries(authorsResult.documents.map((u: any) => [u.$id, u]));
-        } catch { /* ignore */ }
+      if (phase === 'connections' && connIds.length > 0) {
+        const q: any[] = [
+          Query.isNotNull('video_id'),
+          Query.equal('user_id', connIds),
+          Query.orderDesc('$createdAt'),
+          Query.limit(PAGE),
+        ];
+        if (connCursor) q.push(Query.cursorAfter(connCursor));
+        const r = await databases.listDocuments(DATABASE_ID, COL.POSTS, q);
+        if (r.documents.length > 0) connCursor = r.documents[r.documents.length - 1].$id;
+
+        if (r.documents.length === PAGE) {
+          // Still in connection phase — return connection results only
+          return { posts: await withAuthors(r.documents), phase: 'connections', connCursor, globalCursor, hasMore: true };
+        }
+
+        // Connection phase exhausted — fill remainder from global
+        phase = 'global';
+        const connDocs = r.documents;
+        const remaining = PAGE - connDocs.length;
+        const connDocIds = new Set(connDocs.map((d: any) => d.$id));
+        const gq: any[] = [Query.isNotNull('video_id'), Query.orderDesc('$createdAt'), Query.limit(PAGE)];
+        if (globalCursor) gq.push(Query.cursorAfter(globalCursor));
+        const gr = await databases.listDocuments(DATABASE_ID, COL.POSTS, gq);
+        const newGlobal = gr.documents.filter((d: any) => !connDocIds.has(d.$id)).slice(0, remaining);
+        if (gr.documents.length > 0) globalCursor = gr.documents[gr.documents.length - 1].$id;
+
+        return {
+          posts: await withAuthors([...connDocs, ...newGlobal]),
+          phase: 'global',
+          connCursor,
+          globalCursor,
+          hasMore: gr.documents.length === PAGE,
+        };
       }
-      const mapped = result.documents.map((doc: any) => mapDocToPost(doc, authorsMap[doc.user_id]));
-      const newCursor = result.documents.length > 0 ? result.documents[result.documents.length - 1].$id : null;
-      return { posts: mapped, cursor: newCursor, hasMore: result.documents.length === 15 };
+
+      // Global phase — cursor-paginate through all reels
+      const q: any[] = [Query.isNotNull('video_id'), Query.orderDesc('$createdAt'), Query.limit(PAGE)];
+      if (globalCursor) q.push(Query.cursorAfter(globalCursor));
+      const r = await databases.listDocuments(DATABASE_ID, COL.POSTS, q);
+      if (r.documents.length > 0) globalCursor = r.documents[r.documents.length - 1].$id;
+
+      return {
+        posts: await withAuthors(r.documents),
+        phase: 'global',
+        connCursor,
+        globalCursor,
+        hasMore: r.documents.length === PAGE,
+      };
     } catch {
-      return { posts: [], cursor: null, hasMore: false };
+      return { posts: [], phase, connCursor, globalCursor, hasMore: false };
     }
-  }, []);
+  }, [withAuthors]);
 
   const searchAllUsers = useCallback(async (query: string): Promise<User[]> => {
     if (!query.trim()) return [];
