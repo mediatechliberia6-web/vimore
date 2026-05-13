@@ -152,7 +152,7 @@ export default function PrivacyCheckup() {
                 {[
                   { id: 1, title: "Identity Integrity", desc: "Your signature must be authentic. Impersonation results in an immediate administrative purge.", icon: UserCheck, color: "text-blue-500" },
                   { id: 2, title: "Harmonic Interaction", desc: "High-velocity positive vibes only. Toxic pulses or harassment will sever your connection.", icon: Heart, color: "text-rose-500" },
-                  { id: 3, title: "Monetization Trust", desc: "All financial nodes are audited by the Groq AI Engine. Fraudulent energy requests are illegal.", icon: Coins, color: "text-amber-500" },
+                  { id: 3, title: "Monetization Trust", desc: "All financial nodes are audited by the Gemini AI Engine. Fraudulent energy requests are illegal.", icon: Coins, color: "text-amber-500" },
                   { id: 4, title: "Sonic Rights", desc: "Respect the discography of our artists. Unauthorized sonic archival is strictly prohibited.", icon: Music2, color: "text-purple-500" },
                   { id: 5, title: "Spatial Privacy", desc: "Respect the silence of Ghost nodes. Do not attempt to force a handshake with off-grid users.", icon: EyeOff, color: "text-primary" },
                   { id: 6, title: "Authentic Content", desc: "Share original vibes. Stolen pixels or counterfeit reels will be neutralized.", icon: Zap, color: "text-yellow-500" },

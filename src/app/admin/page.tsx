@@ -1412,9 +1412,15 @@ export default function AdminDashboard() {
             <div className="space-y-10 animate-in fade-in duration-500">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
                 <div className="space-y-1"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Safety Shield</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Flagged Content & Community Reports</p></div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 items-center">
                   <Badge className="bg-destructive/10 text-destructive border-none font-black uppercase">{reports.filter((r: any) => r.status === 'PENDING').length} Pending</Badge>
                   <Badge className="bg-green-500/10 text-green-500 border-none font-black uppercase">{reports.filter((r: any) => r.status === 'RESOLVED').length} Resolved</Badge>
+                  <Link href="/admin/shield">
+                    <Button size="sm" className="rounded-xl h-8 bg-primary/10 hover:bg-primary/20 text-primary border-none font-black uppercase text-[10px] tracking-widest gap-1.5">
+                      <ShieldAlert className="h-3.5 w-3.5" />
+                      AI Shield Reports
+                    </Button>
+                  </Link>
                 </div>
               </div>
               <Card className="bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl">

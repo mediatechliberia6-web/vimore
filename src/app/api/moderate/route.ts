@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const GEMINI_MODEL = 'gemini-2.0-flash';
 
 const MODERATION_SYSTEM = `You are the ViMore Content Safety AI — a strict, accurate, and fair content moderator for ViMore, a social platform built for African creators.
 
@@ -16,7 +17,7 @@ VIOLATIONS TO FLAG:
 - Promotion of illegal activities (drug sales, weapons trafficking, etc.)
 - Misleading or dangerous health misinformation
 
-RESPONSE FORMAT (strict JSON only, no other text, no markdown):
+RESPONSE FORMAT (strict JSON only, no other text, no markdown fences):
 {"flagged": true, "reason": "concise human-readable explanation for admin review", "severity": "low"|"medium"|"high"}
 
 If content is clean and safe, respond exactly: {"flagged": false, "reason": "", "severity": "low"}
@@ -53,9 +54,10 @@ export async function POST(req: NextRequest) {
   if (!text?.trim() && !mediaUrl) return NextResponse.json({ flagged: false });
 
   try {
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(key);
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_MODEL,
       systemInstruction: MODERATION_SYSTEM,
     });
 
@@ -129,7 +131,8 @@ export async function POST(req: NextRequest) {
     ]);
 
     return NextResponse.json({ flagged: true, reason: modResult.reason, severity: modResult.severity });
-  } catch {
+  } catch (err) {
+    console.error('[Gemini moderate error]', err);
     return NextResponse.json({ flagged: false });
   }
 }

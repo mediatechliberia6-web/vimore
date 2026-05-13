@@ -1,29 +1,26 @@
 'use server';
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
 const MYMEMORY_ENDPOINT = 'https://api.mymemory.translated.net/get';
-
-function getGeminiClient(): GoogleGenerativeAI | null {
-  const key = process.env.GOOGLE_GEMINI_API_KEY;
-  if (!key) return null;
-  return new GoogleGenerativeAI(key);
-}
+const GEMINI_MODEL = 'gemini-2.0-flash';
 
 async function callGemini(systemPrompt: string, userPrompt: string, maxTokens = 400): Promise<string | null> {
-  const client = getGeminiClient();
-  if (!client) return null;
+  const key = process.env.GOOGLE_GEMINI_API_KEY;
+  if (!key) return null;
   try {
-    const model = client.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(key);
+    const model = genAI.getGenerativeModel({
+      model: GEMINI_MODEL,
       systemInstruction: systemPrompt,
     });
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
       generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 },
     });
-    return result.response.text().trim() || null;
-  } catch {
+    const text = result.response.text().trim();
+    return text || null;
+  } catch (err) {
+    console.error('[Gemini callGemini error]', err);
     return null;
   }
 }
@@ -65,7 +62,6 @@ export async function aiTranslatePostAction({
 
 function smartCaptionFallback(content: string): string {
   const lower = content.toLowerCase();
-
   const topicData: Record<string, { emoji: string; tags: string[] }> = {
     food:       { emoji: '🍽️', tags: ['#FoodVibes', '#TasteOfLife', '#Foodie', '#EatWell'] },
     music:      { emoji: '🎵', tags: ['#MusicLife', '#ViMoreSounds', '#NowPlaying', '#MusicVibes'] },
@@ -78,7 +74,6 @@ function smartCaptionFallback(content: string): string {
     money:      { emoji: '💰', tags: ['#Hustle', '#MoneyMoves', '#Grind', '#WealthMindset'] },
     motivation: { emoji: '🚀', tags: ['#Mindset', '#GrowthMode', '#LevelUp', '#KeepGoing'] },
   };
-
   const detectTopic = (): string => {
     if (/eat|food|cook|meal|delicious|recipe|hungry|restaurant/.test(lower)) return 'food';
     if (/music|song|beat|track|listen|sound|artist|rapper|singer/.test(lower)) return 'music';
@@ -91,20 +86,18 @@ function smartCaptionFallback(content: string): string {
     if (/goal|dream|success|hustle|grind|motivat|inspir|level/.test(lower)) return 'motivation';
     return 'creator';
   };
-
   const topic = detectTopic();
   const { emoji, tags } = topicData[topic];
-
   const templates = [
     `${content} ${emoji}\n\n${tags.slice(0, 3).join(' ')} #ViMore`,
     `${emoji} ${content}\n\nDrop a 🔥 if you relate!\n${tags.slice(0, 2).join(' ')} #ViMore`,
     `${content}\n\nWhat do you think? ${emoji}\n${tags.slice(0, 3).join(' ')} #ViMoreCreator`,
   ];
-
   return templates[Math.floor(Math.random() * templates.length)];
 }
 
 export async function aiGenerateCaptionAction({ content, hasMedia = false }: { content: string; hasMedia?: boolean }) {
+  if (!content?.trim()) return { caption: content };
   const systemPrompt = `You are an expert social media content writer for ViMore, a creator platform popular in Africa and globally.
 Enhance the given post caption to be more engaging, authentic, and viral-ready.
 Rules:
@@ -115,15 +108,11 @@ Rules:
 - Use a confident, relatable voice — not overly formal or corporate
 - Do NOT add quotes, labels, or any prefix like "Enhanced:" around the output
 - Return ONLY the final caption text with hashtags at the bottom, nothing else`;
-
   const userPrompt = hasMedia
     ? `Enhance this caption for a post with photo/video: "${content}"`
     : `Enhance this caption: "${content}"`;
-
   const result = await callGemini(systemPrompt, userPrompt, 300);
-  if (result) return { caption: result };
-
-  return { caption: smartCaptionFallback(content) };
+  return { caption: result || smartCaptionFallback(content) };
 }
 
 export async function aiAnalyzeVibeAction({
@@ -142,26 +131,16 @@ export async function aiAnalyzeVibeAction({
   const sentiment = totalLikes + totalUnlikes > 0
     ? Math.round((totalLikes / (totalLikes + totalUnlikes)) * 100)
     : 72;
-
   const velocity = recentPosts > 20 ? 'HIGH' : recentPosts > 5 ? 'MEDIUM' : recentPosts > 0 ? 'LOW' : 'IDLE';
   const engagementRate = posts > 0 ? Math.round((totalLikes / posts) * 10) / 10 : 0;
-
   const systemPrompt = `You are a social media analytics expert. Based on platform metrics, give a direct 2-sentence insight on platform health and one specific actionable recommendation. Be concise and data-driven. No fluff.`;
   const userPrompt = `Platform: ViMore. Metrics: ${totalUsers} total users, ${posts} total posts, ${totalLikes} total likes, ${totalUnlikes} total dislikes, ${recentPosts} posts in last 24h, sentiment ${sentiment}%, engagement rate ${engagementRate} likes/post, velocity status: ${velocity}.`;
-
   const insight = await callGemini(systemPrompt, userPrompt, 150);
-
   const defaultInsights: Record<string, string> = {
     HIGH: `Network velocity is strong at ${recentPosts} posts today — creators are highly active. Sentiment stands at ${sentiment}%, signalling healthy community engagement. Consider boosting trending posts to amplify organic reach.`,
     MEDIUM: `Steady content flow with ${recentPosts} posts today and ${sentiment}% positive sentiment. Engagement is stable across the network. Launch a creator challenge to spike activity and attract new followers.`,
     LOW: `Low content velocity detected (${recentPosts} posts today) while ${sentiment}% sentiment remains positive — users are happy but quiet. Push a targeted notification to re-engage dormant creators and offer featured placement incentives.`,
     IDLE: `Platform is in idle state with no recent posts. Seed new content from top creators and trigger a broadcast notification campaign to re-activate your user base urgently.`,
   };
-
-  return {
-    sentiment,
-    velocity,
-    engagementRate,
-    insight: insight || defaultInsights[velocity],
-  };
+  return { sentiment, velocity, engagementRate, insight: insight || defaultInsights[velocity] };
 }

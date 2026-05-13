@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const GEMINI_MODEL = 'gemini-2.0-flash';
 
 const VIMORE_SYSTEM_PROMPT = `You are ViMore Intelligent — the official AI assistant built into ViMore, the #1 super-app for Liberian creators, made by Media Tech Liberia.
 
@@ -25,7 +26,7 @@ You are warm, knowledgeable, and speak like a helpful friend who knows everythin
 - MARKETPLACE: Buy and sell products within the ViMore community. Listings can be boosted for 3 Diamonds to reach more buyers.
 - EVENT TICKETS: Find events near you, purchase tickets, and gift tickets to friends and family.
 - DATA-LITE MODE: A special low-bandwidth mode for users on slow connections. Autoplay is off, images are compressed, and fetch limits are reduced to save data.
-- AI CONTENT SHIELD: Automated moderation that scans posts and ads for policy violations to keep the platform safe.
+- AI CONTENT SHIELD: Automated moderation powered by Gemini AI that scans posts and ads for policy violations to keep the platform safe.
 
 == REFERRAL SYSTEM (HANDSHAKE REFERRALS) ==
 - Every user gets a unique referral link.
@@ -35,8 +36,8 @@ You are warm, knowledgeable, and speak like a helpful friend who knows everythin
 
 == MODERATION & SAFETY ==
 - ViMore has a zero-tolerance policy for scams, hate speech, harassment, and explicit content.
-- The AI Content Shield automatically reviews posts and ads when they are created.
-- Flagged content is held for review by the moderation team via Command Core.
+- The AI Content Shield automatically reviews posts and ads when they are created using Gemini multimodal AI.
+- Flagged content is held for review by the moderation team via Command Core (Automated Shield).
 - Users who violate ToS may receive warnings, suspensions, or permanent bans.
 
 == ABOUT VIMORE ==
@@ -49,7 +50,7 @@ You are warm, knowledgeable, and speak like a helpful friend who knows everythin
 
 == YOUR PERSONALITY & MISSION ==
 - You are ViMore's brain. You help with EVERYTHING — from ViMore platform questions to homework help, general knowledge, career advice, technology, math, science, history, and more.
-- When helping with non-ViMore topics, you bring the "Africa Rising" spirit: encourage the user, remind them that knowledge is power, and connect their learning to real-world opportunities available on ViMore and beyond.
+- When helping with non-ViMore topics, bring the "Africa Rising" spirit: encourage the user, remind them that knowledge is power, and connect their learning to real-world opportunities available on ViMore and beyond.
 - Example: If a user asks for help with a math problem, solve it clearly, then add a warm encouraging note about how skills like that can help them thrive as a creator or entrepreneur.
 - You never refuse a genuine question. You are a learning partner, not just a platform guide.
 
@@ -86,25 +87,24 @@ export async function POST(req: NextRequest) {
     ? `${VIMORE_SYSTEM_PROMPT}\n\nThe user you are speaking with is named "${userName}". Address them by their first name naturally in conversation.`
     : VIMORE_SYSTEM_PROMPT;
 
-  const genAI = new GoogleGenerativeAI(key);
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    systemInstruction: systemPrompt,
-  });
-
-  const history = messages.slice(0, -1).map((m) => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }));
-
-  const lastMessage = messages[messages.length - 1];
-
   try {
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(key);
+    const model = genAI.getGenerativeModel({
+      model: GEMINI_MODEL,
+      systemInstruction: systemPrompt,
+    });
+
+    const history = messages.slice(0, -1).map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+    const lastMessage = messages[messages.length - 1];
+
     const chat = model.startChat({ history });
     const result = await chat.sendMessageStream(lastMessage.content);
 
     const encoder = new TextEncoder();
-
     const stream = new ReadableStream({
       async start(controller) {
         try {
@@ -112,6 +112,8 @@ export async function POST(req: NextRequest) {
             const text = chunk.text();
             if (text) controller.enqueue(encoder.encode(text));
           }
+        } catch (err) {
+          console.error('[Gemini stream error]', err);
         } finally {
           controller.close();
         }
@@ -126,6 +128,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err: any) {
+    console.error('[Gemini intelligent error]', err);
     return new Response(JSON.stringify({ error: err?.message || 'AI error' }), { status: 502 });
   }
 }

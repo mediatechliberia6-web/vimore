@@ -59,7 +59,7 @@ export default function PrivacyPolicyPage() {
                 <h4 className="font-bold text-foreground mb-2 flex items-center gap-2">
                   <Zap className="h-4 w-4 text-primary" /> Interaction Heuristics
                 </h4>
-                <p>We track your vibrations: likes, comments, shares, and vibes. Our Groq AI Engine analyzes these pulses to calibrate your Discovery Stream and Reels without leaking your data to external advertisers.</p>
+                <p>We track your vibrations: likes, comments, shares, and vibes. Our Gemini AI Engine analyzes these pulses to calibrate your Discovery Stream and Reels without leaking your data to external advertisers.</p>
               </div>
               <div className="p-6 bg-white/40 dark:bg-white/5 rounded-2xl border border-white/20">
                 <h4 className="font-bold text-foreground mb-2 flex items-center gap-2">

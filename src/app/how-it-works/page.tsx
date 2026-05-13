@@ -125,7 +125,7 @@ export default function HowItWorks() {
       color: "text-primary",
       bg: "bg-primary/10",
       details: [
-        "DISCOVERY STREAM: A high-velocity feed tuned by Groq AI engaging heuristics to show you the best vibes across the network.",
+        "DISCOVERY STREAM: A high-velocity feed tuned by Gemini AI engaging heuristics to show you the best vibes across the network.",
         "VIBE STREAM (REELS): Immersive, full-screen vertical synchronization designed for deep-level connection with creators.",
         "LOCKED NODES: Creators can protect exclusive vibes behind a Gold energy gate, rewarding high-fidelity contributors."
       ]
@@ -169,7 +169,7 @@ export default function HowItWorks() {
       details: [
         "THE 90/10 SPLIT: Creators receive exactly 90% of all monetized pulses. The remaining 10% maintains the MTL high-fidelity clusters.",
         "WITHDRAWAL PORTAL: Convert your vault energy (Gold/Diamonds) into real assets via secure Orange/MTN MoMo handshakes.",
-        "GROQ AI AUDIT: Every financial pulse is verified by our AI auditor node to ensure system integrity and prevent fraudulent handshakes."
+        "GEMINI AI AUDIT: Every financial pulse is verified by our AI auditor node to ensure system integrity and prevent fraudulent handshakes."
       ]
     },
     {
