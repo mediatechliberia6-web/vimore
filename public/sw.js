@@ -6,7 +6,7 @@
  * - Offline fallback page when network and cache both fail
  */
 
-const SW_VERSION = 'v8';
+const SW_VERSION = 'v9';
 const MEDIA_CACHE = `vimore-media-${SW_VERSION}`;
 const PAGE_CACHE = `vimore-pages-${SW_VERSION}`;
 const STATIC_CACHE = `vimore-static-${SW_VERSION}`;
@@ -37,8 +37,8 @@ const APPWRITE_FILE_PATTERNS = [
 ];
 
 const SKIP_PATTERNS = [
-  '/_next/webpack-hmr',
-  '/api/',
+  '/_next/',          // All Next.js internal chunks — browser & CDN cache them natively.
+  '/api/',            // API routes — never cache responses.
   'chrome-extension://',
   'hot-update',
 ];
