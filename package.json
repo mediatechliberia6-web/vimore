@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 5000 -H 0.0.0.0",
+    "prebuild": "node scripts/bump-sw-version.js",
     "build": "NODE_ENV=production next build",
     "start": "next start -p 5000 -H 0.0.0.0",
     "lint": "next lint",

@@ -25,6 +25,7 @@ import { SuspensionGate } from "@/components/layout/suspension-gate";
 import { DiagnosticErrorBoundary } from "@/components/layout/diagnostic-error-boundary";
 import { ThemeLogic } from "@/components/layout/theme-logic";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
+import { SwUpdateNotifier } from "@/components/layout/sw-update-notifier";
 import { PwaInstallPrompt } from "@/components/layout/pwa-install-prompt";
 import { AppBadgeSync } from "@/components/layout/app-badge-sync";
 import { PushAutoSubscribe } from "@/components/layout/push-auto-subscribe";
@@ -277,6 +278,7 @@ export default async function RootLayout({
                                 <SearchPortal />
                                 <CommentHub />
                                 <GiftHub />
+                                <SwUpdateNotifier />
                                 <Toaster />
                               </SuspensionGate>
                             </AppLoadingGate>

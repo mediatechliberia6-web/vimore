@@ -89,7 +89,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// ─── Activate: cleanup old caches ─────────────────────────────────────────────
+// ─── Activate: cleanup old caches, then notify all open tabs ──────────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
@@ -99,6 +99,12 @@ self.addEventListener('activate', (event) => {
         )
       )
       .then(() => self.clients.claim())
+      .then(async () => {
+        // Tell every open tab that a new version just took over so it can
+        // prompt the user to reload and see the latest UI.
+        const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        clientsList.forEach(client => client.postMessage({ type: 'SW_UPDATED', version: SW_VERSION }));
+      })
   );
 });
 
@@ -148,30 +154,35 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation: stale-while-revalidate — instant cached page, refresh in background.
-  // Saves bytes + latency for repeat visits. Falls back to offline page if no cache.
+  // Navigation: network-first with 4-second timeout, cache fallback.
+  // This ensures users always get the latest HTML after a deploy.
+  // Falls back to cached page when offline or when the network is too slow.
   if (isNavigationRequest(request)) {
     event.respondWith(
-      caches.open(PAGE_CACHE).then(async (cache) => {
-        const cached = await cache.match(request);
-        const networkPromise = fetch(request)
-          .then((response) => {
-            if (response.ok) {
-              try { cache.put(request, response.clone()); } catch {}
-            }
-            return response;
-          })
-          .catch(async () => {
-            if (cached) return cached;
-            const rootCached = await caches.match('/');
-            if (rootCached) return rootCached;
-            const offlineCached = await caches.match(OFFLINE_URL);
-            if (offlineCached) return offlineCached;
-            return new Response('You are offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
-          });
-        // Serve cached immediately when available, while background fetch refreshes
-        return cached || networkPromise;
-      })
+      (async () => {
+        const cache = await caches.open(PAGE_CACHE);
+        try {
+          const networkResponse = await Promise.race([
+            fetch(request),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('timeout')), 4000)
+            ),
+          ]);
+          if (networkResponse.ok) {
+            try { cache.put(request, networkResponse.clone()); } catch {}
+          }
+          return networkResponse;
+        } catch {
+          // Network failed or timed out — serve from cache
+          const cached = await cache.match(request);
+          if (cached) return cached;
+          const rootCached = await caches.match('/');
+          if (rootCached) return rootCached;
+          const offlineCached = await caches.match(OFFLINE_URL);
+          if (offlineCached) return offlineCached;
+          return new Response('You are offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+        }
+      })()
     );
     return;
   }
