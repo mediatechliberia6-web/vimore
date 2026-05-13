@@ -1,7 +1,5 @@
 import { NextRequest } from 'next/server';
 
-export const runtime = 'edge';
-
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-chat';
 

@@ -307,11 +307,14 @@ export default function IntelligentPage() {
             </div>
           ) : (
             conversations.map((conv) => (
-              <button
+              <div
                 key={conv.$id}
+                role="button"
+                tabIndex={0}
                 onClick={() => selectConversation(conv.$id)}
+                onKeyDown={(e) => e.key === 'Enter' && selectConversation(conv.$id)}
                 className={cn(
-                  "w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-secondary/60 transition-colors group",
+                  "w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-secondary/60 transition-colors group cursor-pointer",
                   activeConvId === conv.$id && "bg-primary/8 border-r-2 border-primary"
                 )}
               >
@@ -320,13 +323,16 @@ export default function IntelligentPage() {
                   <p className="text-xs font-bold text-foreground truncate">{conv.title}</p>
                   <p className="text-[10px] text-muted-foreground truncate mt-0.5">{conv.last_message}</p>
                 </div>
-                <button
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={(e) => deleteConversation(conv.$id, e)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); deleteConversation(conv.$id, e as any); } }}
                   className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-destructive/10 hover:text-destructive transition-all shrink-0"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </button>
+                </div>
+              </div>
             ))
           )}
         </div>
