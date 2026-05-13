@@ -256,7 +256,7 @@ export function GlobalRealtimeListener() {
           }
           // AI moderation — fire-and-forget, no await, never blocks the UI
           const textToScan = [payload.content, payload.caption].filter(Boolean).join(' ').trim();
-          if (textToScan && payload.$id) {
+          if ((textToScan || payload.media_url) && payload.$id) {
             fetch('/api/moderate', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -265,6 +265,7 @@ export function GlobalRealtimeListener() {
                 collection: COL.POSTS,
                 text: textToScan,
                 userId: payload.user_id || '',
+                mediaUrl: payload.media_url || payload.image_url || undefined,
               }),
             }).catch(() => {});
           }

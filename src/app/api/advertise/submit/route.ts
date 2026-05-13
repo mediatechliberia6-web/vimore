@@ -99,6 +99,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Campaign creation failed: ${campaignErr?.message || 'unknown error'}. Your Diamonds have been refunded.` }, { status: 500 });
     }
 
+    // AI moderation — fire-and-forget, never blocks the response
+    const textToScan = [businessName, details].filter(Boolean).join(' ').trim();
+    if (textToScan || mediaUrl) {
+      fetch(`${req.nextUrl.origin}/api/moderate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          docId: campaignDoc.$id,
+          collection: CAMPAIGNS_COL,
+          text: textToScan,
+          userId,
+          mediaUrl: mediaUrl || undefined,
+        }),
+      }).catch(() => {});
+    }
+
     return NextResponse.json({
       ok: true,
       campaign: campaignDoc,

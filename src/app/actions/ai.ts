@@ -1,31 +1,28 @@
 'use server';
 
-const MYMEMORY_ENDPOINT = 'https://api.mymemory.translated.net/get';
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
-const DEEPSEEK_MODEL = 'deepseek-chat';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-function getDeepSeekKey(): string | undefined {
-  return process.env.DEEPSEEK_API_KEY;
+const MYMEMORY_ENDPOINT = 'https://api.mymemory.translated.net/get';
+
+function getGeminiClient(): GoogleGenerativeAI | null {
+  const key = process.env.GOOGLE_GEMINI_API_KEY;
+  if (!key) return null;
+  return new GoogleGenerativeAI(key);
 }
 
-async function callDeepSeek(systemPrompt: string, userPrompt: string, maxTokens = 400): Promise<string | null> {
-  const key = getDeepSeekKey();
-  if (!key) return null;
+async function callGemini(systemPrompt: string, userPrompt: string, maxTokens = 400): Promise<string | null> {
+  const client = getGeminiClient();
+  if (!client) return null;
   try {
-    const res = await fetch(DEEPSEEK_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-        max_tokens: maxTokens,
-        temperature: 0.7,
-        stream: false,
-      }),
+    const model = client.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      systemInstruction: systemPrompt,
     });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content?.trim() || null;
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+      generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 },
+    });
+    return result.response.text().trim() || null;
   } catch {
     return null;
   }
@@ -42,8 +39,8 @@ export async function aiTranslatePostAction({
 
   const targetLang = (targetLanguage || 'en').split('-')[0].toLowerCase();
 
-  const result = await callDeepSeek(
-    `You are a professional translator. Translate the given text into ${targetLang === 'en' ? 'fluent English' : targetLang}. Preserve the original tone, slang, and register. Return ONLY the translated text with no explanations or quotes.`,
+  const result = await callGemini(
+    `You are a professional translator with deep knowledge of African languages, dialects, and cultural nuances. Translate the given text into ${targetLang === 'en' ? 'fluent English' : targetLang}. Preserve the original tone, slang, local expressions, and register. Return ONLY the translated text with no explanations or quotes.`,
     postContent,
     300
   );
@@ -123,7 +120,7 @@ Rules:
     ? `Enhance this caption for a post with photo/video: "${content}"`
     : `Enhance this caption: "${content}"`;
 
-  const result = await callDeepSeek(systemPrompt, userPrompt, 300);
+  const result = await callGemini(systemPrompt, userPrompt, 300);
   if (result) return { caption: result };
 
   return { caption: smartCaptionFallback(content) };
@@ -152,7 +149,7 @@ export async function aiAnalyzeVibeAction({
   const systemPrompt = `You are a social media analytics expert. Based on platform metrics, give a direct 2-sentence insight on platform health and one specific actionable recommendation. Be concise and data-driven. No fluff.`;
   const userPrompt = `Platform: ViMore. Metrics: ${totalUsers} total users, ${posts} total posts, ${totalLikes} total likes, ${totalUnlikes} total dislikes, ${recentPosts} posts in last 24h, sentiment ${sentiment}%, engagement rate ${engagementRate} likes/post, velocity status: ${velocity}.`;
 
-  const insight = await callDeepSeek(systemPrompt, userPrompt, 150);
+  const insight = await callGemini(systemPrompt, userPrompt, 150);
 
   const defaultInsights: Record<string, string> = {
     HIGH: `Network velocity is strong at ${recentPosts} posts today — creators are highly active. Sentiment stands at ${sentiment}%, signalling healthy community engagement. Consider boosting trending posts to amplify organic reach.`,
