@@ -17,7 +17,8 @@ import {
   Users2,
   Layers,
   ArrowLeft,
-  Mail
+  Mail,
+  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePosts } from "@/context/PostContext";
@@ -29,6 +30,7 @@ import { getAdaptivePreview } from "@/lib/adaptive-media";
 import { useToast } from "@/hooks/use-toast";
 import { CreateClusterModal } from "./create-cluster-modal";
 import Link from "next/link";
+import { LiteLink } from "@/components/ui/lite-link";
 
 interface ChatListProps {
   selectedId: string | null;
@@ -119,7 +121,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-card">
+    <div className="flex flex-col h-full bg-white dark:bg-card relative">
       <div className="p-4 sm:p-6 border-b border-primary/5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/">
@@ -294,6 +296,16 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
           </div>
         )}
       </div>
+
+      {/* Floating ViMore Intelligent button */}
+      <LiteLink
+        href="/intelligent"
+        className="absolute bottom-5 right-5 h-14 w-14 rounded-2xl bg-gradient-to-br from-[#6200ee] to-[#9c27b0] flex items-center justify-center shadow-xl shadow-primary/40 hover:scale-110 active:scale-95 transition-all z-20"
+        title="ViMore Intelligent"
+      >
+        <Bot className="h-6 w-6 text-white" />
+        <span className="sr-only">ViMore Intelligent</span>
+      </LiteLink>
     </div>
   );
 }

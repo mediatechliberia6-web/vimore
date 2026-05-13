@@ -48,6 +48,9 @@ export const COL = {
   PRODUCTS: 'Products',
   TYPING_INDICATORS: 'typing_indicators',
   CALLS: 'calls',
+  AI_CONVERSATIONS: 'ai_conversations',
+  AI_MESSAGES: 'ai_messages',
+  ADMIN_REPORTS: 'admin_reports',
 } as const;
 
 export const BUCKET = {

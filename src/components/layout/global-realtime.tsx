@@ -254,6 +254,20 @@ export function GlobalRealtimeListener() {
               incrementPulse('HOME');
             }
           }
+          // AI moderation — fire-and-forget, no await, never blocks the UI
+          const textToScan = [payload.content, payload.caption].filter(Boolean).join(' ').trim();
+          if (textToScan && payload.$id) {
+            fetch('/api/moderate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                docId: payload.$id,
+                collection: COL.POSTS,
+                text: textToScan,
+                userId: payload.user_id || '',
+              }),
+            }).catch(() => {});
+          }
         }
       }
     );
