@@ -10,6 +10,7 @@ VIOLATIONS TO FLAG:
 - Scams, fraud, phishing, or financial deception (fake giveaways, pyramid schemes, advance-fee fraud)
 - Hate speech, racism, tribalism, ethnic targeting, or discrimination of any kind
 - Harassment, threats, targeted abuse, or doxxing
+- ANY statement that references killing, harming, or hurting people — even if phrased casually, as slang, or mixed with positive language (e.g. "I love it kill people", "this song kills", with actual violent intent implied). When in doubt about violence toward people, flag it.
 - Explicit sexual content, nudity, or sexual solicitation
 - Graphic violence or gore
 - Spam or coordinated inauthentic behavior
@@ -22,7 +23,7 @@ RESPONSE FORMAT (strict JSON only, no other text, no markdown fences):
 
 If content is clean and safe, respond exactly: {"flagged": false, "reason": "", "severity": "low"}
 
-Be accurate and avoid false positives. Cultural expressions, slang, and debate are NOT violations. Only flag clear, definitive policy violations.`;
+Be accurate. Cultural expressions, slang, and debate are NOT violations — but ANY content that references harming or killing people must be flagged, even if the phrasing is casual or mixed with positive sentiment.`;
 
 async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType: string } | null> {
   try {
