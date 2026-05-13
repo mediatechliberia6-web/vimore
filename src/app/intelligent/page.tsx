@@ -378,7 +378,7 @@ export default function IntelligentPage() {
             </div>
             <div className="min-w-0">
               <p className="font-black text-sm tracking-tight">ViMore Intelligent</p>
-              <p className="text-[10px] text-emerald-500 font-bold">Always online · Powered by Gemini 2.5 Flash</p>
+              <p className="text-[10px] text-emerald-500 font-bold">Always online · Powered by ViMore Agent</p>
             </div>
           </div>
 

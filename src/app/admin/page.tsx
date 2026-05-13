@@ -283,6 +283,24 @@ export default function AdminDashboard() {
   const [campPreview, setCampPreview] = useState<string | null>(null);
   const campInputRef = useRef<HTMLInputElement>(null);
 
+  const [aiShieldCount, setAiShieldCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (isUnauthorized) return;
+    const fetchShieldCount = async () => {
+      try {
+        const res = await databases.listDocuments(DATABASE_ID, COL.ADMIN_REPORTS, [
+          Query.equal('status', 'open'),
+          Query.limit(1),
+        ]);
+        setAiShieldCount(res.total);
+      } catch { /* non-critical */ }
+    };
+    fetchShieldCount();
+    const interval = setInterval(fetchShieldCount, 30000);
+    return () => clearInterval(interval);
+  }, [isUnauthorized]);
+
   useEffect(() => {
     if (isUnauthorized && !hasLoggedBreach.current && currentUser?.username) {
       addAuditLog("UNAUTHORIZED_CORE_ACCESS_ATTEMPT", `Standard user node @${currentUser.username} attempted to synchronize with the Command Core.`);
@@ -1416,9 +1434,14 @@ export default function AdminDashboard() {
                   <Badge className="bg-destructive/10 text-destructive border-none font-black uppercase">{reports.filter((r: any) => r.status === 'PENDING').length} Pending</Badge>
                   <Badge className="bg-green-500/10 text-green-500 border-none font-black uppercase">{reports.filter((r: any) => r.status === 'RESOLVED').length} Resolved</Badge>
                   <Link href="/admin/shield">
-                    <Button size="sm" className="rounded-xl h-8 bg-primary/10 hover:bg-primary/20 text-primary border-none font-black uppercase text-[10px] tracking-widest gap-1.5">
+                    <Button size="sm" className="relative rounded-xl h-8 bg-primary/10 hover:bg-primary/20 text-primary border-none font-black uppercase text-[10px] tracking-widest gap-1.5">
                       <ShieldAlert className="h-3.5 w-3.5" />
                       AI Shield Reports
+                      {aiShieldCount > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 h-4 min-w-4 px-1 rounded-full bg-destructive text-white text-[9px] font-black flex items-center justify-center leading-none">
+                          {aiShieldCount > 99 ? '99+' : aiShieldCount}
+                        </span>
+                      )}
                     </Button>
                   </Link>
                 </div>
