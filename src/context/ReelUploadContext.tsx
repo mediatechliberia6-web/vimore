@@ -54,8 +54,10 @@ export function ReelUploadProvider({ children }: { children: React.ReactNode }) 
       setJob(j => j ? { ...j, progress: 10, label: 'Preparing video…' } : j);
       await new Promise(r => setTimeout(r, 100));
 
-      const combined = new Blob(payload.clips, { type: payload.clips[0]?.type || 'video/webm' });
-      const videoFile = new File([combined], `reel_${Date.now()}.mp4`, { type: 'video/mp4' });
+      const actualType = payload.clips[0]?.type || 'video/webm';
+      const ext = actualType.includes('mp4') ? 'mp4' : 'webm';
+      const combined = new Blob(payload.clips, { type: actualType });
+      const videoFile = new File([combined], `reel_${Date.now()}.${ext}`, { type: actualType });
 
       setJob(j => j ? { ...j, progress: 20, label: 'Uploading video…' } : j);
       const uploaded = await storage.createFile(BUCKET.REEL_MEDIA, ID.unique(), videoFile);

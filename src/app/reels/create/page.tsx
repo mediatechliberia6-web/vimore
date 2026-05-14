@@ -87,7 +87,7 @@ function ReelStudioInner() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
-  const animRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const animRef = useRef<number>(0);
   const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const elapsedRef = useRef(0);
@@ -145,65 +145,9 @@ function ReelStudioInner() {
     initCamera(facingMode);
     return () => {
       streamRef.current?.getTracks().forEach(t => t.stop());
-      if (animRef.current) clearInterval(animRef.current);
+      cancelAnimationFrame(animRef.current);
     };
   }, []);
-
-  /* ─── CANVAS DRAW LOOP (fixed 30fps interval for smooth, stable recording) ─── */
-  const drawFrame = useCallback(() => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas || video.readyState < 2) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    const w = canvas.width;
-    const h = canvas.height;
-
-    /* cover-crop: preserve aspect, no distortion */
-    const vw = video.videoWidth  || w;
-    const vh = video.videoHeight || h;
-    const videoAspect  = vw / vh;
-    const canvasAspect = w  / h;
-    let sx = 0, sy = 0, sw = vw, sh = vh;
-    if (videoAspect > canvasAspect) {
-      sw = vh * canvasAspect;
-      sx = (vw - sw) / 2;
-    } else {
-      sh = vw / canvasAspect;
-      sy = (vh - sh) / 2;
-    }
-
-    const eff = EFFECTS.find(e => e.id === selectedEffect) as (typeof EFFECTS[number] & { special?: string }) | undefined;
-    /* flip canvas: front cam data is raw (not mirrored), we need to flip it for recording to match preview */
-    const isFront = facingModeRef.current === 'user';
-    const isMirrorEffect = eff?.special === 'mirror';
-    const shouldFlipCanvas = isFront !== isMirrorEffect; /* XOR */
-
-    ctx.save();
-    if (shouldFlipCanvas) {
-      ctx.translate(w, 0);
-      ctx.scale(-1, 1);
-    }
-    ctx.filter = (eff && eff.filter !== 'none') ? eff.filter : 'none';
-    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
-    ctx.filter = 'none';
-    if (eff?.special === 'vignette') {
-      const grd = ctx.createRadialGradient(w / 2, h / 2, h * 0.25, w / 2, h / 2, h * 0.85);
-      grd.addColorStop(0, 'rgba(0,0,0,0)');
-      grd.addColorStop(1, 'rgba(0,0,0,0.72)');
-      ctx.fillStyle = grd;
-      ctx.fillRect(0, 0, w, h);
-    }
-    ctx.restore();
-  }, [selectedEffect]);
-
-  useEffect(() => {
-    if (animRef.current) clearInterval(animRef.current);
-    animRef.current = setInterval(drawFrame, 1000 / 30); // stable 30fps
-    return () => { if (animRef.current) clearInterval(animRef.current); };
-  }, [drawFrame]);
 
   /* ─── FLIP CAMERA ─── */
   const flipCamera = useCallback(async () => {
@@ -213,19 +157,16 @@ function ReelStudioInner() {
     await initCamera(next);
   }, [facingMode, isRecording, initCamera]);
 
-  /* ─── START RECORDING ─── */
+  /* ─── START RECORDING — records directly from camera stream for smooth native quality ─── */
   const startRecording = useCallback(() => {
-    const canvas = canvasRef.current;
     const stream = streamRef.current;
-    if (!canvas || !stream) return;
-    const canvasStream = canvas.captureStream(30);
-    stream.getAudioTracks().forEach(t => canvasStream.addTrack(t));
+    if (!stream) return;
     const mimeTypes = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
     const mime = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || '';
-    const recorder = new MediaRecorder(canvasStream, {
+    const recorder = new MediaRecorder(stream, {
       ...(mime ? { mimeType: mime } : {}),
-      videoBitsPerSecond: 8_000_000,
-      audioBitsPerSecond: 192_000,
+      videoBitsPerSecond: 4_000_000,
+      audioBitsPerSecond: 128_000,
     });
     chunksRef.current = [];
     recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
