@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -423,6 +424,7 @@ function ReelItem({
   onOpenShare: () => void;
   onOpenComment: () => void;
 }) {
+  const router = useRouter();
   const {
     currentUser,
     isPostLiked,
@@ -672,14 +674,18 @@ function ReelItem({
           </>
         )}
 
-        <div
+        <button
+          onClick={() => {
+            const soundId = (reel as Record<string, unknown>).sound_id as string | undefined;
+            router.push(soundId ? `/reels/create?sound_id=${encodeURIComponent(soundId)}` : '/reels/create');
+          }}
           className={cn(
-            "w-9 h-9 rounded-full bg-black border-[3px] border-white/40 flex items-center justify-center shadow-lg",
+            "w-9 h-9 rounded-full bg-black border-[3px] border-white/40 flex items-center justify-center shadow-lg active:scale-90 transition-transform",
             isActive && "animate-spin [animation-duration:4s]"
           )}
         >
           <Music2 className="w-4 h-4 text-white" />
-        </div>
+        </button>
       </div>
 
       <div className="absolute bottom-10 left-3 right-16 z-30 pointer-events-none">

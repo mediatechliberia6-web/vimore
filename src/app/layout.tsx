@@ -34,6 +34,8 @@ import { GlobalRealtimeListener } from "@/components/layout/global-realtime";
 import { AdminAlertsProvider } from "@/context/AdminAlertsContext";
 import { FeedSignalProvider } from "@/context/FeedSignalContext";
 import { NetworkProvider } from "@/context/NetworkContext";
+import { ReelUploadProvider } from "@/context/ReelUploadContext";
+import { ReelUploadBanner } from "@/components/reels/reel-upload-banner";
 import NextTopLoader from 'nextjs-toploader';
 
 // ── Structured data: tells Google this is a real, verified organization ────────
@@ -251,6 +253,7 @@ export default async function RootLayout({
           shadow="0 0 10px #9940E5,0 0 5px #9940E5"
         />
         <NetworkProvider>
+          <ReelUploadProvider>
           <FeedSignalProvider>
             <AdminAlertsProvider>
               <PostProvider>
@@ -279,6 +282,7 @@ export default async function RootLayout({
                                 <CommentHub />
                                 <GiftHub />
                                 <SwUpdateNotifier />
+                                <ReelUploadBanner />
                                 <Toaster />
                               </SuspensionGate>
                             </AppLoadingGate>
@@ -290,6 +294,7 @@ export default async function RootLayout({
               </PostProvider>
             </AdminAlertsProvider>
           </FeedSignalProvider>
+          </ReelUploadProvider>
         </NetworkProvider>
       </body>
     </html>

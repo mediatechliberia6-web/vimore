@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Wand2, Globe, Users, Lock, Check, Loader2,
   MessageCircle, Download, Users2, Play, Pause, Image as ImageIcon,
 } from 'lucide-react';
-import { databases, storage, ID, DATABASE_ID, COL, BUCKET } from '@/lib/appwrite';
 import { cn } from '@/lib/utils';
+import { useReelUpload } from '@/context/ReelUploadContext';
 import type { SelectedSound } from './sound-picker';
 
 interface ReelFinalizeProps {
@@ -23,17 +24,16 @@ type Visibility = 'public' | 'friends' | 'private';
 export function ReelFinalize({
   clips, totalDuration, effect, selectedSound, onBack, currentUser,
 }: ReelFinalizeProps) {
+  const router = useRouter();
+  const { startUpload } = useReelUpload();
+
   const [caption, setCaption] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('public');
   const [allowComments, setAllowComments] = useState(true);
   const [allowDuet, setAllowDuet] = useState(true);
   const [allowDownloads, setAllowDownloads] = useState(true);
   const [isPosting, setIsPosting] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [progressLabel, setProgressLabel] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [videoBlobUrl, setVideoBlobUrl] = useState('');
   const [coverTime, setCoverTime] = useState(0);
@@ -70,11 +70,19 @@ export function ReelFinalize({
         canvas.toBlob(b => resolve(b), 'image/jpeg', 0.8);
       };
       video.addEventListener('seeked', onSeeked);
+      /* If video is already at this time, seeked won't fire — resolve immediately */
+      setTimeout(() => {
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(null);
+        try {
+          ctx.drawImage(video, 0, 0, canvas.width || 720, canvas.height || 1280);
+          canvas.toBlob(b => resolve(b), 'image/jpeg', 0.8);
+        } catch { resolve(null); }
+      }, 600);
     });
   }, [coverTime]);
 
   const generateCaption = async () => {
-    if (!caption.trim()) setCaption('');
     setAiLoading(true);
     try {
       const res = await fetch('/api/gemini/chat', {
@@ -93,95 +101,44 @@ export function ReelFinalize({
   const handlePost = async () => {
     if (!currentUser || isPosting) return;
     setIsPosting(true);
-    setError('');
-    try {
-      setProgress(10); setProgressLabel('Preparing video…');
-      const combined = new Blob(clips, { type: clips[0].type || 'video/webm' });
-      const mimeType = combined.type || 'video/webm';
-      const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogv' : 'mp4';
-      const videoFile = new File([combined], `reel_${Date.now()}.${ext}`, { type: 'video/mp4' });
 
-      setProgress(30); setProgressLabel('Uploading video…');
-      const uploaded = await storage.createFile(BUCKET.REEL_MEDIA, ID.unique(), videoFile);
+    /* Extract cover frame first (quick, local) */
+    const coverBlob = await extractCover();
 
-      let coverFileId: string | null = null;
-      setProgress(55); setProgressLabel('Saving cover…');
-      const coverBlob = await extractCover();
-      if (coverBlob) {
-        const coverFile = new File([coverBlob], `cover_${Date.now()}.jpg`, { type: 'image/jpeg' });
-        try {
-          const coverUploaded = await storage.createFile(BUCKET.REEL_MEDIA, ID.unique(), coverFile);
-          coverFileId = coverUploaded.$id;
-        } catch { /* non-critical */ }
-      }
+    /* Hand off to background upload context — navigates away immediately */
+    startUpload({
+      clips,
+      totalDuration,
+      effect,
+      caption,
+      visibility,
+      allowComments,
+      allowDuet,
+      allowDownloads,
+      selectedSound,
+      userId: currentUser.$id,
+      username: currentUser.username || currentUser.name || 'unknown',
+      coverBlob,
+    });
 
-      setProgress(75); setProgressLabel('Publishing reel…');
-      const docData: Record<string, unknown> = {
-        user_id: currentUser.$id,
-        username: currentUser.username || currentUser.name || 'unknown',
-        content: caption.trim(),
-        type: 'reel',
-        media_url: uploaded.$id,
-        duration: totalDuration,
-        effects_applied: effect !== 'none' ? [effect] : [],
-        is_draft: false,
-        visibility: visibility,
-        allow_comments: allowComments,
-        allow_duet: allowDuet,
-        allow_downloads: allowDownloads,
-        likes_count: 0,
-        unlikes_count: 0,
-        comments_count: 0,
-        shares_count: 0,
-        views_count: 0,
-      };
-      if (coverFileId) docData.reel_cover_file_id = coverFileId;
-      if (selectedSound) {
-        docData.sound_id = selectedSound.id;
-        docData.sound_title = selectedSound.title;
-        docData.sound_artist = selectedSound.artist;
-        docData.sound_start_time = selectedSound.startTime;
-      }
-
-      await databases.createDocument(DATABASE_ID, COL.POSTS, ID.unique(), docData);
-      setProgress(100); setProgressLabel('Posted!');
-      setSuccess(true);
-      setTimeout(() => { window.location.href = '/reels'; }, 1500);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to post. Try again.');
-      setIsPosting(false);
-      setProgress(0);
-    }
+    /* Navigate away right now — upload continues in the background banner */
+    router.push('/reels');
   };
-
-  if (success) {
-    return (
-      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-50 gap-6">
-        <div className="h-20 w-20 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center animate-in zoom-in duration-300">
-          <Check className="h-10 w-10 text-primary" />
-        </div>
-        <div className="text-center">
-          <p className="text-white font-black text-2xl">Posted!</p>
-          <p className="text-white/50 text-sm mt-1">Your reel is live</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="fixed inset-0 bg-[#09090f] z-50 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-white/8 shrink-0">
-        <button onClick={onBack} className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center">
+        <button onClick={onBack} className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center active:scale-95 transition-transform">
           <ArrowLeft className="h-5 w-5 text-white" />
         </button>
         <span className="text-white font-black text-base tracking-tight">New Reel</span>
         <button
           onClick={handlePost}
           disabled={isPosting}
-          className="px-5 py-2 rounded-xl bg-primary text-white font-black text-sm disabled:opacity-50 flex items-center gap-2"
+          className="px-5 py-2 rounded-xl bg-primary text-white font-black text-sm disabled:opacity-50 flex items-center gap-2 active:scale-95 transition-transform"
         >
-          {isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
           POST
         </button>
       </div>
@@ -189,7 +146,6 @@ export function ReelFinalize({
       <div className="flex-1 overflow-y-auto">
         {/* Video preview + Caption row */}
         <div className="flex gap-3 p-4">
-          {/* Thumbnail */}
           <div className="relative h-40 w-24 rounded-2xl overflow-hidden bg-black/40 border border-white/10 shrink-0">
             {videoBlobUrl ? (
               <video
@@ -214,7 +170,6 @@ export function ReelFinalize({
             <canvas ref={coverCanvasRef} className="hidden" />
           </div>
 
-          {/* Caption */}
           <div className="flex-1 flex flex-col gap-2">
             <textarea
               value={caption}
@@ -226,7 +181,7 @@ export function ReelFinalize({
             <button
               onClick={generateCaption}
               disabled={aiLoading}
-              className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/15 border border-primary/30 text-primary text-xs font-bold"
+              className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/15 border border-primary/30 text-primary text-xs font-bold active:scale-95 transition-transform"
             >
               {aiLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
               AI Caption
@@ -273,7 +228,7 @@ export function ReelFinalize({
                     "flex-1 flex flex-col items-center gap-1.5 py-3 rounded-2xl border text-xs font-bold transition-all",
                     visibility === val
                       ? "bg-primary/20 border-primary text-primary"
-                      : "border-white/10 text-white/40 hover:border-white/20"
+                      : "border-white/10 text-white/40"
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -296,15 +251,9 @@ export function ReelFinalize({
               </div>
               <button
                 onClick={() => (setter as React.Dispatch<React.SetStateAction<boolean>>)(!val)}
-                className={cn(
-                  "w-11 h-6 rounded-full transition-colors relative",
-                  val ? "bg-primary" : "bg-white/15"
-                )}
+                className={cn("w-11 h-6 rounded-full transition-colors relative", val ? "bg-primary" : "bg-white/15")}
               >
-                <span className={cn(
-                  "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all duration-200",
-                  val ? "left-[22px]" : "left-0.5"
-                )} />
+                <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all duration-200", val ? "left-[22px]" : "left-0.5")} />
               </button>
             </div>
           ))}
@@ -322,35 +271,10 @@ export function ReelFinalize({
             </div>
           )}
         </div>
+
+        {/* Spacer so nothing hides behind bottom banner */}
+        <div className="h-24" />
       </div>
-
-      {/* Upload progress overlay */}
-      {isPosting && (
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center gap-4 z-50">
-          <div className="relative h-20 w-20">
-            <svg className="h-20 w-20 -rotate-90" viewBox="0 0 72 72">
-              <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="4" />
-              <circle
-                cx="36" cy="36" r="30" fill="none"
-                stroke="#6200ea" strokeWidth="4" strokeLinecap="round"
-                strokeDasharray={`${2 * Math.PI * 30}`}
-                strokeDashoffset={`${2 * Math.PI * 30 * (1 - progress / 100)}`}
-                style={{ transition: 'stroke-dashoffset 0.4s ease' }}
-              />
-            </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-white font-black text-sm">
-              {progress}%
-            </span>
-          </div>
-          <p className="text-white font-bold text-sm">{progressLabel}</p>
-        </div>
-      )}
-
-      {error && (
-        <div className="mx-4 mb-4 p-3 bg-red-500/15 border border-red-500/30 rounded-2xl">
-          <p className="text-red-400 text-sm text-center">{error}</p>
-        </div>
-      )}
     </div>
   );
 }
