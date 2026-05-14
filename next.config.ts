@@ -63,9 +63,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  allowedDevOrigins: ['*.replit.dev', '*.replit.app'],
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-avatar', '@radix-ui/react-dialog', 'recharts'],
-    allowedDevOrigins: ['*.replit.dev', '*.replit.app'],
   },
   compress: true,
   poweredByHeader: false,
