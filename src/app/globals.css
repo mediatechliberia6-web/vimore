@@ -57,6 +57,11 @@
   }
 }
 
+@keyframes soundbar {
+  0%, 100% { transform: scaleY(0.4); }
+  50%       { transform: scaleY(1); }
+}
+
 @keyframes count-pop {
   0%   { transform: scale(1); }
   35%  { transform: scale(1.45); }

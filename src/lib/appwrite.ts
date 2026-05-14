@@ -51,6 +51,8 @@ export const COL = {
   AI_CONVERSATIONS: 'ai_conversations',
   AI_MESSAGES: 'ai_messages',
   ADMIN_REPORTS: 'admin_reports',
+  SOUNDS: 'sounds',
+  REEL_DRAFTS: 'reel_drafts',
 } as const;
 
 export const BUCKET = {
@@ -66,6 +68,7 @@ export const BUCKET = {
   MESSAGE_MEDIA: 'message_media',
   EVENT_FLYERS: 'event_flyers',
   MARKETPLACE_IMAGES: 'Marketplace_Images',
+  SOUNDS: 'sounds',
 } as const;
 
 export const BUCKET_IMAGES = BUCKET.POST_MEDIA;

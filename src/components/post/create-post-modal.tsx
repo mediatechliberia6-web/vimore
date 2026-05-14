@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { 
   ArrowLeft, 
   ImageIcon, 
@@ -132,6 +133,7 @@ const imageFilters = [
 const VIDEO_SIZE_LIMIT = 50 * 1024 * 1024; // 50MB in bytes
 
 export function CreatePostModal({ children, sharedPost, initialContent, onOpen }: CreatePostModalProps) {
+  const router = useRouter();
   const { addPost, currentUser, connections, settings, isFollowing, triggerHaptic, uploadMedia } = usePosts();
   const { setUploadProgress } = useFeedSignal();
   const { openCaptureStudio } = useMusic();
@@ -835,8 +837,8 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
             <button onClick={() => fileInputRef.current?.click()} disabled={isPollOpen || mediaType === 'video' || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
               <div className="flex items-center gap-4"><ImageIcon className="h-6 w-6 text-green-500" /><span className="text-base font-medium">Photo</span>{mediaType === 'image' && <span className="text-[10px] text-muted-foreground font-bold ml-auto">{selectedMedia.length}/6</span>}</div>
             </button>
-            <button onClick={() => videoInputRef.current?.click()} disabled={isPollOpen || mediaType === 'image' || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
-              <div className="flex items-center gap-4"><Video className="h-6 w-6 text-red-500" /><span className="text-base font-medium">Upload Video</span><span className="text-[10px] text-muted-foreground font-bold ml-auto">1 max</span></div>
+            <button onClick={() => { setIsOpen(false); router.push('/reels/create'); }} disabled={isPollOpen} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
+              <div className="flex items-center gap-4"><Video className="h-6 w-6 text-red-500" /><span className="text-base font-medium">Create Reel</span><span className="text-[10px] text-muted-foreground font-bold ml-auto">Studio →</span></div>
             </button>
             <button onClick={() => toggleAction('poll')} disabled={selectedMedia.length > 0 || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
               <div className="flex items-center gap-4"><ListTodo className="h-6 w-6 text-purple-500" /><span className="text-base font-medium">Create Poll</span></div>
