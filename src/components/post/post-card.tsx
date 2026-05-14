@@ -174,9 +174,10 @@ interface PostCardProps {
     favicon?: string;
   } | null;
   hashtags?: string[];
+  type?: string;
 }
 
-function FeedVideo({ videoUrl, postId, isShared }: { videoUrl: string; postId: string; isShared: boolean }) {
+function FeedVideo({ videoUrl, postId, isShared, isReel }: { videoUrl: string; postId: string; isShared: boolean; isReel: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(false);
   const router = useRouter();
@@ -238,6 +239,16 @@ function FeedVideo({ videoUrl, postId, isShared }: { videoUrl: string; postId: s
       >
         {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
       </button>
+      {isReel && (
+        <Link
+          href="/reels"
+          onClick={(e) => e.stopPropagation()}
+          className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm text-white text-[11px] font-semibold px-2 py-1 rounded-full z-10 active:scale-95 transition-transform"
+        >
+          <Play className="h-3 w-3 fill-white" />
+          Watch Reel
+        </Link>
+      )}
     </div>
   );
 }
@@ -247,7 +258,7 @@ export function PostCard(props: PostCardProps) {
     $id, user, collaborator, content, image, images = [], imageFilter, theme, language,
     likes = 0, unlikes = 0, comments = 0, shares = 0, views = 0, time, hashtags, feeling, location, commentsDisabled, isPinned, 
     isSeries, seriesTitle, poll, isShared = false, videoUrl, sharedPost, isLocked, unlockPrice, isCampaign, campaignTitle, actionUrl, actionLabel,
-    isBoosted, boostTargetViews, boostCurrentViews, boostExpiry, taggedUsers, linkPreview
+    isBoosted, boostTargetViews, boostCurrentViews, boostExpiry, taggedUsers, linkPreview, type: postType
   } = props;
 
   const { 
@@ -586,7 +597,7 @@ export function PostCard(props: PostCardProps) {
                   </div>
               )}
               {videoUrl && (
-                  <FeedVideo videoUrl={videoUrl} postId={$id} isShared={isShared} />
+                  <FeedVideo videoUrl={videoUrl} postId={$id} isShared={isShared} isReel={postType === 'reel'} />
               )}
             </>
           )}

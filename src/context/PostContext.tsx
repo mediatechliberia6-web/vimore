@@ -3315,7 +3315,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       if (phase === 'connections' && connIds.length > 0) {
         const q: any[] = [
-          Query.isNotNull('video_id'),
+          Query.equal('type', 'reel'),
           Query.equal('user_id', connIds),
           Query.orderDesc('$createdAt'),
           Query.limit(PAGE),
@@ -3334,7 +3334,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         const connDocs = r.documents;
         const remaining = PAGE - connDocs.length;
         const connDocIds = new Set(connDocs.map((d: any) => d.$id));
-        const gq: any[] = [Query.isNotNull('video_id'), Query.orderDesc('$createdAt'), Query.limit(PAGE)];
+        const gq: any[] = [Query.equal('type', 'reel'), Query.orderDesc('$createdAt'), Query.limit(PAGE)];
         if (globalCursor) gq.push(Query.cursorAfter(globalCursor));
         const gr = await databases.listDocuments(DATABASE_ID, COL.POSTS, gq);
         const newGlobal = gr.documents.filter((d: any) => !connDocIds.has(d.$id)).slice(0, remaining);
@@ -3350,7 +3350,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       }
 
       // Global phase — cursor-paginate through all reels
-      const q: any[] = [Query.isNotNull('video_id'), Query.orderDesc('$createdAt'), Query.limit(PAGE)];
+      const q: any[] = [Query.equal('type', 'reel'), Query.orderDesc('$createdAt'), Query.limit(PAGE)];
       if (globalCursor) q.push(Query.cursorAfter(globalCursor));
       const r = await databases.listDocuments(DATABASE_ID, COL.POSTS, q);
       if (r.documents.length > 0) globalCursor = r.documents[r.documents.length - 1].$id;

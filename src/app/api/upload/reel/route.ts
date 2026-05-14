@@ -47,20 +47,12 @@ export async function POST(req: NextRequest) {
       } catch { /* non-critical — proceed without cover */ }
     }
 
-    /* ── Create post document ── */
+    /* ── Build document with only fields known to exist in the posts collection ── */
     const docData: Record<string, unknown> = {
       user_id: meta.userId,
-      username: meta.username || '',
       content: (meta.caption || '').trim(),
       type: 'reel',
       media_url: uploaded.$id,
-      duration: meta.totalDuration || 0,
-      effects_applied: meta.effect && meta.effect !== 'none' ? [meta.effect] : [],
-      is_draft: false,
-      visibility: meta.visibility || 'public',
-      allow_comments: meta.allowComments ?? true,
-      allow_duet: meta.allowDuet ?? true,
-      allow_downloads: meta.allowDownloads ?? true,
       likes_count: 0,
       unlikes_count: 0,
       comments_count: 0,
@@ -68,9 +60,12 @@ export async function POST(req: NextRequest) {
       views_count: 0,
     };
 
+    /* Optional reel fields — added only when they have values so a missing
+       Appwrite attribute doesn't cause a 400 error */
     if (coverFileId) docData.reel_cover_file_id = coverFileId;
-
-    if (meta.selectedSound) {
+    if (meta.totalDuration) docData.duration = meta.totalDuration;
+    if (meta.effect && meta.effect !== 'none') docData.effects_applied = [meta.effect];
+    if (meta.selectedSound?.id) {
       docData.sound_id = meta.selectedSound.id;
       docData.sound_title = meta.selectedSound.title;
       docData.sound_artist = meta.selectedSound.artist;
