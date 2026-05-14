@@ -129,6 +129,11 @@ export function ReelFinalize({
         allow_comments: allowComments,
         allow_duet: allowDuet,
         allow_downloads: allowDownloads,
+        likes_count: 0,
+        unlikes_count: 0,
+        comments_count: 0,
+        shares_count: 0,
+        views_count: 0,
       };
       if (coverFileId) docData.reel_cover_file_id = coverFileId;
       if (selectedSound) {

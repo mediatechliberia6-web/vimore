@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import {
   X, Music2, Timer, Sparkles,
   MoreHorizontal, ChevronRight, Upload, Clapperboard,
-  FlipHorizontal2, Gauge,
+  FlipHorizontal2, Gauge, Zap, ZapOff,
 } from 'lucide-react';
 import { usePosts } from '@/context/PostContext';
 import { cn } from '@/lib/utils';
@@ -63,6 +63,7 @@ function ReelStudioInner() {
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [hasCamera, setHasCamera] = useState(false);
   const [camError, setCamError] = useState('');
+  const [flashOn, setFlashOn] = useState(false);
 
   const [isRecording, setIsRecording] = useState(false);
   const [clips, setClips] = useState<Blob[]>([]);
@@ -92,17 +93,34 @@ function ReelStudioInner() {
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  /* ─── TORCH TOGGLE ─── */
+  const toggleFlash = useCallback(async () => {
+    const stream = streamRef.current;
+    if (!stream) return;
+    const track = stream.getVideoTracks()[0];
+    if (!track) return;
+    const newFlash = !flashOn;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: newFlash } as MediaTrackConstraintSet] });
+      setFlashOn(newFlash);
+    } catch {
+      /* torch not supported on this device/browser */
+    }
+  }, [flashOn]);
+
   /* ─── INIT CAMERA ─── */
   const initCamera = useCallback(async (facing: 'user' | 'environment') => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
     }
+    setFlashOn(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: facing,
-          width: { ideal: 1080 },
-          height: { ideal: 1920 },
+          width:  { ideal: 720 },
+          height: { ideal: 960 },
+          aspectRatio: { ideal: 3 / 4 },
           frameRate: { ideal: 60 },
         },
         audio: true,
@@ -139,6 +157,8 @@ function ReelStudioInner() {
     }
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     const w = canvas.width;
     const h = canvas.height;
 
@@ -306,8 +326,8 @@ function ReelStudioInner() {
       {/* ── FULL-SCREEN CANVAS (mirrored for front cam, zooms in when recording) ── */}
       <canvas
         ref={canvasRef}
-        width={1080}
-        height={1920}
+        width={720}
+        height={960}
         className="absolute inset-0 w-full h-full"
         style={{
           objectFit: 'cover',
@@ -420,6 +440,24 @@ function ReelStudioInner() {
         >
           <FlipHorizontal2 className="h-5 w-5 text-white" strokeWidth={1.5} />
           <span className="text-white/60 text-[9px] font-bold mt-0.5">FLIP</span>
+        </button>
+
+        {/* Flash / Torch — only useful on rear camera */}
+        <button
+          onClick={toggleFlash}
+          disabled={facingMode === 'user'}
+          className={cn(
+            "h-13 w-13 rounded-2xl backdrop-blur-md border flex flex-col items-center justify-center gap-0.5 p-3 active:scale-95 transition-all disabled:opacity-30",
+            flashOn ? "bg-yellow-400/30 border-yellow-400" : "bg-black/50 border-white/20"
+          )}
+        >
+          {flashOn
+            ? <Zap className="h-5 w-5 text-yellow-300" strokeWidth={1.5} fill="currentColor" />
+            : <ZapOff className="h-5 w-5 text-white" strokeWidth={1.5} />
+          }
+          <span className={cn("text-[9px] font-bold", flashOn ? "text-yellow-300" : "text-white/60")}>
+            {flashOn ? 'ON' : 'OFF'}
+          </span>
         </button>
 
         {/* Timer / Countdown */}
