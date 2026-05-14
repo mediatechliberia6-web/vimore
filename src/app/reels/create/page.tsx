@@ -141,6 +141,23 @@ function ReelStudioInner() {
     if (!ctx) return;
     const w = canvas.width;
     const h = canvas.height;
+
+    /* ── object-fit: cover crop so nothing gets stretched ── */
+    const vw = video.videoWidth  || w;
+    const vh = video.videoHeight || h;
+    const videoAspect  = vw / vh;
+    const canvasAspect = w  / h;
+    let sx = 0, sy = 0, sw = vw, sh = vh;
+    if (videoAspect > canvasAspect) {
+      // video is wider → crop left & right
+      sw = vh * canvasAspect;
+      sx = (vw - sw) / 2;
+    } else {
+      // video is taller → crop top & bottom
+      sh = vw / canvasAspect;
+      sy = (vh - sh) / 2;
+    }
+
     const eff = EFFECTS.find(e => e.id === selectedEffect) as (typeof EFFECTS[number] & { special?: string }) | undefined;
     ctx.save();
     if (eff?.special === 'mirror') {
@@ -148,7 +165,7 @@ function ReelStudioInner() {
       ctx.scale(-1, 1);
     }
     ctx.filter = (eff && eff.filter !== 'none') ? eff.filter : 'none';
-    ctx.drawImage(video, 0, 0, w, h);
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
     ctx.filter = 'none';
     if (eff?.special === 'vignette') {
       const grd = ctx.createRadialGradient(w / 2, h / 2, h * 0.25, w / 2, h / 2, h * 0.85);
@@ -187,7 +204,7 @@ function ReelStudioInner() {
     const mime = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || '';
     const recorder = new MediaRecorder(canvasStream, {
       ...(mime ? { mimeType: mime } : {}),
-      videoBitsPerSecond: 8_000_000,
+      videoBitsPerSecond: 2_500_000,
     });
     chunksRef.current = [];
     recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
