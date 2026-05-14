@@ -482,6 +482,7 @@ function mapDocToPost(doc: Models.Document, authorDoc?: Models.Document): Post {
   const imageIds: string[] = Array.isArray(doc.image_ids) ? doc.image_ids : (doc.image_id ? [doc.image_id] : []);
   const images = imageIds.map((id: string) => getFileUrl(BUCKET.POST_MEDIA, id));
   const videoId = doc.video_id;
+  const isReel = doc.type === 'reel';
 
   const author: User = authorDoc ? {
     $id: doc.user_id,
@@ -515,7 +516,10 @@ function mapDocToPost(doc: Models.Document, authorDoc?: Models.Document): Post {
     views: doc.views_count || 0,
     image: images[0],
     images: images.length > 0 ? images : undefined,
-    videoUrl: videoId ? getFileUrl(BUCKET.POST_MEDIA, videoId) : undefined,
+    videoUrl: isReel && doc.media_url
+      ? getFileUrl(BUCKET.REEL_MEDIA, doc.media_url)
+      : (videoId ? getFileUrl(BUCKET.POST_MEDIA, videoId) : undefined),
+    type: doc.type,
     theme: doc.theme,
     imageFilter: doc.image_filter,
     feeling: doc.feeling,
@@ -2292,7 +2296,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   };
 
   const deletePost = async (id: string) => {
-    const original = postsState.find(p => p.$id === id);
+    const original = posts.find(p => p.$id === id);
     setPostsState(prev => prev.filter(p => p.$id !== id));
     try {
       await databases.deleteDocument(DATABASE_ID, COL.POSTS, id);
@@ -2316,7 +2320,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       toast({ variant: 'destructive', title: 'Not signed in', description: 'Please sign in to edit posts.' });
       return;
     }
-    const original = postsState.find(p => p.$id === id);
+    const original = posts.find(p => p.$id === id);
     const resolvedHashtags = updates.hashtags !== undefined
       ? updates.hashtags
       : updates.content !== undefined

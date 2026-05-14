@@ -87,7 +87,7 @@ function ReelStudioInner() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
-  const animRef = useRef<number>(0);
+  const animRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const elapsedRef = useRef(0);
@@ -117,11 +117,15 @@ function ReelStudioInner() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: facing,
-          width:  { ideal: 1280 },
-          height: { ideal: 960 },
-          frameRate: { ideal: 60 },
+          width:  { ideal: 1920, min: 720 },
+          height: { ideal: 1080, min: 480 },
+          frameRate: { ideal: 30, max: 30 },
         },
-        audio: true,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 48000,
+        },
       });
       streamRef.current = stream;
       if (videoRef.current) {
@@ -141,18 +145,15 @@ function ReelStudioInner() {
     initCamera(facingMode);
     return () => {
       streamRef.current?.getTracks().forEach(t => t.stop());
-      cancelAnimationFrame(animRef.current);
+      if (animRef.current) clearInterval(animRef.current);
     };
   }, []);
 
-  /* ─── CANVAS DRAW LOOP (for recording only — canvas is hidden) ─── */
+  /* ─── CANVAS DRAW LOOP (fixed 30fps interval for smooth, stable recording) ─── */
   const drawFrame = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || video.readyState < 2) {
-      animRef.current = requestAnimationFrame(drawFrame);
-      return;
-    }
+    if (!video || !canvas || video.readyState < 2) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.imageSmoothingEnabled = true;
@@ -196,13 +197,12 @@ function ReelStudioInner() {
       ctx.fillRect(0, 0, w, h);
     }
     ctx.restore();
-    animRef.current = requestAnimationFrame(drawFrame);
   }, [selectedEffect]);
 
   useEffect(() => {
-    cancelAnimationFrame(animRef.current);
-    animRef.current = requestAnimationFrame(drawFrame);
-    return () => cancelAnimationFrame(animRef.current);
+    if (animRef.current) clearInterval(animRef.current);
+    animRef.current = setInterval(drawFrame, 1000 / 30); // stable 30fps
+    return () => { if (animRef.current) clearInterval(animRef.current); };
   }, [drawFrame]);
 
   /* ─── FLIP CAMERA ─── */
@@ -218,13 +218,14 @@ function ReelStudioInner() {
     const canvas = canvasRef.current;
     const stream = streamRef.current;
     if (!canvas || !stream) return;
-    const canvasStream = canvas.captureStream(60);
+    const canvasStream = canvas.captureStream(30);
     stream.getAudioTracks().forEach(t => canvasStream.addTrack(t));
     const mimeTypes = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
     const mime = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || '';
     const recorder = new MediaRecorder(canvasStream, {
       ...(mime ? { mimeType: mime } : {}),
-      videoBitsPerSecond: 2_500_000,
+      videoBitsPerSecond: 8_000_000,
+      audioBitsPerSecond: 192_000,
     });
     chunksRef.current = [];
     recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };

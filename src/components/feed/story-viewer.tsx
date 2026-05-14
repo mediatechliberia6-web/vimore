@@ -476,10 +476,7 @@ export function StoryViewer() {
             </div>
 
             <div 
-              className={cn(
-                "relative flex-1 cursor-pointer select-none flex items-center justify-center overflow-hidden",
-                currentSegment.background || "bg-black"
-              )}
+              className="relative flex-1 cursor-pointer select-none flex items-center justify-center overflow-hidden bg-black"
               onClick={handleTap}
             >
               <>
