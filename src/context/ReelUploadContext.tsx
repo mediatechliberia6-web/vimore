@@ -1,5 +1,6 @@
 'use client';
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { storage, BUCKET, ID } from '@/lib/appwrite';
 
 export type UploadStatus = 'uploading' | 'done' | 'error';
 
@@ -42,42 +43,6 @@ type CtxValue = {
 
 const Ctx = createContext<CtxValue>({ job: null, startUpload: () => {}, dismissJob: () => {} });
 
-/* Upload via XMLHttpRequest so we get real upload progress on slow connections */
-function xhrUpload(
-  formData: FormData,
-  onProgress: (pct: number) => void,
-): Promise<{ ok: boolean; error?: string }> {
-  return new Promise((resolve) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/upload/reel');
-
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable) {
-        onProgress(Math.round((e.loaded / e.total) * 80)); // 0–80% = actual upload
-      }
-    });
-
-    xhr.addEventListener('load', () => {
-      try {
-        const data = JSON.parse(xhr.responseText);
-        if (xhr.status >= 200 && xhr.status < 300 && data.ok) {
-          resolve({ ok: true });
-        } else {
-          resolve({ ok: false, error: data.error || `Server error ${xhr.status}` });
-        }
-      } catch {
-        resolve({ ok: false, error: `Server error ${xhr.status}` });
-      }
-    });
-
-    xhr.addEventListener('error', () => resolve({ ok: false, error: 'Network error — check your connection' }));
-    xhr.addEventListener('timeout', () => resolve({ ok: false, error: 'Upload timed out — try a shorter video' }));
-    xhr.timeout = 120_000; // 2 minutes max
-
-    xhr.send(formData);
-  });
-}
-
 export function ReelUploadProvider({ children }: { children: React.ReactNode }) {
   const [job, setJob] = useState<ReelUploadJob | null>(null);
 
@@ -86,42 +51,61 @@ export function ReelUploadProvider({ children }: { children: React.ReactNode }) 
     setJob({ id, progress: 0, label: 'Preparing video…', status: 'uploading' });
 
     try {
-      /* ── Combine clips into one blob with correct type ── */
       const actualType = payload.clips[0]?.type || 'video/webm';
       const ext = actualType.includes('mp4') ? 'mp4' : 'webm';
       const combined = new Blob(payload.clips, { type: actualType });
       const videoFile = new File([combined], `reel_${Date.now()}.${ext}`, { type: actualType });
 
-      /* ── Build FormData ── */
-      const formData = new FormData();
-      formData.append('video', videoFile);
-
-      if (payload.coverBlob) {
-        const coverFile = new File([payload.coverBlob], `cover_${Date.now()}.jpg`, { type: 'image/jpeg' });
-        formData.append('cover', coverFile);
-      }
-
-      formData.append('meta', JSON.stringify({
-        userId: payload.userId,
-        username: payload.username,
-        caption: payload.caption,
-        totalDuration: payload.totalDuration,
-        effect: payload.effect,
-        visibility: payload.visibility,
-        allowComments: payload.allowComments,
-        allowDuet: payload.allowDuet,
-        allowDownloads: payload.allowDownloads,
-        selectedSound: payload.selectedSound,
-      }));
-
       setJob(j => j ? { ...j, progress: 5, label: 'Uploading video…' } : j);
 
-      /* ── Upload via XHR with real progress ── */
-      const result = await xhrUpload(formData, (pct) => {
-        setJob(j => j ? { ...j, progress: pct, label: `Uploading… ${pct}%` } : j);
+      /* ── Upload video directly to Appwrite storage with real progress ── */
+      const videoFileId = ID.unique();
+      await storage.createFile(
+        BUCKET.REEL_MEDIA,
+        videoFileId,
+        videoFile,
+        [],
+        (progress) => {
+          const pct = 5 + Math.round(progress.progress * 0.7);
+          setJob(j => j ? { ...j, progress: pct, label: `Uploading… ${pct}%` } : j);
+        },
+      );
+
+      /* ── Upload cover directly (non-critical) ── */
+      let coverFileId: string | null = null;
+      if (payload.coverBlob) {
+        try {
+          const coverFile = new File([payload.coverBlob], `cover_${Date.now()}.jpg`, { type: 'image/jpeg' });
+          const coverId = ID.unique();
+          await storage.createFile(BUCKET.REEL_MEDIA, coverId, coverFile);
+          coverFileId = coverId;
+        } catch { /* non-critical */ }
+      }
+
+      setJob(j => j ? { ...j, progress: 80, label: 'Saving post…' } : j);
+
+      /* ── Call API just to create DB record ── */
+      const res = await fetch('/api/upload/reel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoFileId,
+          coverFileId,
+          userId: payload.userId,
+          username: payload.username,
+          caption: payload.caption,
+          totalDuration: payload.totalDuration,
+          effect: payload.effect,
+          visibility: payload.visibility,
+          allowComments: payload.allowComments,
+          allowDuet: payload.allowDuet,
+          allowDownloads: payload.allowDownloads,
+          selectedSound: payload.selectedSound,
+        }),
       });
 
-      if (!result.ok) throw new Error(result.error);
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || `Server error ${res.status}`);
 
       setJob(j => j ? { ...j, progress: 95, label: 'Publishing…' } : j);
       await new Promise(r => setTimeout(r, 400));

@@ -165,7 +165,7 @@ function ReelStudioInner() {
     const mime = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || '';
     const recorder = new MediaRecorder(stream, {
       ...(mime ? { mimeType: mime } : {}),
-      videoBitsPerSecond: 4_000_000,
+      videoBitsPerSecond: 8_000_000,
       audioBitsPerSecond: 128_000,
     });
     chunksRef.current = [];

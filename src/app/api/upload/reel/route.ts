@@ -1,58 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminStorage, getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
+import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
 import { ID } from 'node-appwrite';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 30;
 
 const COL_POSTS = 'posts';
-const BUCKET_REEL = 'reel_media';
+const COL_USERS = 'users';
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
-    const videoFile = formData.get('video') as File | null;
-    const coverFile = formData.get('cover') as File | null;
-    const metaStr = formData.get('meta') as string | null;
+    const body = await req.json();
+    const {
+      videoFileId,
+      coverFileId,
+      userId,
+      caption,
+      totalDuration,
+      effect,
+      selectedSound,
+    } = body;
 
-    if (!videoFile || !metaStr) {
-      return NextResponse.json({ error: 'Missing video or metadata' }, { status: 400 });
+    if (!videoFileId || !userId) {
+      return NextResponse.json({ error: 'Missing videoFileId or userId' }, { status: 400 });
     }
 
-    const meta = JSON.parse(metaStr);
-    if (!meta.userId) {
-      return NextResponse.json({ error: 'Missing userId in metadata' }, { status: 400 });
-    }
-
-    const adminStorage = getAdminStorage();
     const adminDb = getAdminDatabases();
 
-    /* ── Upload video file ── */
-    const uploaded = await adminStorage.createFile(
-      BUCKET_REEL,
-      ID.unique(),
-      videoFile,
-    );
-
-    /* ── Upload cover image (non-critical) ── */
-    let coverFileId: string | null = null;
-    if (coverFile) {
-      try {
-        const coverUploaded = await adminStorage.createFile(
-          BUCKET_REEL,
-          ID.unique(),
-          coverFile,
-        );
-        coverFileId = coverUploaded.$id;
-      } catch { /* non-critical — proceed without cover */ }
-    }
-
-    /* ── Build document with only fields known to exist in the posts collection ── */
+    /* ── Build document ── */
     const docData: Record<string, unknown> = {
-      user_id: meta.userId,
-      content: (meta.caption || '').trim(),
+      user_id: userId,
+      content: (caption || '').trim(),
       type: 'reel',
-      media_url: uploaded.$id,
+      media_url: videoFileId,
       likes_count: 0,
       unlikes_count: 0,
       comments_count: 0,
@@ -60,21 +40,28 @@ export async function POST(req: NextRequest) {
       views_count: 0,
     };
 
-    /* Optional reel fields — added only when they have values so a missing
-       Appwrite attribute doesn't cause a 400 error */
     if (coverFileId) docData.reel_cover_file_id = coverFileId;
-    if (meta.totalDuration) docData.duration = meta.totalDuration;
-    if (meta.effect && meta.effect !== 'none') docData.effects_applied = [meta.effect];
-    if (meta.selectedSound?.id) {
-      docData.sound_id = meta.selectedSound.id;
-      docData.sound_title = meta.selectedSound.title;
-      docData.sound_artist = meta.selectedSound.artist;
-      docData.sound_start_time = meta.selectedSound.startTime;
+    if (totalDuration) docData.duration = totalDuration;
+    if (effect && effect !== 'none') docData.effects_applied = [effect];
+    if (selectedSound?.id) {
+      docData.sound_id = selectedSound.id;
+      docData.sound_title = selectedSound.title;
+      docData.sound_artist = selectedSound.artist;
+      docData.sound_start_time = selectedSound.startTime;
     }
 
     await adminDb.createDocument(DATABASE_ID, COL_POSTS, ID.unique(), docData);
 
-    return NextResponse.json({ ok: true, fileId: uploaded.$id });
+    /* ── Increment posts_count on user (non-critical) ── */
+    try {
+      const userDoc = await adminDb.getDocument(DATABASE_ID, COL_USERS, userId);
+      const currentCount = Number(userDoc.posts_count || 0);
+      await adminDb.updateDocument(DATABASE_ID, COL_USERS, userId, {
+        posts_count: currentCount + 1,
+      });
+    } catch { /* non-critical — proceed without updating count */ }
+
+    return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Upload failed';
     console.error('[/api/upload/reel]', msg);
