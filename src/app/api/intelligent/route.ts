@@ -130,6 +130,13 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error('[Gemini intelligent error]', err);
+    const is429 = err?.status === 429 || String(err?.message || '').includes('429') || String(err?.message || '').includes('quota');
+    if (is429) {
+      return new Response(
+        JSON.stringify({ error: 'quota_exceeded' }),
+        { status: 429, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
     return new Response(JSON.stringify({ error: err?.message || 'AI error' }), { status: 502 });
   }
 }

@@ -161,6 +161,10 @@ export default function IntelligentPage() {
         signal: abortRef.current.signal,
       });
 
+      if (res.status === 429) {
+        fullResponse = "ViMore Agent has reached its daily AI limit. This resets automatically — please try again in a few hours.";
+        throw new Error("quota_exceeded");
+      }
       if (!res.ok || !res.body) throw new Error("Stream failed");
 
       const reader = res.body.getReader();
