@@ -97,7 +97,9 @@ export function ReelFinalize({
     try {
       setProgress(10); setProgressLabel('Preparing video…');
       const combined = new Blob(clips, { type: clips[0].type || 'video/webm' });
-      const videoFile = new File([combined], `reel_${Date.now()}.webm`, { type: combined.type });
+      const mimeType = combined.type || 'video/webm';
+      const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogv' : 'mp4';
+      const videoFile = new File([combined], `reel_${Date.now()}.${ext}`, { type: 'video/mp4' });
 
       setProgress(30); setProgressLabel('Uploading video…');
       const uploaded = await storage.createFile(BUCKET.REEL_MEDIA, ID.unique(), videoFile);

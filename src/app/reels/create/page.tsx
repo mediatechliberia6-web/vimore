@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  X, Music2, RefreshCw, Timer, Gauge, Sparkles,
-  MoreHorizontal, Zap, ZapOff, ChevronRight, Upload, Clapperboard,
+  X, Music2, Timer, Sparkles,
+  MoreHorizontal, ChevronRight, Upload, Clapperboard,
+  FlipHorizontal2, Gauge,
 } from 'lucide-react';
 import { usePosts } from '@/context/PostContext';
 import { cn } from '@/lib/utils';
@@ -58,40 +59,27 @@ function ReelStudioInner() {
   const searchParams = useSearchParams();
   const { currentUser } = usePosts();
 
-  /* Phase */
   const [phase, setPhase] = useState<Phase>('camera');
-
-  /* Camera */
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [hasCamera, setHasCamera] = useState(false);
   const [camError, setCamError] = useState('');
-  const [flashOn, setFlashOn] = useState(false);
 
-  /* Recording */
   const [isRecording, setIsRecording] = useState(false);
   const [clips, setClips] = useState<Blob[]>([]);
   const [clipDurations, setClipDurations] = useState<number[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const [maxDuration, setMaxDuration] = useState<Duration>(30);
 
-  /* Countdown */
   const [countdownSetting, setCountdownSetting] = useState<CountdownSec>(0);
   const [countdownActive, setCountdownActive] = useState(0);
-
-  /* Speed */
   const [speed, setSpeed] = useState<SpeedVal>(1);
   const [showSpeedPicker, setShowSpeedPicker] = useState(false);
-
-  /* Effects */
   const [selectedEffect, setSelectedEffect] = useState<EffectId>('none');
   const [showEffects, setShowEffects] = useState(false);
-
-  /* Sound */
   const [showSoundPicker, setShowSoundPicker] = useState(false);
   const [selectedSound, setSelectedSound] = useState<SelectedSound | null>(null);
   const preloadSoundId = searchParams.get('sound_id') || undefined;
 
-  /* Refs */
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -102,6 +90,7 @@ function ReelStudioInner() {
   const elapsedRef = useRef(0);
   const clipStartRef = useRef(0);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* ─── INIT CAMERA ─── */
   const initCamera = useCallback(async (facing: 'user' | 'environment') => {
@@ -110,7 +99,12 @@ function ReelStudioInner() {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facing, width: { ideal: 720 }, height: { ideal: 1280 } },
+        video: {
+          facingMode: facing,
+          width: { ideal: 1080 },
+          height: { ideal: 1920 },
+          frameRate: { ideal: 60 },
+        },
         audio: true,
       });
       streamRef.current = stream;
@@ -186,12 +180,15 @@ function ReelStudioInner() {
     const canvas = canvasRef.current;
     const stream = streamRef.current;
     if (!canvas || !stream) return;
-    const canvasStream = canvas.captureStream(30);
+    const canvasStream = canvas.captureStream(60);
     const audioTracks = stream.getAudioTracks();
     audioTracks.forEach(t => canvasStream.addTrack(t));
     const mimeTypes = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
     const mime = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || '';
-    const recorder = new MediaRecorder(canvasStream, { ...(mime ? { mimeType: mime } : {}) });
+    const recorder = new MediaRecorder(canvasStream, {
+      ...(mime ? { mimeType: mime } : {}),
+      videoBitsPerSecond: 8_000_000,
+    });
     chunksRef.current = [];
     recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
     recorder.onstop = () => {
@@ -268,11 +265,8 @@ function ReelStudioInner() {
     setPhase('finalize');
   };
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const totalElapsed = elapsed;
   const progress = Math.min(totalElapsed / maxDuration, 1);
-  const RADIUS = 42;
-  const CIRC = 2 * Math.PI * RADIUS;
 
   if (phase === 'finalize') {
     return (
@@ -288,26 +282,69 @@ function ReelStudioInner() {
   }
 
   return (
-    <div className="relative w-full h-full bg-black overflow-hidden select-none">
+    <div className="fixed inset-0 bg-black overflow-hidden select-none">
       {/* Hidden video source */}
       <video ref={videoRef} className="hidden" playsInline muted />
 
-      {/* Canvas — full screen */}
+      {/* ── FULL-SCREEN CANVAS (mirrored for front cam, zooms in when recording) ── */}
       <canvas
         ref={canvasRef}
-        width={720}
-        height={1280}
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: 'none' }}
+        width={1080}
+        height={1920}
+        className="absolute inset-0 w-full h-full"
+        style={{
+          objectFit: 'cover',
+          transform: `${facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)'} ${isRecording ? 'scale(1.05)' : 'scale(1)'}`,
+          transition: 'transform 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+        }}
       />
 
-      {/* Glitch overlay for glitch effect */}
+      {/* Neon scan-line overlay */}
       {selectedEffect === 'neon' && (
         <div className="absolute inset-0 pointer-events-none mix-blend-screen opacity-10"
           style={{ background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,255,0.08) 2px, rgba(0,255,255,0.08) 4px)' }} />
       )}
 
-      {/* Camera error */}
+      {/* ── LINEAR PROGRESS BAR (very top) ── */}
+      <div className="absolute top-0 left-0 right-0 h-[3px] z-30 bg-white/10">
+        <div
+          className="h-full bg-red-500 origin-left"
+          style={{
+            width: `${progress * 100}%`,
+            transition: isRecording ? 'width 0.1s linear' : 'none',
+          }}
+        />
+      </div>
+
+      {/* ── CLIP SEGMENT TICKS (just below progress bar) ── */}
+      {clipDurations.length > 0 && (
+        <div className="absolute top-[3px] left-0 right-0 h-[2px] z-30 flex">
+          {clipDurations.map((_, i) => (
+            <div
+              key={i}
+              className="h-full bg-white/40"
+              style={{
+                width: `${(clipDurations[i] / maxDuration) * 100}%`,
+                borderRight: '1px solid rgba(255,255,255,0.6)',
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ── TOP GRADIENT ── */}
+      <div
+        className="absolute top-0 left-0 right-0 h-44 z-20 pointer-events-none"
+        style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%)' }}
+      />
+
+      {/* ── BOTTOM GRADIENT ── */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-72 z-20 pointer-events-none"
+        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)' }}
+      />
+
+      {/* ── CAMERA ERROR ── */}
       {camError && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-50 px-8 gap-4">
           <Clapperboard className="h-16 w-16 text-white/20" />
@@ -319,54 +356,83 @@ function ReelStudioInner() {
         </div>
       )}
 
-      {/* ── TOP BAR ── */}
-      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 pt-12 pb-6"
-        style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, transparent 100%)' }}>
-        {/* Close */}
-        <button onClick={() => router.back()}
-          className="h-10 w-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center">
-          <X className="h-5 w-5 text-white" />
+      {/* ══════════════════════════════════════════
+          TOP BAR: X  |  Add Sound  |  (space)
+      ══════════════════════════════════════════ */}
+      <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 pt-10 pb-4">
+        {/* Close — large thumb-friendly */}
+        <button
+          onClick={() => router.back()}
+          className="h-12 w-12 rounded-full bg-black/40 backdrop-blur-md border border-white/15 flex items-center justify-center active:scale-95 transition-transform"
+        >
+          <X className="h-6 w-6 text-white" strokeWidth={2.5} />
         </button>
 
-        {/* Add Sound */}
+        {/* Add Sound — glass pill, always centered */}
         <button
           onClick={() => setShowSoundPicker(true)}
           className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-full border backdrop-blur-md text-sm font-bold transition-all",
+            "flex items-center gap-2 px-5 py-2.5 rounded-full backdrop-blur-md border text-sm font-bold transition-all active:scale-95",
             selectedSound
               ? "bg-primary/30 border-primary text-primary"
-              : "bg-black/50 border-white/20 text-white"
-          )}>
+              : "bg-black/40 border-white/20 text-white"
+          )}
+        >
           <Music2 className="h-4 w-4" />
           {selectedSound ? (
-            <span className="max-w-[120px] truncate text-xs">{selectedSound.title}</span>
+            <span className="max-w-[110px] truncate text-xs">{selectedSound.title}</span>
           ) : (
             'Add sound'
           )}
         </button>
 
-        {/* Flip */}
-        <button onClick={flipCamera} disabled={isRecording}
-          className="h-10 w-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center disabled:opacity-40">
-          <RefreshCw className="h-5 w-5 text-white" />
-        </button>
+        {/* Spacer to balance flex */}
+        <div className="h-12 w-12" />
       </div>
 
-      {/* ── RIGHT SIDEBAR ── */}
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-3">
+      {/* ══════════════════════════════════════════
+          RIGHT-SIDE CONTROLS (vertical stack)
+      ══════════════════════════════════════════ */}
+      <div className="absolute right-3 z-30 flex flex-col gap-4" style={{ top: '50%', transform: 'translateY(-50%)' }}>
+
+        {/* Flip camera */}
+        <button
+          onClick={flipCamera}
+          disabled={isRecording}
+          className="h-13 w-13 rounded-2xl bg-black/50 backdrop-blur-md border border-white/20 flex flex-col items-center justify-center gap-0.5 p-3 disabled:opacity-40 active:scale-95 transition-transform"
+        >
+          <FlipHorizontal2 className="h-5 w-5 text-white" strokeWidth={1.5} />
+          <span className="text-white/60 text-[9px] font-bold mt-0.5">FLIP</span>
+        </button>
+
+        {/* Timer / Countdown */}
+        <button
+          onClick={() => setCountdownSetting(s => ([0, 3, 10] as CountdownSec[])[(([0, 3, 10] as CountdownSec[]).indexOf(s) + 1) % 3])}
+          className={cn(
+            "h-13 w-13 rounded-2xl backdrop-blur-md border flex flex-col items-center justify-center gap-0.5 p-3 active:scale-95 transition-all",
+            countdownSetting > 0 ? "bg-primary/30 border-primary" : "bg-black/50 border-white/20"
+          )}
+        >
+          <Timer className={cn("h-5 w-5", countdownSetting > 0 ? "text-primary" : "text-white")} strokeWidth={1.5} />
+          <span className={cn("text-[9px] font-bold", countdownSetting > 0 ? "text-primary" : "text-white/60")}>
+            {countdownSetting > 0 ? `${countdownSetting}s` : 'OFF'}
+          </span>
+        </button>
+
         {/* Speed */}
         <div className="relative">
           <button
             onClick={() => setShowSpeedPicker(p => !p)}
-            className="h-12 w-12 rounded-2xl bg-black/50 backdrop-blur-md border border-white/15 flex flex-col items-center justify-center gap-0.5">
-            <Gauge className="h-4 w-4 text-white" />
-            <span className="text-white text-[9px] font-black">{speed}×</span>
+            className="h-13 w-13 rounded-2xl bg-black/50 backdrop-blur-md border border-white/20 flex flex-col items-center justify-center gap-0.5 p-3 active:scale-95 transition-transform"
+          >
+            <Gauge className="h-5 w-5 text-white" strokeWidth={1.5} />
+            <span className="text-white/60 text-[9px] font-bold">{speed}×</span>
           </button>
           {showSpeedPicker && (
-            <div className="absolute right-14 top-0 bg-black/90 backdrop-blur-xl border border-white/15 rounded-2xl overflow-hidden flex flex-col">
+            <div className="absolute right-14 top-0 bg-black/90 backdrop-blur-xl border border-white/15 rounded-2xl overflow-hidden flex flex-col z-40">
               {([0.5, 1, 2] as SpeedVal[]).map(s => (
                 <button key={s} onClick={() => { setSpeed(s); setShowSpeedPicker(false); }}
-                  className={cn("px-5 py-2.5 text-sm font-black transition-colors", speed === s ? "text-primary bg-primary/15" : "text-white hover:bg-white/8")}>
+                  className={cn("px-5 py-3 text-sm font-black transition-colors", speed === s ? "text-primary bg-primary/15" : "text-white")}>
                   {s}×
                 </button>
               ))}
@@ -374,43 +440,30 @@ function ReelStudioInner() {
           )}
         </div>
 
-        {/* Countdown */}
-        <button
-          onClick={() => setCountdownSetting(s => ([0, 3, 10] as CountdownSec[])[(([0, 3, 10] as CountdownSec[]).indexOf(s) + 1) % 3])}
-          className={cn(
-            "h-12 w-12 rounded-2xl backdrop-blur-md border flex flex-col items-center justify-center gap-0.5 transition-all",
-            countdownSetting > 0 ? "bg-primary/30 border-primary" : "bg-black/50 border-white/15"
-          )}>
-          <Timer className={cn("h-4 w-4", countdownSetting > 0 ? "text-primary" : "text-white")} />
-          <span className={cn("text-[9px] font-black", countdownSetting > 0 ? "text-primary" : "text-white/60")}>
-            {countdownSetting > 0 ? `${countdownSetting}s` : 'OFF'}
-          </span>
-        </button>
-
-        {/* Effects */}
+        {/* Effects / FX */}
         <button
           onClick={() => setShowEffects(p => !p)}
           className={cn(
-            "h-12 w-12 rounded-2xl backdrop-blur-md border flex flex-col items-center justify-center gap-0.5 transition-all",
-            showEffects || selectedEffect !== 'none' ? "bg-primary/30 border-primary" : "bg-black/50 border-white/15"
-          )}>
-          <Sparkles className={cn("h-4 w-4", showEffects || selectedEffect !== 'none' ? "text-primary" : "text-white")} />
-          <span className={cn("text-[9px] font-black truncate w-full text-center px-1", showEffects || selectedEffect !== 'none' ? "text-primary" : "text-white/60")}>
+            "h-13 w-13 rounded-2xl backdrop-blur-md border flex flex-col items-center justify-center gap-0.5 p-3 active:scale-95 transition-all",
+            showEffects || selectedEffect !== 'none' ? "bg-primary/30 border-primary" : "bg-black/50 border-white/20"
+          )}
+        >
+          <Sparkles className={cn("h-5 w-5", showEffects || selectedEffect !== 'none' ? "text-primary" : "text-white")} strokeWidth={1.5} />
+          <span className={cn("text-[9px] font-bold truncate w-full text-center", showEffects || selectedEffect !== 'none' ? "text-primary" : "text-white/60")}>
             {selectedEffect !== 'none' ? EFFECTS.find(e => e.id === selectedEffect)?.name : 'FX'}
           </span>
         </button>
 
         {/* More */}
-        <button
-          className="h-12 w-12 rounded-2xl bg-black/50 backdrop-blur-md border border-white/15 flex items-center justify-center">
-          <MoreHorizontal className="h-4 w-4 text-white" />
+        <button className="h-13 w-13 rounded-2xl bg-black/50 backdrop-blur-md border border-white/20 flex items-center justify-center p-3 active:scale-95 transition-transform">
+          <MoreHorizontal className="h-5 w-5 text-white" strokeWidth={1.5} />
         </button>
       </div>
 
-      {/* ── EFFECTS PANEL (slides in from right) ── */}
+      {/* ── EFFECTS PANEL ── */}
       {showEffects && (
-        <div className="absolute inset-y-0 right-0 z-30 flex">
-          <div className="absolute inset-0 -right-0" onClick={() => setShowEffects(false)} />
+        <div className="absolute inset-y-0 right-0 z-40 flex">
+          <div className="absolute inset-0" onClick={() => setShowEffects(false)} />
           <div className="relative ml-auto w-[200px] bg-black/90 backdrop-blur-2xl border-l border-white/10 overflow-y-auto animate-in slide-in-from-right duration-250">
             <div className="sticky top-0 bg-black/80 backdrop-blur-xl px-4 py-3 border-b border-white/10 flex items-center justify-between">
               <span className="text-white font-black text-sm">Effects</span>
@@ -425,14 +478,9 @@ function ReelStudioInner() {
                   onClick={() => setSelectedEffect(eff.id)}
                   className={cn(
                     "flex flex-col items-center gap-1.5 p-2 rounded-2xl border transition-all",
-                    selectedEffect === eff.id
-                      ? "border-primary bg-primary/20"
-                      : "border-white/8 bg-white/4 hover:border-white/20"
+                    selectedEffect === eff.id ? "border-primary bg-primary/20" : "border-white/8 bg-white/4"
                   )}>
-                  <div
-                    className="h-12 w-full rounded-xl"
-                    style={{ background: `linear-gradient(135deg, ${eff.colors[0]}, ${eff.colors[1]})` }}
-                  />
+                  <div className="h-12 w-full rounded-xl" style={{ background: `linear-gradient(135deg, ${eff.colors[0]}, ${eff.colors[1]})` }} />
                   <span className={cn("text-[10px] font-bold", selectedEffect === eff.id ? "text-primary" : "text-white/70")}>
                     {eff.name}
                   </span>
@@ -443,124 +491,102 @@ function ReelStudioInner() {
         </div>
       )}
 
-      {/* ── BOTTOM SECTION ── */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center pb-8"
-        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)' }}>
+      {/* ══════════════════════════════════════════
+          BOTTOM BAR
+      ══════════════════════════════════════════ */}
+      <div className="absolute bottom-0 left-0 right-0 z-30 flex flex-col items-center pb-10 px-6">
 
-        {/* Clip segments indicator */}
-        {clipDurations.length > 0 && (
-          <div className="flex gap-1 w-full px-8 mb-3">
-            {clipDurations.map((dur, i) => (
-              <div
-                key={i}
-                className={cn("h-1 rounded-full", i === clipDurations.length - 1 ? "bg-primary" : "bg-white/60")}
-                style={{ flex: dur }}
-              />
-            ))}
-            {isRecording && (
-              <div
-                className="h-1 rounded-full bg-red-500 animate-pulse"
-                style={{ flex: elapsed - clipDurations.reduce((a, b) => a + b, 0) }}
-              />
-            )}
-            <div className="h-1 rounded-full bg-white/15"
-              style={{ flex: maxDuration - elapsed }} />
-          </div>
-        )}
-
-        {/* Duration mode tabs */}
-        <div className="flex items-center gap-4 mb-5">
+        {/* Duration tabs */}
+        <div className="flex items-center gap-5 mb-6">
           {([15, 30, 60] as Duration[]).map(d => (
             <button
               key={d}
               onClick={() => { if (!isRecording) setMaxDuration(d); }}
               disabled={isRecording}
               className={cn(
-                "text-sm font-black transition-all px-1",
+                "text-sm font-black transition-all",
                 maxDuration === d ? "text-white scale-110" : "text-white/35"
-              )}>
+              )}
+            >
               {d}s
             </button>
           ))}
           <div className={cn(
-            "px-3 py-1 rounded-full border font-black text-sm transition-all",
+            "px-3 py-1 rounded-full border text-sm font-black transition-all",
             maxDuration === 60 ? "border-white text-white" : "border-white/20 text-white/35"
           )}>
             REEL
           </div>
         </div>
 
-        {/* Bottom row: recent clips + record + upload */}
-        <div className="flex items-center justify-between w-full px-8">
-          {/* Left: delete or upload */}
+        {/* Bottom action row */}
+        <div className="flex items-center justify-between w-full">
+
+          {/* Left: Upload or Undo */}
           <div className="w-16 flex flex-col items-center gap-1">
             {clipDurations.length > 0 ? (
-              <button onClick={deleteLastClip} disabled={isRecording}
-                className="h-14 w-14 rounded-2xl border-2 border-white/25 bg-black/40 backdrop-blur-md flex flex-col items-center justify-center gap-1 disabled:opacity-30">
+              <button
+                onClick={deleteLastClip}
+                disabled={isRecording}
+                className="h-14 w-14 rounded-2xl border-2 border-white/25 bg-black/40 backdrop-blur-md flex flex-col items-center justify-center gap-1 disabled:opacity-30 active:scale-95 transition-transform"
+              >
                 <X className="h-4 w-4 text-red-400" />
                 <span className="text-[9px] text-white/50 font-bold">UNDO</span>
               </button>
             ) : (
-              <button onClick={() => fileInputRef.current?.click()}
-                className="h-14 w-14 rounded-2xl border-2 border-white/25 bg-black/40 backdrop-blur-md flex flex-col items-center justify-center gap-1">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="h-14 w-14 rounded-2xl border-2 border-white/25 bg-black/40 backdrop-blur-md flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform"
+              >
                 <Upload className="h-4 w-4 text-white/70" />
                 <span className="text-[9px] text-white/50 font-bold">UPLOAD</span>
               </button>
             )}
           </div>
 
-          {/* Center: Record button with SVG arc */}
-          <div className="relative flex items-center justify-center">
-            <svg width="96" height="96" viewBox="0 0 96 96" className="absolute">
-              <circle cx="48" cy="48" r={RADIUS} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="3.5" />
-              <circle
-                cx="48" cy="48" r={RADIUS}
-                fill="none"
-                stroke={isRecording ? '#ef4444' : '#6200ea'}
-                strokeWidth="3.5"
-                strokeLinecap="round"
-                strokeDasharray={CIRC}
-                strokeDashoffset={CIRC * (1 - progress)}
-                transform="rotate(-90 48 48)"
-                style={{ transition: isRecording ? 'stroke-dashoffset 0.1s linear' : 'none' }}
-              />
-            </svg>
-            <button
-              onClick={handleRecordToggle}
-              disabled={!!camError}
-              className="relative z-10 h-16 w-16 flex items-center justify-center transition-all duration-200 disabled:opacity-30"
-            >
-              <span className={cn(
-                "block transition-all duration-200 shadow-lg",
+          {/* Center: RECORD BUTTON — thick white ring + pulsing red inner */}
+          <button
+            onClick={handleRecordToggle}
+            disabled={!!camError}
+            className="relative flex items-center justify-center active:scale-95 transition-transform disabled:opacity-30"
+            style={{ width: 88, height: 88 }}
+          >
+            {/* Outer white ring */}
+            <span
+              className="absolute inset-0 rounded-full border-[4px] border-white"
+              style={{ boxSizing: 'border-box' }}
+            />
+            {/* Inner circle — white idle, red pulsing when recording */}
+            <span
+              className={cn(
+                "rounded-full transition-all duration-200",
                 isRecording
-                  ? "h-7 w-7 rounded-[6px] bg-red-500 scale-100"
-                  : "h-16 w-16 rounded-full bg-white"
-              )} />
-            </button>
-          </div>
+                  ? "w-9 h-9 bg-red-500 animate-pulse"
+                  : "w-[68px] h-[68px] bg-white"
+              )}
+            />
+          </button>
 
-          {/* Right: Next button or flip shortcut */}
+          {/* Right: Next or flip shortcut */}
           <div className="w-16 flex flex-col items-center gap-1">
             {clips.length > 0 ? (
               <button
                 onClick={() => setPhase('finalize')}
-                className="h-14 w-14 rounded-2xl bg-primary flex flex-col items-center justify-center gap-1 shadow-lg shadow-primary/40">
+                className="h-14 w-14 rounded-2xl bg-primary flex flex-col items-center justify-center gap-1 shadow-lg shadow-primary/40 active:scale-95 transition-transform"
+              >
                 <ChevronRight className="h-5 w-5 text-white" />
                 <span className="text-[9px] text-white font-black">NEXT</span>
               </button>
             ) : (
-              <button onClick={flipCamera} disabled={isRecording}
-                className="h-14 w-14 rounded-2xl border-2 border-white/25 bg-black/40 backdrop-blur-md flex flex-col items-center justify-center gap-1 disabled:opacity-30">
-                <RefreshCw className="h-4 w-4 text-white/70" />
-                <span className="text-[9px] text-white/50 font-bold">FLIP</span>
-              </button>
+              /* Placeholder to keep layout balanced */
+              <div className="h-14 w-14" />
             )}
           </div>
         </div>
 
-        {/* Elapsed / max */}
+        {/* Elapsed timer */}
         {(isRecording || clips.length > 0) && (
-          <div className="mt-4 flex items-center gap-1 px-3 py-1 rounded-full bg-black/50 backdrop-blur-md">
+          <div className="mt-4 flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/50 backdrop-blur-md">
             {isRecording && <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />}
             <span className="text-white text-xs font-mono font-bold">
               {Math.floor(totalElapsed / 60).toString().padStart(2, '0')}:{(totalElapsed % 60).toFixed(0).padStart(2, '0')}
@@ -591,7 +617,7 @@ function ReelStudioInner() {
         />
       )}
 
-      {/* Hidden file input for upload */}
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -603,7 +629,7 @@ function ReelStudioInner() {
   );
 }
 
-export default function ReelStudioPage() {
+export default function ReelStudio() {
   return (
     <Suspense>
       <ReelStudioInner />
