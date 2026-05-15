@@ -202,7 +202,7 @@ export default function MenuPage() {
                   key={item.label}
                   href={item.href}
                   onClick={() => item.category && clearPulse(item.category)}
-                  className="bg-white dark:bg-card p-5 rounded-[1.75rem] border border-border/50 shadow-lg shadow-black/5 flex flex-col items-start gap-4 transition-all hover:-translate-y-1 active:scale-95 group relative"
+                  className="bg-white dark:bg-card p-5 rounded-[1.75rem] border border-border/50 shadow-lg shadow-black/5 flex flex-col items-start justify-between min-h-[130px] transition-all hover:-translate-y-1 active:scale-95 group relative"
                 >
                   <div className={cn("p-3.5 rounded-2xl transition-all group-hover:rotate-6", item.bg)}>
                     <item.icon className={cn("h-6 w-6", item.color)} />
