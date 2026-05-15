@@ -437,7 +437,10 @@ function ReelItem({
   } = usePosts();
   const { tier: netTier } = useNetwork();
   const { triggerHaptic } = useMusic();
+  const { toast } = useToast();
   const [showHeart, setShowHeart] = useState(false);
+  const [showSoundSheet, setShowSoundSheet] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   // On Lite, default to paused so the Play overlay shows (tap-to-stream)
   const [isPlaying, setIsPlaying] = useState(() => netTier !== 'lite');
   const [currentTime, setCurrentTime] = useState(0);
@@ -473,6 +476,23 @@ function ReelItem({
   const isLiked = isPostLiked(reel.$id);
   const isOwn = currentUser?.username === reel.user.username;
   const isFollowing = followingUsernames.has(reel.user.username);
+  const soundId = (reel as Record<string, unknown>).sound_id as string | undefined;
+  const soundTitle = (reel as Record<string, unknown>).sound_title as string | undefined;
+  const soundArtist = (reel as Record<string, unknown>).sound_artist as string | undefined;
+
+  const handleDownload = async () => {
+    if (isDownloading || !reel.videoUrl) return;
+    triggerHaptic(20);
+    setIsDownloading(true);
+    try {
+      await saveFileToDevice(reel.videoUrl, `vimore_reel_${reel.$id}.mp4`);
+      toast({ title: 'Reel saved to device' });
+    } catch {
+      toast({ title: 'Download failed', variant: 'destructive' });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
   const isFriendWith = isFriend(reel.user.username);
   const requestSent = isRequestSent(reel.user.username);
 
@@ -671,13 +691,28 @@ function ReelItem({
               <Share2 className="w-6 h-6 text-white" />
               <span className="text-white text-xs font-bold drop-shadow">{fmt(reel.shares)}</span>
             </button>
+
+            <button
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className="flex flex-col items-center gap-0.5 active:scale-90 transition-transform disabled:opacity-50"
+            >
+              {isDownloading
+                ? <Loader2 className="w-6 h-6 text-white animate-spin" />
+                : <Download className="w-6 h-6 text-white" />}
+              <span className="text-white text-xs font-bold drop-shadow">Save</span>
+            </button>
           </>
         )}
 
         <button
           onClick={() => {
-            const soundId = (reel as Record<string, unknown>).sound_id as string | undefined;
-            router.push(soundId ? `/reels/create?sound_id=${encodeURIComponent(soundId)}` : '/reels/create');
+            triggerHaptic(15);
+            if (soundId) {
+              setShowSoundSheet(true);
+            } else {
+              router.push('/reels/create');
+            }
           }}
           className={cn(
             "w-9 h-9 rounded-full bg-black border-[3px] border-white/40 flex items-center justify-center shadow-lg active:scale-90 transition-transform",
@@ -727,10 +762,15 @@ function ReelItem({
             <p className="text-white/90 text-sm leading-snug line-clamp-2 drop-shadow-sm">
               {reel.content}
             </p>
-            <div className="flex items-center gap-1.5 mt-2">
-              <Music2 className="w-3 h-3 text-white/60 flex-shrink-0" />
-              <p className="text-white/60 text-xs truncate">Original Sound · {reel.user.name}</p>
-            </div>
+            <button
+              className="flex items-center gap-1.5 mt-2 pointer-events-auto active:opacity-70"
+              onClick={() => { triggerHaptic(10); if (soundId) setShowSoundSheet(true); }}
+            >
+              <Music2 className="w-3 h-3 text-white/60 flex-shrink-0 animate-spin [animation-duration:6s]" />
+              <p className="text-white/60 text-xs truncate">
+                {soundTitle ? `${soundTitle} · ${soundArtist || reel.user.name}` : `Original Sound · ${reel.user.name}`}
+              </p>
+            </button>
           </>
         )}
       </div>
@@ -790,6 +830,49 @@ function ReelItem({
           </span>
         </div>
       </div>
+
+      {/* ── Use This Sound sheet ── */}
+      {showSoundSheet && soundId && (
+        <div
+          className="fixed inset-0 z-[300] flex flex-col justify-end"
+          onClick={() => setShowSoundSheet(false)}
+        >
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div
+            className="relative bg-[#0d0d1a] rounded-t-[2rem] px-6 pt-4 pb-10 animate-in slide-in-from-bottom duration-300"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-6" />
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/40 to-purple-800/40 flex items-center justify-center animate-spin [animation-duration:6s]">
+                <Music2 className="w-7 h-7 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-black text-base truncate">{soundTitle || 'Original Sound'}</p>
+                <p className="text-white/50 text-sm truncate">{soundArtist || reel.user.name}</p>
+                <p className="text-white/30 text-xs mt-0.5">Tap to use in your reel</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowSoundSheet(false);
+                router.push(`/reels/create?sound_id=${encodeURIComponent(soundId)}`);
+              }}
+              className="w-full py-4 bg-primary rounded-2xl text-white font-black text-base flex items-center justify-center gap-3 active:scale-95 transition-transform"
+            >
+              <Music2 className="w-5 h-5" />
+              Use this sound
+            </button>
+            <button
+              onClick={() => setShowSoundSheet(false)}
+              className="w-full py-3 mt-2 text-white/40 text-sm font-bold"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
