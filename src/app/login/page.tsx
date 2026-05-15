@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { getSecurityQuestion, verifySecurityAnswer } from "@/lib/appwrite";
 import { AcronymCaption } from "@/components/branding/acronym-meaning";
+import { useTranslation } from "@/context/LanguageContext";
 
 type ForgotStep = "id" | "question" | "newpass" | "done";
 
@@ -41,6 +42,7 @@ export default function LoginPage() {
   const { login, currentUser, isLoading: contextLoading } = usePosts();
   const { toast } = useToast();
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
   const [showFullForm, setShowFullForm] = useState(false);
@@ -208,7 +210,7 @@ export default function LoginPage() {
             </div>
           </div>
           <Link href="/signup">
-            <span className="text-sm font-bold text-[#9940E5] hover:text-violet-700 transition-colors">Sign Up</span>
+            <span className="text-sm font-bold text-[#9940E5] hover:text-violet-700 transition-colors">{t('auth_sign_up')}</span>
           </Link>
         </header>
         <div className="px-6 sm:hidden -mt-2 mb-2">
@@ -222,13 +224,12 @@ export default function LoginPage() {
               <div className="mb-8 space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="inline-flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-full px-4 py-1.5">
                   <Sparkles className="h-3.5 w-3.5 text-[#9940E5]" />
-                  <span className="text-[11px] font-black uppercase tracking-widest text-[#9940E5]">Your Accounts</span>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-[#9940E5]">{t('auth_your_accounts')}</span>
                 </div>
                 <h1 className="text-4xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
-                  Welcome<br />
-                  <span className="text-[#9940E5]">Back</span>
+                  {t('auth_welcome_back')}
                 </h1>
-                <p className="text-sm text-gray-500 font-medium">Tap your account to sign in.</p>
+                <p className="text-sm text-gray-500 font-medium">{t('auth_tap_accounts')}</p>
               </div>
 
               <div className="space-y-3 animate-in fade-in slide-in-from-bottom-6 duration-700">
@@ -269,8 +270,8 @@ export default function LoginPage() {
                     <PlusCircle className="h-6 w-6 text-[#9940E5]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-black text-gray-700">Add another account</p>
-                    <p className="text-[11px] font-medium text-gray-400">Sign in with a different ViMore ID</p>
+                    <p className="font-black text-gray-700">{t('auth_add_another')}</p>
+                    <p className="text-[11px] font-medium text-gray-400">{t('auth_add_another_desc')}</p>
                   </div>
                   <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-[#9940E5] transition-colors" />
                 </button>
@@ -279,7 +280,7 @@ export default function LoginPage() {
               <div className="mt-6 text-center">
                 <Link href="/signup">
                   <span className="text-sm font-black italic uppercase tracking-tight text-[#9940E5] hover:text-violet-700 transition-colors">
-                    Create New Account →
+                    {t('auth_create_new_account')}
                   </span>
                 </Link>
               </div>
@@ -289,13 +290,13 @@ export default function LoginPage() {
               <div className="mb-10 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="inline-flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-full px-4 py-1.5">
                   <Sparkles className="h-3.5 w-3.5 text-[#9940E5]" />
-                  <span className="text-[11px] font-black uppercase tracking-widest text-[#9940E5]">Welcome Back</span>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-[#9940E5]">{t('auth_welcome_back')}</span>
                 </div>
                 <h1 className="text-4xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
-                  Sign In to<br />
+                  {t('auth_sign_in_headline')}<br />
                   <span className="text-[#9940E5]">ViMore</span>
                 </h1>
-                <p className="text-sm text-gray-500 font-medium">Where creators thrive and connect.</p>
+                <p className="text-sm text-gray-500 font-medium">{t('auth_tagline')}</p>
               </div>
 
               <div className="bg-white rounded-[2rem] border border-gray-100 shadow-2xl shadow-violet-100/50 p-7 space-y-5 animate-in fade-in slide-in-from-bottom-6 duration-700">
@@ -304,12 +305,12 @@ export default function LoginPage() {
                     onClick={() => setShowFullForm(false)}
                     className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-[#9940E5] hover:text-violet-700 transition-colors"
                   >
-                    ← Back to saved accounts
+                    {t('auth_back_saved')}
                   </button>
                 )}
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">ViMore ID or Phone Number</Label>
+                    <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">{t('auth_vimore_id_label')}</Label>
                     <div className="relative">
                       <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
                       <Input
@@ -326,13 +327,13 @@ export default function LoginPage() {
 
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Password</Label>
+                      <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">{t('auth_password')}</Label>
                       <button
                         type="button"
                         onClick={() => setShowForgot(true)}
                         className="text-[11px] font-bold text-[#9940E5] hover:text-violet-700 transition-colors uppercase tracking-wide"
                       >
-                        Forgot Password?
+                        {t('auth_forgot_password')}
                       </button>
                     </div>
                     <div className="relative">
@@ -364,7 +365,7 @@ export default function LoginPage() {
                       <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
                       <>
-                        Sign In <ArrowRight className="h-5 w-5" />
+                        {t('auth_sign_in_btn')} <ArrowRight className="h-5 w-5" />
                       </>
                     )}
                   </Button>
@@ -377,10 +378,10 @@ export default function LoginPage() {
                 </div>
 
                 <div className="text-center space-y-1">
-                  <p className="text-sm text-gray-500 font-medium">Don&apos;t have an account?</p>
+                  <p className="text-sm text-gray-500 font-medium">{t('auth_no_account')}</p>
                   <Link href="/signup">
                     <span className="text-sm font-black italic uppercase tracking-tight text-[#9940E5] hover:text-violet-700 transition-colors">
-                      Create Account →
+                      {t('auth_create_account')}
                     </span>
                   </Link>
                 </div>
@@ -388,9 +389,9 @@ export default function LoginPage() {
 
               <div className="mt-8 grid grid-cols-3 gap-3 animate-in fade-in duration-1000 delay-300">
                 {[
-                  { icon: Users, value: "2M+", label: "Creators" },
-                  { icon: Star, value: "4.9★", label: "Rating" },
-                  { icon: Sparkles, value: "50+", label: "Countries" },
+                  { icon: Users, value: "2M+", label: t('auth_creators') },
+                  { icon: Star, value: "4.9★", label: t('auth_rating') },
+                  { icon: Sparkles, value: "50+", label: t('auth_countries') },
                 ].map(({ icon: Icon, value, label }) => (
                   <div key={label} className="bg-gray-50 rounded-2xl p-3 text-center border border-gray-100">
                     <Icon className="h-4 w-4 text-[#9940E5] mx-auto mb-1" />
@@ -433,7 +434,7 @@ export default function LoginPage() {
 
             <form onSubmit={handleQuickLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Password</Label>
+                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">{t('auth_password')}</Label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
                   <Input
@@ -441,7 +442,7 @@ export default function LoginPage() {
                     type={showQuickPass ? "text" : "password"}
                     value={quickPassword}
                     onChange={e => setQuickPassword(e.target.value)}
-                    placeholder="Enter your password"
+                    placeholder={t('auth_enter_password')}
                     required
                     className="h-14 pl-11 pr-12 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
                   />
@@ -462,7 +463,7 @@ export default function LoginPage() {
                 {quickSubmitting ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  <>Sign In <ArrowRight className="h-5 w-5" /></>
+                  <>{t('auth_sign_in_btn')} <ArrowRight className="h-5 w-5" /></>
                 )}
               </Button>
               <button
@@ -470,7 +471,7 @@ export default function LoginPage() {
                 onClick={() => setShowForgot(true)}
                 className="w-full text-[11px] font-bold text-[#9940E5] hover:text-violet-700 transition-colors uppercase tracking-wide py-1"
               >
-                Forgot Password?
+                {t('auth_forgot_password')}
               </button>
             </form>
           </div>
@@ -487,14 +488,14 @@ export default function LoginPage() {
                   <CheckCircle2 className="h-8 w-8 text-green-500" />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">Password Reset!</h3>
-                  <p className="text-sm text-gray-500">Your password has been updated. You can now sign in.</p>
+                  <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">{t('auth_reset_done')}</h3>
+                  <p className="text-sm text-gray-500">{t('auth_reset_done_desc')}</p>
                 </div>
                 <Button
                   onClick={resetForgot}
                   className="w-full h-12 rounded-2xl bg-[#9940E5] text-white font-black italic uppercase tracking-widest text-sm"
                 >
-                  Sign In Now
+                  {t('auth_go_sign_in')}
                 </Button>
               </div>
             ) : forgotStep === "id" ? (
@@ -504,9 +505,9 @@ export default function LoginPage() {
                     <div className="h-9 w-9 rounded-xl bg-violet-50 flex items-center justify-center">
                       <AtSign className="h-5 w-5 text-[#9940E5]" />
                     </div>
-                    <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">Reset Password</h3>
+                    <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">{t('auth_forgot_title')}</h3>
                   </div>
-                  <p className="text-sm text-gray-500 pl-11">Enter your ViMore ID to find your account.</p>
+                  <p className="text-sm text-gray-500 pl-11">{t('auth_enter_vimore_id')}</p>
                 </div>
                 <form onSubmit={handleFindAccount} className="space-y-4">
                   <div className="relative">
@@ -525,7 +526,7 @@ export default function LoginPage() {
                     disabled={forgotLoading || !forgotId}
                     className="w-full h-12 rounded-2xl bg-[#9940E5] text-white font-black italic uppercase tracking-widest text-sm"
                   >
-                    {forgotLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Find My Account"}
+                    {forgotLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : t('auth_find_account')}
                   </Button>
                   <button type="button" onClick={resetForgot} className="w-full text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors py-1">Cancel</button>
                 </form>
@@ -537,9 +538,9 @@ export default function LoginPage() {
                     <div className="h-9 w-9 rounded-xl bg-violet-50 flex items-center justify-center">
                       <ShieldQuestion className="h-5 w-5 text-[#9940E5]" />
                     </div>
-                    <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">Security Check</h3>
+                    <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">{t('auth_security_question')}</h3>
                   </div>
-                  <p className="text-sm text-gray-500 pl-11">Answer your security question to continue.</p>
+                  <p className="text-sm text-gray-500 pl-11">{t('auth_your_answer')}</p>
                 </div>
                 <div className="bg-violet-50 border border-violet-100 rounded-2xl px-4 py-3">
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#9940E5] mb-1">Your Question</p>
@@ -550,7 +551,7 @@ export default function LoginPage() {
                     type="text"
                     value={forgotAnswer}
                     onChange={e => setForgotAnswer(e.target.value)}
-                    placeholder="Your answer"
+                    placeholder={t('auth_your_answer')}
                     required
                     className="h-14 px-4 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
                   />
@@ -559,7 +560,7 @@ export default function LoginPage() {
                     disabled={forgotLoading || !forgotAnswer}
                     className="w-full h-12 rounded-2xl bg-[#9940E5] text-white font-black italic uppercase tracking-widest text-sm"
                   >
-                    {forgotLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Answer"}
+                    {forgotLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : t('auth_verify_answer')}
                   </Button>
                   <button type="button" onClick={resetForgot} className="w-full text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors py-1">Cancel</button>
                 </form>
@@ -571,9 +572,9 @@ export default function LoginPage() {
                     <div className="h-9 w-9 rounded-xl bg-violet-50 flex items-center justify-center">
                       <KeyRound className="h-5 w-5 text-[#9940E5]" />
                     </div>
-                    <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">New Password</h3>
+                    <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">{t('auth_new_password')}</h3>
                   </div>
-                  <p className="text-sm text-gray-500 pl-11">Set a strong new password for your account.</p>
+                  <p className="text-sm text-gray-500 pl-11">{t('auth_reset_password')}</p>
                 </div>
                 <form onSubmit={handleResetPassword} className="space-y-4">
                   <div className="relative">
@@ -582,7 +583,7 @@ export default function LoginPage() {
                       type={showNewPass ? "text" : "password"}
                       value={forgotNewPass}
                       onChange={e => setForgotNewPass(e.target.value)}
-                      placeholder="New password"
+                      placeholder={t('auth_new_password')}
                       required
                       className="h-14 pl-11 pr-12 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
                     />
@@ -596,7 +597,7 @@ export default function LoginPage() {
                       type="password"
                       value={forgotConfirm}
                       onChange={e => setForgotConfirm(e.target.value)}
-                      placeholder="Confirm new password"
+                      placeholder={t('auth_confirm_new_password')}
                       required
                       className="h-14 pl-11 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
                     />
@@ -606,7 +607,7 @@ export default function LoginPage() {
                     disabled={forgotLoading || !forgotNewPass || !forgotConfirm}
                     className="w-full h-12 rounded-2xl bg-[#9940E5] text-white font-black italic uppercase tracking-widest text-sm"
                   >
-                    {forgotLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Reset Password"}
+                    {forgotLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : t('auth_reset_password')}
                   </Button>
                   <button type="button" onClick={resetForgot} className="w-full text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors py-1">Cancel</button>
                 </form>

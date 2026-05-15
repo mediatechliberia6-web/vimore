@@ -13,6 +13,7 @@ import { usePosts } from "@/context/PostContext";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { AcronymCaption } from "@/components/branding/acronym-meaning";
+import { useTranslation } from "@/context/LanguageContext";
 
 const COUNTRIES = [
   { name: "Algeria", flag: "🇩🇿" }, { name: "Angola", flag: "🇦🇴" }, { name: "Benin", flag: "🇧🇯" },
@@ -127,6 +128,7 @@ export default function SignupPage() {
   const { signup, currentUser, isLoading: contextLoading } = usePosts();
   const { toast } = useToast();
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
@@ -242,7 +244,7 @@ export default function SignupPage() {
             </div>
           </div>
           <Link href="/login">
-            <span className="text-sm font-bold text-[#9940E5] hover:text-violet-700 transition-colors">Sign In</span>
+            <span className="text-sm font-bold text-[#9940E5] hover:text-violet-700 transition-colors">{t('auth_sign_in_btn')}</span>
           </Link>
         </header>
         <div className="px-6 sm:hidden -mt-2 mb-2">
@@ -253,27 +255,26 @@ export default function SignupPage() {
           <div className="mb-8 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="inline-flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-full px-4 py-1.5">
               <Sparkles className="h-3.5 w-3.5 text-[#9940E5]" />
-              <span className="text-[11px] font-black uppercase tracking-widest text-[#9940E5]">New Account</span>
+              <span className="text-[11px] font-black uppercase tracking-widest text-[#9940E5]">{t('auth_new_account')}</span>
             </div>
             <h1 className="text-4xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
-              Join the<br />
-              <span className="text-[#9940E5]">Creator Grid</span>
+              {t('auth_join_creator')}
             </h1>
-            <p className="text-sm text-gray-500 font-medium">Create your account in seconds.</p>
+            <p className="text-sm text-gray-500 font-medium">{t('auth_create_seconds')}</p>
           </div>
 
           <form onSubmit={handleSignup} className="space-y-4 animate-in fade-in slide-in-from-bottom-6 duration-700">
             <div className="bg-white rounded-[2rem] border border-gray-100 shadow-2xl shadow-violet-100/50 p-7 space-y-5">
 
               <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Full Name</Label>
+                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">{t('auth_full_name')}</Label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
                   <Input
                     type="text"
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    placeholder="Your full name"
+                    placeholder={t('auth_full_name_placeholder')}
                     required
                     className="h-14 pl-11 bg-gray-50 border-gray-100 rounded-2xl text-gray-900 font-medium placeholder:text-gray-300 focus:border-[#9940E5] focus:ring-[#9940E5]/20 focus:ring-4 transition-all"
                   />
@@ -302,7 +303,7 @@ export default function SignupPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Date of Birth</Label>
+                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">{t('auth_date_of_birth')}</Label>
                 <div className="relative">
                   <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300 pointer-events-none" />
                   <Input
@@ -320,7 +321,7 @@ export default function SignupPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Gender</Label>
+                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">{t('auth_gender')}</Label>
                 <div className="grid grid-cols-2 gap-3">
                   {(["Male", "Female"] as const).map((g) => (
                     <button
@@ -340,7 +341,7 @@ export default function SignupPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Nationality</Label>
+                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">{t('auth_nationality')}</Label>
                 <button
                   type="button"
                   onClick={() => setShowCountryDialog(true)}
@@ -353,15 +354,15 @@ export default function SignupPage() {
                       {nationality}
                     </span>
                   ) : (
-                    <span className="text-gray-300 text-sm font-medium">Select your country</span>
+                    <span className="text-gray-300 text-sm font-medium">{t('auth_select_country')}</span>
                   )}
                 </button>
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Phone Number</Label>
-                  <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Optional</span>
+                  <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">{t('auth_phone_number')}</Label>
+                  <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">{t('auth_optional')}</span>
                 </div>
                 <div className="relative">
                   <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
@@ -379,7 +380,7 @@ export default function SignupPage() {
 
             <div className="bg-white rounded-[2rem] border border-gray-100 shadow-2xl shadow-violet-100/50 p-7 space-y-5">
               <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Password</Label>
+                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">{t('auth_password')}</Label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
                   <Input
@@ -407,7 +408,7 @@ export default function SignupPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Confirm Password</Label>
+                <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">{t('auth_confirm_password')}</Label>
                 <div className="relative">
                   <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
                   <Input
@@ -435,9 +436,9 @@ export default function SignupPage() {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <ShieldQuestion className="h-4 w-4 text-[#9940E5]" />
-                  <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Security Question</Label>
+                  <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">{t('auth_security_question')}</Label>
                 </div>
-                <p className="text-[11px] text-gray-400 font-medium">Used to recover your account if you forget your password.</p>
+                <p className="text-[11px] text-gray-400 font-medium">{t('auth_security_note')}</p>
               </div>
 
               <div className="space-y-2">
@@ -450,14 +451,14 @@ export default function SignupPage() {
                   {securityQuestion ? (
                     <span className="text-sm font-bold text-gray-800 leading-snug">{securityQuestion}</span>
                   ) : (
-                    <span className="text-gray-300 text-sm font-medium">Choose a security question</span>
+                    <span className="text-gray-300 text-sm font-medium">{t('auth_choose_question')}</span>
                   )}
                 </button>
               </div>
 
               {securityQuestion && (
                 <div className="space-y-2 animate-in fade-in duration-300">
-                  <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">Your Answer</Label>
+                  <Label className="text-[11px] font-black uppercase tracking-widest text-gray-400">{t('auth_your_answer')}</Label>
                   <Input
                     type="text"
                     value={securityAnswer}
@@ -484,14 +485,14 @@ export default function SignupPage() {
               disabled={isSubmitting || !name || !dob || !gender || !nationality || !password || !confirmPassword || passwordsMismatch || !securityQuestion || !securityAnswer.trim()}
               className="w-full h-14 rounded-2xl bg-[#9940E5] hover:bg-violet-700 text-white font-black italic uppercase tracking-[0.15em] text-sm shadow-xl shadow-violet-200 transition-all active:scale-95 gap-3"
             >
-              {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <> Create Account <ArrowRight className="h-5 w-5" /> </>}
+              {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <> {t('auth_create_account_btn')} <ArrowRight className="h-5 w-5" /> </>}
             </Button>
 
             <div className="text-center pb-10">
               <p className="text-sm text-gray-500 font-medium">
-                Already have an account?{" "}
+                {t('auth_already_account')}{" "}
                 <Link href="/login" className="font-black italic uppercase tracking-tight text-[#9940E5] hover:text-violet-700 transition-colors">
-                  Sign In →
+                  {t('auth_sign_in_link')}
                 </Link>
               </p>
             </div>
@@ -504,7 +505,7 @@ export default function SignupPage() {
           <div className="bg-white rounded-t-[2rem] w-full max-w-lg shadow-2xl flex flex-col animate-in slide-in-from-bottom-4 duration-300" style={{ height: "75vh" }}>
             <div className="p-6 pb-4 space-y-4 shrink-0">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">Select Country</h3>
+                <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">{t('auth_select_country')}</h3>
                 <button onClick={() => { setShowCountryDialog(false); setCountrySearch(""); }} className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
                   <X className="h-4 w-4" />
                 </button>
@@ -537,7 +538,7 @@ export default function SignupPage() {
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end justify-center animate-in fade-in duration-200">
           <div className="bg-white rounded-t-[2rem] w-full max-w-lg shadow-2xl flex flex-col animate-in slide-in-from-bottom-4 duration-300" style={{ maxHeight: "60vh" }}>
             <div className="p-6 pb-4 shrink-0 flex items-center justify-between">
-              <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">Security Question</h3>
+              <h3 className="text-xl font-black italic uppercase tracking-tighter text-gray-900">{t('auth_security_question')}</h3>
               <button onClick={() => setShowQuestionPicker(false)} className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
                 <X className="h-4 w-4" />
               </button>
