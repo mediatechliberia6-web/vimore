@@ -5,6 +5,7 @@ import { databases, DATABASE_ID, COL, ID, Query } from "@/lib/appwrite";
 import { usePosts } from "@/context/PostContext";
 import { useNotifications } from "@/context/NotificationContext";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/context/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -53,6 +54,7 @@ export default function TicketsPage() {
   const { currentUser, triggerHaptic } = usePosts();
   const { addSignal } = useNotifications();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [tab, setTab] = useState<Tab>('browse');
   const [events, setEvents] = useState<AppwriteEvent[]>([]);
@@ -329,7 +331,7 @@ export default function TicketsPage() {
               </Button>
             </Link>
             <div className="flex-1">
-              <h1 className="text-2xl font-black italic uppercase tracking-tighter">ViMore Tickets</h1>
+              <h1 className="text-2xl font-black italic uppercase tracking-tighter">{t('ticket_title')}</h1>
               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Your Balance: 💎 {balance.toLocaleString()}</p>
             </div>
           </div>
@@ -338,13 +340,13 @@ export default function TicketsPage() {
               onClick={() => setTab('browse')}
               className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'browse' ? 'bg-background text-primary shadow-md' : 'text-muted-foreground'}`}
             >
-              Find Events
+              {t('ticket_browse')}
             </button>
             <button
               onClick={() => setTab('my_tickets')}
               className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'my_tickets' ? 'bg-background text-primary shadow-md' : 'text-muted-foreground'}`}
             >
-              My Tickets {myTickets.length > 0 && `(${myTickets.length})`}
+              {t('ticket_my_tickets')} {myTickets.length > 0 && `(${myTickets.length})`}
             </button>
           </div>
         </div>
@@ -358,7 +360,7 @@ export default function TicketsPage() {
               <input
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search events by name..."
+                placeholder={t('ticket_search')}
                 className="w-full bg-secondary/40 border-none rounded-2xl h-12 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
               {searchQuery && (
@@ -376,10 +378,10 @@ export default function TicketsPage() {
               <div className="text-center py-16">
                 <Ticket className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <p className="font-black italic uppercase tracking-tighter text-lg">
-                  {searchQuery ? 'No Events Found' : 'No Events Available'}
+                  {t('ticket_no_events_title')}
                 </p>
                 <p className="text-muted-foreground text-sm mt-2">
-                  {searchQuery ? `No events match "${searchQuery}"` : 'Check back later for upcoming events.'}
+                  {searchQuery ? `No events match "${searchQuery}"` : t('ticket_no_events_desc')}
                 </p>
               </div>
             ) : (
@@ -446,10 +448,10 @@ export default function TicketsPage() {
             ) : myTickets.length === 0 ? (
               <div className="text-center py-16">
                 <QrCode className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="font-black italic uppercase tracking-tighter text-lg">No Tickets Yet</p>
-                <p className="text-muted-foreground text-sm mt-2">Browse events and buy your first ticket.</p>
+                <p className="font-black italic uppercase tracking-tighter text-lg">{t('ticket_no_tickets_title')}</p>
+                <p className="text-muted-foreground text-sm mt-2">{t('ticket_no_tickets_desc')}</p>
                 <Button onClick={() => setTab('browse')} className="mt-6 rounded-2xl font-black uppercase text-[10px]">
-                  Browse Events
+                  {t('ticket_browse_btn')}
                 </Button>
               </div>
             ) : (
@@ -475,25 +477,25 @@ export default function TicketsPage() {
                         </div>
                         <div className="shrink-0">
                           {ticket.is_used ? (
-                            <Badge variant="outline" className="border-red-500/30 text-red-500 text-[9px] font-black uppercase">Used</Badge>
+                            <Badge variant="outline" className="border-red-500/30 text-red-500 text-[9px] font-black uppercase">{t('ticket_used')}</Badge>
                           ) : (
-                            <Badge variant="outline" className="border-green-500/30 text-green-500 text-[9px] font-black uppercase">Valid</Badge>
+                            <Badge variant="outline" className="border-green-500/30 text-green-500 text-[9px] font-black uppercase">{t('ticket_valid')}</Badge>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center justify-between bg-secondary/30 rounded-2xl p-3">
                         <div>
-                          <p className="text-[9px] font-black uppercase text-muted-foreground">Serial No.</p>
+                          <p className="text-[9px] font-black uppercase text-muted-foreground">{t('ticket_serial')}</p>
                           <p className="font-mono text-sm font-black tracking-widest">{ticket.serial_number}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-[9px] font-black uppercase text-muted-foreground">Price Paid</p>
+                          <p className="text-[9px] font-black uppercase text-muted-foreground">{t('ticket_price_paid')}</p>
                           <p className="font-black text-primary">💎 {ticket.price_paid}</p>
                         </div>
                       </div>
                       {ticket.purchased_by_user_id !== currentUser.$id && (
                         <p className="text-[9px] font-bold text-muted-foreground">
-                          🎁 Gift from {ticket.purchased_by_name}
+                          🎁 {t('ticket_gift_from')} {ticket.purchased_by_name}
                         </p>
                       )}
                     </div>

@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import { useTranslation } from "@/context/LanguageContext";
 import { Header } from "@/components/layout/header";
 import { SubHeader } from "@/components/layout/sub-header";
 import { MainNav } from "@/components/layout/main-nav";
@@ -44,21 +45,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 
-const FILTERS = [
-  { id: "all", label: "All Signals" },
-  { id: "SOCIAL", label: "Social" },
-  { id: "POST", label: "Content" },
-  { id: "SONIC", label: "Music" },
-];
-
 export default function NotificationsPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { notifications, markAsRead, markAllAsRead, purgeSignal } = useNotifications();
   const { setSelectedPostId, isFollowing, toggleFollowUser, currentUser } = usePosts();
   const { setTrack, currentTrack, isExpanded, triggerHaptic, globalSongs } = useMusic();
   
   const [activeFilter, setActiveFilter] = useState("all");
+
+  const FILTERS = [
+    { id: "all", label: t('notif_filter_all') },
+    { id: "SOCIAL", label: t('notif_filter_social') },
+    { id: "POST", label: t('notif_filter_content') },
+    { id: "SONIC", label: t('notif_filter_music') },
+  ];
 
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -153,24 +155,24 @@ export default function NotificationsPage() {
             <div className="flex items-center justify-between mb-8">
               <div className="space-y-1">
                 <h1 className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-3">
-                  Signals
+                  {t('notif_title')}
                   <Badge className="bg-primary/10 text-primary border-none text-[10px] font-black h-5">
-                    {notifications.filter(n => !n.isRead).length} NEW
+                    {notifications.filter(n => !n.isRead).length} {t('notif_filter_all').toUpperCase()}
                   </Badge>
                 </h1>
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest">High-Velocity Network Pulse</p>
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest">{t('notif_subtitle')}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" className="rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary/5 text-primary" onClick={markAllAsRead}>
-                  Clear All
+                  {t('notif_clear_all')}
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 bg-secondary/40"><MoreHorizontal className="h-5 w-5" /></Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="rounded-xl p-2 w-56">
-                    <DropdownMenuItem className="gap-2 font-bold"><BellOff className="h-4 w-4" /> Mute Signal Audio</DropdownMenuItem>
-                    <DropdownMenuItem className="gap-2 font-bold text-destructive focus:text-destructive" onClick={markAllAsRead}><Check className="h-4 w-4" /> Clear Signal Cache</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2 font-bold"><BellOff className="h-4 w-4" /> {t('notif_mute')}</DropdownMenuItem>
+                    <DropdownMenuItem className="gap-2 font-bold text-destructive focus:text-destructive" onClick={markAllAsRead}><Check className="h-4 w-4" /> {t('notif_clear_cache')}</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -268,8 +270,8 @@ export default function NotificationsPage() {
                               onClick={(e) => handleActionClick(e, node)}
                             >
                               {node.type === 'SOCIAL' 
-                                ? (amFollowing ? <><UserCheck className="h-3 w-3 mr-1.5" /> Friend</> : "Follow Back") 
-                                : (node.actionLabel || "View Vibe")}
+                                ? (amFollowing ? <><UserCheck className="h-3 w-3 mr-1.5" /> {t('notif_friend')}</> : t('notif_follow_back')) 
+                                : (node.actionLabel || t('notif_view'))}
                             </Button>
                           </div>
                         )}
@@ -295,10 +297,10 @@ export default function NotificationsPage() {
                     <Zap className="h-10 w-10 text-primary/40" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-black italic uppercase tracking-tighter">Cluster Empty</h3>
-                    <p className="text-muted-foreground text-sm font-medium">Your network cluster is currently silent. No new pulses detected.</p>
+                    <h3 className="text-2xl font-black italic uppercase tracking-tighter">{t('notif_empty_title')}</h3>
+                    <p className="text-muted-foreground text-sm font-medium">{t('notif_empty_desc')}</p>
                   </div>
-                  <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase tracking-widest text-[10px]" onClick={() => router.push('/')}>Back to Cluster</Button>
+                  <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase tracking-widest text-[10px]" onClick={() => router.push('/')}>{t('notif_back')}</Button>
                 </div>
               )}
             </div>

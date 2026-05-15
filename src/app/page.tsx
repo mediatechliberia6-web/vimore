@@ -12,6 +12,7 @@ import { RightSidebar } from "@/components/layout/right-sidebar";
 import { MainNav } from "@/components/layout/main-nav";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
+import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import { Rocket, Loader2, Mail, ChevronUp, WifiOff, CheckCircle2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -25,6 +26,7 @@ function EmailVerificationGate({ email }: { email?: string }) {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSent, setResendSent] = useState(false);
   const { logout } = usePosts();
+  const { t } = useTranslation();
 
   const handleResend = async () => {
     setResendLoading(true);
@@ -44,7 +46,7 @@ function EmailVerificationGate({ email }: { email?: string }) {
           <Mail className="h-12 w-12 text-amber-400" />
         </div>
         <div className="space-y-3">
-          <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">Verify Your Email</h2>
+          <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">{t('home_verify_title')}</h2>
           <p className="text-white/60 font-medium text-sm leading-relaxed">
             Your account is not verified yet.{email && <> Check <span className="font-bold text-white">{email}</span> for</>} the verification link we sent when you signed up.
           </p>
@@ -61,14 +63,14 @@ function EmailVerificationGate({ email }: { email?: string }) {
             disabled={resendLoading}
             className="w-full h-12 rounded-2xl bg-primary text-white font-black italic uppercase tracking-widest text-sm"
           >
-            {resendLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Resend Verification Email"}
+            {resendLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : t('home_resend_btn')}
           </Button>
         )}
         <button
           onClick={() => logout()}
           className="w-full text-sm font-bold text-white/30 hover:text-white/60 transition-colors py-1"
         >
-          Sign out
+          {t('home_sign_out')}
         </button>
       </div>
     </div>
@@ -77,6 +79,7 @@ function EmailVerificationGate({ email }: { email?: string }) {
 
 export default function Home() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { posts, campaigns, isLoading, initError, followingUsernames, friendUsernames, seenPostIds, isAuthenticated, isOffline, currentUser, triggerHaptic, loadMoreFeed, hasMoreFeed, isFeedLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { newFollowingPostsCount, clearNewPosts, uploadProgress } = useFeedSignal();
@@ -219,7 +222,7 @@ export default function Home() {
         <div className="w-full bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-center gap-2">
           <WifiOff className="h-3.5 w-3.5 text-amber-500 shrink-0" />
           <span className="text-[11px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
-            You&apos;re offline — showing saved posts
+            {t('home_offline')}
           </span>
         </div>
       )}
@@ -345,8 +348,8 @@ export default function Home() {
                   <Rocket className="h-10 w-10 text-primary/40 animate-pulse" />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">Cluster Initialized</h3>
-                  <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest">Feed silent. Materialize a vibe to sync.</p>
+                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">{t('home_empty_title')}</h3>
+                  <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest">{t('home_empty_desc')}</p>
                 </div>
               </div>
             )}

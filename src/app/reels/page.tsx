@@ -35,6 +35,7 @@ import { cn, saveFileToDevice } from "@/lib/utils";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/context/LanguageContext";
 import type { Post } from "@/context/PostContext";
 
 type ReelFeedItem = Post & {
@@ -66,6 +67,7 @@ function MessagePickerSheet({
   const { connections, sendChatMessage, incrementShareCount, friendUsernames } = usePosts();
   const { triggerHaptic } = useMusic();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [sharingTo, setSharingTo] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<Set<string>>(new Set());
@@ -107,7 +109,7 @@ function MessagePickerSheet({
           >
             <ArrowLeft className="w-4 h-4 text-white" />
           </button>
-          <h3 className="text-white font-black flex-1">Share to Message</h3>
+          <h3 className="text-white font-black flex-1">{t('reel_share_title')}</h3>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
             <X className="w-4 h-4 text-white" />
           </button>
@@ -116,7 +118,7 @@ function MessagePickerSheet({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
             <Input
-              placeholder="Search people..."
+              placeholder={t('reel_search_people')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 bg-white/10 border-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-primary/50"
@@ -163,8 +165,8 @@ function MessagePickerSheet({
           })}
           {filteredConnections.length === 0 && (
             <div className="flex flex-col items-center gap-2 py-10">
-              <p className="text-center text-white/30 text-sm">No friends found</p>
-              <p className="text-center text-white/20 text-xs">You can only share to friends</p>
+              <p className="text-center text-white/30 text-sm">{t('reel_no_friends')}</p>
+              <p className="text-center text-white/20 text-xs">{t('reel_no_friends_desc')}</p>
             </div>
           )}
         </div>
@@ -188,6 +190,7 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
   const { triggerHaptic, triggerDownloadWithAd } = useMusic();
   const { tier: netTier } = useNetwork();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [copiedLink, setCopiedLink] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showMessagePicker, setShowMessagePicker] = useState(false);
@@ -288,7 +291,7 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
         </div>
 
         <div className="flex items-center justify-between px-4 py-2">
-          <h3 className="text-white font-black text-base">Share Reel</h3>
+          <h3 className="text-white font-black text-base">{t('reel_share_title')}</h3>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center"
@@ -319,7 +322,7 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
         </div>
 
         <div className="px-4 pb-3">
-          <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-3">Share to</p>
+          <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-3">{t('reel_share_to')}</p>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
             {SHARE_PLATFORMS.map((platform) => (
               <button
@@ -351,7 +354,7 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
             <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
               <MessageCircle className="w-5 h-5 text-primary" />
             </div>
-            <span className="text-white/70 text-[10px] font-bold">Message</span>
+            <span className="text-white/70 text-[10px] font-bold">{t('reel_message_btn')}</span>
           </button>
 
           <button
@@ -361,7 +364,7 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
             <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center">
               <PlusSquare className="w-5 h-5 text-rose-400" />
             </div>
-            <span className="text-white/70 text-[10px] font-bold">Your Story</span>
+            <span className="text-white/70 text-[10px] font-bold">{t('reel_story_btn')}</span>
           </button>
 
           <button
@@ -376,7 +379,7 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
                 <Download className="w-5 h-5 text-emerald-400" />
               )}
             </div>
-            <span className="text-white/70 text-[10px] font-bold">Download</span>
+            <span className="text-white/70 text-[10px] font-bold">{t('reel_download_btn')}</span>
           </button>
         </div>
 
@@ -393,7 +396,7 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
               )}
             </div>
             <span className="text-white/80 text-sm font-bold flex-1 text-left">
-              {copiedLink ? "Link copied!" : "Copy link"}
+              {copiedLink ? t('reel_link_copied') : t('reel_copy_link')}
             </span>
             <ChevronRight className="w-4 h-4 text-white/20" />
           </button>

@@ -19,6 +19,7 @@ import { MainNav } from "@/components/layout/main-nav";
 import { usePosts, Post, PostComment } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import {
   databases,
@@ -42,6 +43,7 @@ export default function PostDetailPage({
     usePosts();
   const { triggerHaptic } = useMusic();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [post, setPost] = useState<Post | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -224,7 +226,7 @@ export default function PostDetailPage({
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-lg font-black uppercase tracking-tight">Post</h1>
+            <h1 className="text-lg font-black uppercase tracking-tight">{t('post_heading')}</h1>
           </div>
 
           <div className="flex-1 max-w-2xl w-full mx-auto px-0 sm:px-4 py-4 pb-32">
@@ -232,7 +234,7 @@ export default function PostDetailPage({
               <div className="flex flex-col items-center justify-center py-24 gap-4">
                 <Loader2 className="h-8 w-8 text-primary animate-spin" />
                 <p className="text-sm text-muted-foreground font-medium">
-                  Loading post...
+                  {t('post_loading')}
                 </p>
               </div>
             ) : notFound || !post ? (
@@ -242,10 +244,10 @@ export default function PostDetailPage({
                 </div>
                 <div>
                   <h2 className="text-lg font-black uppercase tracking-tight">
-                    Post Not Found
+                    {t('post_not_found')}
                   </h2>
                   <p className="text-sm text-muted-foreground mt-1">
-                    This post may have been deleted or is no longer available.
+                    {t('post_not_found_desc')}
                   </p>
                 </div>
                 <Button
@@ -253,7 +255,7 @@ export default function PostDetailPage({
                   variant="outline"
                   className="rounded-2xl"
                 >
-                  Go Back
+                  {t('post_go_back')}
                 </Button>
               </div>
             ) : (
@@ -264,7 +266,7 @@ export default function PostDetailPage({
                   <div ref={commentsTopRef} className="mt-4 px-3 sm:px-0 space-y-6">
                     <div className="flex items-center gap-3 px-1">
                       <h2 className="text-base font-black italic uppercase tracking-tighter">
-                        Comments
+                        {t('post_comments')}
                       </h2>
                       <div className="bg-primary/5 px-3 py-1 rounded-full flex items-center gap-2 border border-primary/10">
                         <Zap className="h-3 w-3 text-primary animate-pulse" />
@@ -278,7 +280,7 @@ export default function PostDetailPage({
                       <div className="flex items-center justify-center py-10 gap-3">
                         <Loader2 className="h-5 w-5 text-primary animate-spin" />
                         <span className="text-sm text-muted-foreground font-medium">
-                          Loading comments...
+                          {t('post_loading_comments')}
                         </span>
                       </div>
                     ) : topLevelComments.length === 0 ? (
@@ -286,10 +288,10 @@ export default function PostDetailPage({
                         <MessageCircle className="h-10 w-10 mx-auto text-primary/40" />
                         <div className="space-y-1">
                           <p className="text-sm font-black italic uppercase tracking-widest">
-                            No comments yet
+                            {t('post_no_comments')}
                           </p>
                           <p className="text-[10px] font-medium uppercase text-muted-foreground">
-                            Be the first to drop a vibe
+                            {t('post_no_comments_desc')}
                           </p>
                         </div>
                       </div>
@@ -313,7 +315,7 @@ export default function PostDetailPage({
                   <div className="mt-4 px-3 sm:px-0 py-8 text-center opacity-40 space-y-2">
                     <MessageCircle className="h-8 w-8 mx-auto text-muted-foreground" />
                     <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                      Comments disabled
+                      {t('post_comments_disabled')}
                     </p>
                   </div>
                 )}
@@ -328,7 +330,7 @@ export default function PostDetailPage({
                   {replyingTo && (
                     <div className="flex items-center justify-between bg-primary/10 px-4 py-2 rounded-xl animate-in slide-in-from-bottom-2 duration-300">
                       <p className="text-[10px] font-black text-primary uppercase tracking-widest">
-                        Replying to{" "}
+                        {t('post_reply_to')}{" "}
                         <span className="underline">@{replyingTo.userName}</span>
                       </p>
                       <button
@@ -343,7 +345,7 @@ export default function PostDetailPage({
                     <Input
                       ref={inputRef}
                       placeholder={
-                        replyingTo ? "Write a reply..." : "Drop a vibe..."
+                        replyingTo ? t('post_write_reply') : t('post_drop_vibe')
                       }
                       className="h-14 pl-6 pr-14 bg-secondary/40 border-none rounded-2xl focus-visible:ring-primary/20 text-sm font-medium shadow-inner transition-all focus-visible:bg-secondary/60"
                       value={commentText}

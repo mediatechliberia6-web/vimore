@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -111,6 +112,7 @@ const DIAMOND_GIFTS: GiftItem[] = [
 export function GiftHub() {
   const { isGiftHubOpen, closeGiftHub, currentUser, targetUserForGift, processGiftTransaction, triggerHaptic } = usePosts();
   const { toast } = useToast();
+  const { t } = useTranslation();
   
   const [activeTab, setActiveTab] = useState("gold");
   const [selectedGift, setSelectedGift] = useState<GiftItem | null>(null);
@@ -169,7 +171,7 @@ export function GiftHub() {
         <SheetHeader className="px-6 py-4 border-b border-primary/5 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
-              <SheetTitle className="text-xl font-black italic uppercase tracking-tighter text-foreground">Send Support</SheetTitle>
+              <SheetTitle className="text-xl font-black italic uppercase tracking-tighter text-foreground">{t('gift_title')}</SheetTitle>
               <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Target Node: @{targetUserForGift?.username}</p>
             </div>
             
@@ -186,7 +188,7 @@ export function GiftHub() {
               </div>
               <Link href="/currency" onClick={closeGiftHub}>
                 <Button size="sm" className="bg-primary text-white text-[9px] font-black uppercase tracking-widest h-8 px-3 rounded-xl shadow-lg shadow-primary/20">
-                  Top Up
+                  {t('gift_top_up')}
                 </Button>
               </Link>
             </div>
@@ -200,16 +202,16 @@ export function GiftHub() {
                 <CheckCircle2 className="h-12 w-12" />
               </div>
               <div className="text-center space-y-1">
-                <h3 className="text-2xl font-black italic uppercase tracking-tighter text-foreground">Sync Confirmed</h3>
-                <p className="text-sm text-muted-foreground uppercase font-bold">90% Energy Materialized in Creator Vault</p>
+                <h3 className="text-2xl font-black italic uppercase tracking-tighter text-foreground">{t('gift_confirmed')}</h3>
+                <p className="text-sm text-muted-foreground uppercase font-bold">{t('gift_confirmed_desc')}</p>
               </div>
             </div>
           ) : (
             <Tabs defaultValue="gold" className="flex-1 flex flex-col overflow-hidden" onValueChange={setActiveTab}>
               <div className="px-6 py-4 flex items-center justify-between bg-white/20 dark:bg-black/20 shrink-0">
                 <TabsList className="bg-secondary/40 rounded-xl h-10 p-1">
-                  <TabsTrigger value="gold" className="rounded-lg text-[10px] font-black uppercase px-6">Gold Gifts</TabsTrigger>
-                  <TabsTrigger value="diamond" className="rounded-lg text-[10px] font-black uppercase px-6">Diamonds</TabsTrigger>
+                  <TabsTrigger value="gold" className="rounded-lg text-[10px] font-black uppercase px-6">{t('gift_gold_tab')}</TabsTrigger>
+                  <TabsTrigger value="diamond" className="rounded-lg text-[10px] font-black uppercase px-6">{t('gift_diamond_tab')}</TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-[8px] font-black uppercase border-primary/20 text-primary">90/10 Split Active</Badge>
@@ -287,7 +289,7 @@ export function GiftHub() {
               <div className="max-w-xl mx-auto flex items-center gap-4 animate-in slide-in-from-bottom-full duration-500">
                 <div className="flex-1 bg-secondary/40 rounded-2xl px-6 h-16 flex items-center justify-between border border-white/5">
                   <div className="flex flex-col">
-                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">TRANSMITTING VIBE</span>
+                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{t('gift_transmitting')}</span>
                     <span className="text-lg font-black italic uppercase tracking-tighter truncate max-w-[120px] text-foreground">
                       {selectedGift.name} {selectedGift.emoji}
                     </span>
@@ -307,9 +309,9 @@ export function GiftHub() {
                   disabled={isSyncing}
                 >
                   {isSyncing ? (
-                    <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> SYNCING...</>
+                    <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> {t('gift_syncing')}</>
                   ) : (
-                    <>SEND PULSE</>
+                    <>{t('gift_send_btn')}</>
                   )}
                 </Button>
               </div>

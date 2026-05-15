@@ -748,7 +748,7 @@ export function PostCard(props: PostCardProps) {
               <button className={cn("flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs transition-all", isUnliked ? "text-destructive bg-destructive/5" : "text-muted-foreground")} onClick={handleUnlike}><ThumbsDown className="h-4 w-4" /> {t('post_unlike')}</button>
               <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground" onClick={() => openCommentHub($id)}><MessageCircle className="h-4 w-4" /> {t('post_comment')}</button>
               {isEligibleForGift && !isOwner && (
-                <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:text-primary transition-all" onClick={() => openGiftHub({ $id: user.$id || user.username, name: user.name, username: user.username, avatar: user.avatar, role: user.role as any, isVerified: user.isVerified, followers: user.followers })}><Gift className="h-4 w-4" /> Gift</button>
+                <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground hover:text-primary transition-all" onClick={() => openGiftHub({ $id: user.$id || user.username, name: user.name, username: user.username, avatar: user.avatar, role: user.role as any, isVerified: user.isVerified, followers: user.followers })}><Gift className="h-4 w-4" /> {t('post_gift')}</button>
               )}
               <button className="flex-1 flex items-center justify-center gap-2 rounded-md h-9 font-bold text-xs text-muted-foreground" onClick={() => setIsShareHubOpen(true)}><Share2 className="h-4 w-4" /> {t('post_share')}</button>
             </div>
@@ -763,17 +763,17 @@ export function PostCard(props: PostCardProps) {
             <div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4">
               <Flag className="h-8 w-8" />
             </div>
-            <DialogTitle className="font-black italic uppercase tracking-tighter text-2xl text-center">Report Post</DialogTitle>
+            <DialogTitle className="font-black italic uppercase tracking-tighter text-2xl text-center">{t('post_report')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Reason *</label>
+              <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">{t('post_report_reason')} *</label>
               <select
                 className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
                 value={reportReason}
                 onChange={e => setReportReason(e.target.value)}
               >
-                <option value="">Select a reason…</option>
+                <option value="">{t('post_report_placeholder')}</option>
                 <option value="spam">Spam or misleading</option>
                 <option value="harassment">Harassment or bullying</option>
                 <option value="hate_speech">Hate speech</option>
@@ -784,9 +784,9 @@ export function PostCard(props: PostCardProps) {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Additional details</label>
+              <label className="text-xs font-black uppercase tracking-widest text-muted-foreground">{t('post_report_details')}</label>
               <Textarea
-                placeholder="Describe the issue in more detail…"
+                placeholder={t('post_report_placeholder')}
                 className="rounded-xl resize-none min-h-[90px] text-sm"
                 value={reportDetails}
                 onChange={e => setReportDetails(e.target.value)}
@@ -794,7 +794,7 @@ export function PostCard(props: PostCardProps) {
             </div>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-3 pt-2">
-            <Button variant="secondary" className="rounded-xl h-12 font-bold" onClick={() => { setIsReportDialogOpen(false); setReportReason(''); setReportDetails(''); }}>Cancel</Button>
+            <Button variant="secondary" className="rounded-xl h-12 font-bold" onClick={() => { setIsReportDialogOpen(false); setReportReason(''); setReportDetails(''); }}>{t('post_cancel')}</Button>
             <Button
               className="rounded-xl h-12 font-black italic uppercase bg-destructive hover:bg-destructive/90 text-white"
               disabled={!reportReason || isReportSubmitting}
@@ -812,7 +812,7 @@ export function PostCard(props: PostCardProps) {
               }}
             >
               {isReportSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Submit Report
+              {t('post_report_submit')}
             </Button>
           </DialogFooter>
         </DialogContent>
