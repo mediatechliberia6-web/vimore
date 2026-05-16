@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { searchKnowledgeBank, saveToKnowledgeBank } from '@/lib/knowledge-bank';
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
@@ -63,15 +64,36 @@ You are warm, knowledgeable, and speak like a helpful friend who knows everythin
 - Never share or guess at private user data.
 - For sensitive topics (mental health, crisis), respond with empathy and recommend they speak to a trusted person or professional.`;
 
-export async function POST(req: NextRequest) {
-  const key = process.env.GOOGLE_GEMINI_API_KEY;
-  if (!key) {
-    return new Response(JSON.stringify({ error: 'AI service not configured' }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+function streamText(text: string): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      const words = text.split(' ');
+      let i = 0;
+      function push() {
+        if (i >= words.length) {
+          controller.close();
+          return;
+        }
+        const chunk = (i === 0 ? '' : ' ') + words[i];
+        controller.enqueue(encoder.encode(chunk));
+        i++;
+        setTimeout(push, 8);
+      }
+      push();
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'no-cache',
+      'X-Answer-Source': 'knowledge-bank',
+    },
+  });
+}
 
+export async function POST(req: NextRequest) {
   let body: { messages: { role: string; content: string }[]; userName?: string };
   try {
     body = await req.json();
@@ -82,6 +104,27 @@ export async function POST(req: NextRequest) {
   const { messages, userName } = body;
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return new Response(JSON.stringify({ error: 'messages required' }), { status: 400 });
+  }
+
+  const lastMessage = messages[messages.length - 1];
+  const userQuestion = lastMessage?.content || '';
+
+  // Step 1 — search the knowledge bank first (fast path)
+  const cached = await searchKnowledgeBank(userQuestion);
+  if (cached && cached.score >= 0.72) {
+    // High confidence match — serve immediately from knowledge bank
+    return streamText(cached.answer);
+  }
+
+  const key = process.env.GOOGLE_GEMINI_API_KEY;
+
+  // Step 2 — no API key, fall back to lower-threshold cache or error
+  if (!key) {
+    if (cached) return streamText(cached.answer);
+    return new Response(
+      JSON.stringify({ error: 'AI service not configured' }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 
   const systemPrompt = userName
@@ -100,23 +143,31 @@ export async function POST(req: NextRequest) {
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
-    const lastMessage = messages[messages.length - 1];
 
     const chat = model.startChat({ history });
-    const result = await chat.sendMessageStream(lastMessage.content);
+    const result = await chat.sendMessageStream(userQuestion);
 
     const encoder = new TextEncoder();
+    let fullAnswer = '';
+
     const stream = new ReadableStream({
       async start(controller) {
         try {
           for await (const chunk of result.stream) {
             const text = chunk.text();
-            if (text) controller.enqueue(encoder.encode(text));
+            if (text) {
+              fullAnswer += text;
+              controller.enqueue(encoder.encode(text));
+            }
           }
         } catch (err) {
           console.error('[Gemini stream error]', err);
         } finally {
           controller.close();
+          // Step 3 — save to knowledge bank in background after stream ends
+          if (fullAnswer.length >= 80 && userQuestion.length >= 8) {
+            saveToKnowledgeBank(userQuestion, fullAnswer).catch(() => {});
+          }
         }
       },
     });
@@ -126,17 +177,33 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'text/plain; charset=utf-8',
         'X-Content-Type-Options': 'nosniff',
         'Cache-Control': 'no-cache',
+        'X-Answer-Source': 'gemini',
       },
     });
   } catch (err: any) {
     console.error('[Gemini intelligent error]', err);
-    const is429 = err?.status === 429 || String(err?.message || '').includes('429') || String(err?.message || '').includes('quota');
-    if (is429) {
+
+    const isQuota =
+      err?.status === 429 ||
+      String(err?.message || '').includes('429') ||
+      String(err?.message || '').includes('quota') ||
+      String(err?.message || '').includes('RESOURCE_EXHAUSTED');
+
+    // Step 4 — quota exceeded: fall back to knowledge bank at any match threshold
+    if (isQuota) {
+      if (cached) return streamText(cached.answer);
       return new Response(
         JSON.stringify({ error: 'quota_exceeded' }),
         { status: 429, headers: { 'Content-Type': 'application/json' } }
       );
     }
-    return new Response(JSON.stringify({ error: err?.message || 'AI error' }), { status: 502 });
+
+    // Step 5 — any other error: try knowledge bank before giving up
+    if (cached) return streamText(cached.answer);
+
+    return new Response(
+      JSON.stringify({ error: err?.message || 'AI error' }),
+      { status: 502 }
+    );
   }
 }
