@@ -1,7 +1,7 @@
 'use server';
 
 const MYMEMORY_ENDPOINT = 'https://api.mymemory.translated.net/get';
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 async function callGemini(systemPrompt: string, userPrompt: string, maxTokens = 400): Promise<string | null> {
   const key = process.env.GOOGLE_GEMINI_API_KEY;

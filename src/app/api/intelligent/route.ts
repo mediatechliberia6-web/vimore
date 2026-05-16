@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 const VIMORE_SYSTEM_PROMPT = `You are ViMore Intelligent — the official AI assistant built into ViMore, the #1 super-app for Liberian creators, made by Media Tech Liberia.
 
