@@ -153,7 +153,7 @@ import {
 import { AdminTicketTab } from "@/components/tickets/AdminTicketTab";
 import { AdminCheckTicketTab } from "@/components/tickets/AdminCheckTicketTab";
 
-type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "campaigns" | "infrastructure" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury" | "referrals";
+type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "campaigns" | "infrastructure" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury" | "referrals" | "knowledge";
 
 interface TreasurySnapshot {
   totalUsers: number;
@@ -250,6 +250,15 @@ export default function AdminDashboard() {
 
   const [referralLeaders, setReferralLeaders] = useState<any[]>([]);
   const [isFetchingReferrals, setIsFetchingReferrals] = useState(false);
+
+  const [knowledgeEntries, setKnowledgeEntries] = useState<any[]>([]);
+  const [knowledgeTotal, setKnowledgeTotal] = useState(0);
+  const [isLoadingKnowledge, setIsLoadingKnowledge] = useState(false);
+  const [knowledgeSearch, setKnowledgeSearch] = useState('');
+  const [knowledgeCategoryFilter, setKnowledgeCategoryFilter] = useState('all');
+  const [knowledgePage, setKnowledgePage] = useState(0);
+  const [deletingKnowledgeId, setDeletingKnowledgeId] = useState<string | null>(null);
+  const [expandedKnowledgeId, setExpandedKnowledgeId] = useState<string | null>(null);
 
   // Withdrawal action dialogs
   const [withdrawalActionTarget, setWithdrawalActionTarget] = useState<{ id: string; action: 'APPROVED' | 'REJECTED' } | null>(null);
@@ -402,7 +411,7 @@ export default function AdminDashboard() {
   );
 
   const availableTabs = useMemo(() => {
-    if (isSuper) return ["pulse", "economy", "treasury", "referrals", "intelligence", "velocity", "identity", "safety", "users", "broadcast", "governance", "campaigns", "tickets", "check_ticket", "infrastructure", "resolution", "logs", "staff"] as AdminTab[];
+    if (isSuper) return ["pulse", "economy", "treasury", "referrals", "intelligence", "velocity", "identity", "safety", "users", "broadcast", "governance", "campaigns", "tickets", "check_ticket", "infrastructure", "resolution", "logs", "staff", "knowledge"] as AdminTab[];
     const tabs: AdminTab[] = ["pulse", "logs"];
     if (isFinancial) tabs.push("economy", "treasury", "infrastructure");
     if (isModerator) tabs.push("intelligence", "velocity", "identity", "safety", "users", "campaigns", "resolution", "tickets", "check_ticket");
@@ -689,6 +698,37 @@ export default function AdminDashboard() {
     }).catch(() => {}).finally(() => setIsFetchingReferrals(false));
   }, [activeTab]);
 
+  const fetchKnowledgeEntries = async (page = 0) => {
+    setIsLoadingKnowledge(true);
+    try {
+      const res = await fetch(`/api/knowledge-admin?limit=50&offset=${page * 50}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setKnowledgeEntries(data.documents || []);
+      setKnowledgeTotal(data.total || 0);
+      setKnowledgePage(page);
+    } catch { /* silent */ }
+    finally { setIsLoadingKnowledge(false); }
+  };
+
+  const deleteKnowledgeEntry = async (id: string) => {
+    setDeletingKnowledgeId(id);
+    try {
+      const res = await fetch(`/api/knowledge-admin?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setKnowledgeEntries(prev => prev.filter(e => e.$id !== id));
+        setKnowledgeTotal(prev => Math.max(0, prev - 1));
+        toast({ title: 'Entry deleted', description: 'Knowledge bank entry removed.' });
+      }
+    } catch { toast({ variant: 'destructive', title: 'Delete failed' }); }
+    finally { setDeletingKnowledgeId(null); }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'knowledge') return;
+    fetchKnowledgeEntries(0);
+  }, [activeTab]);
+
   useEffect(() => {
     if (activeTab !== 'intelligence') return;
     databases.listDocuments(DATABASE_ID, COL.POSTS, [
@@ -744,6 +784,7 @@ export default function AdminDashboard() {
     tickets: { label: "Tickets", icon: CalendarClock },
     check_ticket: { label: "Check Ticket", icon: QrCode2 },
     referrals: { label: "Referrals", icon: Share2 },
+    knowledge: { label: "Knowledge", icon: BookOpen },
   };
 
   if (isUnauthorized) {
@@ -2546,6 +2587,189 @@ export default function AdminDashboard() {
                   </Card>
                 </>
               )}
+            </div>
+          )}
+
+          {activeTab === 'knowledge' && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="flex items-start justify-between flex-wrap gap-4 px-2">
+                <div className="space-y-1">
+                  <h3 className="text-3xl font-black italic uppercase tracking-tighter">Knowledge Bank</h3>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">AI Memory — Everything the AI has learned from user conversations</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isLoadingKnowledge}
+                  onClick={() => fetchKnowledgeEntries(knowledgePage)}
+                  className="h-10 rounded-2xl border-primary/20 gap-2 font-black uppercase text-[9px] tracking-widest"
+                >
+                  {isLoadingKnowledge ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
+                  Refresh
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { label: "Total Entries", value: knowledgeTotal.toLocaleString(), icon: BookOpen, color: "text-primary", bg: "bg-primary/10" },
+                  { label: "ViMore Specific", value: knowledgeEntries.filter(e => e.is_vimore_specific).length.toLocaleString(), icon: Sparkles, color: "text-violet-400", bg: "bg-violet-400/10" },
+                  { label: "Most Used", value: knowledgeEntries.length > 0 ? Math.max(...knowledgeEntries.map(e => e.usage_count || 0)).toLocaleString() : '0', icon: TrendingUp, color: "text-green-400", bg: "bg-green-400/10" },
+                ].map(card => {
+                  const Icon = card.icon;
+                  return (
+                    <Card key={card.label} className="rounded-3xl border-border/40 bg-card/60">
+                      <CardContent className="p-6 flex items-center gap-4">
+                        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${card.bg} shrink-0`}>
+                          <Icon className={`h-6 w-6 ${card.color}`} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{card.label}</p>
+                          <p className="text-xl font-black tracking-tight">{card.value}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <input
+                    value={knowledgeSearch}
+                    onChange={e => setKnowledgeSearch(e.target.value)}
+                    placeholder="Search questions..."
+                    className="w-full h-11 pl-11 pr-4 bg-secondary/30 border border-border/30 rounded-2xl text-sm font-medium placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/40"
+                  />
+                </div>
+                <select
+                  value={knowledgeCategoryFilter}
+                  onChange={e => setKnowledgeCategoryFilter(e.target.value)}
+                  className="h-11 px-4 bg-secondary/30 border border-border/30 rounded-2xl text-sm font-black text-foreground appearance-none min-w-[160px]"
+                >
+                  <option value="all">All Categories</option>
+                  {['economy','social','content','marketplace','referral','account','moderation','platform','math','science','history','technology','health','business','food','music','sports','language','law','religion','environment','general'].map(c => (
+                    <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+
+              {isLoadingKnowledge ? (
+                <div className="flex flex-col items-center justify-center py-24 gap-4">
+                  <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Loading Knowledge Bank...</p>
+                </div>
+              ) : knowledgeEntries.length === 0 ? (
+                <Card className="rounded-3xl border-border/40">
+                  <CardContent className="flex flex-col items-center justify-center py-24 gap-4">
+                    <BookOpen className="h-12 w-12 text-muted-foreground/30" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">
+                      No entries yet. The AI will start learning as users chat with it.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {knowledgeEntries
+                    .filter(e => {
+                      const matchesSearch = !knowledgeSearch || e.question?.toLowerCase().includes(knowledgeSearch.toLowerCase());
+                      const matchesCategory = knowledgeCategoryFilter === 'all' || e.category === knowledgeCategoryFilter;
+                      return matchesSearch && matchesCategory;
+                    })
+                    .map((entry: any) => (
+                      <Card key={entry.$id} className="rounded-3xl border-border/40 bg-card/40 overflow-hidden">
+                        <div className="p-5">
+                          <div className="flex items-start gap-4">
+                            <div className={cn("h-9 w-9 rounded-2xl flex items-center justify-center shrink-0 mt-0.5", entry.is_vimore_specific ? "bg-violet-500/10" : "bg-primary/10")}>
+                              <BookOpen className={cn("h-4 w-4", entry.is_vimore_specific ? "text-violet-400" : "text-primary")} />
+                            </div>
+                            <div className="flex-1 min-w-0 space-y-2">
+                              <div className="flex items-start justify-between gap-3 flex-wrap">
+                                <p className="text-sm font-black leading-snug flex-1">{entry.question?.slice(0, 120)}{(entry.question?.length || 0) > 120 ? '...' : ''}</p>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <Badge variant="outline" className="text-[8px] font-black uppercase h-5 px-2 border-border/50">{entry.category || 'general'}</Badge>
+                                  {entry.is_vimore_specific && <Badge className="text-[8px] font-black uppercase h-5 px-2 bg-violet-500/10 text-violet-400 border-violet-500/20 border">ViMore</Badge>}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4 flex-wrap">
+                                <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">
+                                  <Eye className="h-3 w-3" /> {entry.usage_count || 0} uses
+                                </span>
+                                <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">
+                                  <Sparkles className="h-3 w-3" /> {Math.round((entry.quality_score || 0) * 100)}% quality
+                                </span>
+                                <span className="text-[10px] font-bold text-muted-foreground">
+                                  {entry.created_at ? new Date(entry.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                                </span>
+                              </div>
+                              {expandedKnowledgeId === entry.$id && (
+                                <div className="mt-3 p-4 bg-secondary/20 rounded-2xl border border-border/30 animate-in slide-in-from-top-2 duration-200">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">AI Answer</p>
+                                  <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{entry.answer?.slice(0, 600)}{(entry.answer?.length || 0) > 600 ? '...' : ''}</p>
+                                  {entry.keywords?.length > 0 && (
+                                    <div className="mt-3 flex flex-wrap gap-1">
+                                      {entry.keywords.slice(0, 12).map((kw: string) => (
+                                        <span key={kw} className="text-[8px] font-black bg-primary/5 border border-primary/10 text-primary/70 rounded-lg px-2 py-0.5">{kw.replace('_', ' ')}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground"
+                                onClick={() => setExpandedKnowledgeId(expandedKnowledgeId === entry.$id ? null : entry.$id)}
+                              >
+                                <ChevronDown className={cn("h-4 w-4 transition-transform", expandedKnowledgeId === entry.$id && "rotate-180")} />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-xl text-muted-foreground hover:text-destructive"
+                                disabled={deletingKnowledgeId === entry.$id}
+                                onClick={() => deleteKnowledgeEntry(entry.$id)}
+                              >
+                                {deletingKnowledgeId === entry.$id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+
+                  <div className="flex items-center justify-between pt-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      Showing {Math.min(knowledgeEntries.length, 50)} of {knowledgeTotal} entries
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={knowledgePage === 0 || isLoadingKnowledge}
+                        onClick={() => fetchKnowledgeEntries(knowledgePage - 1)}
+                        className="h-9 rounded-2xl font-black uppercase text-[9px]"
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={(knowledgePage + 1) * 50 >= knowledgeTotal || isLoadingKnowledge}
+                        onClick={() => fetchKnowledgeEntries(knowledgePage + 1)}
+                        className="h-9 rounded-2xl font-black uppercase text-[9px]"
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/40 text-center pb-4">
+                Gemini 2.5 Flash · Knowledge Bank v1 · Only SUPER admins can view or delete entries
+              </p>
             </div>
           )}
         </div>
