@@ -116,6 +116,7 @@ export function ReelUploadProvider({ children }: { children: React.ReactNode }) 
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Upload failed. Tap to dismiss.';
       setJob(j => j ? { ...j, status: 'error', error: msg, label: 'Upload failed' } : j);
+      throw e;
     }
   }, []);
 

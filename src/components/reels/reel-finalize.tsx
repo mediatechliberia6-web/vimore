@@ -102,27 +102,34 @@ export function ReelFinalize({
     if (!currentUser || isPosting) return;
     setIsPosting(true);
 
-    /* Extract cover frame first (quick, local) */
-    const coverBlob = await extractCover();
+    try {
+      /* Extract cover frame first (quick, local) */
+      const coverBlob = await extractCover();
 
-    /* Hand off to background upload context — navigates away immediately */
-    startUpload({
-      clips,
-      totalDuration,
-      effect,
-      caption,
-      visibility,
-      allowComments,
-      allowDuet,
-      allowDownloads,
-      selectedSound,
-      userId: currentUser.$id,
-      username: currentUser.username || currentUser.name || 'unknown',
-      coverBlob,
-    });
+      /* Wait for the upload to fully complete before navigating away.
+         This keeps the network request in the foreground so the browser
+         never throttles or kills it mid-transfer. */
+      await startUpload({
+        clips,
+        totalDuration,
+        effect,
+        caption,
+        visibility,
+        allowComments,
+        allowDuet,
+        allowDownloads,
+        selectedSound,
+        userId: currentUser.$id,
+        username: currentUser.username || currentUser.name || 'unknown',
+        coverBlob,
+      });
 
-    /* Navigate away right now — upload continues in the background banner */
-    router.push('/reels');
+      router.push('/reels');
+    } catch {
+      /* Upload failed — stay on this page so the user can see the error
+         banner and try again without losing their recording. */
+      setIsPosting(false);
+    }
   };
 
   return (
