@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 const MODERATION_SYSTEM = `You are the ViMore Content Safety AI — a strict, accurate, and fair content moderator for ViMore, a social platform built for African creators.
 
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
     const result = await model.generateContent({
       contents: [{ role: 'user', parts }],
-      generationConfig: { maxOutputTokens: 150, temperature: 0.1 },
+      generationConfig: { maxOutputTokens: 150, temperature: 0.1, thinkingConfig: { thinkingBudget: 0 } } as any,
     });
 
     const raw = result.response.text().trim();

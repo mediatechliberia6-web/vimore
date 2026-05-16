@@ -1,7 +1,7 @@
 'use server';
 
 const MYMEMORY_ENDPOINT = 'https://api.mymemory.translated.net/get';
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 async function callGemini(systemPrompt: string, userPrompt: string, maxTokens = 400): Promise<string | null> {
   const key = process.env.GOOGLE_GEMINI_API_KEY;
@@ -15,7 +15,11 @@ async function callGemini(systemPrompt: string, userPrompt: string, maxTokens = 
     });
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 },
+      generationConfig: {
+        maxOutputTokens: maxTokens,
+        temperature: 0.7,
+        thinkingConfig: { thinkingBudget: 0 },
+      } as any,
     });
     const text = result.response.text().trim();
     return text || null;
@@ -113,6 +117,21 @@ Rules:
     : `Enhance this caption: "${content}"`;
   const result = await callGemini(systemPrompt, userPrompt, 300);
   return { caption: result || smartCaptionFallback(content) };
+}
+
+export async function aiSuggestHashtagsAction({ content }: { content: string }): Promise<{ hashtags: string[] }> {
+  const fallback = ['#ViMore', '#ViMoreCreator', '#AfricanCreator', '#ContentCreator', '#Trending', '#CreateEveryDay'];
+  if (!content?.trim()) return { hashtags: fallback };
+  const result = await callGemini(
+    `You are a social media hashtag expert for ViMore, a creator platform popular in Africa and globally. Generate exactly 8 highly relevant, trending hashtags for the given post content. Each hashtag must start with #. Return ONLY the hashtags separated by spaces on one line, no explanations, no numbering.`,
+    `Post content: "${content.slice(0, 300)}"`,
+    80
+  );
+  if (!result) return { hashtags: fallback };
+  const tags = result.match(/#[\w]+/g)?.slice(0, 8) || [];
+  if (tags.length < 3) return { hashtags: fallback };
+  if (!tags.some(t => t.toLowerCase() === '#vimore')) tags.splice(0, 0, '#ViMore');
+  return { hashtags: tags.slice(0, 8) };
 }
 
 export async function aiAnalyzeVibeAction({

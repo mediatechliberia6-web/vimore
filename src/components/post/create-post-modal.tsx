@@ -64,7 +64,7 @@ import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { usePosts } from "@/context/PostContext";
 import { useFeedSignal } from "@/context/FeedSignalContext";
-import { aiGenerateCaptionAction } from "@/app/actions/ai";
+import { aiGenerateCaptionAction, aiSuggestHashtagsAction } from "@/app/actions/ai";
 import { useMusic } from "@/context/MusicContext";
 import {
   Select,
@@ -173,6 +173,8 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
   const [showLocationSelector, setShowLocationSelector] = useState(false);
   const [showThemeSelector, setShowThemeSelector] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [suggestedHashtags, setSuggestedHashtags] = useState<string[]>([]);
+  const [isHashtagLoading, setIsHashtagLoading] = useState(false);
 
   // Compression State
   const [isCompressing, setIsCompressing] = useState(false);
@@ -215,6 +217,29 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
       onOpen?.();
     }
   }, [isOpen]);
+
+  const handleSuggestHashtags = async () => {
+    if (isHashtagLoading) return;
+    if (suggestedHashtags.length > 0) { setSuggestedHashtags([]); return; }
+    setIsHashtagLoading(true);
+    triggerHaptic(10);
+    try {
+      const { hashtags } = await aiSuggestHashtagsAction({ content: content.trim() || 'creator post' });
+      setSuggestedHashtags(hashtags);
+    } catch {
+      toast({ title: 'Could not suggest hashtags', variant: 'destructive' });
+    } finally {
+      setIsHashtagLoading(false);
+    }
+  };
+
+  const handleInsertHashtag = (tag: string) => {
+    triggerHaptic(5);
+    const already = new RegExp(`${tag.replace('#', '\\#')}(?:\\b|$)`, 'i').test(content);
+    if (already) return;
+    setContent(prev => (prev.trim() ? `${prev.trim()} ${tag}` : tag));
+    setSuggestedHashtags(prev => prev.filter(t => t !== tag));
+  };
 
   const handleAiEnhance = async () => {
     if (!content.trim() || isAiLoading) return;
@@ -485,6 +510,7 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
             <DialogTitle className="font-bold text-lg">Create post</DialogTitle>
           </div>
           <div className="flex items-center gap-2">
+             <Button variant="ghost" size="icon" className={cn("h-9 w-9", suggestedHashtags.length > 0 ? "text-primary bg-primary/10" : "text-primary")} title="AI: Suggest Hashtags" onClick={handleSuggestHashtags} disabled={isAiLoading}>{isHashtagLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Hash className="h-5 w-5" />}</Button>
              <Button variant="ghost" size="icon" className="text-primary h-9 w-9" title="AI: Enhance Caption" onClick={handleAiEnhance} disabled={isAiLoading || !content.trim()}>{isAiLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}</Button>
             <Button variant="ghost" className={cn("font-bold text-primary text-base", ((!content.trim() && selectedMedia.length === 0 && !pollQuestion && !activeSharedPost) || isOverLimit || isCompressing || isPosting) && "opacity-50")} disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion && !activeSharedPost) || isOverLimit || isCompressing || isAiLoading || isPosting} onClick={handlePost}>
               {isPosting || isAiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "POST"}
@@ -661,6 +687,26 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
               </div>
             )}
           </div>
+
+          {suggestedHashtags.length > 0 && (
+            <div className="px-4 pt-2 pb-3 animate-in slide-in-from-bottom-2 duration-300">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Hash className="h-3 w-3 text-primary" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-primary">AI Hashtag Suggestions — tap to add</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {suggestedHashtags.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => handleInsertHashtag(tag)}
+                    className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-bold border border-primary/20 hover:bg-primary hover:text-white transition-all active:scale-95"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {(isFetchingPreview || linkPreview || taggedUsers.length > 0) && (
             <div className="px-4 space-y-3 animate-in slide-in-from-bottom-2 duration-300">
