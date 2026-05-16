@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { aiGenerateCaptionAction } from '@/app/actions/ai';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Wand2, Globe, Users, Lock, Check, Loader2,
@@ -85,15 +86,11 @@ export function ReelFinalize({
   const generateCaption = async () => {
     setAiLoading(true);
     try {
-      const res = await fetch('/api/gemini/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: 'Write a short, punchy TikTok-style caption with 3-5 relevant hashtags for a short video reel. Sound energetic and engaging. Under 150 characters.' }],
-        }),
+      const { caption: generated } = await aiGenerateCaptionAction({
+        content: caption || 'short video reel',
+        hasMedia: true,
       });
-      const data = await res.json();
-      if (data.reply) setCaption(data.reply.replace(/^"|"$/g, '').trim());
+      if (generated) setCaption(generated.replace(/^"|"$/g, '').trim());
     } catch { /* silent */ }
     finally { setAiLoading(false); }
   };

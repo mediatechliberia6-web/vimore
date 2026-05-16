@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = 'gemini-2.0-flash';
 
 const MODERATION_SYSTEM = `You are the ViMore Content Safety AI — a strict, accurate, and fair content moderator for ViMore, a social platform built for African creators.
 
