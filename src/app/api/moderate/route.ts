@@ -10,7 +10,7 @@ VIOLATIONS TO FLAG:
 - Scams, fraud, phishing, or financial deception (fake giveaways, pyramid schemes, advance-fee fraud)
 - Hate speech, racism, tribalism, ethnic targeting, or discrimination of any kind
 - Harassment, threats, targeted abuse, or doxxing
-- ANY statement that references killing, harming, or hurting people — even if phrased casually, as slang, or mixed with positive language (e.g. "I love it kill people", "this song kills", with actual violent intent implied). When in doubt about violence toward people, flag it.
+- ANY statement that references killing, harming, or hurting people — even if phrased casually, as slang, or mixed with positive language. When in doubt about violence toward people, flag it.
 - Explicit sexual content, nudity, or sexual solicitation
 - Graphic violence or gore
 - Spam or coordinated inauthentic behavior
@@ -18,12 +18,13 @@ VIOLATIONS TO FLAG:
 - Promotion of illegal activities (drug sales, weapons trafficking, etc.)
 - Misleading or dangerous health misinformation
 
-RESPONSE FORMAT (strict JSON only, no other text, no markdown fences):
-{"flagged": true, "reason": "concise human-readable explanation for admin review", "severity": "low"|"medium"|"high"}
+Respond with a JSON object in exactly this shape:
+{"flagged": boolean, "reason": string, "severity": "low" | "medium" | "high"}
 
-If content is clean and safe, respond exactly: {"flagged": false, "reason": "", "severity": "low"}
+If content is safe: {"flagged": false, "reason": "", "severity": "low"}
+If content violates policy: {"flagged": true, "reason": "concise explanation for admin review (under 120 chars)", "severity": "low" | "medium" | "high"}
 
-Be accurate. Cultural expressions, slang, and debate are NOT violations — but ANY content that references harming or killing people must be flagged, even if the phrasing is casual or mixed with positive sentiment.`;
+Be accurate. Cultural expressions, slang, and debate are NOT violations. Output ONLY the JSON object.`;
 
 async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType: string } | null> {
   try {
@@ -42,7 +43,10 @@ async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType
 
 export async function POST(req: NextRequest) {
   const key = process.env.GOOGLE_GEMINI_API_KEY;
-  if (!key) return NextResponse.json({ error: 'Not configured' }, { status: 503 });
+  if (!key) {
+    console.error('[Moderate] GOOGLE_GEMINI_API_KEY is not set');
+    return NextResponse.json({ error: 'Not configured' }, { status: 503 });
+  }
 
   let body: { docId: string; collection: string; text: string; userId: string; mediaUrl?: string };
   try {
@@ -54,6 +58,8 @@ export async function POST(req: NextRequest) {
   const { docId, collection, text, userId, mediaUrl } = body;
   if (!text?.trim() && !mediaUrl) return NextResponse.json({ flagged: false });
 
+  let modResult: { flagged: boolean; reason: string; severity: string } | null = null;
+
   try {
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(key);
@@ -62,7 +68,9 @@ export async function POST(req: NextRequest) {
       systemInstruction: MODERATION_SYSTEM,
     });
 
-    const textPart = { text: `Analyze this content for policy violations:\n\nText: "${(text || '').slice(0, 1500)}"` };
+    const textPart = {
+      text: `Analyze this content for policy violations:\n\nText: "${(text || '').slice(0, 1500)}"`,
+    };
     const parts: any[] = [textPart];
 
     if (mediaUrl) {
@@ -74,66 +82,128 @@ export async function POST(req: NextRequest) {
 
     const result = await model.generateContent({
       contents: [{ role: 'user', parts }],
-      generationConfig: { maxOutputTokens: 150, temperature: 0.1, thinkingConfig: { thinkingBudget: 0 } } as any,
+      generationConfig: {
+        maxOutputTokens: 300,
+        temperature: 0.1,
+        responseMimeType: 'application/json',
+        thinkingConfig: { thinkingBudget: 0 },
+      } as any,
     });
 
-    const raw = result.response.text().trim();
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return NextResponse.json({ flagged: false });
-
-    let modResult: { flagged: boolean; reason: string; severity: string };
+    let raw = '';
     try {
-      modResult = JSON.parse(jsonMatch[0]);
-    } catch {
+      raw = result.response.text().trim();
+    } catch (safetyErr) {
+      console.warn('[Moderate] Gemini safety filter blocked response (content likely very graphic) for doc:', docId);
+      modResult = {
+        flagged: true,
+        reason: 'Content blocked by AI safety filter — likely graphic or harmful',
+        severity: 'high',
+      };
+    }
+
+    if (!modResult && raw) {
+      const jsonStr = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+      try {
+        const parsed = JSON.parse(jsonStr);
+        if (typeof parsed.flagged === 'boolean') {
+          modResult = {
+            flagged: parsed.flagged,
+            reason: String(parsed.reason || ''),
+            severity: ['low', 'medium', 'high'].includes(parsed.severity) ? parsed.severity : 'low',
+          };
+        } else {
+          console.error('[Moderate] Unexpected JSON shape from Gemini:', jsonStr);
+        }
+      } catch (parseErr) {
+        console.error('[Moderate] Failed to parse Gemini response as JSON. Raw output:', raw);
+      }
+    }
+
+    if (!modResult) {
+      console.warn('[Moderate] Could not parse Gemini response — treating as safe. Doc:', docId);
       return NextResponse.json({ flagged: false });
     }
 
-    if (!modResult.flagged) return NextResponse.json({ flagged: false });
+    if (!modResult.flagged) {
+      return NextResponse.json({ flagged: false });
+    }
 
-    const APPWRITE_ENDPOINT = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1').replace(/\/$/, '');
-    const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
-    const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'vimoreprod';
-    const API_KEY = process.env.APPWRITE_API_KEY;
+    console.log(`[Moderate] Content FLAGGED — doc: ${docId}, severity: ${modResult.severity}, reason: ${modResult.reason}`);
 
-    if (!API_KEY) return NextResponse.json({ flagged: true, reason: modResult.reason, severity: modResult.severity });
-
-    const headers = {
-      'Content-Type': 'application/json',
-      'X-Appwrite-Project': PROJECT_ID,
-      'X-Appwrite-Key': API_KEY,
-    };
-
-    const reportId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-    await Promise.allSettled([
-      fetch(`${APPWRITE_ENDPOINT}/databases/${DATABASE_ID}/collections/${collection}/documents/${docId}`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({ data: { status: 'pending_review' } }),
-      }),
-      fetch(`${APPWRITE_ENDPOINT}/databases/${DATABASE_ID}/collections/admin_reports/documents`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          documentId: reportId,
-          data: {
-            doc_id: docId,
-            collection_name: collection,
-            reason: modResult.reason,
-            severity: modResult.severity,
-            reported_at: new Date().toISOString(),
-            status: 'open',
-            user_id: userId,
-            content_preview: (text || '').slice(0, 300),
-            has_media: !!mediaUrl,
-          },
-        }),
-      }),
-    ]);
-
-    return NextResponse.json({ flagged: true, reason: modResult.reason, severity: modResult.severity });
-  } catch (err) {
-    console.error('[Gemini moderate error]', err);
+  } catch (err: any) {
+    console.error('[Moderate] Gemini API call failed:', err?.message || err);
     return NextResponse.json({ flagged: false });
   }
+
+  const APPWRITE_ENDPOINT = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1').replace(/\/$/, '');
+  const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
+  const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'vimoreprod';
+  const API_KEY = process.env.APPWRITE_API_KEY;
+
+  if (!API_KEY) {
+    console.warn(
+      '[Moderate] APPWRITE_API_KEY is not set — content was flagged but report cannot be created and post status cannot be updated.',
+      `Doc: ${docId}, Reason: ${modResult!.reason}`
+    );
+    return NextResponse.json({ flagged: true, reason: modResult!.reason, severity: modResult!.severity });
+  }
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-Appwrite-Project': PROJECT_ID,
+    'X-Appwrite-Key': API_KEY,
+  };
+
+  const reportId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const [patchRes, reportRes] = await Promise.allSettled([
+    fetch(`${APPWRITE_ENDPOINT}/databases/${DATABASE_ID}/collections/${collection}/documents/${docId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ data: { status: 'pending_review' } }),
+    }),
+    fetch(`${APPWRITE_ENDPOINT}/databases/${DATABASE_ID}/collections/admin_reports/documents`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        documentId: reportId,
+        data: {
+          doc_id: docId,
+          collection_name: collection,
+          reason: modResult!.reason,
+          severity: modResult!.severity,
+          reported_at: new Date().toISOString(),
+          status: 'open',
+          user_id: userId,
+          content_preview: (text || '').slice(0, 300),
+          has_media: !!mediaUrl,
+        },
+      }),
+    }),
+  ]);
+
+  if (patchRes.status === 'rejected') {
+    console.error('[Moderate] Failed to patch post status to pending_review:', (patchRes as any).reason);
+  } else {
+    const patchResponse = (patchRes as any).value;
+    if (!patchResponse.ok) {
+      const patchBody = await patchResponse.text().catch(() => '');
+      console.error(`[Moderate] Appwrite PATCH returned ${patchResponse.status}:`, patchBody);
+    }
+  }
+
+  if (reportRes.status === 'rejected') {
+    console.error('[Moderate] Failed to create admin report:', (reportRes as any).reason);
+  } else {
+    const reportResponse = (reportRes as any).value;
+    if (!reportResponse.ok) {
+      const reportBody = await reportResponse.text().catch(() => '');
+      console.error(`[Moderate] Appwrite report creation returned ${reportResponse.status}:`, reportBody);
+    } else {
+      console.log('[Moderate] Admin report created successfully. Report ID:', reportId);
+    }
+  }
+
+  return NextResponse.json({ flagged: true, reason: modResult!.reason, severity: modResult!.severity });
 }
