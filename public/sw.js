@@ -1,27 +1,13 @@
 /**
  * ViMore Service Worker
- * - Precaches the app shell and core icons
- * - Cache-First for media & static assets
- * - Network-First with cache fallback for page navigation
- * - Offline fallback page when network and cache both fail
+ * - Cache-First for media only (images, video, audio from Appwrite and CDNs)
+ * - Everything else (HTML, CSS, JS, pages) always fetched fresh from the network
+ * - Push notifications and badge control unchanged
  */
 
 const SW_VERSION = 'v9';
 const MEDIA_CACHE = `vimore-media-${SW_VERSION}`;
-const PAGE_CACHE = `vimore-pages-${SW_VERSION}`;
-const STATIC_CACHE = `vimore-static-${SW_VERSION}`;
-const CACHE_NAMES = [MEDIA_CACHE, PAGE_CACHE, STATIC_CACHE];
-
-const OFFLINE_URL = '/offline.html';
-
-const APP_SHELL_URLS = [
-  '/',
-  '/offline.html',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/apple-touch-icon.png',
-];
+const CACHE_NAMES = [MEDIA_CACHE];
 
 const MEDIA_EXTENSIONS = [
   '.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.svg',
@@ -29,23 +15,10 @@ const MEDIA_EXTENSIONS = [
   '.mp3', '.ogg', '.wav', '.aac', '.m4a', '.flac', '.opus',
 ];
 
-const STATIC_EXTENSIONS = ['.css', '.js', '.woff', '.woff2', '.ttf', '.otf'];
-
 const APPWRITE_FILE_PATTERNS = [
   '/v1/storage/buckets/',
   '/files/',
 ];
-
-const SKIP_PATTERNS = [
-  '/_next/',          // All Next.js internal chunks — browser & CDN cache them natively.
-  '/api/',            // API routes — never cache responses.
-  'chrome-extension://',
-  'hot-update',
-];
-
-function shouldSkip(url) {
-  return SKIP_PATTERNS.some(p => url.includes(p));
-}
 
 function isMediaUrl(url) {
   try {
@@ -62,34 +35,12 @@ function isMediaUrl(url) {
   }
 }
 
-function isStaticAsset(url) {
-  try {
-    const parsed = new URL(url);
-    const lower = parsed.pathname.toLowerCase().split('?')[0];
-    return STATIC_EXTENSIONS.some(ext => lower.endsWith(ext));
-  } catch {
-    return false;
-  }
-}
-
-function isNavigationRequest(request) {
-  return request.mode === 'navigate';
-}
-
-// ─── Install: precache app shell ──────────────────────────────────────────────
+// ─── Install: nothing to precache, activate immediately ───────────────────────
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(PAGE_CACHE).then((cache) =>
-      Promise.all(
-        APP_SHELL_URLS.map((url) =>
-          cache.add(new Request(url, { cache: 'reload' })).catch(() => {})
-        )
-      )
-    ).then(() => self.skipWaiting())
-  );
+  event.waitUntil(self.skipWaiting());
 });
 
-// ─── Activate: cleanup old caches, then notify all open tabs ──────────────────
+// ─── Activate: delete all old caches except current media cache ───────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
@@ -100,23 +51,19 @@ self.addEventListener('activate', (event) => {
       )
       .then(() => self.clients.claim())
       .then(async () => {
-        // Tell every open tab that a new version just took over so it can
-        // prompt the user to reload and see the latest UI.
         const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
         clientsList.forEach(client => client.postMessage({ type: 'SW_UPDATED', version: SW_VERSION }));
       })
   );
 });
 
-// ─── Fetch ────────────────────────────────────────────────────────────────────
+// ─── Fetch: cache-first for media only, network-only for everything else ───────
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = request.url;
 
   if (request.method !== 'GET') return;
-  if (shouldSkip(url)) return;
 
-  // Media: cache-first
   if (isMediaUrl(url)) {
     event.respondWith(
       caches.open(MEDIA_CACHE).then(async (cache) => {
@@ -133,69 +80,8 @@ self.addEventListener('fetch', (event) => {
         }
       })
     );
-    return;
   }
-
-  // Static assets (css/js/fonts): cache-first
-  if (isStaticAsset(url) && url.startsWith(self.location.origin)) {
-    event.respondWith(
-      caches.open(STATIC_CACHE).then(async (cache) => {
-        const cached = await cache.match(request);
-        if (cached) return cached;
-        try {
-          const response = await fetch(request);
-          if (response.ok) cache.put(request, response.clone());
-          return response;
-        } catch {
-          return cached || new Response('Asset unavailable', { status: 503 });
-        }
-      })
-    );
-    return;
-  }
-
-  // Navigation: network-first with 4-second timeout, cache fallback.
-  // This ensures users always get the latest HTML after a deploy.
-  // Falls back to cached page when offline or when the network is too slow.
-  if (isNavigationRequest(request)) {
-    event.respondWith(
-      (async () => {
-        const cache = await caches.open(PAGE_CACHE);
-        try {
-          const networkResponse = await Promise.race([
-            fetch(request),
-            new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('timeout')), 4000)
-            ),
-          ]);
-          if (networkResponse.ok) {
-            try { cache.put(request, networkResponse.clone()); } catch {}
-          }
-          return networkResponse;
-        } catch {
-          // Network failed or timed out — serve from cache
-          const cached = await cache.match(request);
-          if (cached) return cached;
-          const rootCached = await caches.match('/');
-          if (rootCached) return rootCached;
-          const offlineCached = await caches.match(OFFLINE_URL);
-          if (offlineCached) return offlineCached;
-          return new Response('You are offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
-        }
-      })()
-    );
-    return;
-  }
-
-  // Other same-origin GETs: network-first with cache fallback
-  if (url.startsWith(self.location.origin)) {
-    event.respondWith(
-      fetch(request).catch(async () => {
-        const cached = await caches.match(request);
-        return cached || new Response('Offline', { status: 503 });
-      })
-    );
-  }
+  // All other requests (HTML, CSS, JS, API, fonts) go straight to the network
 });
 
 // ─── Messages: manual cache + badge control ───────────────────────────────────
