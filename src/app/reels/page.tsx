@@ -45,6 +45,40 @@ type ReelFeedItem = Post & {
   actionLabel?: string;
 };
 
+/* ── Effect ID → CSS filter map (mirrors create/page.tsx EFFECTS array) ── */
+const EFFECT_FILTERS: Record<string, { filter: string; special?: 'mirror' | 'vignette' }> = {
+  none:      { filter: 'none' },
+  grayscale: { filter: 'grayscale(100%)' },
+  noir:      { filter: 'grayscale(100%) contrast(160%) brightness(0.75)' },
+  sepia:     { filter: 'sepia(100%)' },
+  warm:      { filter: 'sepia(50%) saturate(160%) hue-rotate(-10deg)' },
+  cool:      { filter: 'saturate(130%) hue-rotate(200deg) brightness(1.1)' },
+  beauty:    { filter: 'blur(0.6px) brightness(1.1) saturate(1.08) contrast(0.92)' },
+  film:      { filter: 'sepia(15%) contrast(145%) brightness(0.88) saturate(75%)' },
+  mirror:    { filter: 'none', special: 'mirror' },
+  vignette:  { filter: 'none', special: 'vignette' },
+  natural:   { filter: 'brightness(1.05) contrast(1.08) saturate(1.12)' },
+  smooth:    { filter: 'blur(0.6px) brightness(1.08) contrast(0.9) saturate(1.05)' },
+  glow:      { filter: 'brightness(1.25) contrast(0.85) saturate(1.15) blur(0.4px)' },
+  hdr:       { filter: 'contrast(1.4) saturate(1.5) brightness(0.95)' },
+  sunset:    { filter: 'sepia(0.2) hue-rotate(-15deg) saturate(1.5) brightness(1.1)' },
+  citynight: { filter: 'brightness(0.85) contrast(1.25) saturate(1.2) hue-rotate(200deg)' },
+  rosegold:  { filter: 'sepia(0.3) hue-rotate(-20deg) saturate(1.4) brightness(1.08)' },
+  arctic:    { filter: 'hue-rotate(180deg) saturate(0.9) brightness(1.15) contrast(1.05)' },
+  candy:     { filter: 'saturate(1.8) brightness(1.1) hue-rotate(330deg) contrast(1.1)' },
+  moody:     { filter: 'brightness(0.78) contrast(1.35) saturate(0.9)' },
+  dewy:      { filter: 'brightness(1.18) saturate(1.1) contrast(0.88) blur(0.3px)' },
+  studio:    { filter: 'brightness(1.1) contrast(1.15) saturate(0.95)' },
+  classic:   { filter: 'sepia(0.12) contrast(1.1) saturate(0.9) brightness(1.02)' },
+  deep:      { filter: 'contrast(1.5) brightness(0.82) saturate(1.25)' },
+  grunge:    { filter: 'contrast(1.45) saturate(0.55) brightness(0.78)' },
+  peach:     { filter: 'sepia(0.12) hue-rotate(340deg) saturate(1.35) brightness(1.06)' },
+  frozen:    { filter: 'hue-rotate(185deg) saturate(1.3) brightness(1.18) contrast(1.08)' },
+  pop:       { filter: 'contrast(1.25) saturate(2.0) brightness(1.05)' },
+  haze:      { filter: 'brightness(1.28) contrast(0.75) saturate(0.8) blur(0.5px)' },
+  chrome:    { filter: 'grayscale(0.3) contrast(1.3) brightness(1.05) saturate(0.7)' },
+};
+
 const SHARE_PLATFORMS = [
   { id: "facebook", label: "Facebook", bg: "bg-[#1877F2]", emoji: "📘" },
   { id: "messenger", label: "Messenger", bg: "bg-gradient-to-br from-blue-600 to-purple-500", emoji: "💬" },
@@ -450,8 +484,12 @@ function ReelItem({
   const [duration, setDuration] = useState(0);
   const [seekFlash, setSeekFlash] = useState<'left' | 'right' | null>(null);
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
+  // Bug 3 fix: local optimistic like count so tapping like is instant
+  const [localLikes, setLocalLikes] = useState(reel.likes);
   const lastTapRef = useRef(0);
   const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Bug 2 fix: audio element for selected-sound playback
+  const soundAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const combinedVideoRef = useCallback((el: HTMLVideoElement | null) => {
     setVideoElement(el);
@@ -482,6 +520,59 @@ function ReelItem({
   const soundId = (reel as Record<string, unknown>).sound_id as string | undefined;
   const soundTitle = (reel as Record<string, unknown>).sound_title as string | undefined;
   const soundArtist = (reel as Record<string, unknown>).sound_artist as string | undefined;
+  const soundStartTime = Number((reel as Record<string, unknown>).sound_start_time ?? 0);
+
+  // Bug 1 fix: read stored effect and build CSS filter/transform for playback
+  const rawEffects = (reel as Record<string, unknown>).effects_applied as string[] | undefined;
+  const effectId = rawEffects?.[0] ?? 'none';
+  const effectDef = EFFECT_FILTERS[effectId] ?? EFFECT_FILTERS.none;
+  const videoFilter = effectDef.filter !== 'none' ? effectDef.filter : undefined;
+  const videoMirror = effectDef.special === 'mirror';
+  const showVignetteOverlay = effectDef.special === 'vignette';
+
+  // Bug 2 fix: play/pause selected-sound audio in sync with the active reel
+  useEffect(() => {
+    if (!soundId) return;
+    // Build the sound file URL — same pattern as the recording studio
+    const isReelMedia = soundId.startsWith('reel_media:');
+    const soundUrl = isReelMedia
+      ? `/api/file/${encodeURIComponent('reel_media')}/${encodeURIComponent(soundId.replace('reel_media:', ''))}`
+      : `/api/file/${encodeURIComponent('sounds')}/${encodeURIComponent(soundId)}`;
+
+    if (isActive) {
+      const audio = new Audio(soundUrl);
+      audio.currentTime = soundStartTime;
+      audio.muted = isMuted;
+      audio.loop = true;
+      audio.play().catch(() => {});
+      soundAudioRef.current = audio;
+    } else {
+      if (soundAudioRef.current) {
+        soundAudioRef.current.pause();
+        soundAudioRef.current = null;
+      }
+    }
+
+    return () => {
+      if (soundAudioRef.current) {
+        soundAudioRef.current.pause();
+        soundAudioRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, soundId]);
+
+  // Sync sound audio mute state with global mute toggle
+  useEffect(() => {
+    if (soundAudioRef.current) soundAudioRef.current.muted = isMuted;
+  }, [isMuted]);
+
+  // Sync sound audio play/pause with the video element's play/pause
+  useEffect(() => {
+    if (!soundAudioRef.current) return;
+    if (isPlaying) soundAudioRef.current.play().catch(() => {});
+    else soundAudioRef.current.pause();
+  }, [isPlaying]);
 
   const handleDownload = async () => {
     if (isDownloading || !reel.videoUrl) return;
@@ -525,7 +616,10 @@ function ReelItem({
         setTimeout(() => setSeekFlash(null), 700);
       } else {
         triggerHaptic(30);
-        if (!isLiked) toggleLikePost(reel.$id);
+        if (!isLiked) {
+          setLocalLikes(prev => prev + 1);
+          toggleLikePost(reel.$id);
+        }
         setShowHeart(true);
         setTimeout(() => setShowHeart(false), 900);
       }
@@ -551,7 +645,6 @@ function ReelItem({
     else sendFriendRequest(reel.user.username);
   };
 
-  const displayLikes = reel.likes;
   const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : n.toString());
 
   return (
@@ -570,7 +663,19 @@ function ReelItem({
         muted={isMuted}
         preload="none"
         className="absolute inset-0 w-full h-full object-cover"
+        style={{
+          filter: videoFilter,
+          transform: videoMirror ? 'scaleX(-1)' : undefined,
+        }}
       />
+
+      {/* Bug 1 fix: vignette effect overlay */}
+      {showVignetteOverlay && (
+        <div
+          className="absolute inset-0 pointer-events-none z-[1]"
+          style={{ background: 'radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.72) 100%)' }}
+        />
+      )}
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-black/30 pointer-events-none" />
 
@@ -660,17 +765,19 @@ function ReelItem({
             <button
               onClick={() => {
                 triggerHaptic(20);
+                // Bug 3 fix: update local count immediately so the UI is instant
+                setLocalLikes(prev => Math.max(0, prev + (isLiked ? -1 : 1)));
                 toggleLikePost(reel.$id);
               }}
               className="flex flex-col items-center gap-0.5 active:scale-75 transition-transform"
             >
               <Heart
                 className={cn(
-                  "w-7 h-7 transition-all",
+                  "w-7 h-7",
                   isLiked ? "text-rose-500 fill-rose-500" : "text-white"
                 )}
               />
-              <span className="text-white text-xs font-bold drop-shadow">{fmt(displayLikes)}</span>
+              <span className="text-white text-xs font-bold drop-shadow">{fmt(localLikes)}</span>
             </button>
 
             <button
