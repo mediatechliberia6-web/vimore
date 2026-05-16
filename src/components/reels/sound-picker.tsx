@@ -60,6 +60,13 @@ export function SoundPicker({ onSelect, onClose, preloadSoundId, currentSound }:
     }
   }, [preloadSoundId, sounds]);
 
+  const getSoundUrl = useCallback((fileId: string) => {
+    if (fileId.startsWith('reel_media:')) {
+      return getFileUrl(BUCKET.REEL_MEDIA, fileId.slice('reel_media:'.length));
+    }
+    return getFileUrl(BUCKET.SOUNDS, fileId);
+  }, []);
+
   const togglePlay = useCallback((sound: SoundDoc) => {
     if (playingId === sound.$id) {
       audioRef.current?.pause();
@@ -67,14 +74,14 @@ export function SoundPicker({ onSelect, onClose, preloadSoundId, currentSound }:
       return;
     }
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; }
-    const audio = new Audio(getFileUrl(BUCKET.SOUNDS, sound.file_id));
+    const audio = new Audio(getSoundUrl(sound.file_id));
     audio.currentTime = 0;
     audio.ontimeupdate = () => setAudioProgress((audio.currentTime / (audio.duration || 1)) * 100);
     audio.onended = () => { setPlayingId(null); setAudioProgress(0); };
     audio.play().catch(() => {});
     audioRef.current = audio;
     setPlayingId(sound.$id);
-  }, [playingId]);
+  }, [playingId, getSoundUrl]);
 
   useEffect(() => () => { audioRef.current?.pause(); }, []);
 

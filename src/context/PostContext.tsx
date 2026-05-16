@@ -629,6 +629,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const allUsersRef = useRef<User[]>([]);
   const chatLastMessageAtRef = useRef<Record<string, number>>({});
   const chatMessagesRef = useRef<Record<string, ChatMessage[]>>({});
+  const pendingReactionIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => { followingUserIdsRef.current = followingUserIds; }, [followingUserIds]);
   useEffect(() => { connectionsRef.current = connections; }, [connections]);
   useEffect(() => { allUsersRef.current = allUsers; }, [allUsers]);
@@ -2378,6 +2379,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const toggleLikePost = async (id: string) => {
     if (!currentUser) return;
+    if (pendingReactionIdsRef.current.has(id)) return;
+    pendingReactionIdsRef.current.add(id);
+
     const wasLiked = likedPostIds.has(id);
     const wasUnliked = unlikedPostIds.has(id);
 
@@ -2443,11 +2447,15 @@ export function PostProvider({ children }: { children: ReactNode }) {
         unlikes: wasUnliked ? p.unlikes + 1 : p.unlikes,
       } : p));
       toast({ variant: 'destructive', title: 'Reaction Failed', description: formatErrorDescription(err, currentUser?.role) });
+    } finally {
+      pendingReactionIdsRef.current.delete(id);
     }
   };
 
   const toggleUnlikePost = async (id: string) => {
     if (!currentUser) return;
+    if (pendingReactionIdsRef.current.has(id)) return;
+    pendingReactionIdsRef.current.add(id);
     const wasUnliked = unlikedPostIds.has(id);
     const wasLiked = likedPostIds.has(id);
 
@@ -2500,6 +2508,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         likes: wasLiked ? p.likes + 1 : p.likes,
       } : p));
       toast({ variant: 'destructive', title: 'Reaction Failed', description: formatErrorDescription(err, currentUser?.role) });
+    } finally {
+      pendingReactionIdsRef.current.delete(id);
     }
   };
 
