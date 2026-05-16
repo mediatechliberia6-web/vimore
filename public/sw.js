@@ -1,6 +1,7 @@
 /**
  * ViMore Service Worker
  * - Cache-First for media only (images, video, audio from Appwrite and CDNs)
+ * - Cached media expires automatically after 2 hours
  * - Everything else (HTML, CSS, JS, pages) always fetched fresh from the network
  * - Push notifications and badge control unchanged
  */
@@ -8,6 +9,8 @@
 const SW_VERSION = 'v9';
 const MEDIA_CACHE = `vimore-media-${SW_VERSION}`;
 const CACHE_NAMES = [MEDIA_CACHE];
+
+const MAX_CACHE_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 const MEDIA_EXTENSIONS = [
   '.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.svg',
@@ -35,12 +38,44 @@ function isMediaUrl(url) {
   }
 }
 
+// Wraps a response with a sw-cached-at timestamp header so we can check age later
+function stampResponse(response) {
+  const headers = new Headers(response.headers);
+  headers.set('sw-cached-at', String(Date.now()));
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+// Returns true if the cached response is older than MAX_CACHE_AGE_MS
+function isExpired(cachedResponse) {
+  const cachedAt = cachedResponse.headers.get('sw-cached-at');
+  if (!cachedAt) return true;
+  return (Date.now() - Number(cachedAt)) > MAX_CACHE_AGE_MS;
+}
+
+// Sweeps the media cache and deletes every entry older than 2 hours
+async function purgeExpiredMedia() {
+  const cache = await caches.open(MEDIA_CACHE);
+  const keys = await cache.keys();
+  await Promise.all(
+    keys.map(async (request) => {
+      const response = await cache.match(request);
+      if (response && isExpired(response)) {
+        await cache.delete(request);
+      }
+    })
+  );
+}
+
 // ─── Install: nothing to precache, activate immediately ───────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());
 });
 
-// ─── Activate: delete all old caches except current media cache ───────────────
+// ─── Activate: delete stale named caches + purge expired entries ──────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
@@ -49,6 +84,7 @@ self.addEventListener('activate', (event) => {
           keys.filter(k => !CACHE_NAMES.includes(k)).map(k => caches.delete(k))
         )
       )
+      .then(() => purgeExpiredMedia())
       .then(() => self.clients.claim())
       .then(async () => {
         const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
@@ -68,11 +104,17 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.open(MEDIA_CACHE).then(async (cache) => {
         const cached = await cache.match(request);
-        if (cached) return cached;
+
+        // Serve from cache only if it hasn't expired
+        if (cached && !isExpired(cached)) return cached;
+
+        // Expired or not cached — delete the old entry and fetch fresh
+        if (cached) cache.delete(request);
+
         try {
           const response = await fetch(request);
           if (response.ok && response.status === 200) {
-            cache.put(request, response.clone());
+            cache.put(request, stampResponse(response.clone()));
           }
           return response;
         } catch {
