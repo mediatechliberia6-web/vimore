@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,12 +9,13 @@ import { MainNav } from "@/components/layout/main-nav";
 import { ContactButtons } from "@/components/marketplace/ContactButtons";
 import { StoreBoostDialog } from "@/components/marketplace/StoreBoostDialog";
 import { StoreForm } from "@/components/marketplace/StoreForm";
+import { ProductForm } from "@/components/marketplace/ProductForm";
 import { usePosts } from "@/context/PostContext";
 import { getStore, StoreDoc, getStoreLogoUrl, isStoreBoosted } from "@/lib/stores";
 import { listProductsBySeller, ProductDoc, getProductImageUrl, formatPrice, isFeatured } from "@/lib/marketplace";
 import {
-  ArrowLeft, Store, MessageCircle, Zap, Settings2, MapPin, Package,
-  Loader2, ShoppingBag, Pencil,
+  ArrowLeft, Store, MessageCircle, Zap, MapPin, Package,
+  Loader2, ShoppingBag, Pencil, Link2, Check, Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
@@ -66,31 +67,60 @@ function StoreProductCard({ product }: { product: ProductDoc }) {
 
 export default function StorefrontPage() {
   const { storeId } = useParams<{ storeId: string }>();
+  const searchParams = useSearchParams();
   const { currentUser } = usePosts();
 
   const [store, setStore] = useState<StoreDoc | null>(null);
   const [products, setProducts] = useState<ProductDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [addProductOpen, setAddProductOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const loadProducts = useCallback(async (ownerId: string) => {
+    const data = await listProductsBySeller(ownerId, 50);
+    setProducts(data);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [storeData, productsData] = await Promise.all([
-        getStore(storeId),
-        (async () => {
-          const s = await getStore(storeId);
-          if (!s) return [];
-          return listProductsBySeller(s.owner_id, 50);
-        })(),
-      ]);
+      const storeData = await getStore(storeId);
       if (cancelled) return;
       setStore(storeData);
-      setProducts(productsData);
+      if (storeData) {
+        const productsData = await listProductsBySeller(storeData.owner_id, 50);
+        if (cancelled) return;
+        setProducts(productsData);
+      }
       setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [storeId]);
+
+  useEffect(() => {
+    if (!loading && searchParams.get("addProduct") === "true") {
+      setAddProductOpen(true);
+    }
+  }, [loading, searchParams]);
+
+  const copyStoreLink = () => {
+    const link = `${window.location.origin}/marketplace/store/${storeId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
+    }).catch(() => {
+      const ta = document.createElement("textarea");
+      ta.value = link;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try { document.execCommand("copy"); setCopied(true); setTimeout(() => setCopied(false), 2200); } catch {}
+      document.body.removeChild(ta);
+    });
+  };
 
   if (loading) {
     return (
@@ -116,7 +146,6 @@ export default function StorefrontPage() {
   const isOwner = currentUser?.$id === store.owner_id;
   const boosted = isStoreBoosted(store);
   const logoUrl = store.logo_file_id ? getStoreLogoUrl(store.logo_file_id) : null;
-
   const featuredFirst = [...products].sort((a, b) => Number(isFeatured(b)) - Number(isFeatured(a)));
 
   return (
@@ -127,26 +156,49 @@ export default function StorefrontPage() {
         </aside>
 
         <main className="pb-24 md:pb-6">
-          <div className="sticky top-0 z-10 bg-white/80 dark:bg-background/80 backdrop-blur-md border-b border-primary/5 px-4 py-3 flex items-center gap-3">
+          {/* ── Sticky top bar ── */}
+          <div className="sticky top-0 z-10 bg-white/80 dark:bg-background/80 backdrop-blur-md border-b border-primary/5 px-4 py-3 flex items-center gap-2">
             <Link href="/marketplace">
-              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9"><ArrowLeft className="h-5 w-5" /></Button>
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 shrink-0"><ArrowLeft className="h-5 w-5" /></Button>
             </Link>
             <p className="font-black text-base truncate flex-1">{store.store_name}</p>
+
+            {/* Copy link — always visible */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={copyStoreLink}
+              className={cn(
+                "rounded-full h-9 w-9 shrink-0 transition-colors",
+                copied ? "text-green-600 bg-green-50 dark:bg-green-900/20" : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Copy store link"
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
+            </Button>
+
             {isOwner && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <StoreBoostDialog
                   store={store}
                   onBoosted={newUntil => setStore(prev => prev ? { ...prev, boost_until: newUntil } : null)}
                 >
-                  <Button size="sm" className="h-8 rounded-xl gap-1.5 text-[10px] font-black uppercase tracking-widest bg-amber-400 hover:bg-amber-500 text-white border-none px-3">
-                    <Zap className="h-3.5 w-3.5 fill-white" />
+                  <Button size="sm" className={cn(
+                    "h-8 rounded-xl gap-1.5 text-[10px] font-black uppercase tracking-widest border-none px-3",
+                    boosted
+                      ? "bg-amber-400 hover:bg-amber-500 text-white"
+                      : "bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50"
+                  )}>
+                    <Zap className={cn("h-3.5 w-3.5", boosted && "fill-white")} />
                     {boosted ? "Boosted" : "Boost"}
                   </Button>
                 </StoreBoostDialog>
+
                 <Dialog open={editOpen} onOpenChange={setEditOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm" className="h-8 rounded-xl gap-1.5 text-[10px] font-black uppercase tracking-widest px-3">
-                      <Pencil className="h-3.5 w-3.5" /> Edit
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Edit</span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl">
@@ -158,6 +210,7 @@ export default function StorefrontPage() {
             )}
           </div>
 
+          {/* ── Brand hero ── */}
           <div className={cn(
             "relative overflow-hidden",
             boosted
@@ -197,28 +250,42 @@ export default function StorefrontPage() {
               {store.motto && (
                 <p className="text-sm font-bold italic text-muted-foreground max-w-sm">"{store.motto}"</p>
               )}
-
               {store.description && (
                 <p className="text-[13px] text-muted-foreground max-w-md leading-relaxed">{store.description}</p>
               )}
 
-              <div className="flex items-center gap-2 mt-1">
-                <Link href={`/chat/${store.owner_username}`}>
-                  <Button variant="outline" className="rounded-2xl h-10 px-4 gap-2 text-[11px] font-black uppercase tracking-widest border-primary/20 hover:bg-primary/5">
-                    <MessageCircle className="h-4 w-4" /> Message Store
-                  </Button>
-                </Link>
-                {isOwner && (
-                  <Link href="/marketplace/new">
-                    <Button className="rounded-2xl h-10 px-4 gap-2 text-[11px] font-black uppercase tracking-widest bg-primary hover:bg-primary/90">
-                      <Package className="h-4 w-4" /> Add Product
+              <div className="flex items-center gap-2 mt-1 flex-wrap justify-center">
+                {currentUser ? (
+                  <Link href={`/chat/${store.owner_username}`}>
+                    <Button variant="outline" className="rounded-2xl h-10 px-4 gap-2 text-[11px] font-black uppercase tracking-widest border-primary/20 hover:bg-primary/5">
+                      <MessageCircle className="h-4 w-4" /> Message Store
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link href={`/login?next=/marketplace/store/${storeId}`}>
+                    <Button variant="outline" className="rounded-2xl h-10 px-4 gap-2 text-[11px] font-black uppercase tracking-widest border-primary/20 hover:bg-primary/5">
+                      <MessageCircle className="h-4 w-4" /> Message Store
                     </Button>
                   </Link>
                 )}
+
+                <Button
+                  variant="ghost"
+                  onClick={copyStoreLink}
+                  className={cn(
+                    "rounded-2xl h-10 px-4 gap-2 text-[11px] font-black uppercase tracking-widest transition-colors",
+                    copied
+                      ? "text-green-600 bg-green-50 dark:bg-green-900/20"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                  )}
+                >
+                  {copied ? <><Check className="h-4 w-4" /> Copied!</> : <><Link2 className="h-4 w-4" /> Share Store</>}
+                </Button>
               </div>
             </div>
           </div>
 
+          {/* ── Products section ── */}
           <div className="px-4 sm:px-6 py-6 space-y-5">
             <div className="flex items-center justify-between">
               <div>
@@ -228,11 +295,13 @@ export default function StorefrontPage() {
                 </p>
               </div>
               {isOwner && (
-                <Link href="/marketplace/new">
-                  <Button variant="outline" size="sm" className="h-8 rounded-xl text-[10px] font-black uppercase tracking-widest gap-1.5 border-primary/20">
-                    <Package className="h-3.5 w-3.5" /> List Product
-                  </Button>
-                </Link>
+                <Button
+                  onClick={() => setAddProductOpen(true)}
+                  size="sm"
+                  className="h-8 rounded-xl text-[10px] font-black uppercase tracking-widest gap-1.5 bg-primary hover:bg-primary/90"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add Product
+                </Button>
               )}
             </div>
 
@@ -241,11 +310,12 @@ export default function StorefrontPage() {
                 <ShoppingBag className="h-12 w-12 text-muted-foreground/30" />
                 <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">No products yet</p>
                 {isOwner && (
-                  <Link href="/marketplace/new">
-                    <Button className="rounded-2xl h-10 px-5 gap-2 text-[11px] font-black uppercase tracking-widest bg-primary mt-1">
-                      <Package className="h-4 w-4" /> List Your First Product
-                    </Button>
-                  </Link>
+                  <Button
+                    onClick={() => setAddProductOpen(true)}
+                    className="rounded-2xl h-11 px-6 gap-2 text-[11px] font-black uppercase tracking-widest bg-primary mt-1"
+                  >
+                    <Package className="h-4 w-4" /> List Your First Product
+                  </Button>
                 )}
               </div>
             ) : (
@@ -258,6 +328,29 @@ export default function StorefrontPage() {
           </div>
         </main>
       </div>
+
+      {/* ── Add Product dialog (owner only) ── */}
+      <Dialog open={addProductOpen} onOpenChange={setAddProductOpen}>
+        <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto rounded-3xl p-0">
+          <div className="sticky top-0 bg-white dark:bg-background border-b border-border/40 px-6 py-4 rounded-t-3xl flex items-center gap-3">
+            <div className="h-9 w-9 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Package className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <DialogTitle className="font-black uppercase tracking-tighter text-base">Add Product</DialogTitle>
+              <p className="text-[9px] font-black text-primary uppercase tracking-widest">List to {store.store_name}</p>
+            </div>
+          </div>
+          <div className="px-6 pb-6 pt-4">
+            <ProductForm
+              onSuccess={() => {
+                setAddProductOpen(false);
+                if (store) loadProducts(store.owner_id);
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

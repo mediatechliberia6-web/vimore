@@ -15,7 +15,7 @@ import { Camera, X, Loader2, Store } from "lucide-react";
 
 const MAX_PHOTOS = 2;
 
-export function ProductForm() {
+export function ProductForm({ onSuccess }: { onSuccess?: () => void } = {}) {
   const router = useRouter();
   const { currentUser } = usePosts();
   const { toast } = useToast();
@@ -103,8 +103,12 @@ export function ProductForm() {
         category: category || null,
       });
       previews.forEach(u => { try { URL.revokeObjectURL(u); } catch {} });
-      toast({ title: "Listed!", description: "Your product is now in the marketplace." });
-      router.push(myStore ? `/marketplace/store/${myStore.$id}` : `/marketplace/${product.$id}`);
+      toast({ title: "Listed!", description: "Your product is now live in your store." });
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push(myStore ? `/marketplace/store/${myStore.$id}` : `/marketplace/${product.$id}`);
+      }
     } catch (err: any) {
       toast({ variant: "destructive", title: "Could not list product", description: err?.message || "Try again." });
     } finally {
