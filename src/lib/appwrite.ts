@@ -53,6 +53,7 @@ export const COL = {
   ADMIN_REPORTS: 'admin_reports',
   SOUNDS: 'sounds',
   REEL_DRAFTS: 'reel_drafts',
+  STORES: 'stores',
 } as const;
 
 export const BUCKET = {
@@ -68,6 +69,7 @@ export const BUCKET = {
   MESSAGE_MEDIA: 'message_media',
   EVENT_FLYERS: 'event_flyers',
   MARKETPLACE_IMAGES: 'Marketplace_Images',
+  STORE_LOGOS: 'store_logos',
   SOUNDS: 'sounds',
 } as const;
 

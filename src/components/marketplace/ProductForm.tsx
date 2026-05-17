@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, ChangeEvent, FormEvent } from "react";
+import { useState, useRef, ChangeEvent, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { usePosts } from "@/context/PostContext";
 import { createProduct, normalizePhoneE164, ProductCurrency } from "@/lib/marketplace";
-import { Camera, X, Loader2 } from "lucide-react";
+import { getMyStore, StoreDoc, STORE_CATEGORIES, StoreCategory } from "@/lib/stores";
+import { Camera, X, Loader2, Store } from "lucide-react";
 
 const MAX_PHOTOS = 2;
 
@@ -26,9 +27,22 @@ export function ProductForm() {
   const [priceCurrency, setPriceCurrency] = useState<ProductCurrency>("LRD");
   const [location, setLocation] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [category, setCategory] = useState<StoreCategory | "">("");
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [myStore, setMyStore] = useState<StoreDoc | null>(null);
+
+  useEffect(() => {
+    if (!currentUser?.$id) return;
+    getMyStore(currentUser.$id).then(store => {
+      if (store) {
+        setMyStore(store);
+        setCategory(store.category);
+        if (!phoneNumber && currentUser.phone) setPhoneNumber(currentUser.phone);
+      }
+    });
+  }, [currentUser?.$id]);
 
   const onFilesPicked = (e: ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files || []);
@@ -85,10 +99,12 @@ export function ProductForm() {
         location: location.trim(),
         phoneNumber: normalisedPhone,
         files,
+        store_id: myStore?.$id || null,
+        category: category || null,
       });
       previews.forEach(u => { try { URL.revokeObjectURL(u); } catch {} });
       toast({ title: "Listed!", description: "Your product is now in the marketplace." });
-      router.push(`/marketplace/${product.$id}`);
+      router.push(myStore ? `/marketplace/store/${myStore.$id}` : `/marketplace/${product.$id}`);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Could not list product", description: err?.message || "Try again." });
     } finally {
@@ -98,6 +114,16 @@ export function ProductForm() {
 
   return (
     <form onSubmit={submit} className="space-y-5">
+      {myStore && (
+        <div className="flex items-center gap-3 p-3 rounded-2xl bg-primary/5 border border-primary/10">
+          <Store className="h-4 w-4 text-primary shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Listing to your store</p>
+            <p className="text-xs font-bold truncate">{myStore.store_name}</p>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label className="text-[10px] font-black uppercase tracking-widest">Photos (max 2)</Label>
         <div className="grid grid-cols-2 gap-2">
@@ -125,14 +151,7 @@ export function ProductForm() {
             </button>
           )}
         </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          multiple
-          className="hidden"
-          onChange={onFilesPicked}
-        />
+        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={onFilesPicked} />
         <p className="text-[10px] text-muted-foreground">Photos are auto-compressed for fast loading on slow networks.</p>
       </div>
 
@@ -145,14 +164,9 @@ export function ProductForm() {
         <div className="col-span-2 space-y-1.5">
           <Label className="text-[10px] font-black uppercase tracking-widest">Price</Label>
           <Input
-            type="number"
-            inputMode="decimal"
-            min="0"
-            step="0.01"
-            value={priceAmount}
-            onChange={(e) => setPriceAmount(e.target.value)}
-            placeholder="0.00"
-            className="rounded-xl h-11"
+            type="number" inputMode="decimal" min="0" step="0.01"
+            value={priceAmount} onChange={(e) => setPriceAmount(e.target.value)}
+            placeholder="0.00" className="rounded-xl h-11"
           />
         </div>
         <div className="space-y-1.5">
@@ -168,14 +182,21 @@ export function ProductForm() {
       </div>
 
       <div className="space-y-1.5">
+        <Label className="text-[10px] font-black uppercase tracking-widest">Category</Label>
+        <Select value={category} onValueChange={v => setCategory(v as StoreCategory)}>
+          <SelectTrigger className="rounded-xl h-11"><SelectValue placeholder="Select a category" /></SelectTrigger>
+          <SelectContent>
+            {STORE_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1.5">
         <Label className="text-[10px] font-black uppercase tracking-widest">Location</Label>
         <Input
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          maxLength={120}
-          placeholder="e.g. Paynesville, Montserrado"
-          list="vimore-counties"
-          className="rounded-xl h-11"
+          value={location} onChange={(e) => setLocation(e.target.value)}
+          maxLength={120} placeholder="e.g. Paynesville, Montserrado"
+          list="vimore-counties" className="rounded-xl h-11"
         />
         <datalist id="vimore-counties">
           <option value="Montserrado" /><option value="Margibi" /><option value="Bong" />
@@ -189,22 +210,17 @@ export function ProductForm() {
       <div className="space-y-1.5">
         <Label className="text-[10px] font-black uppercase tracking-widest">Phone Number (for buyers)</Label>
         <Input
-          type="tel"
-          inputMode="tel"
-          value={phoneNumber}
-          onChange={(e) => setPhoneNumber(e.target.value)}
-          placeholder="0770000000 or +231770000000"
-          className="rounded-xl h-11"
+          type="tel" inputMode="tel"
+          value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)}
+          placeholder="0770000000 or +231770000000" className="rounded-xl h-11"
         />
       </div>
 
       <div className="space-y-1.5">
         <Label className="text-[10px] font-black uppercase tracking-widest">Description</Label>
         <Textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          maxLength={2000}
-          rows={5}
+          value={description} onChange={(e) => setDescription(e.target.value)}
+          maxLength={2000} rows={5}
           placeholder="Condition, features, why you're selling..."
           className="rounded-xl resize-none"
         />

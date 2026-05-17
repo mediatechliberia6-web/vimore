@@ -21,6 +21,8 @@ export interface ProductDoc {
   imageFileIds: string[];
   status: ProductStatus;
   featuredUntil?: string | null;
+  store_id?: string | null;
+  category?: string | null;
 }
 
 export const BOOST_DAYS_PER_DIAMOND = 5;
@@ -39,6 +41,8 @@ export interface CreateProductInput {
   location: string;
   phoneNumber: string;
   files: File[];
+  store_id?: string | null;
+  category?: string | null;
 }
 
 
@@ -123,6 +127,8 @@ function mapProduct(doc: any): ProductDoc {
     imageFileIds: Array.isArray(doc.imageFileIds) ? doc.imageFileIds : [],
     status: (doc.status || 'active') as ProductStatus,
     featuredUntil: doc.featuredUntil || null,
+    store_id: doc.store_id || null,
+    category: doc.category || null,
   };
 }
 
@@ -152,6 +158,20 @@ export async function listProducts(opts: { limit?: number; cursorAfter?: string 
   if (opts.cursorAfter) queries.push(Query.cursorAfter(opts.cursorAfter));
   const res = await databases.listDocuments(DATABASE_ID, COL.PRODUCTS, queries);
   return res.documents.map(mapProduct);
+}
+
+export async function listProductsBySeller(sellerId: string, limit = 50): Promise<ProductDoc[]> {
+  try {
+    const res = await databases.listDocuments(DATABASE_ID, COL.PRODUCTS, [
+      Query.equal('sellerId', sellerId),
+      Query.equal('status', 'active'),
+      Query.orderDesc('$createdAt'),
+      Query.limit(limit),
+    ]);
+    return res.documents.map(mapProduct);
+  } catch {
+    return [];
+  }
 }
 
 export async function getProduct(productId: string): Promise<ProductDoc | null> {
@@ -191,6 +211,8 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
         phoneNumber: input.phoneNumber,
         imageFileIds: uploadedFileIds,
         status: 'active' as ProductStatus,
+        store_id: input.store_id || null,
+        category: input.category || null,
       },
       [
         Permission.read(Role.any()),
