@@ -12,6 +12,7 @@ import {
   Coins, 
   Gem, 
   Star,
+  Server,
   CheckCircle2,
   XCircle,
   AlertTriangle,
@@ -792,6 +793,42 @@ export default function AdminDashboard() {
             );
           })}
         </nav>
+
+        {(isSuper || isFinancial) && (
+          <div className="px-4 pb-2 space-y-1 border-t border-border pt-4">
+            {isSidebarOpen && (
+              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50 px-2 pb-1">
+                Advanced
+              </p>
+            )}
+            {isSuper && (
+              <Link href="/admin/system">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-4 h-11 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                >
+                  <Server className="h-4 w-4 shrink-0" />
+                  {isSidebarOpen && (
+                    <span className="font-bold text-xs uppercase tracking-widest">The System</span>
+                  )}
+                </Button>
+              </Link>
+            )}
+            {(isSuper || isFinancial) && (
+              <Link href="/admin/financial-audit">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-4 h-11 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                >
+                  <Coins className="h-4 w-4 shrink-0" />
+                  {isSidebarOpen && (
+                    <span className="font-bold text-xs uppercase tracking-widest">Financial Audit</span>
+                  )}
+                </Button>
+              </Link>
+            )}
+          </div>
+        )}
 
         <div className="p-4 border-t border-border">
           <Link href="/">
