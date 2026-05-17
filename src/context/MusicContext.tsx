@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { usePosts } from './PostContext';
-import { databases, storage, ID, Query, BUCKET, DATABASE_ID, COL, getFileUrl, extractFileId } from '@/lib/appwrite';
+import { databases, storage, ID, Query, Permission, Role, BUCKET, DATABASE_ID, COL, getFileUrl, extractFileId } from '@/lib/appwrite';
 
 
 export interface Track {
@@ -139,6 +139,7 @@ function mapDocToTrack(doc: any): Track {
     duration: doc.duration || 0,
     streams: String(doc.streams_count || 0),
     likes: doc.likes_count || 0,
+    comments: doc.comments_count || 0,
     isBoosted: doc.is_boosted || false,
     boostExpiry: doc.boost_expiry || undefined,
   };
@@ -382,11 +383,29 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       return { ...s, streams: (current + 1).toString() };
     }));
     try {
+      const doc = await databases.getDocument(DATABASE_ID, COL.TRACKS, String(songId));
       await databases.updateDocument(DATABASE_ID, COL.TRACKS, String(songId), {
-        streams_count: (globalSongs.find(s => s.id === songId)?.streams ? parseInt(globalSongs.find(s => s.id === songId)!.streams!) : 0) + 1,
+        streams_count: (doc.streams_count || 0) + 1,
       });
     } catch { /* ignore */ }
-  }, [globalSongs]);
+  }, []);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('vm_unliked_tracks');
+      if (saved) setUnlikedSongIdsState(new Set(JSON.parse(saved)));
+    } catch { }
+  }, []);
+
+  const toggleUnlike = useCallback(async (track: Track) => {
+    if (!currentUser) return;
+    setUnlikedSongIdsState(prev => {
+      const n = new Set(prev);
+      if (n.has(track.id)) n.delete(track.id); else n.add(track.id);
+      try { localStorage.setItem('vm_unliked_tracks', JSON.stringify([...n])); } catch { }
+      return n;
+    });
+  }, [currentUser]);
 
   const toggleLike = useCallback(async (track: Track) => {
     if (!currentUser) return;
@@ -456,7 +475,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       if (coverId) docData.cover_id = coverId;
       if (track.albumId) docData.album_id = track.albumId;
 
-      const doc = await databases.createDocument(DATABASE_ID, COL.TRACKS, ID.unique(), docData);
+      const permissions = [
+        Permission.read(Role.any()),
+        Permission.update(Role.user(currentUser.$id)),
+        Permission.delete(Role.user(currentUser.$id)),
+      ];
+      const doc = await databases.createDocument(DATABASE_ID, COL.TRACKS, ID.unique(), docData, permissions);
       const newTrack = mapDocToTrack(doc);
       if (track.audioUrl) newTrack.audioUrl = track.audioUrl;
       if (track.cover) newTrack.cover = track.cover;
@@ -660,7 +684,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     },
     clearPlayer: () => { setIsPlayingState(false); setCurrentTrackState(null); },
     toggleLike,
-    toggleUnlike: (t: Track) => setUnlikedSongIdsState(prev => { const n = new Set(prev); if (n.has(t.id)) n.delete(t.id); else n.add(t.id); return n; }),
+    toggleUnlike,
     toggleCollectionLike: (id) => setLikedCollectionIdsState(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; }),
     simulateDownload: async (t: Track) => { setDownloadedSongIdsState(prev => new Set(prev).add(t.id)); },
     isTrackLiked: (id) => likedSongIds.has(id),

@@ -73,7 +73,8 @@ export function MusicGrid({ type, items = [], title }: MusicGridProps) {
     const isUnliked = isTrackUnliked(item.id);
     const isDownloaded = isTrackDownloaded(item.id);
     const isDownloading = downloadingIds.has(item.id);
-    const stats = trackStats[item.id] || { likes: item.likes || 0, unlikes: item.unlikes || 0 };
+    const rawLikes = item.likes || 0;
+    const formatCount = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n);
     
     const stableKey = `${type}-${item.id || idx}-${idx}`;
 
@@ -297,7 +298,7 @@ export function MusicGrid({ type, items = [], title }: MusicGridProps) {
             <h3 className="font-bold text-xs sm:text-sm truncate group-hover:text-primary transition-colors">{item.title}</h3>
             {type === "song" && (
               <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-[9px] font-black text-primary/60">{(stats.likes / 1000).toFixed(1)}K</span>
+                <span className="text-[9px] font-black text-primary/60">{formatCount(rawLikes)}</span>
                 <Badge variant="outline" className="h-4 border-primary/10 bg-primary/5 text-primary text-[7px] font-black uppercase px-1 gap-1">
                   <Zap className="h-2 w-2" /> {item.streams || "0"}
                 </Badge>

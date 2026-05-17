@@ -268,7 +268,7 @@ function MusicPageContent() {
                           {userSongs.map(song => (
                             <div key={song.id} className="group relative">
                               <MusicGrid type="song" items={[song]} />
-                              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-black/40 text-white"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem className="text-destructive gap-2 font-bold" onSelect={() => setDeleteItem({ id: song.id, type: 'track' })}><Trash2 className="h-4 w-4" /> Withdraw Track</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
+                              <div className="absolute top-2 right-2"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-black/40 text-white opacity-60 hover:opacity-100 transition-opacity"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem className="text-destructive gap-2 font-bold" onSelect={() => setDeleteItem({ id: song.id, type: 'track' })}><Trash2 className="h-4 w-4" /> Withdraw Track</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
                             </div>
                           ))}
                         </div>

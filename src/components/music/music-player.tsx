@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Play, 
   Pause, 
@@ -65,9 +65,15 @@ export function MusicPlayer() {
   const [preMuteVolume, setPreMuteVolume] = useState(80);
   const [isDownloading, setIsDownloading] = useState(false);
 
+  useEffect(() => {
+    if (isExpanded && currentTrack) {
+      openCommentHub(currentTrack.id.toString());
+    }
+  }, [isExpanded, currentTrack?.id]);
+
   if (!currentTrack) return null;
 
-  const stats = trackStats[currentTrack.id] || { likes: 0, unlikes: 0 };
+  const formatCount = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -287,7 +293,7 @@ export function MusicPlayer() {
                     <Heart className={cn("h-5 w-5 sm:h-7 sm:w-7", isLiked && "fill-current")} />
                   </Button>
                   <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                    {(stats.likes / 1000).toFixed(1)}K
+                    {formatCount(currentTrack.likes || 0)}
                   </span>
                 </div>
                 

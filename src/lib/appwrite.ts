@@ -1,4 +1,4 @@
-import { Client, Account, Databases, Storage, ID, Query } from 'appwrite';
+import { Client, Account, Databases, Storage, ID, Query, Permission, Role } from 'appwrite';
 
 export type { Models } from 'appwrite';
 
@@ -86,7 +86,7 @@ export const account = new Account(client);
 export const databases = new Databases(client);
 export const storage = new Storage(client);
 
-export { ID, Query };
+export { ID, Query, Permission, Role };
 
 export function getFileUrl(bucketId: string, fileId: string): string {
   if (!fileId) return '';
