@@ -24,12 +24,10 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Menu,
-  HardDrive,
   Eye,
   Trash2,
   Search,
   CircleDashed,
-  UserPlus,
   ShieldAlert,
   Flag,
   Ban,
@@ -44,22 +42,18 @@ import {
   Check,
   Send,
   Loader2,
-  Sliders,
   FileText,
   Lock,
   Music2,
   Clapperboard,
   LayoutDashboard,
-  BrainCircuit,
   EyeOff,
-  Cpu,
   Unplug,
   Sparkles,
   Trophy,
   ArrowRight,
   Mic2,
   ListMusic,
-  Database,
   Hammer,
   RotateCcw,
   Download,
@@ -135,7 +129,6 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { aiAnalyzeVibeAction } from "@/app/actions/ai";
 import {
   Sheet,
   SheetContent,
@@ -153,7 +146,7 @@ import {
 import { AdminTicketTab } from "@/components/tickets/AdminTicketTab";
 import { AdminCheckTicketTab } from "@/components/tickets/AdminCheckTicketTab";
 
-type AdminTab = "pulse" | "economy" | "intelligence" | "velocity" | "identity" | "safety" | "governance" | "campaigns" | "infrastructure" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury" | "referrals" | "knowledge";
+type AdminTab = "economy" | "safety" | "campaigns" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury" | "referrals" | "knowledge";
 
 interface TreasurySnapshot {
   totalUsers: number;
@@ -197,19 +190,11 @@ export default function AdminDashboard() {
   const isModerator = userRole === 'MODERATOR';
   const isUnauthorized = userRole === 'USER';
 
-  const [activeTab, setActiveTab] = useState<AdminTab>("pulse");
+  const [activeTab, setActiveTab] = useState<AdminTab>("economy");
   const [economySubTab, setEconomySubTab] = useState<EconomySubTab>("outbound");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
-  const [isAnalyzingVibe, setIsAnalyzingVibe] = useState(false);
-  const [vibeInsight, setVibeInsight] = useState<{ sentiment: number; velocity: string; engagementRate: number; insight: string } | null>(null);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
-  const [adminSentiment, setAdminSentiment] = useState<number | null>(null);
-  const [adminNegative, setAdminNegative] = useState<number | null>(null);
-  const [adminVelocity, setAdminVelocity] = useState<string | null>(null);
-
-  const [govSearch, setGovSearch] = useState("");
-  const [idSearch, setIdSearch] = useState("");
   const [staffSearch, setStaffSearch] = useState("");
   const hasLoggedBreach = useRef(false);
 
@@ -411,10 +396,10 @@ export default function AdminDashboard() {
   );
 
   const availableTabs = useMemo(() => {
-    if (isSuper) return ["pulse", "economy", "treasury", "referrals", "intelligence", "velocity", "identity", "safety", "users", "broadcast", "governance", "campaigns", "tickets", "check_ticket", "infrastructure", "resolution", "logs", "staff", "knowledge"] as AdminTab[];
-    const tabs: AdminTab[] = ["pulse", "logs"];
-    if (isFinancial) tabs.push("economy", "treasury", "infrastructure");
-    if (isModerator) tabs.push("intelligence", "velocity", "identity", "safety", "users", "campaigns", "resolution", "tickets", "check_ticket");
+    if (isSuper) return ["economy", "treasury", "referrals", "safety", "users", "broadcast", "campaigns", "tickets", "check_ticket", "resolution", "logs", "staff", "knowledge"] as AdminTab[];
+    const tabs: AdminTab[] = ["logs"];
+    if (isFinancial) tabs.push("economy", "treasury");
+    if (isModerator) tabs.push("safety", "users", "campaigns", "resolution", "tickets", "check_ticket");
     return tabs;
   }, [isSuper, isFinancial, isModerator]);
 
@@ -435,21 +420,6 @@ export default function AdminDashboard() {
     return allUsers[0]?.$id ?? null;
   }, [currentUser, connections]);
 
-  const livePulseData = useMemo(() => {
-    const hourBuckets: Record<number, number> = {};
-    posts.forEach(p => {
-      const ts = p.timestamp || p.$createdAt;
-      if (ts) {
-        const h = new Date(ts).getHours();
-        hourBuckets[h] = (hourBuckets[h] || 0) + 1;
-      }
-    });
-    const hours = Array.from({ length: 24 }, (_, i) => i);
-    return hours.map(h => ({
-      time: `${String(h).padStart(2, '0')}:00`,
-      active: Math.max(0, hourBuckets[h] || 0),
-    }));
-  }, [posts]);
 
   const handleOpenWithdrawalDialog = (id: string, action: 'APPROVED' | 'REJECTED') => {
     setWithdrawalAdminMessage("");
@@ -504,31 +474,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleAnalyzeVibe = async () => {
-    if (isAnalyzingVibe) return;
-    setIsAnalyzingVibe(true);
-    triggerHaptic(15);
-    try {
-      const totalLikes = posts.reduce((a, p) => a + (p.likes || 0), 0);
-      const totalUnlikes = posts.reduce((a, p) => a + (p.unlikes || 0), 0);
-      const yesterday = Date.now() - 86400000;
-      const recentPosts = posts.filter(p => new Date(p.createdAt).getTime() > yesterday).length;
-      const result = await aiAnalyzeVibeAction({
-        posts: posts.length,
-        totalLikes,
-        totalUnlikes,
-        recentPosts,
-        totalUsers: allUsers.length,
-      });
-      setVibeInsight(result);
-      triggerHaptic(20);
-      toast({ title: 'Vibe analysis complete', description: 'AI insight generated.' });
-    } catch {
-      toast({ title: 'Analysis failed', description: 'Could not complete vibe analysis.', variant: 'destructive' });
-    } finally {
-      setIsAnalyzingVibe(false);
-    }
-  };
 
   const handleCampaignMedia = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -729,25 +674,6 @@ export default function AdminDashboard() {
     fetchKnowledgeEntries(0);
   }, [activeTab]);
 
-  useEffect(() => {
-    if (activeTab !== 'intelligence') return;
-    databases.listDocuments(DATABASE_ID, COL.POSTS, [
-      Query.orderDesc('$createdAt'), Query.limit(500),
-    ]).then(res => {
-      const allP = res.documents;
-      const totalLikes = allP.reduce((s: number, p: any) => s + (p.likes_count || p.likes || 0), 0);
-      const totalUnlikes = allP.reduce((s: number, p: any) => s + (p.unlikes_count || p.unlikes || 0), 0);
-      const total = totalLikes + totalUnlikes;
-      const sentiment = total > 0 ? Math.min(99, Math.round((totalLikes / total) * 100)) : 0;
-      const negative = total > 0 ? Math.min(99, Math.round((totalUnlikes / total) * 100)) : 0;
-      const oneDayAgo = new Date(Date.now() - 86400000).toISOString();
-      const recentCount = allP.filter((p: any) => (p.$createdAt || '') > oneDayAgo).length;
-      const velocity = recentCount > 20 ? 'HIGH' : recentCount > 5 ? 'MEDIUM' : recentCount > 0 ? 'LOW' : 'IDLE';
-      setAdminSentiment(sentiment);
-      setAdminNegative(negative);
-      setAdminVelocity(velocity);
-    }).catch(() => {});
-  }, [activeTab]);
 
   if (isLoading || !currentUser) {
     return (
@@ -766,24 +692,18 @@ export default function AdminDashboard() {
   );
 
   const TABS_DATA = {
-    pulse: { label: "Pulse", icon: Activity },
     economy: { label: "Economy", icon: Coins },
     treasury: { label: "Treasury", icon: BarChart3 },
-    intelligence: { label: "Intelligence", icon: BrainCircuit },
-    velocity: { label: "Velocity", icon: TrendingUp },
-    identity: { label: "Identity", icon: UserPlus },
+    referrals: { label: "Referrals", icon: Share2 },
     safety: { label: "Safety", icon: ShieldAlert },
     users: { label: "Users", icon: GanttChart },
     broadcast: { label: "Broadcast", icon: BellRing },
-    governance: { label: "Governance", icon: Sliders },
     campaigns: { label: "Campaigns", icon: Megaphone },
-    infrastructure: { label: "Infras", icon: Database },
+    tickets: { label: "Tickets", icon: CalendarClock },
+    check_ticket: { label: "Check Ticket", icon: QrCode2 },
     resolution: { label: "Resol", icon: Hammer },
     logs: { label: "Logs", icon: FileText },
     staff: { label: "Staff", icon: Users },
-    tickets: { label: "Tickets", icon: CalendarClock },
-    check_ticket: { label: "Check Ticket", icon: QrCode2 },
-    referrals: { label: "Referrals", icon: Share2 },
     knowledge: { label: "Knowledge", icon: BookOpen },
   };
 
@@ -901,82 +821,140 @@ export default function AdminDashboard() {
         </header>
 
         <div className="p-4 sm:p-10 space-y-10 pb-32">
-          {activeTab === 'pulse' && (
-            <div className="space-y-10">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                {[
-                  { label: "Active Nodes", value: stats.totalNodes.toLocaleString(), icon: Users, color: "text-blue-400", bg: "bg-blue-400/10" },
-                  { label: "Digital Signatures", value: stats.totalSignatures.toLocaleString(), icon: Rocket, color: "text-primary", bg: "bg-primary/10" },
-                  { label: "Audit Handshakes", value: stats.auditEntries.toLocaleString(), icon: BarChart3, color: "text-accent", bg: "bg-accent/10" },
-                  { label: "Network Energy", value: `GD ${stats.totalEnergy.toLocaleString()}`, icon: Coins, color: "text-amber-400", bg: "bg-amber-400/10" }
-                ].map((m) => (
-                  <Card key={m.label} className="bg-card/40 border-border rounded-[2rem] overflow-hidden group hover:border-primary/30 transition-all shadow-sm">
-                    <CardContent className="p-6 flex items-center gap-5">
-                      <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110", m.bg, m.color)}><m.icon className="h-6 w-6" /></div>
-                      <div className="flex flex-col"><span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{m.label}</span><span className="text-xl font-black italic uppercase tracking-tighter">{m.value}</span></div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              <Card className="bg-card/40 border-border rounded-[2rem] p-8 shadow-sm">
-                <h3 className="text-xl font-black italic uppercase tracking-tighter mb-6">Post Activity by Hour of Day</h3>
-                <div className="h-[300px] w-full">
-                  <ChartContainer config={{ active: { label: "Nodes", color: "hsl(var(--primary))" } }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={livePulseData}>
-                        <defs><linearGradient id="adminPulse" x1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/><stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/></linearGradient></defs>
-                        <XAxis dataKey="time" hide />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Area type="monotone" dataKey="active" stroke="hsl(var(--primary))" strokeWidth={3} fill="url(#adminPulse)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </div>
-              </Card>
-            </div>
-          )}
-
           {activeTab === 'economy' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
-              <div className="flex items-center justify-between px-2">
-                <div className="space-y-1"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Economy Auditor</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Financial Node Synchronization</p></div>
-                <div className="flex gap-1 bg-secondary/40 p-1.5 rounded-2xl">
-                  <button onClick={() => setEconomySubTab("outbound")} className={cn("px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", economySubTab === "outbound" ? "bg-white dark:bg-card text-primary shadow-md" : "text-muted-foreground")}>Outbound</button>
-                  <button onClick={() => setEconomySubTab("inbound")} className={cn("px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", economySubTab === "inbound" ? "bg-white dark:bg-card text-primary shadow-md" : "text-muted-foreground")}>Inbound</button>
+            <div className="space-y-6 animate-in fade-in duration-500">
+              {/* Header */}
+              <div className="px-1">
+                <h3 className="text-2xl font-black italic uppercase tracking-tighter">Economy</h3>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-0.5">Financial requests & withdrawals</p>
+              </div>
+
+              {/* Tab Toggle */}
+              <div className="flex gap-1 bg-secondary/40 p-1.5 rounded-2xl w-full">
+                <button onClick={() => setEconomySubTab("outbound")} className={cn("flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all", economySubTab === "outbound" ? "bg-card text-primary shadow-md" : "text-muted-foreground")}>
+                  <span className="flex items-center justify-center gap-2"><ArrowUpCircle className="h-4 w-4" />Withdrawals</span>
+                </button>
+                <button onClick={() => setEconomySubTab("inbound")} className={cn("flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all", economySubTab === "inbound" ? "bg-card text-primary shadow-md" : "text-muted-foreground")}>
+                  <span className="flex items-center justify-center gap-2"><ArrowDownCircle className="h-4 w-4" />Payments</span>
+                </button>
+              </div>
+
+              {/* Summary row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-card/60 border border-border/50 rounded-3xl p-4 flex items-center gap-3">
+                  <div className="h-10 w-10 bg-amber-500/10 rounded-2xl flex items-center justify-center shrink-0">
+                    <ArrowUpCircle className="h-5 w-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Pending</p>
+                    <p className="text-xl font-black text-amber-500">{pendingWithdrawals.length}</p>
+                    <p className="text-[9px] text-muted-foreground font-bold">Withdrawals</p>
+                  </div>
+                </div>
+                <div className="bg-card/60 border border-border/50 rounded-3xl p-4 flex items-center gap-3">
+                  <div className="h-10 w-10 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
+                    <ArrowDownCircle className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Pending</p>
+                    <p className="text-xl font-black text-primary">{pendingPayments.length}</p>
+                    <p className="text-[9px] text-muted-foreground font-bold">Payments</p>
+                  </div>
                 </div>
               </div>
 
-              {economySubTab === 'outbound' ? (
-                <Card className="bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead><tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20"><th className="px-8 py-4">IDENTITY</th><th className="px-8 py-4">AMOUNT</th><th className="px-8 py-4">GATEWAY</th><th className="px-8 py-4 text-right">HANDSHAKE</th></tr></thead>
-                      <tbody className="divide-y divide-border">
-                        {pendingWithdrawals.length > 0 ? pendingWithdrawals.map((w) => (
-                          <tr key={w.$id} className="hover:bg-secondary/10 transition-colors">
-                            <td className="px-8 py-5"><div className="flex flex-col"><span className="font-bold text-sm">@{w.username}</span><span className="text-[10px] font-black text-muted-foreground uppercase">{w.accountName}</span><span className="text-[10px] font-bold text-muted-foreground">{w.account_number || w.accountNumber || w.payment_details || ''}</span></div></td>
-                            <td className="px-8 py-5"><div className="flex flex-col"><span className="font-black text-primary text-sm">{w.payoutCurrency} {(w.payoutAmount ?? 0).toFixed(2)}</span><span className="text-[9px] font-bold text-muted-foreground uppercase">Source: {w.amount} {w.currency}</span></div></td>
-                            <td className="px-8 py-5"><Badge variant="outline" className="text-[9px] font-black uppercase border-primary/20">{w.method}</Badge></td>
-                            <td className="px-8 py-5 text-right"><div className="flex items-center justify-end gap-2"><Button size="sm" className="h-8 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white" onClick={() => handleOpenWithdrawalDialog(w.$id, 'APPROVED')}><Check className="h-4 w-4" /></Button><Button size="sm" className="h-8 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white" onClick={() => handleOpenWithdrawalDialog(w.$id, 'REJECTED')}><X className="h-4 w-4" /></Button></div></td>
-                          </tr>
-                        )) : (<tr><td colSpan={4} className="py-24 text-center opacity-40 italic text-xs uppercase">No pending outbound handshakes</td></tr>)}
-                      </tbody>
-                    </table>
-                  </div>
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {pendingPayments.map((p) => (
-                    <Card key={p.$id} className="bg-card/40 border-border rounded-[2.5rem] p-6 space-y-6 shadow-xl group">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4"><Avatar className="h-12 w-12 border-2 border-primary/10"><AvatarImage src={`https://picsum.photos/seed/${p.username}/100/100`} /></Avatar><div><p className="font-bold text-base">@{p.username}</p><p className="text-[10px] font-black text-muted-foreground uppercase">{p.packageName}</p></div></div>
-                        <Badge className="bg-amber-500/10 text-amber-500 border-none font-black h-5 px-3 uppercase">{p.currency} {p.amount}</Badge>
+              {/* Outbound — Withdrawals */}
+              {economySubTab === 'outbound' && (
+                <div className="space-y-3">
+                  {pendingWithdrawals.length > 0 ? pendingWithdrawals.map((w) => (
+                    <div key={w.$id} className="bg-card/60 border border-border/50 rounded-3xl p-5 space-y-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-11 w-11 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
+                            <Coins className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-black text-sm truncate">@{w.username}</p>
+                            <p className="text-[10px] font-bold text-muted-foreground truncate">{w.accountName}</p>
+                            <p className="text-[10px] text-muted-foreground/70 truncate">{w.account_number || w.accountNumber || w.payment_details || ''}</p>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="text-[9px] font-black uppercase border-primary/20 shrink-0">{w.method}</Badge>
                       </div>
-                      <div className="aspect-video relative rounded-2xl overflow-hidden border border-white/5 cursor-zoom-in" onClick={() => setSelectedReceipt(p.screenshot)}><Image src={p.screenshot} alt="Receipt" fill className="object-cover group-hover:scale-105 transition-transform" /><div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-black text-[10px] uppercase tracking-widest">Verify Visual</div></div>
-                      <div className="flex gap-3"><Button className="flex-1 h-12 rounded-2xl bg-green-600 text-white font-black uppercase text-[10px] tracking-widest" onClick={() => handleOpenPaymentDialog(p.$id, 'APPROVED')}>Approve Node</Button><Button variant="ghost" className="flex-1 h-12 rounded-2xl bg-destructive/10 text-destructive font-black uppercase text-[10px] tracking-widest" onClick={() => handleOpenPaymentDialog(p.$id, 'REJECTED')}>Reject</Button></div>
-                    </Card>
-                  ))}
-                  {pendingPayments.length === 0 && <div className="col-span-full py-24 text-center bg-card/20 rounded-[2.5rem] border border-dashed border-border opacity-40 uppercase text-xs font-black">Vault Inbound Nodes Silent</div>}
+                      <div className="bg-secondary/30 rounded-2xl p-3 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Payout</p>
+                          <p className="font-black text-base text-primary">{w.payoutCurrency} {(w.payoutAmount ?? 0).toFixed(2)}</p>
+                          <p className="text-[9px] text-muted-foreground font-bold">from {w.amount} {w.currency}</p>
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground/40" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button className="flex-1 h-11 rounded-2xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white font-black uppercase text-xs transition-all" onClick={() => handleOpenWithdrawalDialog(w.$id, 'APPROVED')}>
+                          <Check className="h-4 w-4 mr-1.5" />Approve
+                        </Button>
+                        <Button className="flex-1 h-11 rounded-2xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white font-black uppercase text-xs transition-all" onClick={() => handleOpenWithdrawalDialog(w.$id, 'REJECTED')}>
+                          <X className="h-4 w-4 mr-1.5" />Reject
+                        </Button>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="py-16 flex flex-col items-center gap-3 bg-card/30 rounded-3xl border border-dashed border-border">
+                      <ArrowUpCircle className="h-10 w-10 text-muted-foreground/20" />
+                      <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/50">No pending withdrawals</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Inbound — Payments */}
+              {economySubTab === 'inbound' && (
+                <div className="space-y-3">
+                  {pendingPayments.length > 0 ? pendingPayments.map((p) => (
+                    <div key={p.$id} className="bg-card/60 border border-border/50 rounded-3xl overflow-hidden">
+                      <div className="p-5 space-y-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Avatar className="h-11 w-11 border-2 border-primary/10 shrink-0">
+                              <AvatarImage src={`https://picsum.photos/seed/${p.username}/100/100`} />
+                              <AvatarFallback className="font-black">{(p.username || '?')[0].toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="font-black text-sm truncate">@{p.username}</p>
+                              <p className="text-[10px] font-bold text-muted-foreground truncate">{p.packageName}</p>
+                            </div>
+                          </div>
+                          <Badge className="bg-amber-500/10 text-amber-500 border-none font-black shrink-0">{p.currency} {p.amount}</Badge>
+                        </div>
+                        <div
+                          className="relative w-full rounded-2xl overflow-hidden bg-secondary/20 cursor-zoom-in"
+                          style={{ aspectRatio: '16/9' }}
+                          onClick={() => setSelectedReceipt(p.screenshot)}
+                        >
+                          <Image src={p.screenshot} alt="Receipt" fill className="object-cover" />
+                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                            <div className="bg-black/50 rounded-xl px-3 py-1.5 flex items-center gap-2">
+                              <Eye className="h-3.5 w-3.5 text-white" />
+                              <span className="text-white text-[10px] font-black uppercase">View Receipt</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button className="flex-1 h-11 rounded-2xl bg-green-500 text-white font-black uppercase text-xs hover:bg-green-600 transition-all" onClick={() => handleOpenPaymentDialog(p.$id, 'APPROVED')}>
+                            <Check className="h-4 w-4 mr-1.5" />Approve
+                          </Button>
+                          <Button className="flex-1 h-11 rounded-2xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white font-black uppercase text-xs transition-all" onClick={() => handleOpenPaymentDialog(p.$id, 'REJECTED')}>
+                            <X className="h-4 w-4 mr-1.5" />Reject
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="py-16 flex flex-col items-center gap-3 bg-card/30 rounded-3xl border border-dashed border-border">
+                      <ArrowDownCircle className="h-10 w-10 text-muted-foreground/20" />
+                      <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/50">No pending payments</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1261,317 +1239,138 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeTab === 'intelligence' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
-              <div className="space-y-1 px-2">
-                <h3 className="text-3xl font-black italic uppercase tracking-tighter">Intelligence Core</h3>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">AI-Powered Network Analysis</p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[
-                  { label: "Network Sentiment", value: `${adminSentiment ?? intelligenceMetrics.sentiment}%`, icon: BrainCircuit, color: "text-green-400", bg: "bg-green-400/10", sub: "Positive ratio (up to 500 posts)" },
-                  { label: "Velocity Status", value: adminVelocity ?? intelligenceMetrics.velocity, icon: Zap, color: "text-amber-400", bg: "bg-amber-400/10", sub: "Content spread rate (24h)" },
-                  { label: "Ad Revenue", value: `$${adStats.revenue.toLocaleString()}`, icon: Coins, color: "text-primary", bg: "bg-primary/10", sub: "This billing cycle" },
-                  { label: "Handshakes", value: adStats.handshakes.toLocaleString(), icon: ArrowUpRight, color: "text-blue-400", bg: "bg-blue-400/10", sub: "Ad interactions" },
-                ].map(m => (
-                  <Card key={m.label} className="bg-card/40 border-border rounded-[2rem] p-6 space-y-4 shadow-sm">
-                    <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center", m.bg, m.color)}><m.icon className="h-6 w-6" /></div>
-                    <div><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{m.label}</p><p className="text-2xl font-black italic uppercase tracking-tighter">{m.value}</p><p className="text-[10px] text-muted-foreground mt-1">{m.sub}</p></div>
-                  </Card>
-                ))}
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
-                  <h4 className="text-xl font-black italic uppercase tracking-tighter">Sentiment Pulse</h4>
-                  <div className="space-y-4">
-                    {(() => {
-                      const pos = adminSentiment ?? intelligenceMetrics.sentiment;
-                      const neg = adminNegative ?? Math.max(0, 100 - pos - Math.max(0, 100 - pos - 5));
-                      const neu = Math.max(0, 100 - pos - neg);
-                      return [{ label: "Positive", pct: pos, color: "bg-green-500" }, { label: "Neutral", pct: neu, color: "bg-amber-400" }, { label: "Negative", pct: neg, color: "bg-destructive" }];
-                    })().map(s => (
-                      <div key={s.label} className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-black uppercase text-muted-foreground"><span>{s.label}</span><span>{s.pct}%</span></div>
-                        <div className="h-2 bg-secondary/40 rounded-full overflow-hidden"><div className={cn("h-full rounded-full transition-all", s.color)} style={{ width: `${s.pct}%` }} /></div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
-                  <h4 className="text-xl font-black italic uppercase tracking-tighter">Content Distribution</h4>
-                  <div className="space-y-3">
-                    {(() => {
-                      const total = posts.length || 1;
-                      const photoCount = posts.filter(p => p.type === 'photo').length;
-                      const videoCount = posts.filter(p => p.type === 'video').length;
-                      const lockedCount = posts.filter(p => p.isLocked).length;
-                      const boostedCount = posts.filter(p => p.isBoosted).length;
-                      const otherCount = Math.max(0, total - photoCount - videoCount);
-                      return [
-                        { cat: "Photo", pct: Math.round((photoCount / total) * 100) },
-                        { cat: "Video", pct: Math.round((videoCount / total) * 100) },
-                        { cat: "Text", pct: Math.round((otherCount / total) * 100) },
-                        { cat: "Locked", pct: Math.round((lockedCount / total) * 100) },
-                        { cat: "Boosted", pct: Math.round((boostedCount / total) * 100) },
-                      ];
-                    })().map(c => (
-                      <div key={c.cat} className="flex items-center gap-4">
-                        <span className="text-[10px] font-black uppercase w-16 text-muted-foreground">{c.cat}</span>
-                        <div className="flex-1 h-2 bg-secondary/40 rounded-full overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: `${c.pct}%` }} /></div>
-                        <span className="text-[10px] font-black text-muted-foreground w-8 text-right">{c.pct}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              </div>
-              <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div>
-                    <h4 className="text-xl font-black italic uppercase tracking-tighter">AI Vibe Analysis</h4>
-                    <p className="text-xs text-muted-foreground mt-1">Deep AI insight into platform health and community mood</p>
-                  </div>
-                  <Button onClick={handleAnalyzeVibe} disabled={isAnalyzingVibe} className="rounded-full gap-2 text-xs font-black uppercase tracking-widest">
-                    {isAnalyzingVibe ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4" />}
-                    {isAnalyzingVibe ? 'Analyzing...' : 'Run Vibe Analysis'}
-                  </Button>
-                </div>
-                {vibeInsight ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="bg-green-500/10 rounded-2xl p-4 text-center">
-                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Sentiment</p>
-                        <p className="text-2xl font-black italic text-green-400">{vibeInsight.sentiment}%</p>
-                      </div>
-                      <div className="bg-amber-400/10 rounded-2xl p-4 text-center">
-                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Velocity</p>
-                        <p className="text-2xl font-black italic text-amber-400">{vibeInsight.velocity}</p>
-                      </div>
-                      <div className="bg-primary/10 rounded-2xl p-4 text-center">
-                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Engagement</p>
-                        <p className="text-2xl font-black italic text-primary">{vibeInsight.engagementRate}x</p>
-                      </div>
-                    </div>
-                    <div className="bg-secondary/30 rounded-2xl p-5 border border-border">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Sparkles className="h-4 w-4 text-primary" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-primary">AI Insight</span>
-                      </div>
-                      <p className="text-sm text-foreground leading-relaxed">{vibeInsight.insight}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-3">
-                    <BrainCircuit className="h-12 w-12 opacity-20" />
-                    <p className="text-sm font-medium">Click &quot;Run Vibe Analysis&quot; to generate AI insights</p>
-                  </div>
-                )}
-              </Card>
-            </div>
-          )}
 
-          {activeTab === 'velocity' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
-              <div className="space-y-1 px-2">
-                <h3 className="text-3xl font-black italic uppercase tracking-tighter">Velocity Engine</h3>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Content Spread & Engagement Ranking</p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                {[
-                  { label: "Total Views", value: posts.reduce((a, p) => a + (p.views || 0), 0).toLocaleString(), icon: Eye, color: "text-blue-400", bg: "bg-blue-400/10" },
-                  { label: "Total Likes", value: posts.reduce((a, p) => a + (p.likes || 0), 0).toLocaleString(), icon: Star, color: "text-amber-400", bg: "bg-amber-400/10" },
-                  { label: "Total Shares", value: posts.reduce((a, p) => a + (p.shares || 0), 0).toLocaleString(), icon: ArrowUpRight, color: "text-green-400", bg: "bg-green-400/10" },
-                ].map(m => (
-                  <Card key={m.label} className="bg-card/40 border-border rounded-[2rem] p-6 flex items-center gap-5 shadow-sm">
-                    <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center", m.bg, m.color)}><m.icon className="h-6 w-6" /></div>
-                    <div><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{m.label}</p><p className="text-xl font-black italic uppercase tracking-tighter">{m.value}</p></div>
-                  </Card>
-                ))}
-              </div>
-              <Card className="bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl">
-                <div className="p-8 border-b border-border"><h4 className="text-xl font-black italic uppercase tracking-tighter">Top Performing Signatures</h4><p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Ranked by total view velocity</p></div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead><tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20"><th className="px-8 py-4">#</th><th className="px-8 py-4">Creator</th><th className="px-8 py-4">Content</th><th className="px-8 py-4">Views</th><th className="px-8 py-4">Likes</th><th className="px-8 py-4">Shares</th></tr></thead>
-                    <tbody className="divide-y divide-border">
-                      {[...posts].sort((a, b) => (b.views || 0) - (a.views || 0)).map((p, i) => (
-                        <tr key={p.$id} className="hover:bg-secondary/10 transition-colors">
-                          <td className="px-8 py-4"><span className={cn("text-sm font-black", i === 0 ? "text-amber-400" : i === 1 ? "text-zinc-400" : i === 2 ? "text-amber-700" : "text-muted-foreground")}>#{i + 1}</span></td>
-                          <td className="px-8 py-4"><div className="flex items-center gap-3"><Avatar className="h-8 w-8"><AvatarImage src={p.user?.avatar} /></Avatar><span className="font-bold text-sm">@{p.user?.username}</span></div></td>
-                          <td className="px-8 py-4"><p className="text-xs text-muted-foreground max-w-[200px] truncate">{p.content}</p></td>
-                          <td className="px-8 py-4"><span className="font-black text-sm text-blue-400">{(p.views || 0).toLocaleString()}</span></td>
-                          <td className="px-8 py-4"><span className="font-black text-sm text-amber-400">{(p.likes || 0).toLocaleString()}</span></td>
-                          <td className="px-8 py-4"><span className="font-black text-sm text-green-400">{(p.shares || 0).toLocaleString()}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            </div>
-          )}
 
-          {activeTab === 'identity' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
-                <div className="space-y-1"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Identity Matrix</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Node Verification & Role Management</p></div>
-                <div className="relative w-full sm:w-64"><Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input value={idSearch} onChange={e => setIdSearch(e.target.value)} placeholder="Search nodes..." className="pl-10 h-12 bg-secondary/30 border-none rounded-2xl font-bold" /></div>
-              </div>
-              <Card className="bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead><tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20"><th className="px-8 py-4">Identity</th><th className="px-8 py-4">Role</th><th className="px-8 py-4">Followers</th><th className="px-8 py-4">Verified</th><th className="px-8 py-4 text-right">Actions</th></tr></thead>
-                    <tbody className="divide-y divide-border">
-                      {[currentUser, ...connections].filter(Boolean).filter(u => !idSearch || u.username?.toLowerCase().includes(idSearch.toLowerCase()) || u.name?.toLowerCase().includes(idSearch.toLowerCase())).map(u => (
-                        <tr key={u.$id} className="hover:bg-secondary/10 transition-colors">
-                          <td className="px-8 py-4"><div className="flex items-center gap-3"><Avatar className="h-9 w-9 border-2 border-primary/10"><AvatarImage src={u.avatar} /></Avatar><div><p className="font-bold text-sm">@{u.username}</p><p className="text-[10px] text-muted-foreground">{u.name}</p></div></div></td>
-                          <td className="px-8 py-4"><Badge variant="outline" className={cn("text-[9px] font-black uppercase", u.role === 'SUPER' ? "border-amber-400/30 text-amber-400" : u.role === 'FINANCIAL' ? "border-green-400/30 text-green-400" : u.role === 'MODERATOR' ? "border-blue-400/30 text-blue-400" : "border-border text-muted-foreground")}>{u.role || 'USER'}</Badge></td>
-                          <td className="px-8 py-4"><span className="font-black text-sm">{(u.followers || 0).toLocaleString()}</span></td>
-                          <td className="px-8 py-4">{u.isVerified ? <CheckCircle2 className="h-5 w-5 text-primary" /> : <CircleDashed className="h-5 w-5 text-muted-foreground/40" />}</td>
-                          <td className="px-8 py-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              {u.$id !== currentUser?.$id && (
-                                <>
-                                  <Button size="sm" variant="ghost" className="h-8 rounded-xl text-[9px] font-black uppercase text-blue-400 hover:bg-blue-400/10" onClick={() => { triggerHaptic(10); promoteUser(u.username || '', 'MODERATOR'); toast({ title: `@${u.username} promoted to Moderator` }); }}><UserCheck className="h-3 w-3 mr-1" />Promote</Button>
-                                  {u.$id !== firstUserId && (
-                                    <Button size="sm" variant="ghost" className="h-8 rounded-xl text-[9px] font-black uppercase text-destructive hover:bg-destructive/10" onClick={() => { triggerHaptic(50); demoteUser(u.username || ''); toast({ title: `@${u.username} demoted` }); }}><UserMinus className="h-3 w-3 mr-1" />Demote</Button>
-                                  )}
-                                </>
-                              )}
-                              {u.$id === currentUser?.$id && <Badge className="text-[8px] font-black uppercase bg-primary/10 text-primary border-none">You</Badge>}
-                              {u.$id === firstUserId && u.$id !== currentUser?.$id && <Badge className="text-[8px] font-black uppercase bg-amber-500/10 text-amber-500 border-none">Protected</Badge>}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-              {staff.length > 0 && (
-                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
-                  <h4 className="text-xl font-black italic uppercase tracking-tighter">Staff Roster</h4>
-                  <div className="space-y-3">
-                    {staff.map((s: any) => (
-                      <div key={s.$id} className="flex items-center gap-4 p-4 bg-secondary/20 rounded-2xl">
-                        <Avatar className="h-10 w-10"><AvatarImage src={s.avatar} /></Avatar>
-                        <div className="flex-1"><p className="font-bold text-sm">@{s.username}</p><p className="text-[10px] text-muted-foreground">{s.name}</p></div>
-                        <Badge className={cn("text-[9px] font-black uppercase border-none", s.role === 'MODERATOR' ? "bg-blue-400/10 text-blue-400" : "bg-green-400/10 text-green-400")}>{s.role}</Badge>
-                        {s.$id !== firstUserId && (
-                          <Button size="sm" variant="ghost" className="h-8 rounded-xl text-destructive hover:bg-destructive/10 text-[9px] font-black uppercase" onClick={() => { demoteUser(s.username); toast({ title: `@${s.username} removed from staff` }); }}><UserMinus className="h-3 w-3 mr-1" />Remove</Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              )}
-            </div>
-          )}
 
           {activeTab === 'safety' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
-                <div className="space-y-1"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Safety Shield</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Flagged Content & Community Reports</p></div>
-                <div className="flex flex-wrap gap-2 items-center">
-                  <Badge className="bg-destructive/10 text-destructive border-none font-black uppercase">{reports.filter((r: any) => r.status === 'PENDING').length} Pending</Badge>
-                  <Badge className="bg-green-500/10 text-green-500 border-none font-black uppercase">{reports.filter((r: any) => r.status === 'RESOLVED').length} Resolved</Badge>
-                  <Link href="/admin/shield">
-                    <Button size="sm" className="relative rounded-xl h-8 bg-primary/10 hover:bg-primary/20 text-primary border-none font-black uppercase text-[10px] tracking-widest gap-1.5">
-                      <ShieldAlert className="h-3.5 w-3.5" />
-                      AI Shield Reports
-                      {aiShieldCount > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 h-4 min-w-4 px-1 rounded-full bg-destructive text-white text-[9px] font-black flex items-center justify-center leading-none">
-                          {aiShieldCount > 99 ? '99+' : aiShieldCount}
-                        </span>
-                      )}
-                    </Button>
-                  </Link>
-                </div>
+            <div className="space-y-6 animate-in fade-in duration-500">
+              {/* Header */}
+              <div className="px-1">
+                <h3 className="text-2xl font-black italic uppercase tracking-tighter">Safety</h3>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-0.5">Flagged content & community reports</p>
               </div>
-              <Card className="bg-card/40 border-border rounded-[2.5rem] overflow-hidden shadow-xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead><tr className="border-b border-border text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-secondary/20"><th className="px-8 py-4">Type</th><th className="px-8 py-4">Reported</th><th className="px-8 py-4">Reason</th><th className="px-8 py-4">Details</th><th className="px-8 py-4">Reporter</th><th className="px-8 py-4">Status</th><th className="px-8 py-4 text-right">Action</th></tr></thead>
-                    <tbody className="divide-y divide-border">
-                      {reports.length > 0 ? reports.map((r: any) => {
-                        const isProduct = r.target_type === 'PRODUCT';
-                        let meta: any = null;
-                        if (r.target_meta) { try { meta = typeof r.target_meta === 'string' ? JSON.parse(r.target_meta) : r.target_meta; } catch { meta = null; } }
-                        const reporter = allUsers.find(u => u.$id === r.reporter_id);
-                        const reportedUser = isProduct
-                          ? allUsers.find(u => u.$id === meta?.sellerId || u.username === meta?.sellerUsername)
-                          : allUsers.find(u => u.$id === r.target_id || u.username === r.target_id);
-                        const reportedLabel = isProduct
-                          ? (meta?.productName || 'Product')
-                          : (reportedUser?.username || r.reportedUsername || r.target_id);
-                        const reporterLabel = reporter?.username || r.reporterUsername || r.reporter_id;
-                        return (
-                          <tr key={r.$id} className="hover:bg-secondary/10 transition-colors">
-                            <td className="px-8 py-5">
-                              <Badge className={cn("text-[9px] font-black uppercase border-none", isProduct ? "bg-primary/10 text-primary" : "bg-amber-400/10 text-amber-400")}>
-                                {isProduct ? 'PRODUCT' : (r.target_type || 'USER')}
-                              </Badge>
-                            </td>
-                            <td className="px-8 py-5">
-                              {isProduct ? (
-                                <div className="flex items-center gap-2">
-                                  {meta?.thumbnailFileId && (
-                                    <img src={`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1'}/storage/buckets/Marketplace_Images/files/${meta.thumbnailFileId}/preview?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123'}&width=64&height=64&quality=60&output=webp`} alt="" className="h-10 w-10 rounded-lg object-cover" />
-                                  )}
-                                  <div className="min-w-0">
-                                    <p className="font-bold text-sm truncate max-w-[180px]">{reportedLabel}</p>
-                                    {meta?.sellerUsername && <p className="text-[10px] text-muted-foreground">@{meta.sellerUsername}</p>}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="font-bold text-sm">@{reportedLabel}</span>
-                              )}
-                            </td>
-                            <td className="px-8 py-5"><Badge variant="outline" className={cn("text-[9px] font-black uppercase", r.reason === 'Spam' ? "border-amber-400/30 text-amber-400" : r.reason === 'Harassment' ? "border-destructive/30 text-destructive" : "border-border text-muted-foreground")}>{r.reason}</Badge></td>
-                            <td className="px-8 py-5"><p className="text-xs text-muted-foreground max-w-[200px] line-clamp-2">{r.details}</p></td>
-                            <td className="px-8 py-5"><span className="text-xs font-bold text-muted-foreground">@{reporterLabel}</span></td>
-                            <td className="px-8 py-5"><Badge className={cn("text-[9px] font-black uppercase border-none", r.status === 'PENDING' ? "bg-amber-400/10 text-amber-400" : r.status === 'RESOLVED' ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground")}>{r.status}</Badge></td>
-                            <td className="px-8 py-5 text-right">
-                              {r.status === 'PENDING' && (
-                                <div className="flex flex-wrap items-center justify-end gap-1.5">
-                                  {isProduct && (
-                                    <>
-                                      <Button asChild size="sm" variant="ghost" className="h-8 rounded-xl text-[9px] font-black uppercase">
-                                        <a href={`/marketplace/${r.target_id}`} target="_blank" rel="noopener"><Eye className="h-3 w-3 mr-1" />View</a>
-                                      </Button>
-                                      <Button size="sm" className="h-8 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white text-[9px] font-black uppercase" onClick={async () => {
-                                        triggerHaptic(80);
-                                        if (!confirm(`Delete product "${reportedLabel}"? This cannot be undone.`)) return;
-                                        try {
-                                          await adminDeleteProduct(r.target_id);
-                                          await handleReportAction(r.$id, 'RESOLVED');
-                                          addAuditLog('PRODUCT_DELETED_BY_ADMIN', `Product ${r.target_id} ("${reportedLabel}") deleted from report ${r.$id}`);
-                                        } catch { /* toast already shown */ }
-                                      }}><Trash2 className="h-3 w-3 mr-1" />Delete</Button>
-                                      {meta?.sellerId && (
-                                        <Button size="sm" className="h-8 rounded-xl bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white text-[9px] font-black uppercase" onClick={async () => {
-                                          triggerHaptic(50);
-                                          const severity = confirm('Send FINAL warning?\n\nOK = FINAL warning\nCancel = SOFT warning') ? 'FINAL' : 'SOFT';
-                                          const msg = `Your product "${reportedLabel}" was reported for: ${r.reason}. Please review ViMore Marketplace policies.`;
-                                          await warnUser(meta.sellerId, msg, severity as 'SOFT' | 'FINAL');
-                                          await handleReportAction(r.$id, 'RESOLVED');
-                                          addAuditLog('USER_WARNED_FROM_PRODUCT_REPORT', `Warned @${meta.sellerUsername} (${severity}) for product ${r.target_id}`);
-                                          toast({ title: `${severity} warning sent` });
-                                        }}><AlertTriangle className="h-3 w-3 mr-1" />Warn</Button>
-                                      )}
-                                    </>
-                                  )}
-                                  <Button size="sm" className="h-8 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white text-[9px] font-black uppercase" onClick={() => { triggerHaptic(30); handleReportAction(r.$id, 'RESOLVED'); addAuditLog(isProduct ? 'PRODUCT_REPORT_RESOLVED' : 'REPORT_RESOLVED', `Report ${r.$id} marked resolved`); toast({ title: "Report Resolved" }); }}><Check className="h-3 w-3 mr-1" />Resolve</Button>
-                                  <Button size="sm" className="h-8 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white text-[9px] font-black uppercase" onClick={() => { triggerHaptic(80); handleReportAction(r.$id, 'DISMISSED'); addAuditLog(isProduct ? 'PRODUCT_REPORT_DISMISSED' : 'REPORT_DISMISSED', `Report ${r.$id} dismissed`); toast({ title: "Report Dismissed" }); }}><X className="h-3 w-3 mr-1" />Dismiss</Button>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      }) : (<tr><td colSpan={7} className="py-24 text-center opacity-40 italic text-xs uppercase">Safety shields nominal — no reports</td></tr>)}
-                    </tbody>
-                  </table>
+
+              {/* Stats + AI Shield link */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-card/60 border border-border/50 rounded-3xl p-4 flex flex-col items-center gap-1">
+                  <p className="text-xl font-black text-amber-400">{reports.filter((r: any) => r.status === 'PENDING').length}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground text-center">Pending</p>
                 </div>
-              </Card>
+                <div className="bg-card/60 border border-border/50 rounded-3xl p-4 flex flex-col items-center gap-1">
+                  <p className="text-xl font-black text-green-500">{reports.filter((r: any) => r.status === 'RESOLVED').length}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground text-center">Resolved</p>
+                </div>
+                <Link href="/admin/shield" className="block">
+                  <div className="relative bg-primary/10 border border-primary/20 rounded-3xl p-4 flex flex-col items-center gap-1 active:scale-95 transition-transform">
+                    <ShieldAlert className="h-5 w-5 text-primary" />
+                    <p className="text-[9px] font-black uppercase tracking-widest text-primary text-center">AI Shield</p>
+                    {aiShieldCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 h-5 min-w-5 px-1 rounded-full bg-destructive text-white text-[9px] font-black flex items-center justify-center">
+                        {aiShieldCount > 99 ? '99+' : aiShieldCount}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+              </div>
+
+              {/* Report cards */}
+              <div className="space-y-3">
+                {reports.length > 0 ? reports.map((r: any) => {
+                  const isProduct = r.target_type === 'PRODUCT';
+                  let meta: any = null;
+                  if (r.target_meta) { try { meta = typeof r.target_meta === 'string' ? JSON.parse(r.target_meta) : r.target_meta; } catch { meta = null; } }
+                  const reporter = allUsers.find(u => u.$id === r.reporter_id);
+                  const reportedUser = isProduct
+                    ? allUsers.find(u => u.$id === meta?.sellerId || u.username === meta?.sellerUsername)
+                    : allUsers.find(u => u.$id === r.target_id || u.username === r.target_id);
+                  const reportedLabel = isProduct
+                    ? (meta?.productName || 'Product')
+                    : (reportedUser?.username || r.reportedUsername || r.target_id);
+                  const reporterLabel = reporter?.username || r.reporterUsername || r.reporter_id;
+                  return (
+                    <div key={r.$id} className="bg-card/60 border border-border/50 rounded-3xl p-5 space-y-4">
+                      {/* Top row: type + status */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Badge className={cn("text-[9px] font-black uppercase border-none", isProduct ? "bg-primary/10 text-primary" : "bg-amber-400/10 text-amber-400")}>
+                            {isProduct ? 'Product' : (r.target_type || 'User')}
+                          </Badge>
+                          <Badge variant="outline" className={cn("text-[9px] font-black uppercase", r.reason === 'Spam' ? "border-amber-400/30 text-amber-400" : r.reason === 'Harassment' ? "border-destructive/30 text-destructive" : "border-border text-muted-foreground")}>{r.reason}</Badge>
+                        </div>
+                        <Badge className={cn("text-[9px] font-black uppercase border-none shrink-0", r.status === 'PENDING' ? "bg-amber-400/10 text-amber-400" : r.status === 'RESOLVED' ? "bg-green-500/10 text-green-500" : "bg-muted text-muted-foreground")}>{r.status}</Badge>
+                      </div>
+
+                      {/* Reported target */}
+                      <div className="flex items-center gap-3">
+                        {isProduct && meta?.thumbnailFileId ? (
+                          <img src={`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1'}/storage/buckets/Marketplace_Images/files/${meta.thumbnailFileId}/preview?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123'}&width=64&height=64&quality=60&output=webp`} alt="" className="h-12 w-12 rounded-2xl object-cover shrink-0" />
+                        ) : (
+                          <div className="h-12 w-12 bg-secondary/40 rounded-2xl flex items-center justify-center shrink-0">
+                            <ShieldAlert className="h-5 w-5 text-muted-foreground/40" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-black text-sm truncate">{isProduct ? reportedLabel : `@${reportedLabel}`}</p>
+                          {isProduct && meta?.sellerUsername && <p className="text-[10px] text-muted-foreground">@{meta.sellerUsername}</p>}
+                          {r.details && <p className="text-[10px] text-muted-foreground/70 line-clamp-2 mt-0.5">{r.details}</p>}
+                        </div>
+                      </div>
+
+                      {/* Reporter */}
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                        <span className="font-black uppercase tracking-widest">Reported by</span>
+                        <span className="font-bold">@{reporterLabel}</span>
+                      </div>
+
+                      {/* Actions */}
+                      {r.status === 'PENDING' && (
+                        <div className="flex flex-col gap-2">
+                          {isProduct && (
+                            <div className="flex gap-2">
+                              <Button asChild size="sm" className="flex-1 h-10 rounded-2xl bg-secondary/40 text-foreground font-black uppercase text-xs">
+                                <a href={`/marketplace/${r.target_id}`} target="_blank" rel="noopener"><Eye className="h-3.5 w-3.5 mr-1.5" />View</a>
+                              </Button>
+                              {meta?.sellerId && (
+                                <Button size="sm" className="flex-1 h-10 rounded-2xl bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white font-black uppercase text-xs transition-all" onClick={async () => {
+                                  triggerHaptic(50);
+                                  const severity = confirm('Send FINAL warning?\n\nOK = FINAL warning\nCancel = SOFT warning') ? 'FINAL' : 'SOFT';
+                                  const msg = `Your product "${reportedLabel}" was reported for: ${r.reason}. Please review ViMore Marketplace policies.`;
+                                  await warnUser(meta.sellerId, msg, severity as 'SOFT' | 'FINAL');
+                                  await handleReportAction(r.$id, 'RESOLVED');
+                                  addAuditLog('USER_WARNED_FROM_PRODUCT_REPORT', `Warned @${meta.sellerUsername} (${severity}) for product ${r.target_id}`);
+                                  toast({ title: `${severity} warning sent` });
+                                }}><AlertTriangle className="h-3.5 w-3.5 mr-1.5" />Warn</Button>
+                              )}
+                              <Button size="sm" className="flex-1 h-10 rounded-2xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white font-black uppercase text-xs transition-all" onClick={async () => {
+                                triggerHaptic(80);
+                                if (!confirm(`Delete product "${reportedLabel}"? This cannot be undone.`)) return;
+                                try {
+                                  await adminDeleteProduct(r.target_id);
+                                  await handleReportAction(r.$id, 'RESOLVED');
+                                  addAuditLog('PRODUCT_DELETED_BY_ADMIN', `Product ${r.target_id} ("${reportedLabel}") deleted from report ${r.$id}`);
+                                } catch { /* toast already shown */ }
+                              }}><Trash2 className="h-3.5 w-3.5 mr-1.5" />Delete</Button>
+                            </div>
+                          )}
+                          <div className="flex gap-2">
+                            <Button size="sm" className="flex-1 h-11 rounded-2xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white font-black uppercase text-xs transition-all" onClick={() => { triggerHaptic(30); handleReportAction(r.$id, 'RESOLVED'); addAuditLog(isProduct ? 'PRODUCT_REPORT_RESOLVED' : 'REPORT_RESOLVED', `Report ${r.$id} marked resolved`); toast({ title: "Report Resolved" }); }}>
+                              <Check className="h-4 w-4 mr-1.5" />Resolve
+                            </Button>
+                            <Button size="sm" className="flex-1 h-11 rounded-2xl bg-secondary/40 text-muted-foreground hover:bg-destructive/10 hover:text-destructive font-black uppercase text-xs transition-all" onClick={() => { triggerHaptic(80); handleReportAction(r.$id, 'DISMISSED'); addAuditLog(isProduct ? 'PRODUCT_REPORT_DISMISSED' : 'REPORT_DISMISSED', `Report ${r.$id} dismissed`); toast({ title: "Report Dismissed" }); }}>
+                              <X className="h-4 w-4 mr-1.5" />Dismiss
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }) : (
+                  <div className="py-16 flex flex-col items-center gap-3 bg-card/30 rounded-3xl border border-dashed border-border">
+                    <ShieldAlert className="h-10 w-10 text-muted-foreground/20" />
+                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/50">Safety shields nominal — no reports</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1861,155 +1660,6 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeTab === 'governance' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
-                <div className="space-y-1"><h3 className="text-3xl font-black italic uppercase tracking-tighter">Governance Console</h3><p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Platform-Wide Settings & Controls</p></div>
-                <div className="relative w-full sm:w-64"><Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input value={govSearch} onChange={e => setGovSearch(e.target.value)} placeholder="Filter settings..." className="pl-10 h-12 bg-secondary/30 border-none rounded-2xl font-bold" /></div>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
-                  <h4 className="text-lg font-black italic uppercase tracking-tighter flex items-center gap-2"><Lock className="h-5 w-5 text-primary" />Privacy & Access</h4>
-                  <div className="space-y-5">
-                    {[
-                      { label: "Ghost Mode", sub: "Hide online status across the network", key: "isGhostMode", value: settings.isGhostMode },
-                      { label: "Auto-Follow Suggestions", sub: "Enable automated connection recommendations", key: "isAutoFollowEnabled", value: settings.isAutoFollowEnabled },
-                    ].filter(s => !govSearch || s.label.toLowerCase().includes(govSearch.toLowerCase())).map(s => (
-                      <div key={s.key} className="flex items-center justify-between gap-4 p-4 bg-secondary/20 rounded-2xl">
-                        <div><p className="font-bold text-sm">{s.label}</p><p className="text-[10px] text-muted-foreground">{s.sub}</p></div>
-                        <Switch checked={s.value as boolean} onCheckedChange={v => { updateSettings({ [s.key]: v }); addAuditLog('SETTINGS_UPDATED', `${s.label} set to ${v} by @${currentUser?.username}`); }} />
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
-                  <h4 className="text-lg font-black italic uppercase tracking-tighter flex items-center gap-2"><Sliders className="h-5 w-5 text-primary" />Experience Controls</h4>
-                  <div className="space-y-6">
-                    <div className="space-y-3 p-4 bg-secondary/20 rounded-2xl">
-                      <div className="flex justify-between"><p className="font-bold text-sm">Haptic Intensity</p><span className="text-[10px] font-black text-primary">{settings.hapticIntensity}%</span></div>
-                      <Slider value={[settings.hapticIntensity]} onValueChange={([v]) => updateSettings({ hapticIntensity: v })} min={0} max={100} step={10} className="w-full" />
-                    </div>
-                    <div className="space-y-3 p-4 bg-secondary/20 rounded-2xl">
-                      <div className="flex justify-between"><p className="font-bold text-sm">Font Scale</p><span className="text-[10px] font-black text-primary">{settings.fontScale}x</span></div>
-                      <Slider value={[settings.fontScale * 100]} onValueChange={([v]) => updateSettings({ fontScale: v / 100 })} min={80} max={120} step={10} className="w-full" />
-                    </div>
-                    <div className="p-4 bg-secondary/20 rounded-2xl space-y-2">
-                      <p className="font-bold text-sm">Playback Quality</p>
-                      <div className="flex gap-2">
-                        {['low', 'standard', 'high'].map(q => (
-                          <button key={q} onClick={() => updateSettings({ playbackQuality: q as any })} className={cn("flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all", settings.playbackQuality === q ? "bg-primary text-white" : "bg-secondary/40 text-muted-foreground hover:bg-secondary")}>{q}</button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
-                  <h4 className="text-lg font-black italic uppercase tracking-tighter flex items-center gap-2"><EyeOff className="h-5 w-5 text-primary" />Discovery Settings</h4>
-                  <div className="space-y-4">
-                    {['Tagging Privacy', 'Discovery Visibility'].map((label, i) => {
-                      const key = i === 0 ? 'taggingPrivacy' : 'discoveryVisibility';
-                      const val = (settings as any)[key];
-                      return (
-                        <div key={label} className="p-4 bg-secondary/20 rounded-2xl space-y-2">
-                          <p className="font-bold text-sm">{label}</p>
-                          <div className="flex gap-2">
-                            {['everyone', 'friends', 'nobody'].map(opt => (
-                              <button key={opt} onClick={() => updateSettings({ [key]: opt as any })} className={cn("flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all capitalize", val === opt ? "bg-primary text-white" : "bg-secondary/40 text-muted-foreground hover:bg-secondary")}>{opt}</button>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </Card>
-                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
-                  <h4 className="text-lg font-black italic uppercase tracking-tighter flex items-center gap-2"><Music2 className="h-5 w-5 text-primary" />Sound & Theme</h4>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-secondary/20 rounded-2xl space-y-2">
-                      <p className="font-bold text-sm">Active Sound Set</p>
-                      <div className="grid grid-cols-3 gap-2">
-                        {['cyberpunk', 'minimal', 'nature'].map(s => (
-                          <button key={s} onClick={() => updateSettings({ activeSoundSet: s as any })} className={cn("py-2 rounded-xl text-[10px] font-black uppercase capitalize transition-all", settings.activeSoundSet === s ? "bg-primary text-white" : "bg-secondary/40 text-muted-foreground hover:bg-secondary")}>{s}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="p-4 bg-secondary/20 rounded-2xl space-y-2">
-                      <p className="font-bold text-sm">Theme</p>
-                      <div className="flex gap-2">
-                        {['light', 'dark', 'system'].map(t => (
-                          <button key={t} onClick={() => updateSettings({ theme: t as any })} className={cn("flex-1 py-2 rounded-xl text-[10px] font-black uppercase capitalize transition-all", settings.theme === t ? "bg-primary text-white" : "bg-secondary/40 text-muted-foreground hover:bg-secondary")}>{t}</button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'infrastructure' && (
-            <div className="space-y-10 animate-in fade-in duration-500">
-              <div className="space-y-1 px-2">
-                <h3 className="text-3xl font-black italic uppercase tracking-tighter">Infrastructure Node</h3>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">System Health & Resource Allocation</p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[
-                  { label: "Total Users", value: allUsers.length.toLocaleString(), icon: Activity, color: "text-green-400", bg: "bg-green-400/10", sub: "Registered nodes" },
-                  { label: "Pending Actions", value: (pendingWithdrawals.length + pendingPayments.length).toLocaleString(), icon: Zap, color: "text-amber-400", bg: "bg-amber-400/10", sub: "Awaiting review" },
-                  { label: "Active Campaigns", value: campaigns.filter((c: any) => c.is_active).length.toLocaleString(), icon: HardDrive, color: "text-blue-400", bg: "bg-blue-400/10", sub: "Running ads" },
-                  { label: "Open Tickets", value: tickets.filter((t: any) => (t.status || '').toUpperCase() === 'OPEN').length.toLocaleString(), icon: Cpu, color: "text-primary", bg: "bg-primary/10", sub: "Support queue" },
-                ].map(m => (
-                  <Card key={m.label} className="bg-card/40 border-border rounded-[2rem] p-6 space-y-4 shadow-sm">
-                    <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center", m.bg, m.color)}><m.icon className="h-6 w-6" /></div>
-                    <div><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{m.label}</p><p className="text-2xl font-black italic uppercase tracking-tighter">{m.value}</p><p className="text-[10px] text-muted-foreground mt-1">{m.sub}</p></div>
-                  </Card>
-                ))}
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
-                  <h4 className="text-xl font-black italic uppercase tracking-tighter">Service Health</h4>
-                  <div className="space-y-3">
-                    {[
-                      { name: "Appwrite Backend", status: connections.length > 0 || posts.length > 0 ? "OPERATIONAL" : "CHECKING" },
-                      { name: "Authentication Gateway", status: currentUser ? "OPERATIONAL" : "CHECKING" },
-                      { name: "Media Storage", status: posts.some(p => (p.mediaUrls?.length ?? 0) > 0 || !!p.image) ? "OPERATIONAL" : "CHECKING" },
-                      { name: "Real-Time Messaging", status: "OPERATIONAL" },
-                      { name: "AI Inference Layer", status: "OPERATIONAL" },
-                    ].map(s => (
-                      <div key={s.name} className="flex items-center justify-between p-4 bg-secondary/20 rounded-2xl">
-                        <div className="flex items-center gap-3">
-                          <div className={cn("h-2.5 w-2.5 rounded-full animate-pulse", s.status === 'OPERATIONAL' ? "bg-green-500" : "bg-amber-400")} />
-                          <div><p className="font-bold text-sm">{s.name}</p></div>
-                        </div>
-                        <Badge className={cn("text-[9px] font-black uppercase border-none", s.status === 'OPERATIONAL' ? "bg-green-500/10 text-green-500" : "bg-amber-400/10 text-amber-400")}>{s.status}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-                <Card className="bg-card/40 border-border rounded-[2.5rem] p-8 space-y-6 shadow-xl">
-                  <div className="flex items-center justify-between"><h4 className="text-xl font-black italic uppercase tracking-tighter">Data Volume</h4></div>
-                  <div className="space-y-5">
-                    {[
-                      { label: "Total Posts", value: posts.length.toLocaleString(), color: "bg-blue-500", sub: "Signatures" },
-                      { label: "Total Users", value: connections.length.toLocaleString(), color: "bg-primary", sub: "Active Nodes" },
-                      { label: "Audit Logs", value: auditLogs.length.toLocaleString(), color: "bg-green-500", sub: "Immutable Trail" },
-                      { label: "Ad Campaigns", value: campaigns.length.toLocaleString(), color: "bg-amber-400", sub: "Discovery Nodes" },
-                    ].map(r => (
-                      <div key={r.label} className="flex items-center justify-between p-4 bg-secondary/20 rounded-2xl">
-                        <div className="flex items-center gap-3">
-                          <div className={cn("h-2.5 w-2.5 rounded-full", r.color)} />
-                          <div><p className="font-bold text-sm">{r.label}</p><p className="text-[10px] text-muted-foreground">{r.sub}</p></div>
-                        </div>
-                        <span className="font-black text-lg tabular-nums">{r.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <Button variant="outline" className="w-full h-12 rounded-2xl border-border font-black uppercase text-[10px] tracking-widest" onClick={() => { triggerHaptic(30); refreshAdminData(); toast({ title: "Data Refreshed", description: "Admin data synced from Appwrite." }); }}><RotateCcw className="h-4 w-4 mr-2" />Refresh Data</Button>
-                </Card>
-              </div>
-            </div>
-          )}
 
           {activeTab === 'resolution' && (
             <div className="space-y-10 animate-in fade-in duration-500">
