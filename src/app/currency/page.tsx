@@ -117,6 +117,7 @@ export default function CurrencyHub() {
         code: `VBC-${code}`
       });
       setSelectedPackage(null);
+      setActiveTab("complete");
     } catch (e: any) {
       toast({ variant: "destructive", title: "Protocol Error", description: e.message });
     } finally {
@@ -461,51 +462,83 @@ export default function CurrencyHub() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                    <h3 className="text-sm font-black italic uppercase tracking-widest">Send Payment To</h3>
+                    <h3 className="text-sm font-black italic uppercase tracking-widest">Complete Your Payment</h3>
                   </div>
                   <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
-                    Send the exact amount to one of the accounts below, then upload your receipt screenshot.
+                    Tap the button for your preferred network below. Your phone dialer will open with the payment code pre-filled — just press <span className="font-black text-foreground">Send/Call</span> to transfer the money to <span className="font-black text-foreground">Amos Kortu</span>. After the transfer, screenshot the confirmation message and upload it here.
                   </p>
-                  <div className="space-y-3">
-                    {/* Orange Money */}
-                    <div className="bg-orange-500/8 border border-orange-500/20 rounded-2xl p-4 space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-xl bg-orange-500 flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
-                          <span className="text-white font-black text-xs">OM</span>
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest">Orange Money</p>
-                          <p className="font-black text-sm">Amos Kortu</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleCopy("+231778451835", "Orange Money number")}
-                        className="w-full flex items-center justify-between bg-orange-500/10 hover:bg-orange-500/15 rounded-xl px-4 py-3 transition-colors group"
-                      >
-                        <span className="font-black text-lg tracking-widest text-orange-500">+231 778 451 835</span>
-                        <Copy className="h-4 w-4 text-orange-400 group-hover:scale-110 transition-transform shrink-0" />
-                      </button>
-                    </div>
 
-                    {/* MTN MoMo */}
-                    <div className="bg-yellow-500/8 border border-yellow-500/20 rounded-2xl p-4 space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-xl bg-yellow-500 flex items-center justify-center shrink-0 shadow-md shadow-yellow-500/20">
-                          <span className="text-white font-black text-xs">MM</span>
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest">MTN MoMo</p>
-                          <p className="font-black text-sm">Amos Kortu</p>
-                        </div>
+                  {/* MTN MoMo */}
+                  <div className="bg-yellow-500/8 border border-yellow-500/20 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-xl bg-yellow-500 flex items-center justify-center shrink-0 shadow-md shadow-yellow-500/20">
+                        <span className="text-white font-black text-xs">MM</span>
                       </div>
-                      <button
-                        onClick={() => handleCopy("+231889322188", "MTN MoMo number")}
-                        className="w-full flex items-center justify-between bg-yellow-500/10 hover:bg-yellow-500/15 rounded-xl px-4 py-3 transition-colors group"
-                      >
-                        <span className="font-black text-lg tracking-widest text-yellow-600 dark:text-yellow-400">+231 889 322 188</span>
-                        <Copy className="h-4 w-4 text-yellow-500 group-hover:scale-110 transition-transform shrink-0" />
-                      </button>
+                      <div>
+                        <p className="text-[9px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest">MTN MoMo</p>
+                        <p className="font-black text-sm">Amos Kortu</p>
+                      </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <a
+                        href={`tel:*156*1*1*1*0889322188*2*${pendingTransaction.amount}*${pendingTransaction.amount}%23`}
+                        onClick={() => triggerHaptic(20)}
+                        className="flex flex-col items-center justify-center gap-1 bg-yellow-500/15 hover:bg-yellow-500/25 active:scale-95 rounded-xl px-3 py-3 transition-all text-center"
+                      >
+                        <span className="text-[9px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest">USD</span>
+                        <span className="text-sm font-black text-yellow-600 dark:text-yellow-400">Tap to Dial</span>
+                        <span className="text-[8px] font-bold text-yellow-600/60 dark:text-yellow-400/60">$ {pendingTransaction.currency === 'USD' ? pendingTransaction.amount : '—'}</span>
+                      </a>
+                      <a
+                        href={`tel:*156*1*1*1*0889322188*1*${pendingTransaction.amount}*${pendingTransaction.amount}%23`}
+                        onClick={() => triggerHaptic(20)}
+                        className="flex flex-col items-center justify-center gap-1 bg-yellow-500/15 hover:bg-yellow-500/25 active:scale-95 rounded-xl px-3 py-3 transition-all text-center"
+                      >
+                        <span className="text-[9px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest">LD</span>
+                        <span className="text-sm font-black text-yellow-600 dark:text-yellow-400">Tap to Dial</span>
+                        <span className="text-[8px] font-bold text-yellow-600/60 dark:text-yellow-400/60">L$ {pendingTransaction.currency === 'LD' ? pendingTransaction.amount : '—'}</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Orange Money */}
+                  <div className="bg-orange-500/8 border border-orange-500/20 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-xl bg-orange-500 flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
+                        <span className="text-white font-black text-xs">OM</span>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest">Orange Money</p>
+                        <p className="font-black text-sm">Amos Kortu</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <a
+                        href={`tel:*144*1*1*1*0778451835*${pendingTransaction.amount}%23`}
+                        onClick={() => triggerHaptic(20)}
+                        className="flex flex-col items-center justify-center gap-1 bg-orange-500/15 hover:bg-orange-500/25 active:scale-95 rounded-xl px-3 py-3 transition-all text-center"
+                      >
+                        <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest">USD</span>
+                        <span className="text-sm font-black text-orange-500">Tap to Dial</span>
+                        <span className="text-[8px] font-bold text-orange-500/60">$ {pendingTransaction.currency === 'USD' ? pendingTransaction.amount : '—'}</span>
+                      </a>
+                      <a
+                        href={`tel:*144*2*1*1*0778451835*${pendingTransaction.amount}%23`}
+                        onClick={() => triggerHaptic(20)}
+                        className="flex flex-col items-center justify-center gap-1 bg-orange-500/15 hover:bg-orange-500/25 active:scale-95 rounded-xl px-3 py-3 transition-all text-center"
+                      >
+                        <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest">LD</span>
+                        <span className="text-sm font-black text-orange-500">Tap to Dial</span>
+                        <span className="text-[8px] font-bold text-orange-500/60">L$ {pendingTransaction.currency === 'LD' ? pendingTransaction.amount : '—'}</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-500/5 border border-blue-500/15 rounded-2xl p-4 flex gap-3">
+                    <CheckCircle2 className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+                    <p className="text-[11px] font-bold text-blue-600/80 dark:text-blue-400/80 leading-relaxed">
+                      After sending, screenshot the Orange Money or MTN MoMo confirmation message and upload it below for verification.
+                    </p>
                   </div>
                 </div>
 
