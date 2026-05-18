@@ -68,6 +68,9 @@ export default function SystemPage() {
   const [refreshing, setRefreshing] = useState(false);
   const unsubRef = useRef<(() => void) | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [nextRefreshIn, setNextRefreshIn] = useState(60);
 
   const loadStats = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -171,9 +174,31 @@ export default function SystemPage() {
     timerRef.current = setTimeout(() => loadStats(true), 1000);
   }, [loadStats]);
 
+  const startAutoRefresh = useCallback(() => {
+    if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+
+    setNextRefreshIn(60);
+
+    // Tick the countdown every second
+    countdownRef.current = setInterval(() => {
+      setNextRefreshIn(prev => {
+        if (prev <= 1) return 60;
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Actually refresh every 60 seconds
+    autoRefreshRef.current = setInterval(() => {
+      loadStats(true);
+      setNextRefreshIn(60);
+    }, 60_000);
+  }, [loadStats]);
+
   useEffect(() => {
     if (!isSuper) return;
     loadStats();
+    startAutoRefresh();
 
     const channels = [
       `databases.${DATABASE_ID}.collections.${COL.USERS}.documents`,
@@ -185,8 +210,10 @@ export default function SystemPage() {
     return () => {
       unsub();
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [isSuper, loadStats, scheduleRefresh]);
+  }, [isSuper, loadStats, scheduleRefresh, startAutoRefresh]);
 
   if (!isSuper && !loading) {
     return (
@@ -234,15 +261,18 @@ export default function SystemPage() {
               {stats.lastUpdated.toLocaleTimeString()}
             </span>
           )}
-          <div className="flex items-center gap-1.5">
-            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+          <div className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 rounded-xl px-2.5 py-1.5">
+            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse shrink-0" />
             <span className="text-[9px] font-black uppercase text-green-500 hidden sm:block">Live</span>
+            <span className="text-[9px] font-black text-green-500/70 tabular-nums hidden sm:block">
+              {refreshing ? '…' : `${nextRefreshIn}s`}
+            </span>
           </div>
           <Button
             size="sm"
             variant="ghost"
             className="h-8 w-8 rounded-xl"
-            onClick={() => loadStats(true)}
+            onClick={() => { loadStats(true); startAutoRefresh(); }}
             disabled={refreshing}
           >
             <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
