@@ -479,26 +479,31 @@ export default function CurrencyHub() {
                         <p className="font-black text-sm">Amos Kortu</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    {pendingTransaction.currency === 'USD' ? (
                       <a
                         href={`tel:*156*1*1*1*0889322188*2*${pendingTransaction.amount}*${pendingTransaction.amount}%23`}
                         onClick={() => triggerHaptic(20)}
-                        className="flex flex-col items-center justify-center gap-1 bg-yellow-500/15 hover:bg-yellow-500/25 active:scale-95 rounded-xl px-3 py-3 transition-all text-center"
+                        className="flex items-center justify-between w-full bg-yellow-500/15 hover:bg-yellow-500/25 active:scale-95 rounded-xl px-4 py-3 transition-all"
                       >
-                        <span className="text-[9px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest">USD</span>
-                        <span className="text-sm font-black text-yellow-600 dark:text-yellow-400">Tap to Dial</span>
-                        <span className="text-[8px] font-bold text-yellow-600/60 dark:text-yellow-400/60">$ {pendingTransaction.currency === 'USD' ? pendingTransaction.amount : '—'}</span>
+                        <div>
+                          <span className="text-[9px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest block">USD Payment</span>
+                          <span className="text-base font-black text-yellow-600 dark:text-yellow-400">$ {pendingTransaction.amount} — Tap to Dial</span>
+                        </div>
+                        <span className="text-yellow-600 dark:text-yellow-400 text-xl">📞</span>
                       </a>
+                    ) : (
                       <a
                         href={`tel:*156*1*1*1*0889322188*1*${pendingTransaction.amount}*${pendingTransaction.amount}%23`}
                         onClick={() => triggerHaptic(20)}
-                        className="flex flex-col items-center justify-center gap-1 bg-yellow-500/15 hover:bg-yellow-500/25 active:scale-95 rounded-xl px-3 py-3 transition-all text-center"
+                        className="flex items-center justify-between w-full bg-yellow-500/15 hover:bg-yellow-500/25 active:scale-95 rounded-xl px-4 py-3 transition-all"
                       >
-                        <span className="text-[9px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest">LD</span>
-                        <span className="text-sm font-black text-yellow-600 dark:text-yellow-400">Tap to Dial</span>
-                        <span className="text-[8px] font-bold text-yellow-600/60 dark:text-yellow-400/60">L$ {pendingTransaction.currency === 'LD' ? pendingTransaction.amount : '—'}</span>
+                        <div>
+                          <span className="text-[9px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest block">LD Payment</span>
+                          <span className="text-base font-black text-yellow-600 dark:text-yellow-400">L$ {pendingTransaction.amount} — Tap to Dial</span>
+                        </div>
+                        <span className="text-yellow-600 dark:text-yellow-400 text-xl">📞</span>
                       </a>
-                    </div>
+                    )}
                   </div>
 
                   {/* Orange Money */}
@@ -512,26 +517,31 @@ export default function CurrencyHub() {
                         <p className="font-black text-sm">Amos Kortu</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    {pendingTransaction.currency === 'USD' ? (
                       <a
                         href={`tel:*144*1*1*1*0778451835*${pendingTransaction.amount}%23`}
                         onClick={() => triggerHaptic(20)}
-                        className="flex flex-col items-center justify-center gap-1 bg-orange-500/15 hover:bg-orange-500/25 active:scale-95 rounded-xl px-3 py-3 transition-all text-center"
+                        className="flex items-center justify-between w-full bg-orange-500/15 hover:bg-orange-500/25 active:scale-95 rounded-xl px-4 py-3 transition-all"
                       >
-                        <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest">USD</span>
-                        <span className="text-sm font-black text-orange-500">Tap to Dial</span>
-                        <span className="text-[8px] font-bold text-orange-500/60">$ {pendingTransaction.currency === 'USD' ? pendingTransaction.amount : '—'}</span>
+                        <div>
+                          <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest block">USD Payment</span>
+                          <span className="text-base font-black text-orange-500">$ {pendingTransaction.amount} — Tap to Dial</span>
+                        </div>
+                        <span className="text-orange-500 text-xl">📞</span>
                       </a>
+                    ) : (
                       <a
                         href={`tel:*144*2*1*1*0778451835*${pendingTransaction.amount}%23`}
                         onClick={() => triggerHaptic(20)}
-                        className="flex flex-col items-center justify-center gap-1 bg-orange-500/15 hover:bg-orange-500/25 active:scale-95 rounded-xl px-3 py-3 transition-all text-center"
+                        className="flex items-center justify-between w-full bg-orange-500/15 hover:bg-orange-500/25 active:scale-95 rounded-xl px-4 py-3 transition-all"
                       >
-                        <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest">LD</span>
-                        <span className="text-sm font-black text-orange-500">Tap to Dial</span>
-                        <span className="text-[8px] font-bold text-orange-500/60">L$ {pendingTransaction.currency === 'LD' ? pendingTransaction.amount : '—'}</span>
+                        <div>
+                          <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest block">LD Payment</span>
+                          <span className="text-base font-black text-orange-500">L$ {pendingTransaction.amount} — Tap to Dial</span>
+                        </div>
+                        <span className="text-orange-500 text-xl">📞</span>
                       </a>
-                    </div>
+                    )}
                   </div>
 
                   <div className="bg-blue-500/5 border border-blue-500/15 rounded-2xl p-4 flex gap-3">
