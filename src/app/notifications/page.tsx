@@ -1,7 +1,6 @@
-
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useTranslation } from "@/context/LanguageContext";
 import { Header } from "@/components/layout/header";
 import { SubHeader } from "@/components/layout/sub-header";
@@ -13,125 +12,90 @@ import { useMusic } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
-import { 
-  Heart, 
-  MessageCircle, 
-  Share2, 
-  UserPlus, 
-  Music2, 
-  Zap, 
+import {
+  Heart,
+  MessageCircle,
+  UserPlus,
+  Music2,
+  Zap,
   BellOff,
-  MoreHorizontal,
-  Check,
-  Download,
   ShieldCheck,
   Trash2,
-  ChevronRight,
-  Filter,
-  Users2,
-  TrendingUp,
   Star,
-  UserCheck
+  UserCheck,
+  Bell,
+  CheckCheck,
+  Gift,
+  TrendingUp,
 } from "lucide-react";
 import Image from "next/image";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+
+const TYPE_CONFIG: Record<string, { color: string; bg: string; border: string; dot: string; Icon: any }> = {
+  SOCIAL:  { color: "text-blue-500",   bg: "bg-blue-500/10",   border: "border-blue-500/15",   dot: "bg-blue-500",   Icon: UserPlus   },
+  POST:    { color: "text-primary",    bg: "bg-primary/10",    border: "border-primary/15",    dot: "bg-primary",    Icon: Heart      },
+  SONIC:   { color: "text-purple-500", bg: "bg-purple-500/10", border: "border-purple-500/15", dot: "bg-purple-500", Icon: Music2     },
+  SYSTEM:  { color: "text-emerald-500",bg: "bg-emerald-500/10",border: "border-emerald-500/15",dot: "bg-emerald-500",Icon: ShieldCheck },
+  default: { color: "text-primary",    bg: "bg-primary/10",    border: "border-primary/15",    dot: "bg-primary",    Icon: Zap        },
+};
+
+const FILTERS = [
+  { id: "all",    label: "All",     Icon: Bell     },
+  { id: "SOCIAL", label: "Social",  Icon: UserPlus },
+  { id: "POST",   label: "Content", Icon: Heart    },
+  { id: "SONIC",  label: "Music",   Icon: Music2   },
+  { id: "SYSTEM", label: "System",  Icon: ShieldCheck },
+];
+
+function renderContent(content: string) {
+  const parts = content.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <span key={i} className="font-black text-foreground">{part.slice(2, -2)}</span>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
 
 export default function NotificationsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { t } = useTranslation();
   const { notifications, markAsRead, markAllAsRead, purgeSignal } = useNotifications();
-  const { setSelectedPostId, isFollowing, toggleFollowUser, currentUser } = usePosts();
-  const { setTrack, currentTrack, isExpanded, triggerHaptic, globalSongs } = useMusic();
-  
+  const { setSelectedPostId, isFollowing, triggerHaptic, currentUser } = usePosts();
+  const { setTrack, currentTrack, isExpanded, globalSongs } = useMusic();
   const [activeFilter, setActiveFilter] = useState("all");
-
-  const FILTERS = [
-    { id: "all", label: t('notif_filter_all') },
-    { id: "SOCIAL", label: t('notif_filter_social') },
-    { id: "POST", label: t('notif_filter_content') },
-    { id: "SONIC", label: t('notif_filter_music') },
-  ];
-
   const isPlayerActive = currentTrack && !isExpanded;
 
-  const filteredNotifications = useMemo(() => {
+  const filtered = useMemo(() => {
     if (activeFilter === "all") return notifications;
-    return notifications.filter(n => n.type === activeFilter);
+    return notifications.filter((n) => n.type === activeFilter);
   }, [notifications, activeFilter]);
 
-  const handleNotificationClick = (node: NotificationNode) => {
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  const handleClick = (node: NotificationNode) => {
     triggerHaptic(10);
     markAsRead(node.id);
-
-    // DEEP-LINK DISPATCHER
-    if (node.postId) {
-      // Content Pulse: Materialize the Post Portal
-      setSelectedPostId(node.postId);
-      toast({ title: "Opening Pulse", description: "Navigating to high-velocity content node." });
-    } else if (node.trackId) {
-      // Sonic Pulse: Navigate to Music and play track
-      const track = globalSongs.find(s => String(s.id) === String(node.trackId));
-      if (track) {
-        setTrack(track);
-        router.push('/music');
-      }
-    } else if (node.targetUsername) {
-      // Social Pulse: Jump to User Workspace
-      router.push(`/profile/${node.targetUsername}`);
-    } else if (node.actionHref) {
-      router.push(node.actionHref);
-    }
+    if (node.postId) { setSelectedPostId(node.postId); }
+    else if (node.trackId) {
+      const track = globalSongs.find((s) => String(s.id) === String(node.trackId));
+      if (track) { setTrack(track); router.push("/music"); }
+    } else if (node.targetUsername) { router.push(`/profile/${node.targetUsername}`); }
+    else if (node.actionHref) { router.push(node.actionHref); }
   };
 
-  const handleActionClick = (e: React.MouseEvent, node: NotificationNode) => {
-    e.stopPropagation(); // Prevents card click (portal) from firing
+  const handleAction = (e: React.MouseEvent, node: NotificationNode) => {
+    e.stopPropagation();
     triggerHaptic(25);
-    
-    if (node.type === 'SOCIAL' && node.targetUsername) {
-      // Social handshakes always navigate to the profile
-      router.push(`/profile/${node.targetUsername}`);
-    } else if (node.trackId) {
-      const track = globalSongs.find(s => String(s.id) === String(node.trackId));
-      if (track) {
-        setTrack(track);
-        router.push('/music');
-      }
-    } else if (node.postId) {
-      setSelectedPostId(node.postId);
-      toast({ title: "Opening Pulse", description: "Navigating to content node." });
-    } else if (node.actionHref) {
-      router.push(node.actionHref);
-    }
-  };
-
-  const renderIcon = (type: string) => {
-    switch (type) {
-      case 'SOCIAL': return <UserPlus className="h-3.5 w-3.5 text-blue-500 fill-current" />;
-      case 'POST': return <Heart className="h-3.5 w-3.5 text-primary fill-current" />;
-      case 'SONIC': return <Music2 className="h-3.5 w-3.5 text-purple-500 fill-current" />;
-      case 'SYSTEM': return <ShieldCheck className="h-3.5 w-3.5 text-green-500 fill-current" />;
-      default: return <Zap className="h-3.5 w-3.5 text-primary" />;
-    }
-  };
-
-  const renderContent = (content: string) => {
-    const parts = content.split(/(\*\*.*?\*\*)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <span key={i} className="font-black text-foreground">{part.slice(2, -2)}</span>;
-      }
-      return part;
-    });
+    if (node.type === "SOCIAL" && node.targetUsername) { router.push(`/profile/${node.targetUsername}`); }
+    else if (node.trackId) {
+      const track = globalSongs.find((s) => String(s.id) === String(node.trackId));
+      if (track) { setTrack(track); router.push("/music"); }
+    } else if (node.postId) { setSelectedPostId(node.postId); }
+    else if (node.actionHref) { router.push(node.actionHref); }
   };
 
   return (
@@ -144,177 +108,217 @@ export default function NotificationsPage() {
         isPlayerActive ? "pt-[184px]" : "pt-6"
       )}>
         <aside className={cn(
-          "hidden lg:block sticky h-[calc(100vh-132px)] overflow-y-auto transition-all duration-300",
+          "hidden lg:block sticky h-[calc(100vh-132px)] overflow-y-auto",
           isPlayerActive ? "top-[196px]" : "top-[132px]"
         )}>
           <MainNav />
         </aside>
 
-        <main className="w-full space-y-6 pb-24">
-          <div className="bg-white dark:bg-card rounded-[2.5rem] p-6 sm:p-8 shadow-xl border border-primary/5">
-            <div className="flex items-center justify-between mb-8">
-              <div className="space-y-1">
-                <h1 className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-3">
-                  {t('notif_title')}
-                  <Badge className="bg-primary/10 text-primary border-none text-[10px] font-black h-5">
-                    {notifications.filter(n => !n.isRead).length} {t('notif_filter_all').toUpperCase()}
-                  </Badge>
-                </h1>
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest">{t('notif_subtitle')}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" className="rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-primary/5 text-primary" onClick={markAllAsRead}>
-                  {t('notif_clear_all')}
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 bg-secondary/40"><MoreHorizontal className="h-5 w-5" /></Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="rounded-xl p-2 w-56">
-                    <DropdownMenuItem className="gap-2 font-bold"><BellOff className="h-4 w-4" /> {t('notif_mute')}</DropdownMenuItem>
-                    <DropdownMenuItem className="gap-2 font-bold text-destructive focus:text-destructive" onClick={markAllAsRead}><Check className="h-4 w-4" /> {t('notif_clear_cache')}</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
+        <main className="w-full pb-24 space-y-4 min-w-0">
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-6 scrollbar-hide">
-              <div className="flex items-center gap-2 pr-2 border-r border-primary/10 mr-2 text-muted-foreground">
-                <Filter className="h-3.5 w-3.5" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Niche</span>
-              </div>
-              {FILTERS.map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => { triggerHaptic(5); setActiveFilter(f.id); }}
-                  className={cn(
-                    "px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 border-2",
-                    activeFilter === f.id 
-                      ? "bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-105" 
-                      : "bg-transparent border-primary/5 text-muted-foreground hover:border-primary/30"
+          {/* ── Page header ── */}
+          <div className="bg-white dark:bg-card rounded-[2rem] overflow-hidden shadow-sm border border-black/5 dark:border-white/5">
+            <div className="bg-gradient-to-br from-primary/90 via-primary to-violet-700 p-6 pb-8 relative overflow-hidden">
+              <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+              <div className="relative z-10">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.3em] mb-1">Activity</p>
+                    <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white leading-none">
+                      Notifications
+                    </h1>
+                  </div>
+                  {unreadCount > 0 && (
+                    <div className="bg-white/20 backdrop-blur px-3 py-1.5 rounded-full">
+                      <span className="text-white font-black text-sm">{unreadCount} new</span>
+                    </div>
                   )}
+                </div>
+                <button
+                  onClick={() => { triggerHaptic(5); markAllAsRead(); }}
+                  className="flex items-center gap-2 bg-white/15 hover:bg-white/25 active:scale-95 transition-all rounded-full px-4 py-2"
                 >
-                  {f.label}
+                  <CheckCheck className="h-3.5 w-3.5 text-white" />
+                  <span className="text-[10px] font-black text-white uppercase tracking-widest">Mark all read</span>
                 </button>
-              ))}
+              </div>
             </div>
 
-            <NativeAdNode type="banner-468" id="notif-top-pulse" />
+            {/* Filter pills */}
+            <div className="px-4 -mt-4 pb-4">
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide bg-white dark:bg-card rounded-[1.5rem] p-2 shadow-lg border border-black/5 dark:border-white/5">
+                {FILTERS.map((f) => {
+                  const isActive = activeFilter === f.id;
+                  const count = f.id === "all"
+                    ? notifications.length
+                    : notifications.filter((n) => n.type === f.id).length;
+                  return (
+                    <button
+                      key={f.id}
+                      onClick={() => { triggerHaptic(5); setActiveFilter(f.id); }}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2.5 rounded-xl shrink-0 transition-all duration-200",
+                        isActive
+                          ? "bg-primary text-white shadow-md shadow-primary/20 scale-[1.03]"
+                          : "text-muted-foreground hover:bg-secondary/60"
+                      )}
+                    >
+                      <f.Icon className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">{f.label}</span>
+                      {count > 0 && (
+                        <span className={cn(
+                          "text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center",
+                          isActive ? "bg-white/25 text-white" : "bg-secondary text-muted-foreground"
+                        )}>{count}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
-            <div className="space-y-3">
-              {filteredNotifications.length > 0 ? filteredNotifications.map((node, i) => {
+          <NativeAdNode type="banner-468" id="notif-top-pulse" />
+
+          {/* ── Notification list ── */}
+          {filtered.length === 0 ? (
+            <div className="bg-white dark:bg-card rounded-[2rem] border border-black/5 dark:border-white/5 py-20 flex flex-col items-center gap-5 text-center px-8 shadow-sm">
+              <div className="h-20 w-20 rounded-[1.5rem] bg-primary/5 border-2 border-dashed border-primary/20 flex items-center justify-center">
+                <Bell className="h-9 w-9 text-primary/30" />
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-xl font-black italic uppercase tracking-tighter">{t("notif_empty_title")}</h3>
+                <p className="text-muted-foreground text-sm font-medium max-w-xs">{t("notif_empty_desc")}</p>
+              </div>
+              <Button
+                variant="outline"
+                className="rounded-full border-primary/30 text-primary font-black uppercase text-[10px] tracking-widest h-10 px-6 hover:bg-primary hover:text-white transition-all"
+                onClick={() => router.push("/")}
+              >
+                {t("notif_back")}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filtered.map((node, i) => {
+                const cfg = TYPE_CONFIG[node.type] || TYPE_CONFIG.default;
+                const TypeIcon = cfg.Icon;
                 const isUnread = !node.isRead;
                 const amFollowing = node.targetUsername ? isFollowing(node.targetUsername) : false;
 
                 return (
                   <React.Fragment key={node.id}>
-                    <div 
-                      onClick={() => handleNotificationClick(node)}
+                    <div
+                      onClick={() => handleClick(node)}
                       className={cn(
-                        "group relative flex items-start gap-4 p-5 rounded-[2rem] transition-all cursor-pointer border-2 animate-in fade-in slide-in-from-bottom-2",
-                        isUnread 
-                          ? "bg-primary/[0.03] border-primary/10 shadow-sm" 
-                          : "bg-transparent border-transparent hover:bg-secondary/20"
+                        "group relative bg-white dark:bg-card rounded-[1.75rem] border transition-all cursor-pointer overflow-hidden",
+                        "animate-in fade-in slide-in-from-bottom-1 duration-300",
+                        isUnread
+                          ? `${cfg.border} shadow-sm`
+                          : "border-black/5 dark:border-white/5 hover:border-black/10 dark:hover:border-white/10"
                       )}
-                      style={{ animationDelay: `${i * 50}ms` }}
+                      style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}
                     >
-                      {/* Delete button — always visible on mobile, hover-reveal on desktop */}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); triggerHaptic(10); purgeSignal(node.id); }}
-                        className="absolute top-3 right-3 z-10 h-7 w-7 flex items-center justify-center rounded-full bg-secondary/60 text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all duration-200"
-                        aria-label="Delete notification"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      {/* Unread accent strip */}
+                      {isUnread && (
+                        <div className={cn("absolute left-0 top-0 bottom-0 w-1 rounded-l-[1.75rem]", cfg.dot)} />
+                      )}
 
-                      <div className="relative shrink-0 pt-1">
-                        <div className="relative">
+                      <div className="flex items-start gap-3 p-4 pl-5">
+                        {/* Avatar + type badge */}
+                        <div className="relative shrink-0">
                           <Avatar className={cn(
-                            "h-14 w-14 border-2 transition-all duration-500",
-                            isUnread ? "border-primary" : "border-white/20 group-hover:border-primary/40"
+                            "h-12 w-12 border-2 transition-all",
+                            isUnread ? "border-primary/30" : "border-transparent"
                           )}>
-                            <AvatarImage src={node.avatar || (node.type !== 'SYSTEM' ? node.image : undefined) || (node.type === 'SYSTEM' ? '/icon.svg' : undefined)} />
-                            <AvatarFallback>V</AvatarFallback>
+                            <AvatarImage src={node.avatar || (node.type !== "SYSTEM" ? node.image : undefined) || (node.type === "SYSTEM" ? "/icon.svg" : undefined)} />
+                            <AvatarFallback className="text-xs font-black">V</AvatarFallback>
                           </Avatar>
-                          <div className="absolute -bottom-1 -right-1 bg-white dark:bg-card p-1.5 rounded-full shadow-lg border border-primary/10">
-                            {renderIcon(node.type)}
+                          <div className={cn(
+                            "absolute -bottom-1 -right-1 h-6 w-6 rounded-full flex items-center justify-center border-2 border-white dark:border-card shadow-sm",
+                            cfg.bg
+                          )}>
+                            <TypeIcon className={cn("h-3 w-3", cfg.color)} />
                           </div>
                         </div>
-                        {isUnread && (
-                          <div className="absolute top-0 -left-1 w-2.5 h-2.5 bg-primary rounded-full animate-pulse shadow-[0_0_10px_rgba(153,64,229,0.8)]" />
-                        )}
-                      </div>
 
-                      <div className="flex-1 min-w-0 pt-1 pr-6 sm:pr-0">
-                        <div className="flex flex-col gap-1">
-                          <p className="text-sm leading-relaxed text-muted-foreground">
+                        {/* Content */}
+                        <div className="flex-1 min-w-0 pr-8">
+                          <p className={cn(
+                            "text-sm leading-relaxed",
+                            isUnread ? "text-foreground" : "text-muted-foreground"
+                          )}>
                             {renderContent(node.content)}
                           </p>
-                          <div className="flex items-center gap-3">
-                            <span className={cn("text-[10px] font-black uppercase tracking-tighter", isUnread ? "text-primary" : "text-muted-foreground/40")}>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className={cn(
+                              "text-[10px] font-black uppercase tracking-tight",
+                              isUnread ? cfg.color : "text-muted-foreground/50"
+                            )}>
                               {node.time}
                             </span>
-                            <div className="h-1 w-1 bg-muted-foreground/20 rounded-full" />
-                            <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">{node.type} SIGNAL</span>
+                            <span className="text-muted-foreground/20 text-[10px]">·</span>
+                            <span className={cn(
+                              "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
+                              cfg.bg, cfg.color
+                            )}>
+                              {node.type}
+                            </span>
                           </div>
+
+                          {/* Action button */}
+                          {(node.actionLabel || node.postId || node.trackId || node.targetUsername) && (
+                            <button
+                              onClick={(e) => handleAction(e, node)}
+                              className={cn(
+                                "mt-3 flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                isUnread
+                                  ? `${cfg.bg} ${cfg.color} border ${cfg.border}`
+                                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
+                              )}
+                            >
+                              {node.type === "SOCIAL"
+                                ? (amFollowing
+                                  ? <><UserCheck className="h-3 w-3" /> Following</>
+                                  : <><UserPlus className="h-3 w-3" /> {t("notif_follow_back")}</>)
+                                : (node.actionLabel || t("notif_view"))
+                              }
+                            </button>
+                          )}
                         </div>
 
-                        {(node.actionLabel || node.postId || node.trackId || node.targetUsername) && (
-                          <div className="mt-4 flex items-center gap-2">
-                            <Button 
-                              size="sm" 
-                              className={cn(
-                                "h-9 px-6 rounded-xl font-black italic uppercase tracking-widest text-[9px] transition-all shadow-lg",
-                                isUnread ? "bg-primary text-white shadow-primary/20" : "bg-secondary text-foreground hover:bg-primary hover:text-white"
-                              )}
-                              onClick={(e) => handleActionClick(e, node)}
-                            >
-                              {node.type === 'SOCIAL' 
-                                ? (amFollowing ? <><UserCheck className="h-3 w-3 mr-1.5" /> {t('notif_friend')}</> : t('notif_follow_back')) 
-                                : (node.actionLabel || t('notif_view'))}
-                            </Button>
+                        {/* Thumbnail */}
+                        {(node.image || node.postId) && !node.avatar && (
+                          <div className="hidden sm:block h-14 w-14 rounded-2xl overflow-hidden shrink-0 border border-black/5 dark:border-white/5">
+                            <Image src={node.image || "/icon.svg"} alt="" width={56} height={56} className="object-cover w-full h-full" />
                           </div>
                         )}
                       </div>
 
-                      {(node.image || node.postId) && !node.avatar && (
-                        <div className="hidden sm:block relative h-16 w-16 rounded-2xl overflow-hidden shrink-0 border border-primary/10 shadow-lg transition-transform group-hover:scale-105">
-                          <Image src={node.image || '/icon.svg'} alt="Context" fill className="object-cover" />
-                          {node.type === 'SONIC' && (
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                              <Music2 className="h-4 w-4 text-white" />
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      {/* Delete button */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); triggerHaptic(10); purgeSignal(node.id); }}
+                        className="absolute top-3 right-3 h-7 w-7 rounded-full bg-secondary/80 flex items-center justify-center text-muted-foreground/60 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+                        aria-label="Delete"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
                     </div>
+
                     {i === 4 && <NativeAdNode type="banner-468" id="notif-mid-pulse" />}
                   </React.Fragment>
                 );
-              }) : (
-                <div className="py-32 text-center space-y-6 animate-in fade-in zoom-in-95 duration-700">
-                  <div className="h-24 w-24 bg-primary/5 rounded-[2.5rem] flex items-center justify-center mx-auto border-2 border-dashed border-primary/20">
-                    <Zap className="h-10 w-10 text-primary/40" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-2xl font-black italic uppercase tracking-tighter">{t('notif_empty_title')}</h3>
-                    <p className="text-muted-foreground text-sm font-medium">{t('notif_empty_desc')}</p>
-                  </div>
-                  <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase tracking-widest text-[10px]" onClick={() => router.push('/')}>{t('notif_back')}</Button>
-                </div>
-              )}
-            </div>
-            
-            {filteredNotifications.length > 0 && (
-              <div className="pt-10 flex justify-center">
+              })}
+
+              <div className="pt-4 flex justify-center">
                 <NativeAdNode type="banner-468" id="notif-bottom-pulse" />
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </main>
 
         <aside className={cn(
-          "hidden lg:block sticky h-[calc(100vh-132px)] overflow-y-auto transition-all duration-300",
+          "hidden lg:block sticky h-[calc(100vh-132px)] overflow-y-auto",
           isPlayerActive ? "top-[196px]" : "top-[132px]"
         )}>
           <RightSidebar />

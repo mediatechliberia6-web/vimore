@@ -124,14 +124,19 @@ export default function IntelligentPage() {
 
   async function deleteConversation(convId: string, e: React.MouseEvent) {
     e.stopPropagation();
+    if (!currentUser) return;
+    setConversations((prev) => prev.filter((c) => c.$id !== convId));
+    if (activeConvId === convId) {
+      setActiveConvId(null);
+      setMessages([]);
+    }
     try {
-      await databases.deleteDocument(DATABASE_ID, COL.AI_CONVERSATIONS, convId);
-      setConversations((prev) => prev.filter((c) => c.$id !== convId));
-      if (activeConvId === convId) {
-        setActiveConvId(null);
-        setMessages([]);
-      }
-    } catch { /* ignore */ }
+      await fetch('/api/intelligent/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: convId, userId: currentUser.$id }),
+      });
+    } catch { /* silent — local state already updated */ }
   }
 
   async function sendMessage(text: string) {
@@ -304,10 +309,21 @@ export default function IntelligentPage() {
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
             </div>
           ) : conversations.length === 0 ? (
-            <div className="p-6 text-center">
-              <Bot className="h-10 w-10 mx-auto mb-3 text-primary/30" />
-              <p className="text-sm font-bold text-muted-foreground">No conversations yet</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Start a new chat above</p>
+            <div className="flex flex-col items-center justify-center h-full px-6 py-10 text-center gap-5">
+              <div className="h-20 w-20 rounded-[1.5rem] bg-gradient-to-br from-[#6200ee]/20 to-[#9c27b0]/10 flex items-center justify-center border border-primary/10">
+                <Bot className="h-10 w-10 text-primary/50" />
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-sm font-black text-foreground">No conversations yet</p>
+                <p className="text-xs text-muted-foreground/70 leading-relaxed">Ask me anything about ViMore — I'm here to help 24/7.</p>
+              </div>
+              <button
+                onClick={startNewConversation}
+                className="w-full flex items-center justify-center gap-2 bg-[#6200ee] hover:bg-[#6200ee]/90 active:scale-95 transition-all text-white font-black text-[11px] uppercase tracking-widest rounded-2xl h-12 shadow-lg shadow-primary/25"
+              >
+                <Plus className="h-4 w-4" />
+                Start New Conversation
+              </button>
             </div>
           ) : (
             conversations.map((conv) => (

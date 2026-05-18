@@ -457,6 +457,58 @@ export default function CurrencyHub() {
                   </div>
                 </div>
 
+                {/* Payment destination */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                    <h3 className="text-sm font-black italic uppercase tracking-widest">Send Payment To</h3>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
+                    Send the exact amount to one of the accounts below, then upload your receipt screenshot.
+                  </p>
+                  <div className="space-y-3">
+                    {/* Orange Money */}
+                    <div className="bg-orange-500/8 border border-orange-500/20 rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-xl bg-orange-500 flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
+                          <span className="text-white font-black text-xs">OM</span>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest">Orange Money</p>
+                          <p className="font-black text-sm">Amos Kortu</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleCopy("+231778451835", "Orange Money number")}
+                        className="w-full flex items-center justify-between bg-orange-500/10 hover:bg-orange-500/15 rounded-xl px-4 py-3 transition-colors group"
+                      >
+                        <span className="font-black text-lg tracking-widest text-orange-500">+231 778 451 835</span>
+                        <Copy className="h-4 w-4 text-orange-400 group-hover:scale-110 transition-transform shrink-0" />
+                      </button>
+                    </div>
+
+                    {/* MTN MoMo */}
+                    <div className="bg-yellow-500/8 border border-yellow-500/20 rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-xl bg-yellow-500 flex items-center justify-center shrink-0 shadow-md shadow-yellow-500/20">
+                          <span className="text-white font-black text-xs">MM</span>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest">MTN MoMo</p>
+                          <p className="font-black text-sm">Amos Kortu</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleCopy("+231889322188", "MTN MoMo number")}
+                        className="w-full flex items-center justify-between bg-yellow-500/10 hover:bg-yellow-500/15 rounded-xl px-4 py-3 transition-colors group"
+                      >
+                        <span className="font-black text-lg tracking-widest text-yellow-600 dark:text-yellow-400">+231 889 322 188</span>
+                        <Copy className="h-4 w-4 text-yellow-500 group-hover:scale-110 transition-transform shrink-0" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Screenshot upload */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
