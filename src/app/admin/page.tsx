@@ -236,6 +236,8 @@ export default function AdminDashboard() {
 
   const [referralLeaders, setReferralLeaders] = useState<any[]>([]);
   const [isFetchingReferrals, setIsFetchingReferrals] = useState(false);
+  const [recentReferralActivity, setRecentReferralActivity] = useState<any[]>([]);
+  const [totalReferralCount, setTotalReferralCount] = useState(0);
 
   const [knowledgeEntries, setKnowledgeEntries] = useState<any[]>([]);
   const [knowledgeTotal, setKnowledgeTotal] = useState(0);
@@ -636,11 +638,25 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (activeTab !== 'referrals') return;
     setIsFetchingReferrals(true);
-    databases.listDocuments(DATABASE_ID, COL.USERS, [
-      Query.orderDesc('referral_count'),
-      Query.limit(20),
-    ]).then(res => {
-      setReferralLeaders(res.documents.filter((u: any) => (u.referral_count || 0) > 0));
+    Promise.allSettled([
+      databases.listDocuments(DATABASE_ID, COL.USERS, [
+        Query.orderDesc('referral_count'),
+        Query.limit(20),
+      ]),
+      databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
+        Query.equal('title', 'Referral Bonus!'),
+        Query.orderDesc('$createdAt'),
+        Query.limit(30),
+      ]),
+    ]).then(([leadersRes, activityRes]) => {
+      if (leadersRes.status === 'fulfilled') {
+        const leaders = leadersRes.value.documents.filter((u: any) => (u.referral_count || 0) > 0);
+        setReferralLeaders(leaders);
+        setTotalReferralCount(leaders.reduce((s: number, u: any) => s + (u.referral_count || 0), 0));
+      }
+      if (activityRes.status === 'fulfilled') {
+        setRecentReferralActivity(activityRes.value.documents);
+      }
     }).catch(() => {}).finally(() => setIsFetchingReferrals(false));
   }, [activeTab]);
 
@@ -1942,11 +1958,13 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === 'referrals' && (
-            <div className="space-y-8 animate-in fade-in duration-500">
-              <div className="flex items-start justify-between flex-wrap gap-4 px-2">
+            <div className="space-y-6 animate-in fade-in duration-500">
+
+              {/* Header */}
+              <div className="flex items-start justify-between flex-wrap gap-4 px-1">
                 <div className="space-y-1">
-                  <h3 className="text-3xl font-black italic uppercase tracking-tighter">Referral Leaderboard</h3>
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Top 20 users who onboarded the most friends</p>
+                  <h3 className="text-3xl font-black italic uppercase tracking-tighter">Star Network</h3>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Platform-wide referral activity &amp; leaderboard</p>
                 </div>
                 <Button
                   variant="outline"
@@ -1954,11 +1972,25 @@ export default function AdminDashboard() {
                   disabled={isFetchingReferrals}
                   onClick={() => {
                     setIsFetchingReferrals(true);
-                    databases.listDocuments(DATABASE_ID, COL.USERS, [
-                      Query.orderDesc('referral_count'),
-                      Query.limit(20),
-                    ]).then(res => {
-                      setReferralLeaders(res.documents.filter((u: any) => (u.referral_count || 0) > 0));
+                    Promise.allSettled([
+                      databases.listDocuments(DATABASE_ID, COL.USERS, [
+                        Query.orderDesc('referral_count'),
+                        Query.limit(20),
+                      ]),
+                      databases.listDocuments(DATABASE_ID, COL.NOTIFICATIONS, [
+                        Query.equal('title', 'Referral Bonus!'),
+                        Query.orderDesc('$createdAt'),
+                        Query.limit(30),
+                      ]),
+                    ]).then(([leadersRes, activityRes]) => {
+                      if (leadersRes.status === 'fulfilled') {
+                        const leaders = leadersRes.value.documents.filter((u: any) => (u.referral_count || 0) > 0);
+                        setReferralLeaders(leaders);
+                        setTotalReferralCount(leaders.reduce((s: number, u: any) => s + (u.referral_count || 0), 0));
+                      }
+                      if (activityRes.status === 'fulfilled') {
+                        setRecentReferralActivity(activityRes.value.documents);
+                      }
                     }).catch(() => {}).finally(() => setIsFetchingReferrals(false));
                   }}
                   className="h-10 rounded-2xl border-primary/20 gap-2 font-black uppercase text-[9px] tracking-widest"
@@ -1969,93 +2001,169 @@ export default function AdminDashboard() {
               </div>
 
               {/* Summary cards */}
-              {referralLeaders.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {[
-                    {
-                      label: "Total Referrals",
-                      value: referralLeaders.reduce((s: number, u: any) => s + (u.referral_count || 0), 0).toLocaleString(),
-                      icon: Share2,
-                      color: "text-primary",
-                      bg: "bg-primary/10",
-                    },
-                    {
-                      label: "Stars Awarded",
-                      value: (referralLeaders.reduce((s: number, u: any) => s + (u.referral_count || 0), 0) * 5000).toLocaleString(),
-                      icon: Star,
-                      color: "text-amber-400",
-                      bg: "bg-amber-400/10",
-                    },
-                    {
-                      label: "Top Referrer",
-                      value: referralLeaders[0]?.name?.split(' ')[0] ?? '—',
-                      icon: Medal,
-                      color: "text-yellow-400",
-                      bg: "bg-yellow-400/10",
-                    },
-                  ].map(card => {
-                    const Icon = card.icon;
-                    return (
-                      <Card key={card.label} className="rounded-3xl border-border/40 bg-card/60">
-                        <CardContent className="p-6 flex items-center gap-4">
-                          <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${card.bg} shrink-0`}>
-                            <Icon className={`h-6 w-6 ${card.color}`} />
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{card.label}</p>
-                            <p className="text-xl font-black tracking-tight">{card.value}</p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  {
+                    label: "Total Referrals",
+                    value: totalReferralCount.toLocaleString(),
+                    icon: Users,
+                    color: "text-primary",
+                    bg: "bg-primary/10",
+                    sub: "across all users",
+                  },
+                  {
+                    label: "Stars Awarded",
+                    value: (totalReferralCount * 5000).toLocaleString(),
+                    icon: Star,
+                    color: "text-amber-400",
+                    bg: "bg-amber-400/10",
+                    sub: "5,000 per referral",
+                  },
+                  {
+                    label: "Top Referrer",
+                    value: referralLeaders[0]?.name?.split(' ')[0] ?? '—',
+                    icon: Medal,
+                    color: "text-yellow-400",
+                    bg: "bg-yellow-400/10",
+                    sub: referralLeaders[0] ? `${referralLeaders[0].referral_count} referrals` : 'No referrals yet',
+                  },
+                ].map(card => {
+                  const Icon = card.icon;
+                  return (
+                    <Card key={card.label} className="rounded-3xl border-border/40 bg-card/60">
+                      <CardContent className="p-6 flex items-center gap-4">
+                        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${card.bg} shrink-0`}>
+                          <Icon className={`h-6 w-6 ${card.color}`} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{card.label}</p>
+                          <p className="text-xl font-black tracking-tight">{isFetchingReferrals ? '—' : card.value}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium">{card.sub}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
 
-              {/* Leaderboard table */}
               {isFetchingReferrals ? (
                 <div className="flex flex-col items-center justify-center py-24 gap-4">
                   <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Loading Leaderboard...</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Loading Data...</p>
                 </div>
-              ) : referralLeaders.length === 0 ? (
-                <Card className="rounded-3xl border-border/40">
-                  <CardContent className="flex flex-col items-center justify-center py-24 gap-4">
-                    <Share2 className="h-12 w-12 text-muted-foreground/30" />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">No referrals yet — share the platform to get started.</p>
-                  </CardContent>
-                </Card>
               ) : (
-                <Card className="rounded-3xl border-border/40 overflow-hidden">
-                  <div className="divide-y divide-border/40">
-                    {referralLeaders.map((user: any, i: number) => {
-                      const starsEarned = (user.referral_count || 0) * 5000;
-                      const medalColor = i === 0 ? "text-yellow-400" : i === 1 ? "text-slate-300" : i === 2 ? "text-amber-600" : "text-muted-foreground";
-                      return (
-                        <div key={user.$id} className="flex items-center gap-4 px-6 py-4 hover:bg-secondary/20 transition-colors">
-                          <div className={`w-8 text-center font-black text-sm ${medalColor}`}>
-                            {i < 3 ? <Medal className={`h-5 w-5 mx-auto ${medalColor}`} /> : <span className="text-[11px] text-muted-foreground">{i + 1}</span>}
-                          </div>
-                          <Avatar className="h-10 w-10 border border-border shrink-0">
-                            <AvatarImage src={user.avatar} />
-                            <AvatarFallback className="text-xs font-black bg-secondary">{(user.name || '?')[0]}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-black truncate">{user.name}</p>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">@{user.username}</p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-sm font-black text-primary">{(user.referral_count || 0).toLocaleString()} <span className="text-[10px] text-muted-foreground font-bold">referrals</span></p>
-                            <p className="text-[10px] font-bold text-amber-400">{starsEarned.toLocaleString()} ★</p>
-                          </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                  {/* Recent Activity Feed */}
+                  <Card className="rounded-3xl border-border/40 overflow-hidden">
+                    <CardHeader className="px-6 pt-6 pb-4 border-b border-border/40">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                          <Clock className="h-4 w-4 text-blue-500" />
                         </div>
-                      );
-                    })}
-                  </div>
-                </Card>
+                        <div>
+                          <CardTitle className="text-sm font-black uppercase tracking-widest">Recent Activity</CardTitle>
+                          <CardDescription className="text-[10px] uppercase tracking-widest">Latest referral sign-ups platform-wide</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    {recentReferralActivity.length === 0 ? (
+                      <CardContent className="flex flex-col items-center justify-center py-16 gap-3">
+                        <Share2 className="h-10 w-10 text-muted-foreground/20" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">No referral activity yet</p>
+                      </CardContent>
+                    ) : (
+                      <ScrollArea className="h-[380px]">
+                        <div className="divide-y divide-border/30">
+                          {recentReferralActivity.map((doc: any) => {
+                            const nameMatch = doc.content?.match(/^(.*?)\s\(@/);
+                            const usernameMatch = doc.content?.match(/@([\w.]+)\)/);
+                            const joinedName = nameMatch?.[1] || 'ViMore User';
+                            const joinedUsername = usernameMatch?.[1] || 'user';
+                            const timeAgo = (() => {
+                              const diff = Math.floor((Date.now() - new Date(doc.$createdAt).getTime()) / 1000);
+                              if (diff < 60) return 'Just now';
+                              if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+                              if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+                              return `${Math.floor(diff / 86400)}d ago`;
+                            })();
+                            return (
+                              <div key={doc.$id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-secondary/20 transition-colors">
+                                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                                  <span className="text-sm font-black text-primary">{joinedName[0]?.toUpperCase()}</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-black truncate">{joinedName}</p>
+                                  <p className="text-[10px] font-bold text-muted-foreground truncate">@{joinedUsername} joined via referral</p>
+                                </div>
+                                <div className="shrink-0 text-right">
+                                  <div className="flex items-center gap-1 justify-end">
+                                    <Star className="h-3 w-3 text-amber-400 fill-current" />
+                                    <span className="text-[10px] font-black text-amber-500">+5,000</span>
+                                  </div>
+                                  <p className="text-[9px] text-muted-foreground font-medium">{timeAgo}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </Card>
+
+                  {/* Leaderboard */}
+                  <Card className="rounded-3xl border-border/40 overflow-hidden">
+                    <CardHeader className="px-6 pt-6 pb-4 border-b border-border/40">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-yellow-400/10 flex items-center justify-center">
+                          <Trophy className="h-4 w-4 text-yellow-500" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-sm font-black uppercase tracking-widest">Leaderboard</CardTitle>
+                          <CardDescription className="text-[10px] uppercase tracking-widest">Top 20 referrers by count</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    {referralLeaders.length === 0 ? (
+                      <CardContent className="flex flex-col items-center justify-center py-16 gap-3">
+                        <Medal className="h-10 w-10 text-muted-foreground/20" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">No referrals yet</p>
+                      </CardContent>
+                    ) : (
+                      <ScrollArea className="h-[380px]">
+                        <div className="divide-y divide-border/30">
+                          {referralLeaders.map((user: any, i: number) => {
+                            const starsEarned = (user.referral_count || 0) * 5000;
+                            const rankColor = i === 0 ? "text-yellow-400 bg-yellow-400/10" : i === 1 ? "text-slate-300 bg-slate-300/10" : i === 2 ? "text-amber-600 bg-amber-600/10" : "text-muted-foreground bg-secondary";
+                            return (
+                              <div key={user.$id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-secondary/20 transition-colors">
+                                <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[11px] font-black", rankColor)}>
+                                  {i < 3 ? <Medal className="h-4 w-4" /> : i + 1}
+                                </div>
+                                <Avatar className="h-9 w-9 border border-border shrink-0">
+                                  <AvatarImage src={user.avatar} />
+                                  <AvatarFallback className="text-xs font-black bg-secondary">{(user.name || '?')[0]}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-black truncate">{user.name}</p>
+                                  <p className="text-[10px] font-bold text-muted-foreground truncate">@{user.username}</p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-sm font-black text-primary">{(user.referral_count || 0).toLocaleString()} <span className="text-[10px] text-muted-foreground font-bold">refs</span></p>
+                                  <p className="text-[10px] font-bold text-amber-400">{starsEarned.toLocaleString()} ★</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </Card>
+
+                </div>
               )}
 
-              <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/40 text-center">Each referral awards 5,000 stars to the referrer. Only users with at least 1 referral are shown.</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/40 text-center">Each referral awards 5,000 Stars to the referrer. Join links are generated dynamically per user.</p>
             </div>
           )}
 
