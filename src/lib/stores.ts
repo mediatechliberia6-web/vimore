@@ -160,28 +160,23 @@ export async function createStore(input: CreateStoreInput): Promise<StoreDoc> {
   }
 
   try {
-    const doc = await databases.createDocument(
-      DATABASE_ID,
-      COL.STORES,
-      ID.unique(),
-      {
+    const res = await fetch('/api/marketplace/create-store', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         owner_id: input.owner_id,
         owner_username: input.owner_username,
-        store_name: input.store_name.trim(),
+        store_name: input.store_name,
         logo_file_id,
-        description: input.description.trim(),
-        motto: input.motto.trim(),
+        description: input.description,
+        motto: input.motto,
         category: input.category,
-        is_active: true,
-        boost_until: null,
-      },
-      [
-        Permission.read(Role.any()),
-        Permission.update(Role.user(input.owner_id)),
-        Permission.delete(Role.user(input.owner_id)),
-      ]
-    );
-    return mapStore(doc);
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to create store');
+    return mapStore(data.store);
   } catch (err) {
     if (logo_file_id) {
       try { await storage.deleteFile(BUCKET.STORE_LOGOS, logo_file_id); } catch {}

@@ -2497,6 +2497,24 @@ export default function AdminDashboard() {
               </button>
             );
           })}
+
+          {isSuper && (
+            <div className="w-px bg-border/50 self-stretch mx-1" />
+          )}
+
+          {isSuper && (
+            <Link href="/admin/system" className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all shrink-0 min-w-[56px] text-muted-foreground hover:text-foreground hover:bg-secondary/40">
+              <Server className="h-5 w-5" />
+              <span className="text-[8px] font-black uppercase tracking-wide leading-none">System</span>
+            </Link>
+          )}
+
+          {(isSuper || isFinancial) && (
+            <Link href="/admin/financial-audit" className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all shrink-0 min-w-[56px] text-muted-foreground hover:text-foreground hover:bg-secondary/40">
+              <Coins className="h-5 w-5" />
+              <span className="text-[8px] font-black uppercase tracking-wide leading-none">Finance</span>
+            </Link>
+          )}
         </div>
       </nav>
 

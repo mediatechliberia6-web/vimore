@@ -77,6 +77,9 @@ function EmailVerificationGate({ email }: { email?: string }) {
   );
 }
 
+const FEED_CACHE_KEY = 'vimore_feed_cache_v1';
+const MAX_CACHED_POSTS = 15;
+
 export default function Home() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -84,6 +87,14 @@ export default function Home() {
   const { currentTrack, isExpanded } = useMusic();
   const { newFollowingPostsCount, clearNewPosts, uploadProgress } = useFeedSignal();
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
+
+  const [cachedPosts, setCachedPosts] = useState<any[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem(FEED_CACHE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
 
   const loadTriggerRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -99,6 +110,31 @@ export default function Home() {
       seenPostIds.forEach(id => sessionSeen.current.add(id));
     }
   }, [isLoading, seenPostIds]);
+
+  useEffect(() => {
+    if (posts.length === 0 || isOffline) return;
+    try {
+      const toCache = posts.slice(0, MAX_CACHED_POSTS).map((p: any) => ({
+        $id: p.$id,
+        user: p.user,
+        content: p.content,
+        image: p.image,
+        videoUrl: p.videoUrl,
+        likes: p.likes,
+        unlikes: p.unlikes,
+        comments: p.comments,
+        views: p.views,
+        time: p.time,
+        type: p.type,
+        isBoosted: p.isBoosted,
+        isLocked: p.isLocked,
+        unlockPrice: p.unlockPrice,
+        linkPreview: p.linkPreview,
+      }));
+      localStorage.setItem(FEED_CACHE_KEY, JSON.stringify(toCache));
+      setCachedPosts(toCache);
+    } catch {}
+  }, [posts, isOffline]);
 
   const organicSorted = useMemo(() => {
     const regular = posts.filter(p => !p.isBoosted);
@@ -219,10 +255,12 @@ export default function Home() {
       <SubHeader />
 
       {isOffline && (
-        <div className="w-full bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-center gap-2">
-          <WifiOff className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+        <div className="w-full bg-amber-500/10 border-b border-amber-500/20 px-4 py-3 flex items-center justify-center gap-2">
+          <WifiOff className="h-4 w-4 text-amber-500 shrink-0" />
           <span className="text-[11px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
-            {t('home_offline')}
+            {cachedPosts.length > 0
+              ? `No internet access — showing ${cachedPosts.length} cached posts`
+              : t('home_offline')}
           </span>
         </div>
       )}
@@ -341,6 +379,18 @@ export default function Home() {
                 {!isFeedLoading && !hasMoreFeed && (
                   <AcronymRibbon className="mt-4 rounded-[1.5rem]" />
                 )}
+              </>
+            ) : isOffline && cachedPosts.length > 0 ? (
+              <>
+                {cachedPosts.map((post: any) => (
+                  <PostCard key={`cached-${post.$id}`} {...post} />
+                ))}
+                <div className="py-6 flex flex-col items-center gap-2 text-center">
+                  <WifiOff className="h-6 w-6 text-amber-500/50" />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">
+                    End of cached feed — connect to load more
+                  </p>
+                </div>
               </>
             ) : !isLoading && (
               <div className="py-32 text-center bg-white dark:bg-card rounded-[2.5rem] border border-dashed border-primary/10 shadow-sm flex flex-col items-center justify-center space-y-6 px-12 animate-in fade-in zoom-in duration-700">

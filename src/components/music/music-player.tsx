@@ -200,6 +200,8 @@ export function MusicPlayer() {
     );
   }
 
+  const stats = trackStats[currentTrack.id] || { likes: currentTrack.likes || 0, unlikes: currentTrack.unlikes || 0 };
+
   return (
     <div className="fixed inset-0 z-[200] bg-background flex flex-col animate-in fade-in zoom-in-95 duration-500 overflow-hidden">
       <div className="absolute inset-0 -z-10 overflow-hidden">
