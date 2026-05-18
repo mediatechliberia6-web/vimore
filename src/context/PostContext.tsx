@@ -4064,7 +4064,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       return { sentiment, velocity };
     })(),
     withdrawalHistory, paymentRequests,
-    referralLink: "https://www.vimore.cfd/join/" + (currentUser?.username || "guest"),
+    referralLink: (typeof window !== 'undefined' ? window.location.origin : 'https://www.vimore.cfd') + "/join/" + (currentUser?.username || "guest"),
     pendingTransaction, activeSubscriptions, chatMessages,
 
     login, signup, logout, checkSession,
