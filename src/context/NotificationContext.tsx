@@ -208,14 +208,17 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setNotifications(prev => prev.filter(n => n.id !== id));
     // Guard the polling loop so it won't re-add this ID while the delete is in flight
     pendingDeletions.current.add(id);
-    databases.deleteDocument(DATABASE_ID, COL.NOTIFICATIONS, id)
-      .catch((err) => {
-        console.error('purgeSignal DB delete failed:', err);
-      })
+    // Use server-side route so the delete succeeds regardless of collection permissions
+    fetch('/api/notifications/delete', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notificationId: id, userId: currentUser?.$id || '' }),
+    })
+      .catch(() => { /* UI already updated — silent */ })
       .finally(() => {
         pendingDeletions.current.delete(id);
       });
-  }, []);
+  }, [currentUser?.$id]);
 
   const clearPulse = useCallback((category: PulseCategory) => {
     setCategoryPulses(prev => ({ ...prev, [category]: 0 }));
