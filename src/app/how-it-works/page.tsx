@@ -1,282 +1,249 @@
-
 "use client";
 
-import { useState } from "react";
-import { 
-  ArrowLeft, 
-  Zap, 
-  Coins, 
-  Gem, 
-  Star, 
-  Rocket, 
-  Music2, 
-  Users, 
-  ShieldCheck, 
-  TrendingUp, 
-  EyeOff, 
-  CheckCircle2, 
+import {
+  ArrowLeft,
+  Coins,
+  Gem,
+  Star,
+  Rocket,
+  Music2,
+  Users,
+  ShieldCheck,
+  TrendingUp,
+  Zap,
+  MessageCircle,
+  ShoppingBag,
+  Ticket,
   ChevronRight,
-  Info,
-  BookOpen,
-  Sparkles,
-  Clapperboard,
-  Lock,
   Globe,
-  Smartphone,
-  Mic2,
-  Download,
-  Flame
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { useTranslation } from "@/context/LanguageContext";
-import { usePosts } from "@/context/PostContext";
-import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
-import { AcronymHero } from "@/components/branding/acronym-meaning";
+import { cn } from "@/lib/utils";
 
-interface ProtocolCardProps {
-  id: string;
-  title: string;
-  subtitle: string;
-  description: string;
-  icon: any;
-  color: string;
-  bg: string;
-  details: string[];
-}
+const FEATURES = [
+  {
+    icon: Coins,
+    gradient: "from-amber-400 to-orange-500",
+    label: "Currency",
+    title: "How Money Works",
+    points: [
+      { icon: Star, text: "Stars — earned by inviting friends. 5,000 Stars per referral." },
+      { icon: Coins, text: "Gold — used to unlock exclusive posts and send gifts to creators." },
+      { icon: Gem, text: "Diamonds — premium currency for high-value gifts and subscriptions." },
+    ],
+  },
+  {
+    icon: TrendingUp,
+    gradient: "from-green-400 to-emerald-600",
+    label: "Creator Economy",
+    title: "Earning as a Creator",
+    points: [
+      { icon: TrendingUp, text: "You keep 90% of everything you earn. ViMore takes only 10%." },
+      { icon: Coins, text: "Withdraw your Gold and Diamonds to real money via Orange or MTN MoMo." },
+      { icon: ShieldCheck, text: "Every payout is reviewed by our AI audit system for security." },
+    ],
+  },
+  {
+    icon: Rocket,
+    gradient: "from-violet-500 to-purple-700",
+    label: "Content",
+    title: "Sharing & Discovery",
+    points: [
+      { icon: Rocket, text: "Your feed is personalised by AI — it shows the content most relevant to you." },
+      { icon: Zap, text: "Reels — short videos in full-screen, designed for creators to go viral." },
+      { icon: Coins, text: "Lock posts behind a Gold paywall to monetise your best content." },
+    ],
+  },
+  {
+    icon: Music2,
+    gradient: "from-pink-500 to-rose-600",
+    label: "Music",
+    title: "Music & Audio",
+    points: [
+      { icon: Music2, text: "Upload and publish your own tracks, albums, and playlists." },
+      { icon: Zap, text: "Set a 10-second audio intro that plays when people visit your profile." },
+      { icon: Star, text: "Download tracks to listen offline — no data needed after the first play." },
+    ],
+  },
+  {
+    icon: Users,
+    gradient: "from-blue-400 to-cyan-600",
+    label: "Community",
+    title: "Friends & Groups",
+    points: [
+      { icon: Users, text: "Follow anyone. When they follow back, direct messaging unlocks." },
+      { icon: MessageCircle, text: "Create group chats (Clusters) for teams, friends, or communities." },
+      { icon: Globe, text: "Designate a trusted person to manage your account if you go inactive." },
+    ],
+  },
+  {
+    icon: ShoppingBag,
+    gradient: "from-teal-400 to-green-600",
+    label: "Marketplace",
+    title: "Buy & Sell",
+    points: [
+      { icon: ShoppingBag, text: "List products in the Marketplace — photos, price, and contact details." },
+      { icon: Zap, text: "Boost your listing to get it shown to more people across the platform." },
+      { icon: MessageCircle, text: "Buyers contact sellers directly through the built-in chat." },
+    ],
+  },
+  {
+    icon: Ticket,
+    gradient: "from-amber-500 to-yellow-600",
+    label: "Events",
+    title: "Events & Tickets",
+    points: [
+      { icon: Ticket, text: "Find events near you and buy tickets directly inside ViMore." },
+      { icon: Star, text: "Gift tickets to friends — they'll be notified and the ticket transfers instantly." },
+      { icon: ShieldCheck, text: "Every ticket has a unique QR code that's verified at the door." },
+    ],
+  },
+  {
+    icon: ShieldCheck,
+    gradient: "from-slate-500 to-slate-700",
+    label: "Safety",
+    title: "Privacy & Safety",
+    points: [
+      { icon: ShieldCheck, text: "Ghost Mode — browse without showing your online status or read receipts." },
+      { icon: Zap, text: "Sensitive content is blurred by default until you choose to reveal it." },
+      { icon: Users, text: "Report or block anyone. Serious violations result in immediate removal." },
+    ],
+  },
+];
 
-function ProtocolCard({ title, subtitle, description, icon: Icon, color, bg, details }: ProtocolCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const { triggerHaptic } = usePosts();
-
-  const toggle = () => {
-    triggerHaptic(5);
-    setIsExpanded(!isExpanded);
-  };
-
-  return (
-    <div 
-      className={cn(
-        "group bg-white dark:bg-card border-2 transition-all duration-500 rounded-[2.5rem] overflow-hidden",
-        isExpanded ? "border-primary shadow-2xl shadow-primary/10" : "border-primary/5 hover:border-primary/20 shadow-sm"
-      )}
-    >
-      <button 
-        onClick={toggle}
-        className="w-full p-6 sm:p-8 flex items-start gap-6 text-left"
-      >
-        <div className={cn("h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110", bg, color)}>
-          <Icon className="h-7 w-7" />
-        </div>
-        <div className="flex-1 min-w-0 space-y-1">
-          <div className="flex items-center justify-between">
-            <span className={cn("text-[10px] font-black uppercase tracking-[0.3em]", color)}>{subtitle}</span>
-            <ChevronRight className={cn("h-5 w-5 text-muted-foreground/40 transition-transform duration-500", isExpanded && "rotate-90 text-primary")} />
-          </div>
-          <h3 className="text-2xl font-black italic uppercase tracking-tighter">{title}</h3>
-          <p className="text-sm text-muted-foreground font-medium leading-relaxed">{description}</p>
-        </div>
-      </button>
-
-      {isExpanded && (
-        <div className="px-8 pb-8 pt-2 animate-in slide-in-from-top-4 duration-500">
-          <div className="h-px bg-primary/5 mb-6" />
-          <ul className="space-y-4">
-            {details.map((detail, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <div className={cn("mt-1.5 h-1.5 w-1.5 rounded-full shrink-0", color)} />
-                <p className="text-[13px] font-bold text-foreground/80 uppercase tracking-tight leading-relaxed">{detail}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
+const CURRENCIES = [
+  { icon: Star, color: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/20", name: "Stars", desc: "Earned by inviting friends", earn: "5,000 per referral" },
+  { icon: Coins, color: "text-yellow-500", bg: "bg-yellow-500/10", border: "border-yellow-500/20", name: "Gold", desc: "Used for unlocks & gifts", earn: "Purchased or gifted" },
+  { icon: Gem, color: "text-cyan-400", bg: "bg-cyan-400/10", border: "border-cyan-400/20", name: "Diamonds", desc: "Premium gifting & subs", earn: "Purchased in-app" },
+];
 
 export default function HowItWorks() {
-  const { t } = useTranslation();
-  const { triggerHaptic } = usePosts();
-
-  const protocols = [
-    {
-      id: "energy",
-      title: t('how_energy_title'),
-      subtitle: "The Financial Node",
-      description: t('how_energy_desc'),
-      icon: Coins,
-      color: "text-amber-500",
-      bg: "bg-amber-500/10",
-      details: [
-        "STARS: Earned through successful referral handshakes. Stars represent your influence and community growth pulse.",
-        "GOLD: The standard fuel for content interactions. Used to unlock 'Locked Nodes' and send digital gifts to rising creators.",
-        "DIAMONDS: Premium crystalline energy. Required for high-value gifting and materializing 'Premium Loop' subscriptions."
-      ]
-    },
-    {
-      id: "content",
-      title: t('how_content_title'),
-      subtitle: "The Vibe Logic",
-      description: t('how_content_desc'),
-      icon: Rocket,
-      color: "text-primary",
-      bg: "bg-primary/10",
-      details: [
-        "DISCOVERY STREAM: A high-velocity feed tuned by Gemini AI engaging heuristics to show you the best vibes across the network.",
-        "VIBE STREAM (REELS): Immersive, full-screen vertical synchronization designed for deep-level connection with creators.",
-        "LOCKED NODES: Creators can protect exclusive vibes behind a Gold energy gate, rewarding high-fidelity contributors."
-      ]
-    },
-    {
-      id: "sonic",
-      title: t('how_sonic_title'),
-      subtitle: "The Audio Handshake",
-      description: t('how_sonic_desc'),
-      icon: Music2,
-      color: "text-purple-500",
-      bg: "bg-purple-500/10",
-      details: [
-        "SONIC SIGNATURE: Every node can upload a 10-second audio identity that pulses when users visit their digital workspace.",
-        "MUSIC NOTES: Use the 'Binary Handshake' to archive tracks to your device hardware for high-fidelity playback even when off-grid.",
-        "SONIC STUDIO: A specialized flow for artists to publish singles, albums, and curated playlists to the global cluster."
-      ]
-    },
-    {
-      id: "social",
-      title: t('how_social_title'),
-      subtitle: "Community Sync",
-      description: t('how_social_desc'),
-      icon: Users,
-      color: "text-emerald-500",
-      bg: "bg-emerald-500/10",
-      details: [
-        "HANDSHAKES: When two nodes follow each other, a 'Mutual Pulse' is established, unlocking deeper messaging capabilities.",
-        "CLUSTERS: Specialized group nodes for team collaboration, high-speed media sharing, and collective vibe synchronization.",
-        "LEGACY HANDSHAKE: Designate a trusted node to manage your digital signature and vault assets if your primary pulse goes offline."
-      ]
-    },
-    {
-      id: "economy",
-      title: t('how_economy_title'),
-      subtitle: "Economic Logic",
-      description: t('how_economy_desc'),
-      icon: TrendingUp,
-      color: "text-green-500",
-      bg: "bg-green-500/10",
-      details: [
-        "THE 90/10 SPLIT: Creators receive exactly 90% of all monetized pulses. The remaining 10% maintains the MTL high-fidelity clusters.",
-        "WITHDRAWAL PORTAL: Convert your vault energy (Gold/Diamonds) into real assets via secure Orange/MTN MoMo handshakes.",
-        "GEMINI AI AUDIT: Every financial pulse is verified by our AI auditor node to ensure system integrity and prevent fraudulent handshakes."
-      ]
-    },
-    {
-      id: "integrity",
-      title: t('how_integrity_title'),
-      subtitle: "Safety Protocols",
-      description: t('how_integrity_desc'),
-      icon: ShieldCheck,
-      color: "text-blue-500",
-      bg: "bg-blue-500/10",
-      details: [
-        "GHOST NODE: Move through the network without leaving a spatial trace. Your active status and read receipts will be neutralized.",
-        "SENSITIVITY FILTER: Potential high-intensity visuals are materialized with a blur handshake until you manually reveal them.",
-        "ADMINISTRATIVE PURGE: Breaking the social contract results in an immediate severance of your identity node from the network."
-      ]
-    }
-  ];
-
   return (
-    <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#050505] transition-colors duration-500 relative overflow-x-hidden">
-      {/* Background Atmosphere */}
-      <div className="fixed inset-0 pointer-events-none -z-10">
-        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/10 blur-[150px] rounded-full animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/10 blur-[120px] rounded-full animate-pulse delay-700" />
-      </div>
+    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#080808]">
 
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-card/80 backdrop-blur-md border-b border-border h-16 px-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      {/* ── Hero ── */}
+      <div className="relative bg-gradient-to-br from-[#7B2FBE] via-primary to-[#4C1D95] overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-24 -right-24 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 -left-12 w-56 h-56 bg-black/20 rounded-full blur-2xl" />
+        </div>
+
+        <div className="relative z-10 px-5 pt-5 pb-16">
           <Link href="/menu">
-            <Button variant="ghost" size="icon" className="rounded-full hover:bg-secondary/80 active:scale-90 transition-all">
-              <ArrowLeft className="h-6 w-6" />
-            </Button>
+            <button className="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center mb-8 active:scale-90 transition-all">
+              <ArrowLeft className="h-5 w-5 text-white" />
+            </button>
           </Link>
-          <div className="flex flex-col">
-            <h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground leading-none">{t('how_title')}</h1>
-            <span className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1">Network Manual</span>
+
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur px-3 py-1.5 rounded-full">
+              <Zap className="h-3 w-3 text-amber-300 fill-current" />
+              <span className="text-[10px] font-black text-white uppercase tracking-widest">Platform Guide</span>
+            </div>
+            <h1 className="text-[2.8rem] font-black italic uppercase tracking-tighter text-white leading-none drop-shadow-lg">
+              How<br />ViMore<br />Works
+            </h1>
+            <p className="text-white/65 text-sm font-medium max-w-xs leading-relaxed">
+              Everything you need to know about creating, earning, and connecting on ViMore.
+            </p>
           </div>
         </div>
-        <Badge variant="outline" className="border-primary/20 text-primary text-[8px] font-black uppercase px-2 h-5">v1.5.0-SYNC</Badge>
-      </header>
+      </div>
 
-      <main className="max-w-3xl mx-auto p-6 sm:p-12 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32">
-        
-        <section className="text-center space-y-4">
-          <div className="flex justify-center">
-            <div className="h-20 w-20 bg-primary/10 rounded-[2.5rem] flex items-center justify-center text-primary shadow-xl shadow-primary/5">
-              <BookOpen className="h-10 w-10" />
+      {/* ── Currency Quick-Look (overlaps hero) ── */}
+      <div className="relative z-20 -mt-6 px-5 mb-8">
+        <div className="bg-white dark:bg-[#161616] rounded-[2rem] shadow-xl shadow-black/10 border border-black/5 dark:border-white/5 p-5">
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">3 Currencies</p>
+          <div className="space-y-3">
+            {CURRENCIES.map(c => (
+              <div key={c.name} className={cn("flex items-center gap-3 p-3 rounded-xl border", c.bg, c.border)}>
+                <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", c.bg)}>
+                  <c.icon className={cn("h-5 w-5", c.color)} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={cn("text-sm font-black", c.color)}>{c.name}</p>
+                  <p className="text-[11px] text-muted-foreground font-medium">{c.desc}</p>
+                </div>
+                <span className="text-[10px] font-black text-muted-foreground shrink-0 text-right leading-tight max-w-[80px]">{c.earn}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="px-5 pb-24 space-y-4">
+
+        <NativeAdNode type="banner-468" id="hiw-top" />
+
+        {/* ── Feature Sections ── */}
+        {FEATURES.map((f, idx) => (
+          <div key={f.label}>
+            {idx === 4 && <NativeAdNode type="banner-468" id="hiw-mid" />}
+            <div className="bg-white dark:bg-[#161616] rounded-[2rem] shadow-sm border border-black/5 dark:border-white/5 overflow-hidden">
+              {/* Card header */}
+              <div className={cn("bg-gradient-to-r p-5 flex items-center gap-4", f.gradient)}>
+                <div className="w-11 h-11 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
+                  <f.icon className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-white/70 uppercase tracking-widest">{f.label}</p>
+                  <h2 className="text-lg font-black text-white tracking-tight leading-tight">{f.title}</h2>
+                </div>
+              </div>
+
+              {/* Points */}
+              <div className="p-5 space-y-3">
+                {f.points.map((pt, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-lg bg-[#F5F5F7] dark:bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
+                      <pt.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm text-foreground/80 font-medium leading-snug flex-1">{pt.text}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="space-y-2">
-            <h2 className="text-4xl font-black italic uppercase tracking-tighter">{t('how_subtitle')}</h2>
-            <p className="text-muted-foreground text-sm font-medium max-w-lg mx-auto leading-relaxed">
-              {t('how_desc')}
-            </p>
-          </div>
-        </section>
+        ))}
 
-        <AcronymHero />
-
-        <NativeAdNode type="banner-468" id="how-top-pulse" />
-
-        <section className="space-y-6">
-          {protocols.slice(0, 3).map((p) => (
-            <ProtocolCard key={p.id} {...p} />
-          ))}
-          
-          <NativeAdNode type="banner-468" id="how-mid-pulse" />
-          
-          {protocols.slice(3).map((p) => (
-            <ProtocolCard key={p.id} {...p} />
-          ))}
-        </section>
-
-        <section className="bg-primary/5 border border-primary/10 rounded-[2.5rem] p-10 space-y-8 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity">
-            <ShieldCheck className="h-48 w-48" />
-          </div>
-          
+        {/* ── Creator Split Callout ── */}
+        <div className="relative bg-gradient-to-br from-primary to-[#5B21B6] rounded-[2rem] p-6 overflow-hidden">
+          <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/5 rounded-full blur-2xl" />
           <div className="relative z-10 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
-                <Sparkles className="h-6 w-6" />
+              <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center">
+                <TrendingUp className="h-5 w-5 text-white" />
               </div>
-              <h3 className="text-xl font-black italic uppercase tracking-widest">Master Handshake</h3>
+              <div>
+                <p className="text-[10px] font-black text-white/60 uppercase tracking-widest">Creator Revenue</p>
+                <h3 className="text-lg font-black text-white leading-tight">The 90 / 10 Split</h3>
+              </div>
             </div>
-            <p className="text-[13px] text-muted-foreground leading-relaxed font-medium uppercase tracking-tight">
-              ViMore is more than an application; it is a spatial handshake between technology and community. By participating in this network, you agree to uphold the integrity of the cluster and contribute to the collective high-velocity vibe.
+            <p className="text-white/75 text-sm font-medium leading-relaxed">
+              Every Gold or Diamond you earn from your content — gifts, unlocks, subscriptions — you keep <span className="text-white font-black">90%</span>. The remaining 10% keeps the platform running.
             </p>
-            <div className="pt-4 border-t border-primary/10">
-              <p className="text-[9px] font-black text-primary uppercase tracking-[0.4em] mb-1">Architecture by</p>
-              <p className="text-sm font-black italic uppercase tracking-widest">{t('branding_mtl')}</p>
+            <div className="flex gap-3">
+              <div className="flex-1 bg-white/10 rounded-xl p-3 text-center">
+                <p className="text-2xl font-black text-white">90%</p>
+                <p className="text-[10px] font-black text-white/60 uppercase">Yours</p>
+              </div>
+              <div className="flex-1 bg-white/10 rounded-xl p-3 text-center">
+                <p className="text-2xl font-black text-white/50">10%</p>
+                <p className="text-[10px] font-black text-white/40 uppercase">Platform</p>
+              </div>
             </div>
           </div>
-        </section>
+        </div>
 
-        <footer className="pt-10 flex flex-col items-center gap-6 opacity-40">
-          <NativeAdNode type="banner-468" id="how-bottom-pulse" />
-          <div className="flex items-center gap-3 mt-8">
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] font-black uppercase text-primary tracking-widest leading-none mb-1">{t('branding_amos')}</span>
-              <span className="text-[8px] font-bold uppercase tracking-tighter text-muted-foreground">Founder & CEO</span>
-            </div>
-          </div>
-          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-foreground">ViMore Logic v1.5.0 • MTL Core</p>
-        </footer>
+        {/* ── Footer ── */}
+        <NativeAdNode type="banner-468" id="hiw-bottom" />
 
-      </main>
+        <div className="pt-4 flex flex-col items-center gap-2 opacity-40">
+          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-foreground">ViMore v1.5.0 · Media Tech Liberia</p>
+        </div>
+
+      </div>
     </div>
   );
 }

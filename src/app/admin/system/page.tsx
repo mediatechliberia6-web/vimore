@@ -14,6 +14,8 @@ import {
   RefreshCw,
   ShieldCheck,
   Server,
+  UserPlus,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -70,7 +72,10 @@ export default function SystemPage() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const signupsUnsubRef = useRef<(() => void) | null>(null);
   const [nextRefreshIn, setNextRefreshIn] = useState(60);
+  const [recentSignups, setRecentSignups] = useState<any[]>([]);
+  const [recentSignupsLoading, setRecentSignupsLoading] = useState(false);
 
   const loadStats = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -174,6 +179,20 @@ export default function SystemPage() {
     timerRef.current = setTimeout(() => loadStats(true), 1000);
   }, [loadStats]);
 
+  const loadRecentSignups = useCallback(async () => {
+    setRecentSignupsLoading(true);
+    try {
+      const res = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+        Query.orderDesc("$createdAt"),
+        Query.limit(10),
+        Query.select(["$id", "$createdAt", "name", "username", "nationality", "gender"]),
+      ]);
+      setRecentSignups(res.documents);
+    } catch { } finally {
+      setRecentSignupsLoading(false);
+    }
+  }, []);
+
   const startAutoRefresh = useCallback(() => {
     if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
     if (countdownRef.current) clearInterval(countdownRef.current);
@@ -199,7 +218,9 @@ export default function SystemPage() {
     if (!isSuper) return;
     loadStats();
     startAutoRefresh();
+    loadRecentSignups();
 
+    // General stats listener (debounced)
     const channels = [
       `databases.${DATABASE_ID}.collections.${COL.USERS}.documents`,
       `databases.${DATABASE_ID}.collections.${COL.AD_CAMPAIGNS}.documents`,
@@ -207,13 +228,32 @@ export default function SystemPage() {
     const unsub = client.subscribe(channels, () => scheduleRefresh());
     unsubRef.current = unsub;
 
+    // Real-time signups listener — instantly prepends new users without a full refresh
+    const signupsUnsub = client.subscribe(
+      `databases.${DATABASE_ID}.collections.${COL.USERS}.documents`,
+      (response: any) => {
+        const isCreate = response.events?.some((e: string) => e.includes(".create"));
+        if (isCreate && response.payload) {
+          const doc = response.payload;
+          setRecentSignups(prev =>
+            [doc, ...prev.filter(u => u.$id !== doc.$id)].slice(0, 10)
+          );
+          setStats(prev =>
+            prev ? { ...prev, totalUsers: prev.totalUsers + 1 } : prev
+          );
+        }
+      }
+    );
+    signupsUnsubRef.current = signupsUnsub;
+
     return () => {
       unsub();
+      signupsUnsub();
       if (timerRef.current) clearTimeout(timerRef.current);
       if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [isSuper, loadStats, scheduleRefresh, startAutoRefresh]);
+  }, [isSuper, loadStats, scheduleRefresh, startAutoRefresh, loadRecentSignups]);
 
   if (!isSuper && !loading) {
     return (
@@ -461,6 +501,83 @@ export default function SystemPage() {
                             )}
                             style={{ width: `${pct}%` }}
                           />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Recent Signups */}
+            <div className="bg-card/60 border border-border/50 rounded-3xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-black italic uppercase tracking-tighter">Recent Signups</h3>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Latest 10 new members · live
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                  </span>
+                  <span className="text-[9px] font-black text-green-500 uppercase tracking-widest">Live</span>
+                </div>
+              </div>
+
+              {recentSignupsLoading ? (
+                <div className="flex items-center justify-center py-8 gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/50" />
+                  <span className="text-[10px] font-black text-muted-foreground/50 uppercase tracking-widest">Loading...</span>
+                </div>
+              ) : recentSignups.length === 0 ? (
+                <p className="text-center py-6 text-xs font-bold text-muted-foreground/40 uppercase tracking-widest">
+                  No signups recorded yet
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {recentSignups.map((u, i) => {
+                    const joinedAt = u.$createdAt ? new Date(u.$createdAt) : null;
+                    const now = new Date();
+                    const diffMs = joinedAt ? now.getTime() - joinedAt.getTime() : 0;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHrs = Math.floor(diffMins / 60);
+                    const diffDays = Math.floor(diffHrs / 24);
+                    const timeAgo = diffDays > 0 ? `${diffDays}d ago`
+                      : diffHrs > 0 ? `${diffHrs}h ago`
+                      : diffMins > 0 ? `${diffMins}m ago`
+                      : "just now";
+                    const isNew = diffMins < 10;
+
+                    return (
+                      <div
+                        key={u.$id}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-2xl transition-all",
+                          i === 0 && isNew
+                            ? "bg-green-500/10 border border-green-500/20 animate-in slide-in-from-top-2 duration-500"
+                            : "bg-secondary/20"
+                        )}
+                      >
+                        <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <UserPlus className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm truncate">{u.name || "—"}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium truncate">
+                            @{u.username || "unknown"}{u.nationality ? ` · ${u.nationality}` : ""}
+                          </p>
+                        </div>
+                        <div className="shrink-0 flex flex-col items-end gap-1">
+                          <span className="text-[9px] font-black text-muted-foreground/60 uppercase">{timeAgo}</span>
+                          {i === 0 && isNew && (
+                            <div className="flex items-center gap-1">
+                              <Zap className="h-2.5 w-2.5 text-green-500 fill-current" />
+                              <span className="text-[8px] font-black text-green-500 uppercase tracking-wide">New</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
