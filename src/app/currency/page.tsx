@@ -560,15 +560,25 @@ export default function CurrencyHub() {
 
                 {/* Payment destination */}
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                    <h3 className="text-sm font-black italic uppercase tracking-widest">Complete Your Payment</h3>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                      <h3 className="text-sm font-black italic uppercase tracking-widest">Complete Your Payment</h3>
+                    </div>
+                    <span className={cn(
+                      "text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border",
+                      pendingTransaction.currency === 'USD'
+                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                        : "bg-primary/10 border-primary/30 text-primary"
+                    )}>
+                      {pendingTransaction.currency === 'USD' ? '$ USD' : 'L$ LD'}
+                    </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
                     Tap the button for your preferred network below. Your phone dialer will open with the payment code pre-filled — just press <span className="font-black text-foreground">Send/Call</span> to transfer the money to <span className="font-black text-foreground">Amos Kortu</span>. After the transfer, screenshot the confirmation message and upload it here.
                   </p>
 
-                  {/* MTN MoMo */}
+                  {/* MTN MoMo — shows ONLY the button matching the selected currency */}
                   <div className="bg-yellow-500/8 border border-yellow-500/20 rounded-2xl p-4 space-y-3">
                     <div className="flex items-center gap-3">
                       <div className="h-9 w-9 rounded-xl bg-yellow-500 flex items-center justify-center shrink-0 shadow-md shadow-yellow-500/20">
@@ -586,8 +596,8 @@ export default function CurrencyHub() {
                         className="flex items-center justify-between w-full bg-yellow-500/15 hover:bg-yellow-500/25 active:scale-95 rounded-xl px-4 py-3 transition-all"
                       >
                         <div>
-                          <span className="text-[9px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest block">USD Payment</span>
-                          <span className="text-base font-black text-yellow-600 dark:text-yellow-400">$ {pendingTransaction.amount} — Tap to Dial</span>
+                          <span className="text-[9px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest block">USD — Tap to Dial</span>
+                          <span className="text-lg font-black text-yellow-600 dark:text-yellow-400">$ {pendingTransaction.amount}</span>
                         </div>
                         <span className="text-yellow-600 dark:text-yellow-400 text-xl">📞</span>
                       </a>
@@ -598,15 +608,15 @@ export default function CurrencyHub() {
                         className="flex items-center justify-between w-full bg-yellow-500/15 hover:bg-yellow-500/25 active:scale-95 rounded-xl px-4 py-3 transition-all"
                       >
                         <div>
-                          <span className="text-[9px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest block">LD Payment</span>
-                          <span className="text-base font-black text-yellow-600 dark:text-yellow-400">L$ {pendingTransaction.amount} — Tap to Dial</span>
+                          <span className="text-[9px] font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest block">LD — Tap to Dial</span>
+                          <span className="text-lg font-black text-yellow-600 dark:text-yellow-400">L$ {pendingTransaction.amount}</span>
                         </div>
                         <span className="text-yellow-600 dark:text-yellow-400 text-xl">📞</span>
                       </a>
                     )}
                   </div>
 
-                  {/* Orange Money */}
+                  {/* Orange Money — shows ONLY the button matching the selected currency */}
                   <div className="bg-orange-500/8 border border-orange-500/20 rounded-2xl p-4 space-y-3">
                     <div className="flex items-center gap-3">
                       <div className="h-9 w-9 rounded-xl bg-orange-500 flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
@@ -624,8 +634,8 @@ export default function CurrencyHub() {
                         className="flex items-center justify-between w-full bg-orange-500/15 hover:bg-orange-500/25 active:scale-95 rounded-xl px-4 py-3 transition-all"
                       >
                         <div>
-                          <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest block">USD Payment</span>
-                          <span className="text-base font-black text-orange-500">$ {pendingTransaction.amount} — Tap to Dial</span>
+                          <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest block">USD — Tap to Dial</span>
+                          <span className="text-lg font-black text-orange-500">$ {pendingTransaction.amount}</span>
                         </div>
                         <span className="text-orange-500 text-xl">📞</span>
                       </a>
@@ -636,8 +646,8 @@ export default function CurrencyHub() {
                         className="flex items-center justify-between w-full bg-orange-500/15 hover:bg-orange-500/25 active:scale-95 rounded-xl px-4 py-3 transition-all"
                       >
                         <div>
-                          <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest block">LD Payment</span>
-                          <span className="text-base font-black text-orange-500">L$ {pendingTransaction.amount} — Tap to Dial</span>
+                          <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest block">LD — Tap to Dial</span>
+                          <span className="text-lg font-black text-orange-500">L$ {pendingTransaction.amount}</span>
                         </div>
                         <span className="text-orange-500 text-xl">📞</span>
                       </a>
