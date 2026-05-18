@@ -3,16 +3,23 @@
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Phone } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { whatsappLink, telLink, ProductDoc } from "@/lib/marketplace";
 
 interface ContactButtonsProps {
-  product: Pick<ProductDoc, "phoneNumber" | "name" | "sellerId" | "sellerUsername">;
+  product: Pick<ProductDoc, "phoneNumber" | "name" | "sellerId" | "sellerUsername" | "$id"> & {
+    store_id?: string | null;
+    sellerName?: string;
+  };
   compact?: boolean;
 }
 
 export function ContactButtons({ product, compact = false }: ContactButtonsProps) {
-  const chatTarget = product.sellerUsername || product.sellerId;
   const labelClass = compact ? "hidden sm:inline" : "";
+
+  // Build the marketplace chat URL with product context
+  const chatHref = `/marketplace/chat/${product.sellerId}?product=${encodeURIComponent(product.$id)}&pname=${encodeURIComponent(product.name)}`;
+
   return (
     <div className="grid grid-cols-3 gap-1.5">
       <a
@@ -33,7 +40,7 @@ export function ContactButtons({ product, compact = false }: ContactButtonsProps
         </Button>
       </a>
 
-      <Link href={`/chat/${chatTarget}`} aria-label="Open ViMore chat with seller">
+      <Link href={chatHref} aria-label="Open marketplace chat with seller">
         <Button
           type="button"
           variant="secondary"

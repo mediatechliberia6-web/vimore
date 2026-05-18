@@ -255,16 +255,17 @@ export default function StorefrontPage() {
               )}
 
               <div className="flex items-center gap-2 mt-1 flex-wrap justify-center">
-                {currentUser ? (
-                  <Link href={`/chat/${store.owner_username}`}>
+                {!isOwner && (
+                  <Link href={`/marketplace/chat/${store.owner_id}?store=${storeId}&pname=${encodeURIComponent(store.store_name)}`}>
                     <Button variant="outline" className="rounded-2xl h-10 px-4 gap-2 text-[11px] font-black uppercase tracking-widest border-primary/20 hover:bg-primary/5">
                       <MessageCircle className="h-4 w-4" /> Message Store
                     </Button>
                   </Link>
-                ) : (
-                  <Link href={`/login?next=/marketplace/store/${storeId}`}>
+                )}
+                {isOwner && (
+                  <Link href={`/marketplace/store/${storeId}/inbox`}>
                     <Button variant="outline" className="rounded-2xl h-10 px-4 gap-2 text-[11px] font-black uppercase tracking-widest border-primary/20 hover:bg-primary/5">
-                      <MessageCircle className="h-4 w-4" /> Message Store
+                      <MessageCircle className="h-4 w-4" /> Inbox
                     </Button>
                   </Link>
                 )}
