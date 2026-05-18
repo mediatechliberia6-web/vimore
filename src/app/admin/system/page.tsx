@@ -73,10 +73,14 @@ export default function SystemPage() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
+      // "Online Now" = last heartbeat within 2 minutes (heartbeat fires every 30s).
+      // Querying is_online=true gives phantom counts because the flag is never
+      // reliably reset when users close the app without a clean disconnect.
+      const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
       const [usersRes, activeRes, campaignsRes] = await Promise.all([
         databases.listDocuments(DATABASE_ID, COL.USERS, [Query.limit(1)]),
         databases.listDocuments(DATABASE_ID, COL.USERS, [
-          Query.equal("is_online", true),
+          Query.greaterThan("last_seen_at", twoMinutesAgo),
           Query.limit(1),
         ]),
         databases.listDocuments(DATABASE_ID, COL.AD_CAMPAIGNS, [
