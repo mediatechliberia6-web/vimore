@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, Suspense } from "react";
+import { loadCache, OFFLINE_KEYS } from "@/lib/offline-cache";
 import { MainNav } from "@/components/layout/main-nav";
 import { Header } from "@/components/layout/header";
 import { MusicGrid } from "@/components/music/music-grid";
@@ -47,6 +48,8 @@ function MusicPageContent() {
   const [libraryTab, setLibraryTab] = useState("playlists");
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteItem, setDeleteItem] = useState<{ id: string | number, type: 'track' | 'album' } | null>(null);
+
+  const recentlyPlayedTracks = useMemo<Track[]>(() => loadCache<Track>(OFFLINE_KEYS.MUSIC_PLAYED), []);
   
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -149,6 +152,16 @@ function MusicPageContent() {
           <div className="px-4 sm:px-10 py-6 sm:py-10">
             {activeTab === "discover" && (
               <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                {/* Offline: show recently played tracks */}
+                {isOffline && recentlyPlayedTracks.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <WifiOff className="h-4 w-4 text-amber-500" />
+                      <h2 className="text-sm font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Recently Played — Available Offline</h2>
+                    </div>
+                    <MusicGrid type="song" title="" items={recentlyPlayedTracks} />
+                  </div>
+                )}
                 {!hasResults ? (
                   <div className="py-20 text-center space-y-6 bg-white/40 dark:bg-card/40 rounded-[2.5rem] border border-dashed border-primary/10 animate-in zoom-in duration-500">
                     <div className="h-20 w-20 bg-secondary/30 rounded-full flex items-center justify-center mx-auto">

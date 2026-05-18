@@ -34,3 +34,47 @@ export const offlineCache = {
   saveAlbums:      (albums: unknown[])    => save(KEYS.ALBUMS, albums),
   getAlbums:       ()                     => load<unknown[]>(KEYS.ALBUMS, []),
 };
+
+// ─── Extended cache helpers ────────────────────────────────────────────────────
+
+export const OFFLINE_KEYS = {
+  REELS:             'vimore_reels_cache_v1',
+  MUSIC_PLAYED:      'vimore_music_played_v1',
+  FRIENDS:           'vimore_friends_cache_v1',
+  MESSAGES_CONTACTS: 'vimore_messages_contacts_v1',
+  HOME_FEED:         'vimore_feed_cache_v1',
+};
+
+/** Save up to maxItems items to localStorage. */
+export function saveCache<T>(key: string, items: T[], maxItems = 15): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, JSON.stringify(items.slice(0, maxItems)));
+  } catch {}
+}
+
+/** Load items saved with saveCache. Returns [] on any failure. */
+export function loadCache<T>(key: string): T[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Tell the service worker to pre-fetch and store these URLs in the
+ * long-lived (24 h) pinned media cache for offline use.
+ */
+export function pinMediaInSW(urls: string[]): void {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+  const valid = urls.filter(u => Boolean(u) && (u.startsWith('http') || u.startsWith('/')));
+  if (!valid.length) return;
+  navigator.serviceWorker.ready
+    .then(reg => { reg.active?.postMessage({ type: 'PIN_MEDIA', urls: valid }); })
+    .catch(() => {});
+}

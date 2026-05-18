@@ -9,7 +9,7 @@ import { usePosts } from "@/context/PostContext";
 import { listAllStores, getMyStore, isStoreBoosted, StoreDoc, STORE_CATEGORIES } from "@/lib/stores";
 import { StoreCard, StoreCardSkeleton } from "./StoreCard";
 import { CategoryShelf } from "./CategoryShelf";
-import { Search, Store, Zap, X, Plus } from "lucide-react";
+import { Search, Store, Zap, X, Plus, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const CACHE_KEY = "vimore_store_dir_cache_v1";
@@ -17,7 +17,7 @@ const CACHE_TTL = 1000 * 60 * 3;
 
 export function StoreDirectory() {
   const router = useRouter();
-  const { currentUser } = usePosts();
+  const { currentUser, isOffline } = usePosts();
   const [stores, setStores] = useState<StoreDoc[]>([]);
   const [myStore, setMyStore] = useState<StoreDoc | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -80,6 +80,14 @@ export function StoreDirectory() {
 
   return (
     <div className="space-y-6">
+      {isOffline && stores.length > 0 && (
+        <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2.5">
+          <WifiOff className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
+            Offline — showing {stores.length} saved stores
+          </span>
+        </div>
+      )}
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

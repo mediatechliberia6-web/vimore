@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { usePosts } from './PostContext';
 import { databases, storage, ID, Query, Permission, Role, BUCKET, DATABASE_ID, COL, getFileUrl, extractFileId } from '@/lib/appwrite';
+import { saveCache, loadCache, pinMediaInSW, OFFLINE_KEYS } from '@/lib/offline-cache';
 
 
 export interface Track {
@@ -669,6 +670,17 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       setIsPlayingState(true);
       setIsExpandedState(true);
       recordSongStream(t.id);
+
+      // Save to "recently played" list (up to 15) for offline playback
+      try {
+        const played = loadCache<Track>(OFFLINE_KEYS.MUSIC_PLAYED);
+        const filtered = played.filter(p => String(p.id) !== String(t.id));
+        saveCache(OFFLINE_KEYS.MUSIC_PLAYED, [t, ...filtered], 15);
+      } catch {}
+
+      // Pin audio + cover in SW so they survive offline
+      const urlsToPin = [t.audioUrl, t.cover].filter((u): u is string => Boolean(u));
+      if (urlsToPin.length) pinMediaInSW(urlsToPin);
     },
     togglePlay: () => setIsPlayingState(prev => !prev),
     nextTrack, prevTrack,

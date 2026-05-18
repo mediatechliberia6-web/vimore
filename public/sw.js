@@ -1,16 +1,18 @@
 /**
- * ViMore Service Worker
- * - Cache-First for media only (images, video, audio from Appwrite and CDNs)
- * - Cached media expires automatically after 2 hours
- * - Everything else (HTML, CSS, JS, pages) always fetched fresh from the network
+ * ViMore Service Worker v10
+ * - PINNED_MEDIA_CACHE: 24 h — audio/video intentionally played by the user
+ * - MEDIA_CACHE: 2 h  — all other images / media encountered while browsing
+ * - Everything else (HTML, CSS, JS, API) always fetched fresh from the network
  * - Push notifications and badge control unchanged
  */
 
-const SW_VERSION = 'v9';
-const MEDIA_CACHE = `vimore-media-${SW_VERSION}`;
-const CACHE_NAMES = [MEDIA_CACHE];
+const SW_VERSION = 'v10';
+const MEDIA_CACHE  = `vimore-media-${SW_VERSION}`;
+const PINNED_CACHE = `vimore-pinned-${SW_VERSION}`;
+const CACHE_NAMES  = [MEDIA_CACHE, PINNED_CACHE];
 
-const MAX_CACHE_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
+const MAX_MEDIA_AGE_MS  = 2  * 60 * 60 * 1000;  // 2 h
+const MAX_PINNED_AGE_MS = 24 * 60 * 60 * 1000;  // 24 h
 
 const MEDIA_EXTENSIONS = [
   '.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.svg',
@@ -18,27 +20,21 @@ const MEDIA_EXTENSIONS = [
   '.mp3', '.ogg', '.wav', '.aac', '.m4a', '.flac', '.opus',
 ];
 
-const APPWRITE_FILE_PATTERNS = [
-  '/v1/storage/buckets/',
-  '/files/',
-];
+const APPWRITE_FILE_PATTERNS = ['/v1/storage/buckets/', '/files/'];
 
 function isMediaUrl(url) {
   try {
     const parsed = new URL(url);
-    const lower = parsed.pathname.toLowerCase().split('?')[0];
-    const hostname = parsed.hostname;
+    const lower  = parsed.pathname.toLowerCase().split('?')[0];
+    const host   = parsed.hostname;
     if (MEDIA_EXTENSIONS.some(ext => lower.endsWith(ext))) return true;
-    if (APPWRITE_FILE_PATTERNS.some(p => lower.includes(p))) return true;
-    if (hostname === 'picsum.photos') return true;
-    if (hostname.includes('appwrite.io') || hostname.includes('appwrite.cloud')) return true;
+    if (APPWRITE_FILE_PATTERNS.some(p => lower.includes(p)))  return true;
+    if (host === 'picsum.photos') return true;
+    if (host.includes('appwrite.io') || host.includes('appwrite.cloud')) return true;
     return false;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
 
-// Wraps a response with a sw-cached-at timestamp header so we can check age later
 function stampResponse(response) {
   const headers = new Headers(response.headers);
   headers.set('sw-cached-at', String(Date.now()));
@@ -49,115 +45,132 @@ function stampResponse(response) {
   });
 }
 
-// Returns true if the cached response is older than MAX_CACHE_AGE_MS
-function isExpired(cachedResponse) {
-  const cachedAt = cachedResponse.headers.get('sw-cached-at');
-  if (!cachedAt) return true;
-  return (Date.now() - Number(cachedAt)) > MAX_CACHE_AGE_MS;
+function isExpired(cachedResponse, maxAge) {
+  const at = cachedResponse.headers.get('sw-cached-at');
+  if (!at) return true;
+  return (Date.now() - Number(at)) > maxAge;
 }
 
-// Sweeps the media cache and deletes every entry older than 2 hours
-async function purgeExpiredMedia() {
-  const cache = await caches.open(MEDIA_CACHE);
-  const keys = await cache.keys();
+async function purgeExpired(cacheName, maxAge) {
+  const cache = await caches.open(cacheName);
+  const keys  = await cache.keys();
   await Promise.all(
-    keys.map(async (request) => {
-      const response = await cache.match(request);
-      if (response && isExpired(response)) {
-        await cache.delete(request);
-      }
+    keys.map(async req => {
+      const res = await cache.match(req);
+      if (res && isExpired(res, maxAge)) await cache.delete(req);
     })
   );
 }
 
-// ─── Install: nothing to precache, activate immediately ───────────────────────
-self.addEventListener('install', (event) => {
+// ─── Install ───────────────────────────────────────────────────────────────────
+self.addEventListener('install', event => {
   event.waitUntil(self.skipWaiting());
 });
 
-// ─── Activate: delete stale named caches + purge expired entries ──────────────
-self.addEventListener('activate', (event) => {
+// ─── Activate ─────────────────────────────────────────────────────────────────
+self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
       .then(keys =>
-        Promise.all(
-          keys.filter(k => !CACHE_NAMES.includes(k)).map(k => caches.delete(k))
-        )
+        Promise.all(keys.filter(k => !CACHE_NAMES.includes(k)).map(k => caches.delete(k)))
       )
-      .then(() => purgeExpiredMedia())
+      .then(() => Promise.all([
+        purgeExpired(MEDIA_CACHE,  MAX_MEDIA_AGE_MS),
+        purgeExpired(PINNED_CACHE, MAX_PINNED_AGE_MS),
+      ]))
       .then(() => self.clients.claim())
       .then(async () => {
-        const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-        clientsList.forEach(client => client.postMessage({ type: 'SW_UPDATED', version: SW_VERSION }));
+        const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        clients.forEach(c => c.postMessage({ type: 'SW_UPDATED', version: SW_VERSION }));
       })
   );
 });
 
-// ─── Fetch: cache-first for media only, network-only for everything else ───────
-self.addEventListener('fetch', (event) => {
+// ─── Fetch ────────────────────────────────────────────────────────────────────
+self.addEventListener('fetch', event => {
   const { request } = event;
-  const url = request.url;
-
   if (request.method !== 'GET') return;
 
-  if (isMediaUrl(url)) {
-    event.respondWith(
-      caches.open(MEDIA_CACHE).then(async (cache) => {
-        const cached = await cache.match(request);
+  if (!isMediaUrl(request.url)) return;
 
-        // Serve from cache only if it hasn't expired
-        if (cached && !isExpired(cached)) return cached;
+  event.respondWith(
+    (async () => {
+      // 1. Check pinned (24 h) cache first
+      const pinnedCache = await caches.open(PINNED_CACHE);
+      const pinned = await pinnedCache.match(request);
+      if (pinned && !isExpired(pinned, MAX_PINNED_AGE_MS)) return pinned;
+      if (pinned) pinnedCache.delete(request);
 
-        // Expired or not cached — delete the old entry and fetch fresh
-        if (cached) cache.delete(request);
+      // 2. Check regular (2 h) media cache
+      const mediaCache = await caches.open(MEDIA_CACHE);
+      const cached = await mediaCache.match(request);
+      if (cached && !isExpired(cached, MAX_MEDIA_AGE_MS)) return cached;
+      if (cached) mediaCache.delete(request);
 
-        try {
-          const response = await fetch(request);
-          if (response.ok && response.status === 200) {
-            cache.put(request, stampResponse(response.clone()));
-          }
-          return response;
-        } catch {
-          return new Response('Media unavailable offline', { status: 503 });
+      // 3. Fetch from network
+      try {
+        const response = await fetch(request);
+        if (response.ok && response.status === 200) {
+          mediaCache.put(request, stampResponse(response.clone()));
+        }
+        return response;
+      } catch {
+        // Offline — try either cache as fallback even if stale
+        const stalePinned = await pinnedCache.match(request);
+        if (stalePinned) return stalePinned;
+        const staleMedia = await mediaCache.match(request);
+        if (staleMedia) return staleMedia;
+        return new Response('Media unavailable offline', { status: 503 });
+      }
+    })()
+  );
+});
+
+// ─── Messages ─────────────────────────────────────────────────────────────────
+self.addEventListener('message', event => {
+  const data = event.data || {};
+
+  // Client asks us to pre-cache specific URLs in the pinned (24 h) store
+  if (data.type === 'PIN_MEDIA' && Array.isArray(data.urls)) {
+    event.waitUntil(
+      caches.open(PINNED_CACHE).then(async cache => {
+        for (const url of data.urls) {
+          try {
+            const existing = await cache.match(url);
+            if (existing && !isExpired(existing, MAX_PINNED_AGE_MS)) continue;
+            const response = await fetch(url, { mode: 'no-cors' });
+            // no-cors gives an opaque response; cache it anyway for offline use
+            if (response.status === 0 || response.ok) {
+              await cache.put(url, stampResponse(response));
+            }
+          } catch {}
         }
       })
     );
   }
-  // All other requests (HTML, CSS, JS, API, fonts) go straight to the network
-});
-
-// ─── Messages: manual cache + badge control ───────────────────────────────────
-self.addEventListener('message', (event) => {
-  const data = event.data || {};
 
   if (data.type === 'CLEAR_MEDIA_CACHE') {
-    caches.delete(MEDIA_CACHE).then(() => {
+    Promise.all([caches.delete(MEDIA_CACHE), caches.delete(PINNED_CACHE)]).then(() => {
       event.source?.postMessage({ type: 'MEDIA_CACHE_CLEARED' });
     });
   }
   if (data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
-  // Badge sync from the client — pass a numeric count
   if (data.type === 'SET_BADGE') {
     const count = Number(data.count) || 0;
     try {
-      if (count > 0 && self.navigator.setAppBadge) {
-        self.navigator.setAppBadge(count).catch(() => {});
-      } else if (self.navigator.clearAppBadge) {
-        self.navigator.clearAppBadge().catch(() => {});
-      }
+      if (count > 0 && self.navigator.setAppBadge)       self.navigator.setAppBadge(count).catch(() => {});
+      else if (self.navigator.clearAppBadge)              self.navigator.clearAppBadge().catch(() => {});
     } catch {}
   }
   if (data.type === 'CLEAR_BADGE') {
-    try {
-      if (self.navigator.clearAppBadge) self.navigator.clearAppBadge().catch(() => {});
-    } catch {}
+    try { if (self.navigator.clearAppBadge) self.navigator.clearAppBadge().catch(() => {}); } catch {}
   }
 });
 
 // ─── Push notifications ───────────────────────────────────────────────────────
-self.addEventListener('push', (event) => {
+self.addEventListener('push', event => {
   let payload = {};
   try {
     payload = event.data ? event.data.json() : {};
@@ -166,7 +179,6 @@ self.addEventListener('push', (event) => {
   }
 
   const isCallPush = payload.data && payload.data.type === 'incoming-call';
-
   const title = payload.title || 'ViMore';
   const options = {
     body: payload.body || '',
@@ -175,35 +187,19 @@ self.addEventListener('push', (event) => {
     image: payload.image,
     tag: payload.tag || 'vimore-notification',
     renotify: Boolean(payload.renotify),
-    // Call notifications must stay on screen until the user acts
     requireInteraction: isCallPush ? true : Boolean(payload.requireInteraction),
     silent: Boolean(payload.silent),
-    // Call notifications use a longer, more urgent vibration pattern
     vibrate: isCallPush ? [300, 100, 300, 100, 300] : (payload.vibrate || [120, 60, 120]),
     timestamp: payload.timestamp || Date.now(),
-    data: {
-      url: payload.url || '/notifications',
-      ...payload.data,
-    },
-    // Call notifications get Accept / Decline inline actions
+    data: { url: payload.url || '/notifications', ...payload.data },
     actions: isCallPush
-      ? [
-          { action: 'accept-call', title: '✅ Accept' },
-          { action: 'decline-call', title: '❌ Decline' },
-        ]
+      ? [{ action: 'accept-call', title: '✅ Accept' }, { action: 'decline-call', title: '❌ Decline' }]
       : (payload.actions || []),
   };
 
   event.waitUntil(
     (async () => {
-      // If a call push arrives while the app is in the foreground, just relay
-      // the payload to the open client — the CallContext realtime listener will
-      // already have shown the in-app overlay.  We still show the OS notification
-      // so the user sees it if they happen to be looking at another app.
-      try {
-        await self.registration.showNotification(title, options);
-      } catch {}
-      // Bump the app icon badge
+      try { await self.registration.showNotification(title, options); } catch {}
       try {
         if (self.navigator.setAppBadge) {
           const count = Number(payload.badgeCount);
@@ -211,182 +207,97 @@ self.addEventListener('push', (event) => {
           else await self.navigator.setAppBadge();
         }
       } catch {}
-      // Let any open clients know to refresh their unread counters (or show call overlay)
-      const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      clientsList.forEach((c) => c.postMessage({ type: 'PUSH_RECEIVED', payload }));
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      clients.forEach(c => c.postMessage({ type: 'PUSH_RECEIVED', payload }));
     })()
   );
 });
 
-// ─── Notification click: focus or open the app ────────────────────────────────
-self.addEventListener('notificationclick', (event) => {
+// ─── Notification click ───────────────────────────────────────────────────────
+self.addEventListener('notificationclick', event => {
   const action = event.action;
   const data = event.notification.data || {};
   const targetUrl = data.url || '/';
-
   event.notification.close();
 
-  // ── Incoming call: Accept ─────────────────────────────────────────────────
   if (action === 'accept-call') {
-    event.waitUntil(
-      (async () => {
-        const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-        // Tell an existing app window to trigger the accept flow
-        for (const client of allClients) {
-          try {
-            const clientUrl = new URL(client.url);
-            if (clientUrl.origin === self.location.origin && 'focus' in client) {
-              client.postMessage({
-                type: 'CALL_ACTION',
-                action: 'accept',
-                callDocId: data.callDocId,
-                callType: data.callType,
-                callerName: data.callerName,
-                callerAvatar: data.callerAvatar,
-              });
-              await client.focus();
-              return;
-            }
-          } catch {}
-        }
-        // No open window — open the app and pass the action via URL param
-        if (self.clients.openWindow) {
-          const url = `/messages?call_action=accept&call_doc_id=${encodeURIComponent(data.callDocId || '')}&call_type=${encodeURIComponent(data.callType || 'audio')}&caller_name=${encodeURIComponent(data.callerName || '')}`;
-          await self.clients.openWindow(url);
-        }
-      })()
-    );
-    return;
-  }
-
-  // ── Incoming call: Decline ────────────────────────────────────────────────
-  if (action === 'decline-call') {
-    event.waitUntil(
-      (async () => {
-        if (data.callDocId) {
-          try {
-            await fetch('/api/call/decline', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ callDocId: data.callDocId }),
-              keepalive: true,
-            });
-          } catch {}
-        }
-        // Inform any open clients so they can dismiss the overlay too
-        const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-        clientsList.forEach((c) => c.postMessage({ type: 'CALL_ACTION', action: 'decline', callDocId: data.callDocId }));
-      })()
-    );
-    return;
-  }
-
-  // "Reply" inline text action (Android Chrome): send the typed message
-  if (action === 'reply') {
-    const replyText = (event.reply || '').trim();
-    event.waitUntil(
-      (async () => {
-        if (replyText && data.recipientId && data.senderId && data.clusterId) {
-          try {
-            // The "sender" of the reply is the current user (the one who received
-            // the original push), and the receiver is the original message's sender.
-            await fetch('/api/messages/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                senderId: data.recipientId,
-                receiverId: data.senderId,
-                clusterId: data.clusterId,
-                text: replyText,
-              }),
-              keepalive: true,
-            });
-            // Also mark the original messages as read since the user just replied
-            await fetch('/api/messages/mark-read', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                recipientId: data.recipientId,
-                senderId: data.senderId,
-                clusterId: data.clusterId,
-              }),
-              keepalive: true,
-            });
-          } catch {}
-        }
-        try { if (self.navigator.clearAppBadge) await self.navigator.clearAppBadge(); } catch {}
-        const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-        clientsList.forEach((c) => c.postMessage({
-          type: 'QUICK_REPLY_SENT',
-          clusterId: data.clusterId,
-          senderId: data.senderId,
-          text: replyText,
-        }));
-      })()
-    );
-    return;
-  }
-
-  // "Mark as read" action: silently mark messages read without opening the app
-  if (action === 'mark-read') {
-    event.waitUntil(
-      (async () => {
+    event.waitUntil((async () => {
+      const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const client of all) {
         try {
-          await fetch('/api/messages/mark-read', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              recipientId: data.recipientId,
-              senderId: data.senderId,
-              clusterId: data.clusterId,
-            }),
-            keepalive: true,
-          });
-        } catch {}
-        // Update badge & inform any open clients
-        try {
-          if (self.navigator.clearAppBadge) await self.navigator.clearAppBadge();
-        } catch {}
-        const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-        clientsList.forEach((c) => c.postMessage({
-          type: 'MESSAGES_MARKED_READ',
-          senderId: data.senderId,
-          clusterId: data.clusterId,
-        }));
-      })()
-    );
-    return;
-  }
-
-  // Default click (or "open" action): focus / navigate the app
-  event.waitUntil(
-    (async () => {
-      const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      for (const client of allClients) {
-        try {
-          const clientUrl = new URL(client.url);
-          if (clientUrl.origin === self.location.origin && 'focus' in client) {
-            client.postMessage({ type: 'NOTIFICATION_CLICK', url: targetUrl });
-            await client.focus();
-            if ('navigate' in client) {
-              try { await client.navigate(targetUrl); } catch {}
-            }
-            return;
+          const cu = new URL(client.url);
+          if (cu.origin === self.location.origin && 'focus' in client) {
+            client.postMessage({ type: 'CALL_ACTION', action: 'accept', callDocId: data.callDocId, callType: data.callType, callerName: data.callerName, callerAvatar: data.callerAvatar });
+            await client.focus(); return;
           }
         } catch {}
       }
       if (self.clients.openWindow) {
-        await self.clients.openWindow(targetUrl);
+        await self.clients.openWindow(`/messages?call_action=accept&call_doc_id=${encodeURIComponent(data.callDocId || '')}&call_type=${encodeURIComponent(data.callType || 'audio')}&caller_name=${encodeURIComponent(data.callerName || '')}`);
       }
-    })()
-  );
+    })());
+    return;
+  }
+
+  if (action === 'decline-call') {
+    event.waitUntil((async () => {
+      if (data.callDocId) {
+        try { await fetch('/api/call/decline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ callDocId: data.callDocId }), keepalive: true }); } catch {}
+      }
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      clients.forEach(c => c.postMessage({ type: 'CALL_ACTION', action: 'decline', callDocId: data.callDocId }));
+    })());
+    return;
+  }
+
+  if (action === 'reply') {
+    const replyText = (event.reply || '').trim();
+    event.waitUntil((async () => {
+      if (replyText && data.recipientId && data.senderId && data.clusterId) {
+        try {
+          await fetch('/api/messages/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senderId: data.recipientId, receiverId: data.senderId, clusterId: data.clusterId, text: replyText }), keepalive: true });
+          await fetch('/api/messages/mark-read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: data.recipientId, senderId: data.senderId, clusterId: data.clusterId }), keepalive: true });
+        } catch {}
+      }
+      try { if (self.navigator.clearAppBadge) await self.navigator.clearAppBadge(); } catch {}
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      clients.forEach(c => c.postMessage({ type: 'QUICK_REPLY_SENT', clusterId: data.clusterId, senderId: data.senderId, text: replyText }));
+    })());
+    return;
+  }
+
+  if (action === 'mark-read') {
+    event.waitUntil((async () => {
+      try { await fetch('/api/messages/mark-read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipientId: data.recipientId, senderId: data.senderId, clusterId: data.clusterId }), keepalive: true }); } catch {}
+      try { if (self.navigator.clearAppBadge) await self.navigator.clearAppBadge(); } catch {}
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      clients.forEach(c => c.postMessage({ type: 'MESSAGES_MARKED_READ', senderId: data.senderId, clusterId: data.clusterId }));
+    })());
+    return;
+  }
+
+  event.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of all) {
+      try {
+        const cu = new URL(client.url);
+        if (cu.origin === self.location.origin && 'focus' in client) {
+          client.postMessage({ type: 'NOTIFICATION_CLICK', url: targetUrl });
+          await client.focus();
+          if ('navigate' in client) try { await client.navigate(targetUrl); } catch {}
+          return;
+        }
+      } catch {}
+    }
+    if (self.clients.openWindow) await self.clients.openWindow(targetUrl);
+  })());
 });
 
-// ─── Subscription changed: client will re-subscribe ───────────────────────────
-self.addEventListener('pushsubscriptionchange', (event) => {
+// ─── Push subscription changed ────────────────────────────────────────────────
+self.addEventListener('pushsubscriptionchange', event => {
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsList) => {
-      clientsList.forEach((c) => c.postMessage({ type: 'PUSH_SUBSCRIPTION_CHANGED' }));
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+      clients.forEach(c => c.postMessage({ type: 'PUSH_SUBSCRIPTION_CHANGED' }));
     })
   );
 });

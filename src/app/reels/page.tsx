@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useMemo, useCallback } from "react";
+import { saveCache, loadCache, pinMediaInSW, OFFLINE_KEYS } from "@/lib/offline-cache";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -991,6 +992,7 @@ export default function ReelsPage() {
   const { campaigns, openCommentHub, fetchComments, friendUsernames, followingUsernames, followingUserIds, settings, isOffline, fetchReels, postCountOverrides } = usePosts();
   const { tier: pageTier } = useNetwork();
 
+  const [cachedReels] = useState<Post[]>(() => loadCache<Post>(OFFLINE_KEYS.REELS));
   const [reelsList, setReelsList] = useState<Post[]>([]);
   const [reelsPhase, setReelsPhase] = useState<'connections' | 'global'>('connections');
   const [reelsConnCursor, setReelsConnCursor] = useState<string | null>(null);
@@ -1017,12 +1019,36 @@ export default function ReelsPage() {
         reelsPhaseRef.current = phase;
         reelsConnCursorRef.current = connCursor;
         reelsGlobalCursorRef.current = globalCursor;
-      }).finally(() => {
+      })
+      .catch(() => {
+        // Network failed — fall back to cached reels if offline
+        if (isOffline && cachedReels.length > 0) setReelsList(cachedReels);
+      })
+      .finally(() => {
         setIsLoadingReels(false);
         isLoadingReelsRef.current = false;
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchReels]);
+
+  // When offline with no live reels, inject cached reels
+  useEffect(() => {
+    if (isOffline && reelsList.length === 0 && !isLoadingReels && cachedReels.length > 0) {
+      setReelsList(cachedReels);
+    }
+  }, [isOffline, reelsList.length, isLoadingReels, cachedReels]);
+
+  // Save live reels to cache + pin video URLs as reels are loaded / watched
+  useEffect(() => {
+    if (isOffline || reelsList.length === 0) return;
+    const toCache = reelsList.slice(0, 15).map(r => ({
+      $id: r.$id, user: r.user, content: r.content,
+      videoUrl: r.videoUrl, image: r.image,
+      likes: r.likes, unlikes: r.unlikes,
+      comments: r.comments, views: r.views, time: r.time,
+    }));
+    saveCache(OFFLINE_KEYS.REELS, toCache, 15);
+  }, [reelsList, isOffline]);
 
   const reels = useMemo(() => reelsList.map(r => {
     const ov = postCountOverrides[r.$id];
@@ -1148,6 +1174,16 @@ export default function ReelsPage() {
     const video = videoRefs.current[activeIndex];
     if (video) video.muted = isMuted;
   }, [isMuted, activeIndex]);
+
+  // Pin the current reel's video in SW for offline playback
+  useEffect(() => {
+    if (isOffline) return;
+    const reel = activeFeed[activeIndex];
+    if (reel?.videoUrl) pinMediaInSW([reel.videoUrl]);
+    // Also pre-pin the next reel
+    const next = activeFeed[activeIndex + 1];
+    if (next?.videoUrl) pinMediaInSW([next.videoUrl]);
+  }, [activeIndex, activeFeed, isOffline]);
 
   useEffect(() => {
     const feedLength = activeFeed.filter(r => !r.isCampaignReel).length;

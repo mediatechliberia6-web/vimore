@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from "react";
+import { saveCache, loadCache, OFFLINE_KEYS } from "@/lib/offline-cache";
 import { Header } from "@/components/layout/header";
 import { SubHeader } from "@/components/layout/sub-header";
 import { MainNav } from "@/components/layout/main-nav";
@@ -322,6 +323,18 @@ function FriendsPageContent() {
       c.username !== currentUser.username && isFriend(c.username)
     );
   }, [connections, currentUser, isFriend]);
+
+  // Cache friends list for offline use
+  useEffect(() => {
+    if (isOffline || friendsList.length === 0) return;
+    const toCache = friendsList.slice(0, 100).map((c: any) => ({
+      $id: c.$id, username: c.username, name: c.name,
+      avatar: c.avatar, isVerified: c.isVerified,
+      isOnline: c.isOnline, followers: c.followers || 0,
+      category: c.category || 'CREATOR',
+    }));
+    saveCache(OFFLINE_KEYS.FRIENDS, toCache, 100);
+  }, [friendsList, isOffline]);
 
   const filteredUsers = useMemo(() => {
     let list: any[] = [];
