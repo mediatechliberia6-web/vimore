@@ -398,6 +398,12 @@ export default function AdminDashboard() {
     [paymentRequests]
   );
 
+  const userMap = useMemo(() => {
+    const map: Record<string, typeof allUsers[0]> = {};
+    for (const u of allUsers) { if (u.username) map[u.username] = u; }
+    return map;
+  }, [allUsers]);
+
   const availableTabs = useMemo(() => {
     if (isSuper) return ["economy", "treasury", "referrals", "safety", "users", "broadcast", "campaigns", "tickets", "check_ticket", "resolution", "logs", "staff", "knowledge"] as AdminTab[];
     const tabs: AdminTab[] = ["logs"];
@@ -918,40 +924,86 @@ export default function AdminDashboard() {
 
               {/* Outbound — Withdrawals */}
               {economySubTab === 'outbound' && (
-                <div className="space-y-3">
-                  {pendingWithdrawals.length > 0 ? pendingWithdrawals.map((w) => (
-                    <div key={w.$id} className="bg-card/60 border border-border/50 rounded-3xl p-5 space-y-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="h-11 w-11 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
-                            <Coins className="h-5 w-5 text-primary" />
+                <div className="space-y-4">
+                  {pendingWithdrawals.length > 0 ? pendingWithdrawals.map((w) => {
+                    const wUser = userMap[w.username];
+                    const accountRef = w.account_number || w.accountNumber || w.payment_details || '';
+                    const methodColor = (w.method || '').toLowerCase().includes('orange') ? 'orange' : 'yellow';
+                    return (
+                      <div key={w.$id} className="bg-card border border-border rounded-[2rem] overflow-hidden shadow-lg">
+                        {/* Header strip */}
+                        <div className={cn(
+                          "px-5 py-2 flex items-center justify-between",
+                          methodColor === 'orange' ? "bg-orange-500/10 border-b border-orange-500/20" : "bg-yellow-500/10 border-b border-yellow-500/20"
+                        )}>
+                          <span className={cn("text-[9px] font-black uppercase tracking-[0.2em]", methodColor === 'orange' ? "text-orange-500" : "text-yellow-600 dark:text-yellow-400")}>Withdrawal Request</span>
+                          <Badge className={cn("text-[9px] font-black uppercase border-none px-3", methodColor === 'orange' ? "bg-orange-500/20 text-orange-500" : "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400")}>{w.method || 'Mobile Money'}</Badge>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                          {/* User identity row */}
+                          <div className="flex items-center gap-4">
+                            <Avatar className="h-16 w-16 border-2 border-border rounded-2xl shrink-0">
+                              <AvatarImage src={wUser?.avatar} className="object-cover" />
+                              <AvatarFallback className="text-lg font-black rounded-2xl bg-primary/10">{(w.username || '?')[0].toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="font-black text-base leading-tight">{wUser?.name || w.accountName || w.username}</p>
+                                {wUser?.isVerified && <CheckCircle2 className="h-4 w-4 text-primary fill-primary shrink-0" />}
+                              </div>
+                              <p className="text-[11px] font-bold text-muted-foreground">@{w.username}</p>
+                              {w.$createdAt && (
+                                <p className="text-[10px] text-muted-foreground/60 font-medium mt-0.5">
+                                  {new Date(w.$createdAt).toLocaleString()}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="font-black text-sm truncate">@{w.username}</p>
-                            <p className="text-[10px] font-bold text-muted-foreground truncate">{w.accountName}</p>
-                            <p className="text-[10px] text-muted-foreground/70 truncate">{w.account_number || w.accountNumber || w.payment_details || ''}</p>
+
+                          {/* Account details */}
+                          <div className="bg-secondary/30 rounded-2xl p-4 space-y-2">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Account Details</p>
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <p className="font-black text-sm">{w.accountName || '—'}</p>
+                                {accountRef && <p className="text-xs font-bold text-muted-foreground font-mono mt-0.5">{accountRef}</p>}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Amount breakdown */}
+                          <div className="grid grid-cols-3 gap-2 items-center">
+                            <div className="bg-secondary/30 rounded-2xl p-3 text-center">
+                              <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">From</p>
+                              <p className="font-black text-base leading-tight">{w.amount}</p>
+                              <p className="text-[9px] font-bold text-muted-foreground">{w.currency}</p>
+                            </div>
+                            <div className="flex justify-center">
+                              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <ArrowRight className="h-4 w-4 text-primary" />
+                              </div>
+                            </div>
+                            <div className="bg-primary/10 rounded-2xl p-3 text-center border border-primary/20">
+                              <p className="text-[9px] font-black uppercase text-primary/60 tracking-widest mb-1">Payout</p>
+                              <p className="font-black text-base text-primary leading-tight">{(w.payoutAmount ?? 0).toFixed(2)}</p>
+                              <p className="text-[9px] font-bold text-primary/60">{w.payoutCurrency}</p>
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex gap-2 pt-1">
+                            <Button className="flex-1 h-12 rounded-2xl bg-green-500/10 text-green-600 hover:bg-green-500 hover:text-white font-black uppercase text-xs transition-all gap-2" onClick={() => handleOpenWithdrawalDialog(w.$id, 'APPROVED')}>
+                              <Check className="h-4 w-4" />Approve
+                            </Button>
+                            <Button className="flex-1 h-12 rounded-2xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white font-black uppercase text-xs transition-all gap-2" onClick={() => handleOpenWithdrawalDialog(w.$id, 'REJECTED')}>
+                              <X className="h-4 w-4" />Reject
+                            </Button>
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-[9px] font-black uppercase border-primary/20 shrink-0">{w.method}</Badge>
                       </div>
-                      <div className="bg-secondary/30 rounded-2xl p-3 flex items-center justify-between">
-                        <div>
-                          <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Payout</p>
-                          <p className="font-black text-base text-primary">{w.payoutCurrency} {(w.payoutAmount ?? 0).toFixed(2)}</p>
-                          <p className="text-[9px] text-muted-foreground font-bold">from {w.amount} {w.currency}</p>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground/40" />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button className="flex-1 h-11 rounded-2xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white font-black uppercase text-xs transition-all" onClick={() => handleOpenWithdrawalDialog(w.$id, 'APPROVED')}>
-                          <Check className="h-4 w-4 mr-1.5" />Approve
-                        </Button>
-                        <Button className="flex-1 h-11 rounded-2xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white font-black uppercase text-xs transition-all" onClick={() => handleOpenWithdrawalDialog(w.$id, 'REJECTED')}>
-                          <X className="h-4 w-4 mr-1.5" />Reject
-                        </Button>
-                      </div>
-                    </div>
-                  )) : (
+                    );
+                  }) : (
                     <div className="py-16 flex flex-col items-center gap-3 bg-card/30 rounded-3xl border border-dashed border-border">
                       <ArrowUpCircle className="h-10 w-10 text-muted-foreground/20" />
                       <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/50">No pending withdrawals</p>
@@ -962,47 +1014,103 @@ export default function AdminDashboard() {
 
               {/* Inbound — Payments */}
               {economySubTab === 'inbound' && (
-                <div className="space-y-3">
-                  {pendingPayments.length > 0 ? pendingPayments.map((p) => (
-                    <div key={p.$id} className="bg-card/60 border border-border/50 rounded-3xl overflow-hidden">
-                      <div className="p-5 space-y-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <Avatar className="h-11 w-11 border-2 border-primary/10 shrink-0">
-                              <AvatarImage src={`https://picsum.photos/seed/${p.username}/100/100`} />
-                              <AvatarFallback className="font-black">{(p.username || '?')[0].toUpperCase()}</AvatarFallback>
+                <div className="space-y-4">
+                  {pendingPayments.length > 0 ? pendingPayments.map((p) => {
+                    const pUser = userMap[p.username];
+                    const coinColor = (p.coin_type || '').toLowerCase() === 'diamond' ? 'cyan' : 'amber';
+                    return (
+                      <div key={p.$id} className="bg-card border border-border rounded-[2rem] overflow-hidden shadow-lg">
+                        {/* Header strip */}
+                        <div className={cn(
+                          "px-5 py-2 flex items-center justify-between",
+                          coinColor === 'cyan' ? "bg-cyan-500/10 border-b border-cyan-500/20" : "bg-amber-500/10 border-b border-amber-500/20"
+                        )}>
+                          <span className={cn("text-[9px] font-black uppercase tracking-[0.2em]", coinColor === 'cyan' ? "text-cyan-500" : "text-amber-500")}>Payment Request</span>
+                          <Badge className={cn("text-[9px] font-black uppercase border-none px-3", coinColor === 'cyan' ? "bg-cyan-500/20 text-cyan-500" : "bg-amber-500/20 text-amber-500")}>
+                            {coinColor === 'cyan' ? <Gem className="h-3 w-3 mr-1 inline" /> : <Coins className="h-3 w-3 mr-1 inline" />}
+                            {p.coin_amount || ''} {p.coin_type || 'Gold'}
+                          </Badge>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                          {/* User identity row */}
+                          <div className="flex items-center gap-4">
+                            <Avatar className="h-16 w-16 border-2 border-border rounded-2xl shrink-0">
+                              <AvatarImage src={pUser?.avatar} className="object-cover" />
+                              <AvatarFallback className="text-lg font-black rounded-2xl bg-primary/10">{(p.username || '?')[0].toUpperCase()}</AvatarFallback>
                             </Avatar>
-                            <div className="min-w-0">
-                              <p className="font-black text-sm truncate">@{p.username}</p>
-                              <p className="text-[10px] font-bold text-muted-foreground truncate">{p.packageName}</p>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="font-black text-base leading-tight">{pUser?.name || p.name || p.username}</p>
+                                {pUser?.isVerified && <CheckCircle2 className="h-4 w-4 text-primary fill-primary shrink-0" />}
+                              </div>
+                              <p className="text-[11px] font-bold text-muted-foreground">@{p.username}</p>
+                              {p.$createdAt && (
+                                <p className="text-[10px] text-muted-foreground/60 font-medium mt-0.5">
+                                  {new Date(p.$createdAt).toLocaleString()}
+                                </p>
+                              )}
                             </div>
                           </div>
-                          <Badge className="bg-amber-500/10 text-amber-500 border-none font-black shrink-0">{p.currency} {p.amount}</Badge>
-                        </div>
-                        <div
-                          className="relative w-full rounded-2xl overflow-hidden bg-secondary/20 cursor-zoom-in"
-                          style={{ aspectRatio: '16/9' }}
-                          onClick={() => setSelectedReceipt(p.screenshot)}
-                        >
-                          <Image src={p.screenshot} alt="Receipt" fill className="object-cover" />
-                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                            <div className="bg-black/50 rounded-xl px-3 py-1.5 flex items-center gap-2">
-                              <Eye className="h-3.5 w-3.5 text-white" />
-                              <span className="text-white text-[10px] font-black uppercase">View Receipt</span>
+
+                          {/* Package + amount details */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-secondary/30 rounded-2xl p-3">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Package</p>
+                              <p className="font-black text-sm leading-tight">{p.packageName || '—'}</p>
+                            </div>
+                            <div className={cn("rounded-2xl p-3 border", coinColor === 'cyan' ? "bg-cyan-500/10 border-cyan-500/20" : "bg-amber-500/10 border-amber-500/20")}>
+                              <p className={cn("text-[9px] font-black uppercase tracking-widest mb-1", coinColor === 'cyan' ? "text-cyan-500/70" : "text-amber-500/70")}>Amount Paid</p>
+                              <p className={cn("font-black text-lg leading-tight", coinColor === 'cyan' ? "text-cyan-500" : "text-amber-500")}>
+                                {p.currency === 'USD' ? '$' : 'L$'} {p.amount}
+                              </p>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button className="flex-1 h-11 rounded-2xl bg-green-500 text-white font-black uppercase text-xs hover:bg-green-600 transition-all" onClick={() => handleOpenPaymentDialog(p.$id, 'APPROVED')}>
-                            <Check className="h-4 w-4 mr-1.5" />Approve
-                          </Button>
-                          <Button className="flex-1 h-11 rounded-2xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white font-black uppercase text-xs transition-all" onClick={() => handleOpenPaymentDialog(p.$id, 'REJECTED')}>
-                            <X className="h-4 w-4 mr-1.5" />Reject
-                          </Button>
+
+                          {/* Ref code */}
+                          {p.code && (
+                            <div className="bg-secondary/20 rounded-2xl px-4 py-2.5 flex items-center justify-between">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Ref Code</p>
+                              <p className="font-black text-sm font-mono text-primary tracking-widest">{p.code}</p>
+                            </div>
+                          )}
+
+                          {/* Screenshot — full width, prominent */}
+                          {p.screenshot ? (
+                            <div
+                              className="relative w-full rounded-2xl overflow-hidden cursor-zoom-in group"
+                              style={{ aspectRatio: '9/16', maxHeight: '480px' }}
+                              onClick={() => setSelectedReceipt(p.screenshot)}
+                            >
+                              <Image src={p.screenshot} alt="Payment Confirmation" fill className="object-cover" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                              <div className="absolute bottom-3 left-0 right-0 flex justify-center">
+                                <div className="bg-black/70 backdrop-blur-sm rounded-xl px-4 py-2 flex items-center gap-2 group-hover:bg-primary/80 transition-colors">
+                                  <Eye className="h-4 w-4 text-white" />
+                                  <span className="text-white text-[10px] font-black uppercase tracking-widest">Tap to Zoom</span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-full rounded-2xl bg-secondary/20 border border-dashed border-border flex items-center justify-center py-10 gap-2">
+                              <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
+                              <p className="text-xs font-black uppercase text-muted-foreground/40">No screenshot uploaded</p>
+                            </div>
+                          )}
+
+                          {/* Actions */}
+                          <div className="flex gap-2 pt-1">
+                            <Button className="flex-1 h-12 rounded-2xl bg-green-500/10 text-green-600 hover:bg-green-500 hover:text-white font-black uppercase text-xs transition-all gap-2" onClick={() => handleOpenPaymentDialog(p.$id, 'APPROVED')}>
+                              <Check className="h-4 w-4" />Approve
+                            </Button>
+                            <Button className="flex-1 h-12 rounded-2xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-white font-black uppercase text-xs transition-all gap-2" onClick={() => handleOpenPaymentDialog(p.$id, 'REJECTED')}>
+                              <X className="h-4 w-4" />Reject
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )) : (
+                    );
+                  }) : (
                     <div className="py-16 flex flex-col items-center gap-3 bg-card/30 rounded-3xl border border-dashed border-border">
                       <ArrowDownCircle className="h-10 w-10 text-muted-foreground/20" />
                       <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/50">No pending payments</p>
