@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { 
   ArrowLeft, 
   Coins, 
@@ -19,7 +19,8 @@ import {
   Sparkles,
   ChevronRight,
   Send,
-  HelpCircle
+  HelpCircle,
+  Timer
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -71,6 +72,45 @@ export default function CurrencyHub() {
   const [ticketCategory, setTicketCategory] = useState("Finance");
   const [ticketMessage, setTicketMessage] = useState("");
   const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
+
+  const EXPIRY_SECONDS = 30 * 60;
+  const [timeLeft, setTimeLeft] = useState(EXPIRY_SECONDS);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  }, []);
+
+  useEffect(() => {
+    if (pendingTransaction) {
+      setTimeLeft(EXPIRY_SECONDS);
+      stopTimer();
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            stopTimer();
+            cancelTransaction();
+            toast({ variant: "destructive", title: "Session Expired", description: "Your payment session timed out. Please select a package and try again." });
+            setActiveTab("gold");
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      stopTimer();
+      setTimeLeft(EXPIRY_SECONDS);
+    }
+    return stopTimer;
+  }, [pendingTransaction?.$id]);
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60).toString().padStart(2, '0');
+    const sec = (s % 60).toString().padStart(2, '0');
+    return `${m}:${sec}`;
+  };
+
+  const timerColor = timeLeft <= 300 ? 'red' : timeLeft <= 600 ? 'amber' : 'emerald';
 
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -429,25 +469,85 @@ export default function CurrencyHub() {
             ) : (
               <div className="space-y-6 animate-in zoom-in-95 duration-500">
                 {/* Active payment card */}
-                <div className="bg-gradient-to-br from-emerald-500/10 to-teal-500/5 border border-emerald-500/20 rounded-[2.5rem] p-6 space-y-5">
-                  <div className="flex items-center gap-4">
-                    <div className="h-14 w-14 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
-                      <CheckCircle2 className="h-7 w-7 text-white" />
+                <div className={cn(
+                  "border rounded-[2.5rem] p-6 space-y-5 transition-colors duration-500",
+                  timerColor === 'red'
+                    ? "bg-gradient-to-br from-red-500/10 to-rose-500/5 border-red-500/30"
+                    : timerColor === 'amber'
+                    ? "bg-gradient-to-br from-amber-500/10 to-orange-500/5 border-amber-500/30"
+                    : "bg-gradient-to-br from-emerald-500/10 to-teal-500/5 border-emerald-500/20"
+                )}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className={cn(
+                        "h-14 w-14 rounded-2xl flex items-center justify-center shadow-lg shrink-0",
+                        timerColor === 'red' ? "bg-red-500 shadow-red-500/20"
+                          : timerColor === 'amber' ? "bg-amber-500 shadow-amber-500/20"
+                          : "bg-emerald-500 shadow-emerald-500/20"
+                      )}>
+                        <CheckCircle2 className="h-7 w-7 text-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className={cn(
+                          "text-xs font-black uppercase tracking-[0.2em]",
+                          timerColor === 'red' ? "text-red-500/60" : timerColor === 'amber' ? "text-amber-500/60" : "text-emerald-600/60"
+                        )}>Session Active</p>
+                        <h3 className={cn(
+                          "text-xl font-black italic uppercase tracking-tighter",
+                          timerColor === 'red' ? "text-red-500" : timerColor === 'amber' ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400"
+                        )}>Awaiting Payment</h3>
+                        <p className="text-xs font-bold text-muted-foreground truncate">{pendingTransaction.packageName}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600/60">Node Active</p>
-                      <h3 className="text-xl font-black italic uppercase tracking-tighter text-emerald-600 dark:text-emerald-400">Sync In Progress</h3>
-                      <p className="text-xs font-bold text-muted-foreground">{pendingTransaction.packageName}</p>
+
+                    {/* Countdown timer */}
+                    <div className={cn(
+                      "flex flex-col items-center justify-center rounded-2xl px-4 py-3 shrink-0 border",
+                      timerColor === 'red'
+                        ? "bg-red-500/10 border-red-500/30"
+                        : timerColor === 'amber'
+                        ? "bg-amber-500/10 border-amber-500/30"
+                        : "bg-emerald-500/10 border-emerald-500/20"
+                    )}>
+                      <Timer className={cn(
+                        "h-3.5 w-3.5 mb-1",
+                        timerColor === 'red' ? "text-red-500" : timerColor === 'amber' ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400"
+                      )} />
+                      <p className={cn(
+                        "text-xl font-black font-mono tabular-nums leading-none",
+                        timerColor === 'red' ? "text-red-500 animate-pulse" : timerColor === 'amber' ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400"
+                      )}>{formatTime(timeLeft)}</p>
+                      <p className={cn(
+                        "text-[8px] font-black uppercase tracking-widest mt-0.5",
+                        timerColor === 'red' ? "text-red-500/60" : timerColor === 'amber' ? "text-amber-500/60" : "text-emerald-600/50"
+                      )}>
+                        {timerColor === 'red' ? "Expiring!" : timerColor === 'amber' ? "Hurry up" : "Remaining"}
+                      </p>
                     </div>
                   </div>
+
+                  {timerColor !== 'emerald' && (
+                    <div className={cn(
+                      "flex items-center gap-2 rounded-2xl px-4 py-2.5",
+                      timerColor === 'red' ? "bg-red-500/10" : "bg-amber-500/10"
+                    )}>
+                      <AlertTriangle className={cn("h-3.5 w-3.5 shrink-0", timerColor === 'red' ? "text-red-500" : "text-amber-500")} />
+                      <p className={cn("text-[10px] font-bold leading-relaxed", timerColor === 'red' ? "text-red-500/80" : "text-amber-600/80 dark:text-amber-400/80")}>
+                        {timerColor === 'red'
+                          ? "Less than 5 minutes left! Complete your payment now or this session will expire."
+                          : "Less than 10 minutes left. Please complete your payment soon."}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-4 border border-emerald-500/10">
+                    <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-4 border border-white/20 dark:border-white/5">
                       <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Amount Due</p>
                       <p className="text-xl font-black">{pendingTransaction.currency === 'USD' ? '$' : 'L$'} {pendingTransaction.amount}</p>
                     </div>
                     <button
                       onClick={() => handleCopy(pendingTransaction.code, "Code")}
-                      className="bg-white/60 dark:bg-white/5 rounded-2xl p-4 border border-emerald-500/10 text-left hover:border-primary/30 transition-colors group"
+                      className="bg-white/60 dark:bg-white/5 rounded-2xl p-4 border border-white/20 dark:border-white/5 text-left hover:border-primary/30 transition-colors group"
                     >
                       <div className="flex items-center justify-between mb-1">
                         <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Ref Code</p>
