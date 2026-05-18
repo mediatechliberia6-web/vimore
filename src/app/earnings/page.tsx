@@ -6,29 +6,26 @@ import {
   ArrowLeft, 
   Coins, 
   Gem, 
-  TrendingUp, 
+  TrendingUp,
   ShieldCheck, 
   ChevronRight,
-  Wallet,
   ArrowDownToLine,
-  PieChart as PieIcon,
   Zap,
   CheckCircle2,
-  Lock,
   History,
   Building2,
   Smartphone,
   X,
   Loader2,
-  FileText,
   CircleDashed,
   HelpCircle,
-  Send
+  Send,
+  DollarSign,
+  Wallet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { usePosts } from "@/context/PostContext";
@@ -37,25 +34,17 @@ import { useNotifications } from "@/context/NotificationContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { 
-  PieChart, 
-  Pie, 
-  Cell, 
-  ResponsiveContainer, 
-  Tooltip as RechartsTooltip 
-} from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { BiometricGate } from "@/components/layout/biometric-gate";
-import { NativeAdNode } from "@/components/ad/native-ad-node";
 
 
 export default function EarningsPage() {
-  const { currentUser, triggerHaptic, withdrawalHistory, recordWithdrawal, processGiftTransaction, submitTicket, settings, isLoading } = usePosts();
+  const { currentUser, triggerHaptic, withdrawalHistory, recordWithdrawal, submitTicket, settings, isLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
   const { t } = useTranslation();
   const { toast } = useToast();
-  
+
   const [isPortalOpen, setIsPortalOpen] = useState(false);
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -63,25 +52,14 @@ export default function EarningsPage() {
     const gold = currentUser?.goldBalance || 0;
     const diamond = currentUser?.diamondBalance || 0;
     const totalUSD = (gold * settings.goldRate) + (diamond * settings.diamondRate);
-    return { totalUSD, totalLD: totalUSD * settings.ldMultiplier };
+    return { totalUSD, totalLD: totalUSD * settings.ldMultiplier, gold, diamond };
   }, [currentUser, settings.goldRate, settings.diamondRate, settings.ldMultiplier]);
 
-  const revenueData = useMemo(() => {
-    const gold = currentUser?.goldBalance || 0;
-    const diamond = currentUser?.diamondBalance || 0;
-    const total = gold + diamond;
-    if (total === 0) {
-      return [
-        { name: "Gold Earnings", value: 1, color: "hsl(var(--primary))" },
-        { name: "Diamond Earnings", value: 1, color: "hsl(var(--accent))" },
-      ];
-    }
-    const goldPct = Math.max(1, Math.round((gold / total) * 100));
-    return [
-      { name: "Gold Earnings", value: goldPct, color: "hsl(var(--primary))" },
-      { name: "Diamond Earnings", value: 100 - goldPct, color: "hsl(var(--accent))" },
-    ];
-  }, [currentUser]);
+  const goldPct = useMemo(() => {
+    const total = estimates.gold + estimates.diamond;
+    if (total === 0) return 50;
+    return Math.round((estimates.gold / total) * 100);
+  }, [estimates]);
 
   const [isTicketOpen, setIsTicketOpen] = useState(false);
   const [ticketSubject, setTicketSubject] = useState("");
@@ -114,7 +92,7 @@ export default function EarningsPage() {
 
   const feeMultiplier = currentUser?.isVerified ? 1 : 0.85;
   const rawAmount = parseFloat(amount) || 0;
-  
+
   const calculation = useMemo(() => {
     let baseUSD = 0;
     if (withdrawCurrency === 'GOLD') baseUSD = rawAmount * settings.goldRate;
@@ -165,171 +143,359 @@ export default function EarningsPage() {
 
   if (isLoading || !currentUser) {
     return (
-      <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] flex flex-col items-center justify-center p-6 space-y-4">
-        <Loader2 className="h-10 w-10 text-primary animate-spin" />
-        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Fetching Vault Assets...</p>
+      <div className="min-h-screen bg-[#060608] flex flex-col items-center justify-center p-6 space-y-4">
+        <div className="relative">
+          <div className="absolute inset-0 bg-primary/30 blur-2xl rounded-full" />
+          <Wallet className="relative h-12 w-12 text-primary animate-pulse" />
+        </div>
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 animate-pulse">Fetching Vault Assets...</p>
       </div>
     );
   }
 
   return (
     <BiometricGate title="Earnings Portal">
-      <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300 relative overflow-x-hidden">
-        <header className="sticky top-0 z-50 bg-white/80 dark:bg-card/80 backdrop-blur-md border-b border-border h-16 px-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#060608] transition-colors duration-300">
+
+        {/* Header */}
+        <header className={cn(
+          "sticky top-0 z-50 bg-white/90 dark:bg-[#0D0D12]/90 backdrop-blur-xl border-b border-black/5 dark:border-white/5 h-16 px-4 flex items-center justify-between",
+          isPlayerActive ? "mt-[64px]" : ""
+        )}>
+          <div className="flex items-center gap-3">
             <Link href="/menu">
-              <Button variant="ghost" size="icon" className="rounded-full hover:bg-secondary/80"><ArrowLeft className="h-6 w-6" /></Button>
+              <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 hover:bg-black/5 dark:hover:bg-white/5">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
             </Link>
-            <div className="flex flex-col">
-              <h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground">{t('earn_portal')}</h1>
-              <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{t('earn_financial_intel')}</span>
+            <div>
+              <h1 className="text-base font-black italic uppercase tracking-tighter leading-none">{t('earn_portal')}</h1>
+              <p className="text-[9px] font-bold text-primary uppercase tracking-widest">{t('earn_financial_intel')}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Avatar className="h-9 w-9 border-2 border-primary/10">
-              <AvatarImage src={currentUser?.avatar} />
-              <AvatarFallback>V</AvatarFallback>
-            </Avatar>
-          </div>
+          <Avatar className="h-9 w-9 border-2 border-primary/20">
+            <AvatarImage src={currentUser?.avatar} />
+            <AvatarFallback className="text-xs font-black">{(currentUser?.name || 'V')[0]}</AvatarFallback>
+          </Avatar>
         </header>
 
-        <main className={cn("max-w-3xl mx-auto p-4 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4", isPlayerActive ? "pt-[80px]" : "pt-4")}>
-          <Card className="relative bg-white dark:bg-card border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground ml-1">{t('earn_available_energy')}</CardDescription>
-              <CardTitle className="text-4xl font-black italic uppercase tracking-tighter">{t('earn_vault_balance')}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-8">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-amber-500/5 border border-amber-500/10 rounded-3xl p-6 space-y-2">
-                  <div className="flex items-center gap-2"><Coins className="h-5 w-5 text-amber-500" /><span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('earn_gold_pulse')}</span></div>
-                  <p className="text-3xl font-black italic tabular-nums">{currentUser?.goldBalance || 0}</p>
-                </div>
-                <div className="bg-cyan-500/5 border border-cyan-500/10 rounded-3xl p-6 space-y-2">
-                  <div className="flex items-center gap-2"><Gem className="h-5 w-5 text-cyan-500" /><span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('earn_diamond_pulse')}</span></div>
-                  <p className="text-3xl font-black italic tabular-nums">{currentUser?.diamondBalance || 0}</p>
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-6 border-t border-primary/5">
-                <div className="flex flex-col items-center sm:items-start">
-                  <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest mb-1">{t('earn_conversion_estimate')}</span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-primary">${estimates.totalUSD.toFixed(2)}</span>
-                    <span className="text-xs font-bold text-muted-foreground">/</span>
-                    <span className="text-xl font-black text-foreground">L$ {estimates.totalLD.toLocaleString()}</span>
-                  </div>
-                </div>
-                <Button className="w-full sm:w-auto h-14 px-10 rounded-2xl bg-primary text-white font-black italic uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all gap-3" onClick={() => { triggerHaptic(20); setIsPortalOpen(true); }}><ArrowDownToLine className="h-5 w-5" />{t('earn_withdraw')}</Button>
-              </div>
-            </CardContent>
-          </Card>
+        <main className="max-w-2xl mx-auto px-4 pb-32 space-y-5 pt-6">
 
+          {/* Vault Hero */}
+          <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#0f1a3d] via-[#1a0533] to-[#0a2620] p-6 shadow-2xl">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(168,85,247,0.25),_transparent_60%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(16,185,129,0.15),_transparent_60%)]" />
+            <div className="relative z-10 space-y-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-0.5">{t('earn_available_energy')}</p>
+                  <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">{t('earn_vault_balance')}</h2>
+                </div>
+                <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10">
+                  <TrendingUp className="h-6 w-6 text-emerald-400" />
+                </div>
+              </div>
+
+              {/* Balance cards */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-7 w-7 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                      <Coins className="h-4 w-4 text-amber-400" />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white/40">{t('earn_gold_pulse')}</span>
+                  </div>
+                  <p className="text-3xl font-black italic text-white tabular-nums">{currentUser?.goldBalance || 0}</p>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-7 w-7 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                      <Gem className="h-4 w-4 text-cyan-400" />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white/40">{t('earn_diamond_pulse')}</span>
+                  </div>
+                  <p className="text-3xl font-black italic text-white tabular-nums">{currentUser?.diamondBalance || 0}</p>
+                </div>
+              </div>
+
+              {/* Balance bar */}
+              <div className="space-y-2">
+                <div className="flex overflow-hidden rounded-full h-2 bg-white/10">
+                  <div className="bg-amber-400 transition-all duration-700" style={{ width: `${goldPct}%` }} />
+                  <div className="flex-1 bg-cyan-400" />
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[9px] font-bold text-amber-400/70">{goldPct}% Gold</span>
+                  <span className="text-[9px] font-bold text-cyan-400/70">{100 - goldPct}% Diamond</span>
+                </div>
+              </div>
+
+              {/* USD/LD estimate */}
+              <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 mb-1">{t('earn_conversion_estimate')}</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-emerald-400">${estimates.totalUSD.toFixed(2)}</span>
+                  <span className="text-white/30 font-black">/</span>
+                  <span className="text-xl font-black text-white/70">L$ {estimates.totalLD.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Withdraw button */}
+              <Button
+                className="w-full h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black italic uppercase tracking-[0.15em] shadow-xl shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95 gap-3"
+                onClick={() => { triggerHaptic(20); setIsPortalOpen(true); }}
+              >
+                <ArrowDownToLine className="h-5 w-5" />
+                {t('earn_withdraw')}
+              </Button>
+            </div>
+          </div>
+
+          {/* Quick stats */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Gold Rate", value: `$${settings.goldRate}`, icon: Coins, color: "amber" },
+              { label: "Diamond Rate", value: `$${settings.diamondRate}`, icon: Gem, color: "cyan" },
+              { label: "Withdrawals", value: withdrawalHistory.length, icon: History, color: "purple" },
+            ].map((stat) => (
+              <div key={stat.label} className="bg-white dark:bg-white/5 rounded-[1.25rem] p-4 border border-black/5 dark:border-white/5 text-center shadow-sm">
+                <div className={cn(
+                  "h-8 w-8 rounded-xl mx-auto mb-2 flex items-center justify-center",
+                  stat.color === "amber" ? "bg-amber-500/10" : stat.color === "cyan" ? "bg-cyan-500/10" : "bg-primary/10"
+                )}>
+                  <stat.icon className={cn("h-4 w-4", stat.color === "amber" ? "text-amber-500" : stat.color === "cyan" ? "text-cyan-500" : "text-primary")} />
+                </div>
+                <p className="text-base font-black tabular-nums">{stat.value}</p>
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Support */}
           <button
             onClick={() => { triggerHaptic(10); setIsTicketOpen(true); }}
-            className="w-full flex items-center gap-4 bg-white dark:bg-card border border-primary/10 rounded-[2rem] p-5 shadow-lg shadow-black/5 hover:border-primary/30 hover:shadow-xl transition-all active:scale-[0.98] group"
+            className="w-full flex items-center gap-4 bg-white dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-[1.5rem] p-4 hover:border-primary/20 transition-all shadow-sm active:scale-[0.98] group"
           >
-            <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
-              <HelpCircle className="h-6 w-6 text-primary" />
+            <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+              <HelpCircle className="h-5 w-5 text-primary" />
             </div>
             <div className="flex flex-col items-start text-left">
-              <span className="text-sm font-black italic uppercase tracking-tight text-foreground">Contact Support</span>
+              <span className="text-sm font-black italic uppercase tracking-tight">Contact Support</span>
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Withdrawal or earnings issue?</span>
             </div>
-            <ChevronRight className="h-5 w-5 text-muted-foreground ml-auto group-hover:text-primary transition-colors" />
+            <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto group-hover:text-primary transition-colors" />
           </button>
 
-          <section className="space-y-4">
-            <div className="flex items-center justify-between px-2">
+          {/* Withdrawal History */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <History className="h-4 w-4 text-muted-foreground" />
               <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">{t('earn_audit_trail')}</h3>
+              {withdrawalHistory.length > 0 && (
+                <Badge variant="secondary" className="text-[9px] font-black ml-auto">{withdrawalHistory.length}</Badge>
+              )}
             </div>
-            <div className="space-y-3">
-              {withdrawalHistory.length > 0 ? withdrawalHistory.map((node) => (
-                <div key={node.$id} className="bg-white dark:bg-card border border-primary/5 p-5 rounded-[2rem] flex items-center justify-between group hover:border-primary/20 transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center", node.status === 'PENDING' ? "bg-amber-500/10 text-amber-500" : "bg-green-500/10 text-green-500")}>
-                      {node.status === 'PENDING' ? <CircleDashed className="h-6 w-6 animate-spin" /> : <CheckCircle2 className="h-6 w-6" />}
+
+            {withdrawalHistory.length > 0 ? (
+              <div className="space-y-2">
+                {withdrawalHistory.map((node) => (
+                  <div key={node.$id} className="bg-white dark:bg-white/5 border border-black/5 dark:border-white/5 p-4 rounded-[1.5rem] flex items-center justify-between shadow-sm hover:border-primary/10 transition-all">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "h-11 w-11 rounded-2xl flex items-center justify-center shrink-0",
+                        node.status === 'PENDING' ? "bg-amber-500/10" : "bg-emerald-500/10"
+                      )}>
+                        {node.status === 'PENDING'
+                          ? <CircleDashed className="h-5 w-5 text-amber-500 animate-spin" />
+                          : <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                        }
+                      </div>
+                      <div>
+                        <p className="text-sm font-black tabular-nums">{node.payoutCurrency} {node.payoutAmount?.toFixed(2)}</p>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{node.method} · {new Date(node.$createdAt || Date.now()).toLocaleDateString()}</p>
+                      </div>
                     </div>
-                    <div className="flex flex-col">
-                      <p className="text-sm font-bold">{node.payoutCurrency} {node.payoutAmount?.toFixed(2)}</p>
-                      <span className="text-[10px] font-black uppercase text-muted-foreground">{node.method} Node</span>
-                    </div>
+                    <Badge className={cn(
+                      "font-black text-[8px] uppercase tracking-tighter border-none h-5 px-2.5 shrink-0",
+                      node.status === 'PENDING' ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    )}>{node.status}</Badge>
                   </div>
-                  <Badge className={cn("font-black text-[8px] uppercase tracking-tighter border-none h-5 px-3", node.status === 'PENDING' ? "bg-amber-500/10 text-amber-500" : "bg-green-500/10 text-green-500")}>{node.status}</Badge>
+                ))}
+              </div>
+            ) : (
+              <div className="py-14 flex flex-col items-center gap-4 bg-white/50 dark:bg-white/5 border border-dashed border-primary/10 rounded-[2rem] text-center">
+                <div className="h-16 w-16 rounded-[1.25rem] bg-primary/5 flex items-center justify-center border border-dashed border-primary/20">
+                  <DollarSign className="h-8 w-8 text-primary/20" />
                 </div>
-              )) : <div className="py-16 text-center bg-white/40 dark:bg-white/5 border border-dashed border-primary/10 rounded-[2.5rem] opacity-40 uppercase text-xs font-black">Vault Empty</div>}
-            </div>
+                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/50">No withdrawals yet</p>
+              </div>
+            )}
           </section>
         </main>
 
+        {/* Withdrawal Portal */}
         {isPortalOpen && (
-          <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-500 overflow-hidden">
-            <header className="h-20 px-6 flex items-center justify-between shrink-0 bg-black/40 border-b border-white/5">
-              <Button variant="ghost" size="icon" className="text-white bg-white/5 rounded-full" onClick={() => { setIsPortalOpen(false); resetPortal(); }}><X className="h-6 w-6" /></Button>
-              <div className="flex flex-col items-center"><h2 className="text-sm font-black italic uppercase tracking-widest text-white">Withdrawal Portal</h2><span className="text-[10px] font-bold text-primary uppercase">Financial Handshake</span></div>
-              <div className="w-10" />
-            </header>
-            <main className="flex-1 overflow-y-auto p-6 sm:p-12">
-              <div className="max-w-xl mx-auto space-y-10 animate-in slide-in-from-bottom-4">
-                <section className="space-y-6">
-                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/40 text-center">Select Payout Node</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button onClick={() => { triggerHaptic(10); setPayoutMethod("ORANGE"); }} className={cn("h-24 rounded-3xl border-2 flex flex-col items-center justify-center gap-2 transition-all", payoutMethod === "ORANGE" ? "bg-orange-500 border-orange-400 text-white" : "bg-white/5 border-white/10 text-white/40")}><Smartphone className="h-6 w-6" /><span className="text-[10px] font-black uppercase tracking-widest">Orange Money</span></button>
-                    <button onClick={() => { triggerHaptic(10); setPayoutMethod("MTN"); }} className={cn("h-24 rounded-3xl border-2 flex flex-col items-center justify-center gap-2 transition-all", payoutMethod === "MTN" ? "bg-yellow-500 border-yellow-400 text-black" : "bg-white/5 border-white/10 text-white/40")}><Building2 className="h-6 w-6" /><span className="text-[10px] font-black uppercase tracking-widest">MTN Momo</span></button>
-                  </div>
-                </section>
-                <section className="space-y-6 bg-white/5 border border-white/10 p-8 rounded-[2.5rem]">
-                  <div className="space-y-4">
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Account Name</Label><Input placeholder="Full Name" className="h-14 bg-white/5 border-none text-white font-bold" value={accountName} onChange={(e) => setAccountName(e.target.value)} /></div>
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Account Number</Label><Input placeholder="+231..." className="h-14 bg-white/5 border-none text-white font-bold" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} /></div>
-                  </div>
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between"><Label className="text-[10px] font-black uppercase tracking-widest text-white/40">Source Energy</Label><div className="flex gap-2"><button onClick={() => setWithdrawCurrency("GOLD")} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", withdrawCurrency === 'GOLD' ? "bg-amber-500 text-white" : "bg-white/5 text-white/40")}>GOLD</button><button onClick={() => setWithdrawCurrency("DIAMOND")} className={cn("px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all", withdrawCurrency === 'DIAMOND' ? "bg-cyan-500 text-white" : "bg-white/5 text-white/40")}>DIAMOND</button></div></div>
-                    <Input type="number" placeholder="Amount..." className={cn("h-20 bg-white/5 border-none rounded-[1.5rem] text-3xl font-black italic uppercase text-white px-8", !hasEnoughBalance && "text-red-500")} value={amount} onChange={(e) => setAmount(e.target.value)} />
-                  </div>
-                  <div className="bg-black/40 rounded-3xl p-6 flex items-center justify-between border border-white/5"><span className="text-xs font-black uppercase text-white tracking-widest">Final Payout</span><span className="text-2xl font-black italic text-primary">{payoutCurrency === 'USD' ? '$' : 'L$'} {calculation.finalPayout.toFixed(2)}</span></div>
-                </section>
-                <Button className={cn("w-full h-20 rounded-[2rem] font-black italic uppercase tracking-[0.3em] text-xl shadow-2xl transition-all", canProceed && !isSubmitting ? "bg-primary text-white" : "bg-white/5 text-white/20 cursor-not-allowed")} onClick={handleInitiateHandshake} disabled={!canProceed || isSubmitting}>{isSubmitting ? "SYNCING..." : "Submit Request"}</Button>
-              </div>
-            </main>
-          </div>
-        )}
-        {isTicketOpen && (
-          <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-300 overflow-hidden">
-            <header className="h-20 px-6 flex items-center justify-between shrink-0 bg-black/40 border-b border-white/5">
-              <Button variant="ghost" size="icon" className="text-white bg-white/5 rounded-full" onClick={() => setIsTicketOpen(false)}><X className="h-6 w-6" /></Button>
-              <div className="flex flex-col items-center">
-                <h2 className="text-sm font-black italic uppercase tracking-widest text-white">Support Ticket</h2>
-                <span className="text-[10px] font-bold text-primary uppercase">Earnings Help Node</span>
+          <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-300">
+            <header className="h-16 px-4 flex items-center justify-between shrink-0 border-b border-white/5">
+              <Button variant="ghost" size="icon" className="text-white/70 hover:text-white rounded-full" onClick={() => { setIsPortalOpen(false); resetPortal(); }}>
+                <X className="h-5 w-5" />
+              </Button>
+              <div className="text-center">
+                <h2 className="text-sm font-black italic uppercase tracking-widest text-white">Withdrawal Portal</h2>
+                <p className="text-[10px] text-primary font-bold uppercase tracking-widest">Financial Handshake</p>
               </div>
               <div className="w-10" />
             </header>
-            <main className="flex-1 overflow-y-auto p-6 sm:p-12">
-              <div className="max-w-xl mx-auto space-y-6 animate-in slide-in-from-bottom-4">
+
+            <div className="flex-1 overflow-y-auto p-5">
+              <div className="max-w-sm mx-auto space-y-5">
+
+                {/* Payout method */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Subject</label>
-                  <input value={ticketSubject} onChange={e => setTicketSubject(e.target.value)} placeholder="Describe your issue..." className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-white/20" />
+                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 text-center">Select Payout Method</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => { triggerHaptic(10); setPayoutMethod("ORANGE"); }}
+                      className={cn(
+                        "h-24 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all",
+                        payoutMethod === "ORANGE" ? "bg-orange-500 border-orange-400" : "bg-white/5 border-white/10 hover:border-white/20"
+                      )}
+                    >
+                      <Smartphone className={cn("h-6 w-6", payoutMethod === "ORANGE" ? "text-white" : "text-white/40")} />
+                      <span className={cn("text-[10px] font-black uppercase tracking-widest", payoutMethod === "ORANGE" ? "text-white" : "text-white/40")}>Orange Money</span>
+                    </button>
+                    <button
+                      onClick={() => { triggerHaptic(10); setPayoutMethod("MTN"); }}
+                      className={cn(
+                        "h-24 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all",
+                        payoutMethod === "MTN" ? "bg-yellow-400 border-yellow-300" : "bg-white/5 border-white/10 hover:border-white/20"
+                      )}
+                    >
+                      <Building2 className={cn("h-6 w-6", payoutMethod === "MTN" ? "text-black" : "text-white/40")} />
+                      <span className={cn("text-[10px] font-black uppercase tracking-widest", payoutMethod === "MTN" ? "text-black" : "text-white/40")}>MTN Momo</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Category</label>
-                  <div className="flex flex-wrap gap-2">
-                    {['Finance', 'Technical', 'Identity', 'Rewards', 'Other'].map(cat => (
-                      <button key={cat} onClick={() => setTicketCategory(cat)} className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all", ticketCategory === cat ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-white/5 text-white/40 hover:bg-white/10")}>{cat}</button>
+
+                {/* Account details */}
+                <div className="bg-white/5 border border-white/10 rounded-[1.5rem] p-5 space-y-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Account Name</Label>
+                    <Input placeholder="Full Name" className="h-12 bg-white/5 border-white/10 text-white font-bold focus-visible:ring-primary/40 placeholder:text-white/20 rounded-xl" value={accountName} onChange={(e) => setAccountName(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Account Number</Label>
+                    <Input placeholder="+231..." className="h-12 bg-white/5 border-white/10 text-white font-bold focus-visible:ring-primary/40 placeholder:text-white/20 rounded-xl" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
+                  </div>
+                </div>
+
+                {/* Amount */}
+                <div className="bg-white/5 border border-white/10 rounded-[1.5rem] p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Source Currency</Label>
+                    <div className="flex gap-1.5">
+                      {(["GOLD", "DIAMOND"] as const).map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => setWithdrawCurrency(c)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all",
+                            withdrawCurrency === c
+                              ? c === "GOLD" ? "bg-amber-500 text-white" : "bg-cyan-500 text-white"
+                              : "bg-white/5 text-white/40"
+                          )}
+                        >{c}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      className={cn(
+                        "h-16 bg-white/5 border-white/10 rounded-xl text-3xl font-black italic text-white px-5 focus-visible:ring-primary/40 placeholder:text-white/20",
+                        rawAmount > 0 && !hasEnoughBalance && "text-red-400 border-red-500/40"
+                      )}
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                    />
+                    {rawAmount > 0 && !hasEnoughBalance && (
+                      <p className="text-[10px] text-red-400 font-bold uppercase px-1">Insufficient balance</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {(["USD", "LD"] as const).map((c) => (
+                      <button key={c} onClick={() => setPayoutCurrency(c)} className={cn("px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex-1", payoutCurrency === c ? "bg-primary text-white" : "bg-white/5 text-white/40")}>{c}</button>
                     ))}
                   </div>
                 </div>
+
+                {/* Payout summary */}
+                {rawAmount > 0 && (
+                  <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Final Payout</p>
+                      {!currentUser?.isVerified && (
+                        <p className="text-[9px] text-amber-400/60 font-bold">15% platform fee applied</p>
+                      )}
+                    </div>
+                    <span className="text-2xl font-black italic text-primary">{payoutCurrency === 'USD' ? '$' : 'L$'} {calculation.finalPayout.toFixed(2)}</span>
+                  </div>
+                )}
+
+                <Button
+                  className={cn(
+                    "w-full h-14 rounded-2xl font-black italic uppercase tracking-[0.2em] text-base transition-all",
+                    canProceed && !isSubmitting ? "bg-primary text-white shadow-xl shadow-primary/20 hover:bg-primary/90" : "bg-white/5 text-white/20 cursor-not-allowed"
+                  )}
+                  onClick={handleInitiateHandshake}
+                  disabled={!canProceed || isSubmitting}
+                >
+                  {isSubmitting ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing...</> : "Submit Request"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Support Ticket */}
+        {isTicketOpen && (
+          <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-300">
+            <header className="h-16 px-4 flex items-center justify-between shrink-0 border-b border-white/5">
+              <Button variant="ghost" size="icon" className="text-white/70 hover:text-white rounded-full" onClick={() => setIsTicketOpen(false)}><X className="h-5 w-5" /></Button>
+              <div className="text-center">
+                <h2 className="text-sm font-black italic uppercase tracking-widest text-white">Support Ticket</h2>
+                <p className="text-[10px] text-primary font-bold uppercase tracking-widest">Earnings Help</p>
+              </div>
+              <div className="w-10" />
+            </header>
+            <div className="flex-1 overflow-y-auto p-5">
+              <div className="max-w-sm mx-auto space-y-5">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Subject</label>
+                  <input value={ticketSubject} onChange={e => setTicketSubject(e.target.value)} placeholder="Describe your issue..." className="w-full h-12 bg-white/5 border border-white/10 rounded-2xl px-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-white/20" />
+                </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Message</label>
-                  <textarea value={ticketMessage} onChange={e => setTicketMessage(e.target.value)} placeholder="Provide details about your issue..." rows={5} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none placeholder:text-white/20" />
+                  <label className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Category</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Finance', 'Technical', 'Identity', 'Rewards', 'Other'].map(cat => (
+                      <button key={cat} onClick={() => setTicketCategory(cat)} className={cn("px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all", ticketCategory === cat ? "bg-primary text-white" : "bg-white/5 text-white/40")}>{cat}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Message</label>
+                  <textarea value={ticketMessage} onChange={e => setTicketMessage(e.target.value)} placeholder="Provide details..." rows={5} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none placeholder:text-white/20" />
                 </div>
                 <Button
-                  className={cn("w-full h-16 rounded-[2rem] font-black italic uppercase tracking-[0.3em] text-lg transition-all gap-3", ticketSubject && ticketMessage && !isSubmittingTicket ? "bg-primary text-white shadow-2xl shadow-primary/20" : "bg-white/5 text-white/20 cursor-not-allowed")}
+                  className={cn("w-full h-14 rounded-2xl font-black italic uppercase tracking-widest transition-all gap-3", ticketSubject && ticketMessage && !isSubmittingTicket ? "bg-primary text-white shadow-xl" : "bg-white/5 text-white/20 cursor-not-allowed")}
                   onClick={handleSubmitTicket}
                   disabled={!ticketSubject || !ticketMessage || isSubmittingTicket}
                 >
                   {isSubmittingTicket ? <><Loader2 className="h-5 w-5 animate-spin" /> Submitting...</> : <><Send className="h-5 w-5" /> Submit Ticket</>}
                 </Button>
               </div>
-            </main>
+            </div>
           </div>
         )}
       </div>

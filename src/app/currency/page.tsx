@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { 
   ArrowLeft, 
   Coins, 
@@ -10,20 +10,16 @@ import {
   Copy, 
   Upload, 
   AlertTriangle, 
-  ChevronRight,
   ShieldCheck,
   Zap,
-  Info,
   Clock,
   Trash2,
   X,
-  CreditCard,
-  Building2,
   Loader2,
   Sparkles,
-  Smartphone,
-  HelpCircle,
-  Send
+  ChevronRight,
+  Send,
+  HelpCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +32,6 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
 import { BiometricGate } from "@/components/layout/biometric-gate";
 
@@ -53,8 +48,10 @@ const DIAMOND_PACKAGES = [
   { id: "d3", d: 100, priceLD: 4700, priceUSD: 25.00, label: "VIP Crystalline", isVIP: true },
 ];
 
+type TabId = "gold" | "diamond" | "complete";
+
 export default function CurrencyHub() {
-  const { currentUser, initiateTransaction, pendingTransaction, cancelTransaction, triggerHaptic, createPaymentRequest, submitTicket, gatewaySettings, isLoading } = usePosts();
+  const { currentUser, initiateTransaction, pendingTransaction, cancelTransaction, triggerHaptic, createPaymentRequest, submitTicket, isLoading } = usePosts();
   const { currentTrack, isExpanded } = useMusic();
   const { addSignal } = useNotifications();
   const { t } = useTranslation();
@@ -62,10 +59,9 @@ export default function CurrencyHub() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [activeTab, setActiveTab] = useState("gold");
+  const [activeTab, setActiveTab] = useState<TabId>(pendingTransaction ? "complete" : "gold");
   const [currencyMode, setCurrencyMode] = useState<"USD" | "LD">("LD");
   const [selectedPackage, setSelectedPackage] = useState<any | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"ORANGE" | "MTN" | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   const [uploadedScreenshot, setUploadedScreenshot] = useState<string | null>(null);
@@ -75,6 +71,8 @@ export default function CurrencyHub() {
   const [ticketCategory, setTicketCategory] = useState("Finance");
   const [ticketMessage, setTicketMessage] = useState("");
   const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
+
+  const isPlayerActive = currentTrack && !isExpanded;
 
   const handleSubmitTicket = async () => {
     if (!ticketSubject.trim() || !ticketMessage.trim()) return;
@@ -91,8 +89,6 @@ export default function CurrencyHub() {
     }
   };
 
-  const isPlayerActive = currentTrack && !isExpanded;
-
   const handleCopy = (text: string, label: string) => {
     triggerHaptic(5);
     navigator.clipboard.writeText(text);
@@ -108,11 +104,9 @@ export default function CurrencyHub() {
     if (!selectedPackage) return;
     triggerHaptic(20);
     setIsGeneratingCode(true);
-    
     try {
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
       const amount = currencyMode === 'LD' ? selectedPackage.priceLD : selectedPackage.priceUSD;
-      
       initiateTransaction({
         packageId: selectedPackage.id,
         packageName: selectedPackage.label,
@@ -122,7 +116,6 @@ export default function CurrencyHub() {
         coinAmount: selectedPackage.gd || selectedPackage.d || 0,
         code: `VBC-${code}`
       });
-      
       setSelectedPackage(null);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Protocol Error", description: e.message });
@@ -145,21 +138,14 @@ export default function CurrencyHub() {
     if (!uploadedScreenshot) return;
     setIsUploading(true);
     triggerHaptic(50);
-    
     try {
       await createPaymentRequest(uploadedScreenshot);
-      
       addSignal({
         type: 'SYSTEM',
         title: 'Review Node Active',
         content: `Your receipt for **${pendingTransaction?.packageName}** is now in the review cluster. We will notify you upon approval.`
       });
-
-      toast({
-        title: "Submission Received",
-        description: "Review node materialized. Returning to feed..."
-      });
-      
+      toast({ title: "Submission Received", description: "Review node materialized. Returning to feed..." });
       cancelTransaction();
       router.push("/");
     } catch (e: any) {
@@ -171,418 +157,507 @@ export default function CurrencyHub() {
 
   if (isLoading || !currentUser) {
     return (
-      <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] flex flex-col items-center justify-center p-6 space-y-4">
-        <Loader2 className="h-10 w-10 text-primary animate-spin" />
-        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Syncing Wallet...</p>
+      <div className="min-h-screen bg-[#0A0A0F] flex flex-col items-center justify-center p-6 space-y-4">
+        <div className="relative">
+          <div className="absolute inset-0 bg-amber-500/30 blur-2xl rounded-full" />
+          <Coins className="relative h-12 w-12 text-amber-400 animate-pulse" />
+        </div>
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 animate-pulse">Syncing Wallet...</p>
       </div>
     );
   }
 
+  const TABS: { id: TabId; label: string; color: string }[] = [
+    { id: "gold", label: "Buy Gold", color: "amber" },
+    { id: "diamond", label: "Buy Diamond", color: "cyan" },
+    { id: "complete", label: "Complete", color: "emerald" },
+  ];
+
   return (
     <BiometricGate title="Currency Hub">
-      <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#050505] transition-colors duration-300">
-        <header className="sticky top-0 z-50 bg-white/80 dark:bg-card/80 backdrop-blur-md border-b border-border h-16 px-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#060608] transition-colors duration-300">
+
+        {/* Header */}
+        <header className={cn(
+          "sticky top-0 z-50 bg-white/90 dark:bg-[#0D0D12]/90 backdrop-blur-xl border-b border-black/5 dark:border-white/5 h-16 px-4 flex items-center justify-between transition-all",
+          isPlayerActive ? "mt-[64px]" : ""
+        )}>
+          <div className="flex items-center gap-3">
             <Link href="/menu">
-              <Button variant="ghost" size="icon" className="rounded-full hover:bg-secondary/80 active:scale-90 transition-all">
-                <ArrowLeft className="h-6 w-6" />
+              <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 hover:bg-black/5 dark:hover:bg-white/5">
+                <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
-            <div className="flex flex-col">
-              <h1 className="text-lg font-black italic uppercase tracking-tighter text-foreground">Currency Hub</h1>
-              <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Financial Handshake</span>
+            <div>
+              <h1 className="text-base font-black italic uppercase tracking-tighter leading-none">Currency Hub</h1>
+              <p className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Financial Vault</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex flex-col items-end">
+            <div className="flex items-center gap-3 bg-black/5 dark:bg-white/5 rounded-2xl px-4 py-2">
               <div className="flex items-center gap-1.5">
-                <Coins className="h-3 w-3 text-amber-500" />
-                <span className="text-xs font-bold">{currentUser?.goldBalance || 0}</span>
+                <Coins className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-xs font-black tabular-nums">{currentUser?.goldBalance || 0}</span>
               </div>
+              <div className="w-px h-3 bg-black/10 dark:bg-white/10" />
               <div className="flex items-center gap-1.5">
-                <Gem className="h-3 w-3 text-cyan-500" />
-                <span className="text-xs font-bold">{currentUser?.diamondBalance || 0}</span>
+                <Gem className="h-3.5 w-3.5 text-cyan-500" />
+                <span className="text-xs font-black tabular-nums">{currentUser?.diamondBalance || 0}</span>
               </div>
             </div>
-            <Avatar className="h-9 w-9 border-2 border-primary/10">
+            <Avatar className="h-9 w-9 border-2 border-primary/20 ring-2 ring-primary/10">
               <AvatarImage src={currentUser?.avatar} />
-              <AvatarFallback>V</AvatarFallback>
+              <AvatarFallback className="text-xs font-black">{(currentUser?.name || 'V')[0]}</AvatarFallback>
             </Avatar>
           </div>
         </header>
 
-        <main className={cn(
-          "max-w-2xl mx-auto p-4 sm:p-8 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500",
-          isPlayerActive ? "pt-[80px]" : "pt-4"
-        )}>
-          
-          <Tabs defaultValue={pendingTransaction ? "complete" : "gold"} value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="w-full h-14 bg-white/50 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl p-1 gap-1">
-              <TabsTrigger value="gold" className="flex-1 rounded-xl font-black italic uppercase tracking-widest text-[10px] data-[state=active]:bg-primary data-[state=active]:text-white">Buy Gold</TabsTrigger>
-              <TabsTrigger value="diamond" className="flex-1 rounded-xl font-black italic uppercase tracking-widest text-[10px] data-[state=active]:bg-cyan-600 data-[state=active]:text-white">Buy Diamond</TabsTrigger>
-              <TabsTrigger value="complete" className="flex-1 rounded-xl font-black italic uppercase tracking-widest text-[10px] data-[state=active]:bg-emerald-600 data-[state=active]:text-white relative">
-                Complete Payment
-                {pendingTransaction && (
-                  <div className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full animate-ping" />
-                )}
-              </TabsTrigger>
-            </TabsList>
+        <main className="max-w-2xl mx-auto px-4 pb-32 space-y-6 pt-6">
 
-            <div className="mt-8 flex justify-center">
-              <div className="bg-secondary/30 p-1 rounded-full flex items-center gap-1">
-                <button 
-                  onClick={() => { triggerHaptic(5); setCurrencyMode("USD"); }}
-                  className={cn("px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all", currencyMode === "USD" ? "bg-white dark:bg-card text-primary shadow-md" : "text-muted-foreground")}
-                >
-                  USD ($)
-                </button>
-                <button 
-                  onClick={() => { triggerHaptic(5); setCurrencyMode("LD"); }}
-                  className={cn("px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all", currencyMode === "LD" ? "bg-white dark:bg-card text-primary shadow-md" : "text-muted-foreground")}
-                >
-                  LD (L$)
-                </button>
+          {/* Wallet Hero Card */}
+          <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#1a0533] via-[#2d0a5c] to-[#0f1a3d] p-6 shadow-2xl">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(168,85,247,0.3),_transparent_60%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(6,182,212,0.2),_transparent_60%)]" />
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-1">Your Vault</p>
+                  <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">ViMore Wallet</h2>
+                </div>
+                <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10">
+                  <Sparkles className="h-6 w-6 text-white/80" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-7 w-7 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                      <Coins className="h-4 w-4 text-amber-400" />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Gold</span>
+                  </div>
+                  <p className="text-3xl font-black italic text-white tabular-nums">{currentUser?.goldBalance || 0}</p>
+                  <p className="text-[9px] text-white/30 font-bold uppercase mt-1">GD Tokens</p>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-7 w-7 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                      <Gem className="h-4 w-4 text-cyan-400" />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Diamond</span>
+                  </div>
+                  <p className="text-3xl font-black italic text-white tabular-nums">{currentUser?.diamondBalance || 0}</p>
+                  <p className="text-[9px] text-white/30 font-bold uppercase mt-1">D Gems</p>
+                </div>
               </div>
             </div>
+          </div>
 
-            <TabsContent value="gold" className="space-y-4 pt-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {GOLD_PACKAGES.map((pkg) => (
-                  <div 
-                    key={pkg.id}
-                    onClick={() => handlePackageSelect(pkg, 'Gold')}
-                    className={cn(
-                      "group relative p-6 rounded-[2rem] border transition-all cursor-pointer overflow-hidden",
-                      pkg.isVVIP ? "bg-gradient-to-br from-amber-500 to-orange-600 border-amber-400 text-white shadow-xl shadow-amber-500/20" : 
-                      pkg.isVIP ? "bg-amber-100 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700" :
-                      "bg-white dark:bg-card border-border hover:border-primary/40"
-                    )}
-                  >
-                    <div className="relative z-10 flex flex-col gap-4">
-                      <div className="flex justify-between items-start">
-                        <div className={cn("p-3 rounded-2xl", pkg.isVVIP ? "bg-white/20" : "bg-amber-500/10")}>
-                          <Coins className={cn("h-6 w-6", pkg.isVVIP ? "text-white" : "text-amber-500")} />
-                        </div>
-                        {(pkg.isVIP || pkg.isVVIP) && (
-                          <Badge className="bg-white/20 text-[8px] font-black uppercase border-none">{pkg.isVVIP ? 'V.VIP TIER' : 'VIP TIER'}</Badge>
-                        )}
-                      </div>
-                      <div>
-                        <h3 className={cn("text-2xl font-black italic uppercase tracking-tighter", pkg.isVVIP ? "text-white" : "text-foreground")}>{pkg.gd} GD</h3>
-                        <p className={cn("text-xs font-bold uppercase tracking-widest", pkg.isVVIP ? "text-white/70" : "text-muted-foreground")}>{pkg.label}</p>
-                      </div>
-                      <div className="pt-4 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
-                        <span className="text-xl font-black">{currencyMode === 'USD' ? `$${pkg.priceUSD.toFixed(2)}` : `L$ ${pkg.priceLD}`}</span>
-                        <ChevronRight className="h-5 w-5 opacity-40" />
-                      </div>
-                    </div>
-                    {pkg.isVVIP && <Zap className="absolute -right-4 -bottom-4 h-32 w-32 opacity-10 rotate-12" />}
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="diamond" className="space-y-4 pt-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {DIAMOND_PACKAGES.map((pkg) => (
-                  <div 
-                    key={pkg.id}
-                    onClick={() => handlePackageSelect(pkg, 'Diamond')}
-                    className={cn(
-                      "group relative p-6 rounded-[2rem] border transition-all cursor-pointer overflow-hidden",
-                      pkg.isVIP ? "bg-gradient-to-br from-cyan-500 to-blue-600 border-cyan-400 text-white shadow-xl shadow-cyan-500/20" : 
-                      "bg-white dark:bg-card border-border hover:border-cyan-400/40"
-                    )}
-                  >
-                    <div className="relative z-10 flex flex-col gap-4">
-                      <div className="flex justify-between items-start">
-                        <div className={cn("p-3 rounded-2xl", pkg.isVIP ? "bg-white/20" : "bg-cyan-500/10")}>
-                          <Gem className={cn("h-6 w-6", pkg.isVIP ? "text-white" : "text-cyan-500")} />
-                        </div>
-                        {pkg.isVIP && (
-                          <Badge className="bg-white/20 text-[8px] font-black uppercase border-none">VIP TIER</Badge>
-                        )}
-                      </div>
-                      <div>
-                        <h3 className={cn("text-2xl font-black italic uppercase tracking-tighter", pkg.isVIP ? "text-white" : "text-foreground")}>{pkg.d} D</h3>
-                        <p className={cn("text-xs font-bold uppercase tracking-widest", pkg.isVIP ? "text-white/70" : "text-muted-foreground")}>{pkg.label}</p>
-                      </div>
-                      <div className="pt-4 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
-                        <span className="text-xl font-black">{currencyMode === 'USD' ? `$${pkg.priceUSD.toFixed(2)}` : `L$ ${pkg.priceLD}`}</span>
-                        <ChevronRight className="h-5 w-5 opacity-40" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="complete" className="space-y-6 pt-4">
-              {!pendingTransaction ? (
-                <div className="py-20 text-center space-y-6 bg-white dark:bg-card rounded-[2.5rem] border border-dashed border-border shadow-xl shadow-black/5">
-                  <div className="h-20 w-20 bg-secondary/30 rounded-full flex items-center justify-center mx-auto">
-                    <ShieldCheck className="h-10 w-10 text-muted-foreground/40" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-2xl font-black italic uppercase tracking-tighter">No Active Pulses</h3>
-                    <p className="text-muted-foreground text-sm font-medium max-w-xs mx-auto">You don't have any unfinished payments. Select a package to initiate a financial handshake.</p>
-                  </div>
-                  <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase text-[10px] tracking-widest" onClick={() => setActiveTab("gold")}>Browse Packages</Button>
-                </div>
-              ) : (
-                <div className="space-y-8 animate-in zoom-in-95 duration-500">
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[2.5rem] p-8 text-center space-y-4">
-                    <div className="h-16 w-16 bg-emerald-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
-                      <CheckCircle2 className="h-8 w-8 text-white" />
-                    </div>
-                    <div className="space-y-1">
-                      <h3 className="text-2xl font-black italic uppercase tracking-tighter text-emerald-600 dark:text-emerald-400">Sync Active</h3>
-                      <p className="text-xs font-bold uppercase tracking-widest text-emerald-600/60">Node: {pendingTransaction.packageName}</p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row justify-center gap-4">
-                      <div className="bg-white/50 dark:bg-white/5 px-6 py-3 rounded-2xl border border-emerald-500/10">
-                        <span className="text-[10px] font-black uppercase text-muted-foreground block mb-1">AMOUNT</span>
-                        <span className="text-xl font-black">{pendingTransaction.currency === 'USD' ? '$' : 'L$'} {pendingTransaction.amount}</span>
-                      </div>
-                      <div className="bg-white/50 dark:bg-white/5 px-6 py-3 rounded-2xl border border-emerald-500/10 relative group">
-                        <span className="text-[10px] font-black uppercase text-muted-foreground block mb-1">EASY VERIFICATION</span>
-                        <span className="text-xl font-black tracking-widest font-mono text-primary">{pendingTransaction.code}</span>
-                        <button onClick={() => handleCopy(pendingTransaction.code, "Code")} className="absolute -top-2 -right-2 bg-primary text-white p-1.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"><Copy className="h-3 w-3" /></button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between px-2">
-                      <h3 className="font-black italic uppercase tracking-widest text-sm">Receipt Submission</h3>
-                      <button onClick={() => { triggerHaptic(5); cancelTransaction(); }} className="text-[10px] font-black text-destructive uppercase tracking-widest flex items-center gap-1.5"><Trash2 className="h-3 w-3" /> Cancel Node</button>
-                    </div>
-                    
-                    <div 
-                      className={cn(
-                        "relative aspect-video w-full rounded-[2.5rem] bg-white dark:bg-card border-2 border-dashed flex flex-col items-center justify-center cursor-pointer group transition-all",
-                        uploadedScreenshot ? "border-emerald-500/40" : "border-border hover:border-primary/40"
-                      )}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      {uploadedScreenshot ? (
-                        <>
-                          <Image src={uploadedScreenshot} alt="Receipt" fill className="object-cover rounded-[2.5rem] opacity-40" />
-                          <div className="relative z-10 flex flex-col items-center gap-4">
-                            <div className="h-16 w-16 rounded-2xl bg-emerald-500 flex items-center justify-center text-white shadow-xl"><CheckCircle2 className="h-8 w-8" /></div>
-                            <p className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Receipt Attached</p>
-                            <Button variant="ghost" className="text-destructive font-black uppercase text-[10px] h-8" onClick={(e) => { e.stopPropagation(); setUploadedScreenshot(null); }}>Change Visual</Button>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center gap-4 text-center px-8">
-                          <div className="p-6 rounded-3xl bg-secondary/30 group-hover:scale-110 transition-transform"><Upload className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors" /></div>
-                          <div>
-                            <p className="text-sm font-black italic uppercase tracking-widest">Click to upload screenshot</p>
-                            <p className="text-[10px] text-muted-foreground font-medium uppercase mt-1">Upload the confirmation message screenshot from your device.</p>
-                          </div>
-                        </div>
-                      )}
-                      <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleScreenshotUpload} />
-                    </div>
-                  </div>
-
-                  <div className="bg-amber-500/5 border border-amber-500/10 rounded-[2rem] p-6 flex gap-4">
-                    <AlertTriangle className="h-6 w-6 text-amber-500 shrink-0" />
-                    <p className="text-xs font-bold text-amber-600/80 leading-relaxed uppercase tracking-tighter">
-                      THIS TAKE UP A LITTLE LONG TO REVIEW AND APPROVE PLEASE GO BACK ON THE HOME FEED WE WILL NOTIFY YOU WHEN DONE WITH A NOTIFICATION
-                    </p>
-                  </div>
-
-                  <Button 
-                    className={cn(
-                      "w-full h-16 rounded-3xl font-black italic uppercase tracking-[0.2em] text-lg transition-all",
-                      uploadedScreenshot && !isUploading ? "bg-emerald-600 text-white shadow-xl shadow-emerald-600/20" : "bg-secondary text-muted-foreground/40 cursor-not-allowed"
-                    )}
-                    disabled={!uploadedScreenshot || isUploading}
-                    onClick={handleSubmitForReview}
-                  >
-                    {isUploading ? <><Clock className="mr-2 h-6 w-6 animate-spin" /> SYNCHRONIZING...</> : "Submit for Review"}
-                  </Button>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-
-          <footer className="pt-12 pb-20 flex flex-col items-center gap-4 opacity-30">
-            <div className="flex items-center gap-2">
-              <Zap className="h-3 w-3 text-primary" />
-              <span className="text-[9px] font-black uppercase tracking-[0.4em] text-foreground">ViMore Vault v1.5.0</span>
-            </div>
-            <p className="text-[8px] font-bold uppercase tracking-widest italic text-muted-foreground">{t('branding_mtl')}</p>
-          </footer>
-
-          {selectedPackage && (
-            <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-500 overflow-hidden">
-              <header className="h-20 px-6 flex items-center justify-between shrink-0 bg-black/40 border-b border-white/5">
-                <Button variant="ghost" size="icon" className="text-white bg-white/5 rounded-full" onClick={() => setSelectedPackage(null)}>
-                  <ArrowLeft className="h-6 w-6" />
-                </Button>
-                <div className="flex flex-col items-center">
-                  <h2 className="text-sm font-black italic uppercase tracking-widest text-white">Handshake Protocol</h2>
-                  <span className="text-[10px] font-bold text-primary uppercase">{selectedPackage.label}</span>
-                </div>
-                <div className="w-10" />
-              </header>
-
-              <main className="flex-1 overflow-y-auto p-6 sm:p-12">
-                <div className="max-w-md mx-auto space-y-10">
-                  <div className="bg-red-500/10 border-2 border-red-500/20 rounded-[2.5rem] p-8 text-center space-y-4">
-                    <div className="h-16 w-16 bg-red-500 rounded-2xl flex items-center justify-center mx-auto shadow-2xl shadow-red-500/20">
-                      <AlertTriangle className="h-8 w-8 text-white" />
-                    </div>
-                    <h3 className="text-xl font-black italic uppercase tracking-tighter text-red-500">Critical Warning</h3>
-                    <p className="text-sm font-bold text-red-500/80 leading-relaxed uppercase tracking-widest">
-                      PLEASE SEND THE EXACT AMOUNT WE GIVE FOR THIS PACKAGE ANY MORE OR LESS WILL NOT BE APPROVED
-                    </p>
-                  </div>
-
-                  <div className="space-y-6">
-                    <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 text-center">Select Payment Node</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <button 
-                        onClick={() => { triggerHaptic(10); setPaymentMethod("ORANGE"); }}
-                        className={cn(
-                          "h-24 rounded-3xl border flex flex-col items-center justify-center gap-2 transition-all group",
-                          paymentMethod === "ORANGE" ? "bg-orange-500 border-orange-400 text-white shadow-xl shadow-orange-500/20" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
-                        )}
-                      >
-                        <Smartphone className="h-6 w-6" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Orange Money</span>
-                      </button>
-                      <button 
-                        onClick={() => { triggerHaptic(10); setPaymentMethod("MTN"); }}
-                        className={cn(
-                          "h-24 rounded-3xl border flex flex-col items-center justify-center gap-2 transition-all group",
-                          paymentMethod === "MTN" ? "bg-yellow-500 border-yellow-400 text-black shadow-xl shadow-yellow-500/20" : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
-                        )}
-                      >
-                        <Building2 className="h-6 w-6" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">MTN Momo</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {paymentMethod && (
-                    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-                      <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 space-y-6">
-                        <div className="space-y-4">
-                          <div className="group relative">
-                            <span className="text-[10px] font-black uppercase text-white/30 block mb-1 ml-1">ACCOUNT NAME</span>
-                            <div className="bg-white/5 h-14 rounded-2xl flex items-center justify-between px-6 border border-white/5">
-                              <span className="text-lg font-black text-white">
-                                {paymentMethod === 'ORANGE' ? gatewaySettings.orangeName : gatewaySettings.mtnName}
-                              </span>
-                              <button onClick={() => handleCopy(paymentMethod === 'ORANGE' ? gatewaySettings.orangeName : gatewaySettings.mtnName, "Name")} className="text-primary hover:text-white transition-colors"><Copy className="h-4 w-4" /></button>
-                            </div>
-                          </div>
-                          <div className="group relative">
-                            <span className="text-[10px] font-black uppercase text-white/30 block mb-1 ml-1">ACCOUNT NUMBER</span>
-                            <div className="bg-white/5 h-14 rounded-2xl flex items-center justify-between px-6 border border-white/5">
-                              <span className="text-lg font-black text-white">{paymentMethod === 'ORANGE' ? gatewaySettings.orangeNumber : gatewaySettings.mtnNumber}</span>
-                              <button onClick={() => handleCopy(paymentMethod === 'ORANGE' ? gatewaySettings.orangeNumber : gatewaySettings.mtnNumber, "Number")} className="text-primary hover:text-white transition-colors"><Copy className="h-4 w-4" /></button>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="pt-6 border-t border-white/5 space-y-4">
-                          <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 text-center relative group">
-                            <span className="text-[10px] font-black uppercase text-primary block mb-1">PLEASE ADD THIS CODE WHEN SENDING FOR EASY VERIFICATION</span>
-                            <div className="flex items-center justify-center gap-3">
-                              {isGeneratingCode ? (
-                                <Loader2 className="h-8 w-8 text-primary animate-spin" />
-                              ) : (
-                                <span className="text-2xl font-black tracking-widest text-white font-mono animate-in zoom-in duration-300">VBC-XXXXXX</span>
-                              )}
-                              {!isGeneratingCode && <Info className="h-4 w-4 text-primary/40" />}
-                            </div>
-                            <p className="text-[8px] font-bold text-primary/60 uppercase mt-2">
-                              {isGeneratingCode ? "CONSULTING AI PROTOCOL..." : "Code will generate on final handshake"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-white/5 rounded-[2rem] p-6 flex gap-4 border border-white/5">
-                        <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary shrink-0"><CheckCircle2 className="h-5 w-5" /></div>
-                        <p className="text-[10px] font-black text-white/60 uppercase leading-relaxed tracking-tighter">
-                          GO SEND THE MONEY AND SCREENSHOT THE CONFIRMATION MESSAGE COME BACK, WHEN BACK CLICK ON THE BUY CURRENCY PAGE AND YOU WILL SEE COMPLETE PAYMENT UNDER THE THE GOLD AND DIAMOND AND UPLOAD THE THE SCREENSHOT AND SUBMIT IT
-                        </p>
-                      </div>
-
-                      <Button 
-                        className="w-full h-16 rounded-3xl bg-primary text-white font-black italic uppercase tracking-[0.2em] text-lg shadow-2xl shadow-primary/20"
-                        onClick={handleProceedToPayment}
-                        disabled={isGeneratingCode}
-                      >
-                        {isGeneratingCode ? <><Loader2 className="mr-2 h-6 w-6 animate-spin" /> GENERATING...</> : "Materialize Node"}
-                      </Button>
-                    </div>
+          {/* Tab Bar */}
+          <div className="flex gap-1.5 p-1.5 bg-white dark:bg-white/5 rounded-2xl border border-black/5 dark:border-white/5 shadow-sm">
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "flex-1 relative py-3 px-2 rounded-xl text-[10px] font-black italic uppercase tracking-widest transition-all duration-200",
+                    isActive
+                      ? tab.color === "amber" ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20"
+                        : tab.color === "cyan" ? "bg-cyan-600 text-white shadow-lg shadow-cyan-500/20"
+                        : "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
-                </div>
-              </main>
+                >
+                  {tab.label}
+                  {tab.id === "complete" && pendingTransaction && (
+                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full animate-ping" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Currency Toggle */}
+          {activeTab !== "complete" && (
+            <div className="flex justify-center">
+              <div className="flex items-center gap-1 bg-white dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-full p-1 shadow-sm">
+                {(["USD", "LD"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => { triggerHaptic(5); setCurrencyMode(mode); }}
+                    className={cn(
+                      "px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
+                      currencyMode === mode
+                        ? "bg-primary text-white shadow-md"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {mode === "USD" ? "USD ($)" : "LD (L$)"}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          <div className="max-w-2xl mx-auto px-4 sm:px-8 pb-8">
-            <button
-              onClick={() => { triggerHaptic(10); setIsTicketOpen(true); }}
-              className="w-full flex items-center gap-4 bg-white dark:bg-card border border-primary/10 rounded-[2rem] p-5 shadow-lg shadow-black/5 hover:border-primary/30 hover:shadow-xl transition-all active:scale-[0.98] group"
-            >
-              <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
-                <HelpCircle className="h-6 w-6 text-primary" />
+          {/* Gold Tab */}
+          {activeTab === "gold" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {GOLD_PACKAGES.map((pkg, i) => (
+                <button
+                  key={pkg.id}
+                  onClick={() => handlePackageSelect(pkg, 'Gold')}
+                  className={cn(
+                    "group relative text-left p-5 rounded-[1.75rem] border-2 transition-all duration-300 overflow-hidden active:scale-[0.97]",
+                    pkg.isVVIP
+                      ? "bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 border-amber-300 shadow-2xl shadow-amber-500/30"
+                      : pkg.isVIP
+                      ? "bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 border-amber-300 dark:border-amber-700 shadow-lg"
+                      : "bg-white dark:bg-white/5 border-black/5 dark:border-white/10 hover:border-amber-300 dark:hover:border-amber-700 shadow-sm hover:shadow-lg"
+                  )}
+                >
+                  {pkg.isVVIP && (
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+                  )}
+                  <div className="relative z-10 space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className={cn(
+                        "h-12 w-12 rounded-2xl flex items-center justify-center",
+                        pkg.isVVIP ? "bg-white/20" : "bg-amber-500/10"
+                      )}>
+                        <Coins className={cn("h-6 w-6", pkg.isVVIP ? "text-white" : "text-amber-500")} />
+                      </div>
+                      {(pkg.isVIP || pkg.isVVIP) && (
+                        <Badge className={cn(
+                          "text-[8px] font-black uppercase border-none px-2.5",
+                          pkg.isVVIP ? "bg-white/25 text-white" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                        )}>
+                          {pkg.isVVIP ? "V.VIP" : "VIP"}
+                        </Badge>
+                      )}
+                    </div>
+                    <div>
+                      <p className={cn(
+                        "text-3xl font-black italic tracking-tight leading-none",
+                        pkg.isVVIP ? "text-white" : "text-foreground"
+                      )}>{pkg.gd} <span className="text-base">GD</span></p>
+                      <p className={cn(
+                        "text-[10px] font-bold uppercase tracking-widest mt-1",
+                        pkg.isVVIP ? "text-white/60" : "text-muted-foreground"
+                      )}>{pkg.label}</p>
+                    </div>
+                    <div className={cn(
+                      "flex items-center justify-between pt-3 border-t",
+                      pkg.isVVIP ? "border-white/20" : "border-black/5 dark:border-white/5"
+                    )}>
+                      <span className={cn("text-xl font-black", pkg.isVVIP ? "text-white" : "")}>
+                        {currencyMode === 'USD' ? `$${pkg.priceUSD.toFixed(2)}` : `L$ ${pkg.priceLD.toLocaleString()}`}
+                      </span>
+                      <div className={cn(
+                        "h-8 w-8 rounded-full flex items-center justify-center transition-transform group-hover:translate-x-1",
+                        pkg.isVVIP ? "bg-white/20" : "bg-amber-500/10"
+                      )}>
+                        <ChevronRight className={cn("h-4 w-4", pkg.isVVIP ? "text-white" : "text-amber-500")} />
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Diamond Tab */}
+          {activeTab === "diamond" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {DIAMOND_PACKAGES.map((pkg) => (
+                <button
+                  key={pkg.id}
+                  onClick={() => handlePackageSelect(pkg, 'Diamond')}
+                  className={cn(
+                    "group relative text-left p-5 rounded-[1.75rem] border-2 transition-all duration-300 overflow-hidden active:scale-[0.97]",
+                    pkg.isVIP
+                      ? "bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 border-cyan-300 shadow-2xl shadow-cyan-500/30"
+                      : "bg-white dark:bg-white/5 border-black/5 dark:border-white/10 hover:border-cyan-300 dark:hover:border-cyan-700 shadow-sm hover:shadow-lg"
+                  )}
+                >
+                  {pkg.isVIP && (
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
+                  )}
+                  <div className="relative z-10 space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center", pkg.isVIP ? "bg-white/20" : "bg-cyan-500/10")}>
+                        <Gem className={cn("h-6 w-6", pkg.isVIP ? "text-white" : "text-cyan-500")} />
+                      </div>
+                      {pkg.isVIP && <Badge className="bg-white/25 text-white text-[8px] font-black uppercase border-none px-2.5">VIP</Badge>}
+                    </div>
+                    <div>
+                      <p className={cn("text-3xl font-black italic tracking-tight leading-none", pkg.isVIP ? "text-white" : "text-foreground")}>
+                        {pkg.d} <span className="text-base">D</span>
+                      </p>
+                      <p className={cn("text-[10px] font-bold uppercase tracking-widest mt-1", pkg.isVIP ? "text-white/60" : "text-muted-foreground")}>{pkg.label}</p>
+                    </div>
+                    <div className={cn("flex items-center justify-between pt-3 border-t", pkg.isVIP ? "border-white/20" : "border-black/5 dark:border-white/5")}>
+                      <span className={cn("text-xl font-black", pkg.isVIP ? "text-white" : "")}>
+                        {currencyMode === 'USD' ? `$${pkg.priceUSD.toFixed(2)}` : `L$ ${pkg.priceLD.toLocaleString()}`}
+                      </span>
+                      <div className={cn("h-8 w-8 rounded-full flex items-center justify-center transition-transform group-hover:translate-x-1", pkg.isVIP ? "bg-white/20" : "bg-cyan-500/10")}>
+                        <ChevronRight className={cn("h-4 w-4", pkg.isVIP ? "text-white" : "text-cyan-500")} />
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Complete Payment Tab */}
+          {activeTab === "complete" && (
+            !pendingTransaction ? (
+              <div className="py-20 flex flex-col items-center gap-6 bg-white dark:bg-white/5 rounded-[2.5rem] border border-dashed border-black/10 dark:border-white/10">
+                <div className="h-20 w-20 bg-primary/5 rounded-full flex items-center justify-center border-2 border-dashed border-primary/20">
+                  <ShieldCheck className="h-10 w-10 text-primary/30" />
+                </div>
+                <div className="text-center space-y-2">
+                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">No Active Pulses</h3>
+                  <p className="text-muted-foreground text-sm font-medium max-w-xs mx-auto">No unfinished payments. Select a package to begin.</p>
+                </div>
+                <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase text-[10px] tracking-widest h-11 px-8" onClick={() => setActiveTab("gold")}>Browse Packages</Button>
               </div>
-              <div className="flex flex-col items-start text-left">
-                <span className="text-sm font-black italic uppercase tracking-tight text-foreground">Contact Support</span>
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Submit a help ticket</span>
+            ) : (
+              <div className="space-y-6 animate-in zoom-in-95 duration-500">
+                {/* Active payment card */}
+                <div className="bg-gradient-to-br from-emerald-500/10 to-teal-500/5 border border-emerald-500/20 rounded-[2.5rem] p-6 space-y-5">
+                  <div className="flex items-center gap-4">
+                    <div className="h-14 w-14 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
+                      <CheckCircle2 className="h-7 w-7 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600/60">Node Active</p>
+                      <h3 className="text-xl font-black italic uppercase tracking-tighter text-emerald-600 dark:text-emerald-400">Sync In Progress</h3>
+                      <p className="text-xs font-bold text-muted-foreground">{pendingTransaction.packageName}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white/60 dark:bg-white/5 rounded-2xl p-4 border border-emerald-500/10">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Amount Due</p>
+                      <p className="text-xl font-black">{pendingTransaction.currency === 'USD' ? '$' : 'L$'} {pendingTransaction.amount}</p>
+                    </div>
+                    <button
+                      onClick={() => handleCopy(pendingTransaction.code, "Code")}
+                      className="bg-white/60 dark:bg-white/5 rounded-2xl p-4 border border-emerald-500/10 text-left hover:border-primary/30 transition-colors group"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Ref Code</p>
+                        <Copy className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
+                      <p className="text-lg font-black tracking-widest font-mono text-primary">{pendingTransaction.code}</p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Screenshot upload */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black italic uppercase tracking-widest">Attach Receipt</h3>
+                    <button onClick={() => { triggerHaptic(5); cancelTransaction(); }} className="text-[10px] font-black text-destructive uppercase tracking-widest flex items-center gap-1.5 hover:opacity-70 transition-opacity">
+                      <Trash2 className="h-3 w-3" /> Cancel
+                    </button>
+                  </div>
+
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className={cn(
+                      "relative aspect-video w-full rounded-[2rem] border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden",
+                      uploadedScreenshot ? "border-emerald-500/40 bg-emerald-500/5" : "border-black/10 dark:border-white/10 hover:border-primary/40 bg-white dark:bg-white/5"
+                    )}
+                  >
+                    {uploadedScreenshot ? (
+                      <>
+                        <Image src={uploadedScreenshot} alt="Receipt" fill className="object-cover opacity-30" />
+                        <div className="relative z-10 flex flex-col items-center gap-3">
+                          <div className="h-14 w-14 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-xl">
+                            <CheckCircle2 className="h-7 w-7 text-white" />
+                          </div>
+                          <p className="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Receipt Attached</p>
+                          <Button variant="ghost" size="sm" className="text-destructive font-black uppercase text-[10px] h-8" onClick={(e) => { e.stopPropagation(); setUploadedScreenshot(null); }}>Change Image</Button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center gap-4 text-center px-8">
+                        <div className="p-5 rounded-3xl bg-primary/5 hover:bg-primary/10 transition-colors">
+                          <Upload className="h-9 w-9 text-primary/40" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black italic uppercase tracking-wide">Tap to upload screenshot</p>
+                          <p className="text-[10px] text-muted-foreground font-medium mt-1">Upload your payment confirmation</p>
+                        </div>
+                      </div>
+                    )}
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleScreenshotUpload} />
+                  </div>
+                </div>
+
+                <div className="bg-amber-500/5 border border-amber-500/15 rounded-2xl p-4 flex gap-3">
+                  <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-[11px] font-bold text-amber-600/70 dark:text-amber-400/70 leading-relaxed">
+                    Review may take some time. Go back to the home feed — you'll receive a notification when approved.
+                  </p>
+                </div>
+
+                <Button
+                  className={cn(
+                    "w-full h-14 rounded-2xl font-black italic uppercase tracking-[0.2em] text-base transition-all",
+                    uploadedScreenshot && !isUploading
+                      ? "bg-emerald-600 text-white shadow-xl shadow-emerald-600/20 hover:bg-emerald-700"
+                      : "bg-secondary text-muted-foreground/40 cursor-not-allowed"
+                  )}
+                  disabled={!uploadedScreenshot || isUploading}
+                  onClick={handleSubmitForReview}
+                >
+                  {isUploading ? <><Clock className="mr-2 h-5 w-5 animate-spin" /> Synchronizing...</> : "Submit for Review"}
+                </Button>
               </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground ml-auto group-hover:text-primary transition-colors" />
-            </button>
+            )
+          )}
+
+          {/* Support ticket button */}
+          <button
+            onClick={() => { triggerHaptic(10); setIsTicketOpen(true); }}
+            className="w-full flex items-center gap-4 bg-white dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-[1.5rem] p-4 hover:border-primary/20 transition-all shadow-sm active:scale-[0.98] group"
+          >
+            <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+              <HelpCircle className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex flex-col items-start text-left">
+              <span className="text-sm font-black italic uppercase tracking-tight">Need Help?</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Contact support for payment issues</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto group-hover:text-primary transition-colors" />
+          </button>
+
+          <div className="text-center opacity-20 pb-4">
+            <div className="flex items-center justify-center gap-2">
+              <Zap className="h-3 w-3 text-primary" />
+              <span className="text-[9px] font-black uppercase tracking-[0.4em]">ViMore Vault v1.5.0</span>
+            </div>
           </div>
         </main>
 
-        {isTicketOpen && (
-          <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-300 overflow-hidden">
-            <header className="h-20 px-6 flex items-center justify-between shrink-0 bg-black/40 border-b border-white/5">
-              <Button variant="ghost" size="icon" className="text-white bg-white/5 rounded-full" onClick={() => setIsTicketOpen(false)}><X className="h-6 w-6" /></Button>
-              <div className="flex flex-col items-center">
-                <h2 className="text-sm font-black italic uppercase tracking-widest text-white">Support Ticket</h2>
-                <span className="text-[10px] font-bold text-primary uppercase">Currency Help Node</span>
+        {/* Package Detail Overlay */}
+        {selectedPackage && (
+          <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-300">
+            <header className="h-16 px-4 flex items-center justify-between shrink-0 border-b border-white/5">
+              <Button variant="ghost" size="icon" className="text-white/70 hover:text-white rounded-full" onClick={() => setSelectedPackage(null)}>
+                <X className="h-5 w-5" />
+              </Button>
+              <div className="text-center">
+                <h2 className="text-sm font-black italic uppercase tracking-widest text-white">Confirm Purchase</h2>
+                <p className="text-[10px] text-primary font-bold uppercase tracking-widest">{selectedPackage.label}</p>
               </div>
               <div className="w-10" />
             </header>
-            <main className="flex-1 overflow-y-auto p-6 sm:p-12">
-              <div className="max-w-xl mx-auto space-y-6 animate-in slide-in-from-bottom-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Subject</label>
-                  <input value={ticketSubject} onChange={e => setTicketSubject(e.target.value)} placeholder="Describe your issue..." className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-white/20" />
+
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="max-w-sm mx-auto space-y-6">
+                {/* Warning */}
+                <div className="bg-red-500/10 border border-red-500/20 rounded-[2rem] p-6 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 bg-red-500 rounded-2xl flex items-center justify-center shrink-0">
+                      <AlertTriangle className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-black italic uppercase tracking-tighter text-red-400 text-lg">Warning</h3>
+                      <p className="text-[10px] text-red-400/60 font-bold uppercase">Read before proceeding</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-red-300/80 leading-relaxed">
+                    Do NOT share your payment code with anyone. Once you proceed, you must complete the payment before the session expires.
+                  </p>
+                </div>
+
+                {/* Package summary */}
+                <div className={cn(
+                  "rounded-[2rem] p-6 space-y-4",
+                  selectedPackage.type === 'Gold'
+                    ? "bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20"
+                    : "bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border border-cyan-500/20"
+                )}>
+                  <div className="flex items-center gap-4">
+                    {selectedPackage.type === 'Gold'
+                      ? <Coins className="h-10 w-10 text-amber-400" />
+                      : <Gem className="h-10 w-10 text-cyan-400" />
+                    }
+                    <div>
+                      <p className="text-3xl font-black italic text-white">
+                        {selectedPackage.gd || selectedPackage.d} {selectedPackage.type === 'Gold' ? 'GD' : 'D'}
+                      </p>
+                      <p className="text-xs font-bold text-white/40 uppercase tracking-widest">{selectedPackage.label}</p>
+                    </div>
+                  </div>
+                  <div className="bg-black/30 rounded-2xl p-4 flex items-center justify-between">
+                    <span className="text-xs font-black uppercase text-white/40 tracking-widest">Total</span>
+                    <span className="text-2xl font-black text-white">
+                      {currencyMode === 'USD' ? `$${selectedPackage.priceUSD.toFixed(2)}` : `L$ ${selectedPackage.priceLD.toLocaleString()}`}
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full h-14 rounded-2xl font-black italic uppercase tracking-[0.2em] bg-primary text-white shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
+                  onClick={handleProceedToPayment}
+                  disabled={isGeneratingCode}
+                >
+                  {isGeneratingCode
+                    ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Generating...</>
+                    : "Proceed to Payment"
+                  }
+                </Button>
+                <Button variant="ghost" className="w-full text-white/40 font-bold uppercase text-[10px]" onClick={() => setSelectedPackage(null)}>Cancel</Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Support Ticket Overlay */}
+        {isTicketOpen && (
+          <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-300">
+            <header className="h-16 px-4 flex items-center justify-between shrink-0 border-b border-white/5">
+              <Button variant="ghost" size="icon" className="text-white/70 hover:text-white rounded-full" onClick={() => setIsTicketOpen(false)}><X className="h-5 w-5" /></Button>
+              <div className="text-center">
+                <h2 className="text-sm font-black italic uppercase tracking-widest text-white">Support Ticket</h2>
+                <p className="text-[10px] text-primary font-bold uppercase tracking-widest">Payment Help</p>
+              </div>
+              <div className="w-10" />
+            </header>
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="max-w-sm mx-auto space-y-5">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Subject</label>
+                  <input value={ticketSubject} onChange={e => setTicketSubject(e.target.value)} placeholder="Describe your issue..." className="w-full h-12 bg-white/5 border border-white/10 rounded-2xl px-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-white/20" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Category</label>
+                  <label className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Category</label>
                   <div className="flex flex-wrap gap-2">
                     {['Finance', 'Technical', 'Identity', 'Rewards', 'Other'].map(cat => (
-                      <button key={cat} onClick={() => setTicketCategory(cat)} className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all", ticketCategory === cat ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-white/5 text-white/40 hover:bg-white/10")}>{cat}</button>
+                      <button key={cat} onClick={() => setTicketCategory(cat)} className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all", ticketCategory === cat ? "bg-primary text-white" : "bg-white/5 text-white/40 hover:bg-white/10")}>{cat}</button>
                     ))}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Message</label>
-                  <textarea value={ticketMessage} onChange={e => setTicketMessage(e.target.value)} placeholder="Provide details about your issue..." rows={5} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none placeholder:text-white/20" />
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Message</label>
+                  <textarea value={ticketMessage} onChange={e => setTicketMessage(e.target.value)} placeholder="Provide details..." rows={5} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none placeholder:text-white/20" />
                 </div>
                 <Button
-                  className={cn("w-full h-16 rounded-[2rem] font-black italic uppercase tracking-[0.3em] text-lg transition-all gap-3", ticketSubject && ticketMessage && !isSubmittingTicket ? "bg-primary text-white shadow-2xl shadow-primary/20" : "bg-white/5 text-white/20 cursor-not-allowed")}
+                  className={cn("w-full h-14 rounded-2xl font-black italic uppercase tracking-widest transition-all gap-3", ticketSubject && ticketMessage && !isSubmittingTicket ? "bg-primary text-white shadow-xl shadow-primary/20" : "bg-white/5 text-white/20 cursor-not-allowed")}
                   onClick={handleSubmitTicket}
                   disabled={!ticketSubject || !ticketMessage || isSubmittingTicket}
                 >
                   {isSubmittingTicket ? <><Loader2 className="h-5 w-5 animate-spin" /> Submitting...</> : <><Send className="h-5 w-5" /> Submit Ticket</>}
                 </Button>
               </div>
-            </main>
+            </div>
           </div>
         )}
       </div>
