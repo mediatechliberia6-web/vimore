@@ -1,18 +1,35 @@
 /**
- * ViMore Service Worker v10
- * - PINNED_MEDIA_CACHE: 24 h — audio/video intentionally played by the user
- * - MEDIA_CACHE: 2 h  — all other images / media encountered while browsing
- * - Everything else (HTML, CSS, JS, API) always fetched fresh from the network
+ * ViMore Service Worker v11
+ * - APP_SHELL_CACHE: permanent — Next.js static assets (JS/CSS/fonts)
+ * - PAGE_CACHE: 5 h — full page HTML for offline navigation
+ * - PINNED_CACHE: 24 h — audio/video intentionally played by the user
+ * - MEDIA_CACHE: 5 h — all other images / media encountered while browsing
  * - Push notifications and badge control unchanged
  */
 
-const SW_VERSION = 'v10';
-const MEDIA_CACHE  = `vimore-media-${SW_VERSION}`;
-const PINNED_CACHE = `vimore-pinned-${SW_VERSION}`;
-const CACHE_NAMES  = [MEDIA_CACHE, PINNED_CACHE];
+const SW_VERSION = 'v11';
+const APP_SHELL_CACHE = `vimore-shell-${SW_VERSION}`;
+const PAGE_CACHE      = `vimore-pages-${SW_VERSION}`;
+const MEDIA_CACHE     = `vimore-media-${SW_VERSION}`;
+const PINNED_CACHE    = `vimore-pinned-${SW_VERSION}`;
+const CACHE_NAMES     = [APP_SHELL_CACHE, PAGE_CACHE, MEDIA_CACHE, PINNED_CACHE];
 
-const MAX_MEDIA_AGE_MS  = 2  * 60 * 60 * 1000;  // 2 h
+const MAX_PAGE_AGE_MS   = 5  * 60 * 60 * 1000;  // 5 h
+const MAX_MEDIA_AGE_MS  = 5  * 60 * 60 * 1000;  // 5 h
 const MAX_PINNED_AGE_MS = 24 * 60 * 60 * 1000;  // 24 h
+
+// Pages/routes to pre-cache on install for guaranteed offline access
+const PRECACHE_ROUTES = [
+  '/',
+  '/marketplace',
+  '/reels',
+  '/music',
+  '/messages',
+  '/notifications',
+  '/menu',
+  '/settings',
+  '/search',
+];
 
 const MEDIA_EXTENSIONS = [
   '.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.svg',
@@ -21,6 +38,8 @@ const MEDIA_EXTENSIONS = [
 ];
 
 const APPWRITE_FILE_PATTERNS = ['/v1/storage/buckets/', '/files/'];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function isMediaUrl(url) {
   try {
@@ -33,6 +52,17 @@ function isMediaUrl(url) {
     if (host.includes('appwrite.io') || host.includes('appwrite.cloud')) return true;
     return false;
   } catch { return false; }
+}
+
+function isStaticAsset(url) {
+  try {
+    const { pathname } = new URL(url);
+    return pathname.startsWith('/_next/static/') || pathname.startsWith('/icons/') || pathname === '/manifest.json';
+  } catch { return false; }
+}
+
+function isPageNavigation(request) {
+  return request.mode === 'navigate' || (request.method === 'GET' && request.headers.get('accept')?.includes('text/html'));
 }
 
 function stampResponse(response) {
@@ -52,19 +82,39 @@ function isExpired(cachedResponse, maxAge) {
 }
 
 async function purgeExpired(cacheName, maxAge) {
-  const cache = await caches.open(cacheName);
-  const keys  = await cache.keys();
-  await Promise.all(
-    keys.map(async req => {
-      const res = await cache.match(req);
-      if (res && isExpired(res, maxAge)) await cache.delete(req);
-    })
-  );
+  try {
+    const cache = await caches.open(cacheName);
+    const keys  = await cache.keys();
+    await Promise.all(
+      keys.map(async req => {
+        const res = await cache.match(req);
+        if (res && isExpired(res, maxAge)) await cache.delete(req);
+      })
+    );
+  } catch {}
 }
 
-// ─── Install ───────────────────────────────────────────────────────────────────
+// ─── Install — pre-cache the app shell and key routes ─────────────────────────
 self.addEventListener('install', event => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil(
+    (async () => {
+      // Pre-cache Next.js static manifest and key routes
+      try {
+        const pageCache = await caches.open(PAGE_CACHE);
+        await Promise.all(
+          PRECACHE_ROUTES.map(async route => {
+            try {
+              const response = await fetch(route, { credentials: 'include' });
+              if (response.ok) {
+                await pageCache.put(route, stampResponse(response));
+              }
+            } catch {}
+          })
+        );
+      } catch {}
+      await self.skipWaiting();
+    })()
+  );
 });
 
 // ─── Activate ─────────────────────────────────────────────────────────────────
@@ -75,6 +125,7 @@ self.addEventListener('activate', event => {
         Promise.all(keys.filter(k => !CACHE_NAMES.includes(k)).map(k => caches.delete(k)))
       )
       .then(() => Promise.all([
+        purgeExpired(PAGE_CACHE,   MAX_PAGE_AGE_MS),
         purgeExpired(MEDIA_CACHE,  MAX_MEDIA_AGE_MS),
         purgeExpired(PINNED_CACHE, MAX_PINNED_AGE_MS),
       ]))
@@ -91,23 +142,87 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   if (request.method !== 'GET') return;
 
+  // ── 1. Static assets: cache-first, no expiry (versioned by Next.js) ──────
+  if (isStaticAsset(request.url)) {
+    event.respondWith(
+      (async () => {
+        const shellCache = await caches.open(APP_SHELL_CACHE);
+        const cached = await shellCache.match(request);
+        if (cached) return cached;
+        try {
+          const response = await fetch(request);
+          if (response.ok) shellCache.put(request, response.clone());
+          return response;
+        } catch {
+          return new Response('Asset unavailable offline', { status: 503 });
+        }
+      })()
+    );
+    return;
+  }
+
+  // ── 2. Page navigations: stale-while-revalidate with 5 h expiry ──────────
+  if (isPageNavigation(request)) {
+    event.respondWith(
+      (async () => {
+        const pageCache = await caches.open(PAGE_CACHE);
+        const cached = await pageCache.match(request);
+
+        // Kick off a background fetch to refresh the cache
+        const networkFetch = fetch(request)
+          .then(response => {
+            if (response.ok) {
+              pageCache.put(request, stampResponse(response.clone()));
+            }
+            return response;
+          })
+          .catch(() => null);
+
+        // If we have a valid cached page, return it immediately
+        if (cached && !isExpired(cached, MAX_PAGE_AGE_MS)) {
+          return cached;
+        }
+
+        // Cache expired or missing — wait for network
+        try {
+          const fresh = await networkFetch;
+          if (fresh) return fresh;
+        } catch {}
+
+        // Completely offline — serve stale cache if any
+        if (cached) return cached;
+
+        // Last resort: try the cached root page as app shell
+        const rootCached = await pageCache.match('/');
+        if (rootCached) return rootCached;
+
+        return new Response(
+          '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ViMore — Offline</title><style>*{box-sizing:border-box;margin:0}body{background:#050505;color:#fff;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px;text-align:center;padding:24px}.icon{font-size:64px}.title{font-size:24px;font-weight:900;letter-spacing:-.05em;font-style:italic;text-transform:uppercase}.sub{font-size:14px;color:rgba(255,255,255,.5);max-width:280px;line-height:1.6}</style></head><body><div class="icon">📡</div><div class="title">No Connection</div><div class="sub">ViMore could not load this page. Check your connection and try again, or go back to a page you visited earlier.</div><br><button onclick="history.back()" style="background:#7c3aed;color:#fff;border:none;padding:12px 24px;border-radius:12px;font-weight:700;cursor:pointer;font-size:13px">Go Back</button></body></html>',
+          { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+        );
+      })()
+    );
+    return;
+  }
+
+  // ── 3. Media: cache-first with 5 h expiry ────────────────────────────────
   if (!isMediaUrl(request.url)) return;
 
   event.respondWith(
     (async () => {
-      // 1. Check pinned (24 h) cache first
+      // Check pinned (24 h) cache first
       const pinnedCache = await caches.open(PINNED_CACHE);
       const pinned = await pinnedCache.match(request);
       if (pinned && !isExpired(pinned, MAX_PINNED_AGE_MS)) return pinned;
       if (pinned) pinnedCache.delete(request);
 
-      // 2. Check regular (2 h) media cache
+      // Check regular (5 h) media cache
       const mediaCache = await caches.open(MEDIA_CACHE);
       const cached = await mediaCache.match(request);
       if (cached && !isExpired(cached, MAX_MEDIA_AGE_MS)) return cached;
       if (cached) mediaCache.delete(request);
 
-      // 3. Fetch from network
+      // Fetch from network
       try {
         const response = await fetch(request);
         if (response.ok && response.status === 200) {
@@ -130,7 +245,6 @@ self.addEventListener('fetch', event => {
 self.addEventListener('message', event => {
   const data = event.data || {};
 
-  // Client asks us to pre-cache specific URLs in the pinned (24 h) store
   if (data.type === 'PIN_MEDIA' && Array.isArray(data.urls)) {
     event.waitUntil(
       caches.open(PINNED_CACHE).then(async cache => {
@@ -139,10 +253,25 @@ self.addEventListener('message', event => {
             const existing = await cache.match(url);
             if (existing && !isExpired(existing, MAX_PINNED_AGE_MS)) continue;
             const response = await fetch(url, { mode: 'no-cors' });
-            // no-cors gives an opaque response; cache it anyway for offline use
             if (response.status === 0 || response.ok) {
               await cache.put(url, stampResponse(response));
             }
+          } catch {}
+        }
+      })
+    );
+  }
+
+  // Pre-cache specific page routes on demand
+  if (data.type === 'PRECACHE_ROUTES' && Array.isArray(data.routes)) {
+    event.waitUntil(
+      caches.open(PAGE_CACHE).then(async cache => {
+        for (const route of data.routes) {
+          try {
+            const existing = await cache.match(route);
+            if (existing && !isExpired(existing, MAX_PAGE_AGE_MS)) continue;
+            const response = await fetch(route, { credentials: 'include' });
+            if (response.ok) await cache.put(route, stampResponse(response));
           } catch {}
         }
       })
@@ -154,14 +283,22 @@ self.addEventListener('message', event => {
       event.source?.postMessage({ type: 'MEDIA_CACHE_CLEARED' });
     });
   }
+
+  // Clear ALL caches (pages + media + shell)
+  if (data.type === 'CLEAR_ALL_CACHE') {
+    Promise.all(CACHE_NAMES.map(n => caches.delete(n))).then(() => {
+      event.source?.postMessage({ type: 'ALL_CACHE_CLEARED' });
+    });
+  }
+
   if (data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
   if (data.type === 'SET_BADGE') {
     const count = Number(data.count) || 0;
     try {
-      if (count > 0 && self.navigator.setAppBadge)       self.navigator.setAppBadge(count).catch(() => {});
-      else if (self.navigator.clearAppBadge)              self.navigator.clearAppBadge().catch(() => {});
+      if (count > 0 && self.navigator.setAppBadge)  self.navigator.setAppBadge(count).catch(() => {});
+      else if (self.navigator.clearAppBadge)         self.navigator.clearAppBadge().catch(() => {});
     } catch {}
   }
   if (data.type === 'CLEAR_BADGE') {

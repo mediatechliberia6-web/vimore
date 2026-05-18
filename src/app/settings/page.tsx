@@ -85,6 +85,7 @@ import { useNetwork } from "@/context/NetworkContext";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
+import { clearAllLocalCaches } from "@/lib/offline-cache";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
 import ProfileLoading from "../profile/loading";
@@ -100,6 +101,7 @@ export default function SettingsPage() {
   const [isLegacySelectorOpen, setIsLegacySelectorOpen] = useState(false);
   const [legacySearch, setLegacySearch] = useState("");
   const [isEnrollingBiometric, setIsEnrollingBiometric] = useState(false);
+  const [isClearingCache, setIsClearingCache] = useState(false);
 
   const isPlayerActive = currentTrack && !isExpanded;
 
@@ -115,6 +117,19 @@ export default function SettingsPage() {
   const handleUpdate = (data: any) => { 
     triggerHaptic(10); 
     updateSettings(data); 
+  };
+
+  const handleClearCache = async () => {
+    triggerHaptic(50);
+    setIsClearingCache(true);
+    try {
+      await clearAllLocalCaches();
+      toast({ title: "Cache Cleared", description: "All cached pages, media, and data have been removed." });
+    } catch {
+      toast({ variant: "destructive", title: "Failed to Clear Cache", description: "Something went wrong. Please try again." });
+    } finally {
+      setIsClearingCache(false);
+    }
   };
 
   const handleBiometricToggle = async (val: boolean) => {
@@ -484,6 +499,28 @@ export default function SettingsPage() {
                 <ArrowDownToLine className="ml-auto h-4 w-4 text-muted-foreground/40" />
               </Button>
 
+              <Button
+                variant="outline"
+                disabled={isClearingCache}
+                className="h-16 rounded-2xl border-destructive/10 bg-white dark:bg-card justify-start gap-4 px-6 group hover:bg-destructive/5 transition-all"
+                onClick={handleClearCache}
+              >
+                <div className={cn(
+                  "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
+                  isClearingCache ? "bg-destructive/10 text-destructive" : "bg-destructive/10 text-destructive group-hover:scale-110"
+                )}>
+                  {isClearingCache ? <Loader2 className="h-5 w-5 animate-spin" /> : <Database className="h-5 w-5" />}
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="font-bold text-sm text-destructive">
+                    {isClearingCache ? "Clearing Cache..." : "Clear Cache"}
+                  </span>
+                  <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
+                    Delete all cached pages &amp; media
+                  </span>
+                </div>
+                {!isClearingCache && <X className="ml-auto h-4 w-4 text-destructive/40" />}
+              </Button>
             </div>
           </div>
         </section>

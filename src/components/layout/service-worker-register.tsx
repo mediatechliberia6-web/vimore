@@ -2,12 +2,22 @@
 
 import { useEffect } from 'react';
 
+const PRECACHE_ROUTES = [
+  '/',
+  '/marketplace',
+  '/reels',
+  '/music',
+  '/messages',
+  '/notifications',
+  '/menu',
+  '/settings',
+  '/search',
+];
+
 export function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
-    // Listen for SW_UPDATED broadcast from the activated service worker.
-    // Fire a DOM event so any component inside the provider tree can react.
     const onMessage = (event: MessageEvent) => {
       if (event.data?.type === 'SW_UPDATED') {
         window.dispatchEvent(new CustomEvent('sw-updated', { detail: { version: event.data.version } }));
@@ -18,7 +28,6 @@ export function ServiceWorkerRegister() {
     navigator.serviceWorker
       .register('/sw.js', { scope: '/' })
       .then((reg) => {
-        // If a new SW is already waiting when we register, signal an update immediately.
         if (reg.waiting) {
           reg.waiting.postMessage({ type: 'SKIP_WAITING' });
         }
@@ -28,15 +37,18 @@ export function ServiceWorkerRegister() {
           if (!newWorker) return;
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // New version installed and waiting — tell it to take over now.
               newWorker.postMessage({ type: 'SKIP_WAITING' });
             }
           });
         });
+
+        // After the SW is active, ask it to pre-cache all main routes
+        // so the user can navigate offline even on their first visit.
+        navigator.serviceWorker.ready.then((activeReg) => {
+          activeReg.active?.postMessage({ type: 'PRECACHE_ROUTES', routes: PRECACHE_ROUTES });
+        }).catch(() => {});
       })
-      .catch(() => {
-        // Service worker registration failed silently — app still works without it.
-      });
+      .catch(() => {});
 
     return () => {
       navigator.serviceWorker.removeEventListener('message', onMessage);

@@ -1,4 +1,4 @@
-export const CACHE_TTL_MS = 5 * 60 * 1000;
+export const CACHE_TTL_MS = 5 * 60 * 60 * 1000; // 5 hours
 
 export const FILE_CACHE_NAME = 'vimore-files-v1';
 
