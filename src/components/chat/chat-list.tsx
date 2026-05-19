@@ -3,22 +3,14 @@
 
 import { useState, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { OnlineIndicator } from "@/components/ui/online-indicator";
-import { 
-  Search, 
-  Pin, 
-  Filter,
-  Edit2,
-  Radio,
-  Plus,
-  Users2,
+import {
+  Search,
   Layers,
   ArrowLeft,
   Mail,
   Bot,
+  Users2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePosts } from "@/context/PostContext";
@@ -43,12 +35,11 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
   const { categoryPulses, clearPulse, messagePreviews } = useNotifications();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<"all" | "unread" | "broadcasts" | "clusters">("all");
-  const [showRequests, setShowRequests] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<"all" | "unread" | "clusters">("all");
 
   const [pinnedUsernames] = useState(new Set<string>());
 
-  const { sortedChats, requestCount } = useMemo(() => {
+  const { sortedChats } = useMemo(() => {
     if (!currentUser) return { sortedChats: [], requestCount: 0 };
 
     const allItems = [
@@ -60,7 +51,6 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
         .map(cl => ({ ...cl, isGroup: true }))
     ];
 
-    const requests: any[] = [];
     const seen = new Set<string>();
     let mains: any[] = [];
 
@@ -87,8 +77,8 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      list = list.filter(item => 
-        (item.name || "").toLowerCase().includes(q) || 
+      list = list.filter(item =>
+        (item.name || "").toLowerCase().includes(q) ||
         ((item as any).username || "").toLowerCase().includes(q)
       );
     }
@@ -110,8 +100,8 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
       return getLastMsgTime(bId) - getLastMsgTime(aId);
     });
 
-    return { sortedChats: sorted, requestCount: requests.length };
-  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, chatLastMessageAt, chatLastIncomingAt, chatReadReceipts, showRequests]);
+    return { sortedChats: sorted, requestCount: 0 };
+  }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, chatLastMessageAt, chatLastIncomingAt, chatReadReceipts]);
 
   const handleSelection = (id: string) => {
     triggerHaptic(5);
@@ -120,187 +110,244 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
     onSelect(id);
   };
 
+  const totalUnread = Object.values(chatUnreadCounts || {}).reduce((a: number, b: any) => a + (b || 0), 0);
+
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-card relative">
-      <div className="p-4 sm:p-6 border-b border-primary/5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/">
-            <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 hover:bg-secondary/80">
-              <ArrowLeft className="h-6 w-6" />
-            </Button>
-          </Link>
-          <div className="space-y-0.5">
-            <h2 className="text-2xl font-black italic uppercase tracking-tighter">
-              {t('nav_messages')}
-            </h2>
-            <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">
-              {`${(connections?.length || 0) + (clusters?.length || 0)} ${t('chat_nodes_online')}`}
-            </span>
+    <div className="flex flex-col h-full bg-white dark:bg-[#0a0a0f] relative overflow-hidden">
+      {/* Decorative background gradient */}
+      <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
+
+      {/* Header */}
+      <div className="relative z-10 px-5 pt-5 pb-4">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <Link href="/">
+              <button className="h-9 w-9 rounded-2xl bg-secondary/60 dark:bg-white/5 flex items-center justify-center hover:bg-secondary transition-all active:scale-90 backdrop-blur-sm">
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+            </Link>
+            <div>
+              <h2 className="text-xl font-black tracking-tight text-foreground">Messages</h2>
+              <p className="text-[10px] font-semibold text-muted-foreground">
+                {(connections?.length || 0) + (clusters?.length || 0)} conversations
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {totalUnread > 0 && (
+              <span className="h-6 min-w-[24px] px-1.5 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-primary/40">
+                {totalUnread > 99 ? '99+' : totalUnread}
+              </span>
+            )}
+            <CreateClusterModal>
+              <button className="h-9 w-9 rounded-2xl bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-all active:scale-90">
+                <Layers className="h-4 w-4" />
+              </button>
+            </CreateClusterModal>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <CreateClusterModal>
-            <button className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-all active:scale-90" title={t('chat_materialize_cluster')}><Layers className="h-4 w-4" /></button>
-          </CreateClusterModal>
+
+        {/* Search bar */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            placeholder="Search conversations..."
+            className="w-full h-11 pl-10 pr-4 bg-secondary/40 dark:bg-white/5 border border-transparent focus:border-primary/30 rounded-2xl text-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:bg-secondary/60"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        {/* Filter chips */}
+        <div className="flex items-center gap-2">
+          {[
+            { key: "all", label: "All" },
+            { key: "unread", label: "Unread", pulse: categoryPulses.MESSAGES > 0 },
+            { key: "clusters", label: "Clusters" },
+          ].map(f => (
+            <button
+              key={f.key}
+              onClick={() => { triggerHaptic(5); setActiveFilter(f.key as any); }}
+              className={cn(
+                "flex items-center gap-1.5 h-7 px-3.5 rounded-full text-[11px] font-bold transition-all",
+                activeFilter === f.key
+                  ? "bg-primary text-white shadow-md shadow-primary/30"
+                  : "bg-secondary/50 dark:bg-white/5 text-muted-foreground hover:bg-secondary"
+              )}
+            >
+              {f.label}
+              {f.pulse && <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
-        <div className="relative group"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary" /><Input placeholder={t('chat_query_nodes')} className="pl-10 h-10 bg-secondary/30 border-none rounded-xl text-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div>
-        {true && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            <Button variant={activeFilter === "all" ? "default" : "secondary"} size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest" onClick={() => { triggerHaptic(5); setActiveFilter("all"); }}>{t('ui_all')}</Button>
-            <Button variant={activeFilter === "clusters" ? "default" : "secondary"} size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest gap-1.5" onClick={() => { triggerHaptic(5); setActiveFilter("clusters"); }}><Layers className="h-3 w-3" /> {t('admin_clusters')}</Button>
-            <Button variant={activeFilter === "unread" ? "default" : "secondary"} size="sm" className="rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-widest" onClick={() => { triggerHaptic(5); setActiveFilter("unread"); }}>
-              {t('ui_unread')} 
-              {categoryPulses.MESSAGES > 0 && <div className="ml-2 h-2 w-2 bg-red-500 rounded-full animate-pulse" />}
-            </Button>
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1 overflow-y-auto scrollbar-hide">
+      {/* Chat list */}
+      <div className="flex-1 overflow-y-auto scrollbar-hide px-2 pb-20">
         {sortedChats.length > 0 ? (
-          sortedChats.map((item) => {
-            const id = (item as any).username || (item as any).$id;
-            const isSelected = selectedId === id;
-            
-            const isOnlineVisible = !settings.isGhostMode && !item.isGroup && (item as any).isOnline;
-            const lastSeenAt = !item.isGroup ? (item as any).lastSeenAt : null;
+          <div className="space-y-0.5">
+            {sortedChats.map((item) => {
+              const id = (item as any).username || (item as any).$id;
+              const isSelected = selectedId === id;
 
-            // Group online status: count OTHER members who are online (exclude self).
-            // We rely purely on real-time presence updates via onlineUserIds —
-            // the stale DB is_online field is not used to avoid phantom counts.
-            const memberOnlineCount = item.isGroup
-              ? ((item as any).members || []).filter((m: any) => {
-                  if (m.$id === currentUser?.$id) return false; // never count self
-                  return onlineUserIds.has(m.$id);
-                }).length
-              : 0;
-            const isGroupActive = item.isGroup && memberOnlineCount >= 1;
-            
-            const msgs = chatMessages[id];
-            const lastIncomingAt = chatLastIncomingAt[id];
-            const lastReadAt = chatReadReceipts[id] ? new Date(chatReadReceipts[id]).getTime() : 0;
-            const hasNewPulse = !isSelected && lastIncomingAt !== undefined && lastIncomingAt > lastReadAt;
+              const isOnlineVisible = !settings.isGhostMode && !item.isGroup && (item as any).isOnline;
+              const lastSeenAt = !item.isGroup ? (item as any).lastSeenAt : null;
 
-            return (
-              <div key={id} onClick={() => handleSelection(id)} className={cn("group flex items-center gap-4 p-4 cursor-pointer transition-all border-l-4", isSelected ? "bg-primary/5 border-primary" : "hover:bg-secondary/30 border-transparent")}>
-                <div className="relative shrink-0">
-                  {item.isGroup ? (
-                    <div className="h-12 w-12 rounded-[1rem] bg-primary/10 flex items-center justify-center relative overflow-hidden border border-primary/5">
-                      {item.avatar ? <img src={getAdaptivePreview(item.avatar, 'avatar', tier) || item.avatar} alt="Cluster" className="w-full h-full object-cover" /> : <div className="relative w-full h-full">{(item as any).members?.slice(0, 2).map((m: any, i: number) => (<Avatar key={m.username} className={cn("absolute h-8 w-8 border-2 border-white dark:border-card", i === 0 ? "top-0 left-0" : "bottom-0 right-0")}><AvatarImage src={getAdaptivePreview(m.avatar, 'avatar', tier) || m.avatar} /></Avatar>))}</div>}
-                    </div>
-                  ) : (
-                    <Avatar className="h-12 w-12 border-2 border-primary/5"><AvatarImage src={getAdaptivePreview((item as any).avatar, 'avatar', tier) || (item as any).avatar} /><AvatarFallback>{item.name[0]}</AvatarFallback></Avatar>
+              const memberOnlineCount = item.isGroup
+                ? ((item as any).members || []).filter((m: any) => {
+                    if (m.$id === currentUser?.$id) return false;
+                    return onlineUserIds.has(m.$id);
+                  }).length
+                : 0;
+              const isGroupActive = item.isGroup && memberOnlineCount >= 1;
+
+              const lastIncomingAt = chatLastIncomingAt[id];
+              const lastReadAt = chatReadReceipts[id] ? new Date(chatReadReceipts[id]).getTime() : 0;
+              const hasNewPulse = !isSelected && lastIncomingAt !== undefined && lastIncomingAt > lastReadAt;
+              const unreadCount = (chatUnreadCounts && chatUnreadCounts[id]) || 0;
+
+              const lastMessageText = (() => {
+                const lastMsg = chatMessages[id]?.at(-1);
+                if (lastMsg) {
+                  if (lastMsg.text) return lastMsg.text;
+                  if (lastMsg.type === 'photo') return '📷 Photo';
+                  if (lastMsg.type === 'video') return '🎥 Video';
+                  if (lastMsg.type === 'voice') return `🎤 Voice${lastMsg.voiceDuration ? ` · ${lastMsg.voiceDuration}` : ''}`;
+                  if (lastMsg.type === 'post') return '📌 Shared Post';
+                }
+                if (messagePreviews[id]?.text) return messagePreviews[id].text;
+                if ((item as any).lastMessage) return (item as any).lastMessage;
+                return "Tap to start chatting";
+              })();
+
+              return (
+                <button
+                  key={id}
+                  onClick={() => handleSelection(id)}
+                  className={cn(
+                    "w-full flex items-center gap-3.5 px-3 py-3 rounded-2xl cursor-pointer transition-all text-left",
+                    isSelected
+                      ? "bg-primary/8 dark:bg-primary/10"
+                      : "hover:bg-secondary/40 dark:hover:bg-white/4 active:scale-[0.98]"
                   )}
-                  {!item.isGroup && (
-                    <OnlineIndicator
-                      isOnline={!!isOnlineVisible}
-                      lastSeenAt={lastSeenAt}
-                      dotClassName="h-3.5 w-3.5"
-                      className="absolute -bottom-0.5 -right-0.5 border-2 border-white dark:border-card rounded-full"
-                    />
-                  )}
-                  {item.isGroup && (
-                    <span
-                      className={cn(
-                        "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white dark:border-card transition-colors",
-                        isGroupActive ? "bg-emerald-500" : "bg-muted-foreground/30"
-                      )}
-                    />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <span className={cn("font-bold text-sm truncate", hasNewPulse && "text-primary")}>{item.name}</span>
-                      {item.isGroup && <Badge className="bg-primary/10 text-primary border-none text-[7px] font-black h-3.5 px-1 uppercase">CLUSTER</Badge>}
-                    </div>
-                    <span className={cn("text-[10px] font-medium", hasNewPulse ? "text-primary" : "text-muted-foreground")}>
-                      {messagePreviews[id]?.time || (item as any).lastTime}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <p className={cn("text-xs truncate", hasNewPulse ? "text-foreground font-bold" : "text-muted-foreground")}>
-                        {(() => {
-                          // Priority 1: messages already loaded into memory (opened this session)
-                          const lastMsg = chatMessages[id]?.at(-1);
-                          if (lastMsg) {
-                            if (lastMsg.text) return lastMsg.text;
-                            if (lastMsg.type === 'photo') return '📷 Photo';
-                            if (lastMsg.type === 'video') return '🎥 Video';
-                            if (lastMsg.type === 'voice') return `🎤 Voice${lastMsg.voiceDuration ? ` · ${lastMsg.voiceDuration}` : ''}`;
-                            if (lastMsg.type === 'post') return '📌 Shared Post';
-                          }
-                          // Priority 2: real-time preview pushed by WebSocket
-                          if (messagePreviews[id]?.text) return messagePreviews[id].text;
-                          // Priority 3: last message fetched on load for groups (set in loadClusters)
-                          //             or DM preview set in loadConnections / loadConversationMetadata
-                          if ((item as any).lastMessage) return (item as any).lastMessage;
-                          return "No messages yet.";
-                        })()}
-                      </p>
-                      {/* DM: last seen text */}
-                      {!item.isGroup && !isOnlineVisible && lastSeenAt && (
-                        <OnlineIndicator
-                          isOnline={false}
-                          lastSeenAt={lastSeenAt}
-                          showText
-                          dotClassName="h-1.5 w-1.5"
-                          className="mt-0.5"
-                        />
-                      )}
-                      {/* Group: active / quiet status */}
-                      {item.isGroup && (
-                        <span className={cn(
-                          "text-[8px] font-black uppercase tracking-widest mt-0.5",
-                          isGroupActive ? "text-emerald-500" : "text-muted-foreground/50"
-                        )}>
-                          {isGroupActive
-                            ? memberOnlineCount === 1
-                              ? "1 member active"
-                              : `${memberOnlineCount} members active`
-                            : "Quiet"}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {pinnedUsernames.has(id) && <Pin className="h-3 w-3 text-muted-foreground/40 rotate-45" />}
-                      {(() => {
-                        const count = (chatUnreadCounts && chatUnreadCounts[id]) || 0;
-                        if (!isSelected && count > 0) {
-                          return (
-                            <span className="min-w-[18px] h-[18px] px-1.5 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center shadow-[0_0_8px_rgba(153,64,229,0.8)]">
-                              {count > 99 ? '99+' : count}
-                            </span>
-                          );
+                >
+                  {/* Avatar */}
+                  <div className="relative shrink-0">
+                    {item.isGroup ? (
+                      <div className={cn(
+                        "h-13 w-13 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center relative overflow-hidden border",
+                        isGroupActive ? "border-emerald-400/40" : "border-primary/10"
+                      )} style={{ height: 52, width: 52 }}>
+                        {item.avatar
+                          ? <img src={getAdaptivePreview(item.avatar, 'avatar', tier) || item.avatar} alt="Cluster" className="w-full h-full object-cover" />
+                          : <div className="relative w-full h-full">
+                              {(item as any).members?.slice(0, 2).map((m: any, i: number) => (
+                                <Avatar key={m.username} className={cn("absolute h-7 w-7 border-2 border-white dark:border-[#0a0a0f]", i === 0 ? "top-0.5 left-0.5" : "bottom-0.5 right-0.5")}>
+                                  <AvatarImage src={getAdaptivePreview(m.avatar, 'avatar', tier) || m.avatar} />
+                                  <AvatarFallback className="text-[10px]">{m.name?.[0]}</AvatarFallback>
+                                </Avatar>
+                              ))}
+                            </div>
                         }
-                        return hasNewPulse ? (
-                          <div className="h-2 w-2 bg-primary rounded-full shadow-[0_0_8px_rgba(153,64,229,0.8)]" />
-                        ) : null;
-                      })()}
-                    </div>
+                      </div>
+                    ) : (
+                      <div className={cn(
+                        "rounded-2xl overflow-hidden border-2",
+                        isOnlineVisible ? "border-emerald-400/60" : "border-transparent",
+                        hasNewPulse && "ring-2 ring-primary/30"
+                      )} style={{ height: 52, width: 52 }}>
+                        <Avatar className="h-full w-full rounded-none">
+                          <AvatarImage src={getAdaptivePreview((item as any).avatar, 'avatar', tier) || (item as any).avatar} className="object-cover" />
+                          <AvatarFallback className="text-base font-bold rounded-none">{item.name?.[0]}</AvatarFallback>
+                        </Avatar>
+                      </div>
+                    )}
+                    {/* Online dot */}
+                    {!item.isGroup && isOnlineVisible && (
+                      <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-400 border-2 border-white dark:border-[#0a0a0f]" />
+                    )}
+                    {item.isGroup && (
+                      <span className={cn(
+                        "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white dark:border-[#0a0a0f] transition-colors",
+                        isGroupActive ? "bg-emerald-400" : "bg-muted-foreground/20"
+                      )} />
+                    )}
                   </div>
-                </div>
-              </div>
-            );
-          })
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className={cn(
+                          "text-sm truncate",
+                          hasNewPulse ? "font-black text-foreground" : "font-semibold text-foreground/90"
+                        )}>
+                          {item.name}
+                        </span>
+                        {item.isGroup && (
+                          <span className="shrink-0 text-[8px] font-black uppercase tracking-wider bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                            Group
+                          </span>
+                        )}
+                      </div>
+                      <span className={cn(
+                        "text-[10px] shrink-0",
+                        hasNewPulse ? "text-primary font-bold" : "text-muted-foreground/60"
+                      )}>
+                        {messagePreviews[id]?.time || (item as any).lastTime}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={cn(
+                        "text-xs truncate leading-snug",
+                        hasNewPulse ? "text-foreground/80 font-medium" : "text-muted-foreground/60"
+                      )}>
+                        {lastMessageText}
+                      </p>
+                      <div className="shrink-0">
+                        {!isSelected && unreadCount > 0 ? (
+                          <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-white text-[10px] font-black flex items-center justify-center shadow-sm shadow-primary/40">
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                          </span>
+                        ) : hasNewPulse ? (
+                          <span className="h-2 w-2 rounded-full bg-primary shadow-sm shadow-primary/60" />
+                        ) : null}
+                      </div>
+                    </div>
+                    {item.isGroup && (
+                      <p className={cn(
+                        "text-[9px] font-semibold uppercase tracking-wide mt-0.5",
+                        isGroupActive ? "text-emerald-500" : "text-muted-foreground/30"
+                      )}>
+                        {isGroupActive
+                          ? memberOnlineCount === 1 ? "1 active" : `${memberOnlineCount} active`
+                          : "quiet"}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         ) : (
-          <div className="p-12 text-center opacity-40">
-            {showRequests ? <Mail className="h-8 w-8 mx-auto mb-2" /> : <Search className="h-8 w-8 mx-auto mb-2" />}
-            <p className="text-sm font-bold">
-              {showRequests ? "Vault Inbound Nodes Silent" : "No nodes matched query"}
+          <div className="flex flex-col items-center justify-center h-full py-20 opacity-40">
+            <div className="h-16 w-16 rounded-3xl bg-secondary/60 flex items-center justify-center mb-4">
+              {searchQuery ? <Search className="h-7 w-7" /> : <Mail className="h-7 w-7" />}
+            </div>
+            <p className="text-sm font-bold text-center">
+              {searchQuery ? `No results for "${searchQuery}"` : "No conversations yet"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {searchQuery ? "Try a different name" : "Start chatting with someone"}
             </p>
           </div>
         )}
       </div>
 
-      {/* Floating ViMore Intelligent button */}
+      {/* Floating AI button */}
       <LiteLink
         href="/intelligent"
-        className="absolute bottom-5 right-5 h-14 w-14 rounded-2xl bg-gradient-to-br from-[#6200ee] to-[#9c27b0] flex items-center justify-center shadow-xl shadow-primary/40 hover:scale-110 active:scale-95 transition-all z-20"
+        className="absolute bottom-5 right-5 h-14 w-14 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 flex items-center justify-center shadow-xl shadow-purple-500/40 hover:scale-110 active:scale-95 transition-all z-20"
         title="ViMore Intelligent"
       >
         <Bot className="h-6 w-6 text-white" />

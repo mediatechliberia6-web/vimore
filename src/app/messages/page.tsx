@@ -9,7 +9,7 @@ import { ChatWindow } from "@/components/chat/chat-window";
 import { useMusic } from "@/context/MusicContext";
 import { usePosts, Connection, Cluster } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
-import { MessageSquare, Zap, Layers, Loader2, WifiOff } from "lucide-react";
+import { MessageSquare, Sparkles, WifiOff } from "lucide-react";
 import { BiometricGate } from "@/components/layout/biometric-gate";
 import { DiagnosticErrorBoundary } from "@/components/layout/diagnostic-error-boundary";
 import MessagesLoading from "./loading";
@@ -77,7 +77,7 @@ function MessagesInner() {
             </div>
           </aside>
 
-          <main className="relative flex flex-col bg-white dark:bg-[#050505] h-full overflow-hidden">
+          <main className="relative flex flex-col bg-white dark:bg-[#0a0a0f] h-full overflow-hidden">
             {isOffline && (
               <div className="w-full bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-center gap-2 shrink-0">
                 <WifiOff className="h-3.5 w-3.5 text-amber-500 shrink-0" />
@@ -86,9 +86,9 @@ function MessagesInner() {
             )}
             {isPlayerActive && <div className="h-16 shrink-0 transition-all duration-300" />}
 
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-[400px_1fr] min-h-0 overflow-hidden">
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-[380px_1fr] min-h-0 overflow-hidden">
               <div className={cn(
-                "h-full border-r border-primary/5 flex flex-col transition-all duration-300 min-h-0",
+                "h-full border-r border-primary/5 dark:border-white/5 flex flex-col transition-all duration-300 min-h-0",
                 showMobileChat ? "hidden lg:flex" : "flex"
               )}>
                 <ChatList 
@@ -110,21 +110,35 @@ function MessagesInner() {
                       />
                     </div>
                   ) : (
-                    <div className="flex-1 hidden lg:flex flex-col items-center justify-center text-center p-12 bg-[#FAFAFF] dark:bg-[#080808]">
-                      <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 animate-in zoom-in duration-500">
-                        <Layers className="h-10 w-10 text-primary" />
+                    <div className="flex-1 hidden lg:flex flex-col items-center justify-center text-center p-12 bg-[#FAFAFF] dark:bg-[#080810] relative overflow-hidden">
+                      {/* Background decoration */}
+                      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+                        <div className="absolute top-1/3 left-1/3 w-48 h-48 bg-purple-500/5 rounded-full blur-2xl" />
                       </div>
-                      <div className="space-y-2">
-                        <h3 className="text-2xl font-black italic uppercase tracking-tighter">ViMore Cluster Hub</h3>
-                        <div className="flex justify-center">
-                          <div className="bg-primary/5 px-3 py-1 rounded-full flex items-center gap-2 border border-primary/10">
-                            <Zap className="h-3 w-3 text-primary animate-pulse" />
-                            <span className="text-[10px] font-black text-primary uppercase tracking-widest">Focused Collaboration</span>
+
+                      <div className="relative space-y-6 max-w-sm">
+                        {/* Icon */}
+                        <div className="relative mx-auto">
+                          <div className="absolute inset-0 bg-primary/20 rounded-3xl blur-xl scale-110 opacity-60" />
+                          <div className="relative h-20 w-20 bg-gradient-to-br from-primary to-purple-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-primary/30 mx-auto">
+                            <MessageSquare className="h-9 w-9 text-white" />
                           </div>
                         </div>
-                        <p className="text-muted-foreground text-sm max-w-xs mt-4">
-                          Select a node or materialize a new cluster to begin collective synchronization.
-                        </p>
+
+                        {/* Text */}
+                        <div className="space-y-2">
+                          <h3 className="text-2xl font-black tracking-tight">Select a conversation</h3>
+                          <p className="text-muted-foreground text-sm leading-relaxed">
+                            Pick a chat from the left to start messaging, or create a new group cluster.
+                          </p>
+                        </div>
+
+                        {/* Hint pill */}
+                        <div className="inline-flex items-center gap-2 bg-primary/8 dark:bg-primary/10 px-4 py-2 rounded-full border border-primary/10 mx-auto">
+                          <Sparkles className="h-3.5 w-3.5 text-primary" />
+                          <span className="text-xs font-semibold text-primary">End-to-end encrypted</span>
+                        </div>
                       </div>
                     </div>
                   )}
