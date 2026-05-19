@@ -44,8 +44,8 @@ const GOLD_PACKAGES = [
 ];
 
 const DIAMOND_PACKAGES = [
-  { id: "d1", d: 25, priceLD: 1200, priceUSD: 6.25, label: "Gem Spike" },
-  { id: "d2", d: 50, priceLD: 2350, priceUSD: 12.50, label: "Vault Refill" },
+  { id: "d1", d: 25, priceLD: 1200, priceUSD: 6.00, label: "Gem Spike" },
+  { id: "d2", d: 50, priceLD: 2350, priceUSD: 13.00, label: "Vault Refill" },
   { id: "d3", d: 100, priceLD: 4700, priceUSD: 25.00, label: "VIP Crystalline", isVIP: true },
 ];
 
