@@ -73,13 +73,13 @@ function FriendsPageContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [playingPreview, setPlayingPreview] = useState<string | null>(null);
 
-  const [discoveryUsers, setDiscoveryUsers] = useState<any[]>([]);
+  const [discoveryUsers, setDiscoveryUsers] = useState<any[]>(() => loadCache<any>(OFFLINE_KEYS.FRIENDS_DISCOVERY));
   const [isLoadingDiscovery, setIsLoadingDiscovery] = useState(false);
 
-  const [confirmReceivedUsers, setConfirmReceivedUsers] = useState<any[]>([]);
+  const [confirmReceivedUsers, setConfirmReceivedUsers] = useState<any[]>(() => loadCache<any>(OFFLINE_KEYS.FRIENDS_CONFIRM));
   const [isLoadingConfirm, setIsLoadingConfirm] = useState(false);
 
-  const [pendingUsers, setPendingUsers] = useState<any[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<any[]>(() => loadCache<any>(OFFLINE_KEYS.FRIENDS_PENDING));
   const [isLoadingPending, setIsLoadingPending] = useState(false);
   const [cancellingUser, setCancellingUser] = useState<string | null>(null);
 
@@ -114,6 +114,7 @@ function FriendsPageContent() {
         isOnline: doc.is_online || false,
       }));
       setDiscoveryUsers(mapped);
+      saveCache(OFFLINE_KEYS.FRIENDS_DISCOVERY, mapped, 50);
     } catch { }
   }, [currentUser]);
 
@@ -125,14 +126,16 @@ function FriendsPageContent() {
         Query.equal('status', 'PENDING'),
         Query.limit(requestsPageLimit),
       ]);
-      if (reqResult.documents.length === 0) { setPendingUsers([]); return; }
+      if (reqResult.documents.length === 0) { setPendingUsers([]); saveCache(OFFLINE_KEYS.FRIENDS_PENDING, [], 50); return; }
       const toIds = reqResult.documents.map((d: any) => d.to_user_id);
       const userResults = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', toIds), Query.limit(requestsPageLimit)]);
-      setPendingUsers(userResults.documents.map((doc: any) => ({
+      const mapped = userResults.documents.map((doc: any) => ({
         $id: doc.$id, username: doc.username, name: doc.name || doc.username,
         avatar: doc.avatar_id ? getFileUrl(BUCKET.AVATARS, doc.avatar_id) : (doc.avatar || doc.avatar_url || avatarFallback(doc.name || doc.username || 'U')),
         followers: doc.followers_count || doc.followers || 0, category: doc.category || 'CREATOR', isVerified: doc.is_verified || false,
-      })));
+      }));
+      setPendingUsers(mapped);
+      saveCache(OFFLINE_KEYS.FRIENDS_PENDING, mapped, 50);
     } catch { }
   }, [currentUser]);
 
@@ -144,14 +147,16 @@ function FriendsPageContent() {
         Query.equal('status', 'PENDING'),
         Query.limit(friendsPageLimit),
       ]);
-      if (reqResult.documents.length === 0) { setConfirmReceivedUsers([]); return; }
+      if (reqResult.documents.length === 0) { setConfirmReceivedUsers([]); saveCache(OFFLINE_KEYS.FRIENDS_CONFIRM, [], 50); return; }
       const fromIds = reqResult.documents.map((d: any) => d.from_user_id);
       const userResults = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('$id', fromIds), Query.limit(friendsPageLimit)]);
-      setConfirmReceivedUsers(userResults.documents.map((doc: any) => ({
+      const mapped = userResults.documents.map((doc: any) => ({
         $id: doc.$id, username: doc.username, name: doc.name || doc.username,
         avatar: doc.avatar_id ? getFileUrl(BUCKET.AVATARS, doc.avatar_id) : (doc.avatar || doc.avatar_url || avatarFallback(doc.name || doc.username || 'U')),
         followers: doc.followers_count || doc.followers || 0, category: doc.category || 'CREATOR', isVerified: doc.is_verified || false,
-      })));
+      }));
+      setConfirmReceivedUsers(mapped);
+      saveCache(OFFLINE_KEYS.FRIENDS_CONFIRM, mapped, 50);
     } catch { }
   }, [currentUser]);
 

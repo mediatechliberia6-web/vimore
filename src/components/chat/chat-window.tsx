@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { playNotificationSound } from "@/lib/notification-sound";
 import { Connection, Cluster, usePosts } from "@/context/PostContext";
 import { useNetwork } from "@/context/NetworkContext";
+import { saveChatMessages, loadChatMessages } from "@/lib/offline-cache";
 import { getAdaptivePreview } from "@/lib/adaptive-media";
 import { ChatBubble } from "./chat-bubble";
 import { ChatInput } from "./chat-input";
@@ -127,7 +128,19 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     return !friendUsernames.has(contactId) && !acceptedStrangerUsernames.has(contactId);
   }, [isCluster, friendUsernames, acceptedStrangerUsernames, contactId]);
 
-  const messages = useMemo(() => chatMessages[contactId] || [], [chatMessages, contactId]);
+  const messages = useMemo(() => {
+    const live = chatMessages[contactId];
+    if (live && live.length > 0) return live;
+    return loadChatMessages(contactId) as typeof live;
+  }, [chatMessages, contactId]);
+
+  // Persist messages to local cache whenever they update (for offline access)
+  useEffect(() => {
+    const live = chatMessages[contactId];
+    if (live && live.length > 0) {
+      saveChatMessages(contactId, live, 50);
+    }
+  }, [chatMessages, contactId]);
 
   // Compute a map of messageId → seen-by avatars (like Messenger).
   // Each member's avatar appears under the LAST message they've read.

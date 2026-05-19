@@ -1,13 +1,14 @@
 /**
- * ViMore Service Worker v11
+ * ViMore Service Worker v12
  * - APP_SHELL_CACHE: permanent — Next.js static assets (JS/CSS/fonts)
  * - PAGE_CACHE: 5 h — full page HTML for offline navigation
  * - PINNED_CACHE: 24 h — audio/video intentionally played by the user
  * - MEDIA_CACHE: 5 h — all other images / media encountered while browsing
+ * - Range-request synthesis: cached full videos are sliced to satisfy byte-range requests
  * - Push notifications and badge control unchanged
  */
 
-const SW_VERSION = 'v11';
+const SW_VERSION = 'v12';
 const APP_SHELL_CACHE = `vimore-shell-${SW_VERSION}`;
 const PAGE_CACHE      = `vimore-pages-${SW_VERSION}`;
 const MEDIA_CACHE     = `vimore-media-${SW_VERSION}`;
@@ -21,14 +22,23 @@ const MAX_PINNED_AGE_MS = 24 * 60 * 60 * 1000;  // 24 h
 // Pages/routes to pre-cache on install for guaranteed offline access
 const PRECACHE_ROUTES = [
   '/',
-  '/marketplace',
   '/reels',
-  '/music',
+  '/marketplace',
   '/messages',
+  '/music',
   '/notifications',
   '/menu',
   '/settings',
   '/search',
+  '/profile',
+  '/currency',
+  '/earnings',
+  '/store',
+  '/friends',
+  '/tickets',
+  '/mtl',
+  '/how-it-works',
+  '/explore',
 ];
 
 const MEDIA_EXTENSIONS = [
@@ -36,6 +46,8 @@ const MEDIA_EXTENSIONS = [
   '.mp4', '.webm', '.ogv',
   '.mp3', '.ogg', '.wav', '.aac', '.m4a', '.flac', '.opus',
 ];
+
+const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.ogv'];
 
 const APPWRITE_FILE_PATTERNS = ['/v1/storage/buckets/', '/files/'];
 
@@ -50,6 +62,16 @@ function isMediaUrl(url) {
     if (APPWRITE_FILE_PATTERNS.some(p => lower.includes(p)))  return true;
     if (host === 'picsum.photos') return true;
     if (host.includes('appwrite.io') || host.includes('appwrite.cloud')) return true;
+    return false;
+  } catch { return false; }
+}
+
+function isVideoUrl(url) {
+  try {
+    const lower = new URL(url).pathname.toLowerCase().split('?')[0];
+    if (VIDEO_EXTENSIONS.some(ext => lower.endsWith(ext))) return true;
+    // Appwrite storage URLs that serve video files
+    if (APPWRITE_FILE_PATTERNS.some(p => lower.includes(p))) return true;
     return false;
   } catch { return false; }
 }
@@ -94,11 +116,45 @@ async function purgeExpired(cacheName, maxAge) {
   } catch {}
 }
 
+/**
+ * Synthesise an HTTP 206 Partial Content response from a fully cached response.
+ * Returns null if the range header is missing, malformed, or the cache is empty.
+ */
+async function synthesizeRangeResponse(cachedResponse, rangeHeader) {
+  if (!cachedResponse || !rangeHeader) return null;
+  try {
+    const match = rangeHeader.match(/bytes=(\d*)-(\d*)/);
+    if (!match) return null;
+
+    const buffer = await cachedResponse.clone().arrayBuffer();
+    const total  = buffer.byteLength;
+    if (total === 0) return null;
+
+    const start = match[1] !== '' ? parseInt(match[1], 10) : 0;
+    const end   = match[2] !== '' ? parseInt(match[2], 10) : total - 1;
+
+    if (start > end || start >= total) return null;
+
+    const safeEnd = Math.min(end, total - 1);
+    const chunk   = buffer.slice(start, safeEnd + 1);
+
+    return new Response(chunk, {
+      status: 206,
+      statusText: 'Partial Content',
+      headers: {
+        'Content-Type':   cachedResponse.headers.get('Content-Type') || 'video/mp4',
+        'Content-Range':  `bytes ${start}-${safeEnd}/${total}`,
+        'Content-Length': String(safeEnd - start + 1),
+        'Accept-Ranges':  'bytes',
+      },
+    });
+  } catch { return null; }
+}
+
 // ─── Install — pre-cache the app shell and key routes ─────────────────────────
 self.addEventListener('install', event => {
   event.waitUntil(
     (async () => {
-      // Pre-cache Next.js static manifest and key routes
       try {
         const pageCache = await caches.open(PAGE_CACHE);
         await Promise.all(
@@ -168,7 +224,6 @@ self.addEventListener('fetch', event => {
         const pageCache = await caches.open(PAGE_CACHE);
         const cached = await pageCache.match(request);
 
-        // Kick off a background fetch to refresh the cache
         const networkFetch = fetch(request)
           .then(response => {
             if (response.ok) {
@@ -178,21 +233,17 @@ self.addEventListener('fetch', event => {
           })
           .catch(() => null);
 
-        // If we have a valid cached page, return it immediately
         if (cached && !isExpired(cached, MAX_PAGE_AGE_MS)) {
           return cached;
         }
 
-        // Cache expired or missing — wait for network
         try {
           const fresh = await networkFetch;
           if (fresh) return fresh;
         } catch {}
 
-        // Completely offline — serve stale cache if any
         if (cached) return cached;
 
-        // Last resort: try the cached root page as app shell
         const rootCached = await pageCache.match('/');
         if (rootCached) return rootCached;
 
@@ -205,32 +256,65 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // ── 3. Media: cache-first with 5 h expiry ────────────────────────────────
+  // ── 3. Media: cache-first with range-request synthesis for videos ─────────
   if (!isMediaUrl(request.url)) return;
 
   event.respondWith(
     (async () => {
-      // Check pinned (24 h) cache first
+      const rangeHeader  = request.headers.get('Range');
+      const isRangeReq   = Boolean(rangeHeader);
+      const isVideo      = isVideoUrl(request.url);
+
       const pinnedCache = await caches.open(PINNED_CACHE);
+      const mediaCache  = await caches.open(MEDIA_CACHE);
+
+      // For range requests on video URLs: try to synthesize from cached full file
+      if (isRangeReq && isVideo) {
+        // Look up the bare URL (no Range header) in pinned cache
+        const pinnedFull = await pinnedCache.match(request.url);
+        if (pinnedFull && !isExpired(pinnedFull, MAX_PINNED_AGE_MS)) {
+          const synthesized = await synthesizeRangeResponse(pinnedFull, rangeHeader);
+          if (synthesized) return synthesized;
+        }
+
+        // Also check regular media cache for a cached full response
+        const mediaFull = await mediaCache.match(request.url);
+        if (mediaFull && !isExpired(mediaFull, MAX_MEDIA_AGE_MS)) {
+          const synthesized = await synthesizeRangeResponse(mediaFull, rangeHeader);
+          if (synthesized) return synthesized;
+        }
+
+        // Nothing cached — pass the range request to network as-is
+        try {
+          return await fetch(request);
+        } catch {
+          // Offline with no cache: return stale if available
+          const stale = pinnedFull || mediaFull;
+          if (stale) {
+            const synthesized = await synthesizeRangeResponse(stale, rangeHeader);
+            if (synthesized) return synthesized;
+          }
+          return new Response('Video unavailable offline', { status: 503 });
+        }
+      }
+
+      // Non-range requests: standard cache-first
       const pinned = await pinnedCache.match(request);
       if (pinned && !isExpired(pinned, MAX_PINNED_AGE_MS)) return pinned;
       if (pinned) pinnedCache.delete(request);
 
-      // Check regular (5 h) media cache
-      const mediaCache = await caches.open(MEDIA_CACHE);
       const cached = await mediaCache.match(request);
       if (cached && !isExpired(cached, MAX_MEDIA_AGE_MS)) return cached;
       if (cached) mediaCache.delete(request);
 
-      // Fetch from network
       try {
         const response = await fetch(request);
+        // Cache complete responses (200) — including full video fetches from PIN_MEDIA
         if (response.ok && response.status === 200) {
           mediaCache.put(request, stampResponse(response.clone()));
         }
         return response;
       } catch {
-        // Offline — try either cache as fallback even if stale
         const stalePinned = await pinnedCache.match(request);
         if (stalePinned) return stalePinned;
         const staleMedia = await mediaCache.match(request);
@@ -245,6 +329,7 @@ self.addEventListener('fetch', event => {
 self.addEventListener('message', event => {
   const data = event.data || {};
 
+  // Pin media URLs into the 24 h pinned cache as complete (non-range) responses
   if (data.type === 'PIN_MEDIA' && Array.isArray(data.urls)) {
     event.waitUntil(
       caches.open(PINNED_CACHE).then(async cache => {
@@ -252,8 +337,9 @@ self.addEventListener('message', event => {
           try {
             const existing = await cache.match(url);
             if (existing && !isExpired(existing, MAX_PINNED_AGE_MS)) continue;
-            const response = await fetch(url, { mode: 'no-cors' });
-            if (response.status === 0 || response.ok) {
+            // Fetch without Range header so we get the complete file (status 200)
+            const response = await fetch(url, { headers: { 'Cache-Control': 'no-cache' } });
+            if (response.ok && response.status === 200) {
               await cache.put(url, stampResponse(response));
             }
           } catch {}
@@ -284,7 +370,6 @@ self.addEventListener('message', event => {
     });
   }
 
-  // Clear ALL caches (pages + media + shell)
   if (data.type === 'CLEAR_ALL_CACHE') {
     Promise.all(CACHE_NAMES.map(n => caches.delete(n))).then(() => {
       event.source?.postMessage({ type: 'ALL_CACHE_CLEARED' });

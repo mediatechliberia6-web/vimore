@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { saveCache, OFFLINE_KEYS } from "@/lib/offline-cache";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OnlineIndicator } from "@/components/ui/online-indicator";
 import {
@@ -102,6 +103,21 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
 
     return { sortedChats: sorted, requestCount: 0 };
   }, [connections, clusters, searchQuery, activeFilter, pinnedUsernames, currentUser, friendUsernames, acceptedStrangerUsernames, chatMessages, chatLastMessageAt, chatLastIncomingAt, chatReadReceipts]);
+
+  // Persist the sorted conversation list to localStorage for offline access
+  useEffect(() => {
+    if (sortedChats.length === 0) return;
+    const slim = sortedChats.slice(0, 80).map((c: any) => ({
+      $id: c.$id,
+      username: c.username,
+      name: c.name,
+      avatar: c.avatar,
+      isGroup: c.isGroup || false,
+      isOnline: c.isOnline || false,
+      isVerified: c.isVerified || false,
+    }));
+    saveCache(OFFLINE_KEYS.MESSAGES_CONTACTS, slim, 80);
+  }, [sortedChats]);
 
   const handleSelection = (id: string) => {
     triggerHaptic(5);
