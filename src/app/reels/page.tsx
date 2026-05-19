@@ -27,6 +27,7 @@ import {
   Users,
   WifiOff,
   Play,
+  Gift,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNetwork } from "@/context/NetworkContext";
@@ -472,6 +473,8 @@ function ReelItem({
     sendFriendRequest,
     cancelFriendRequest,
     followingUsernames,
+    openGiftHub,
+    settings,
   } = usePosts();
   const { tier: netTier } = useNetwork();
   const { triggerHaptic } = useMusic();
@@ -813,6 +816,21 @@ function ReelItem({
                 : <Download className="w-6 h-6 text-white" />}
               <span className="text-white text-xs font-bold drop-shadow">Save</span>
             </button>
+
+            {!isOwn && settings?.isGiftingEnabled && (
+              <button
+                onClick={() => {
+                  triggerHaptic(30);
+                  openGiftHub(reel.user as any);
+                }}
+                className="flex flex-col items-center gap-0.5 active:scale-75 transition-transform"
+              >
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-400 to-pink-500 flex items-center justify-center shadow-lg ring-2 ring-white/20">
+                  <Gift className="w-4 h-4 text-white fill-white" />
+                </div>
+                <span className="text-white text-xs font-bold drop-shadow">Gift</span>
+              </button>
+            )}
           </>
         )}
 

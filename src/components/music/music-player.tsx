@@ -179,6 +179,20 @@ export function MusicPlayer() {
             >
               {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
             </Button>
+            {isEligibleForGift && !isOwner && settings?.isGiftingEnabled && (
+              <Button
+                size="icon" variant="ghost"
+                className="h-10 w-10 relative text-transparent"
+                onClick={handleGiftClick}
+                title="Send a gift"
+              >
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <span className="h-7 w-7 rounded-full bg-gradient-to-br from-yellow-400 to-pink-500 flex items-center justify-center shadow ring-1 ring-white/20">
+                    <Gift className="h-3.5 w-3.5 text-white fill-white" />
+                  </span>
+                </span>
+              </Button>
+            )}
             <Button 
               size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground hidden sm:flex"
               onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
