@@ -849,6 +849,19 @@ export default function AdminDashboard() {
                 </Button>
               </Link>
             )}
+            {isSuper && (
+              <Link href="/admin/financial-monitor">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-4 h-11 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/50 hover:border-violet-500/30 border border-transparent"
+                >
+                  <Users className="h-4 w-4 shrink-0 text-violet-400" />
+                  {isSidebarOpen && (
+                    <span className="font-bold text-xs uppercase tracking-widest text-violet-400">Fin. Monitor</span>
+                  )}
+                </Button>
+              </Link>
+            )}
           </div>
         )}
 
@@ -2729,6 +2742,12 @@ export default function AdminDashboard() {
             <Link href="/admin/financial-audit" className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all shrink-0 min-w-[56px] text-muted-foreground hover:text-foreground hover:bg-secondary/40">
               <Coins className="h-5 w-5" />
               <span className="text-[8px] font-black uppercase tracking-wide leading-none">Finance</span>
+            </Link>
+          )}
+          {isSuper && (
+            <Link href="/admin/financial-monitor" className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all shrink-0 min-w-[56px] text-violet-400 hover:text-violet-300 hover:bg-violet-500/10">
+              <Users className="h-5 w-5" />
+              <span className="text-[8px] font-black uppercase tracking-wide leading-none">Fin. Mon.</span>
             </Link>
           )}
         </div>

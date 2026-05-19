@@ -31,6 +31,7 @@ import { AppBadgeSync } from "@/components/layout/app-badge-sync";
 import { PushAutoSubscribe } from "@/components/layout/push-auto-subscribe";
 import { NotificationScheduler } from "@/components/layout/notification-scheduler";
 import { GlobalRealtimeListener } from "@/components/layout/global-realtime";
+import { OutboxRetry } from "@/components/layout/outbox-retry";
 import { AdminAlertsProvider } from "@/context/AdminAlertsContext";
 import { FeedSignalProvider } from "@/context/FeedSignalContext";
 import { NetworkProvider } from "@/context/NetworkContext";
@@ -266,6 +267,7 @@ export default async function RootLayout({
                           <AppLoadingGate>
                               <SuspensionGate>
                                 <GlobalRealtimeListener />
+                                <OutboxRetry />
                                 <NotificationScheduler />
                                 <AppBadgeSync />
                                 <PushAutoSubscribe />
