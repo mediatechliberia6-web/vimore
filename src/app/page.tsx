@@ -181,9 +181,14 @@ export default function Home() {
     return [...freshPosts, ...stableSort(followingFriendUnseen), ...stableSort(publicUnseen), ...stableSort(seenNodes)];
   }, [posts, followingUsernames, friendUsernames, currentUser]);
 
+  const shuffledFeedCampaigns = useMemo(() => {
+    const active = campaigns.filter((c: any) => c.is_active && c.placement === 'feed');
+    return [...active].sort(() => Math.random() - 0.5);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaigns.length]);
+
   const feedItems = useMemo(() => {
     if (posts.length === 0) return [];
-    const activeCampaigns = campaigns.filter((c: any) => c.is_active && c.placement === 'feed');
     const result: any[] = [];
     let totalOrganicCount = 0;
     let organicPostCount = 0;
@@ -212,9 +217,9 @@ export default function Home() {
         loadTriggerInserted = true;
       }
 
-      // After every 3 organic items → campaign ad (independent slot)
-      if (totalOrganicCount % 3 === 0 && activeCampaigns.length > 0) {
-        result.push({ type: 'campaign', data: activeCampaigns[campaignIdx % activeCampaigns.length] });
+      // After every 3 organic items → campaign ad (randomized order)
+      if (totalOrganicCount % 3 === 0 && shuffledFeedCampaigns.length > 0) {
+        result.push({ type: 'campaign', data: shuffledFeedCampaigns[campaignIdx % shuffledFeedCampaigns.length] });
         campaignIdx++;
       }
 
@@ -236,7 +241,7 @@ export default function Home() {
     }
 
     return result;
-  }, [organicSorted, posts, campaigns, shuffledBoostedRegular, shuffledBoostedReels]);
+  }, [organicSorted, posts, shuffledFeedCampaigns, shuffledBoostedRegular, shuffledBoostedReels]);
 
   // Observe the load-trigger element (fires when user reaches the 14th post)
   useEffect(() => {

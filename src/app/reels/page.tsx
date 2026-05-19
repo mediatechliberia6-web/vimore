@@ -1057,9 +1057,10 @@ export default function ReelsPage() {
   }), [reelsList, postCountOverrides]);
 
   const reelFeed = useMemo<ReelFeedItem[]>(() => {
-    const videoCampaigns = campaigns
+    const videoCampaignsRaw = campaigns
       .filter((c: any) => c.is_active && c.placement === 'reel' && c.type === "video" && c.media_url)
-      .map((c) => ({
+      .sort(() => Math.random() - 0.5);
+    const videoCampaigns = videoCampaignsRaw.map((c) => ({
         $id: c.$id,
         user: {
           name: "ViMore Official",

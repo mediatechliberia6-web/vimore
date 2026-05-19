@@ -67,6 +67,7 @@ export interface User {
   joinDate?: string;
   isEmailVerified?: boolean;
   hasEverBeenVerified?: boolean;
+  verificationExpiry?: number;
   language?: string;
   introUrl?: string;
   status?: 'active' | 'suspended' | 'banned';
@@ -334,6 +335,7 @@ interface PostContextType {
   toggleCampaignStatus: (id: string) => Promise<void>;
   recordCampaignClick: (id: string) => Promise<void>;
   recordCampaignImpression: (id: string) => Promise<void>;
+  buyVerificationBadge: () => Promise<{ status: 'success' | 'already_verified' | 'insufficient_balance'; expiry?: number; balance?: number }>;
   refreshAdminData: () => Promise<void>;
   fetchProfileByUsername: (username: string) => Promise<User | null>;
   searchAllUsers: (query: string) => Promise<User[]>;
@@ -435,6 +437,7 @@ function mapDocToUser(authUser: Models.User<Models.Preferences>, doc: Models.Doc
     role: (doc.role as 'SUPER' | 'FINANCIAL' | 'MODERATOR' | 'USER') || 'USER',
     joinDate: doc.join_date || authUser.$createdAt,
     hasEverBeenVerified: doc.has_ever_been_verified || false,
+    verificationExpiry: doc.verification_expiry || undefined,
     language: doc.language || '',
     status: (doc.status as 'active' | 'suspended' | 'banned') || 'active',
     suspendedUntil: doc.suspended_until || undefined,
@@ -469,6 +472,7 @@ function mapProfileDocToUser(doc: Models.Document): User {
     role: (doc.role as 'SUPER' | 'FINANCIAL' | 'MODERATOR' | 'USER') || 'USER',
     joinDate: doc.join_date || doc.$createdAt,
     hasEverBeenVerified: doc.has_ever_been_verified || false,
+    verificationExpiry: doc.verification_expiry || undefined,
     language: doc.language || '',
     status: (doc.status as 'active' | 'suspended' | 'banned') || 'active',
     suspendedUntil: doc.suspended_until || undefined,
@@ -4254,6 +4258,37 @@ export function PostProvider({ children }: { children: ReactNode }) {
         setCampaignsState(prev => prev.map((c: any) => c.$id === id ? { ...c, impressions: newImpressions } : c));
         await databases.updateDocument(DATABASE_ID, COL.AD_CAMPAIGNS, id, { impressions: newImpressions });
       } catch { /* ignore */ }
+    },
+    buyVerificationBadge: async () => {
+      if (!currentUser) return { status: 'insufficient_balance' as const, balance: 0 };
+      try {
+        const userDoc = await databases.getDocument(DATABASE_ID, COL.USERS, currentUser.$id);
+        const balance = userDoc.diamond_balance || 0;
+        const expiry = userDoc.verification_expiry as number | undefined;
+        const COST = 8;
+        if (userDoc.is_verified && expiry && expiry > Date.now()) {
+          return { status: 'already_verified' as const, expiry };
+        }
+        if (balance < COST) {
+          return { status: 'insufficient_balance' as const, balance };
+        }
+        const newExpiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
+        const newBalance = balance - COST;
+        await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
+          is_verified: true,
+          verification_expiry: newExpiry,
+          diamond_balance: newBalance,
+        });
+        setCurrentUserState(prev => prev ? {
+          ...prev,
+          isVerified: true,
+          diamondBalance: newBalance,
+          verificationExpiry: newExpiry,
+        } : null);
+        return { status: 'success' as const, expiry: newExpiry };
+      } catch (e: any) {
+        throw e;
+      }
     },
     refreshAdminData,
     fetchProfileByUsername, fetchProfilePosts, fetchReels, searchAllUsers, fetchComments,

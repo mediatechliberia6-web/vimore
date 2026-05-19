@@ -262,7 +262,7 @@ export function PostCard(props: PostCardProps) {
   } = props;
 
   const { 
-    currentUser, connections, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, voteOnPostPoll, settings, recordCampaignClick, recordView, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, submitReport,
+    currentUser, connections, isPostLiked, isPostUnliked, isPostSaved, isPostUnlocked, toggleLikePost, toggleUnlikePost, toggleSavePost, archivePost, togglePinPost, deletePost, openCommentHub, setSelectedPostId, setSelectedImageUrl, openGiftHub, unlockPost, voteOnPostPoll, settings, recordCampaignClick, recordCampaignImpression, recordView, isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, submitReport,
     postCountOverrides,
   } = usePosts();
 
@@ -307,6 +307,7 @@ export function PostCard(props: PostCardProps) {
 
   const cardRef = useRef<HTMLDivElement>(null);
   const hasRecordedView = useRef(false);
+  const hasRecordedImpression = useRef(false);
   const isVisibleRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRef = useRef<{ likes?: number; unlikes?: number; comments?: number; shares?: number } | null>(null);
@@ -380,6 +381,20 @@ export function PostCard(props: PostCardProps) {
     if (cardRef.current) observer.observe(cardRef.current);
     return () => observer.disconnect();
   }, [$id, isShared, isCampaign, recordView]);
+
+  useEffect(() => {
+    if (!isCampaign || isShared) return;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && !hasRecordedImpression.current) {
+          hasRecordedImpression.current = true;
+          recordCampaignImpression($id);
+        }
+      });
+    }, { threshold: 0.5 });
+    if (cardRef.current) observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, [$id, isCampaign, isShared, recordCampaignImpression]);
 
   useEffect(() => { if (typeof window !== 'undefined') setViewerLanguage(window.navigator.language.split('-')[0]); }, []);
 

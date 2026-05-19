@@ -19,7 +19,7 @@ import {
   Camera, 
   Edit2, 
   MoreHorizontal, 
-  LayoutDashboard,
+  BadgeCheck,
   Plus,
   Volume2,
   Play,
@@ -47,7 +47,9 @@ import {
   EyeOff,
   Smartphone,
   Film,
-  ShoppingBag
+  ShoppingBag,
+  Diamond,
+  AlertCircle,
 } from "lucide-react";
 import { UserListings } from "@/components/marketplace/UserListings";
 import Link from "next/link";
@@ -110,7 +112,7 @@ function InfoNode({ icon: Icon, label, value, colorClass }: { icon: any, label: 
 }
 
 export default function MyProfilePage() {
-  const { currentUser, updateCurrentUser, uploadMedia, triggerHaptic, settings, setSelectedImageUrl, addPost, friendUsernames, followingUsernames, followerUsernames, isLoading, fetchProfilePosts } = usePosts();
+  const { currentUser, updateCurrentUser, uploadMedia, triggerHaptic, settings, setSelectedImageUrl, addPost, friendUsernames, followingUsernames, followerUsernames, isLoading, fetchProfilePosts, buyVerificationBadge } = usePosts();
   const { currentTrack, isExpanded, userSongs, userAlbums, userPlaylists, setTrack, playCollection, isPlaying } = useMusic();
   const { toast } = useToast();
   const router = useRouter();
@@ -142,6 +144,41 @@ export default function MyProfilePage() {
   const isLoadingOwnPostsRef = useRef(false);
 
   const [liveFollowers, setLiveFollowers] = useState<number | null>(null);
+
+  const [isVerifyOpen, setIsVerifyOpen] = useState(false);
+  const [verifyStatus, setVerifyStatus] = useState<'idle' | 'loading' | 'success' | 'already_verified' | 'error'>('idle');
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [verifyExpiry, setVerifyExpiry] = useState<number | null>(null);
+
+  const handleOpenVerify = () => {
+    setVerifyStatus('idle');
+    setVerifyError(null);
+    setVerifyExpiry(null);
+    setIsVerifyOpen(true);
+  };
+
+  const handleBuyVerification = async () => {
+    setVerifyStatus('loading');
+    setVerifyError(null);
+    try {
+      const result = await buyVerificationBadge();
+      if (result.status === 'already_verified') {
+        setVerifyExpiry(result.expiry ?? null);
+        setVerifyStatus('already_verified');
+      } else if (result.status === 'insufficient_balance') {
+        setVerifyError(`You need 8 diamonds but only have ${result.balance ?? 0}.`);
+        setVerifyStatus('error');
+      } else {
+        setVerifyExpiry(result.expiry ?? null);
+        setVerifyStatus('success');
+        triggerHaptic(40);
+        toast({ title: "Verified!", description: "Your badge is active for 30 days." });
+      }
+    } catch (e: any) {
+      setVerifyError(e.message || 'Something went wrong. Please try again.');
+      setVerifyStatus('error');
+    }
+  };
 
   const isPlayerActive = currentTrack && !isExpanded;
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -412,7 +449,10 @@ export default function MyProfilePage() {
                 
                 <div className="mt-3 relative group max-w-2xl"><p className="text-[15px] leading-relaxed text-foreground flex-1">{currentUser.bio}</p></div>
                 <div className="mt-4 flex gap-2">
-                  <Link href="/dashboard" className="flex-1"><Button className="w-full rounded-lg gap-2 bg-primary hover:bg-primary/90 h-11 font-bold text-white shadow-lg active:scale-95 transition-all"><LayoutDashboard className="h-5 w-5" /> Dashboard</Button></Link>
+                  <Button className="flex-1 w-full rounded-lg gap-2 bg-primary hover:bg-primary/90 h-11 font-bold text-white shadow-lg active:scale-95 transition-all" onClick={handleOpenVerify}>
+                    <BadgeCheck className="h-5 w-5" />
+                    {currentUser.isVerified ? "Verified" : "Get Verified"}
+                  </Button>
                   <Button variant="secondary" className="flex-1 rounded-lg gap-2 h-11 font-bold active:scale-95 transition-all" onClick={() => setIsStoryModalOpen(true)}><Plus className="h-5 w-5" /> Add Story</Button>
                 </div>
               </div>
@@ -607,6 +647,105 @@ export default function MyProfilePage() {
         </main>
         <aside className={cn("hidden lg:block sticky h-screen transition-all duration-300", isPlayerActive ? "top-16" : "top-0")}><RightSidebar /></aside>
       </div>
+
+      <Dialog open={isVerifyOpen} onOpenChange={setIsVerifyOpen}>
+        <DialogContent className="sm:max-w-[400px] rounded-[2.5rem] p-0 overflow-hidden border-primary/10 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-3xl">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="font-black text-xl flex items-center gap-2">
+              <BadgeCheck className="h-6 w-6 text-primary" />
+              Verification Badge
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-6 space-y-5">
+            {verifyStatus === 'success' ? (
+              <div className="flex flex-col items-center gap-4 py-4">
+                <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+                  <BadgeCheck className="h-10 w-10 text-primary" />
+                </div>
+                <div className="text-center space-y-1">
+                  <p className="font-black text-lg">You&apos;re Verified!</p>
+                  <p className="text-sm text-muted-foreground">
+                    Your badge is active until{" "}
+                    <span className="font-bold text-foreground">
+                      {verifyExpiry ? new Date(verifyExpiry).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '30 days from now'}
+                    </span>
+                  </p>
+                </div>
+                <Button className="w-full h-11 rounded-xl font-bold" onClick={() => setIsVerifyOpen(false)}>Done</Button>
+              </div>
+            ) : verifyStatus === 'already_verified' ? (
+              <div className="flex flex-col items-center gap-4 py-4">
+                <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+                  <CheckCircle2 className="h-10 w-10 text-primary fill-primary text-white" />
+                </div>
+                <div className="text-center space-y-1">
+                  <p className="font-black text-lg">Already Verified</p>
+                  <p className="text-sm text-muted-foreground">
+                    Your badge is active until{" "}
+                    <span className="font-bold text-foreground">
+                      {verifyExpiry ? new Date(verifyExpiry).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'the expiry date'}
+                    </span>
+                    . Come back after it expires to renew.
+                  </p>
+                </div>
+                <Button variant="secondary" className="w-full h-11 rounded-xl font-bold" onClick={() => setIsVerifyOpen(false)}>Got it</Button>
+              </div>
+            ) : (
+              <>
+                <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <BadgeCheck className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-black text-sm">Verified Creator Badge</p>
+                      <p className="text-xs text-muted-foreground">Blue checkmark on your profile &amp; all posts</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-primary/10">
+                    <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Price</span>
+                    <div className="flex items-center gap-1.5">
+                      <Diamond className="h-4 w-4 text-cyan-500" />
+                      <span className="font-black text-primary">8 Diamonds</span>
+                      <span className="text-xs text-muted-foreground">/ month</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Your Balance</span>
+                    <div className="flex items-center gap-1.5">
+                      <Diamond className="h-3.5 w-3.5 text-cyan-500" />
+                      <span className="font-bold text-sm">{currentUser.diamondBalance ?? 0} Diamonds</span>
+                    </div>
+                  </div>
+                </div>
+
+                {verifyStatus === 'error' && verifyError && (
+                  <div className="flex items-start gap-2 bg-destructive/5 border border-destructive/20 rounded-xl px-3 py-2">
+                    <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                    <p className="text-xs text-destructive font-medium">{verifyError}</p>
+                  </div>
+                )}
+
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Purchasing verifies your profile for 30 days. 8 diamonds will be deducted from your balance.
+                </p>
+
+                <div className="flex gap-2">
+                  <Button variant="secondary" className="flex-1 h-11 rounded-xl font-bold" onClick={() => setIsVerifyOpen(false)}>Cancel</Button>
+                  <Button
+                    className="flex-1 h-11 rounded-xl font-bold gap-2"
+                    onClick={handleBuyVerification}
+                    disabled={verifyStatus === 'loading' || (currentUser.diamondBalance ?? 0) < 8}
+                  >
+                    {verifyStatus === 'loading' ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
+                    {verifyStatus === 'loading' ? 'Processing...' : 'Get Verified'}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-0 overflow-hidden border-primary/10 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-3xl">
