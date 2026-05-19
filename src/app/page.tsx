@@ -136,6 +136,18 @@ export default function Home() {
     } catch {}
   }, [posts, isOffline]);
 
+  const shuffledBoostedRegular = useMemo(() => {
+    const boosted = posts.filter(p => p.isBoosted && p.type !== 'reel');
+    return [...boosted].sort(() => Math.random() - 0.5);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posts.length]);
+
+  const shuffledBoostedReels = useMemo(() => {
+    const boosted = posts.filter(p => p.isBoosted && p.type === 'reel');
+    return [...boosted].sort(() => Math.random() - 0.5);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posts.length]);
+
   const organicSorted = useMemo(() => {
     const regular = posts.filter(p => !p.isBoosted);
     regular.forEach(p => { if (!(p.$id in weights.current)) weights.current[p.$id] = Math.random(); });
@@ -171,46 +183,60 @@ export default function Home() {
 
   const feedItems = useMemo(() => {
     if (posts.length === 0) return [];
-    const boostedPosts = posts.filter(p => p.isBoosted);
     const activeCampaigns = campaigns.filter((c: any) => c.is_active && c.placement === 'feed');
     const result: any[] = [];
-    let organicCount = 0;
-    let boostedIdx = 0;
+    let totalOrganicCount = 0;
+    let organicPostCount = 0;
+    let organicReelCount = 0;
+    let boostedRegularIdx = 0;
+    let boostedReelIdx = 0;
     let campaignIdx = 0;
     let loadTriggerInserted = false;
     let suggestionsInserted = false;
 
     for (let i = 0; i < organicSorted.length; i++) {
-      result.push({ type: 'post', data: organicSorted[i] });
-      organicCount++;
+      const item = organicSorted[i];
+      const isReel = item.type === 'reel';
+      result.push({ type: 'post', data: item });
+      totalOrganicCount++;
 
-      // Suggested follows after 8th organic post
-      if (organicCount === 8 && !suggestionsInserted) {
+      // Suggested follows after 8th organic item
+      if (totalOrganicCount === 8 && !suggestionsInserted) {
         result.push({ type: 'suggestions', id: 'suggested-follows-8' });
         suggestionsInserted = true;
       }
 
-      // Load-more trigger after the 14th organic post
-      if (organicCount === 14 && !loadTriggerInserted) {
+      // Load-more trigger after the 14th organic item
+      if (totalOrganicCount === 14 && !loadTriggerInserted) {
         result.push({ type: 'load-trigger', id: 'load-trigger-14' });
         loadTriggerInserted = true;
       }
 
-      // After every 3 organic posts → campaign ad (independent slot)
-      if (organicCount % 3 === 0 && activeCampaigns.length > 0) {
+      // After every 3 organic items → campaign ad (independent slot)
+      if (totalOrganicCount % 3 === 0 && activeCampaigns.length > 0) {
         result.push({ type: 'campaign', data: activeCampaigns[campaignIdx % activeCampaigns.length] });
         campaignIdx++;
       }
 
-      // After every 5 organic posts → boost post (independent slot)
-      if (organicCount % 5 === 0 && boostedIdx < boostedPosts.length) {
-        result.push({ type: 'boost', data: boostedPosts[boostedIdx] });
-        boostedIdx++;
+      // After every 5 organic reels → inject a randomly-ordered boosted reel
+      if (isReel) {
+        organicReelCount++;
+        if (organicReelCount % 5 === 0 && shuffledBoostedReels.length > 0) {
+          result.push({ type: 'boost', data: shuffledBoostedReels[boostedReelIdx % shuffledBoostedReels.length] });
+          boostedReelIdx++;
+        }
+      } else {
+        // After every 5 organic (non-reel) posts → inject a randomly-ordered boosted post
+        organicPostCount++;
+        if (organicPostCount % 5 === 0 && shuffledBoostedRegular.length > 0) {
+          result.push({ type: 'boost', data: shuffledBoostedRegular[boostedRegularIdx % shuffledBoostedRegular.length] });
+          boostedRegularIdx++;
+        }
       }
     }
 
     return result;
-  }, [organicSorted, posts, campaigns]);
+  }, [organicSorted, posts, campaigns, shuffledBoostedRegular, shuffledBoostedReels]);
 
   // Observe the load-trigger element (fires when user reaches the 14th post)
   useEffect(() => {

@@ -31,7 +31,7 @@ interface BoostPortalProps {
   type: 'POST' | 'SONIC';
 }
 
-const DIAMOND_RATE = 5;
+const DIAMOND_RATE = 2;
 const STAR_RATE = 2500;
 
 const DAY_TIERS = [
@@ -287,7 +287,7 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
                   {[
                     type === 'POST'
                       ? 'Your post appears every 5 posts in the home feed for non-followers'
-                      : 'Your track gets priority in the Music discovery section',
+                      : 'Your track appears in the Trending section on the Music page (position randomized each load)',
                     'Your profile is added to Suggested Follows for all users not following you',
                     `Boost runs for exactly ${days} ${days === 1 ? 'day' : 'days'}, then stops automatically`,
                     'No minimum views required — time-based guarantee',

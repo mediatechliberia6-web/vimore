@@ -17,7 +17,7 @@ import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search, X, Heart, ListMusic, Plus, Music, Disc3, Download, Trash2, MoreVertical, Zap, WifiOff } from "lucide-react";
+import { ArrowLeft, Search, X, Heart, ListMusic, Plus, Music, Disc3, Download, Trash2, MoreVertical, Zap, WifiOff, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -71,6 +71,18 @@ function MusicPageContent() {
       (s.artist || "").toLowerCase().includes(q)
     );
   }, [searchQuery, globalSongs]);
+
+  const heroTrack = useMemo(() => {
+    if (filteredSongs.length === 0) return null;
+    if (searchQuery) return filteredSongs[0];
+    return [...filteredSongs].sort((a, b) => parseInt(b.streams, 10) - parseInt(a.streams, 10))[0];
+  }, [filteredSongs, searchQuery]);
+
+  const trendingBoosted = useMemo(() => {
+    const boosted = globalSongs.filter(s => s.isBoosted);
+    return [...boosted].sort(() => Math.random() - 0.5);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [globalSongs.length]);
 
   const filteredAlbums = useMemo(() => {
     if (!searchQuery) return globalAlbums;
@@ -175,7 +187,20 @@ function MusicPageContent() {
                   </div>
                 ) : (
                   <>
-                    {!searchQuery && filteredSongs.length > 0 && <MusicGrid type="hero" items={[filteredSongs[0]]} />}
+                    {!searchQuery && heroTrack && <MusicGrid type="hero" items={[heroTrack]} />}
+
+                    {!searchQuery && trendingBoosted.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 px-1">
+                          <TrendingUp className="h-4 w-4 text-primary" />
+                          <h2 className="text-sm font-black uppercase tracking-widest">Trending</h2>
+                          <span className="ml-1 text-[9px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Zap className="h-2.5 w-2.5 fill-current animate-pulse" /> Boosted
+                          </span>
+                        </div>
+                        <MusicGrid type="song" title="" items={trendingBoosted} />
+                      </div>
+                    )}
                     
                     <NativeAdNode type="standard" id="discover-hero-sep" />
                     

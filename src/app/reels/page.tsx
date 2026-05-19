@@ -989,7 +989,7 @@ function ReelItem({
 }
 
 export default function ReelsPage() {
-  const { campaigns, openCommentHub, fetchComments, friendUsernames, followingUsernames, followingUserIds, settings, isOffline, fetchReels, postCountOverrides } = usePosts();
+  const { campaigns, posts, openCommentHub, fetchComments, friendUsernames, followingUsernames, followingUserIds, settings, isOffline, fetchReels, postCountOverrides } = usePosts();
   const { tier: pageTier } = useNetwork();
 
   const [cachedReels] = useState<Post[]>(() => loadCache<Post>(OFFLINE_KEYS.REELS));
@@ -1082,29 +1082,46 @@ export default function ReelsPage() {
         actionLabel: c.action_label,
       } as ReelFeedItem));
 
-    if (videoCampaigns.length === 0) return reels as ReelFeedItem[];
+    // Boosted reels — shuffled randomly each session so users see different ones
+    const boostedReels: ReelFeedItem[] = [...(posts || [])
+      .filter((p: any) => p.isBoosted && p.type === 'reel')]
+      .sort(() => Math.random() - 0.5) as ReelFeedItem[];
+
+    if (videoCampaigns.length === 0 && boostedReels.length === 0) return reels as ReelFeedItem[];
 
     const result: ReelFeedItem[] = [];
     let reelIdx = 0;
     let campIdx = 0;
+    let boostedIdx = 0;
+    let countSinceLast = 0;
 
-    // First ad: after the first 2 reels
+    // First 2 reels, then first campaign slot
     for (let i = 0; i < 2 && reelIdx < reels.length; i++) {
       result.push(reels[reelIdx++] as ReelFeedItem);
     }
-    if (reelIdx > 0) {
+    if (reelIdx > 0 && videoCampaigns.length > 0) {
       result.push(videoCampaigns[campIdx++ % videoCampaigns.length]);
     }
 
-    // Subsequent ads: after every 5 reels
+    // Subsequent: after every 5 reels → campaign + boosted reel (both randomized)
     while (reelIdx < reels.length) {
-      for (let i = 0; i < 5 && reelIdx < reels.length; i++) {
-        result.push(reels[reelIdx++] as ReelFeedItem);
+      result.push(reels[reelIdx++] as ReelFeedItem);
+      countSinceLast++;
+
+      if (countSinceLast >= 5) {
+        countSinceLast = 0;
+        if (videoCampaigns.length > 0) {
+          result.push(videoCampaigns[campIdx++ % videoCampaigns.length]);
+        }
+        if (boostedReels.length > 0) {
+          result.push(boostedReels[boostedIdx % boostedReels.length]);
+          boostedIdx++;
+        }
       }
-      result.push(videoCampaigns[campIdx++ % videoCampaigns.length]);
     }
     return result;
-  }, [reels, campaigns]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reels, campaigns, posts]);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
