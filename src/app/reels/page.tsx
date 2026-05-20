@@ -28,6 +28,7 @@ import {
   WifiOff,
   Play,
   Gift,
+  Eye,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNetwork } from "@/context/NetworkContext";
@@ -47,7 +48,6 @@ type ReelFeedItem = Post & {
   actionLabel?: string;
 };
 
-/* ── Effect ID → CSS filter map (mirrors create/page.tsx EFFECTS array) ── */
 const EFFECT_FILTERS: Record<string, { filter: string; special?: 'mirror' | 'vignette' }> = {
   none:      { filter: 'none' },
   grayscale: { filter: 'grayscale(100%)' },
@@ -90,6 +90,18 @@ const SHARE_PLATFORMS = [
   { id: "twitter", label: "X / Twitter", bg: "bg-black border border-white/20", emoji: "🐦" },
   { id: "telegram", label: "Telegram", bg: "bg-[#2CA5E0]", emoji: "✈️" },
 ];
+
+/* ── Seeded Fisher-Yates shuffle — same seed = same order, so feed is stable within a session ── */
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  const result = [...arr];
+  let s = seed;
+  for (let i = result.length - 1; i > 0; i--) {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    const j = Math.abs(s) % (i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
 
 function MessagePickerSheet({
   reel,
@@ -183,9 +195,7 @@ function MessagePickerSheet({
                 <div
                   className={cn(
                     "w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all",
-                    isSent
-                      ? "bg-green-500/20"
-                      : "bg-primary/20 hover:bg-primary/40"
+                    isSent ? "bg-green-500/20" : "bg-primary/20 hover:bg-primary/40"
                   )}
                 >
                   {isSending ? (
@@ -238,14 +248,7 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
       videoUrl: reel.videoUrl,
       image: reel.image || reel.user.avatar,
       background: "bg-black",
-      textOverlays: [
-        {
-          text: `@${reel.user.username}`,
-          x: 50,
-          y: 85,
-          color: "#FFFFFF",
-        },
-      ],
+      textOverlays: [{ text: `@${reel.user.username}`, x: 50, y: 85, color: "#FFFFFF" }],
     });
     incrementShareCount?.(reel.$id);
     toast({ title: "Added to your story" });
@@ -283,11 +286,8 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
   const handleExternalShare = (platform: (typeof SHARE_PLATFORMS)[0]) => {
     triggerHaptic(15);
     const link = `https://vimore.cfd/reels/${reel.$id}`;
-    const text = encodeURIComponent(
-      `Check this out on ViMore: ${reel.content.slice(0, 60)}`
-    );
+    const text = encodeURIComponent(`Check this out on ViMore: ${reel.content.slice(0, 60)}`);
     const encodedLink = encodeURIComponent(link);
-
     const urls: Record<string, string> = {
       facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedLink}`,
       messenger: `fb-messenger://share?link=${encodedLink}`,
@@ -297,7 +297,6 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
       twitter: `https://twitter.com/intent/tweet?text=${text}&url=${encodedLink}`,
       telegram: `https://t.me/share/url?url=${encodedLink}&text=${text}`,
     };
-
     const url = urls[platform.id];
     if (url) window.open(url, "_blank");
     incrementShareCount?.(reel.$id);
@@ -325,17 +324,12 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-white/20 rounded-full" />
         </div>
-
         <div className="flex items-center justify-between px-4 py-2">
           <h3 className="text-white font-black text-base">{t('reel_share_title')}</h3>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center"
-          >
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
             <X className="w-4 h-4 text-white" />
           </button>
         </div>
-
         <div className="mx-4 mb-4 flex items-center gap-3 p-3 bg-white/5 rounded-2xl border border-white/10">
           <div className="w-14 h-16 rounded-xl overflow-hidden bg-black flex-shrink-0 relative">
             {reel.image ? (
@@ -356,32 +350,19 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
             <p className="text-white/50 text-xs mt-0.5 line-clamp-2">{reel.content}</p>
           </div>
         </div>
-
         <div className="px-4 pb-3">
           <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mb-3">{t('reel_share_to')}</p>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
             {SHARE_PLATFORMS.map((platform) => (
-              <button
-                key={platform.id}
-                onClick={() => handleExternalShare(platform)}
-                className="flex flex-col items-center gap-1.5 flex-shrink-0"
-              >
-                <div
-                  className={cn(
-                    "w-12 h-12 rounded-2xl flex items-center justify-center text-xl",
-                    platform.bg
-                  )}
-                >
+              <button key={platform.id} onClick={() => handleExternalShare(platform)} className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-xl", platform.bg)}>
                   <span role="img">{platform.emoji}</span>
                 </div>
-                <span className="text-white/50 text-[9px] font-bold w-12 text-center truncate">
-                  {platform.label}
-                </span>
+                <span className="text-white/50 text-[9px] font-bold w-12 text-center truncate">{platform.label}</span>
               </button>
             ))}
           </div>
         </div>
-
         <div className="px-4 pb-3 grid grid-cols-3 gap-2">
           <button
             onClick={() => setShowMessagePicker(true)}
@@ -392,7 +373,6 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
             </div>
             <span className="text-white/70 text-[10px] font-bold">{t('reel_message_btn')}</span>
           </button>
-
           <button
             onClick={handleShareToStory}
             className="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-colors"
@@ -402,34 +382,24 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
             </div>
             <span className="text-white/70 text-[10px] font-bold">{t('reel_story_btn')}</span>
           </button>
-
           <button
             onClick={handleDownload}
             disabled={isDownloading}
             className="flex flex-col items-center gap-2 p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-colors disabled:opacity-50"
           >
             <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-              {isDownloading ? (
-                <Loader2 className="w-5 h-5 text-emerald-400 animate-spin" />
-              ) : (
-                <Download className="w-5 h-5 text-emerald-400" />
-              )}
+              {isDownloading ? <Loader2 className="w-5 h-5 text-emerald-400 animate-spin" /> : <Download className="w-5 h-5 text-emerald-400" />}
             </div>
             <span className="text-white/70 text-[10px] font-bold">{t('reel_download_btn')}</span>
           </button>
         </div>
-
         <div className="px-4 pb-8">
           <button
             onClick={handleCopyLink}
             className="w-full flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-colors"
           >
             <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
-              {copiedLink ? (
-                <Check className="w-4 h-4 text-green-400" />
-              ) : (
-                <LinkIcon className="w-4 h-4 text-white/60" />
-              )}
+              {copiedLink ? <Check className="w-4 h-4 text-green-400" /> : <LinkIcon className="w-4 h-4 text-white/60" />}
             </div>
             <span className="text-white/80 text-sm font-bold flex-1 text-left">
               {copiedLink ? t('reel_link_copied') : t('reel_copy_link')}
@@ -439,6 +409,40 @@ function ReelShareSheet({ reel, onClose }: { reel: Post; onClose: () => void }) 
         </div>
       </div>
     </div>
+  );
+}
+
+/* ─── Action Button ─── */
+function ActionBtn({
+  onClick,
+  disabled,
+  children,
+  label,
+  glow,
+}: {
+  onClick?: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+  label?: string;
+  glow?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "flex flex-col items-center gap-1 active:scale-75 transition-transform disabled:opacity-40 group",
+      )}
+    >
+      <div className={cn(
+        "w-11 h-11 rounded-2xl flex items-center justify-center backdrop-blur-md border transition-all",
+        "bg-black/30 border-white/10 group-active:bg-white/20",
+        glow && `shadow-lg ${glow}`
+      )}>
+        {children}
+      </div>
+      {label && <span className="text-white text-[10px] font-bold drop-shadow tracking-wide">{label}</span>}
+    </button>
   );
 }
 
@@ -452,6 +456,7 @@ function ReelItem({
   onToggleMute,
   onOpenShare,
   onOpenComment,
+  onMarkSeen,
 }: {
   reel: ReelFeedItem;
   index: number;
@@ -462,6 +467,7 @@ function ReelItem({
   onToggleMute: () => void;
   onOpenShare: () => void;
   onOpenComment: () => void;
+  onMarkSeen: (id: string) => void;
 }) {
   const router = useRouter();
   const {
@@ -482,18 +488,16 @@ function ReelItem({
   const [showHeart, setShowHeart] = useState(false);
   const [showSoundSheet, setShowSoundSheet] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  // On Lite, default to paused so the Play overlay shows (tap-to-stream)
   const [isPlaying, setIsPlaying] = useState(() => netTier !== 'lite');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [seekFlash, setSeekFlash] = useState<'left' | 'right' | null>(null);
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
-  // Bug 3 fix: local optimistic like count so tapping like is instant
   const [localLikes, setLocalLikes] = useState(reel.likes);
   const lastTapRef = useRef(0);
   const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Bug 2 fix: audio element for selected-sound playback
   const soundAudioRef = useRef<HTMLAudioElement | null>(null);
+  const seenMarkedRef = useRef(false);
 
   const combinedVideoRef = useCallback((el: HTMLVideoElement | null) => {
     setVideoElement(el);
@@ -518,6 +522,16 @@ function ReelItem({
     };
   }, [videoElement]);
 
+  // Mark reel as seen after 2s of active play
+  useEffect(() => {
+    if (!isActive || seenMarkedRef.current || reel.isCampaignReel) return;
+    const timer = setTimeout(() => {
+      onMarkSeen(reel.$id);
+      seenMarkedRef.current = true;
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [isActive, reel.$id, reel.isCampaignReel, onMarkSeen]);
+
   const isLiked = isPostLiked(reel.$id);
   const isOwn = currentUser?.username === reel.user.username;
   const isFollowing = followingUsernames.has(reel.user.username);
@@ -526,7 +540,6 @@ function ReelItem({
   const soundArtist = (reel as Record<string, unknown>).sound_artist as string | undefined;
   const soundStartTime = Number((reel as Record<string, unknown>).sound_start_time ?? 0);
 
-  // Bug 1 fix: read stored effect and build CSS filter/transform for playback
   const rawEffects = (reel as Record<string, unknown>).effects_applied as string[] | undefined;
   const effectId = rawEffects?.[0] ?? 'none';
   const effectDef = EFFECT_FILTERS[effectId] ?? EFFECT_FILTERS.none;
@@ -534,10 +547,8 @@ function ReelItem({
   const videoMirror = effectDef.special === 'mirror';
   const showVignetteOverlay = effectDef.special === 'vignette';
 
-  // Bug 2 fix: play/pause selected-sound audio in sync with the active reel
   useEffect(() => {
     if (!soundId) return;
-    // Build the sound file URL — same pattern as the recording studio
     const isReelMedia = soundId.startsWith('reel_media:');
     const soundUrl = isReelMedia
       ? `/api/file/${encodeURIComponent('reel_media')}/${encodeURIComponent(soundId.replace('reel_media:', ''))}`
@@ -556,7 +567,6 @@ function ReelItem({
         soundAudioRef.current = null;
       }
     }
-
     return () => {
       if (soundAudioRef.current) {
         soundAudioRef.current.pause();
@@ -566,12 +576,10 @@ function ReelItem({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, soundId]);
 
-  // Sync sound audio mute state with global mute toggle
   useEffect(() => {
     if (soundAudioRef.current) soundAudioRef.current.muted = isMuted;
   }, [isMuted]);
 
-  // Sync sound audio play/pause with the video element's play/pause
   useEffect(() => {
     if (!soundAudioRef.current) return;
     if (isPlaying) soundAudioRef.current.play().catch(() => {});
@@ -591,6 +599,7 @@ function ReelItem({
       setIsDownloading(false);
     }
   };
+
   const isFriendWith = isFriend(reel.user.username);
   const requestSent = isRequestSent(reel.user.username);
 
@@ -606,16 +615,12 @@ function ReelItem({
       }
       if (x < width * 0.35) {
         triggerHaptic(20);
-        if (videoElement) {
-          videoElement.currentTime = Math.max(0, videoElement.currentTime - 10);
-        }
+        if (videoElement) videoElement.currentTime = Math.max(0, videoElement.currentTime - 10);
         setSeekFlash('left');
         setTimeout(() => setSeekFlash(null), 700);
       } else if (x > width * 0.65) {
         triggerHaptic(20);
-        if (videoElement) {
-          videoElement.currentTime = Math.min(videoElement.duration || 0, videoElement.currentTime + 10);
-        }
+        if (videoElement) videoElement.currentTime = Math.min(videoElement.duration || 0, videoElement.currentTime + 10);
         setSeekFlash('right');
         setTimeout(() => setSeekFlash(null), 700);
       } else {
@@ -632,11 +637,8 @@ function ReelItem({
       lastTapRef.current = now;
       singleTapTimerRef.current = setTimeout(() => {
         if (videoElement) {
-          if (videoElement.paused) {
-            videoElement.play().catch(() => {});
-          } else {
-            videoElement.pause();
-          }
+          if (videoElement.paused) videoElement.play().catch(() => {});
+          else videoElement.pause();
         }
         singleTapTimerRef.current = null;
       }, 300);
@@ -649,15 +651,16 @@ function ReelItem({
     else sendFriendRequest(reel.user.username);
   };
 
-  const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}K` : n.toString());
+  const fmt = (n: number) => (n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : n.toString());
 
   return (
     <div
       ref={onContainerRef}
       data-index={index}
-      className="relative w-full h-full flex-shrink-0 snap-start bg-black overflow-hidden"
+      className="relative w-full flex-shrink-0 snap-start bg-black overflow-hidden"
       style={{ height: "100svh" }}
     >
+      {/* Video */}
       <video
         ref={combinedVideoRef}
         src={reel.videoUrl}
@@ -667,33 +670,41 @@ function ReelItem({
         muted={isMuted}
         preload="none"
         className="absolute inset-0 w-full h-full object-cover"
-        style={{
-          filter: videoFilter,
-          transform: videoMirror ? 'scaleX(-1)' : undefined,
-        }}
+        style={{ filter: videoFilter, transform: videoMirror ? 'scaleX(-1)' : undefined }}
       />
 
-      {/* Bug 1 fix: vignette effect overlay */}
+      {/* Vignette */}
       {showVignetteOverlay && (
-        <div
-          className="absolute inset-0 pointer-events-none z-[1]"
+        <div className="absolute inset-0 pointer-events-none z-[1]"
           style={{ background: 'radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.72) 100%)' }}
         />
       )}
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-black/30 pointer-events-none" />
+      {/* Cinematic gradient overlays */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* Top fade for header */}
+        <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-black/60 via-black/20 to-transparent" />
+        {/* Bottom fade for info area */}
+        <div className="absolute bottom-0 left-0 right-0 h-72 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
+      </div>
 
+      {/* Tap zone */}
       <div className="absolute inset-0 z-10" onClick={handleTap} />
 
+      {/* Double-tap heart burst */}
       {showHeart && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-          <Heart className="w-32 h-32 text-white fill-white drop-shadow-2xl animate-in zoom-in-50 fade-in duration-200" />
+          <div className="relative">
+            <div className="absolute inset-0 bg-rose-500/30 rounded-full blur-3xl scale-150" />
+            <Heart className="w-28 h-28 text-rose-500 fill-rose-500 drop-shadow-2xl animate-in zoom-in-50 fade-in duration-200 relative" />
+          </div>
         </div>
       )}
 
+      {/* Seek flash */}
       {seekFlash === 'left' && (
         <div className="absolute left-0 top-0 bottom-0 w-1/3 z-20 flex items-center justify-center pointer-events-none animate-in fade-in duration-100">
-          <div className="bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-1.5">
+          <div className="bg-black/40 backdrop-blur-md rounded-2xl px-4 py-2.5 flex items-center gap-1.5 border border-white/10">
             <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
             <span className="text-white text-xs font-black">10s</span>
           </div>
@@ -701,169 +712,153 @@ function ReelItem({
       )}
       {seekFlash === 'right' && (
         <div className="absolute right-0 top-0 bottom-0 w-1/3 z-20 flex items-center justify-center pointer-events-none animate-in fade-in duration-100">
-          <div className="bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-1.5">
+          <div className="bg-black/40 backdrop-blur-md rounded-2xl px-4 py-2.5 flex items-center gap-1.5 border border-white/10">
             <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
             <span className="text-white text-xs font-black">10s</span>
           </div>
         </div>
       )}
 
+      {/* Paused overlay */}
       {!isPlaying && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-          <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center animate-in zoom-in-75 fade-in duration-200">
-            <Play className="w-8 h-8 text-white fill-white ml-1" />
+          <div className="w-18 h-18 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-2xl" style={{ width: 72, height: 72 }}>
+            <Play className="w-9 h-9 text-white fill-white ml-1" />
           </div>
         </div>
       )}
 
-      <button
-        onClick={onToggleMute}
-        className="absolute top-20 right-4 z-30 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform"
-      >
-        {isMuted ? (
-          <VolumeX className="w-4 h-4 text-white" />
-        ) : (
-          <Volume2 className="w-4 h-4 text-white" />
-        )}
-      </button>
-
+      {/* Sponsored badge */}
       {reel.isCampaignReel && (
         <div className="absolute top-20 left-4 z-30">
-          <span className="bg-primary/90 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">
+          <span className="bg-primary/90 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/10 shadow-lg">
             Sponsored
           </span>
         </div>
       )}
 
-      <div className="absolute right-3 bottom-28 z-30 flex flex-col items-center gap-5">
-        <div className="relative">
+      {/* Mute toggle — top right */}
+      <button
+        onClick={onToggleMute}
+        className="absolute top-20 right-4 z-30 w-10 h-10 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center active:scale-90 transition-transform shadow-lg"
+      >
+        {isMuted ? <VolumeX className="w-4 h-4 text-white" /> : <Volume2 className="w-4 h-4 text-white" />}
+      </button>
+
+      {/* ── Right action rail ── */}
+      <div className="absolute right-3 bottom-28 z-30 flex flex-col items-center gap-3">
+        {/* Avatar + follow */}
+        <div className="relative mb-1">
           <Link href={reel.isCampaignReel ? "/" : `/profile/${reel.user.username}`}>
-            <Avatar className="h-11 w-11 border-2 border-white shadow-xl">
-              <AvatarImage src={getAdaptivePreview(reel.user.avatar, 'avatar', netTier) || reel.user.avatar} />
-              <AvatarFallback>{reel.user.name[0]}</AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <div className="absolute -inset-0.5 rounded-full bg-gradient-to-br from-primary via-purple-500 to-pink-500 opacity-80" />
+              <Avatar className="h-12 w-12 border-2 border-black relative">
+                <AvatarImage src={getAdaptivePreview(reel.user.avatar, 'avatar', netTier) || reel.user.avatar} />
+                <AvatarFallback>{reel.user.name[0]}</AvatarFallback>
+              </Avatar>
+            </div>
           </Link>
           {!isOwn && !reel.isCampaignReel && (
             <button
               onClick={handleFollowToggle}
               className={cn(
-                "absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90",
-                isFriendWith || isFollowing
-                  ? "bg-white"
-                  : requestSent
-                  ? "bg-white/60"
-                  : "bg-primary"
+                "absolute -bottom-2 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-90 border border-black",
+                isFriendWith || isFollowing ? "bg-white" : requestSent ? "bg-white/60" : "bg-primary"
               )}
             >
-              {isFriendWith || isFollowing ? (
-                <Check className="w-2.5 h-2.5 text-primary" />
-              ) : (
-                <UserPlus className="w-2.5 h-2.5 text-white" />
-              )}
+              {isFriendWith || isFollowing
+                ? <Check className="w-2.5 h-2.5 text-primary" />
+                : <UserPlus className="w-2.5 h-2.5 text-white" />
+              }
             </button>
           )}
         </div>
 
         {!reel.isCampaignReel && (
           <>
-            <button
+            {/* Like */}
+            <ActionBtn
               onClick={() => {
                 triggerHaptic(20);
-                // Bug 3 fix: update local count immediately so the UI is instant
                 setLocalLikes(prev => Math.max(0, prev + (isLiked ? -1 : 1)));
                 toggleLikePost(reel.$id);
               }}
-              className="flex flex-col items-center gap-0.5 active:scale-75 transition-transform"
+              label={fmt(localLikes)}
+              glow={isLiked ? "shadow-rose-500/30" : undefined}
             >
-              <Heart
-                className={cn(
-                  "w-7 h-7",
-                  isLiked ? "text-rose-500 fill-rose-500" : "text-white"
-                )}
-              />
-              <span className="text-white text-xs font-bold drop-shadow">{fmt(localLikes)}</span>
-            </button>
+              <Heart className={cn("w-6 h-6 transition-all", isLiked ? "text-rose-500 fill-rose-500 scale-110" : "text-white")} />
+            </ActionBtn>
 
-            <button
-              onClick={() => {
-                triggerHaptic(10);
-                onOpenComment();
-              }}
-              className="flex flex-col items-center gap-0.5 active:scale-90 transition-transform"
+            {/* Comment */}
+            <ActionBtn
+              onClick={() => { triggerHaptic(10); onOpenComment(); }}
+              label={fmt(reel.comments)}
             >
-              <MessageCircle className="w-7 h-7 text-white" />
-              <span className="text-white text-xs font-bold drop-shadow">{fmt(reel.comments)}</span>
-            </button>
+              <MessageCircle className="w-6 h-6 text-white" />
+            </ActionBtn>
 
-            <button
-              onClick={() => {
-                triggerHaptic(10);
-                onOpenShare();
-              }}
-              className="flex flex-col items-center gap-0.5 active:scale-90 transition-transform"
+            {/* Share */}
+            <ActionBtn
+              onClick={() => { triggerHaptic(10); onOpenShare(); }}
+              label={fmt(reel.shares)}
             >
-              <Share2 className="w-6 h-6 text-white" />
-              <span className="text-white text-xs font-bold drop-shadow">{fmt(reel.shares)}</span>
-            </button>
+              <Share2 className="w-5 h-5 text-white" />
+            </ActionBtn>
 
-            <button
+            {/* Download */}
+            <ActionBtn
               onClick={handleDownload}
               disabled={isDownloading}
-              className="flex flex-col items-center gap-0.5 active:scale-90 transition-transform disabled:opacity-50"
+              label="Save"
             >
               {isDownloading
-                ? <Loader2 className="w-6 h-6 text-white animate-spin" />
-                : <Download className="w-6 h-6 text-white" />}
-              <span className="text-white text-xs font-bold drop-shadow">Save</span>
-            </button>
+                ? <Loader2 className="w-5 h-5 text-white animate-spin" />
+                : <Download className="w-5 h-5 text-white" />
+              }
+            </ActionBtn>
 
+            {/* Gift */}
             {!isOwn && settings?.isGiftingEnabled && (
-              <button
-                onClick={() => {
-                  triggerHaptic(30);
-                  openGiftHub(reel.user as any);
-                }}
-                className="flex flex-col items-center gap-0.5 active:scale-75 transition-transform"
+              <ActionBtn
+                onClick={() => { triggerHaptic(30); openGiftHub(reel.user as any); }}
+                label="Gift"
+                glow="shadow-yellow-400/30"
               >
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-400 to-pink-500 flex items-center justify-center shadow-lg ring-2 ring-white/20">
-                  <Gift className="w-4 h-4 text-white fill-white" />
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-yellow-400 to-pink-500 flex items-center justify-center">
+                  <Gift className="w-3.5 h-3.5 text-white fill-white" />
                 </div>
-                <span className="text-white text-xs font-bold drop-shadow">Gift</span>
-              </button>
+              </ActionBtn>
             )}
           </>
         )}
 
+        {/* Sound disc */}
         <button
           onClick={() => {
             triggerHaptic(15);
-            if (soundId) {
-              setShowSoundSheet(true);
-            } else {
-              router.push('/reels/create');
-            }
+            if (soundId) setShowSoundSheet(true);
+            else router.push('/reels/create');
           }}
-          className={cn(
-            "w-9 h-9 rounded-full bg-black border-[3px] border-white/40 flex items-center justify-center shadow-lg active:scale-90 transition-transform",
-            isActive && "animate-spin [animation-duration:4s]"
-          )}
+          className="flex flex-col items-center gap-1 active:scale-90 transition-transform mt-1"
         >
-          <Music2 className="w-4 h-4 text-white" />
+          <div className={cn(
+            "w-11 h-11 rounded-full border-[3px] border-white/30 overflow-hidden bg-black flex items-center justify-center shadow-xl",
+            isActive && "animate-spin [animation-duration:4s]"
+          )}>
+            <div className="w-full h-full bg-gradient-to-br from-primary/60 to-purple-900/80 flex items-center justify-center">
+              <Music2 className="w-4 h-4 text-white" />
+            </div>
+          </div>
         </button>
       </div>
 
-      <div className="absolute bottom-10 left-3 right-16 z-30 pointer-events-none">
+      {/* ── Bottom info area ── */}
+      <div className="absolute bottom-14 left-3 right-16 z-30 pointer-events-none">
         {reel.isCampaignReel ? (
           <>
-            <p className="text-white/50 text-[10px] font-bold uppercase tracking-widest mb-1">
-              ViMore Official
-            </p>
-            <p className="text-white font-black text-base drop-shadow mb-1">
-              {reel.campaignTitle}
-            </p>
-            <p className="text-white/80 text-sm leading-snug line-clamp-2 drop-shadow-sm mb-3">
-              {reel.content}
-            </p>
+            <p className="text-white/50 text-[10px] font-bold uppercase tracking-widest mb-1">ViMore Official</p>
+            <p className="text-white font-black text-base drop-shadow mb-1">{reel.campaignTitle}</p>
+            <p className="text-white/80 text-sm leading-snug line-clamp-2 drop-shadow-sm mb-3">{reel.content}</p>
             {reel.actionUrl && reel.actionLabel && (
               <a
                 href={reel.actionUrl}
@@ -879,18 +874,26 @@ function ReelItem({
           <>
             <Link
               href={`/profile/${reel.user.username}`}
-              className="flex items-center gap-2 mb-1.5 pointer-events-auto w-fit"
+              className="flex items-center gap-2 mb-2 pointer-events-auto w-fit"
             >
-              <span className="text-white font-black text-sm drop-shadow">@{reel.user.username}</span>
+              <span className="text-white font-black text-sm drop-shadow">{reel.user.name}</span>
+              <span className="text-white/60 text-xs">@{reel.user.username}</span>
               {reel.user.isVerified && (
                 <div className="w-4 h-4 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
                   <Check className="w-2.5 h-2.5 text-white" />
                 </div>
               )}
             </Link>
-            <p className="text-white/90 text-sm leading-snug line-clamp-2 drop-shadow-sm">
+            <p className="text-white/90 text-sm leading-snug line-clamp-2 drop-shadow-sm font-medium">
               {reel.content}
             </p>
+            {/* Views pill */}
+            {(reel.views || 0) > 0 && (
+              <div className="flex items-center gap-1 mt-2">
+                <Eye className="w-3 h-3 text-white/50" />
+                <span className="text-white/50 text-xs font-bold">{fmt(reel.views || 0)} views</span>
+              </div>
+            )}
             <button
               className="flex items-center gap-1.5 mt-2 pointer-events-auto active:opacity-70"
               onClick={() => { triggerHaptic(10); if (soundId) setShowSoundSheet(true); }}
@@ -904,8 +907,9 @@ function ReelItem({
         )}
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 z-30 px-3 pb-2 pt-1">
-        <div className="flex items-center gap-2 mb-1">
+      {/* ── Progress bar ── */}
+      <div className="absolute bottom-0 left-0 right-0 z-30 px-3 pb-3 pt-1">
+        <div className="flex items-center gap-2">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -914,7 +918,7 @@ function ReelItem({
                 else videoElement.pause();
               }
             }}
-            className="w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
+            className="w-7 h-7 rounded-xl bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
           >
             {isPlaying ? (
               <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
@@ -923,7 +927,7 @@ function ReelItem({
             )}
           </button>
           <div
-            className="flex-1 h-1 bg-white/30 rounded-full relative cursor-pointer"
+            className="flex-1 h-1 bg-white/20 rounded-full relative cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
               if (!videoElement || !duration) return;
@@ -931,11 +935,7 @@ function ReelItem({
               const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
               videoElement.currentTime = ratio * duration;
             }}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              const bar = e.currentTarget as HTMLElement;
-              bar.setPointerCapture(e.pointerId);
-            }}
+            onPointerDown={(e) => { e.stopPropagation(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); }}
             onPointerMove={(e) => {
               if (e.buttons !== 1) return;
               e.stopPropagation();
@@ -946,26 +946,23 @@ function ReelItem({
             }}
           >
             <div
-              className="h-full bg-white rounded-full transition-none"
+              className="h-full bg-gradient-to-r from-primary to-purple-500 rounded-full transition-none"
               style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
             />
             <div
-              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-md -translate-x-1/2"
+              className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-md -translate-x-1/2 border-2 border-primary"
               style={{ left: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
             />
           </div>
-          <span className="text-white/60 text-[9px] font-bold tabular-nums flex-shrink-0">
+          <span className="text-white/50 text-[9px] font-bold tabular-nums flex-shrink-0">
             {Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, '0')} / {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}
           </span>
         </div>
       </div>
 
-      {/* ── Use This Sound sheet ── */}
+      {/* Sound sheet */}
       {showSoundSheet && soundId && (
-        <div
-          className="fixed inset-0 z-[300] flex flex-col justify-end"
-          onClick={() => setShowSoundSheet(false)}
-        >
+        <div className="fixed inset-0 z-[300] flex flex-col justify-end" onClick={() => setShowSoundSheet(false)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div
             className="relative bg-[#0d0d1a] rounded-t-[2rem] px-6 pt-4 pb-10 animate-in slide-in-from-bottom duration-300"
@@ -983,28 +980,23 @@ function ReelItem({
               </div>
             </div>
             <button
-              onClick={() => {
-                setShowSoundSheet(false);
-                router.push(`/reels/create?sound_id=${encodeURIComponent(soundId)}`);
-              }}
+              onClick={() => { setShowSoundSheet(false); router.push(`/reels/create?sound_id=${encodeURIComponent(soundId)}`); }}
               className="w-full py-4 bg-primary rounded-2xl text-white font-black text-base flex items-center justify-center gap-3 active:scale-95 transition-transform"
             >
               <Music2 className="w-5 h-5" />
               Use this sound
             </button>
-            <button
-              onClick={() => setShowSoundSheet(false)}
-              className="w-full py-3 mt-2 text-white/40 text-sm font-bold"
-            >
+            <button onClick={() => setShowSoundSheet(false)} className="w-full py-3 mt-2 text-white/40 text-sm font-bold">
               Cancel
             </button>
           </div>
         </div>
       )}
-
     </div>
   );
 }
+
+/* ─────────────────────────────── Main Page ─────────────────────────────── */
 
 export default function ReelsPage() {
   const { campaigns, posts, openCommentHub, fetchComments, friendUsernames, followingUsernames, followingUserIds, settings, isOffline, fetchReels, postCountOverrides } = usePosts();
@@ -1021,6 +1013,15 @@ export default function ReelsPage() {
   const reelsPhaseRef = useRef<'connections' | 'global'>('connections');
   const reelsConnCursorRef = useRef<string | null>(null);
   const reelsGlobalCursorRef = useRef<string | null>(null);
+
+  // Stable per-session random seed (different every page load = different shuffle)
+  const sessionSeed = useRef(Math.floor(Math.random() * 0x7fffffff));
+
+  // Track which reels the user has seen this session
+  const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set());
+  const markSeen = useCallback((id: string) => {
+    setSeenIds(prev => { if (prev.has(id)) return prev; const n = new Set(prev); n.add(id); return n; });
+  }, []);
 
   useEffect(() => {
     if (isLoadingReelsRef.current) return;
@@ -1039,7 +1040,6 @@ export default function ReelsPage() {
         reelsGlobalCursorRef.current = globalCursor;
       })
       .catch(() => {
-        // Network failed — fall back to cached reels if offline
         if (isOffline && cachedReels.length > 0) setReelsList(cachedReels);
       })
       .finally(() => {
@@ -1049,14 +1049,12 @@ export default function ReelsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchReels]);
 
-  // When offline with no live reels, inject cached reels
   useEffect(() => {
     if (isOffline && reelsList.length === 0 && !isLoadingReels && cachedReels.length > 0) {
       setReelsList(cachedReels);
     }
   }, [isOffline, reelsList.length, isLoadingReels, cachedReels]);
 
-  // Save live reels to cache + pin video URLs as reels are loaded / watched
   useEffect(() => {
     if (isOffline || reelsList.length === 0) return;
     const toCache = reelsList.slice(0, 15).map(r => ({
@@ -1074,104 +1072,146 @@ export default function ReelsPage() {
     return { ...r, ...(ov.likes !== undefined ? { likes: ov.likes } : {}), ...(ov.unlikes !== undefined ? { unlikes: ov.unlikes } : {}), ...(ov.comments !== undefined ? { comments: ov.comments } : {}), ...(ov.shares !== undefined ? { shares: ov.shares } : {}) };
   }), [reelsList, postCountOverrides]);
 
+  /* ── For You feed: unseen first (shuffled) → most viewed (shuffled) → rest ── */
+  const forYouSorted = useMemo(() => {
+    const seed = sessionSeed.current;
+    const connectionSet = new Set([...(friendUsernames || []), ...(followingUsernames || [])]);
+
+    const unseen = reels.filter(r => !seenIds.has(r.$id));
+    const seen = reels.filter(r => seenIds.has(r.$id));
+
+    // Within unseen: connections get priority via a weighted shuffle
+    // Split unseen into connection-unseen and global-unseen, shuffle each, interleave
+    const unseenConn = unseen.filter(r => connectionSet.has(r.user.username));
+    const unseenGlobal = unseen.filter(r => !connectionSet.has(r.user.username));
+
+    // Sort global unseen by views desc, then shuffle within tiers
+    const unseenGlobalByViews = [...unseenGlobal].sort((a, b) => (b.views || 0) - (a.views || 0));
+    // Split into top-viewed and rest, shuffle each bucket separately
+    const topViewedCount = Math.ceil(unseenGlobalByViews.length / 3);
+    const topViewed = seededShuffle(unseenGlobalByViews.slice(0, topViewedCount), seed + 1);
+    const restViewed = seededShuffle(unseenGlobalByViews.slice(topViewedCount), seed + 2);
+    const shuffledUnseenConn = seededShuffle(unseenConn, seed + 3);
+
+    // Interleave: conn, top-viewed global, rest
+    const unseenOrdered: Post[] = [];
+    let ci = 0, ti = 0, ri = 0;
+    while (ci < shuffledUnseenConn.length || ti < topViewed.length || ri < restViewed.length) {
+      if (ci < shuffledUnseenConn.length) unseenOrdered.push(shuffledUnseenConn[ci++]);
+      if (ti < topViewed.length) unseenOrdered.push(topViewed[ti++]);
+      if (ci < shuffledUnseenConn.length) unseenOrdered.push(shuffledUnseenConn[ci++]);
+      if (ri < restViewed.length) unseenOrdered.push(restViewed[ri++]);
+    }
+
+    // Seen: sort by views desc, shuffle slightly so it's not identical every time
+    const seenByViews = seededShuffle(
+      [...seen].sort((a, b) => (b.views || 0) - (a.views || 0)),
+      seed + 4
+    );
+
+    return [...unseenOrdered, ...seenByViews];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reels, friendUsernames, followingUsernames]);
+
+  /* ── Following feed: friends/following only, unseen-recent first, then seen-recent, all shuffled ── */
+  const followingSorted = useMemo(() => {
+    const seed = sessionSeed.current;
+    const friendSet = new Set([...(friendUsernames || []), ...(followingUsernames || [])]);
+    const friendReels = reels.filter(r => friendSet.has(r.user.username));
+
+    const unseen = friendReels.filter(r => !seenIds.has(r.$id));
+    const seen = friendReels.filter(r => seenIds.has(r.$id));
+
+    // Most recent first, then shuffle within a small window (groups of 5) to avoid exact same order
+    const sortByRecent = (arr: Post[]) => [...arr].sort((a, b) => {
+      const ta = typeof a.time === 'string' ? new Date(a.time).getTime() : 0;
+      const tb = typeof b.time === 'string' ? new Date(b.time).getTime() : 0;
+      return tb - ta;
+    });
+
+    const shuffleInWindows = (arr: Post[], windowSize: number) => {
+      const result: Post[] = [];
+      for (let i = 0; i < arr.length; i += windowSize) {
+        const window = arr.slice(i, i + windowSize);
+        result.push(...seededShuffle(window, seed + i));
+      }
+      return result;
+    };
+
+    const unseenOrdered = shuffleInWindows(sortByRecent(unseen), 5);
+    const seenOrdered = shuffleInWindows(sortByRecent(seen), 5);
+
+    return [...unseenOrdered, ...seenOrdered];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reels, friendUsernames, followingUsernames]);
+
+  /* ── Campaign injection into forYou feed ── */
   const reelFeed = useMemo<ReelFeedItem[]>(() => {
     const videoCampaignsRaw = campaigns
       .filter((c: any) => c.is_active && c.placement === 'reel' && c.type === "video" && c.media_url)
       .sort(() => Math.random() - 0.5);
     const videoCampaigns = videoCampaignsRaw.map((c) => ({
-        $id: c.$id,
-        user: {
-          name: "ViMore Official",
-          username: "vimore",
-          avatar: "/icon.svg",
-          isVerified: true,
-          role: "Global Node",
-        },
-        content: c.content || c.title,
-        time: c.timestamp || "Now",
-        likes: c.impressions || 0,
-        unlikes: 0,
-        comments: 0,
-        shares: c.clicks || 0,
-        views: c.impressions || 0,
-        videoUrl: c.media_url,
-        isCampaignReel: true,
-        campaignTitle: c.title,
-        actionUrl: c.action_url,
-        actionLabel: c.action_label,
-      } as ReelFeedItem));
+      $id: c.$id,
+      user: { name: "ViMore Official", username: "vimore", avatar: "/icon.svg", isVerified: true, role: "Global Node" },
+      content: c.content || c.title,
+      time: c.timestamp || "Now",
+      likes: c.impressions || 0,
+      unlikes: 0,
+      comments: 0,
+      shares: c.clicks || 0,
+      views: c.impressions || 0,
+      videoUrl: c.media_url,
+      isCampaignReel: true,
+      campaignTitle: c.title,
+      actionUrl: c.action_url,
+      actionLabel: c.action_label,
+    } as ReelFeedItem));
 
-    // Boosted reels — shuffled randomly each session so users see different ones
-    const boostedReels: ReelFeedItem[] = [...(posts || [])
-      .filter((p: any) => p.isBoosted && p.type === 'reel')]
+    const boostedReels: ReelFeedItem[] = [...(posts || []).filter((p: any) => p.isBoosted && p.type === 'reel')]
       .sort(() => Math.random() - 0.5) as ReelFeedItem[];
 
-    if (videoCampaigns.length === 0 && boostedReels.length === 0) return reels as ReelFeedItem[];
+    if (videoCampaigns.length === 0 && boostedReels.length === 0) return forYouSorted as ReelFeedItem[];
 
     const result: ReelFeedItem[] = [];
-    let reelIdx = 0;
-    let campIdx = 0;
-    let boostedIdx = 0;
-    let countSinceLast = 0;
+    let reelIdx = 0, campIdx = 0, boostedIdx = 0, countSinceLast = 0;
 
-    // First 2 reels, then first campaign slot
-    for (let i = 0; i < 2 && reelIdx < reels.length; i++) {
-      result.push(reels[reelIdx++] as ReelFeedItem);
+    for (let i = 0; i < 2 && reelIdx < forYouSorted.length; i++) {
+      result.push(forYouSorted[reelIdx++] as ReelFeedItem);
     }
     if (reelIdx > 0 && videoCampaigns.length > 0) {
       result.push(videoCampaigns[campIdx++ % videoCampaigns.length]);
     }
 
-    // Subsequent: after every 5 reels → campaign + boosted reel (both randomized)
-    while (reelIdx < reels.length) {
-      result.push(reels[reelIdx++] as ReelFeedItem);
+    while (reelIdx < forYouSorted.length) {
+      result.push(forYouSorted[reelIdx++] as ReelFeedItem);
       countSinceLast++;
-
       if (countSinceLast >= 5) {
         countSinceLast = 0;
-        if (videoCampaigns.length > 0) {
-          result.push(videoCampaigns[campIdx++ % videoCampaigns.length]);
-        }
-        if (boostedReels.length > 0) {
-          result.push(boostedReels[boostedIdx % boostedReels.length]);
-          boostedIdx++;
-        }
+        if (videoCampaigns.length > 0) result.push(videoCampaigns[campIdx++ % videoCampaigns.length]);
+        if (boostedReels.length > 0) { result.push(boostedReels[boostedIdx % boostedReels.length]); boostedIdx++; }
       }
     }
     return result;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reels, campaigns, posts]);
+  }, [forYouSorted, campaigns, posts]);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [shareReel, setShareReel] = useState<Post | null>(null);
   const [reelTab, setReelTab] = useState<"foryou" | "following">("foryou");
 
-  const followingReelFeed = useMemo<ReelFeedItem[]>(() => {
-    const friendSet = new Set([...(friendUsernames || []), ...(followingUsernames || [])]);
-    return reels
-      .filter((r) => friendSet.has(r.user.username))
-      .map((r) => r as ReelFeedItem);
-  }, [reels, friendUsernames, followingUsernames]);
-
-  const activeFeed = reelTab === "following" ? followingReelFeed : reelFeed;
+  const activeFeed = reelTab === "following" ? followingSorted as ReelFeedItem[] : reelFeed;
 
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const containerRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const setVideoRef = useCallback(
-    (index: number) => (el: HTMLVideoElement | null) => {
-      videoRefs.current[index] = el;
-    },
-    []
-  );
+  const setVideoRef = useCallback((index: number) => (el: HTMLVideoElement | null) => {
+    videoRefs.current[index] = el;
+  }, []);
 
-  const setContainerRef = useCallback(
-    (index: number) => (el: HTMLDivElement | null) => {
-      containerRefs.current[index] = el;
-    },
-    []
-  );
+  const setContainerRef = useCallback((index: number) => (el: HTMLDivElement | null) => {
+    containerRefs.current[index] = el;
+  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -1184,12 +1224,8 @@ export default function ReelsPage() {
           if (entry.isIntersecting) {
             setActiveIndex(idx);
             video.muted = isMuted;
-            // Lite Mode: do NOT auto-stream the reel. Show poster + Play button.
-            if (pageTier !== 'lite') {
-              video.play().catch(() => {});
-            } else {
-              try { video.pause(); } catch {}
-            }
+            if (pageTier !== 'lite') video.play().catch(() => {});
+            else try { video.pause(); } catch {}
           } else {
             video.pause();
             video.currentTime = 0;
@@ -1198,11 +1234,7 @@ export default function ReelsPage() {
       },
       { threshold: 0.6 }
     );
-
-    containerRefs.current.forEach((el) => {
-      if (el) observer.observe(el);
-    });
-
+    containerRefs.current.forEach((el) => { if (el) observer.observe(el); });
     return () => observer.disconnect();
   }, [activeFeed.length, isMuted, pageTier]);
 
@@ -1211,12 +1243,10 @@ export default function ReelsPage() {
     if (video) video.muted = isMuted;
   }, [isMuted, activeIndex]);
 
-  // Pin the current reel's video in SW for offline playback
   useEffect(() => {
     if (isOffline) return;
     const reel = activeFeed[activeIndex];
     if (reel?.videoUrl) pinMediaInSW([reel.videoUrl]);
-    // Also pre-pin the next reel
     const next = activeFeed[activeIndex + 1];
     if (next?.videoUrl) pinMediaInSW([next.videoUrl]);
   }, [activeIndex, activeFeed, isOffline]);
@@ -1252,84 +1282,117 @@ export default function ReelsPage() {
   }, [activeIndex, activeFeed, hasMoreReels, fetchReels, followingUserIds]);
 
   const handleOpenComment = useCallback(
-    (postId: string) => {
-      openCommentHub(postId);
-      fetchComments(postId);
-    },
+    (postId: string) => { openCommentHub(postId); fetchComments(postId); },
     [openCommentHub, fetchComments]
   );
 
+  const handleTabSwitch = (tab: "foryou" | "following") => {
+    setReelTab(tab);
+    setActiveIndex(0);
+    // Pause all videos
+    videoRefs.current.forEach(v => { if (v) v.pause(); });
+  };
+
+  /* ── Loading screen ── */
   if (isLoadingReels && reelsList.length === 0) {
     return (
-      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-4">
-        <Link href="/" className="absolute top-4 left-4 w-9 h-9 rounded-full bg-white/10 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-5">
+        <Link href="/" className="absolute top-safe-or-12 left-4 w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center">
           <ArrowLeft className="w-5 h-5 text-white" />
         </Link>
-        <Loader2 className="w-12 h-12 text-white/40 animate-spin" />
-        <p className="text-white/40 font-bold text-sm uppercase tracking-widest">Loading Reels</p>
+        <div className="relative">
+          <div className="w-16 h-16 rounded-full border-2 border-white/10 border-t-primary animate-spin" />
+          <Film className="absolute inset-0 m-auto w-7 h-7 text-white/40" />
+        </div>
+        <div className="text-center">
+          <p className="text-white font-black text-sm uppercase tracking-widest">Loading Reels</p>
+          <p className="text-white/30 text-xs mt-1">Curating your feed…</p>
+        </div>
       </div>
     );
   }
 
+  /* ── Empty state ── */
   if (activeFeed.length === 0 && reelTab === "foryou") {
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-4">
-        <Link
-          href="/"
-          className="absolute top-4 left-4 w-9 h-9 rounded-full bg-white/10 flex items-center justify-center"
-        >
+        <Link href="/" className="absolute top-12 left-4 w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center">
           <ArrowLeft className="w-5 h-5 text-white" />
         </Link>
-        <Film className="w-16 h-16 text-white/20" />
-        <p className="text-white/60 font-bold text-lg">No reels yet</p>
-        <p className="text-white/30 text-sm">Videos posted by creators will appear here</p>
+        <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-2">
+          <Film className="w-10 h-10 text-white/20" />
+        </div>
+        <p className="text-white/60 font-black text-lg">No reels yet</p>
+        <p className="text-white/30 text-sm text-center px-8">Videos posted by creators will appear here</p>
       </div>
     );
   }
 
   return (
     <div className="fixed inset-0 bg-black overflow-hidden">
+
+      {/* Offline banner */}
       {isOffline && (
         <div className="absolute top-0 left-0 right-0 z-50 bg-amber-500/20 backdrop-blur-sm border-b border-amber-500/30 px-4 py-1.5 flex items-center justify-center gap-2 pointer-events-none">
           <WifiOff className="h-3 w-3 text-amber-400 shrink-0" />
           <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">Offline — showing saved reels</span>
         </div>
       )}
+
+      {/* ── Top header overlay ── */}
       <div className="absolute top-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="flex items-center justify-between px-4 pt-12 pb-3">
+        <div className="flex items-center justify-between px-4 pt-12 pb-4">
+          {/* Back */}
           <Link
             href="/"
-            className="pointer-events-auto w-9 h-9 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform"
+            className="pointer-events-auto w-10 h-10 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center active:scale-90 transition-transform shadow-lg"
           >
             <ArrowLeft className="w-5 h-5 text-white" />
           </Link>
-          <div className="flex items-center gap-5 pointer-events-auto">
+
+          {/* Tab switcher — pill style */}
+          <div className="pointer-events-auto flex items-center bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-1 gap-0.5 shadow-lg">
             <button
-              onClick={() => { setReelTab("foryou"); setActiveIndex(0); }}
-              className={cn("font-black text-sm pb-0.5 border-b-2 transition-all", reelTab === "foryou" ? "text-white border-white" : "text-white/40 border-transparent")}
+              onClick={() => handleTabSwitch("foryou")}
+              className={cn(
+                "px-4 py-1.5 rounded-xl text-sm font-black transition-all",
+                reelTab === "foryou"
+                  ? "bg-white text-black shadow-sm"
+                  : "text-white/60 hover:text-white"
+              )}
             >
               For You
             </button>
             <button
-              onClick={() => { setReelTab("following"); setActiveIndex(0); }}
-              className={cn("font-black text-sm pb-0.5 border-b-2 transition-all", reelTab === "following" ? "text-white border-white" : "text-white/40 border-transparent")}
+              onClick={() => handleTabSwitch("following")}
+              className={cn(
+                "px-4 py-1.5 rounded-xl text-sm font-black transition-all",
+                reelTab === "following"
+                  ? "bg-white text-black shadow-sm"
+                  : "text-white/60 hover:text-white"
+              )}
             >
               Following
             </button>
           </div>
-          <div className="w-9" />
+
+          {/* Spacer */}
+          <div className="w-10" />
         </div>
       </div>
 
+      {/* ── Reel scroll container ── */}
       <div
         className="h-full w-full overflow-y-scroll snap-y snap-mandatory"
         style={{ scrollbarWidth: "none" }}
       >
         {activeFeed.length === 0 && reelTab === "following" ? (
           <div className="h-full flex flex-col items-center justify-center gap-4 text-center px-8">
-            <Users className="w-16 h-16 text-white/20" />
-            <p className="text-white/60 font-bold text-lg">No reels from friends yet</p>
-            <p className="text-white/30 text-sm">Add friends or follow people to see their reels here</p>
+            <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-2">
+              <Users className="w-10 h-10 text-white/20" />
+            </div>
+            <p className="text-white/60 font-black text-lg">No reels from friends</p>
+            <p className="text-white/30 text-sm">Follow people to see their reels here</p>
           </div>
         ) : (
           <>
@@ -1345,11 +1408,13 @@ export default function ReelsPage() {
                 onToggleMute={() => setIsMuted((m) => !m)}
                 onOpenShare={() => !reel.isCampaignReel && setShareReel(reel)}
                 onOpenComment={() => !reel.isCampaignReel && handleOpenComment(reel.$id)}
+                onMarkSeen={markSeen}
               />
             ))}
             {isLoadingReels && reelsList.length > 0 && (
-              <div className="h-[100svh] w-full flex-shrink-0 snap-start bg-black flex items-center justify-center">
-                <Loader2 className="w-10 h-10 text-white/30 animate-spin" />
+              <div className="h-[100svh] w-full flex-shrink-0 snap-start bg-black flex flex-col items-center justify-center gap-3">
+                <div className="w-10 h-10 rounded-full border-2 border-white/10 border-t-primary animate-spin" />
+                <p className="text-white/30 text-xs font-bold uppercase tracking-widest">Loading more</p>
               </div>
             )}
           </>
