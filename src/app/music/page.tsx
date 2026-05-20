@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, Suspense } from "react";
+import { useState, useMemo, useEffect, useRef, Suspense } from "react";
 import { loadCache, OFFLINE_KEYS } from "@/lib/offline-cache";
 import { MainNav } from "@/components/layout/main-nav";
 import { Header } from "@/components/layout/header";

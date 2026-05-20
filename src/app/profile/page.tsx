@@ -151,9 +151,16 @@ export default function MyProfilePage() {
   const [verifyExpiry, setVerifyExpiry] = useState<number | null>(null);
 
   const handleOpenVerify = () => {
-    setVerifyStatus('idle');
     setVerifyError(null);
-    setVerifyExpiry(null);
+    if (currentUser?.isVerified) {
+      setVerifyStatus('already_verified');
+      // Surface the stored expiry if available on the user object
+      const expiry = (currentUser as any).verificationExpiry ?? (currentUser as any).verifyExpiry ?? null;
+      setVerifyExpiry(typeof expiry === 'number' ? expiry : expiry ? new Date(expiry).getTime() : null);
+    } else {
+      setVerifyStatus('idle');
+      setVerifyExpiry(null);
+    }
     setIsVerifyOpen(true);
   };
 
