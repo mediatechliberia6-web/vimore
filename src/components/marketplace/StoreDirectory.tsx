@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ export function StoreDirectory() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const categoryInitialized = useRef(false);
+  const sessionSeed = useRef(Math.floor(Math.random() * 0x7fffffff));
 
   useEffect(() => {
     let cancelled = false;
@@ -73,9 +75,18 @@ export function StoreDirectory() {
 
   const byCategory = useMemo(() => {
     const map = new Map<string, StoreDoc[]>();
+    let s = sessionSeed.current;
     for (const cat of STORE_CATEGORIES) {
-      const catStores = regularStores.filter(s => s.category === cat);
-      if (catStores.length > 0) map.set(cat, catStores);
+      const catStores = regularStores.filter(store => store.category === cat);
+      if (catStores.length === 0) continue;
+      // Shuffle stores within each category using the session seed so order varies per reload
+      const shuffled = [...catStores];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        s = (s * 1664525 + 1013904223) & 0xffffffff;
+        const j = Math.abs(s) % (i + 1);
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      map.set(cat, shuffled);
     }
     return map;
   }, [regularStores]);
@@ -84,6 +95,14 @@ export function StoreDirectory() {
     STORE_CATEGORIES.filter(c => stores.some(s => s.category === c)),
     [stores]
   );
+
+  // Randomly pre-select a category on first load so the same shelf isn't always shown first
+  useEffect(() => {
+    if (categoryInitialized.current || categoriesWithStores.length === 0) return;
+    categoryInitialized.current = true;
+    const randomIdx = Math.floor(Math.random() * categoriesWithStores.length);
+    setActiveCategory(categoriesWithStores[randomIdx]);
+  }, [categoriesWithStores]);
 
   const isSearching = search.trim().length > 0 || !!activeCategory;
 

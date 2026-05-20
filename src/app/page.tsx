@@ -3,6 +3,8 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 import { Header } from "@/components/layout/header";
 import { SubHeader } from "@/components/layout/sub-header";
 import { PostCard } from "@/components/post/post-card";
@@ -14,13 +16,159 @@ import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
-import { Rocket, Loader2, Mail, ChevronUp, WifiOff, CheckCircle2 } from "lucide-react";
+import { Rocket, Loader2, Mail, ChevronUp, WifiOff, CheckCircle2, Zap, Play, Music2, Sparkles, Store } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { account } from "@/lib/appwrite";
 import { Button } from "@/components/ui/button";
 import { CreateStoryModal } from "@/components/feed/create-story-modal";
 import { useFeedSignal } from "@/context/FeedSignalContext";
 import { AcronymRibbon } from "@/components/branding/acronym-meaning";
+import { listAllStores, isStoreBoosted } from "@/lib/stores";
+
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  const result = [...arr];
+  let s = seed;
+  for (let i = result.length - 1; i > 0; i--) {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    const j = Math.abs(s) % (i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+function FeedMusicStrip() {
+  const { globalSongs, playCollection, triggerHaptic } = useMusic();
+  const router = useRouter();
+  const seed = useRef(Math.floor(Math.random() * 0x7fffffff));
+
+  const boostedTracks = useMemo(() => {
+    const boosted = globalSongs.filter((s) => s.isBoosted);
+    return seededShuffle(boosted, seed.current).slice(0, 10);
+  }, [globalSongs]);
+
+  if (boostedTracks.length === 0) return null;
+
+  const handlePlay = (idx: number) => {
+    triggerHaptic(20);
+    playCollection(boostedTracks, idx);
+    router.push("/music");
+  };
+
+  return (
+    <div className="bg-white dark:bg-card rounded-[2rem] overflow-hidden border border-border/40 shadow-sm">
+      <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="h-7 w-7 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow">
+            <Zap className="h-3.5 w-3.5 text-white fill-white" />
+          </div>
+          <div>
+            <p className="text-[12px] font-black uppercase tracking-tight leading-none">Trending Music</p>
+            <p className="text-[9px] font-black text-primary uppercase tracking-widest mt-0.5">Boosted Tracks</p>
+          </div>
+        </div>
+        <Link href="/music" className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">
+          See All
+        </Link>
+      </div>
+      <div className="overflow-x-auto pb-4 pt-2 px-4 scrollbar-none">
+        <div className="flex gap-3 w-max">
+          {boostedTracks.map((track, idx) => (
+            <button
+              key={track.id}
+              onClick={() => handlePlay(idx)}
+              className="flex flex-col items-start w-[120px] group active:scale-95 transition-transform"
+            >
+              <div className="relative w-[120px] h-[120px] rounded-2xl overflow-hidden bg-muted mb-2 shadow-sm">
+                {track.cover ? (
+                  <Image src={track.cover} alt={track.title} fill className="object-cover" sizes="120px" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-primary/30 to-purple-900/30 flex items-center justify-center">
+                    <Music2 className="w-8 h-8 text-primary/60" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/10 group-active:bg-black/30 transition-colors" />
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="w-9 h-9 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                    <Play className="w-4 h-4 text-primary fill-primary ml-0.5" />
+                  </div>
+                </div>
+                <div className="absolute bottom-1.5 left-1.5">
+                  <span className="text-[7px] font-black uppercase tracking-widest bg-primary text-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                    <Zap className="w-2 h-2 fill-white" /> HOT
+                  </span>
+                </div>
+              </div>
+              <p className="text-[11px] font-black truncate w-full text-left leading-tight">{track.title}</p>
+              <p className="text-[10px] text-muted-foreground truncate w-full text-left">{track.artist}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeedStoreStrip() {
+  const router = useRouter();
+  const [boostedStores, setBoostedStores] = useState<any[]>([]);
+  const seed = useRef(Math.floor(Math.random() * 0x7fffffff));
+
+  useEffect(() => {
+    listAllStores(60)
+      .then((all) => {
+        const boosted = all.filter(isStoreBoosted);
+        setBoostedStores(seededShuffle(boosted, seed.current));
+      })
+      .catch(() => {});
+  }, []);
+
+  if (boostedStores.length === 0) return null;
+
+  return (
+    <div className="bg-white dark:bg-card rounded-[2rem] overflow-hidden border border-border/40 shadow-sm">
+      <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="h-7 w-7 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow">
+            <Sparkles className="h-3.5 w-3.5 text-white" />
+          </div>
+          <div>
+            <p className="text-[12px] font-black uppercase tracking-tight leading-none">Featured Stores</p>
+            <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mt-0.5">Boosted to top</p>
+          </div>
+        </div>
+        <Link href="/marketplace" className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">
+          See All
+        </Link>
+      </div>
+      <div className="overflow-x-auto pb-4 pt-2 px-4 scrollbar-none">
+        <div className="flex gap-3 w-max">
+          {boostedStores.map((store) => (
+            <button
+              key={store.$id}
+              onClick={() => router.push(`/marketplace/store/${store.$id}`)}
+              className="flex flex-col items-start w-[140px] group active:scale-95 transition-transform"
+            >
+              <div className="relative w-[140px] h-[100px] rounded-2xl overflow-hidden bg-gradient-to-br from-amber-400/10 to-orange-500/10 border border-amber-200/40 dark:border-amber-700/30 mb-2 flex items-center justify-center">
+                {store.logo_url ? (
+                  <Image src={store.logo_url} alt={store.store_name} fill className="object-cover" sizes="140px" />
+                ) : (
+                  <Store className="w-8 h-8 text-amber-500/50" />
+                )}
+                <div className="absolute top-1.5 right-1.5">
+                  <span className="text-[7px] font-black uppercase tracking-widest bg-amber-400 text-white px-1.5 py-0.5 rounded-full">
+                    ✨ Featured
+                  </span>
+                </div>
+              </div>
+              <p className="text-[11px] font-black truncate w-full text-left leading-tight">{store.store_name}</p>
+              <p className="text-[9px] text-muted-foreground truncate w-full text-left">{store.category}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function EmailVerificationGate({ email }: { email?: string }) {
   const [resendLoading, setResendLoading] = useState(false);
@@ -198,6 +346,8 @@ export default function Home() {
     let campaignIdx = 0;
     let loadTriggerInserted = false;
     let suggestionsInserted = false;
+    let musicStripInserted = false;
+    let storeStripInserted = false;
 
     for (let i = 0; i < organicSorted.length; i++) {
       const item = organicSorted[i];
@@ -205,10 +355,22 @@ export default function Home() {
       result.push({ type: 'post', data: item });
       totalOrganicCount++;
 
+      // Boosted stores strip after 7th organic post
+      if (totalOrganicCount === 7 && !storeStripInserted) {
+        result.push({ type: 'store-strip', id: 'store-strip-7' });
+        storeStripInserted = true;
+      }
+
       // Suggested follows after 8th organic item
       if (totalOrganicCount === 8 && !suggestionsInserted) {
         result.push({ type: 'suggestions', id: 'suggested-follows-8' });
         suggestionsInserted = true;
+      }
+
+      // Boosted music tracks strip after 10th organic post
+      if (totalOrganicCount === 10 && !musicStripInserted) {
+        result.push({ type: 'music-strip', id: 'music-strip-10' });
+        musicStripInserted = true;
       }
 
       // Load-more trigger after the 14th organic item
@@ -344,6 +506,10 @@ export default function Home() {
               <>
                 {feedItems.map((item, idx) => {
                   if (item.type === 'suggestions') return <SuggestedFollows key={item.id} />;
+
+                  if (item.type === 'music-strip') return <FeedMusicStrip key={item.id} />;
+
+                  if (item.type === 'store-strip') return <FeedStoreStrip key={item.id} />;
 
                   if (item.type === 'load-trigger') {
                     return <div key={item.id} ref={loadTriggerRef} className="h-1" />;

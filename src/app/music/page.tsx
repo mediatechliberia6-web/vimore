@@ -45,7 +45,10 @@ function MusicPageContent() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("discover");
-  const [libraryTab, setLibraryTab] = useState("playlists");
+  const [libraryTab, setLibraryTab] = useState(() => {
+    const tabs = ["playlists", "songs", "albums", "downloaded"];
+    return tabs[Math.floor(Math.random() * tabs.length)];
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteItem, setDeleteItem] = useState<{ id: string | number, type: 'track' | 'album' } | null>(null);
 
@@ -78,9 +81,17 @@ function MusicPageContent() {
     return [...filteredSongs].sort((a, b) => parseInt(b.streams, 10) - parseInt(a.streams, 10))[0];
   }, [filteredSongs, searchQuery]);
 
+  const musicPageSeed = useRef(Math.floor(Math.random() * 0x7fffffff));
   const trendingBoosted = useMemo(() => {
     const boosted = globalSongs.filter(s => s.isBoosted);
-    return [...boosted].sort(() => Math.random() - 0.5);
+    const result = [...boosted];
+    let s = musicPageSeed.current;
+    for (let i = result.length - 1; i > 0; i--) {
+      s = (s * 1664525 + 1013904223) & 0xffffffff;
+      const j = Math.abs(s) % (i + 1);
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [globalSongs.length]);
 
