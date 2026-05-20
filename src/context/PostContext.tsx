@@ -3975,7 +3975,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const boostNode = async (nodeId: string, duration: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'SONIC') => {
     if (!currentUser) return;
 
-    const ratePerDay = currency === 'DIAMOND' ? 5 : 2500;
+    const ratePerDay = currency === 'DIAMOND' ? 2 : 2500;
     const totalCost = duration * ratePerDay;
     const currentBalance = currency === 'DIAMOND' ? (currentUser.diamondBalance || 0) : (currentUser.starBalance || 0);
 
