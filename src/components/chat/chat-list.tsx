@@ -206,7 +206,7 @@ export function ChatList({ selectedId, onSelect }: ChatListProps) {
               const id = (item as any).username || (item as any).$id;
               const isSelected = selectedId === id;
 
-              const isOnlineVisible = !settings.isGhostMode && !item.isGroup && (item as any).isOnline;
+              const isOnlineVisible = !settings.isGhostMode && !item.isGroup && onlineUserIds.has((item as any).$id);
               const lastSeenAt = !item.isGroup ? (item as any).lastSeenAt : null;
 
               const memberOnlineCount = item.isGroup

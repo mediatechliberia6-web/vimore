@@ -190,7 +190,7 @@ export default function TicketsPage() {
 
   const handleProceedToConfirm = () => {
     if (!currentUser || !selectedEvent) return;
-    const balance = currentUser.diamond_balance || 0;
+    const balance = currentUser.diamondBalance || 0;
     if (balance < selectedEvent.ticket_price) {
       toast({ variant: 'destructive', title: 'Insufficient Diamonds', description: `You need ${selectedEvent.ticket_price} 💎 but only have ${balance} 💎.` });
       return;
@@ -255,7 +255,7 @@ export default function TicketsPage() {
     );
   }
 
-  const balance = currentUser.diamond_balance || 0;
+  const balance = currentUser.diamondBalance || 0;
 
   return (
     <div className="min-h-screen bg-[#F4F6FB] dark:bg-[#08080f] pb-32">

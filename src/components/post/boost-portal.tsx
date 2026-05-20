@@ -31,7 +31,7 @@ interface BoostPortalProps {
   type: 'POST' | 'SONIC';
 }
 
-const DIAMOND_RATE = 2;
+const DIAMOND_RATE = 5;
 const STAR_RATE = 2500;
 
 const DAY_TIERS = [
