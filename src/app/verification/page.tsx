@@ -192,7 +192,12 @@ export default function VerificationHub() {
 
         {/* Perks */}
         <section className="space-y-3">
-          <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground px-1">What you get</p>
+          <div className="flex items-center justify-between px-1">
+            <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">What you get</p>
+            <Link href="/verification/benefits" className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1 hover:opacity-80 transition-opacity">
+              See all benefits <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             {perks.map((perk) => (
               <div key={perk.label} className="bg-white dark:bg-white/4 border border-black/5 dark:border-white/8 rounded-2xl p-4 shadow-sm">
