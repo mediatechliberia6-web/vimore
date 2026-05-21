@@ -746,7 +746,7 @@ function ReelItem({
       </button>
 
       {/* ── Right action rail ── */}
-      <div className="absolute right-3 bottom-28 z-30 flex flex-col items-center gap-3">
+      <div className="absolute right-3 top-[38%] z-30 flex flex-col items-center gap-2.5">
         {/* Avatar + follow */}
         <div className="relative mb-1">
           <Link href={reel.isCampaignReel ? "/" : `/profile/${reel.user.username}`}>

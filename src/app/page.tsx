@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { CreateStoryModal } from "@/components/feed/create-story-modal";
 import { useFeedSignal } from "@/context/FeedSignalContext";
 import { AcronymRibbon } from "@/components/branding/acronym-meaning";
-import { listAllStores, isStoreBoosted } from "@/lib/stores";
+import { listAllStores, isStoreBoosted, getStoreLogoUrl } from "@/lib/stores";
 
 function seededShuffle<T>(arr: T[], seed: number): T[] {
   const result = [...arr];
@@ -149,8 +149,8 @@ function FeedStoreStrip() {
               className="flex flex-col items-start w-[140px] group active:scale-95 transition-transform"
             >
               <div className="relative w-[140px] h-[100px] rounded-2xl overflow-hidden bg-gradient-to-br from-amber-400/10 to-orange-500/10 border border-amber-200/40 dark:border-amber-700/30 mb-2 flex items-center justify-center">
-                {store.logo_url ? (
-                  <Image src={store.logo_url} alt={store.store_name} fill className="object-cover" sizes="140px" />
+                {store.logo_file_id ? (
+                  <Image src={getStoreLogoUrl(store.logo_file_id)} alt={store.store_name} fill className="object-cover" sizes="140px" />
                 ) : (
                   <Store className="w-8 h-8 text-amber-500/50" />
                 )}
@@ -344,7 +344,6 @@ export default function Home() {
     let boostedRegularIdx = 0;
     let boostedReelIdx = 0;
     let campaignIdx = 0;
-    let loadTriggerInserted = false;
     let suggestionsInserted = false;
     let musicStripInserted = false;
     let storeStripInserted = false;
@@ -373,12 +372,6 @@ export default function Home() {
         musicStripInserted = true;
       }
 
-      // Load-more trigger after the 14th organic item
-      if (totalOrganicCount === 14 && !loadTriggerInserted) {
-        result.push({ type: 'load-trigger', id: 'load-trigger-14' });
-        loadTriggerInserted = true;
-      }
-
       // After every 3 organic items → campaign ad (randomized order)
       if (totalOrganicCount % 3 === 0 && shuffledFeedCampaigns.length > 0) {
         result.push({ type: 'campaign', data: shuffledFeedCampaigns[campaignIdx % shuffledFeedCampaigns.length] });
@@ -401,6 +394,10 @@ export default function Home() {
         }
       }
     }
+
+    // Always place the load-more trigger at the end so it fires every time
+    // the user reaches the bottom, regardless of how many posts are loaded.
+    result.push({ type: 'load-trigger', id: 'load-trigger-end' });
 
     return result;
   }, [organicSorted, posts, shuffledFeedCampaigns, shuffledBoostedRegular, shuffledBoostedReels]);
