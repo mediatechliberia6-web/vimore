@@ -348,27 +348,30 @@ export default function Home() {
     let musicStripInserted = false;
     let storeStripInserted = false;
 
+    // Pre-pick random insertion positions for suggestion cards so they feel natural
+    const totalLen = Math.max(organicSorted.length, 9);
+    const third = Math.floor(totalLen / 3);
+    const storePos = 3 + Math.floor(Math.random() * Math.max(1, third - 3));
+    const suggestPos = third + Math.floor(Math.random() * Math.max(1, third));
+    const musicPos = third * 2 + Math.floor(Math.random() * Math.max(1, third));
+
     for (let i = 0; i < organicSorted.length; i++) {
       const item = organicSorted[i];
       const isReel = item.type === 'reel';
       result.push({ type: 'post', data: item });
       totalOrganicCount++;
 
-      // Boosted stores strip after 7th organic post
-      if (totalOrganicCount === 7 && !storeStripInserted) {
-        result.push({ type: 'store-strip', id: 'store-strip-7' });
+      // Random placement for suggestion strips
+      if (totalOrganicCount >= storePos && !storeStripInserted) {
+        result.push({ type: 'store-strip', id: 'store-strip-rand' });
         storeStripInserted = true;
       }
-
-      // Suggested follows after 8th organic item
-      if (totalOrganicCount === 8 && !suggestionsInserted) {
-        result.push({ type: 'suggestions', id: 'suggested-follows-8' });
+      if (totalOrganicCount >= suggestPos && !suggestionsInserted) {
+        result.push({ type: 'suggestions', id: 'suggested-follows-rand' });
         suggestionsInserted = true;
       }
-
-      // Boosted music tracks strip after 10th organic post
-      if (totalOrganicCount === 10 && !musicStripInserted) {
-        result.push({ type: 'music-strip', id: 'music-strip-10' });
+      if (totalOrganicCount >= musicPos && !musicStripInserted) {
+        result.push({ type: 'music-strip', id: 'music-strip-rand' });
         musicStripInserted = true;
       }
 
@@ -378,17 +381,17 @@ export default function Home() {
         campaignIdx++;
       }
 
-      // After every 5 organic reels → inject a randomly-ordered boosted reel
+      // Random ~1-in-5 chance to inject a boosted reel after at least 3 organic reels
       if (isReel) {
         organicReelCount++;
-        if (organicReelCount % 5 === 0 && shuffledBoostedReels.length > 0) {
+        if (organicReelCount > 2 && shuffledBoostedReels.length > 0 && Math.random() < 0.2) {
           result.push({ type: 'boost', data: shuffledBoostedReels[boostedReelIdx % shuffledBoostedReels.length] });
           boostedReelIdx++;
         }
       } else {
-        // After every 5 organic (non-reel) posts → inject a randomly-ordered boosted post
+        // Random ~1-in-5 chance to inject a boosted post after at least 3 organic posts
         organicPostCount++;
-        if (organicPostCount % 5 === 0 && shuffledBoostedRegular.length > 0) {
+        if (organicPostCount > 2 && shuffledBoostedRegular.length > 0 && Math.random() < 0.2) {
           result.push({ type: 'boost', data: shuffledBoostedRegular[boostedRegularIdx % shuffledBoostedRegular.length] });
           boostedRegularIdx++;
         }

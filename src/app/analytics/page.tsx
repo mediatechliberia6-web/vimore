@@ -189,7 +189,7 @@ function PostMiniCard({
   const metricValue =
     metric === "likes"
       ? post.likes_count || 0
-      : post.views || post.boost_current_views || 0;
+      : post.views_count || post.views || post.boost_current_views || 0;
 
   return (
     <button
@@ -325,7 +325,7 @@ export default function AnalyticsPage() {
         const prevPosts = prevPostsRes.documents;
 
         const sumViews = (docs: any[]) =>
-          docs.reduce((s, p) => s + (p.views_count || p.views || p.boost_current_views || 0), 0);
+          docs.reduce((s, p) => s + (p.views_count ?? p.views ?? p.boost_current_views ?? 0), 0);
         const views3sec = sumViews(posts);
         const prevViews3sec = sumViews(prevPosts);
 

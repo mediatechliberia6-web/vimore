@@ -1185,7 +1185,8 @@ export default function ReelsPage() {
     while (reelIdx < forYouSorted.length) {
       result.push(forYouSorted[reelIdx++] as ReelFeedItem);
       countSinceLast++;
-      if (countSinceLast >= 5) {
+      // Random ~1-in-5 chance per reel after at least 2 organic reels since last injection
+      if (countSinceLast >= 2 && Math.random() < 0.2) {
         countSinceLast = 0;
         if (videoCampaigns.length > 0) result.push(videoCampaigns[campIdx++ % videoCampaigns.length]);
         if (boostedReels.length > 0) { result.push(boostedReels[boostedIdx % boostedReels.length]); boostedIdx++; }
