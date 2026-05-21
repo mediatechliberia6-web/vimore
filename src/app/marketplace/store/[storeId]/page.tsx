@@ -15,7 +15,7 @@ import { getStore, StoreDoc, getStoreLogoUrl, isStoreBoosted } from "@/lib/store
 import { listProductsBySeller, ProductDoc, getProductImageUrl, formatPrice, isFeatured } from "@/lib/marketplace";
 import {
   ArrowLeft, Store, MessageCircle, Zap, MapPin, Package,
-  Loader2, ShoppingBag, Pencil, Link2, Check, Plus,
+  Loader2, ShoppingBag, Pencil, Link2, Check, Plus, CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
@@ -143,8 +143,10 @@ export default function StorefrontPage() {
     );
   }
 
+  const { allUsers } = usePosts();
   const isOwner = currentUser?.$id === store.owner_id;
   const boosted = isStoreBoosted(store);
+  const isOwnerVerified = allUsers.find(u => u.$id === store.owner_id)?.isVerified || false;
   const logoUrl = store.logo_file_id ? getStoreLogoUrl(store.logo_file_id) : null;
   const featuredFirst = [...products].sort((a, b) => Number(isFeatured(b)) - Number(isFeatured(a)));
 
@@ -233,8 +235,14 @@ export default function StorefrontPage() {
               </div>
 
               <div className="space-y-1">
-                <div className="flex items-center justify-center gap-2">
+                <div className="flex items-center justify-center gap-2 flex-wrap">
                   <h1 className="text-2xl font-black uppercase tracking-tighter">{store.store_name}</h1>
+                  {isOwnerVerified && (
+                    <div className="h-6 px-2 rounded-full bg-primary/10 border border-primary/20 flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3 text-primary fill-primary" />
+                      <span className="text-[8px] font-black text-primary uppercase tracking-widest">Verified Store</span>
+                    </div>
+                  )}
                   {boosted && (
                     <div className="h-6 px-2 rounded-full bg-amber-400 flex items-center gap-1">
                       <Zap className="h-3 w-3 text-white fill-white" />

@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { StoreDoc, getStoreLogoUrl, isStoreBoosted } from "@/lib/stores";
-import { Store, Zap, ExternalLink } from "lucide-react";
+import { Store, Zap, ExternalLink, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePosts } from "@/context/PostContext";
 
 export const CATEGORY_STYLES: Record<string, {
   gradient: string; soft: string; text: string; badge: string; border: string; emoji: string;
@@ -28,9 +29,11 @@ interface StoreCardProps {
 
 export function StoreCard({ store, size = "normal" }: StoreCardProps) {
   const router = useRouter();
+  const { allUsers } = usePosts();
   const boosted = isStoreBoosted(store);
   const logoUrl = store.logo_file_id ? getStoreLogoUrl(store.logo_file_id) : null;
   const style = CATEGORY_STYLES[store.category] || CATEGORY_STYLES['Other'];
+  const isOwnerVerified = allUsers.find(u => u.$id === store.owner_id)?.isVerified || false;
 
   if (size === "boosted") {
     return (
@@ -50,9 +53,17 @@ export function StoreCard({ store, size = "normal" }: StoreCardProps) {
           <div className="absolute top-2 left-2 flex items-center gap-1 bg-amber-400 text-white text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow">
             <Zap className="h-2.5 w-2.5 fill-white" /> Featured
           </div>
+          {isOwnerVerified && (
+            <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/90 dark:bg-black/60 backdrop-blur-sm text-primary text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full shadow">
+              <CheckCircle2 className="h-2.5 w-2.5 fill-primary text-white" /> Verified
+            </div>
+          )}
         </div>
         <div className="p-3 text-left space-y-1">
-          <p className="font-black text-sm text-foreground leading-tight line-clamp-1">{store.store_name}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="font-black text-sm text-foreground leading-tight line-clamp-1 flex-1">{store.store_name}</p>
+            {isOwnerVerified && <CheckCircle2 className="h-3.5 w-3.5 text-primary fill-primary shrink-0" />}
+          </div>
           {store.motto && <p className="text-[10px] text-muted-foreground line-clamp-2 leading-snug">{store.motto}</p>}
           <span className={cn("inline-block text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full mt-1", style.badge)}>
             {style.emoji} {store.category}
@@ -78,14 +89,22 @@ export function StoreCard({ store, size = "normal" }: StoreCardProps) {
           }
         </div>
         <div className="flex-1 text-left min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <p className="font-black text-sm text-foreground truncate">{store.store_name}</p>
+            {isOwnerVerified && <CheckCircle2 className="h-3.5 w-3.5 text-primary fill-primary shrink-0" />}
             {boosted && <Zap className="h-3 w-3 text-amber-500 fill-amber-400 shrink-0" />}
           </div>
           {store.motto && <p className="text-[11px] text-muted-foreground truncate">{store.motto}</p>}
-          <span className={cn("inline-block text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full mt-0.5", style.badge)}>
-            {style.emoji} {store.category}
-          </span>
+          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+            <span className={cn("inline-block text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full", style.badge)}>
+              {style.emoji} {store.category}
+            </span>
+            {isOwnerVerified && (
+              <span className="inline-flex items-center gap-0.5 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                <CheckCircle2 className="h-2 w-2" /> Verified Store
+              </span>
+            )}
+          </div>
         </div>
         <ExternalLink className="h-4 w-4 text-muted-foreground/40 shrink-0" />
       </button>
@@ -108,6 +127,16 @@ export function StoreCard({ store, size = "normal" }: StoreCardProps) {
         {boosted && (
           <div className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-amber-400 border border-white flex items-center justify-center">
             <Zap className="h-2 w-2 text-white fill-white" />
+          </div>
+        )}
+        {isOwnerVerified && !boosted && (
+          <div className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-white dark:bg-card border border-white flex items-center justify-center shadow-sm">
+            <CheckCircle2 className="h-3 w-3 text-primary fill-primary" />
+          </div>
+        )}
+        {isOwnerVerified && boosted && (
+          <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-white dark:bg-card border border-white flex items-center justify-center shadow-sm">
+            <CheckCircle2 className="h-3 w-3 text-primary fill-primary" />
           </div>
         )}
       </div>

@@ -20,7 +20,7 @@ import { ArrowLeft, MapPin, Trash2, Flag, Loader2, Calendar, CheckCircle2, Rotat
 export default function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>();
   const router = useRouter();
-  const { currentUser } = usePosts();
+  const { currentUser, allUsers } = usePosts();
   const { toast } = useToast();
   const [product, setProduct] = useState<ProductDoc | null>(null);
   const [loading, setLoading] = useState(true);
@@ -183,11 +183,24 @@ export default function ProductDetailPage() {
               <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{new Date(product.$createdAt).toLocaleDateString()}</span>
             </div>
 
-            <Link href={`/profile/${product.sellerUsername}`} className="block bg-secondary/40 rounded-2xl p-3 hover:bg-secondary/60 transition-colors">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Seller</p>
-              <p className="text-sm font-bold">{product.sellerName}</p>
-              <p className="text-xs text-muted-foreground">@{product.sellerUsername}</p>
-            </Link>
+            {(() => {
+              const isSellerVerified = allUsers.find(u => u.$id === product.sellerId)?.isVerified || false;
+              return (
+                <Link href={`/profile/${product.sellerUsername}`} className="block bg-secondary/40 rounded-2xl p-3 hover:bg-secondary/60 transition-colors">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Seller</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-sm font-bold">{product.sellerName}</p>
+                    {isSellerVerified && (
+                      <div className="flex items-center gap-1 bg-primary/10 border border-primary/20 rounded-full px-2 py-0.5">
+                        <CheckCircle2 className="h-3 w-3 text-primary fill-primary" />
+                        <span className="text-[8px] font-black text-primary uppercase tracking-widest">Verified Store</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">@{product.sellerUsername}</p>
+                </Link>
+              );
+            })()}
 
             <div className="bg-card border border-border/40 rounded-2xl p-4">
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Description</p>

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
-import { MapPin, Trash2, Flag, Loader2, Sparkles } from "lucide-react";
+import { MapPin, Trash2, Flag, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -20,8 +20,12 @@ interface Props {
 }
 
 export function ProductCard({ product, onDeleted }: Props) {
-  const { currentUser } = usePosts();
+  const { currentUser, allUsers } = usePosts();
   const { toast } = useToast();
+  const isSellerVerified = useMemo(
+    () => allUsers.find(u => u.$id === product.sellerId)?.isVerified || false,
+    [allUsers, product.sellerId]
+  );
   const [deleting, setDeleting] = useState(false);
 
   const isOwner = currentUser?.$id === product.sellerId;
@@ -74,7 +78,14 @@ export function ProductCard({ product, onDeleted }: Props) {
           <MapPin className="h-3 w-3 shrink-0" />
           <span className="truncate">{product.location}</span>
         </div>
-        <div className="text-[10px] text-muted-foreground truncate">@{product.sellerUsername}</div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-muted-foreground truncate">@{product.sellerUsername}</span>
+          {isSellerVerified && (
+            <span className="inline-flex items-center gap-0.5 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-primary/10 text-primary shrink-0">
+              <CheckCircle2 className="h-2 w-2" /> Verified
+            </span>
+          )}
+        </div>
 
         <div className="mt-1">
           <ContactButtons product={product} compact />
