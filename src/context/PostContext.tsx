@@ -3218,9 +3218,10 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (currency === 'DIAMOND' && diamondBal < cost) {
       throw new Error(`Insufficient Diamond balance. You need ${cost} Diamonds but only have ${diamondBal}.`);
     }
-    // Verified recipients keep 90% (10% fee), unverified keep 80% (20% fee)
+    // Verified recipients keep 95% on direct gifts (5% fee — platform gift bonus),
+    // unverified keep 80% (20% fee). This bonus applies to gift reactions only (not unlocks or subs).
     const recipientIsVerified = targetUserForGift?.isVerified || false;
-    const creatorShare = Math.floor(cost * (recipientIsVerified ? 0.9 : 0.8));
+    const creatorShare = Math.floor(cost * (recipientIsVerified ? 0.95 : 0.8));
     const platformFee = cost - creatorShare;
 
     const newBalance = currency === 'GOLD' ? { gold_balance: goldBal - cost } : { diamond_balance: diamondBal - cost };
@@ -3261,7 +3262,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
             type: 'GIFT_RECEIVED',
             currency,
             amount: creatorShare,
-            description: `Gift received (${recipientIsVerified ? '90' : '80'}%) from @${currentUser.username} — ${platformFee} ${currency} platform fee`,
+            description: `Gift received (${recipientIsVerified ? '95' : '80'}%) from @${currentUser.username}${recipientIsVerified ? ' — verified gift bonus applied' : ` — ${platformFee} ${currency} platform fee`}`,
             reference_id: currentUser.$id,
             status: 'COMPLETED',
           }),

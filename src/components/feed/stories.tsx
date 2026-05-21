@@ -5,7 +5,7 @@ import { useState, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import Image from "next/image";
-import { Plus } from "lucide-react";
+import { Plus, CheckCircle2 } from "lucide-react";
 import { usePosts } from "@/context/PostContext";
 import { useNetwork } from "@/context/NetworkContext";
 import { getAdaptivePreview } from "@/lib/adaptive-media";
@@ -132,14 +132,21 @@ export function Stories({ onOpenCreate }: StoriesProps) {
                   "absolute transition-all duration-500",
                   "top-2 left-2"
                 )}>
-                  <Avatar className={cn(
-                    "border-2 shadow-lg transition-all",
-                    "h-8 w-8",
-                    story.isCloseFriends ? "border-[#42b72a]" : "border-primary"
-                  )}>
-                    <AvatarImage src={getAdaptivePreview(story.user.avatar, 'avatar', tier) || story.user.avatar} />
-                    <AvatarFallback>{story.user.name[0]}</AvatarFallback>
-                  </Avatar>
+                  <div className="relative">
+                    <Avatar className={cn(
+                      "border-2 shadow-lg transition-all",
+                      "h-8 w-8",
+                      story.isCloseFriends ? "border-[#42b72a]" : "border-primary"
+                    )}>
+                      <AvatarImage src={getAdaptivePreview(story.user.avatar, 'avatar', tier) || story.user.avatar} />
+                      <AvatarFallback>{story.user.name[0]}</AvatarFallback>
+                    </Avatar>
+                    {story.user.isVerified && (
+                      <div className="absolute -bottom-0.5 -right-0.5 bg-white dark:bg-card rounded-full p-px shadow-md">
+                        <CheckCircle2 className="h-3 w-3 text-primary fill-primary" />
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="absolute bottom-2 left-2 right-2">

@@ -38,9 +38,14 @@ export default function VerificationHub() {
 
   const isPlayerActive = currentTrack && !isExpanded;
 
+  // Returning verified creators get a loyalty discount on renewal
+  const isRenewal = !!(currentUser && currentUser.hasEverBeenVerified && !currentUser.isVerified);
+
   const pricing = useMemo(() => {
-    return { diamond: 8, star: 25000 };
-  }, []);
+    return isRenewal
+      ? { diamond: 6, star: 20000 }
+      : { diamond: 8, star: 25000 };
+  }, [isRenewal]);
 
   const currentCost = currencyChoice === 'DIAMOND' ? pricing.diamond : pricing.star;
 
@@ -149,6 +154,21 @@ export default function VerificationHub() {
         "max-w-xl mx-auto px-4 pb-28 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500",
         isPlayerActive ? "pt-6" : "pt-6"
       )}>
+
+        {/* Loyalty renewal banner */}
+        {isRenewal && (
+          <div className="flex items-start gap-3 bg-green-500/8 border border-green-500/20 rounded-2xl p-4">
+            <div className="h-8 w-8 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
+              <BadgeCheck className="h-4 w-4 text-green-500" />
+            </div>
+            <div>
+              <p className="text-xs font-black text-green-600 dark:text-green-400 mb-0.5">Loyalty Discount Applied</p>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                Welcome back! As a returning creator your renewal is discounted — <strong className="text-foreground">6 Diamonds</strong> or <strong className="text-foreground">20,000 Stars</strong> instead of the usual price.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Hero section */}
         <section className="relative bg-gradient-to-br from-primary via-violet-600 to-indigo-600 rounded-3xl p-6 text-white overflow-hidden shadow-2xl shadow-primary/30">

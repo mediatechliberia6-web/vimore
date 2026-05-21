@@ -10,25 +10,25 @@ import {
   Zap,
   DollarSign,
   Users,
-  Search,
   Star,
   Gem,
   ChevronRight,
   ShieldCheck,
-  Eye,
   Heart,
   MessageCircle,
   Gift,
+  RefreshCw,
+  Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
-const VERIFIED_FEE = 10;
 const UNVERIFIED_FEE = 20;
 const EXAMPLE_AMOUNT = 100;
-
-const verifiedKeeps = EXAMPLE_AMOUNT * (1 - VERIFIED_FEE / 100);
+// Verified creators keep 95% on direct gift reactions (5% fee with platform bonus)
+const GIFT_VERIFIED_KEEP = 95;
+const verifiedKeeps = EXAMPLE_AMOUNT * (GIFT_VERIFIED_KEEP / 100);
 const unverifiedKeeps = EXAMPLE_AMOUNT * (1 - UNVERIFIED_FEE / 100);
 
 export default function VerifiedBenefitsPage() {
@@ -152,14 +152,14 @@ export default function VerifiedBenefitsPage() {
               </div>
             </div>
 
-            {/* Extra earned per 1000 */}
+            {/* Gift bonus callout */}
             <div className="flex items-center gap-3 bg-green-500/8 border border-green-500/15 rounded-2xl p-3.5">
               <div className="h-9 w-9 rounded-xl bg-green-500/15 flex items-center justify-center shrink-0">
                 <DollarSign className="h-4.5 w-4.5 text-green-500" style={{ height: '18px', width: '18px' }} />
               </div>
               <div>
-                <p className="text-xs font-black text-foreground">10 extra per 100 Gold earned</p>
-                <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Verified creators earn 10 Gold more for every 100 Gold received compared to unverified creators.</p>
+                <p className="text-xs font-black text-foreground">Gift bonus: keep 95% on direct gift reactions</p>
+                <p className="text-[10px] text-muted-foreground font-medium mt-0.5">When fans send you gift reactions (stickers), the platform adds a 5% bonus — you keep 95 Gold of every 100 Gold sent. Applies to gift reactions only, not unlocks or subscriptions.</p>
               </div>
             </div>
           </div>
@@ -176,7 +176,30 @@ export default function VerifiedBenefitsPage() {
                 color: "text-primary",
                 bg: "bg-primary/10",
                 title: "Verified Badge on Everything",
-                desc: "The purple checkmark appears on your profile, every post, every comment, and every message you send. Instant credibility.",
+                desc: "The purple checkmark appears on your profile, every post, every comment, and every story you share. Instant credibility.",
+              },
+              {
+                icon: CheckCircle2,
+                color: "text-violet-500",
+                bg: "bg-violet-500/10",
+                title: "Badge on Your Stories",
+                desc: "A purple checkmark appears directly on your story avatar in the stories rail, so fans know it's you before they even tap.",
+              },
+              {
+                icon: Trophy,
+                color: "text-amber-500",
+                bg: "bg-amber-500/10",
+                title: "Verified Creator Leaderboard",
+                desc: "Only verified creators appear on the weekly Creator Rankings board. Fans can discover and follow you there — non-verified users can't appear at all.",
+                link: "/leaderboard",
+                linkLabel: "View Rankings",
+              },
+              {
+                icon: RefreshCw,
+                color: "text-green-500",
+                bg: "bg-green-500/10",
+                title: "Loyalty Renewal Discount",
+                desc: "Returning verified creators renew at a lower price — 6 Diamonds or 20,000 Stars instead of the usual 8 Diamonds / 25,000 Stars. Reward for staying committed.",
               },
               {
                 icon: TrendingUp,
@@ -221,9 +244,14 @@ export default function VerifiedBenefitsPage() {
                 <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5", perk.bg)}>
                   <perk.icon className={cn("h-5 w-5", perk.color)} />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-black text-foreground mb-1">{perk.title}</p>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">{perk.desc}</p>
+                  {(perk as any).link && (
+                    <Link href={(perk as any).link} className="inline-flex items-center gap-1 mt-2 text-[10px] font-black uppercase tracking-widest text-primary hover:opacity-80 transition-opacity">
+                      {(perk as any).linkLabel} <ChevronRight className="h-3 w-3" />
+                    </Link>
+                  )}
                 </div>
               </div>
             ))}
@@ -273,7 +301,27 @@ export default function VerifiedBenefitsPage() {
               <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Stars / mo</p>
             </div>
           </div>
+          <div className="flex items-start gap-2.5 bg-green-500/8 border border-green-500/15 rounded-2xl p-3">
+            <RefreshCw className="h-3.5 w-3.5 text-green-500 mt-0.5 shrink-0" />
+            <p className="text-[10px] text-green-700 dark:text-green-400 font-medium leading-relaxed">
+              <strong>Loyalty discount:</strong> Returning creators renew for just <strong>6 Diamonds</strong> or <strong>20,000 Stars</strong> — automatically applied if you've been verified before.
+            </p>
+          </div>
         </section>
+
+        {/* Leaderboard CTA */}
+        <Link href="/leaderboard" className="block">
+          <div className="flex items-center gap-4 bg-gradient-to-r from-amber-400/15 to-amber-500/5 border border-amber-400/25 rounded-2xl p-4 hover:border-amber-400/40 transition-colors">
+            <div className="h-10 w-10 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+              <Trophy className="h-5 w-5 text-amber-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black text-foreground">See the Creator Rankings</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Only verified creators appear on the leaderboard. Check who's on top.</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          </div>
+        </Link>
 
         {/* CTA */}
         <Link href="/verification" className="block">
