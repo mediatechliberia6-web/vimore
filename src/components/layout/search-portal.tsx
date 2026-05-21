@@ -119,7 +119,19 @@ export function SearchPortal() {
       return matchesContent || matchesUser || matchesHashtag;
     });
 
-    return { people: liveUsers, audio, nodes };
+    // Sort people: verified first → active boost → regular
+    const now = Date.now();
+    const boostedUsernames = new Set(
+      posts
+        .filter((p: any) => p.isBoosted && p.boostExpiry && p.boostExpiry > now)
+        .map((p: any) => p.user?.username)
+        .filter(Boolean)
+    );
+    const sortedPeople = [...liveUsers].sort((a, b) => {
+      const score = (u: any) => (u.isVerified ? 2 : boostedUsernames.has(u.username) ? 1 : 0);
+      return score(b) - score(a);
+    });
+    return { people: sortedPeople, audio, nodes };
   }, [query, liveUsers, posts, globalSongs]);
 
   const handleDeepLink = (type: 'profile' | 'track' | 'post', id: string | number) => {

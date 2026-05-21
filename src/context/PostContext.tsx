@@ -3052,8 +3052,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (balance < cost) {
       throw new Error(`Insufficient Gold balance. You need ${cost} Gold but only have ${balance}.`);
     }
-    const creatorShare = Math.floor(cost * 0.9);
-    const platformFee = cost - creatorShare;
+    // creatorShare is calculated after checking owner verification status
+    let creatorShare = Math.floor(cost * 0.8);
+    let platformFee = cost - creatorShare;
 
     setUnlockedPostIdsState(p => new Set(p).add(postId));
     setCurrentUserState(prev => prev ? { ...prev, goldBalance: balance - cost } : null);
@@ -3073,22 +3074,25 @@ export function PostProvider({ children }: { children: ReactNode }) {
         databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
           gold_balance: balance - cost,
         }),
-        databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
-          user_id: currentUser.$id,
-          type: 'POST_UNLOCK',
-          currency: 'GOLD',
-          amount: cost,
-          description: `Post unlock — ${platformFee} Gold platform fee`,
-          reference_id: postId,
-          status: 'COMPLETED',
-        }),
       ];
 
-      // Credit 90% to the post owner
+      // Credit to the post owner — verified creators keep 90%, unverified keep 80%
       if (ownerId && ownerId !== currentUser.$id) {
         const ownerDoc = await databases.getDocument(DATABASE_ID, COL.USERS, ownerId);
+        const ownerIsVerified = ownerDoc.is_verified || false;
+        creatorShare = Math.floor(cost * (ownerIsVerified ? 0.9 : 0.8));
+        platformFee = cost - creatorShare;
         const ownerCurrentBalance = ownerDoc.gold_balance || 0;
         ops.push(
+          databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
+            user_id: currentUser.$id,
+            type: 'POST_UNLOCK',
+            currency: 'GOLD',
+            amount: cost,
+            description: `Post unlock — ${platformFee} Gold platform fee`,
+            reference_id: postId,
+            status: 'COMPLETED',
+          }),
           databases.updateDocument(DATABASE_ID, COL.USERS, ownerId, {
             gold_balance: ownerCurrentBalance + creatorShare,
           }),
@@ -3097,7 +3101,19 @@ export function PostProvider({ children }: { children: ReactNode }) {
             type: 'POST_UNLOCK_EARNING',
             currency: 'GOLD',
             amount: creatorShare,
-            description: `Post unlock earning (90%) — ${platformFee} Gold platform fee`,
+            description: `Post unlock earning (${ownerIsVerified ? '90' : '80'}%) — ${platformFee} Gold platform fee`,
+            reference_id: postId,
+            status: 'COMPLETED',
+          }),
+        );
+      } else {
+        ops.push(
+          databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
+            user_id: currentUser.$id,
+            type: 'POST_UNLOCK',
+            currency: 'GOLD',
+            amount: cost,
+            description: `Post unlock — ${platformFee} Gold platform fee`,
             reference_id: postId,
             status: 'COMPLETED',
           }),
@@ -3115,13 +3131,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (balance < cost) {
       throw new Error(`Insufficient Diamond balance. You need ${cost} Diamonds but only have ${balance}.`);
     }
-    const creatorShare = Math.floor(cost * 0.9);
+    // Verified creators keep 90% (10% fee), unverified keep 80% (20% fee)
+    const creatorUser = allUsers.find(u => u.username === username);
+    const creatorIsVerified = creatorUser?.isVerified || false;
+    const creatorShare = Math.floor(cost * (creatorIsVerified ? 0.9 : 0.8));
     const platformFee = cost - creatorShare;
 
     setActiveSubscriptionsState(p => new Set(p).add(username));
     setCurrentUserState(prev => prev ? { ...prev, diamondBalance: balance - cost } : null);
-
-    const creatorUser = allUsers.find(u => u.username === username);
     const creatorId = creatorUser?.$id || username;
     const expiresAt = new Date(Date.now() + 30 * 86400000).toISOString();
     try {
@@ -3160,7 +3177,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
             type: 'SUBSCRIPTION_EARNING',
             currency: 'DIAMOND',
             amount: creatorShare,
-            description: `Subscription earning (90%) from @${currentUser.username} — ${platformFee} Diamond platform fee`,
+            description: `Subscription earning (${creatorIsVerified ? '90' : '80'}%) from @${currentUser.username} — ${platformFee} Diamond platform fee`,
             reference_id: currentUser.$id,
             status: 'COMPLETED',
           }),
@@ -3201,7 +3218,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (currency === 'DIAMOND' && diamondBal < cost) {
       throw new Error(`Insufficient Diamond balance. You need ${cost} Diamonds but only have ${diamondBal}.`);
     }
-    const creatorShare = Math.floor(cost * 0.9);
+    // Verified recipients keep 90% (10% fee), unverified keep 80% (20% fee)
+    const recipientIsVerified = targetUserForGift?.isVerified || false;
+    const creatorShare = Math.floor(cost * (recipientIsVerified ? 0.9 : 0.8));
     const platformFee = cost - creatorShare;
 
     const newBalance = currency === 'GOLD' ? { gold_balance: goldBal - cost } : { diamond_balance: diamondBal - cost };
@@ -3242,7 +3261,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
             type: 'GIFT_RECEIVED',
             currency,
             amount: creatorShare,
-            description: `Gift received (90%) from @${currentUser.username} — ${platformFee} ${currency} platform fee`,
+            description: `Gift received (${recipientIsVerified ? '90' : '80'}%) from @${currentUser.username} — ${platformFee} ${currency} platform fee`,
             reference_id: currentUser.$id,
             status: 'COMPLETED',
           }),

@@ -56,10 +56,14 @@ export function SuggestedFollows() {
       )
       .map(c => ({ ...c, isBoosted: false }));
 
-    // Merge: boosted first, then connections, deduplicate
+    // Merge and deduplicate
     const existingUsernames = new Set(boostedAuthors.map(u => u.username));
     const mergedConnections = connectionSuggestions.filter(c => !existingUsernames.has(c.username));
     const combined = [...boostedAuthors, ...mergedConnections];
+
+    // Sort: verified first → boosted (not verified) → regular
+    const rankUser = (u: any) => (u.isVerified ? 2 : u.isBoosted ? 1 : 0);
+    combined.sort((a, b) => rankUser(b) - rankUser(a));
 
     // If we have enough, return immediately
     if (combined.length >= 3) return combined.slice(0, 10);
@@ -75,7 +79,9 @@ export function SuggestedFollows() {
       )
       .map(u => ({ ...u, isBoosted: false }));
 
-    return [...combined, ...extras].slice(0, 10);
+    const all = [...combined, ...extras];
+    all.sort((a, b) => rankUser(b) - rankUser(a));
+    return all.slice(0, 10);
   }, [connections, posts, isFriend, isRequestSent, isRequestReceived, isFollowing, currentUser, fallbackUsers]);
 
   // Fetch fallback users from DB when we don't have enough connection-based suggestions

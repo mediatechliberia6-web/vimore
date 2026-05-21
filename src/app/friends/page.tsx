@@ -63,7 +63,7 @@ function FriendsPageContent() {
   const pageMultiplier = tier === 'lite' ? 4 : tier === 'standard' ? 6 : 10;
   const friendsPageLimit = adaptiveFeedPageSize(tier) * pageMultiplier;
   const requestsPageLimit = Math.max(10, Math.floor(friendsPageLimit / 2));
-  const { connections = [], isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, currentUser, friendUsernames, followerUsernames, isLoading, isOffline } = usePosts();
+  const { connections = [], isFriend, isRequestSent, isRequestReceived, sendFriendRequest, confirmFriendRequest, cancelFriendRequest, unfriendUser, currentUser, friendUsernames, followerUsernames, isLoading, isOffline, posts } = usePosts();
   const { currentTrack, isExpanded, triggerHaptic } = useMusic();
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -199,8 +199,25 @@ function FriendsPageContent() {
 
   const addFriendsUsers = useMemo(() => {
     if (!currentUser) return [];
-    return discoveryUsers.filter(u => u.username !== currentUser.username && !isFriend(u.username) && !isRequestSent(u.username) && !isRequestReceived(u.username));
-  }, [discoveryUsers, currentUser, isFriend, isRequestSent, isRequestReceived]);
+    const now = Date.now();
+    const boostedUsernames = new Set(
+      (posts || [])
+        .filter((p: any) => p.isBoosted && p.boostExpiry && p.boostExpiry > now)
+        .map((p: any) => p.user?.username)
+        .filter(Boolean)
+    );
+    const filtered = discoveryUsers.filter(u =>
+      u.username !== currentUser.username &&
+      !isFriend(u.username) &&
+      !isRequestSent(u.username) &&
+      !isRequestReceived(u.username)
+    );
+    // Sort: verified first → active boost → regular
+    return filtered.sort((a, b) => {
+      const score = (u: any) => (u.isVerified ? 2 : boostedUsernames.has(u.username) ? 1 : 0);
+      return score(b) - score(a);
+    });
+  }, [discoveryUsers, currentUser, isFriend, isRequestSent, isRequestReceived, posts]);
 
   const confirmUsers = useMemo(() => {
     if (!currentUser) return [];

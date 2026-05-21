@@ -90,7 +90,7 @@ export default function EarningsPage() {
   const [payoutCurrency, setPayoutCurrency] = useState<"USD" | "LD">("USD");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const feeMultiplier = currentUser?.isVerified ? 1 : 0.85;
+  const feeMultiplier = currentUser?.isVerified ? 0.9 : 0.8;
   const rawAmount = parseFloat(amount) || 0;
 
   const calculation = useMemo(() => {
@@ -436,7 +436,7 @@ export default function EarningsPage() {
                     <div>
                       <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Final Payout</p>
                       {!currentUser?.isVerified && (
-                        <p className="text-[9px] text-amber-400/60 font-bold">15% platform fee applied</p>
+                        <p className="text-[9px] text-amber-400/60 font-bold">20% platform fee applied</p>
                       )}
                     </div>
                     <span className="text-2xl font-black italic text-primary">{payoutCurrency === 'USD' ? '$' : 'L$'} {calculation.finalPayout.toFixed(2)}</span>
