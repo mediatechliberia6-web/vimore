@@ -48,6 +48,7 @@ import {
   Film,
   ShoppingBag,
   BarChart2,
+  CheckCircle2,
 } from "lucide-react";
 import { UserListings } from "@/components/marketplace/UserListings";
 import Link from "next/link";

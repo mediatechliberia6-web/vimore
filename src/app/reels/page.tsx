@@ -745,8 +745,8 @@ function ReelItem({
         {isMuted ? <VolumeX className="w-4 h-4 text-white" /> : <Volume2 className="w-4 h-4 text-white" />}
       </button>
 
-      {/* ── Right action rail ── */}
-      <div className="absolute right-3 top-[38%] z-30 flex flex-col items-center gap-2.5">
+      {/* ── Right action rail (avatar + action buttons) ── */}
+      <div className="absolute right-3 bottom-28 z-30 flex flex-col items-center gap-3 pointer-events-auto">
         {/* Avatar + follow */}
         <div className="relative mb-1">
           <Link href={reel.isCampaignReel ? "/" : `/profile/${reel.user.username}`}>
@@ -831,26 +831,26 @@ function ReelItem({
             )}
           </>
         )}
-
-        {/* Sound disc */}
-        <button
-          onClick={() => {
-            triggerHaptic(15);
-            if (soundId) setShowSoundSheet(true);
-            else router.push('/reels/create');
-          }}
-          className="flex flex-col items-center gap-1 active:scale-90 transition-transform mt-1"
-        >
-          <div className={cn(
-            "w-11 h-11 rounded-full border-[3px] border-white/30 overflow-hidden bg-black flex items-center justify-center shadow-xl",
-            isActive && "animate-spin [animation-duration:4s]"
-          )}>
-            <div className="w-full h-full bg-gradient-to-br from-primary/60 to-purple-900/80 flex items-center justify-center">
-              <Music2 className="w-4 h-4 text-white" />
-            </div>
-          </div>
-        </button>
       </div>
+
+      {/* ── Sound disc — anchored separately so it never overlaps gift ── */}
+      <button
+        onClick={() => {
+          triggerHaptic(15);
+          if (soundId) setShowSoundSheet(true);
+          else router.push('/reels/create');
+        }}
+        className="absolute right-4 bottom-[4.5rem] z-30 flex flex-col items-center gap-1 active:scale-90 transition-transform pointer-events-auto"
+      >
+        <div className={cn(
+          "w-11 h-11 rounded-full border-[3px] border-white/30 overflow-hidden bg-black flex items-center justify-center shadow-xl",
+          isActive && "animate-spin [animation-duration:4s]"
+        )}>
+          <div className="w-full h-full bg-gradient-to-br from-primary/60 to-purple-900/80 flex items-center justify-center">
+            <Music2 className="w-4 h-4 text-white" />
+          </div>
+        </div>
+      </button>
 
       {/* ── Bottom info area ── */}
       <div className="absolute bottom-14 left-3 right-16 z-30 pointer-events-none">

@@ -325,7 +325,7 @@ export default function AnalyticsPage() {
         const prevPosts = prevPostsRes.documents;
 
         const sumViews = (docs: any[]) =>
-          docs.reduce((s, p) => s + (p.views || p.boost_current_views || 0), 0);
+          docs.reduce((s, p) => s + (p.views_count || p.views || p.boost_current_views || 0), 0);
         const views3sec = sumViews(posts);
         const prevViews3sec = sumViews(prevPosts);
 
@@ -389,8 +389,8 @@ export default function AnalyticsPage() {
         const topViewedPosts = [...posts]
           .sort(
             (a, b) =>
-              (b.views || b.boost_current_views || 0) -
-              (a.views || a.boost_current_views || 0),
+              (b.views_count || b.views || b.boost_current_views || 0) -
+              (a.views_count || a.views || a.boost_current_views || 0),
           )
           .slice(0, 10);
 
