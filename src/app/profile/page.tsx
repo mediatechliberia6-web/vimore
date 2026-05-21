@@ -47,6 +47,7 @@ import {
   Smartphone,
   Film,
   ShoppingBag,
+  BarChart2,
 } from "lucide-react";
 import { UserListings } from "@/components/marketplace/UserListings";
 import Link from "next/link";
@@ -418,6 +419,14 @@ export default function MyProfilePage() {
                   </Button>
                   <Button variant="secondary" className="flex-1 rounded-lg gap-2 h-11 font-bold active:scale-95 transition-all" onClick={() => setIsStoryModalOpen(true)}><Plus className="h-5 w-5" /> Add Story</Button>
                 </div>
+                <Button
+                  variant="outline"
+                  className="w-full mt-2 rounded-lg gap-2 h-10 font-bold text-violet-600 border-violet-200 dark:border-violet-800/50 hover:bg-violet-50 dark:hover:bg-violet-950/30 active:scale-95 transition-all text-[11px] uppercase tracking-widest"
+                  onClick={() => router.push('/analytics')}
+                >
+                  <BarChart2 className="h-4 w-4" />
+                  Creator Analytics
+                </Button>
               </div>
             </div>
             
