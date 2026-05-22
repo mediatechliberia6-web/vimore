@@ -89,7 +89,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { client, databases, DATABASE_ID, COL, BUCKET_IMAGES, BUCKET } from "@/lib/appwrite";
+import { client, databases, DATABASE_ID, COL, BUCKET_IMAGES, BUCKET, Query } from "@/lib/appwrite";
 import ProfileLoading from "./loading";
 
 const NATIONALITIES = [
@@ -143,7 +143,8 @@ export default function MyProfilePage() {
   const isLoadingOwnPostsRef = useRef(false);
 
   const [liveFollowers, setLiveFollowers] = useState<number | null>(null);
-
+  const [liveFollowing, setLiveFollowing] = useState<number | null>(null);
+  const [livePosts, setLivePosts] = useState<number | null>(null);
 
   const isPlayerActive = currentTrack && !isExpanded;
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -152,27 +153,41 @@ export default function MyProfilePage() {
 
   useEffect(() => {
     if (!currentUser?.$id) return;
+    const userId = currentUser.$id;
 
-    databases.getDocument(DATABASE_ID, COL.USERS, currentUser.$id)
-      .then((doc: any) => {
-        if (typeof doc.followers_count === 'number') {
-          setLiveFollowers(doc.followers_count);
-        }
-      })
-      .catch(() => {});
+    const fetchCounts = async () => {
+      const [followersRes, followingRes, postsRes] = await Promise.allSettled([
+        databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [Query.equal('following_id', userId), Query.limit(1)]),
+        databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [Query.equal('follower_id', userId), Query.limit(1)]),
+        databases.listDocuments(DATABASE_ID, COL.POSTS, [Query.equal('user_id', userId), Query.limit(1)]),
+      ]);
+      if (followersRes.status === 'fulfilled') setLiveFollowers(followersRes.value.total);
+      if (followingRes.status === 'fulfilled') setLiveFollowing(followingRes.value.total);
+      if (postsRes.status === 'fulfilled') setLivePosts(postsRes.value.total);
+    };
+    fetchCounts();
 
-    const unsubscribe = client.subscribe(
-      `databases.${DATABASE_ID}.collections.${COL.USERS}.documents.${currentUser.$id}`,
+    const unsubFollows = client.subscribe(
+      `databases.${DATABASE_ID}.collections.${COL.FOLLOWS}.documents`,
       (response) => {
-        const events: string[] = response.events as string[];
-        if (!events.some(e => e.endsWith('.update'))) return;
         const payload = response.payload as any;
-        if (typeof payload.followers_count === 'number') {
-          setLiveFollowers(payload.followers_count);
+        if (payload.following_id === userId || payload.follower_id === userId) {
+          fetchCounts();
         }
       }
     );
-    return () => { unsubscribe(); };
+
+    const unsubPosts = client.subscribe(
+      `databases.${DATABASE_ID}.collections.${COL.POSTS}.documents`,
+      (response) => {
+        const payload = response.payload as any;
+        if (payload.user_id === userId) {
+          fetchCounts();
+        }
+      }
+    );
+
+    return () => { unsubFollows(); unsubPosts(); };
   }, [currentUser?.$id]);
 
   useEffect(() => {
@@ -297,8 +312,9 @@ export default function MyProfilePage() {
 
   const combinedFollowing = useMemo(() => {
     if (!currentUser) return 0;
+    if (liveFollowing !== null) return liveFollowing;
     return typeof currentUser.following === 'number' ? currentUser.following : parseFollowerCount(currentUser.following);
-  }, [currentUser]);
+  }, [currentUser, liveFollowing]);
 
   if (isLoading) {
     return <ProfileLoading />;
@@ -363,7 +379,7 @@ export default function MyProfilePage() {
                 <div className="flex items-center gap-6 py-2">
                   <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowers.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div>
                   <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowing.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
-                  <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{(currentUser.posts as number) ?? 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
+                  <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{livePosts ?? (currentUser.posts as number) ?? 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
                 </div>
 
                 {/* Creator milestone progress bars */}

@@ -44,7 +44,7 @@ import { useNotifications } from "@/context/NotificationContext";
 import { aiTranslatePostAction } from "@/app/actions/ai";
 import Image from "next/image";
 import { cn, parseFollowerCount, isTextForeignToUser } from "@/lib/utils";
-import { client, DATABASE_ID, COL } from "@/lib/appwrite";
+import { client, databases, DATABASE_ID, COL, Query } from "@/lib/appwrite";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -105,6 +105,10 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const [msgText, setMsgText] = useState("");
   const [isSendingMsg, setIsSendingMsg] = useState(false);
 
+  const [liveFollowers, setLiveFollowers] = useState<number | null>(null);
+  const [liveFollowing, setLiveFollowing] = useState<number | null>(null);
+  const [livePosts, setLivePosts] = useState<number | null>(null);
+
   const amIFriend = isFriend(username);
   const sent = isRequestSent(username);
   const received = isRequestReceived(username);
@@ -130,26 +134,45 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
   useEffect(() => {
     if (!displayUser?.$id) return;
-    const unsubscribe = client.subscribe(
-      `databases.${DATABASE_ID}.collections.${COL.USERS}.documents.${displayUser.$id}`,
+    const userId = displayUser.$id;
+
+    setLiveFollowers(null);
+    setLiveFollowing(null);
+    setLivePosts(null);
+
+    const fetchCounts = async () => {
+      const [followersRes, followingRes, postsRes] = await Promise.allSettled([
+        databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [Query.equal('following_id', userId), Query.limit(1)]),
+        databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [Query.equal('follower_id', userId), Query.limit(1)]),
+        databases.listDocuments(DATABASE_ID, COL.POSTS, [Query.equal('user_id', userId), Query.limit(1)]),
+      ]);
+      if (followersRes.status === 'fulfilled') setLiveFollowers(followersRes.value.total);
+      if (followingRes.status === 'fulfilled') setLiveFollowing(followingRes.value.total);
+      if (postsRes.status === 'fulfilled') setLivePosts(postsRes.value.total);
+    };
+    fetchCounts();
+
+    const unsubFollows = client.subscribe(
+      `databases.${DATABASE_ID}.collections.${COL.FOLLOWS}.documents`,
       (response) => {
-        const events: string[] = response.events as string[];
-        const isUpdate = events.some(e => e.endsWith('.update'));
-        if (!isUpdate) return;
         const payload = response.payload as any;
-        setDisplayUser(prev => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            followers: typeof payload.followers_count === 'number' ? payload.followers_count : prev.followers,
-            following: typeof payload.following_count === 'number' ? payload.following_count : prev.following,
-            friendsCount: typeof payload.friends_count === 'number' ? payload.friends_count : prev.friendsCount,
-            posts: typeof payload.posts_count === 'number' ? payload.posts_count : prev.posts,
-          };
-        });
+        if (payload.following_id === userId || payload.follower_id === userId) {
+          fetchCounts();
+        }
       }
     );
-    return () => { unsubscribe(); };
+
+    const unsubPosts = client.subscribe(
+      `databases.${DATABASE_ID}.collections.${COL.POSTS}.documents`,
+      (response) => {
+        const payload = response.payload as any;
+        if (payload.user_id === userId) {
+          fetchCounts();
+        }
+      }
+    );
+
+    return () => { unsubFollows(); unsubPosts(); };
   }, [displayUser?.$id]);
 
   useEffect(() => {
@@ -195,8 +218,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
   const isEliteCreator = useMemo(() => {
     if (!displayUser) return false;
+    if (liveFollowers !== null) return liveFollowers >= 10000;
     return parseFollowerCount(displayUser.followers) >= 10000;
-  }, [displayUser]);
+  }, [displayUser, liveFollowers]);
 
   const handleHandshakeAction = () => {
     if (!displayUser) return;
@@ -270,16 +294,18 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
   const mediaPosts = useMemo(() => profilePosts.filter(p => p.image || p.images?.length), [profilePosts]);
 
-  // Unified Pulse Metrics
+  // Unified Pulse Metrics — sourced from FOLLOWS + POSTS collections, not user document counters
   const combinedFollowers = useMemo(() => {
     if (!displayUser) return 0;
+    if (liveFollowers !== null) return liveFollowers;
     return parseFollowerCount(displayUser.followers);
-  }, [displayUser]);
+  }, [displayUser, liveFollowers]);
 
   const combinedFollowing = useMemo(() => {
     if (!displayUser) return 0;
+    if (liveFollowing !== null) return liveFollowing;
     return typeof displayUser.following === 'number' ? displayUser.following : parseFollowerCount(displayUser.following);
-  }, [displayUser]);
+  }, [displayUser, liveFollowing]);
 
   if (isLoadingProfile) {
     return <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4"><Loader2 className="h-10 w-10 animate-spin text-primary" /><p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Fetching Node Vault...</p></div>;
@@ -333,7 +359,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                     <div className="flex items-center gap-6 py-2">
                       <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowers.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Followers</span></div>
                       <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{combinedFollowing.toLocaleString()}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Following</span></div>
-                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{displayUser.posts ?? 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
+                      <div className="flex flex-col items-start"><span className="font-bold text-lg leading-none">{livePosts ?? displayUser.posts ?? 0}</span><span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider mt-1">Posts</span></div>
                     </div>
                   </div>
                   {isEliteCreator && !isMe && (
