@@ -35,7 +35,8 @@ import {
   UserRoundX,
   X,
   Check,
-  ShoppingBag
+  ShoppingBag,
+  Film,
 } from "lucide-react";
 import { UserListings } from "@/components/marketplace/UserListings";
 import Link from "next/link";
@@ -44,7 +45,7 @@ import { useNotifications } from "@/context/NotificationContext";
 import { aiTranslatePostAction } from "@/app/actions/ai";
 import Image from "next/image";
 import { cn, parseFollowerCount, isTextForeignToUser } from "@/lib/utils";
-import { client, databases, DATABASE_ID, COL, Query } from "@/lib/appwrite";
+import { client, databases, DATABASE_ID, COL, Query, getFileUrl, BUCKET } from "@/lib/appwrite";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -108,6 +109,11 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
   const [liveFollowers, setLiveFollowers] = useState<number | null>(null);
   const [liveFollowing, setLiveFollowing] = useState<number | null>(null);
   const [livePosts, setLivePosts] = useState<number | null>(null);
+
+  const [reelsPosts, setReelsPosts] = useState<{ $id: string; video_id: string; media_url?: string; caption?: string }[]>([]);
+  const [isLoadingReels, setIsLoadingReels] = useState(false);
+  const [directMediaPosts, setDirectMediaPosts] = useState<{ $id: string; image_id?: string; image_ids?: string[] }[]>([]);
+  const [isLoadingMedia, setIsLoadingMedia] = useState(false);
 
   const amIFriend = isFriend(username);
   const sent = isRequestSent(username);
@@ -216,6 +222,38 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     return () => observer.disconnect();
   }, [profilePosts, hasMoreProfilePosts, profileCursor, displayUser?.$id, fetchProfilePosts]);
 
+  useEffect(() => {
+    if (!displayUser?.$id) return;
+    let cancelled = false;
+    setIsLoadingReels(true);
+    setReelsPosts([]);
+    databases.listDocuments(DATABASE_ID, COL.POSTS, [
+      Query.equal('user_id', displayUser.$id),
+      Query.equal('type', 'reel'),
+      Query.orderDesc('$createdAt'),
+      Query.limit(50),
+    ]).then(res => {
+      if (!cancelled) setReelsPosts(res.documents as any);
+    }).catch(() => {}).finally(() => { if (!cancelled) setIsLoadingReels(false); });
+    return () => { cancelled = true; };
+  }, [displayUser?.$id]);
+
+  useEffect(() => {
+    if (!displayUser?.$id) return;
+    let cancelled = false;
+    setIsLoadingMedia(true);
+    setDirectMediaPosts([]);
+    databases.listDocuments(DATABASE_ID, COL.POSTS, [
+      Query.equal('user_id', displayUser.$id),
+      Query.isNotNull('image_id'),
+      Query.orderDesc('$createdAt'),
+      Query.limit(60),
+    ]).then(res => {
+      if (!cancelled) setDirectMediaPosts(res.documents as any);
+    }).catch(() => {}).finally(() => { if (!cancelled) setIsLoadingMedia(false); });
+    return () => { cancelled = true; };
+  }, [displayUser?.$id]);
+
   const isEliteCreator = useMemo(() => {
     if (!displayUser) return false;
     if (liveFollowers !== null) return liveFollowers >= 10000;
@@ -291,8 +329,6 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
       else cancelFriendRequest(user.username);
     }
   };
-
-  const mediaPosts = useMemo(() => profilePosts.filter(p => p.image || p.images?.length), [profilePosts]);
 
   // Unified Pulse Metrics — sourced from FOLLOWS + POSTS collections, not user document counters
   const combinedFollowers = useMemo(() => {
@@ -407,8 +443,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
             <Tabs defaultValue="all" className="w-full mt-2">
               <TabsList className="w-full h-12 bg-white dark:bg-card border-t border-b border-border/50 rounded-none p-0">
                 <TabsTrigger value="all" className="flex-1 font-bold text-sm">Posts</TabsTrigger>
-                <TabsTrigger value="listings" className="flex-1 font-bold text-sm flex items-center gap-1.5"><ShoppingBag className="h-3.5 w-3.5" />Listings</TabsTrigger>
+                <TabsTrigger value="reels" className="flex-1 font-bold text-sm flex items-center gap-1"><Film className="h-3.5 w-3.5" />Reels</TabsTrigger>
                 <TabsTrigger value="media" className="flex-1 font-bold text-sm">Media</TabsTrigger>
+                <TabsTrigger value="listings" className="flex-1 font-bold text-sm flex items-center gap-1.5"><ShoppingBag className="h-3.5 w-3.5" />Listings</TabsTrigger>
               </TabsList>
               <TabsContent value="all" className="p-4 space-y-4">
                 {isLoadingProfilePosts && profilePosts.length === 0 ? (
@@ -443,21 +480,64 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                   </>
                 )}
               </TabsContent>
+              <TabsContent value="reels" className="p-4">
+                {isLoadingReels ? (
+                  <div className="flex justify-center py-16"><Loader2 className="h-7 w-7 animate-spin text-muted-foreground" /></div>
+                ) : reelsPosts.length === 0 ? (
+                  <div className="py-20 text-center text-muted-foreground">
+                    <Film className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                    <p className="font-bold">No reels yet</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-1">
+                    {reelsPosts.map(reel => {
+                      const thumb = reel.video_id ? getFileUrl(BUCKET.REEL_MEDIA, reel.video_id) : null;
+                      return (
+                        <div key={reel.$id} className="aspect-[9/16] relative group overflow-hidden rounded-lg bg-black cursor-pointer">
+                          {thumb ? (
+                            <video
+                              src={thumb}
+                              className="w-full h-full object-cover opacity-80"
+                              muted
+                              playsInline
+                              preload="none"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-secondary/30" />
+                          )}
+                          <div className="absolute inset-0 bg-black/20 flex items-end p-2">
+                            <Film className="h-4 w-4 text-white/70" />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </TabsContent>
+
               <TabsContent value="media" className="p-4">
-                <div className="grid grid-cols-3 gap-1">
-                  {mediaPosts.length > 0 ? mediaPosts.map(post => (
-                    <div key={post.$id} className={cn("aspect-square relative group overflow-hidden rounded-lg", !settings.isFreeMode ? "cursor-pointer" : "bg-secondary/20 flex items-center justify-center")}>
-                      {!settings.isFreeMode ? (
-                        <>
-                          <Image src={post.image || post.images![0]} alt="Media" fill className="object-cover transition-transform group-hover:scale-110" />
-                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"><Play className="h-6 w-6" /></div>
-                        </>
-                      ) : <Zap className="h-6 w-6 text-muted-foreground/20" />}
-                    </div>
-                  )) : (
-                    <div className="col-span-3 py-20 text-center text-muted-foreground"><p className="font-bold">No media shared yet</p></div>
-                  )}
-                </div>
+                {isLoadingMedia ? (
+                  <div className="flex justify-center py-16"><Loader2 className="h-7 w-7 animate-spin text-muted-foreground" /></div>
+                ) : directMediaPosts.length === 0 ? (
+                  <div className="py-20 text-center text-muted-foreground"><p className="font-bold">No media shared yet</p></div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-1">
+                    {directMediaPosts.map(post => {
+                      const imgId = post.image_id || post.image_ids?.[0];
+                      const src = imgId ? getFileUrl(BUCKET.POST_MEDIA, imgId) : null;
+                      return (
+                        <div key={post.$id} className={cn("aspect-square relative group overflow-hidden rounded-lg", !settings.isFreeMode ? "cursor-pointer" : "bg-secondary/20 flex items-center justify-center")}>
+                          {!settings.isFreeMode && src ? (
+                            <>
+                              <Image src={src} alt="Media" fill className="object-cover transition-transform group-hover:scale-110" />
+                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"><Play className="h-6 w-6" /></div>
+                            </>
+                          ) : <Zap className="h-6 w-6 text-muted-foreground/20" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </TabsContent>
               <TabsContent value="listings" className="p-4">
                 {displayUser ? <UserListings sellerId={displayUser.$id} isOwner={!!isMe} /> : null}

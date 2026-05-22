@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   X, Music2, Timer, Sparkles, MoreHorizontal, ChevronRight,
-  Upload, Clapperboard, FlipHorizontal2, Gauge, Zap, ZapOff,
+  Upload, Clapperboard, FlipHorizontal2, Gauge, Zap, ZapOff, Loader2,
 } from 'lucide-react';
 import { usePosts } from '@/context/PostContext';
 import { cn } from '@/lib/utils';
@@ -232,15 +232,42 @@ function ReelStudioInner() {
     });
   };
 
+  const [isProcessingUpload, setIsProcessingUpload] = useState(false);
+  const [uploadProcessLabel, setUploadProcessLabel] = useState('');
+
   /* ─── UPLOAD FROM DEVICE ─── */
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setClips([new Blob([file], { type: file.type })]);
-    setClipDurations([30]);
-    elapsedRef.current = 30;
-    setElapsed(30);
-    setPhase('finalize');
+    e.target.value = ''; // allow re-selecting same file
+
+    // Quick client-side duration check before any processing
+    setIsProcessingUpload(true);
+    setUploadProcessLabel('Reading video…');
+
+    try {
+      // Dynamically import to keep initial bundle light
+      const { getVideoDuration } = await import('@/lib/video-compress');
+      const duration = await getVideoDuration(file);
+
+      if (duration > 900) {
+        const minutes = Math.floor(duration / 60);
+        const seconds = Math.round(duration % 60);
+        alert(`Video is too long (${minutes}m ${seconds}s). Maximum allowed is 15 minutes.`);
+        return;
+      }
+
+      setClips([new Blob([file], { type: file.type })]);
+      setClipDurations([duration > 0 ? duration : 30]);
+      elapsedRef.current = duration > 0 ? duration : 30;
+      setElapsed(duration > 0 ? duration : 30);
+      setPhase('finalize');
+    } catch (err: any) {
+      alert(err.message || 'Could not read this video file. Please try another.');
+    } finally {
+      setIsProcessingUpload(false);
+      setUploadProcessLabel('');
+    }
   };
 
   const totalElapsed = elapsed;
@@ -552,6 +579,17 @@ function ReelStudioInner() {
       )}
 
       <input ref={fileInputRef} type="file" accept="video/*" className="hidden" onChange={handleFileUpload} />
+
+      {/* ── FILE PROCESSING OVERLAY ── */}
+      {isProcessingUpload && (
+        <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center gap-4">
+          <div className="h-16 w-16 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 text-primary animate-spin" />
+          </div>
+          <p className="text-white font-bold text-sm">{uploadProcessLabel || 'Processing…'}</p>
+          <p className="text-white/40 text-xs">Please wait</p>
+        </div>
+      )}
     </div>
   );
 }

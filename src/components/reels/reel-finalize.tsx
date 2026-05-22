@@ -119,6 +119,7 @@ export function ReelFinalize({
         userId: currentUser.$id,
         username: currentUser.username || currentUser.name || 'unknown',
         coverBlob,
+        skipCompression: true, // camera-recorded clips are already at target bitrate
       });
 
       router.push('/reels');
