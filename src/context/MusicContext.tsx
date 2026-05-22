@@ -703,7 +703,14 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     isTrackUnliked: (id) => unlikedSongIds.has(id),
     isTrackDownloaded: (id) => downloadedSongIds.has(id),
     isCollectionLiked: (id) => likedCollectionIds.has(id),
-    playCollection: (ts: Track[], startIndex = 0) => { setQueueState(ts); setCurrentTrackState(ts[startIndex]); setIsPlayingState(true); setIsExpandedState(true); },
+    playCollection: (ts: Track[], startIndex = 0) => {
+      if (!ts.length) return;
+      setQueueState(ts);
+      setCurrentTrackState(ts[startIndex]);
+      setIsPlayingState(true);
+      setIsExpandedState(true);
+      recordSongStream(ts[startIndex].id);
+    },
     addToQueue: (t: Track) => setQueueState(prev => [...prev, t]),
     publishTrack, publishAlbum,
     deleteUserTrack,

@@ -89,7 +89,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { client, databases, DATABASE_ID, COL, BUCKET_IMAGES, BUCKET, Query } from "@/lib/appwrite";
+import { client, databases, DATABASE_ID, COL, BUCKET_IMAGES, BUCKET, Query, getFileUrl } from "@/lib/appwrite";
 import ProfileLoading from "./loading";
 
 const NATIONALITIES = [
@@ -145,6 +145,11 @@ export default function MyProfilePage() {
   const [liveFollowers, setLiveFollowers] = useState<number | null>(null);
   const [liveFollowing, setLiveFollowing] = useState<number | null>(null);
   const [livePosts, setLivePosts] = useState<number | null>(null);
+
+  const [reelsPosts, setReelsPosts] = useState<Post[]>([]);
+  const [isLoadingReels, setIsLoadingReels] = useState(false);
+  const [mediaPosts, setMediaPosts] = useState<{ id: string; url: string }[]>([]);
+  const [isLoadingMedia, setIsLoadingMedia] = useState(false);
 
   const isPlayerActive = currentTrack && !isExpanded;
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -219,6 +224,77 @@ export default function MyProfilePage() {
       isLoadingOwnPostsRef.current = false;
     });
   }, [currentUser?.$id, fetchProfilePosts]);
+
+  // Fetch Reels directly from POSTS collection
+  useEffect(() => {
+    if (!currentUser?.$id) return;
+    setIsLoadingReels(true);
+    setReelsPosts([]);
+    const fetchReels = async () => {
+      try {
+        const res = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
+          Query.equal('user_id', currentUser.$id),
+          Query.or([Query.equal('type', 'reel'), Query.isNotNull('video_id')]),
+          Query.orderDesc('$createdAt'),
+          Query.limit(50),
+        ]);
+        const mapped = res.documents.map((doc: any) => ({
+          $id: doc.$id,
+          $createdAt: doc.$createdAt,
+          user: {
+            $id: doc.user_id,
+            name: currentUser.name || 'Unknown',
+            username: currentUser.username || 'unknown',
+            avatar: currentUser.avatar || '',
+            isVerified: currentUser.isVerified || false,
+          },
+          content: doc.content || '',
+          time: new Date(doc.$createdAt).toLocaleDateString(),
+          likes: doc.likes_count || 0,
+          unlikes: doc.unlikes_count || 0,
+          comments: doc.comments_count || 0,
+          shares: doc.shares_count || 0,
+          views: doc.views_count || 0,
+          videoUrl: doc.type === 'reel' && doc.media_url
+            ? getFileUrl(BUCKET.REEL_MEDIA, doc.media_url)
+            : (doc.video_id ? getFileUrl(BUCKET.POST_MEDIA, doc.video_id) : undefined),
+          type: doc.type,
+        } as Post));
+        setReelsPosts(mapped);
+      } catch { /* non-critical */ }
+      finally { setIsLoadingReels(false); }
+    };
+    fetchReels();
+  }, [currentUser?.$id]);
+
+  // Fetch Media posts directly from POSTS collection
+  useEffect(() => {
+    if (!currentUser?.$id) return;
+    setIsLoadingMedia(true);
+    setMediaPosts([]);
+    const fetchMedia = async () => {
+      try {
+        const res = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
+          Query.equal('user_id', currentUser.$id),
+          Query.isNotNull('image_id'),
+          Query.orderDesc('$createdAt'),
+          Query.limit(100),
+        ]);
+        const urls: { id: string; url: string }[] = [];
+        for (const doc of res.documents) {
+          const imageIds: string[] = Array.isArray(doc.image_ids)
+            ? doc.image_ids
+            : doc.image_id ? [doc.image_id] : [];
+          for (const imgId of imageIds) {
+            urls.push({ id: `${doc.$id}-${imgId}`, url: getFileUrl(BUCKET.POST_MEDIA, imgId) });
+          }
+        }
+        setMediaPosts(urls);
+      } catch { /* non-critical */ }
+      finally { setIsLoadingMedia(false); }
+    };
+    fetchMedia();
+  }, [currentUser?.$id]);
 
   useEffect(() => {
     const el = ownPostsLoadMoreRef.current;
@@ -487,11 +563,16 @@ export default function MyProfilePage() {
                 )}
               </TabsContent>
               <TabsContent value="reels" className="p-4 space-y-4">
-                {myVideoPosts.length > 0 ? myVideoPosts.map(post => <PostCard key={post.$id} {...post} />) : (
+                {isLoadingReels ? (
+                  <div className="flex items-center justify-center py-20 gap-3 opacity-50">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <p className="text-sm font-bold">Loading reels…</p>
+                  </div>
+                ) : reelsPosts.length > 0 ? reelsPosts.map(post => <PostCard key={post.$id} {...post} />) : (
                   <div className="py-20 text-center opacity-40 flex flex-col items-center gap-3">
                     <Film className="h-10 w-10" />
-                    <p className="font-bold">No video posts yet</p>
-                    <p className="text-sm">Upload a video post to see it here</p>
+                    <p className="font-bold">No reels yet</p>
+                    <p className="text-sm">Upload a video reel to see it here</p>
                   </div>
                 )}
               </TabsContent>
@@ -630,7 +711,25 @@ export default function MyProfilePage() {
               <TabsContent value="listings" className="p-4">
                 {currentUser ? <UserListings sellerId={currentUser.$id} isOwner={true} /> : null}
               </TabsContent>
-              <TabsContent value="media" className="p-4"><div className="grid grid-cols-3 gap-2">{postedImages.map((url, i) => (<div key={i} onClick={() => setSelectedImageUrl(url)} className={cn("aspect-square relative rounded-xl overflow-hidden shadow-lg cursor-pointer hover:scale-[1.02] transition-transform")}><Image src={url} alt="Shared" fill className="object-cover" /></div>))}{postedImages.length === 0 && <p className="col-span-3 text-center text-xs opacity-40 py-10">No images shared in the network.</p>}</div></TabsContent>
+              <TabsContent value="media" className="p-4">
+                {isLoadingMedia ? (
+                  <div className="flex items-center justify-center py-20 gap-3 opacity-50">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <p className="text-sm font-bold">Loading photos…</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {mediaPosts.map(({ id, url }) => (
+                      <div key={id} onClick={() => setSelectedImageUrl(url)} className={cn("aspect-square relative rounded-xl overflow-hidden shadow-lg cursor-pointer hover:scale-[1.02] transition-transform")}>
+                        <Image src={url} alt="Media" fill className="object-cover" />
+                      </div>
+                    ))}
+                    {mediaPosts.length === 0 && (
+                      <p className="col-span-3 text-center text-xs opacity-40 py-10">No photos shared yet.</p>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
             </Tabs>
           </div>
         </main>

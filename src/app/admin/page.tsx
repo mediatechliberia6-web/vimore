@@ -147,7 +147,7 @@ import {
 import { AdminTicketTab } from "@/components/tickets/AdminTicketTab";
 import { AdminCheckTicketTab } from "@/components/tickets/AdminCheckTicketTab";
 
-type AdminTab = "economy" | "safety" | "campaigns" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury" | "referrals" | "knowledge";
+type AdminTab = "economy" | "safety" | "campaigns" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury" | "referrals" | "knowledge" | "sync";
 
 interface TreasurySnapshot {
   totalUsers: number;
@@ -247,6 +247,13 @@ export default function AdminDashboard() {
   const [knowledgePage, setKnowledgePage] = useState(0);
   const [deletingKnowledgeId, setDeletingKnowledgeId] = useState<string | null>(null);
   const [expandedKnowledgeId, setExpandedKnowledgeId] = useState<string | null>(null);
+
+  // Sync tool state (SUPER admin only)
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
+  const [syncTotal, setSyncTotal] = useState(0);
+  const [syncResults, setSyncResults] = useState<{ updated: number; skipped: number; errors: number } | null>(null);
+  const [syncLog, setSyncLog] = useState<string[]>([]);
 
   // Withdrawal action dialogs
   const [withdrawalActionTarget, setWithdrawalActionTarget] = useState<{ id: string; action: 'APPROVED' | 'REJECTED' } | null>(null);
@@ -405,7 +412,7 @@ export default function AdminDashboard() {
   }, [allUsers]);
 
   const availableTabs = useMemo(() => {
-    if (isSuper) return ["economy", "treasury", "referrals", "safety", "users", "broadcast", "campaigns", "tickets", "check_ticket", "resolution", "logs", "staff", "knowledge"] as AdminTab[];
+    if (isSuper) return ["economy", "treasury", "referrals", "safety", "users", "broadcast", "campaigns", "tickets", "check_ticket", "resolution", "logs", "staff", "knowledge", "sync"] as AdminTab[];
     const tabs: AdminTab[] = ["logs"];
     if (isFinancial) tabs.push("economy", "treasury");
     if (isModerator) tabs.push("safety", "users", "campaigns", "resolution", "tickets", "check_ticket");
@@ -697,6 +704,89 @@ export default function AdminDashboard() {
     fetchKnowledgeEntries(0);
   }, [activeTab]);
 
+  const runCountSync = async () => {
+    if (!isSuper || isSyncing) return;
+    setIsSyncing(true);
+    setSyncProgress(0);
+    setSyncTotal(0);
+    setSyncResults(null);
+    setSyncLog([]);
+
+    let updated = 0, skipped = 0, errors = 0;
+    const log: string[] = [];
+
+    try {
+      // Page through ALL users
+      let offset = 0;
+      const pageSize = 100;
+      let allUsers: any[] = [];
+      while (true) {
+        const res = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+          Query.limit(pageSize),
+          Query.offset(offset),
+        ]);
+        allUsers = allUsers.concat(res.documents);
+        if (res.documents.length < pageSize) break;
+        offset += pageSize;
+      }
+      setSyncTotal(allUsers.length);
+
+      for (let i = 0; i < allUsers.length; i++) {
+        const u = allUsers[i];
+        setSyncProgress(i + 1);
+        try {
+          const [followersRes, followingRes, postsRes] = await Promise.allSettled([
+            databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [Query.equal('following_id', u.$id), Query.limit(1)]),
+            databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [Query.equal('follower_id', u.$id), Query.limit(1)]),
+            databases.listDocuments(DATABASE_ID, COL.POSTS, [Query.equal('user_id', u.$id), Query.limit(1)]),
+          ]);
+
+          const realFollowers = followersRes.status === 'fulfilled' ? followersRes.value.total : null;
+          const realFollowing = followingRes.status === 'fulfilled' ? followingRes.value.total : null;
+          const realPosts = postsRes.status === 'fulfilled' ? postsRes.value.total : null;
+
+          const storedFollowers = u.followers_count ?? 0;
+          const storedFollowing = u.following_count ?? 0;
+          const storedPosts = u.posts_count ?? 0;
+
+          const needsUpdate =
+            (realFollowers !== null && realFollowers !== storedFollowers) ||
+            (realFollowing !== null && realFollowing !== storedFollowing) ||
+            (realPosts !== null && realPosts !== storedPosts);
+
+          if (needsUpdate) {
+            const patch: Record<string, number> = {};
+            if (realFollowers !== null) patch.followers_count = realFollowers;
+            if (realFollowing !== null) patch.following_count = realFollowing;
+            if (realPosts !== null) patch.posts_count = realPosts;
+            await databases.updateDocument(DATABASE_ID, COL.USERS, u.$id, patch);
+            log.push(`✓ @${u.username || u.$id}: followers ${storedFollowers}→${realFollowers ?? '?'}, following ${storedFollowing}→${realFollowing ?? '?'}, posts ${storedPosts}→${realPosts ?? '?'}`);
+            updated++;
+          } else {
+            skipped++;
+          }
+        } catch (e: any) {
+          log.push(`✗ @${u.username || u.$id}: ${e.message || 'unknown error'}`);
+          errors++;
+        }
+
+        // Throttle to avoid rate limits
+        if ((i + 1) % 10 === 0) {
+          setSyncLog([...log]);
+          await new Promise(r => setTimeout(r, 200));
+        }
+      }
+
+      setSyncResults({ updated, skipped, errors });
+      setSyncLog([...log]);
+      toast({ title: 'Sync Complete', description: `${updated} updated · ${skipped} already correct · ${errors} errors` });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Sync Failed', description: e.message });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
 
   if (isLoading || !currentUser) {
     return (
@@ -728,6 +818,7 @@ export default function AdminDashboard() {
     logs: { label: "Logs", icon: FileText },
     staff: { label: "Staff", icon: Users },
     knowledge: { label: "Knowledge", icon: BookOpen },
+    sync: { label: "Sync", icon: RefreshCcw },
   };
 
   if (isUnauthorized) {
@@ -2685,6 +2776,113 @@ export default function AdminDashboard() {
               )}
               <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/40 text-center pb-4">
                 Gemini 2.5 Flash · Knowledge Bank v1 · Only SUPER admins can view or delete entries
+              </p>
+            </div>
+          )}
+
+          {/* ── SYNC TAB (SUPER only) ── */}
+          {activeTab === 'sync' && isSuper && (
+            <div className="p-6 space-y-6 max-w-2xl mx-auto">
+              {/* Header */}
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 bg-violet-500/10 rounded-3xl flex items-center justify-center border border-violet-500/20 shrink-0">
+                  <RefreshCcw className="h-7 w-7 text-violet-400" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">Count Sync</h3>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-0.5">Repair stored counters for every user account</p>
+                </div>
+              </div>
+
+              {/* Info card */}
+              <Card className="rounded-3xl border-violet-500/20 bg-violet-500/5">
+                <CardContent className="p-5 space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">What this does</p>
+                  <ul className="space-y-2 text-xs text-muted-foreground font-bold">
+                    <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-violet-400 shrink-0 mt-0.5" />Reads the real follower count for every user from the FOLLOWS collection</li>
+                    <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-violet-400 shrink-0 mt-0.5" />Reads the real following count from the FOLLOWS collection</li>
+                    <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-violet-400 shrink-0 mt-0.5" />Reads the real post count from the POSTS collection</li>
+                    <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 text-violet-400 shrink-0 mt-0.5" />Updates any user document where the stored counter is out of sync</li>
+                  </ul>
+                  <p className="text-[9px] text-muted-foreground/50 font-bold uppercase tracking-widest pt-1">Only accounts with mismatched counters are written to. Already-correct accounts are skipped.</p>
+                </CardContent>
+              </Card>
+
+              {/* Progress */}
+              {isSyncing && (
+                <Card className="rounded-3xl border-border/40 bg-card/40">
+                  <CardContent className="p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Progress</p>
+                      <p className="text-sm font-black text-primary">{syncProgress} / {syncTotal || '…'}</p>
+                    </div>
+                    <div className="w-full h-2.5 bg-secondary/40 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-violet-500 rounded-full transition-all duration-300"
+                        style={{ width: syncTotal > 0 ? `${(syncProgress / syncTotal) * 100}%` : '0%' }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground font-bold animate-pulse">Syncing accounts… this may take a few minutes for large networks</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Results */}
+              {syncResults && !isSyncing && (
+                <div className="grid grid-cols-3 gap-3">
+                  <Card className="rounded-3xl border-emerald-500/20 bg-emerald-500/5">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-3xl font-black text-emerald-400">{syncResults.updated}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-1">Updated</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="rounded-3xl border-border/40 bg-card/40">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-3xl font-black text-muted-foreground">{syncResults.skipped}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-1">Skipped</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="rounded-3xl border-destructive/20 bg-destructive/5">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-3xl font-black text-destructive">{syncResults.errors}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-1">Errors</p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Run button */}
+              <Button
+                onClick={runCountSync}
+                disabled={isSyncing}
+                className="w-full h-14 rounded-2xl font-black italic uppercase tracking-widest text-sm bg-violet-600 hover:bg-violet-500 text-white shadow-xl shadow-violet-500/20 transition-all active:scale-[0.98]"
+              >
+                {isSyncing ? (
+                  <><Loader2 className="h-5 w-5 animate-spin mr-2" />Syncing {syncProgress} of {syncTotal}…</>
+                ) : (
+                  <><RefreshCcw className="h-5 w-5 mr-2" />{syncResults ? 'Run Sync Again' : 'Run Count Sync'}</>
+                )}
+              </Button>
+
+              {/* Activity log */}
+              {syncLog.length > 0 && (
+                <Card className="rounded-3xl border-border/40 bg-card/40">
+                  <CardContent className="p-5 space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Activity Log</p>
+                    <div className="max-h-64 overflow-y-auto space-y-1 scrollbar-hide">
+                      {syncLog.map((line, i) => (
+                        <p key={i} className={cn(
+                          "text-[10px] font-mono leading-relaxed",
+                          line.startsWith('✓') ? "text-emerald-400" : "text-destructive"
+                        )}>{line}</p>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/40 text-center pb-4">
+                Count Sync v1 · SUPER Admin Only · Safe to re-run anytime
               </p>
             </div>
           )}
