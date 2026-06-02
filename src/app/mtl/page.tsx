@@ -13,8 +13,19 @@ const leaders = [
     company: "Media Tech Liberia",
     image: "/amos-kortu.png",
     gradient: "from-violet-600 via-purple-500 to-indigo-600",
-    accentColor: "violet",
+    accent: "violet" as const,
     tagline: "The visionary who sparked the dream",
+    quote: null,
+  },
+  {
+    name: "Joe G. Slamie",
+    title: "Partner & Advisor",
+    company: "ViMore",
+    image: "/joe-slamie.jpg",
+    gradient: "from-emerald-600 via-teal-500 to-cyan-600",
+    accent: "emerald" as const,
+    tagline: "Partner and advisor for the ViMore platform",
+    quote: "It takes an individual to build a thing, but it requires a structured community to build sovereign civil and digital infrastructure. It is about time Liberian creators take control of their own digital future.",
   },
 ];
 
@@ -48,7 +59,7 @@ export default function MTLPage() {
         </Link>
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-primary" />
-          <h1 className="text-base font-black tracking-tight">About MTL</h1>
+          <h1 className="text-base font-black tracking-tight">About Us</h1>
         </div>
       </header>
 
@@ -133,47 +144,61 @@ export default function MTLPage() {
           </div>
 
           {leaders.map(leader => (
-            <div
-              key={leader.name}
-              className="bg-white dark:bg-white/4 rounded-3xl border border-black/5 dark:border-white/8 shadow-lg shadow-black/5 overflow-hidden"
-            >
-              {/* Gradient bar */}
-              <div className={cn("h-1.5 w-full bg-gradient-to-r", leader.gradient)} />
+            <div key={leader.name} className="space-y-3">
+              <div className="bg-white dark:bg-white/4 rounded-3xl border border-black/5 dark:border-white/8 shadow-lg shadow-black/5 overflow-hidden">
+                {/* Gradient bar */}
+                <div className={cn("h-1.5 w-full bg-gradient-to-r", leader.gradient)} />
 
-              <div className="p-5 flex items-start gap-5">
-                {/* Photo */}
-                <div className={cn(
-                  "relative shrink-0 h-24 w-20 rounded-2xl overflow-hidden ring-2",
-                  `ring-violet-400/30`
-                )}>
-                  <Image
-                    src={leader.image}
-                    alt={leader.name}
-                    width={80}
-                    height={96}
-                    className="object-cover object-top w-full h-full"
-                    priority
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0 pt-1 space-y-2">
+                <div className="p-5 flex items-start gap-5">
+                  {/* Photo */}
                   <div className={cn(
-                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
-                    "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
+                    "relative shrink-0 h-24 w-20 rounded-2xl overflow-hidden ring-2",
+                    leader.accent === "emerald" ? "ring-emerald-400/30" : "ring-violet-400/30"
                   )}>
-                    <Sparkles className="h-2.5 w-2.5" />
-                    {leader.title}
+                    <Image
+                      src={leader.image}
+                      alt={leader.name}
+                      width={80}
+                      height={96}
+                      className="object-cover object-top w-full h-full"
+                      priority
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                   </div>
-                  <h4 className="text-xl font-black tracking-tight leading-tight">{leader.name}</h4>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{leader.company}</p>
-                  <div className="flex items-start gap-1.5">
-                    <Star className="h-3 w-3 text-amber-400 shrink-0 mt-0.5" />
-                    <p className="text-xs text-muted-foreground italic leading-snug">{leader.tagline}</p>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0 pt-1 space-y-2">
+                    <div className={cn(
+                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
+                      leader.accent === "emerald"
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                        : "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
+                    )}>
+                      <Sparkles className="h-2.5 w-2.5" />
+                      {leader.title}
+                    </div>
+                    <h4 className="text-xl font-black tracking-tight leading-tight">{leader.name}</h4>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{leader.company}</p>
+                    <div className="flex items-start gap-1.5">
+                      <Star className="h-3 w-3 text-amber-400 shrink-0 mt-0.5" />
+                      <p className="text-xs text-muted-foreground italic leading-snug">{leader.tagline}</p>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              {/* Quote card — shown only if leader has a quote */}
+              {leader.quote && (
+                <div className="bg-gradient-to-br from-emerald-50 to-teal-50/60 dark:from-emerald-950/30 dark:to-teal-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-3xl p-5">
+                  <Quote className="h-6 w-6 text-emerald-400/60 mb-3" />
+                  <p className="text-sm font-semibold leading-relaxed text-foreground/85 italic">
+                    "{leader.quote}"
+                  </p>
+                  <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 mt-3 uppercase tracking-widest">
+                    — {leader.name}, {leader.title}
+                  </p>
+                </div>
+              )}
             </div>
           ))}
         </div>
