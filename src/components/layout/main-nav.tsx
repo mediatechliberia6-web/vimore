@@ -43,7 +43,7 @@ export function MainNav() {
     { icon: Megaphone, label: "Advertise", href: "/advertise" },
     { icon: Sparkles, label: "Coming Soon", href: "/coming-soon" },
     { icon: Bot, label: "Intelligent", href: "/intelligent" },
-    { icon: Building2, label: "MTL Info", href: "/mtl" },
+    { icon: Building2, label: "About Us", href: "/mtl" },
     { icon: Code2, label: "Developer", href: "/developer" },
     { icon: Menu, label: t('nav_menu'), href: "/menu" },
   ];

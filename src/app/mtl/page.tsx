@@ -265,6 +265,70 @@ export default function MTLPage() {
           </div>
         </div>
 
+        {/* ─── Official Website ─── */}
+        <div className="mb-8 space-y-4">
+          <div className="flex items-center gap-2 px-1">
+            <Globe className="h-4 w-4 text-primary" />
+            <h3 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Official Website</h3>
+          </div>
+
+          <a
+            href="https://www.mediatechliberia.online"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block bg-white dark:bg-white/4 rounded-3xl border border-black/5 dark:border-white/8 shadow-lg shadow-black/5 overflow-hidden hover:shadow-xl hover:shadow-primary/10 transition-all active:scale-[0.98]"
+          >
+            {/* Top gradient bar */}
+            <div className="h-1.5 w-full bg-gradient-to-r from-primary via-violet-500 to-indigo-600" />
+
+            <div className="p-5 space-y-4">
+              {/* URL row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <Globe className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-foreground">mediatechliberia.online</p>
+                    <p className="text-[10px] text-muted-foreground font-medium">Official company website</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+              </div>
+
+              {/* Divider */}
+              <div className="h-px w-full bg-black/5 dark:bg-white/5" />
+
+              {/* Info grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { icon: "🏢", label: "Company", value: "Media Tech Liberia" },
+                  { icon: "📍", label: "Headquartered", value: "Monrovia, Liberia" },
+                  { icon: "🚀", label: "Focus", value: "Creator Economy & Social Tech" },
+                  { icon: "🌍", label: "Market", value: "Africa & Global Diaspora" },
+                ].map(item => (
+                  <div key={item.label} className="bg-secondary/40 dark:bg-white/4 rounded-2xl p-3">
+                    <span className="text-lg">{item.icon}</span>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-1.5 mb-0.5">{item.label}</p>
+                    <p className="text-[11px] font-bold text-foreground leading-snug">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Description */}
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Media Tech Liberia is the parent company behind ViMore — building technology products and digital infrastructure for African creators, communities, and entrepreneurs. Visit the official website to learn more about our mission, team, and upcoming ventures.
+              </p>
+
+              {/* CTA */}
+              <div className="flex items-center gap-2 bg-primary/8 border border-primary/15 rounded-2xl px-4 py-2.5">
+                <Zap className="h-3.5 w-3.5 text-primary shrink-0" />
+                <p className="text-[11px] font-black text-primary">Visit www.mediatechliberia.online →</p>
+              </div>
+            </div>
+          </a>
+        </div>
+
         {/* ─── Footer ─── */}
         <div className="flex flex-col items-center gap-2 py-8 opacity-50">
           <div className="h-px w-24 bg-foreground/20 mb-3" />
