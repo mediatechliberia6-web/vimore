@@ -20,6 +20,13 @@
 # production
 /build
 
+# Android release artifacts and signing files
+android/app/release.keystore
+android/app/build/
+android/.gradle/
+*.apk
+*.aab
+
 # misc
 .DS_Store
 *.pem
