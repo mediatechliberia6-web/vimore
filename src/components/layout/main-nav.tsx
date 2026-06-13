@@ -3,7 +3,7 @@
 
 import { LiteLink as Link } from "@/components/ui/lite-link";
 import { usePathname } from "next/navigation";
-import { Home, User, MessageCircle, PlusSquare, Compass, Menu, Music2, Bell, Activity, Film, Megaphone, Sparkles, Ticket, Building2, ShoppingBag, Code2, Bot } from "lucide-react";
+import { Home, User, MessageCircle, PlusSquare, Compass, Menu, Music2, Bell, Activity, Film, Megaphone, Sparkles, Ticket, Building2, ShoppingBag, Code2, Bot, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useNotifications, PulseCategory } from "@/context/NotificationContext";
@@ -45,6 +45,7 @@ export function MainNav() {
     { icon: Bot, label: "Intelligent", href: "/intelligent" },
     { icon: Building2, label: "About Us", href: "/mtl" },
     { icon: Code2, label: "Developer", href: "/developer" },
+    { icon: ShieldAlert, label: "Child Safety", href: "/child-safety" },
     { icon: Menu, label: t('nav_menu'), href: "/menu" },
   ];
 
