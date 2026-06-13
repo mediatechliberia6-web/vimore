@@ -1,125 +1,312 @@
-
 "use client";
 
-import { ArrowLeft, ShieldCheck, Eye, Lock, Zap, Globe, FileText, Smartphone, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+
+function PhoneLink({ number, message }: { number: string; message: string }) {
+  const clean = number.replace(/\D/g, "");
+  const url = `https://wa.me/${clean}?text=${encodeURIComponent(message)}`;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-primary underline underline-offset-2 hover:opacity-80 break-all"
+    >
+      {number}
+    </a>
+  );
+}
+
+function EmailLink({
+  email,
+  subject,
+  body,
+}: {
+  email: string;
+  subject: string;
+  body: string;
+}) {
+  const url = `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-primary underline underline-offset-2 hover:opacity-80 break-all"
+    >
+      {email}
+    </a>
+  );
+}
 
 export default function PrivacyPolicyPage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-[#F2ECF7] dark:bg-[#050505] transition-colors duration-500 flex flex-col relative overflow-hidden">
-      {/* Background Ambience */}
-      <div className="absolute inset-0 pointer-events-none -z-10">
-        <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/10 blur-[120px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-accent/10 blur-[120px] rounded-full animate-pulse delay-700" />
-      </div>
-
-      <header className="h-20 px-6 flex items-center justify-between bg-white/40 dark:bg-card/40 backdrop-blur-xl border-b border-border sticky top-0 z-50">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => router.back()}>
-            <ArrowLeft className="h-6 w-6" />
-          </Button>
-          <div className="flex flex-col">
-            <h1 className="text-lg font-black italic uppercase tracking-widest leading-tight">Privacy Policy</h1>
-            <span className="text-[9px] font-bold text-primary uppercase tracking-widest">Identity Sovereignty Node</span>
-          </div>
-        </div>
-        <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-          <ShieldCheck className="h-6 w-6" />
-        </div>
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <header className="h-16 px-4 flex items-center gap-3 bg-card/60 backdrop-blur border-b border-border sticky top-0 z-50">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full"
+          onClick={() => router.back()}
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <ShieldCheck className="h-5 w-5 text-primary" />
+        <h1 className="font-bold text-base">Privacy Policy</h1>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6 sm:p-12 relative z-10">
-        <div className="max-w-3xl mx-auto space-y-12 pb-32">
-          
-          <section className="space-y-4">
-            <div className="flex items-center gap-3 text-primary">
-              <Eye className="h-6 w-6" />
-              <h2 className="text-2xl font-black italic uppercase tracking-tighter">Our Data Manifesto</h2>
-            </div>
+      <main className="flex-1 w-full max-w-3xl mx-auto px-5 py-10 space-y-10">
+        <div>
+          <p className="text-sm text-muted-foreground">Last Updated: June 13, 2026</p>
+        </div>
+
+        {/* Section 1 */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">1. Introduction</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            ViMore ("we," "our," or "us") is operated by Media Tech Liberia. This Privacy Policy
+            explains how we collect, use, store, and protect your personal information when you use
+            the ViMore mobile application and website.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            By using ViMore, you agree to the collection and use of information in accordance with
+            this policy. If you do not agree with this policy, please do not use our services.
+          </p>
+        </section>
+
+        {/* Section 2 */}
+        <section className="space-y-4">
+          <h2 className="text-lg font-bold">2. Information We Collect</h2>
+
+          <div className="space-y-2">
+            <h3 className="font-semibold">2.1 Information You Provide Directly</h3>
             <p className="text-muted-foreground leading-relaxed">
-              At ViMore, under the architectural leadership of <strong>Amos B. Kortu</strong> and <strong>Media Tech Liberia (MTL)</strong>, we believe your digital signature is your property. This policy materializes our commitment to protecting your identity while synchronizing high-velocity vibes across our global clusters.
+              <span className="font-medium text-foreground">Account Information:</span> When you
+              register, we collect your name, email address, phone number, date of birth, profile
+              photo, and username.
             </p>
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest italic">Effective Date: April 14, 2026 | Revision v1.5</p>
-            <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest italic">Media Tech Liberia · Founded December 19, 2025</p>
-          </section>
-
-          <section className="space-y-6">
-            <h3 className="text-lg font-black italic uppercase tracking-widest border-b border-primary/10 pb-2">1. Information Materialization</h3>
-            <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
-              <div className="p-6 bg-white/40 dark:bg-white/5 rounded-2xl border border-white/20">
-                <h4 className="font-bold text-foreground mb-2 flex items-center gap-2">
-                  <Smartphone className="h-4 w-4 text-primary" /> Direct Handshakes
-                </h4>
-                <p>We collect information you provide directly: your name, username, email, phone number, and arrival date (DOB). This is stored in our private high-fidelity clusters to maintain your identity node.</p>
-              </div>
-              <div className="p-6 bg-white/40 dark:bg-white/5 rounded-2xl border border-white/20">
-                <h4 className="font-bold text-foreground mb-2 flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-primary" /> Interaction Heuristics
-                </h4>
-                <p>We track your vibrations: likes, comments, shares, and vibes. Our Gemini AI Engine analyzes these pulses to calibrate your Discovery Stream and Reels without leaking your data to external advertisers.</p>
-              </div>
-              <div className="p-6 bg-white/40 dark:bg-white/5 rounded-2xl border border-white/20">
-                <h4 className="font-bold text-foreground mb-2 flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-primary" /> Hardware & Metadata
-                </h4>
-                <p>To ensure network integrity, we log device signatures, IP nodes, and spatial origin (nationality). This prevents fraudulent handshakes and protects the MTL Command Core.</p>
-              </div>
-            </div>
-          </section>
-
-          <section className="space-y-6">
-            <h3 className="text-lg font-black italic uppercase tracking-widest border-b border-primary/10 pb-2">2. The Economic Audit</h3>
-            <div className="p-6 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex gap-4">
-              <Lock className="h-6 w-6 text-amber-500 shrink-0" />
-              <div className="space-y-2">
-                <p className="text-sm font-bold text-foreground uppercase tracking-tight">Financial Archival</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  All Gold and Diamond transactions are logged for peer-to-peer security. Withdrawal nodes involving Orange/MTN MoMo require legal names and account signatures to comply with the financial protocols of Liberia and international anti-fraud standards.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="space-y-6">
-            <h3 className="text-lg font-black italic uppercase tracking-widest border-b border-primary/10 pb-2">3. User Sovereignty</h3>
             <p className="text-muted-foreground leading-relaxed">
-              You own your data. You have the terminal right to:
+              <span className="font-medium text-foreground">Content You Create:</span> Posts,
+              stories, reels, messages, comments, and any media you upload.
             </p>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {[
-                "Access your full data archive node.",
-                "Rectify any identity calibration errors.",
-                "Purge your vibe cache anytime.",
-                "Deactivate and delete your node permanently."
-              ].map((item, i) => (
-                <li key={i} className="flex items-center gap-3 p-4 bg-primary/5 rounded-xl border border-primary/10">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-bold uppercase tracking-tight">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="p-8 bg-primary/10 rounded-[2.5rem] border border-primary/20 text-center space-y-4">
-            <h3 className="text-xl font-black italic uppercase tracking-widest">MTL Sentry Protocol</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed uppercase tracking-tighter">
-              Our servers are encrypted at every node. In the event of a cluster breach, we will notify all affected identity signatures within 72 temporal hours.
+            <p className="text-muted-foreground leading-relaxed">
+              <span className="font-medium text-foreground">Payment Information:</span> For manual
+              currency purchases (Diamonds and Gold), we collect transaction details processed
+              through our admin team.
             </p>
-            <div className="pt-4 flex flex-col items-center gap-2">
-              <p className="text-[9px] font-black uppercase text-primary tracking-[0.4em]">Governance by</p>
-              <p className="text-sm font-black italic uppercase tracking-widest">Media Tech Liberia</p>
-            </div>
-          </section>
+          </div>
 
+          <div className="space-y-2">
+            <h3 className="font-semibold">2.2 Information Collected Automatically</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              <span className="font-medium text-foreground">Device Information:</span> Device type,
+              operating system, unique device identifiers, and mobile network information.
+            </p>
+            <p className="text-muted-foreground leading-relaxed">
+              <span className="font-medium text-foreground">Usage Data:</span> How you interact with
+              ViMore, including pages visited, features used, time spent, and click patterns.
+            </p>
+            <p className="text-muted-foreground leading-relaxed">
+              <span className="font-medium text-foreground">Log Data:</span> IP address, browser
+              type, access times, and crash reports.
+            </p>
+          </div>
+        </section>
+
+        {/* Section 3 */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">3. How We Use Your Information</h2>
+          <p className="text-muted-foreground leading-relaxed">We use your information to:</p>
+          <ul className="list-disc list-inside text-muted-foreground space-y-1 leading-relaxed">
+            <li>Provide and maintain ViMore services</li>
+            <li>Personalize your experience and content recommendations</li>
+            <li>Process transactions and manage your account</li>
+            <li>Communicate with you about updates, features, and security alerts</li>
+            <li>Improve our app performance and develop new features</li>
+            <li>Detect and prevent fraud, abuse, and security threats</li>
+            <li>Comply with legal obligations</li>
+          </ul>
+        </section>
+
+        {/* Section 4 */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">4. How We Share Your Information</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            We do not sell your personal information. We only share data in these situations:
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            <span className="font-medium text-foreground">With Other Users:</span> Your profile,
+            posts, and public content are visible to other ViMore users based on your privacy
+            settings.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            <span className="font-medium text-foreground">With Service Providers:</span> We use
+            trusted third-party services for hosting, analytics, and customer support. These
+            providers are contractually bound to protect your data.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            <span className="font-medium text-foreground">For Legal Reasons:</span> We may disclose
+            information if required by law, court order, or to protect the rights and safety of
+            ViMore, our users, or the public.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            <span className="font-medium text-foreground">Business Transfers:</span> If Media Tech
+            Liberia is involved in a merger or acquisition, your information may be transferred as
+            part of that transaction.
+          </p>
+        </section>
+
+        {/* Section 5 */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">5. Data Storage and Security</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            <span className="font-medium text-foreground">Storage Location:</span> Your data is
+            stored on secure servers. Some data may be processed outside Liberia with appropriate
+            safeguards.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            <span className="font-medium text-foreground">Security Measures:</span> We use
+            encryption, access controls, and regular security audits to protect your data. However,
+            no internet transmission is 100% secure.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            <span className="font-medium text-foreground">Data Retention:</span> We keep your
+            information as long as your account is active. After account deletion, we remove
+            personal data within 30 days, except where legal requirements demand longer retention.
+          </p>
+        </section>
+
+        {/* Section 6 */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">6. Your Rights and Choices</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            <span className="font-medium text-foreground">Access:</span> You can view your personal
+            information in your profile settings.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            <span className="font-medium text-foreground">Correction:</span> Update your profile
+            information at any time.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            <span className="font-medium text-foreground">Deletion:</span> Request account
+            deletion, which removes your personal data within 30 days.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            <span className="font-medium text-foreground">Marketing Preferences:</span> Opt out of
+            promotional communications in your settings.
+          </p>
+        </section>
+
+        {/* Section 7 */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">7. Children's Privacy</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            ViMore is not intended for children under 13 years old. We do not knowingly collect
+            information from children under 13. If we discover such data, we delete it immediately.
+            Parents or guardians who believe their child has provided us with information should
+            contact us at{" "}
+            <PhoneLink
+              number="+231778451835"
+              message="Hi ViMore support, I am a parent/guardian and I believe my child has provided personal information to ViMore. I would like to request deletion of their data."
+            />
+            .
+          </p>
+        </section>
+
+        {/* Section 8 */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">8. Cookies and Similar Technologies</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            We use cookies and local storage to:
+          </p>
+          <ul className="list-disc list-inside text-muted-foreground space-y-1 leading-relaxed">
+            <li>Keep you logged in</li>
+            <li>Remember your preferences</li>
+            <li>Analyze app usage and performance</li>
+            <li>Deliver relevant content</li>
+          </ul>
+          <p className="text-muted-foreground leading-relaxed">
+            You can disable cookies through your device settings, but this may affect app
+            functionality.
+          </p>
+        </section>
+
+        {/* Section 9 */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">9. Changes to This Policy</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            We may update this Privacy Policy periodically. We will notify you of significant
+            changes through the app or email. The "Last Updated" date at the top shows when changes
+            were made.
+          </p>
+        </section>
+
+        {/* Section 10 */}
+        <section className="space-y-4">
+          <h2 className="text-lg font-bold">10. Contact Us</h2>
+          <p className="text-muted-foreground leading-relaxed">
+            For questions, concerns, or data requests, contact:
+          </p>
+
+          <div className="text-muted-foreground space-y-1 leading-relaxed">
+            <p className="font-semibold text-foreground">Media Tech Liberia</p>
+            <p>
+              Email:{" "}
+              <EmailLink
+                email="mediatechliberia@gmail.com"
+                subject="ViMore Privacy Inquiry"
+                body="Hello Media Tech Liberia,%0A%0AI have a question or concern regarding my data on ViMore:%0A%0A"
+              />
+            </p>
+            <p>Address: Paynesvilla City, Liberia</p>
+            <p>
+              Phone:{" "}
+              <PhoneLink
+                number="+231778451835"
+                message="Hi ViMore support, I have a privacy question or data request I'd like to discuss."
+              />
+            </p>
+          </div>
+
+          <div className="text-muted-foreground space-y-1 leading-relaxed">
+            <p>
+              <span className="font-medium text-foreground">Child Safety Concerns:</span>{" "}
+              <EmailLink
+                email="mediatechliberia@gmail.com"
+                subject="ViMore Child Safety Concern"
+                body="Hello Media Tech Liberia,%0A%0AI am writing regarding a child safety concern on ViMore:%0A%0A"
+              />
+            </p>
+            <p>
+              <span className="font-medium text-foreground">General Support:</span>{" "}
+              <PhoneLink
+                number="+231778451835"
+                message="Hi ViMore support, I need help with a general inquiry."
+              />
+            </p>
+          </div>
+        </section>
+
+        {/* Section 11 */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">11. Legal Basis for Processing</h2>
+          <p className="text-muted-foreground leading-relaxed">We process your data based on:</p>
+          <ul className="list-disc list-inside text-muted-foreground space-y-1 leading-relaxed">
+            <li>Your consent (when you create an account)</li>
+            <li>Contractual necessity (to provide our services)</li>
+            <li>Legal obligations (to comply with laws)</li>
+            <li>Legitimate interests (to improve security and prevent fraud)</li>
+          </ul>
+        </section>
+
+        <div className="border-t border-border pt-6 text-center text-xs text-muted-foreground">
+          © {new Date().getFullYear()} Media Tech Liberia. All rights reserved.
         </div>
       </main>
-
-      <footer className="h-16 flex items-center justify-center bg-white/20 dark:bg-black/20 shrink-0">
-        <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">ViMore v1.5.0 • Privacy Hub Active</p>
-      </footer>
     </div>
   );
 }
