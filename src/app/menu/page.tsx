@@ -263,10 +263,7 @@ export default function MenuPage() {
                     {t('menu_command_core')}
                   </Link>
                 )}
-                <Link href="/settings/privacy-checkup" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-green-500/10 transition-colors font-semibold text-[15px] text-left text-green-600">
-                  <ShieldCheck className="h-4 w-4" />
-                  {t('privacy_checkup')}
-                </Link>
+
                 <Link href="/settings/account" className="w-full flex items-center gap-4 p-3.5 rounded-2xl hover:bg-blue-500/10 transition-colors font-semibold text-[15px] text-left text-blue-600">
                   <UserCog className="h-4 w-4" />
                   {t('account_center')}
