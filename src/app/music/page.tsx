@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useRef, Suspense } from "react";
@@ -17,68 +16,130 @@ import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search, X, Heart, ListMusic, Plus, Music, Disc3, Download, Trash2, MoreVertical, Zap, WifiOff, TrendingUp } from "lucide-react";
+import {
+  ArrowLeft, Search, X, Heart, ListMusic, Plus, Music, Disc3,
+  Download, Trash2, MoreVertical, Zap, WifiOff, TrendingUp, Play,
+  Headphones, Flame, Star
+} from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
+function formatStreamCount(n: number | string): string {
+  const num = typeof n === "string" ? parseInt(n, 10) : n;
+  if (isNaN(num)) return "0";
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
+  return String(num);
+}
+
+function MusicSkeleton() {
+  return (
+    <div className="space-y-8 animate-pulse px-4 sm:px-10 py-6">
+      <div className="w-full aspect-video sm:h-72 rounded-3xl bg-muted/40" />
+      <div className="space-y-3">
+        <div className="h-5 w-40 bg-muted/40 rounded-full" />
+        <div className="flex gap-4 overflow-hidden">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="shrink-0 space-y-2">
+              <div className="h-40 w-36 rounded-2xl bg-muted/40" />
+              <div className="h-3 w-28 bg-muted/40 rounded-full" />
+              <div className="h-2.5 w-20 bg-muted/30 rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-3">
+        <div className="h-5 w-52 bg-muted/40 rounded-full" />
+        <div className="flex gap-4 overflow-hidden">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="shrink-0 space-y-2">
+              <div className="h-44 w-40 rounded-2xl bg-muted/40" />
+              <div className="h-3 w-32 bg-muted/40 rounded-full" />
+              <div className="h-2.5 w-24 bg-muted/30 rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LibrarySkeleton() {
+  return (
+    <div className="animate-pulse space-y-5 px-4 py-4">
+      <div className="flex gap-3">
+        {[...Array(4)].map((_, i) => <div key={i} className="h-9 w-24 rounded-full bg-muted/40" />)}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="space-y-2">
+            <div className="aspect-square rounded-2xl bg-muted/40" />
+            <div className="h-3 w-3/4 bg-muted/40 rounded-full" />
+            <div className="h-2.5 w-1/2 bg-muted/30 rounded-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MusicPageContent() {
   const searchParams = useSearchParams();
-  const { globalSongs, globalAlbums, globalPlaylists, forYouSongs, currentTrack, isExpanded, selectedAlbum, selectedPlaylist, likedTracks, userPlaylists, userSongs, userAlbums, openCreatePlaylist, downloadedSongIds, deleteUserTrack, deleteUserAlbum, triggerHaptic } = useMusic();
-  const { connections, settings, isOffline } = usePosts();
+  const {
+    globalSongs, globalAlbums, globalPlaylists, forYouSongs,
+    currentTrack, isExpanded, selectedAlbum, selectedPlaylist,
+    likedTracks, userPlaylists, userSongs, userAlbums,
+    openCreatePlaylist, downloadedSongIds, deleteUserTrack, deleteUserAlbum, triggerHaptic,
+    setTrack
+  } = useMusic();
+  const { settings, isOffline } = usePosts();
   const { t } = useTranslation();
   const { toast } = useToast();
+
   const [activeTab, setActiveTab] = useState("discover");
-  const [libraryTab, setLibraryTab] = useState(() => {
-    const tabs = ["playlists", "songs", "albums", "downloaded"];
-    return tabs[Math.floor(Math.random() * tabs.length)];
-  });
+  const [libraryTab, setLibraryTab] = useState("playlists");
   const [searchQuery, setSearchQuery] = useState("");
-  const [deleteItem, setDeleteItem] = useState<{ id: string | number, type: 'track' | 'album' } | null>(null);
+  const [deleteItem, setDeleteItem] = useState<{ id: string | number; type: "track" | "album" } | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const recentlyPlayedTracks = useMemo<Track[]>(() => loadCache<Track>(OFFLINE_KEYS.MUSIC_PLAYED), []);
-  
   const isPlayerActive = currentTrack && !isExpanded;
 
   useEffect(() => {
-    const tab = searchParams.get('tab');
+    const tab = searchParams.get("tab");
     if (tab && ["discover", "chart", "upload", "library"].includes(tab)) setActiveTab(tab);
   }, [searchParams]);
 
   useEffect(() => {
-    if (!deleteItem) document.body.style.pointerEvents = 'auto';
-    return () => { document.body.style.pointerEvents = 'auto'; };
+    const t = setTimeout(() => setIsLoaded(true), 200);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (!deleteItem) document.body.style.pointerEvents = "auto";
+    return () => { document.body.style.pointerEvents = "auto"; };
   }, [deleteItem]);
 
   const filteredSongs = useMemo(() => {
     if (!searchQuery) return globalSongs;
     const q = searchQuery.toLowerCase();
-    return globalSongs.filter(s => 
-      (s.title || "").toLowerCase().includes(q) || 
-      (s.artist || "").toLowerCase().includes(q)
+    return globalSongs.filter(s =>
+      (s.title || "").toLowerCase().includes(q) || (s.artist || "").toLowerCase().includes(q)
     );
   }, [searchQuery, globalSongs]);
 
   const heroTrack = useMemo(() => {
     if (filteredSongs.length === 0) return null;
     if (searchQuery) return filteredSongs[0];
-    return [...filteredSongs].sort((a, b) => parseInt(b.streams, 10) - parseInt(a.streams, 10))[0];
+    return [...filteredSongs].sort((a, b) => parseInt(b.streams || "0", 10) - parseInt(a.streams || "0", 10))[0];
   }, [filteredSongs, searchQuery]);
 
   const musicPageSeed = useRef(Math.floor(Math.random() * 0x7fffffff));
@@ -98,161 +159,247 @@ function MusicPageContent() {
   const filteredAlbums = useMemo(() => {
     if (!searchQuery) return globalAlbums;
     const q = searchQuery.toLowerCase();
-    return globalAlbums.filter(a => 
-      (a.title || "").toLowerCase().includes(q) || 
-      (a.artist || "").toLowerCase().includes(q)
-    );
+    return globalAlbums.filter(a => (a.title || "").toLowerCase().includes(q) || (a.artist || "").toLowerCase().includes(q));
   }, [searchQuery, globalAlbums]);
 
   const filteredPlaylists = useMemo(() => {
     if (!searchQuery) return globalPlaylists;
     const q = searchQuery.toLowerCase();
-    return globalPlaylists.filter(p => 
-      (p.title || "").toLowerCase().includes(q) || 
-      (p.creator || "").toLowerCase().includes(q)
-    );
+    return globalPlaylists.filter(p => (p.title || "").toLowerCase().includes(q) || (p.creator || "").toLowerCase().includes(q));
   }, [searchQuery, globalPlaylists]);
 
   const filteredArtists = useMemo(() => {
     const artistsFromSongs = globalSongs.map(s => ({
-      id: s.artistUsername || s.artist,
-      name: s.artist,
-      username: s.artistUsername || "vimore",
-      role: "Vocalist",
-      avatar: s.cover,
-      isLive: false
+      id: s.artistUsername || s.artist, name: s.artist,
+      username: s.artistUsername || "vimore", role: "Vocalist",
+      avatar: s.cover, isLive: false,
     }));
-    const uniqueArtists = Array.from(new Map(artistsFromSongs.map(item => [item.id, item])).values());
-    if (!searchQuery) return uniqueArtists;
+    const unique = Array.from(new Map(artistsFromSongs.map(item => [item.id, item])).values());
+    if (!searchQuery) return unique;
     const q = searchQuery.toLowerCase();
-    return uniqueArtists.filter(a => 
-      (a.name || "").toLowerCase().includes(q) || 
-      (a.username || "").toLowerCase().includes(q)
-    );
+    return unique.filter(a => (a.name || "").toLowerCase().includes(q) || (a.username || "").toLowerCase().includes(q));
   }, [searchQuery, globalSongs]);
 
   const hasResults = filteredSongs.length > 0 || filteredAlbums.length > 0 || filteredPlaylists.length > 0 || filteredArtists.length > 0;
 
   const downloadedTracks = useMemo(() => {
     const allKnownTracks = [...globalSongs, ...userSongs, ...likedTracks];
-    const uniqueTracksMap = new Map();
-    allKnownTracks.forEach(t => { if (downloadedSongIds.has(t.id)) uniqueTracksMap.set(t.id, t); });
-    return Array.from(uniqueTracksMap.values());
+    const uniqueMap = new Map();
+    allKnownTracks.forEach(t => { if (downloadedSongIds.has(t.id)) uniqueMap.set(t.id, t); });
+    return Array.from(uniqueMap.values());
   }, [downloadedSongIds, userSongs, likedTracks, globalSongs]);
 
   const confirmDelete = () => {
     if (!deleteItem) return;
     triggerHaptic(50);
-    const itemToDelete = { ...deleteItem };
-    document.body.style.pointerEvents = 'auto';
+    const item = { ...deleteItem };
+    document.body.style.pointerEvents = "auto";
     setDeleteItem(null);
-    if (itemToDelete.type === 'track') {
-      deleteUserTrack(itemToDelete.id);
+    if (item.type === "track") {
+      deleteUserTrack(item.id);
       toast({ title: "Track Withdrawn", description: "Your single has been removed from the network." });
     } else {
-      deleteUserAlbum(itemToDelete.id);
+      deleteUserAlbum(item.id);
       toast({ title: "Album Purged", description: "The project has been removed from your discography." });
     }
   };
 
+  const STAT_PILLS = [
+    { icon: Headphones, label: `${globalSongs.length} Tracks`, color: "text-primary" },
+    { icon: Disc3, label: `${globalAlbums.length} Albums`, color: "text-violet-500" },
+    { icon: ListMusic, label: `${globalPlaylists.length} Playlists`, color: "text-pink-500" },
+  ];
+
   return (
-    <div className={cn("min-h-screen bg-[#F0F2F5] dark:bg-background transition-colors duration-300", (isExpanded || selectedAlbum || selectedPlaylist) && "h-screen overflow-hidden")}>
+    <div className={cn(
+      "min-h-screen bg-[#F0F2F5] dark:bg-background transition-colors duration-300",
+      (isExpanded || selectedAlbum || selectedPlaylist) && "h-screen overflow-hidden"
+    )}>
       <Header />
-      <div className="fixed top-0 left-1/4 w-[60%] h-[40%] bg-primary/5 blur-[120px] rounded-full pointer-events-none -z-10" />
+
       <div className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[280px_1fr]">
-        <aside className={cn("hidden lg:block sticky border-r border-border/50 transition-all duration-300", isPlayerActive ? "top-[125px] h-[calc(100vh-125px)]" : "top-[61px] h-[calc(100vh-61px)]")}><MainNav /></aside>
-        <main className={cn("flex flex-col pb-48 relative transition-all duration-300", isPlayerActive ? "pt-[64px]" : "pt-0")}>
+        <aside className={cn(
+          "hidden lg:block sticky border-r border-border/50 transition-all duration-300",
+          isPlayerActive ? "top-[125px] h-[calc(100vh-125px)]" : "top-[61px] h-[calc(100vh-61px)]"
+        )}>
+          <MainNav />
+        </aside>
+
+        <main className={cn("flex flex-col pb-56 relative transition-all duration-300", isPlayerActive ? "pt-[64px]" : "pt-0")}>
+
+          {/* Offline banner */}
           {isOffline && (
             <div className="w-full bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-center gap-2">
               <WifiOff className="h-3.5 w-3.5 text-amber-500 shrink-0" />
               <span className="text-[11px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Offline — showing saved music</span>
             </div>
           )}
-          <div className={cn("sticky z-30 bg-[#F0F2F5]/80 dark:bg-background/80 backdrop-blur-md px-4 sm:px-10 py-4 flex items-center justify-between border-b border-border/50 transition-all duration-300", isPlayerActive ? "top-[125px]" : "top-[61px]")}>
-            <div className="flex items-center gap-2 sm:gap-4 shrink-0"><Link href="/"><Button variant="ghost" size="icon" className="rounded-full hover:bg-primary/10 h-9 w-9 sm:h-10 sm:w-10"><ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" /></Button></Link><h1 className="text-lg sm:text-2xl font-black italic uppercase tracking-tighter hidden xs:block">{t('music_title')}</h1></div>
-            <div className="relative group flex-1 max-w-md ml-2 sm:ml-4"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary" /><Input placeholder={t('music_search')} className="pl-10 pr-10 h-10 bg-white/50 dark:bg-card/50 border-primary/10 rounded-xl text-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />{searchQuery && <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X className="h-4 w-4" /></button>}</div>
+
+          {/* Sticky header with search */}
+          <div className={cn(
+            "sticky z-30 bg-[#F0F2F5]/90 dark:bg-background/90 backdrop-blur-xl border-b border-border/30 px-4 sm:px-6 py-3 flex items-center gap-3 transition-all duration-300",
+            isPlayerActive ? "top-[125px]" : "top-[61px]"
+          )}>
+            <Link href="/">
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 shrink-0">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Search songs, artists, albums…"
+                className="pl-9 pr-9 h-9 rounded-xl bg-white/70 dark:bg-card/60 border-transparent focus-visible:border-primary/30 text-sm"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setSearchQuery("")}>
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
-          <div className="px-4 sm:px-10 py-6 sm:py-10">
+
+          {/* Tab content */}
+          <div className="px-4 sm:px-6 py-5">
+
+            {/* ── DISCOVER ─────────────────────────────── */}
             {activeTab === "discover" && (
-              <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                {/* Offline: show recently played tracks */}
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+                {/* Offline recently played */}
                 {isOffline && recentlyPlayedTracks.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <WifiOff className="h-4 w-4 text-amber-500" />
-                      <h2 className="text-sm font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Recently Played — Available Offline</h2>
+                      <span className="text-sm font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Recently Played</span>
                     </div>
                     <MusicGrid type="song" title="" items={recentlyPlayedTracks} />
                   </div>
                 )}
-                {!hasResults ? (
-                  <div className="py-20 text-center space-y-6 bg-white/40 dark:bg-card/40 rounded-[2.5rem] border border-dashed border-primary/10 animate-in zoom-in duration-500">
-                    <div className="h-20 w-20 bg-secondary/30 rounded-full flex items-center justify-center mx-auto">
-                      <Music className="h-10 w-10 text-muted-foreground opacity-20" />
+
+                {!isLoaded ? (
+                  <MusicSkeleton />
+                ) : !hasResults ? (
+                  /* Empty state */
+                  <div className="py-24 flex flex-col items-center gap-5 bg-white/50 dark:bg-card/30 rounded-3xl border border-dashed border-border">
+                    <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Music className="h-9 w-9 text-primary/40" />
                     </div>
-                    <div className="space-y-1">
-                      <h3 className="text-xl font-black italic uppercase tracking-tighter">Sonic Vault Silent</h3>
-                      <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest">No tracks matched your query node. Explore new frequencies.</p>
+                    <div className="text-center space-y-1">
+                      <h3 className="text-xl font-black italic uppercase tracking-tighter">Nothing Found</h3>
+                      <p className="text-muted-foreground text-sm">No tracks match your search.</p>
                     </div>
-                    <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase text-[10px] h-10 px-8" onClick={() => setSearchQuery("")}>Reset Discovery</Button>
+                    <Button variant="outline" className="rounded-full px-8 border-primary text-primary font-bold" onClick={() => setSearchQuery("")}>
+                      Clear Search
+                    </Button>
                   </div>
                 ) : (
                   <>
-                    {!searchQuery && heroTrack && <MusicGrid type="hero" items={[heroTrack]} />}
+                    {/* Hero banner */}
+                    {!searchQuery && heroTrack && (
+                      <div
+                        className="relative w-full rounded-[1.75rem] overflow-hidden cursor-pointer group"
+                        style={{ aspectRatio: "16/9", maxHeight: "320px" }}
+                        onClick={() => setTrack(heroTrack)}
+                      >
+                        <img src={heroTrack.cover} alt={heroTrack.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+                        {/* Stats ribbon */}
+                        <div className="absolute top-3 left-3 flex items-center gap-2">
+                          <span className="bg-primary text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full flex items-center gap-1">
+                            <Flame className="h-2.5 w-2.5 fill-current animate-pulse" /> #1 Trending
+                          </span>
+                          <span className="bg-black/40 backdrop-blur-md text-white/80 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                            <Zap className="h-2.5 w-2.5 text-yellow-400" />
+                            {formatStreamCount(heroTrack.streams)} plays
+                          </span>
+                        </div>
+                        <div className="absolute bottom-4 left-4 right-4 space-y-2">
+                          <h2 className="text-2xl sm:text-4xl font-black italic uppercase tracking-tighter text-white leading-none line-clamp-2 drop-shadow-lg">
+                            {heroTrack.title}
+                          </h2>
+                          <p className="text-sm font-bold text-white/70">{heroTrack.artist}</p>
+                          <Button
+                            size="sm"
+                            className="rounded-full bg-white text-black font-black gap-1.5 hover:scale-105 transition-transform px-5 h-9 text-xs"
+                            onClick={e => { e.stopPropagation(); setTrack(heroTrack); }}
+                          >
+                            <Play className="h-3.5 w-3.5 fill-current" /> Play Now
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
+                    {/* Stats pills */}
+                    {!searchQuery && (
+                      <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
+                        {STAT_PILLS.map(p => (
+                          <div key={p.label} className="flex items-center gap-1.5 bg-white/70 dark:bg-card/60 border border-border/40 rounded-full px-3 py-1.5 shrink-0">
+                            <p.icon className={cn("h-3.5 w-3.5", p.color)} />
+                            <span className="text-[11px] font-bold text-muted-foreground">{p.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Trending boosted */}
                     {!searchQuery && trendingBoosted.length > 0 && (
                       <div className="space-y-3">
-                        <div className="flex items-center gap-2 px-1">
-                          <TrendingUp className="h-4 w-4 text-primary" />
-                          <h2 className="text-sm font-black uppercase tracking-widest">Trending</h2>
-                          <span className="ml-1 text-[9px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full flex items-center gap-1">
-                            <Zap className="h-2.5 w-2.5 fill-current animate-pulse" /> Boosted
-                          </span>
+                        <div className="flex items-center justify-between px-1">
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                            <span className="text-sm font-black uppercase tracking-widest">Trending</span>
+                            <span className="text-[9px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <Zap className="h-2.5 w-2.5 fill-current" /> Boosted
+                            </span>
+                          </div>
                         </div>
                         <MusicGrid type="song" title="" items={trendingBoosted} />
                       </div>
                     )}
-                    
+
                     <NativeAdNode type="standard" id="discover-hero-sep" />
-                    
+
                     {forYouSongs.length > 0 && (
                       <>
                         <MusicGrid type="song" title="For You" items={forYouSongs.slice(0, 10)} />
                         <NativeAdNode type="standard" id="discover-foryou-sep" />
                       </>
                     )}
-                    
+
                     {filteredSongs.length > 0 && (
                       <>
-                        <MusicGrid type="song" title={searchQuery ? t('ui_all') : t('music_trending_songs')} items={filteredSongs} />
+                        <MusicGrid type="song" title={searchQuery ? "Songs" : t("music_trending_songs")} items={filteredSongs} />
                         <NativeAdNode type="standard" id="discover-trending-sep" />
                       </>
                     )}
-                    
-                    {globalSongs.length > 0 && (
+
+                    {globalSongs.length > 0 && !searchQuery && (
                       <>
-                        <MusicGrid type="song" title={t('music_new_releases')} items={[...globalSongs].reverse()} />
+                        <MusicGrid type="song" title={t("music_new_releases")} items={[...globalSongs].reverse()} />
                         <NativeAdNode type="standard" id="discover-new-sep" />
                       </>
                     )}
-                    
+
                     {filteredAlbums.length > 0 && (
                       <>
-                        <MusicGrid type="album" title={searchQuery ? t('music_my_albums') : t('music_trending_albums')} items={filteredAlbums} />
+                        <MusicGrid type="album" title={searchQuery ? "Albums" : t("music_trending_albums")} items={filteredAlbums} />
                         <NativeAdNode type="standard" id="discover-albums-sep" />
                       </>
                     )}
-                    
+
                     {filteredPlaylists.length > 0 && (
                       <>
-                        <MusicGrid type="playlist" title={searchQuery ? t('music_playlists') : t('music_top_playlists')} items={filteredPlaylists} />
+                        <MusicGrid type="playlist" title={searchQuery ? "Playlists" : t("music_top_playlists")} items={filteredPlaylists} />
                         <NativeAdNode type="standard" id="discover-playlists-sep" />
                       </>
                     )}
-                    
+
                     {filteredArtists.length > 0 && (
                       <>
-                        <MusicGrid type="artist" title={searchQuery ? t('ui_all') : t('music_trending_artists')} items={filteredArtists} />
+                        <MusicGrid type="artist" title={searchQuery ? "Artists" : t("music_trending_artists")} items={filteredArtists} />
                         <NativeAdNode type="standard" id="discover-artists-sep" />
                       </>
                     )}
@@ -260,117 +407,209 @@ function MusicPageContent() {
                 )}
               </div>
             )}
+
+            {/* ── CHARTS ─────────────────────────────── */}
             {activeTab === "chart" && <MusicCharts />}
-            {activeTab === "upload" && <MusicUpload onCancel={() => setActiveTab("discover")} />}
+
+            {/* ── UPLOAD ─────────────────────────────── */}
+            {activeTab === "upload" && (
+              <MusicUpload onCancel={() => setActiveTab("discover")} />
+            )}
+
+            {/* ── LIBRARY ─────────────────────────────── */}
             {activeTab === "library" && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <div className="flex flex-col gap-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <h2 className="text-3xl font-black italic uppercase tracking-tighter">{t('music_my_library')}</h2>
-                    <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
-                      {[
-                        { id: "playlists", label: t('music_playlists'), count: userPlaylists.length },
-                        { id: "songs", label: t('music_my_songs'), count: userSongs.length },
-                        { id: "albums", label: t('music_my_albums'), count: userAlbums.length },
-                        { id: "downloaded", label: t('music_notes'), count: downloadedTracks.length }
-                      ].map((tab) => (
-                        <button key={tab.id} onClick={() => setLibraryTab(tab.id)} className={cn("px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 border", libraryTab === tab.id ? "bg-primary border-primary text-white shadow-lg shadow-primary/20" : "bg-white/5 dark:bg-card/50 border-border text-muted-foreground")}>
-                          {tab.label} <span className="ml-1 opacity-50">({tab.count})</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+                {/* Library header */}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-black italic uppercase tracking-tighter">{t("music_my_library")}</h2>
+                  {libraryTab === "playlists" && (
+                    <Button
+                      size="sm"
+                      className="rounded-full bg-primary text-white font-bold gap-1.5 h-9 px-4 text-xs shadow-md shadow-primary/20"
+                      onClick={() => openCreatePlaylist()}
+                    >
+                      <Plus className="h-4 w-4" /> New Playlist
+                    </Button>
+                  )}
+                </div>
+
+                {/* Library sub-tabs */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {[
+                    { id: "playlists", label: t("music_playlists"), icon: ListMusic, count: userPlaylists.length },
+                    { id: "songs", label: t("music_my_songs"), icon: Music, count: userSongs.length },
+                    { id: "albums", label: t("music_my_albums"), icon: Disc3, count: userAlbums.length },
+                    { id: "downloaded", label: "Saved", icon: Download, count: downloadedTracks.length },
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setLibraryTab(tab.id)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold shrink-0 transition-all border",
+                        libraryTab === tab.id
+                          ? "bg-primary text-white border-primary shadow-md shadow-primary/20"
+                          : "bg-white/70 dark:bg-card/60 border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <tab.icon className="h-3.5 w-3.5" />
+                      {tab.label}
+                      <span className={cn("text-[10px] font-black", libraryTab === tab.id ? "opacity-70" : "opacity-40")}>
+                        {tab.count}
+                      </span>
+                    </button>
+                  ))}
                 </div>
 
                 <NativeAdNode type="standard" id="library-header-sep" />
 
-                <div className="pt-4">
-                  {libraryTab === "playlists" && (
-                    <div className="space-y-8">
-                      <div className="flex items-center justify-between border-b border-border/50 pb-4"><div className="flex items-center gap-2"><ListMusic className="h-5 w-5 text-primary" /><h3 className="font-bold text-sm uppercase tracking-widest">My Created Vibes</h3></div><Button className="rounded-full bg-primary text-white font-bold gap-2 text-xs h-9 px-5" onClick={() => openCreatePlaylist()}><Plus className="h-4 w-4" /> {t('music_create_playlist')}</Button></div>
-                      {userPlaylists.length === 0 ? (
-                        <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2.5rem] border border-border/50 shadow-sm animate-in zoom-in">
-                          <ListMusic className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
-                          <div className="space-y-1">
-                            <h3 className="text-xl font-black italic uppercase tracking-tighter">No Playlists Materialized</h3>
-                            <p className="text-muted-foreground text-sm uppercase font-bold tracking-widest">Start curating your unique sonic signature.</p>
+                {/* Playlists */}
+                {libraryTab === "playlists" && (
+                  userPlaylists.length === 0 ? (
+                    <LibraryEmptyState
+                      icon={<ListMusic className="h-10 w-10 text-primary/30" />}
+                      title="No Playlists Yet"
+                      desc="Create your first playlist to curate your perfect vibe."
+                      action={<Button className="rounded-full bg-primary text-white font-bold px-8 h-10 shadow-md shadow-primary/20" onClick={() => openCreatePlaylist()}>Create Playlist</Button>}
+                    />
+                  ) : <MusicGrid type="playlist" items={userPlaylists} />
+                )}
+
+                {/* My Songs */}
+                {libraryTab === "songs" && (
+                  userSongs.length === 0 ? (
+                    <LibraryEmptyState
+                      icon={<Zap className="h-10 w-10 text-primary/30" />}
+                      title="Your Catalog is Empty"
+                      desc="Upload your first track to start building your discography."
+                      action={<Button className="rounded-full bg-primary text-white font-bold px-8 h-10 shadow-md shadow-primary/20" onClick={() => setActiveTab("upload")}>Upload Track</Button>}
+                    />
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      {userSongs.map(song => (
+                        <div key={song.id} className="relative group">
+                          <MusicGrid type="song" items={[song]} />
+                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full bg-black/50 text-white hover:bg-black/70">
+                                  <MoreVertical className="h-3.5 w-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="rounded-xl">
+                                <DropdownMenuItem className="text-destructive gap-2 font-bold" onSelect={() => setDeleteItem({ id: song.id, type: "track" })}>
+                                  <Trash2 className="h-4 w-4" /> Withdraw Track
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
-                          <Button className="rounded-full bg-primary text-white font-black italic uppercase tracking-widest h-10 px-8 shadow-lg shadow-primary/20" onClick={() => openCreatePlaylist()}>Create First Vibe</Button>
                         </div>
-                      ) : <MusicGrid type="playlist" items={userPlaylists} />}
+                      ))}
                     </div>
-                  )}
-                  {libraryTab === "songs" && (
-                    <div className="space-y-8">
-                      <div className="flex items-center gap-2 border-b border-border/50 pb-4"><Music className="h-5 w-5 text-primary" /><h3 className="font-bold text-sm uppercase tracking-widest">Published Tracks</h3></div>
-                      {userSongs.length === 0 ? (
-                        <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2.5rem] border border-border/50 shadow-sm animate-in zoom-in">
-                          <Zap className="h-12 w-12 mx-auto text-primary opacity-20" />
-                          <div className="space-y-1">
-                            <h3 className="text-xl font-black italic uppercase tracking-tighter">Your Catalog is Empty</h3>
-                            <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest">Launch your first single in the high-velocity studio.</p>
+                  )
+                )}
+
+                {/* My Albums */}
+                {libraryTab === "albums" && (
+                  userAlbums.length === 0 ? (
+                    <LibraryEmptyState
+                      icon={<Disc3 className="h-10 w-10 text-primary/30" />}
+                      title="No Albums Yet"
+                      desc="Curate your first album project in the studio."
+                      action={<Button className="rounded-full bg-primary text-white font-bold px-8 h-10 shadow-md shadow-primary/20" onClick={() => setActiveTab("upload")}>Create Album</Button>}
+                    />
+                  ) : (
+                    <div>
+                      {userAlbums.map(album => (
+                        <div key={album.id} className="relative group">
+                          <MusicGrid type="album" items={[album]} />
+                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full bg-black/50 text-white hover:bg-black/70">
+                                  <MoreVertical className="h-3.5 w-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="rounded-xl">
+                                <DropdownMenuItem className="text-destructive gap-2 font-bold" onSelect={() => setDeleteItem({ id: album.id, type: "album" })}>
+                                  <Trash2 className="h-4 w-4" /> Delete Album
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
-                          <Button className="rounded-full bg-primary text-white font-black italic uppercase tracking-widest h-10 px-8 shadow-lg shadow-primary/20" onClick={() => setActiveTab("upload")}>Enter Studio</Button>
                         </div>
-                      ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                          {userSongs.map(song => (
-                            <div key={song.id} className="group relative">
-                              <MusicGrid type="song" items={[song]} />
-                              <div className="absolute top-2 right-2"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 rounded-full bg-black/40 text-white opacity-60 hover:opacity-100 transition-opacity"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem className="text-destructive gap-2 font-bold" onSelect={() => setDeleteItem({ id: song.id, type: 'track' })}><Trash2 className="h-4 w-4" /> Withdraw Track</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      ))}
                     </div>
-                  )}
-                  {libraryTab === "albums" && (
-                    <div className="space-y-8">
-                      <div className="flex items-center gap-2 border-b border-border/50 pb-4"><Disc3 className="h-5 w-5 text-primary" /><h3 className="font-bold text-sm uppercase tracking-widest">Discography</h3></div>
-                      {userAlbums.length === 0 ? (
-                        <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2.5rem] border border-border/50 shadow-sm animate-in zoom-in">
-                          <Disc3 className="h-12 w-12 mx-auto text-primary opacity-20" />
-                          <div className="space-y-1">
-                            <h3 className="text-xl font-black italic uppercase tracking-tighter">No Albums Materialized</h3>
-                            <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest">Curate your first album project in the studio.</p>
-                          </div>
-                          <Button className="rounded-full bg-primary text-white font-black italic uppercase tracking-widest h-10 px-8 shadow-lg shadow-primary/20" onClick={() => setActiveTab("upload")}>Enter Studio</Button>
-                        </div>
-                      ) : <MusicGrid type="album" items={userAlbums} />}
-                    </div>
-                  )}
-                  {libraryTab === "downloaded" && (
-                    <div className="space-y-8">
-                      <div className="flex items-center gap-2 border-b border-border/50 pb-4"><Download className="h-5 w-5 text-green-500" /><h3 className="font-bold text-sm uppercase tracking-widest">{t('music_notes')}</h3></div>
-                      {downloadedTracks.length === 0 ? (
-                        <div className="py-20 text-center space-y-6 bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[2.5rem] border border-border/50 shadow-sm animate-in zoom-in">
-                          <div className="h-16 w-16 bg-green-500/10 rounded-2xl flex items-center justify-center mx-auto text-green-500">
-                            <Download className="h-8 w-8" />
-                          </div>
-                          <div className="space-y-1">
-                            <h3 className="text-xl font-black italic uppercase tracking-tighter">Notes Vault Empty</h3>
-                            <p className="text-muted-foreground text-sm uppercase font-bold tracking-widest">Archive tracks to listen even when you're off-grid.</p>
-                          </div>
-                          <Button variant="outline" className="rounded-full border-green-500 text-green-500 font-black italic uppercase tracking-widest h-10 px-8" onClick={() => setActiveTab("discover")}>Archive Tracks</Button>
-                        </div>
-                      ) : <MusicGrid type="song" items={downloadedTracks} />}
-                    </div>
-                  )}
-                </div>
+                  )
+                )}
+
+                {/* Downloaded */}
+                {libraryTab === "downloaded" && (
+                  downloadedTracks.length === 0 ? (
+                    <LibraryEmptyState
+                      icon={<Download className="h-10 w-10 text-green-400/60" />}
+                      title="Nothing Saved Yet"
+                      desc="Save tracks to listen even when you're offline."
+                      action={<Button variant="outline" className="rounded-full border-green-500 text-green-600 font-bold px-8 h-10" onClick={() => setActiveTab("discover")}>Browse Music</Button>}
+                    />
+                  ) : <MusicGrid type="song" items={downloadedTracks} />
+                )}
               </div>
             )}
           </div>
         </main>
       </div>
-      <MusicNav activeTab={activeTab} onTabChange={setActiveTab} /><CreatePlaylistModal />
-      <AlertDialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}><AlertDialogContent className="rounded-[2.5rem] sm:max-w-[420px] bg-white/95 dark:bg-[#050505]/95 backdrop-blur-3xl border-destructive/10 shadow-2xl"><AlertDialogHeader><div className="mx-auto h-16 w-16 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-4"><Trash2 className="h-8 w-8" /></div><AlertDialogTitle className="font-black italic uppercase tracking-tighter text-3xl text-center">Purge Content?</AlertDialogTitle><AlertDialogDescription className="text-base font-medium leading-relaxed text-center px-4">This will permanently remove your signature from the ViMore music network. All local notes will be severed.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter className="flex-col sm:flex-row gap-3 pt-6 px-4 pb-2"><AlertDialogCancel className="rounded-2xl h-14 font-black uppercase tracking-widest text-[10px] bg-secondary/50 border-none hover:bg-secondary transition-all">Abort</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className="rounded-2xl h-14 font-black italic uppercase tracking-widest text-[10px] bg-destructive hover:bg-destructive/90 text-white shadow-xl shadow-destructive/20 transition-all active:scale-95">Confirm Purge</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+
+      <MusicNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <CreatePlaylistModal />
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteItem} onOpenChange={open => !open && setDeleteItem(null)}>
+        <AlertDialogContent className="rounded-3xl bg-white/95 dark:bg-card/95 backdrop-blur-2xl border-destructive/10 shadow-2xl max-w-sm mx-4">
+          <AlertDialogHeader>
+            <div className="mx-auto h-14 w-14 bg-destructive/10 rounded-2xl flex items-center justify-center text-destructive mb-3">
+              <Trash2 className="h-7 w-7" />
+            </div>
+            <AlertDialogTitle className="font-black italic uppercase tracking-tighter text-2xl text-center">Delete Content?</AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-sm leading-relaxed">
+              This will permanently remove this {deleteItem?.type === "track" ? "track" : "album"} from ViMore. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 pt-4">
+            <AlertDialogAction onClick={confirmDelete} className="rounded-2xl h-12 font-black uppercase tracking-widest text-[11px] bg-destructive hover:bg-destructive/90 text-white shadow-xl shadow-destructive/20">
+              Delete
+            </AlertDialogAction>
+            <AlertDialogCancel className="rounded-2xl h-12 font-black uppercase tracking-widest text-[11px] bg-secondary/50 border-none hover:bg-secondary">
+              Cancel
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function LibraryEmptyState({ icon, title, desc, action }: { icon: React.ReactNode; title: string; desc: string; action: React.ReactNode }) {
+  return (
+    <div className="py-20 flex flex-col items-center gap-4 bg-white/50 dark:bg-card/30 rounded-3xl border border-dashed border-border">
+      <div className="h-20 w-20 rounded-3xl bg-muted/40 flex items-center justify-center">{icon}</div>
+      <div className="text-center space-y-1 px-8">
+        <h3 className="text-lg font-black italic uppercase tracking-tighter">{title}</h3>
+        <p className="text-muted-foreground text-sm">{desc}</p>
+      </div>
+      {action}
     </div>
   );
 }
 
 export default function MusicPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#F0F2F5] dark:bg-background flex items-center justify-center"><Music className="h-10 w-10 text-primary animate-spin" /></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#F0F2F5] dark:bg-background flex flex-col">
+        <div className="h-16 bg-white/80 dark:bg-card/80 border-b border-border/30" />
+        <MusicSkeleton />
+      </div>
+    }>
       <MusicPageContent />
     </Suspense>
   );

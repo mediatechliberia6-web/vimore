@@ -1,32 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-  Play, 
-  Pause, 
-  SkipBack, 
-  SkipForward, 
-  Volume2, 
-  VolumeX,
-  Maximize2, 
-  ChevronDown,
-  AudioLines,
-  Heart,
-  ThumbsDown,
-  Download,
-  Share2,
-  MoreHorizontal,
-  X,
-  Send,
-  MessageCircle,
-  Loader2,
-  CheckCircle2,
-  Gift,
-  Rocket,
-  EyeOff,
-  Music2,
-  Zap,
-  Clock
+import {
+  Play, Pause, SkipBack, SkipForward, Volume2, VolumeX,
+  ChevronDown, AudioLines, Heart, ThumbsDown, Download,
+  Share2, X, Send, MessageCircle, Loader2, CheckCircle2,
+  Gift, Rocket, Music2, Zap, Clock, ListMusic, Shuffle, Repeat
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -39,7 +18,7 @@ import { useNotifications } from "@/context/NotificationContext";
 import { usePosts } from "@/context/PostContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { BoostPortal } from "@/components/post/boost-portal";
-import { cn, parseFollowerCount, saveFileToDevice } from "@/lib/utils";
+import { cn, parseFollowerCount } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -47,13 +26,27 @@ import { useToast } from "@/hooks/use-toast";
 
 const QUICK_REACTIONS = ["🔥", "❤️", "🙌", "💯", "🤯", "🚀"];
 
+function formatTime(seconds: number) {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+function formatCount(n: number) {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return String(n);
+}
+
 export function MusicPlayer() {
   const pathname = usePathname();
   const { toast } = useToast();
-  
-  const { 
+
+  const {
     currentTrack, isPlaying, isExpanded, progress, volume, reactions, trackStats,
-    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, simulateDownload, isTrackDownloaded, triggerDownloadWithAd, triggerHaptic, audioDuration
+    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume,
+    addReaction, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked,
+    simulateDownload, isTrackDownloaded, triggerDownloadWithAd, triggerHaptic, audioDuration
   } = useMusic();
 
   const { addSignal } = useNotifications();
@@ -64,6 +57,7 @@ export function MusicPlayer() {
   const [isMuted, setIsMuted] = useState(false);
   const [preMuteVolume, setPreMuteVolume] = useState(80);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [activePanel, setActivePanel] = useState<"main" | "comments">("main");
 
   useEffect(() => {
     if (isExpanded && currentTrack) {
@@ -72,14 +66,6 @@ export function MusicPlayer() {
   }, [isExpanded, currentTrack?.id]);
 
   if (!currentTrack) return null;
-
-  const formatCount = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const effectiveDuration = audioDuration > 0 ? audioDuration : currentTrack.duration;
   const currentTime = (progress / 100) * effectiveDuration;
@@ -91,49 +77,32 @@ export function MusicPlayer() {
   };
 
   const handleMuteToggle = () => {
-    if (isMuted) {
-      setVolume(preMuteVolume);
-      setIsMuted(false);
-    } else {
-      setPreMuteVolume(volume);
-      setVolume(0);
-      setIsMuted(true);
-    }
+    if (isMuted) { setVolume(preMuteVolume); setIsMuted(false); }
+    else { setPreMuteVolume(volume); setVolume(0); setIsMuted(true); }
   };
 
   const handleVolumeChange = (val: number) => {
     setVolume(val);
-    if (val > 0) setIsMuted(false);
-    else setIsMuted(true);
+    setIsMuted(val === 0);
   };
 
   const handleDownloadClick = async () => {
     if (isTrackDownloaded(currentTrack.id)) return;
-    
-    triggerDownloadWithAd('single', async () => {
+    triggerDownloadWithAd("single", async () => {
       setIsDownloading(true);
-      toast({ title: "Sonic Download", description: `Fetching high-res audio for ${currentTrack.title}...` });
-      
-      await new Promise(resolve => setTimeout(resolve, 2500));
+      toast({ title: "Downloading…", description: `Fetching audio for ${currentTrack.title}` });
+      await new Promise(r => setTimeout(r, 2500));
       await simulateDownload(currentTrack);
-      
       setIsDownloading(false);
-      toast({ title: "Music Note Saved", description: "Vibe saved to your identity notes." });
-
-      addSignal({
-        type: 'SONIC',
-        recipientId: currentUser?.$id || '',
-        title: 'Track Available Offline',
-        content: `**${currentTrack.title}** by ${currentTrack.artist} has been successfully cached.`,
-        image: currentTrack.cover
-      });
+      toast({ title: "Saved offline", description: "Track is available without internet." });
+      addSignal({ type: "SONIC", recipientId: currentUser?.$id || "", title: "Track Available Offline", content: `**${currentTrack.title}** by ${currentTrack.artist} has been saved.`, image: currentTrack.cover });
     });
   };
 
   const handleGiftClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     triggerHaptic(30);
-    openGiftHub({ name: currentTrack.artist, username: currentTrack.artistUsername || 'artist', avatar: currentTrack.cover } as any);
+    openGiftHub({ name: currentTrack.artist, username: currentTrack.artistUsername || "artist", avatar: currentTrack.cover } as any);
   };
 
   const isLiked = isTrackLiked(currentTrack.id);
@@ -141,345 +110,364 @@ export function MusicPlayer() {
   const isDownloaded = isTrackDownloaded(currentTrack.id);
   const isEligibleForGift = parseFollowerCount(currentTrack.artistFollowers) > 1000;
   const isOwner = currentUser ? currentTrack.artistUsername === currentUser.username : false;
+  const stats = trackStats[currentTrack.id] || { likes: currentTrack.likes || 0, unlikes: currentTrack.unlikes || 0 };
 
+  /* ── MINI PLAYER ────────────────────────────────────────────── */
   if (!isExpanded) {
-    const isHome = pathname === "/";
-    const isMusic = pathname === "/music";
-    let topOffset = "top-[61px]";
-    if (isHome) topOffset = "top-[117px]";
-    if (isMusic) topOffset = "top-[61px]";
-
     return (
-      <div 
-        className={cn(
-          "fixed left-0 right-0 h-16 bg-white/95 dark:bg-card/95 backdrop-blur-xl border-b border-primary/10 shadow-sm flex items-center px-4 gap-4 animate-in slide-in-from-top-4 z-[45] cursor-pointer group transition-all duration-300",
-          topOffset
-        )}
+      <div
+        className="fixed bottom-[5.5rem] left-3 right-3 sm:left-4 sm:right-4 z-[90] cursor-pointer animate-in slide-in-from-bottom-4 duration-300"
         onClick={() => setIsExpanded(true)}
       >
-        <div className="max-w-[1440px] mx-auto w-full flex items-center gap-4">
-          <div className="relative h-10 w-10 rounded-lg overflow-hidden shrink-0 shadow-lg ring-1 ring-primary/10 bg-secondary/30 flex items-center justify-center">
-            <Image src={currentTrack.cover} alt={currentTrack.title} fill className="object-cover" />
+        <div className="relative rounded-2xl overflow-hidden bg-white/90 dark:bg-zinc-900/95 backdrop-blur-2xl border border-black/5 dark:border-white/10 shadow-2xl shadow-black/20">
+          {/* progress line */}
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-black/5 dark:bg-white/5">
+            <div className="h-full bg-primary transition-all duration-300 rounded-full" style={{ width: `${progress}%` }} />
           </div>
-          <div className="flex-1 min-0">
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-bold truncate text-foreground">{currentTrack.title}</p>
-              {isDownloaded && <CheckCircle2 className="h-2.5 w-2.5 text-green-500" />}
-              {currentTrack.isBoosted && <Badge className="bg-primary/10 text-primary border-none text-[7px] font-black h-3 px-1 uppercase tracking-tighter">BOOSTED</Badge>}
+
+          <div className="flex items-center gap-3 px-3 py-2.5">
+            {/* art */}
+            <div className={cn(
+              "relative h-11 w-11 rounded-xl overflow-hidden shrink-0 shadow-lg",
+              isPlaying && "ring-2 ring-primary/40"
+            )}>
+              <Image src={currentTrack.cover} alt={currentTrack.title} fill className={cn("object-cover transition-transform duration-[3s]", isPlaying && "animate-spin")} style={{ animationDuration: "12s" }} />
             </div>
-            <Link href={`/profile/${currentTrack.artistUsername || 'arivera'}`} onClick={(e) => e.stopPropagation()}>
-              <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest truncate hover:text-primary hover:underline">
-                {currentTrack.artist}
-              </p>
-            </Link>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button 
-              size="icon" variant="ghost" className="h-10 w-10 text-primary"
-              onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-            >
-              {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
-            </Button>
-            {isEligibleForGift && !isOwner && settings?.isGiftingEnabled && (
+
+            {/* info */}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold truncate leading-tight">{currentTrack.title}</p>
+              <p className="text-[10px] text-muted-foreground truncate leading-tight">{currentTrack.artist}</p>
+            </div>
+
+            {/* controls */}
+            <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+              <Button size="icon" variant="ghost" className="h-9 w-9 rounded-xl text-muted-foreground" onClick={prevTrack}>
+                <SkipBack className="h-4 w-4 fill-current" />
+              </Button>
+              <Button
+                size="icon"
+                className="h-9 w-9 rounded-xl bg-primary text-white shadow-md shadow-primary/30 hover:bg-primary/90"
+                onClick={togglePlay}
+              >
+                {isPlaying
+                  ? <Pause className="h-4 w-4 fill-current" />
+                  : <Play className="h-4 w-4 fill-current ml-0.5" />}
+              </Button>
+              <Button size="icon" variant="ghost" className="h-9 w-9 rounded-xl text-muted-foreground" onClick={nextTrack}>
+                <SkipForward className="h-4 w-4 fill-current" />
+              </Button>
               <Button
                 size="icon" variant="ghost"
-                className="h-10 w-10 relative text-transparent"
-                onClick={handleGiftClick}
-                title="Send a gift"
+                className="h-9 w-9 rounded-xl text-muted-foreground hover:text-destructive"
+                onClick={(e) => { e.stopPropagation(); clearPlayer(); }}
               >
-                <span className="absolute inset-0 flex items-center justify-center">
-                  <span className="h-7 w-7 rounded-full bg-gradient-to-br from-yellow-400 to-pink-500 flex items-center justify-center shadow ring-1 ring-white/20">
-                    <Gift className="h-3.5 w-3.5 text-white fill-white" />
-                  </span>
-                </span>
+                <X className="h-4 w-4" />
               </Button>
-            )}
-            <Button 
-              size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground hidden sm:flex"
-              onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
-            >
-              <Maximize2 className="h-4 w-4" />
-            </Button>
-            <Button 
-              size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground hover:text-destructive"
-              onClick={(e) => { e.stopPropagation(); clearPlayer(); }}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            </div>
           </div>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-secondary/30">
-          <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
         </div>
       </div>
     );
   }
 
-  const stats = trackStats[currentTrack.id] || { likes: currentTrack.likes || 0, unlikes: currentTrack.unlikes || 0 };
-
+  /* ── EXPANDED PLAYER ────────────────────────────────────────── */
   return (
-    <div className="fixed inset-0 z-[200] bg-background flex flex-col animate-in fade-in zoom-in-95 duration-500 overflow-hidden">
-      <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-accent/20 blur-[120px] rounded-full animate-pulse duration-1000" />
-        <div className="absolute inset-0 bg-background/60 backdrop-blur-3xl" />
+    <div className="fixed inset-0 z-[200] flex flex-col overflow-hidden animate-in fade-in duration-300">
+      {/* Blurred background */}
+      <div className="absolute inset-0 -z-10">
+        <Image src={currentTrack.cover} alt="" fill className="object-cover scale-110" />
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80" />
       </div>
 
-      <header className="p-4 sm:p-6 flex items-center justify-between shrink-0">
-        <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20" onClick={() => setIsExpanded(false)}>
-          <ChevronDown className="h-6 w-6" />
+      {/* Floating reaction emojis */}
+      {reactions.map((r) => (
+        <div
+          key={r.id}
+          className="absolute bottom-32 text-4xl animate-out fade-out slide-out-to-top-[500px] pointer-events-none z-50"
+          style={{ left: `${r.x}%`, animationDuration: "2500ms" }}
+        >
+          {r.emoji}
+        </div>
+      ))}
+
+      {/* Header */}
+      <header className="flex items-center justify-between px-5 pt-12 pb-4 shrink-0">
+        <Button variant="ghost" size="icon" className="rounded-full bg-white/10 text-white hover:bg-white/20" onClick={() => setIsExpanded(false)}>
+          <ChevronDown className="h-5 w-5" />
         </Button>
         <div className="text-center">
-          <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground mb-1">Now Playing</p>
-          <div className="flex items-center gap-2 justify-center bg-primary/10 px-3 sm:px-4 py-1 rounded-full">
-            <AudioLines className="h-3 w-3 text-primary animate-bounce" />
-            <span className="text-[9px] sm:text-[10px] font-black text-primary uppercase">Sonic Immersive</span>
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/60">Now Playing</p>
+          <div className="flex items-center gap-1.5 mt-0.5 justify-center">
+            <AudioLines className="h-3 w-3 text-primary animate-pulse" />
+            <span className="text-[10px] font-black text-white uppercase tracking-widest">Vimore Music</span>
           </div>
         </div>
-        <div className="flex items-center gap-1 sm:gap-2">
-          <Button 
-            variant="ghost" size="icon" 
-            className={cn("rounded-full bg-secondary/20", isDownloaded && "text-green-500")} 
-            title="Download"
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost" size="icon"
+            className={cn("rounded-full bg-white/10 text-white hover:bg-white/20", isDownloaded && "text-green-400")}
             onClick={handleDownloadClick}
             disabled={isDownloading}
           >
-            {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : isDownloaded ? <CheckCircle2 className="h-4 w-4" /> : <Download className="h-4 w-4 sm:h-5 sm:w-5" />}
+            {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : isDownloaded ? <CheckCircle2 className="h-4 w-4" /> : <Download className="h-4 w-4" />}
           </Button>
-          <Button variant="ghost" size="icon" className="rounded-full bg-secondary/20" title="Share">
-            <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
+          <Button variant="ghost" size="icon" className="rounded-full bg-white/10 text-white hover:bg-white/20">
+            <Share2 className="h-4 w-4" />
           </Button>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto overflow-x-hidden">
-        <div className="flex flex-col lg:flex-row items-start justify-center p-6 sm:p-12 gap-8 lg:gap-16 max-w-7xl mx-auto w-full min-h-full">
-          <div className="relative w-full max-w-[320px] sm:max-w-[400px] lg:max-w-[500px] aspect-square group shrink-0 lg:sticky lg:top-12 mx-auto lg:mx-0">
-            <div className={cn(
-              "absolute inset-0 bg-primary/30 blur-[100px] rounded-full transition-opacity duration-1000",
-              isPlaying ? "opacity-100" : "opacity-0"
-            )} />
-            <div className="relative h-full w-full rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden shadow-2xl ring-1 ring-white/10 flex items-center justify-center bg-secondary/30">
-              <Image src={currentTrack.cover} alt={currentTrack.title} fill className="object-cover" />
-              {reactions.map((r) => (
-                <div
-                  key={r.id}
-                  className="absolute bottom-10 text-4xl sm:text-5xl animate-out fade-out slide-out-to-top-[500px] pointer-events-none z-50"
-                  style={{ left: `${r.x}%`, animationDuration: '2500ms' }}
-                >
-                  {r.emoji}
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* Panel toggle */}
+      <div className="flex justify-center gap-1 px-5 mb-2 shrink-0">
+        {[{ id: "main", label: "Player" }, { id: "comments", label: `Reactions · ${currentTrack.comments || 0}` }].map(p => (
+          <button
+            key={p.id}
+            onClick={() => setActivePanel(p.id as any)}
+            className={cn(
+              "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
+              activePanel === p.id ? "bg-white text-black" : "text-white/50 hover:text-white"
+            )}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
 
-          <div className="flex-1 w-full max-w-[500px] flex flex-col gap-6 sm:gap-10 mx-auto lg:mx-0">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1 sm:space-y-2">
-                <h2 className="text-3xl sm:text-5xl font-black italic uppercase tracking-tighter leading-tight sm:leading-none">{currentTrack.title}</h2>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <Link href={`/profile/${currentTrack.artistUsername || 'arivera'}`} onClick={() => setIsExpanded(false)}>
-                    <p className="text-xl sm:text-2xl text-primary font-bold hover:underline">{currentTrack.artist}</p>
-                  </Link>
-                  {isDownloaded && <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-[10px] font-black tracking-widest uppercase">Saved</Badge>}
-                  {currentTrack.isBoosted && <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-black tracking-widest uppercase">Promoted</Badge>}
+      {/* Main scrollable content */}
+      <div className="flex-1 overflow-y-auto overscroll-contain">
+        {activePanel === "main" ? (
+          <div className="px-5 pb-40 space-y-6">
+            {/* Album art */}
+            <div className="flex justify-center pt-2">
+              <div className="relative">
+                <div className={cn(
+                  "absolute inset-0 bg-primary/40 blur-3xl rounded-full scale-75 transition-opacity duration-1000",
+                  isPlaying ? "opacity-100" : "opacity-0"
+                )} />
+                <div className={cn(
+                  "relative w-56 h-56 sm:w-72 sm:h-72 rounded-full overflow-hidden shadow-2xl ring-4 ring-white/10 transition-transform duration-[3s]",
+                  isPlaying && "animate-spin"
+                )} style={{ animationDuration: "12s" }}>
+                  <Image src={currentTrack.cover} alt={currentTrack.title} fill className="object-cover" />
                 </div>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="flex items-center gap-1 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                    <Zap className="h-3 w-3 text-primary" />
-                    {formatCount(parseInt(currentTrack.streams || '0'))} plays
-                  </span>
-                  {effectiveDuration > 0 && (
-                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{formatTime(effectiveDuration)}</span>
-                  )}
-                </div>
-              </div>
-              <div className="flex flex-col gap-3 items-center">
-                <div className="flex flex-col items-center gap-1">
-                  <Button 
-                    variant="ghost" size="icon" 
-                    className={cn("h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-secondary/20 transition-all", isLiked ? "text-red-500 bg-red-500/10" : "hover:text-red-500")}
-                    onClick={() => toggleLike(currentTrack)}
-                  >
-                    <Heart className={cn("h-5 w-5 sm:h-7 sm:w-7", isLiked && "fill-current")} />
-                  </Button>
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                    {formatCount(currentTrack.likes || 0)}
-                  </span>
-                </div>
-                
-                <div className="flex flex-col items-center gap-1">
-                  <Button 
-                    variant="ghost" size="icon" 
-                    className={cn("h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-secondary/20 transition-all", isUnliked ? "text-primary bg-primary/10" : "hover:text-destructive")}
-                    onClick={() => toggleUnlike(currentTrack)}
-                  >
-                    <ThumbsDown className={cn("h-5 w-5 sm:h-7 sm:w-7", isUnliked && "fill-current")} />
-                  </Button>
-                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                    {stats.unlikes}
-                  </span>
-                </div>
-
-                {isEligibleForGift && !isOwner && settings?.isGiftingEnabled && (
-                  <div className="flex flex-col items-center gap-1">
-                    <button
-                      onClick={handleGiftClick}
-                      className="h-10 w-10 sm:h-14 sm:w-14 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-400 to-pink-500 shadow-lg ring-2 ring-white/20 hover:scale-110 active:scale-95 transition-transform"
-                      title="Send a gift"
-                    >
-                      <Gift className="h-5 w-5 sm:h-7 sm:w-7 text-white fill-white" />
-                    </button>
-                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Gift</span>
+                {/* Center hole */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className={cn(
+                    "h-10 w-10 rounded-full bg-zinc-900 border-4 border-zinc-700 flex items-center justify-center transition-all",
+                    isPlaying && "shadow-lg shadow-primary/30"
+                  )}>
+                    <div className="h-2 w-2 rounded-full bg-zinc-600" />
                   </div>
-                )}
-
-                {isOwner && (
-                  <div className="flex flex-col items-center gap-1">
-                    <BoostPortal nodeId={currentTrack.id.toString()} type="SONIC">
-                      <Button variant="ghost" size="icon" className={cn("h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-secondary/20 transition-all", currentTrack.isBoosted && "text-primary bg-primary/10 shadow-lg")} title={t('boost_title')}>
-                        <Rocket className={cn("h-5 w-5 sm:h-7 sm:w-7", currentTrack.isBoosted && "animate-bounce")} />
-                      </Button>
-                    </BoostPortal>
-                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Boost</span>
-                  </div>
-                )}
-
-                <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-secondary/20">
-                  <MoreHorizontal className="h-5 w-5 sm:h-7 sm:w-7" />
-                </Button>
+                </div>
               </div>
             </div>
 
+            {/* Track info */}
+            <div className="space-y-1 text-center">
+              <h2 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tighter text-white leading-tight line-clamp-2">
+                {currentTrack.title}
+              </h2>
+              <Link href={`/profile/${currentTrack.artistUsername || "arivera"}`} onClick={() => setIsExpanded(false)}>
+                <p className="text-base font-bold text-primary hover:underline">{currentTrack.artist}</p>
+              </Link>
+              <div className="flex items-center justify-center gap-3 pt-1">
+                <span className="flex items-center gap-1 text-[10px] font-bold text-white/50 uppercase tracking-widest">
+                  <Zap className="h-3 w-3 text-primary" />
+                  {formatCount(parseInt(currentTrack.streams || "0"))} plays
+                </span>
+                {effectiveDuration > 0 && (
+                  <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">{formatTime(effectiveDuration)}</span>
+                )}
+                {isDownloaded && <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[9px] font-black uppercase">Saved</Badge>}
+              </div>
+            </div>
+
+            {/* Badges */}
             {currentTrack.isBoosted && currentTrack.boostExpiry && currentTrack.boostExpiry > Date.now() && (
-              <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 flex items-center justify-between animate-in fade-in">
-                <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-primary">
-                  <Zap className="h-3 w-3 animate-pulse" />
-                  <span>{t('boost_active')}</span>
+              <div className="mx-auto max-w-xs bg-primary/10 border border-primary/20 rounded-2xl px-4 py-2 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
+                  <Zap className="h-3 w-3 animate-pulse" /> Boosted
                 </div>
-                <div className="flex items-center gap-1.5 text-[9px] font-black text-primary/70">
+                <div className="flex items-center gap-1 text-[10px] font-black text-primary/60">
                   <Clock className="h-3 w-3" />
-                  <span>{Math.ceil((currentTrack.boostExpiry - Date.now()) / 86400000)} {Math.ceil((currentTrack.boostExpiry - Date.now()) / 86400000) === 1 ? 'day' : 'days'} left</span>
+                  {Math.ceil((currentTrack.boostExpiry - Date.now()) / 86400000)}d left
                 </div>
               </div>
             )}
 
-            <div className="space-y-3 sm:space-y-4">
-              <Slider value={[progress]} max={100} step={0.1} onValueChange={(val) => setProgress(val[0])} />
-              <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+            {/* Progress */}
+            <div className="space-y-2">
+              <Slider value={[progress]} max={100} step={0.1} onValueChange={(val) => setProgress(val[0])} className="[&>span:first-child]:bg-white/20 [&>span>span]:bg-white [&>span>span]:shadow-md" />
+              <div className="flex justify-between text-[10px] font-bold text-white/50 uppercase tracking-widest">
                 <span>{formatTime(currentTime)}</span>
                 <span>{formatTime(effectiveDuration)}</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-6 sm:gap-10">
-              <Button variant="ghost" size="icon" className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-secondary/20" onClick={prevTrack}>
-                <SkipBack className="h-6 w-6 sm:h-8 sm:w-8 fill-current" />
+            {/* Main controls */}
+            <div className="flex items-center justify-between px-4">
+              <Button variant="ghost" size="icon" className="h-11 w-11 rounded-full text-white/50 hover:text-white hover:bg-white/10">
+                <Shuffle className="h-5 w-5" />
               </Button>
-              <Button 
-                className="h-16 w-16 sm:h-24 sm:w-24 rounded-full bg-primary text-white shadow-2xl shadow-primary/40 hover:scale-105 active:scale-95 transition-transform"
+              <Button variant="ghost" size="icon" className="h-14 w-14 rounded-full bg-white/10 text-white hover:bg-white/20" onClick={prevTrack}>
+                <SkipBack className="h-7 w-7 fill-current" />
+              </Button>
+              <Button
+                className="h-16 w-16 rounded-full bg-white text-black hover:bg-white/90 shadow-2xl shadow-black/30 hover:scale-105 active:scale-95 transition-transform"
                 onClick={togglePlay}
               >
-                {isPlaying ? <Pause className="h-8 w-8 sm:h-10 sm:w-10 fill-current" /> : <Play className="h-8 w-8 sm:h-10 sm:w-10 fill-current ml-1 sm:ml-2" />}
+                {isPlaying
+                  ? <Pause className="h-8 w-8 fill-current" />
+                  : <Play className="h-8 w-8 fill-current ml-1" />}
               </Button>
-              <Button variant="ghost" size="icon" className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-secondary/20" onClick={nextTrack}>
-                <SkipForward className="h-6 w-6 sm:h-8 sm:w-8 fill-current" />
+              <Button variant="ghost" size="icon" className="h-14 w-14 rounded-full bg-white/10 text-white hover:bg-white/20" onClick={nextTrack}>
+                <SkipForward className="h-7 w-7 fill-current" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-11 w-11 rounded-full text-white/50 hover:text-white hover:bg-white/10">
+                <Repeat className="h-5 w-5" />
               </Button>
             </div>
 
-            <div className="space-y-4 sm:space-y-6 pt-6 sm:pt-10 border-t border-white/10">
-              <div className="flex items-center justify-between bg-secondary/10 p-3 sm:p-4 rounded-[1.5rem] sm:rounded-[2rem]">
-                {QUICK_REACTIONS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => addReaction(emoji)}
-                    className="text-2xl sm:text-3xl hover:scale-150 transition-all active:scale-90 px-1 sm:px-2"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-3 sm:gap-4">
-                <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground" onClick={handleMuteToggle}>
-                  {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-                </Button>
-                <Slider value={[volume]} max={100} onValueChange={(val) => handleVolumeChange(val[0])} className="w-full" />
-              </div>
-            </div>
-
-            <div className="space-y-4 pt-10 border-t border-white/10">
-              <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5 text-primary" />
-                  <h3 className="text-sm font-black uppercase tracking-[0.2em] text-foreground">Fan Reactions</h3>
-                </div>
-                <span className="text-[10px] font-black text-muted-foreground bg-secondary/20 px-2 py-0.5 rounded-full" onClick={() => openCommentHub(currentTrack.id.toString())}>
-                  {currentTrack.comments || 0}
-                </span>
-              </div>
-
-              <ScrollArea className="h-[300px] w-full rounded-2xl bg-black/5 dark:bg-white/5 p-4">
-                <div className="space-y-6">
-                  {(activeComments || []).length > 0 ? (
-                    activeComments.map((comment) => (
-                      <div key={comment.$id} className="flex gap-4 group animate-in slide-in-from-bottom-2 duration-300">
-                        <Link href={`/profile/${comment.userName}`} onClick={() => setIsExpanded(false)}>
-                          <Avatar className="h-10 w-10 border-2 border-primary/10 shrink-0 hover:scale-105 transition-transform">
-                            <AvatarImage src={comment.userAvatar} />
-                            <AvatarFallback>{comment.userName[0]}</AvatarFallback>
-                          </Avatar>
-                        </Link>
-                        <div className="flex flex-col gap-1 flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <Link href={`/profile/${comment.userName}`} onClick={() => setIsExpanded(false)}>
-                              <span className="text-xs font-bold hover:underline cursor-pointer">{comment.userName}</span>
-                            </Link>
-                            <span className="text-[9px] text-muted-foreground font-medium">{comment.time}</span>
-                          </div>
-                          <p className="text-sm text-foreground/80 leading-relaxed bg-white/50 dark:bg-black/20 p-3 rounded-2xl rounded-tl-none border border-white/10">{comment.text}</p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center py-20 opacity-40">
-                      <MessageCircle className="h-12 w-12 mb-2" />
-                      <p className="text-xs font-bold uppercase tracking-widest">No reactions yet</p>
-                      <p className="text-[10px] font-medium">Be the first to share the vibe!</p>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-
-              <div className="relative group pt-4 mb-10 lg:mb-0">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
-                  <Avatar className="h-8 w-8 border-2 border-primary/20">
-                    <AvatarImage src={currentUser?.avatar} />
-                    <AvatarFallback>V</AvatarFallback>
-                  </Avatar>
-                </div>
-                <Input 
-                  placeholder="Drop a reaction..." 
-                  className="pl-16 pr-12 h-14 bg-white/10 border-white/5 rounded-[1.5rem] focus-visible:ring-primary focus-visible:bg-white/20 transition-all text-sm placeholder:text-muted-foreground/60"
-                  value={commentInput}
-                  onChange={(e) => setCommentInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendComment()}
-                />
-                <Button 
-                  size="icon" 
-                  className={cn(
-                    "absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-primary text-white shadow-lg hover:scale-105 active:scale-95 transition-all",
-                    commentInput.trim() ? "bg-primary text-white shadow-lg" : "bg-white/10 text-muted-foreground opacity-20"
-                  )}
-                  disabled={!commentInput.trim()}
-                  onClick={handleSendComment}
+            {/* Action buttons */}
+            <div className="flex items-center justify-center gap-5">
+              <div className="flex flex-col items-center gap-1">
+                <Button
+                  variant="ghost" size="icon"
+                  className={cn("h-12 w-12 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all", isLiked && "bg-red-500/20 text-red-400")}
+                  onClick={() => toggleLike(currentTrack)}
                 >
-                  <Send className="h-4 w-4" />
+                  <Heart className={cn("h-5 w-5", isLiked && "fill-current")} />
                 </Button>
+                <span className="text-[10px] font-bold text-white/50">{formatCount(stats.likes)}</span>
               </div>
+
+              <div className="flex flex-col items-center gap-1">
+                <Button
+                  variant="ghost" size="icon"
+                  className={cn("h-12 w-12 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all", isUnliked && "bg-orange-500/20 text-orange-400")}
+                  onClick={() => toggleUnlike(currentTrack)}
+                >
+                  <ThumbsDown className={cn("h-5 w-5", isUnliked && "fill-current")} />
+                </Button>
+                <span className="text-[10px] font-bold text-white/50">{stats.unlikes}</span>
+              </div>
+
+              <button
+                className="flex flex-col items-center gap-1"
+                onClick={() => setActivePanel("comments")}
+              >
+                <span className="h-12 w-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all">
+                  <MessageCircle className="h-5 w-5 text-white" />
+                </span>
+                <span className="text-[10px] font-bold text-white/50">{currentTrack.comments || 0}</span>
+              </button>
+
+              {isEligibleForGift && !isOwner && settings?.isGiftingEnabled && (
+                <div className="flex flex-col items-center gap-1">
+                  <button
+                    onClick={handleGiftClick}
+                    className="h-12 w-12 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-400 to-pink-500 shadow-lg hover:scale-110 active:scale-95 transition-transform"
+                  >
+                    <Gift className="h-5 w-5 text-white fill-white" />
+                  </button>
+                  <span className="text-[10px] font-bold text-white/50">Gift</span>
+                </div>
+              )}
+
+              {isOwner && (
+                <div className="flex flex-col items-center gap-1">
+                  <BoostPortal nodeId={currentTrack.id.toString()} type="SONIC">
+                    <button className={cn(
+                      "h-12 w-12 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-all",
+                      currentTrack.isBoosted && "bg-primary/20 text-primary"
+                    )}>
+                      <Rocket className={cn("h-5 w-5 text-white", currentTrack.isBoosted && "text-primary animate-bounce")} />
+                    </button>
+                  </BoostPortal>
+                  <span className="text-[10px] font-bold text-white/50">Boost</span>
+                </div>
+              )}
+            </div>
+
+            {/* Quick reactions */}
+            <div className="flex items-center justify-between bg-white/10 backdrop-blur-sm rounded-2xl px-4 py-3">
+              {QUICK_REACTIONS.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => addReaction(emoji)}
+                  className="text-2xl hover:scale-150 transition-transform active:scale-90"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+
+            {/* Volume */}
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" className="rounded-full text-white/50 hover:text-white shrink-0" onClick={handleMuteToggle}>
+                {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              </Button>
+              <Slider value={[volume]} max={100} onValueChange={(val) => handleVolumeChange(val[0])} className="w-full [&>span:first-child]:bg-white/20 [&>span>span]:bg-white" />
             </div>
           </div>
-        </div>
-      </main>
+        ) : (
+          /* Comments panel */
+          <div className="px-5 pb-40 space-y-4 pt-2">
+            <ScrollArea className="h-[50vh] rounded-2xl">
+              <div className="space-y-4">
+                {(activeComments || []).length > 0 ? activeComments.map((comment) => (
+                  <div key={comment.$id} className="flex gap-3 animate-in slide-in-from-bottom-2 duration-300">
+                    <Link href={`/profile/${comment.userName}`} onClick={() => setIsExpanded(false)}>
+                      <Avatar className="h-9 w-9 border-2 border-white/10 shrink-0">
+                        <AvatarImage src={comment.userAvatar} />
+                        <AvatarFallback>{comment.userName[0]}</AvatarFallback>
+                      </Avatar>
+                    </Link>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-bold text-white">{comment.userName}</span>
+                        <span className="text-[9px] text-white/40">{comment.time}</span>
+                      </div>
+                      <p className="text-sm text-white/70 bg-white/10 px-3 py-2 rounded-2xl rounded-tl-none leading-relaxed">{comment.text}</p>
+                    </div>
+                  </div>
+                )) : (
+                  <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
+                    <MessageCircle className="h-10 w-10 text-white mb-2" />
+                    <p className="text-sm font-bold text-white uppercase tracking-widest">No reactions yet</p>
+                    <p className="text-xs text-white/60 mt-1">Be the first to drop a vibe!</p>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+
+            {/* Comment input */}
+            <div className="relative">
+              <Avatar className="absolute left-3 top-1/2 -translate-y-1/2 h-7 w-7 border border-white/10">
+                <AvatarImage src={currentUser?.avatar} />
+                <AvatarFallback>V</AvatarFallback>
+              </Avatar>
+              <Input
+                placeholder="Drop a reaction…"
+                className="pl-12 pr-12 h-12 bg-white/10 border-white/10 rounded-2xl text-white placeholder:text-white/40 focus-visible:ring-primary focus-visible:bg-white/15"
+                value={commentInput}
+                onChange={e => setCommentInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleSendComment()}
+              />
+              <Button
+                size="icon"
+                className={cn("absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-xl transition-all", commentInput.trim() ? "bg-primary text-white" : "bg-white/10 text-white/30")}
+                onClick={handleSendComment}
+                disabled={!commentInput.trim()}
+              >
+                <Send className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

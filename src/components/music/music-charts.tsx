@@ -1,16 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { 
-  TrendingUp, 
-  Play, 
-  Globe, 
-  Star, 
-  Flame, 
-  BarChart2, 
-  Music2, 
-  Zap 
-} from "lucide-react";
+import { TrendingUp, Play, Globe, Star, Flame, Music2, Zap, Crown, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NativeAdNode } from "@/components/ad/native-ad-node";
@@ -18,35 +9,19 @@ import { useMusic, Track } from "@/context/MusicContext";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
-import { Area, AreaChart, ResponsiveContainer } from "recharts";
-import { ChartContainer } from "@/components/ui/chart";
 
 const CHART_CATEGORIES = [
-  { id: "global", label: "Top Global", icon: Globe },
-  { id: "rising", label: "Rising Stars", icon: Star },
-  { id: "viral", label: "Viral Hubs", icon: Flame },
+  { id: "global", label: "Global", icon: Globe },
+  { id: "rising", label: "Rising", icon: Star },
+  { id: "viral", label: "Viral", icon: Flame },
 ];
 
-function Sparkline({ data, color }: { data: number[], color: string }) {
-  const chartData = data.map((val, i) => ({ val, index: i }));
-  return (
-    <div className="h-10 w-24">
-      <ChartContainer config={{ val: { label: "Stream Trend", color } }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData}>
-            <Area
-              type="monotone"
-              dataKey="val"
-              stroke={color}
-              strokeWidth={2}
-              fillOpacity={1}
-              fill="transparent"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </ChartContainer>
-    </div>
-  );
+function formatCount(n: number | string): string {
+  const num = typeof n === "string" ? parseInt(n, 10) : n;
+  if (isNaN(num)) return "0";
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
+  return String(num);
 }
 
 export function MusicCharts() {
@@ -55,11 +30,9 @@ export function MusicCharts() {
 
   const rankedSongs = useMemo(() => {
     if (!globalSongs || globalSongs.length === 0) return [];
-    
     return [...globalSongs].sort((a, b) => {
       if (a.isBoosted && !b.isBoosted) return -1;
       if (!a.isBoosted && b.isBoosted) return 1;
-      
       const aLikes = trackStats[a.id]?.likes || a.likes || 0;
       const bLikes = trackStats[b.id]?.likes || b.likes || 0;
       return bLikes - aLikes;
@@ -68,204 +41,268 @@ export function MusicCharts() {
 
   if (rankedSongs.length === 0) {
     return (
-      <div className="py-32 text-center space-y-6 animate-in fade-in duration-700">
-        <div className="h-20 w-20 bg-primary/5 rounded-full flex items-center justify-center mx-auto border-2 border-dashed border-primary/20">
+      <div className="py-32 text-center space-y-5 animate-in fade-in duration-500">
+        <div className="h-20 w-20 bg-primary/5 rounded-3xl flex items-center justify-center mx-auto border-2 border-dashed border-primary/20">
           <Music2 className="h-10 w-10 text-primary/20" />
         </div>
         <div className="space-y-1">
-          <h3 className="text-xl font-black italic uppercase tracking-tighter">Sonic Vault Silent</h3>
-          <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest">No tracks have materialized in the network yet.</p>
+          <h3 className="text-xl font-black italic uppercase tracking-tighter">No Charts Yet</h3>
+          <p className="text-muted-foreground text-sm">No tracks have been uploaded yet.</p>
         </div>
       </div>
     );
   }
 
   const topSong = rankedSongs[0];
+  const top3 = rankedSongs.slice(0, 3);
+  const rest = rankedSongs.slice(3);
 
   return (
-    <div className="space-y-8 sm:space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      
-      {/* 1. The #1 Spotlight */}
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+      {/* Hero — #1 Track */}
       {topSong && (
-        <div className="relative w-full aspect-video lg:aspect-[21/9] lg:min-h-[300px] rounded-[2rem] lg:rounded-[3rem] overflow-hidden group shadow-2xl">
-          <Image 
-            src={topSong.cover} 
-            alt={topSong.title} 
-            fill 
-            className="object-cover brightness-[0.4] lg:brightness-50 group-hover:scale-105 transition-transform duration-1000"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
-          
-          <div className="absolute inset-0 flex flex-col lg:flex-row items-center lg:items-center justify-center lg:justify-between px-6 sm:px-12 gap-6">
-            <div className="space-y-3 sm:space-y-4 max-w-xl text-center lg:text-left">
-              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 sm:gap-3">
-                <Badge className="bg-primary hover:bg-primary text-[8px] sm:text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full">
-                  {topSong.isBoosted ? "Promoted Peak" : "Global Number One"}
-                </Badge>
-                {topSong.isBoosted && (
-                  <span className="text-primary text-[10px] sm:text-xs font-black italic uppercase tracking-widest flex items-center gap-1">
-                    <Zap className="h-3 w-3 fill-current animate-pulse" /> Boosted Pulse
-                  </span>
-                )}
-                <span className="text-green-400 text-[10px] sm:text-xs font-black italic uppercase tracking-widest flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" /> Peak Pulse Reached
+        <div
+          className="relative w-full rounded-[1.75rem] overflow-hidden cursor-pointer group shadow-2xl"
+          style={{ aspectRatio: "16/9", maxHeight: "280px" }}
+          onClick={() => setTrack(topSong)}
+        >
+          <Image src={topSong.cover} alt={topSong.title} fill className="object-cover brightness-[0.45] group-hover:brightness-[0.35] transition-all duration-700 group-hover:scale-105" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+
+          <div className="absolute inset-x-0 bottom-0 p-5 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge className="bg-primary text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full gap-1 h-auto">
+                <Crown className="h-3 w-3 fill-current" />
+                {topSong.isBoosted ? "Promoted #1" : "Global #1"}
+              </Badge>
+              <span className="text-white/60 text-[10px] font-bold flex items-center gap-1">
+                <Zap className="h-3 w-3 text-yellow-400" />
+                {formatCount(topSong.streams || 0)} plays
+              </span>
+              {topSong.isBoosted && (
+                <span className="text-primary text-[10px] font-black flex items-center gap-1">
+                  <Zap className="h-3 w-3 fill-current animate-pulse" /> Boosted
                 </span>
-              </div>
-              
-              <div className="relative">
-                <h1 className="hidden sm:block text-6xl sm:text-8xl font-black italic uppercase tracking-tighter leading-none opacity-10 absolute -top-4 -left-4 pointer-events-none">01</h1>
-                <h2 className="text-3xl sm:text-7xl font-black italic uppercase tracking-tighter leading-none text-white drop-shadow-2xl">
-                  {topSong.title}
-                </h2>
-                <Link href={`/profile/${topSong.artistUsername || 'vimore'}`} className="inline-block mt-1 sm:mt-2">
-                  <p className="text-lg sm:text-2xl text-primary font-bold hover:underline underline-offset-4">{topSong.artist}</p>
-                </Link>
-              </div>
-
-              <Button 
-                size="lg" 
-                className="rounded-full bg-white text-black font-black px-8 sm:px-10 h-11 sm:h-14 hover:scale-105 transition-transform gap-2 text-xs sm:base"
-                onClick={() => setTrack(topSong)}
-              >
-                <Play className="h-4 w-4 sm:h-6 sm:w-6 fill-current" /> PLAY NOW
-              </Button>
+              )}
             </div>
+            <h2 className="text-2xl sm:text-4xl font-black italic uppercase tracking-tighter text-white leading-none line-clamp-1 drop-shadow-lg">
+              {topSong.title}
+            </h2>
+            <Link href={`/profile/${topSong.artistUsername || "vimore"}`} onClick={e => e.stopPropagation()}>
+              <p className="text-sm font-bold text-white/70 hover:text-primary transition-colors">{topSong.artist}</p>
+            </Link>
+            <Button
+              size="sm"
+              className="rounded-full bg-white text-black font-black gap-1.5 hover:scale-105 transition-transform px-5 h-9 text-xs mt-1"
+              onClick={e => { e.stopPropagation(); setTrack(topSong); }}
+            >
+              <Play className="h-3.5 w-3.5 fill-current" /> Play Now
+            </Button>
+          </div>
 
-            <div className="hidden lg:block relative w-64 h-64 rounded-[2rem] overflow-hidden shadow-2xl rotate-3 group-hover:rotate-0 transition-transform duration-700">
-              <img src={topSong.cover} alt="Art" className="w-full h-full object-cover" />
-            </div>
+          {/* Large rank */}
+          <div className="absolute top-4 right-4 text-[80px] font-black italic text-white/10 leading-none select-none">
+            01
           </div>
         </div>
       )}
 
-      {/* 2. Chart Navigation */}
-      <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-4 scrollbar-hide px-1">
-        {CHART_CATEGORIES.map((cat) => (
+      {/* Category filter */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        {CHART_CATEGORIES.map(cat => (
           <button
             key={cat.id}
             onClick={() => setActiveCategory(cat.id)}
             className={cn(
-              "flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-[10px] sm:text-sm font-black italic uppercase tracking-widest transition-all shrink-0 border",
-              activeCategory === cat.id 
-                ? "bg-primary border-primary text-white shadow-lg shadow-primary/25 scale-105" 
-                : "bg-white/50 dark:bg-card/50 border-border hover:bg-secondary/50 text-muted-foreground"
+              "flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all shrink-0 border",
+              activeCategory === cat.id
+                ? "bg-primary border-primary text-white shadow-md shadow-primary/25"
+                : "bg-white/70 dark:bg-card/60 border-border text-muted-foreground hover:text-foreground"
             )}
           >
-            <cat.icon className="h-3 w-3 sm:h-4 sm:w-4" />
+            <cat.icon className="h-3.5 w-3.5" />
             {cat.label}
           </button>
         ))}
+        <div className="ml-auto shrink-0 flex items-center gap-1 text-[10px] font-bold text-muted-foreground">
+          <BarChart3 className="h-3.5 w-3.5" />
+          {globalSongs.length} tracks
+        </div>
       </div>
+
+      {/* Top 3 podium */}
+      {top3.length >= 2 && (
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          {/* 2nd */}
+          <div className="flex flex-col items-center gap-2 pt-4">
+            <div
+              className="relative w-full aspect-square rounded-2xl overflow-hidden shadow-xl cursor-pointer group"
+              onClick={() => setTrack(top3[1])}
+            >
+              <img src={top3[1].cover} alt={top3[1].title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors" />
+              <div className="absolute top-2 left-2 h-6 w-6 rounded-full bg-zinc-400 flex items-center justify-center text-white text-[11px] font-black shadow">2</div>
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="h-9 w-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <Play className="h-4 w-4 text-white fill-current ml-0.5" />
+                </div>
+              </div>
+            </div>
+            <p className="text-[11px] font-bold text-center line-clamp-1 w-full">{top3[1].title}</p>
+            <p className="text-[10px] text-muted-foreground text-center line-clamp-1 w-full">{top3[1].artist}</p>
+          </div>
+          {/* 1st */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="relative">
+              <Crown className="absolute -top-3 left-1/2 -translate-x-1/2 h-6 w-6 text-yellow-400 fill-yellow-400 drop-shadow-lg z-10" />
+            </div>
+            <div
+              className="relative w-full aspect-square rounded-2xl overflow-hidden shadow-2xl cursor-pointer group ring-2 ring-yellow-400/40"
+              onClick={() => setTrack(top3[0])}
+            >
+              <img src={top3[0].cover} alt={top3[0].title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
+              <div className="absolute top-2 left-2 h-6 w-6 rounded-full bg-yellow-400 flex items-center justify-center text-black text-[11px] font-black shadow">1</div>
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <Play className="h-5 w-5 text-white fill-current ml-0.5" />
+                </div>
+              </div>
+            </div>
+            <p className="text-[11px] font-bold text-center line-clamp-1 w-full">{top3[0].title}</p>
+            <p className="text-[10px] text-muted-foreground text-center line-clamp-1 w-full">{top3[0].artist}</p>
+          </div>
+          {/* 3rd */}
+          {top3[2] && (
+            <div className="flex flex-col items-center gap-2 pt-6">
+              <div
+                className="relative w-full aspect-square rounded-2xl overflow-hidden shadow-lg cursor-pointer group"
+                onClick={() => setTrack(top3[2])}
+              >
+                <img src={top3[2].cover} alt={top3[2].title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-black/35 group-hover:bg-black/20 transition-colors" />
+                <div className="absolute top-2 left-2 h-6 w-6 rounded-full bg-amber-700 flex items-center justify-center text-white text-[11px] font-black shadow">3</div>
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="h-9 w-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <Play className="h-4 w-4 text-white fill-current ml-0.5" />
+                  </div>
+                </div>
+              </div>
+              <p className="text-[11px] font-bold text-center line-clamp-1 w-full">{top3[2].title}</p>
+              <p className="text-[10px] text-muted-foreground text-center line-clamp-1 w-full">{top3[2].artist}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       <NativeAdNode type="standard" id="chart-hero-sep" />
 
-      {/* 3. The Ranking List */}
-      <div className="bg-white/30 dark:bg-card/30 backdrop-blur-xl rounded-[1.5rem] sm:rounded-[2.5rem] border border-white/10 overflow-hidden shadow-xl">
-        <div className="grid grid-cols-[40px_1fr_50px] sm:grid-cols-[60px_1fr_120px_100px_60px] gap-2 sm:gap-4 px-4 sm:px-8 py-4 sm:py-6 text-[8px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] border-b border-white/5">
-          <span className="text-center"># RANK</span>
-          <span>TRACK / ARTIST</span>
-          <span className="hidden sm:block text-center">TREND (LIVE)</span>
-          <span className="text-center">VIBES</span>
-          <span className="hidden sm:block text-center">ANALYTICS</span>
+      {/* Full ranked list */}
+      <div className="space-y-1 bg-white/60 dark:bg-card/50 backdrop-blur-md rounded-2xl border border-border/40 overflow-hidden shadow-sm">
+        {/* Header */}
+        <div className="grid grid-cols-[44px_1fr_auto] gap-3 px-4 py-3 text-[10px] font-black text-muted-foreground uppercase tracking-widest border-b border-border/30">
+          <span className="text-center">#</span>
+          <span>Track</span>
+          <span>Plays</span>
         </div>
 
-        <div className="divide-y divide-white/5">
-          {rankedSongs.map((item, index) => {
-            const rank = index + 1;
-            const isCurrent = currentTrack?.id === item.id;
-            const likes = trackStats[item.id]?.likes || item.likes || 0;
+        {rankedSongs.map((item, index) => {
+          const rank = index + 1;
+          const isCurrent = currentTrack?.id === item.id;
+          const plays = parseInt(item.streams || "0", 10);
+          const likes = trackStats[item.id]?.likes || item.likes || 0;
 
-            return (
-              <React.Fragment key={item.id}>
-                <div 
-                  className={cn(
-                    "grid grid-cols-[40px_1fr_50px] sm:grid-cols-[60px_1fr_120px_100px_60px] items-center gap-2 sm:gap-4 px-4 sm:px-8 py-4 sm:py-5 group hover:bg-white/5 transition-colors cursor-pointer",
-                    isCurrent && "bg-primary/5"
-                  )}
-                  onClick={() => setTrack(item)}
-                >
-                  <div className="flex flex-col items-center gap-0.5 sm:gap-1">
-                    <span className={cn(
-                      "text-lg sm:text-xl font-black italic tracking-tighter",
-                      rank === 1 ? "text-primary scale-110 sm:scale-125" : "text-foreground"
-                    )}>
-                      {rank.toString().padStart(2, '0')}
-                    </span>
-                    {rank < 5 && <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-green-500" />}
-                  </div>
+          return (
+            <React.Fragment key={item.id}>
+              <div
+                className={cn(
+                  "grid grid-cols-[44px_1fr_auto] items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-black/5 dark:hover:bg-white/5",
+                  isCurrent && "bg-primary/5 dark:bg-primary/10"
+                )}
+                onClick={() => setTrack(item)}
+              >
+                {/* Rank */}
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className={cn(
+                    "text-base font-black italic",
+                    rank === 1 ? "text-yellow-500" : rank <= 3 ? "text-primary" : "text-muted-foreground"
+                  )}>
+                    {rank.toString().padStart(2, "0")}
+                  </span>
+                  {rank <= 4 && <TrendingUp className="h-2.5 w-2.5 text-green-500" />}
+                </div>
 
-                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                    <div className="relative h-10 w-10 sm:h-14 sm:w-14 rounded-lg sm:rounded-xl overflow-hidden shadow-lg shrink-0">
-                      <img src={item.cover} alt={item.title} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Play className="h-4 w-4 sm:h-6 sm:w-6 text-white fill-current" />
-                      </div>
+                {/* Track info */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative h-11 w-11 rounded-xl overflow-hidden shadow-md shrink-0">
+                    <img src={item.cover} alt={item.title} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-primary/10 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Play className="h-4 w-4 text-white fill-current" />
                     </div>
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className={cn(
-                          "font-black italic uppercase tracking-tight truncate text-xs sm:text-base",
-                          isCurrent ? "text-primary" : "text-foreground"
-                        )}>
-                          {item.title}
-                        </span>
-                        {item.isBoosted && <Zap className="h-2.5 w-2.5 text-primary fill-current animate-pulse" />}
+                    {isCurrent && (
+                      <div className="absolute inset-0 bg-primary/30 flex items-center justify-center">
+                        <div className="flex gap-0.5 items-end h-4">
+                          {[1, 2, 3].map(i => (
+                            <div key={i} className="w-0.5 bg-white rounded-full animate-bounce" style={{ height: `${i * 30 + 20}%`, animationDelay: `${i * 100}ms` }} />
+                          ))}
+                        </div>
                       </div>
-                      <Link 
-                        href={`/profile/${item.artistUsername || 'vimore'}`} 
-                        className="text-[10px] sm:text-xs font-bold text-muted-foreground hover:text-primary transition-colors truncate"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {item.artist}
-                      </Link>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className={cn("text-xs font-bold truncate", isCurrent ? "text-primary" : "text-foreground")}>
+                        {item.title}
+                      </p>
+                      {item.isBoosted && <Zap className="h-3 w-3 text-primary fill-current animate-pulse shrink-0" />}
                     </div>
-                  </div>
-
-                  <div className="hidden sm:flex justify-center">
-                    <Sparkline data={[20, 25, 30, 45, 50, 65, 80]} color="#9940E5" />
-                  </div>
-
-                  <div className="flex flex-col items-center justify-center gap-0.5 sm:gap-1">
-                    <Badge variant="outline" className="text-[9px] font-black border-white/10 rounded-lg bg-white/5 h-6 px-2">{(likes/1000).toFixed(1)}K</Badge>
-                  </div>
-
-                  <div className="hidden sm:flex justify-center">
-                    <Button variant="ghost" size="icon" className="rounded-xl hover:bg-primary/10 hover:text-primary">
-                      <BarChart2 className="h-5 w-5" />
-                    </Button>
+                    <Link
+                      href={`/profile/${item.artistUsername || "vimore"}`}
+                      className="text-[10px] text-muted-foreground hover:text-primary transition-colors truncate block"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      {item.artist}
+                    </Link>
                   </div>
                 </div>
-                
-                {/* Interleave Ad after every 3 items with stable ID */}
-                {rank % 3 === 0 && rank < rankedSongs.length && (
-                  <NativeAdNode type="standard" id={`chart-rank-${rank}`} />
-                )}
-              </React.Fragment>
-            );
-          })}
-        </div>
+
+                {/* Plays */}
+                <div className="text-right shrink-0 space-y-0.5">
+                  <p className="text-[11px] font-black text-foreground">{formatCount(plays)}</p>
+                  <p className="text-[9px] text-muted-foreground font-bold">{formatCount(likes)} ♥</p>
+                </div>
+              </div>
+
+              {rank % 5 === 0 && rank < rankedSongs.length && (
+                <NativeAdNode type="standard" id={`chart-rank-${rank}`} />
+              )}
+            </React.Fragment>
+          );
+        })}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pb-20">
-        <div className="bg-gradient-to-br from-indigo-600 to-primary rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden">
-          <div className="relative z-10 space-y-2">
-            <h3 className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter leading-none">Weekly Insight</h3>
-            <p className="text-white/80 text-xs sm:text-sm font-medium max-w-sm">
-              Community engagement is peaking in the Afrobeats cluster. Materializing high-velocity vibes for top artists.
-            </p>
+      {/* Bottom info cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-8">
+        <div className="bg-gradient-to-br from-violet-600 to-primary rounded-2xl p-5 text-white shadow-xl relative overflow-hidden">
+          <div className="relative z-10 space-y-1.5">
+            <h3 className="text-lg font-black italic uppercase tracking-tighter">Weekly Insight</h3>
+            <p className="text-white/70 text-xs leading-relaxed">Community engagement is peaking. Stay tuned for the latest trends.</p>
           </div>
-          <Star className="absolute -right-8 -bottom-8 h-32 sm:h-48 w-32 sm:w-48 opacity-10" />
+          <Star className="absolute -right-5 -bottom-5 h-28 w-28 opacity-10" />
         </div>
-
-        <div className="bg-white/50 dark:bg-card/50 backdrop-blur-xl rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 border border-white/10 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="space-y-1 text-center sm:text-left">
-            <h3 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter">Vault Stats</h3>
-            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">Tracking {globalSongs.length} sonic nodes globally</p>
+        <div className="bg-white/60 dark:bg-card/60 backdrop-blur-md rounded-2xl p-5 border border-border/40 shadow-sm flex flex-col justify-between gap-3">
+          <div className="space-y-0.5">
+            <h3 className="text-base font-black italic uppercase tracking-tighter">Vault Stats</h3>
+            <p className="text-muted-foreground text-[11px] font-bold uppercase tracking-widest">{globalSongs.length} tracks in the network</p>
           </div>
-          <Link href="/admin"><Button variant="outline" className="w-full sm:w-auto rounded-full border-primary text-primary font-black px-8 h-10 text-xs">View Command Core</Button></Link>
+          <Link href="/admin">
+            <Button variant="outline" size="sm" className="rounded-full border-primary text-primary font-bold px-5 h-9 text-xs w-full sm:w-auto">
+              View Analytics
+            </Button>
+          </Link>
         </div>
       </div>
-
     </div>
   );
 }

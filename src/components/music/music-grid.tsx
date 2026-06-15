@@ -336,7 +336,7 @@ export function MusicGrid({ type, items = [], title }: MusicGridProps) {
               <div className="flex items-center gap-1.5 shrink-0">
                 <span className="text-[9px] font-black text-primary/60">{formatCount(rawLikes)}</span>
                 <Badge variant="outline" className="h-4 border-primary/10 bg-primary/5 text-primary text-[7px] font-black uppercase px-1 gap-1">
-                  <Zap className="h-2 w-2" /> {item.streams || "0"}
+                  <Zap className="h-2 w-2" /> {formatCount(parseInt(item.streams || "0", 10))}
                 </Badge>
               </div>
             )}
