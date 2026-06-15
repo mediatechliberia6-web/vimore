@@ -152,7 +152,7 @@ function mapDocToTrack(doc: any): Track {
     cover: doc.cover_id ? getFileUrl(BUCKET.ALBUM_COVERS, doc.cover_id) : `https://picsum.photos/seed/${doc.$id}/300/300`,
     audioUrl: doc.file_id ? getFileUrl(BUCKET.MUSIC_TRACKS, doc.file_id) : (doc.audio_id ? getFileUrl(BUCKET.MUSIC_TRACKS, doc.audio_id) : undefined),
     duration: doc.duration || 0,
-    streams: String(doc.streams_count || 0),
+    streams: String(doc.plays_count || doc.streams_count || 0),
     likes: doc.likes_count || 0,
     comments: doc.comments_count || 0,
     isBoosted: doc.is_boosted || false,

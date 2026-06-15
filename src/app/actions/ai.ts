@@ -18,8 +18,7 @@ async function callGemini(systemPrompt: string, userPrompt: string, maxTokens = 
       generationConfig: {
         maxOutputTokens: maxTokens,
         temperature: 0.7,
-        thinkingConfig: { thinkingBudget: 0 },
-      } as any,
+      },
     });
     const text = result.response.text().trim();
     return text || null;
@@ -153,8 +152,7 @@ export async function aiSuggestCaptionsFromImagesAction({
       generationConfig: {
         maxOutputTokens: 400,
         temperature: 0.9,
-        thinkingConfig: { thinkingBudget: 0 },
-      } as any,
+      },
     });
     const text = result.response.text().trim();
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 10);

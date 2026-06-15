@@ -61,7 +61,11 @@ export function MusicPlayer() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [activePanel, setActivePanel] = useState<"main" | "comments">("main");
 
-  
+  useEffect(() => {
+    if (activePanel === "comments" && currentTrack) {
+      openCommentHub(currentTrack.id.toString());
+    }
+  }, [activePanel, currentTrack?.id]);
 
   if (!currentTrack) return null;
 
@@ -126,7 +130,7 @@ export function MusicPlayer() {
   if (!isExpanded) {
     return (
       <div
-        className="fixed top-[132px] left-3 right-3 sm:left-4 sm:right-4 z-[45] cursor-pointer animate-in slide-in-from-top-4 duration-300"
+        className="fixed bottom-[76px] left-3 right-3 sm:left-4 sm:right-4 z-[45] cursor-pointer animate-in slide-in-from-bottom-4 duration-300"
         onClick={() => setIsExpanded(true)}
       >
         <div className="relative rounded-2xl overflow-hidden bg-white/90 dark:bg-zinc-900/95 backdrop-blur-2xl border border-black/5 dark:border-white/10 shadow-2xl shadow-black/20">
@@ -411,6 +415,18 @@ export function MusicPlayer() {
         ) : (
           /* Comments panel */
           <div className="px-5 pb-40 space-y-4 pt-2">
+            {/* Back to player header */}
+            <div className="flex items-center gap-3 pb-1">
+              <Button
+                variant="ghost" size="icon"
+                className="rounded-full bg-white/10 text-white hover:bg-white/20 shrink-0"
+                onClick={() => setActivePanel("main")}
+              >
+                <ChevronDown className="h-5 w-5 rotate-90" />
+              </Button>
+              <p className="text-sm font-black uppercase tracking-widest text-white/70">Comments</p>
+              <span className="text-xs font-bold text-white/40 ml-auto">{activeComments?.length || 0}</span>
+            </div>
             <ScrollArea className="h-[50vh] rounded-2xl">
               <div className="space-y-4">
                 {(activeComments || []).length > 0 ? activeComments.map((comment) => (
