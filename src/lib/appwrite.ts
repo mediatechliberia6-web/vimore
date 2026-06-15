@@ -54,6 +54,7 @@ export const COL = {
   SOUNDS: 'sounds',
   REEL_DRAFTS: 'reel_drafts',
   STORES: 'stores',
+  MUSIC_UNLOCKS: 'music_unlocks',
 } as const;
 
 export const BUCKET = {

@@ -12,6 +12,8 @@ export interface Track {
   artist: string;
   artistUsername?: string;
   artistFollowers?: string | number;
+  artistId?: string;
+  artistIsVerified?: boolean;
   cover: string;
   audioUrl?: string;
   duration: number;
@@ -23,6 +25,8 @@ export interface Track {
   boostCurrentViews?: number;
   boostTargetViews?: number;
   comments?: number;
+  isLocked?: boolean;
+  unlockPrice?: number;
 }
 
 export interface Album {
@@ -30,11 +34,15 @@ export interface Album {
   title: string;
   artist: string;
   artistUsername?: string;
+  artistId?: string;
+  artistIsVerified?: boolean;
   cover: string;
   year: string;
   tracks: number;
   totalStreams: string;
   songs: Track[];
+  isLocked?: boolean;
+  unlockPrice?: number;
 }
 
 export interface Playlist {
@@ -125,6 +133,10 @@ interface MusicContextType {
   triggerHaptic: (intensity?: number) => void;
   refreshMusicVault: () => Promise<void>;
   recordSongStream: (songId: string | number) => Promise<void>;
+  unlockedMusicIds: Set<string | number>;
+  unlockMusic: (id: string | number, price: number, artistId: string, isVerified: boolean) => Promise<void>;
+  isMusicUnlocked: (id: string | number) => boolean;
+  audioDuration: number;
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
@@ -135,6 +147,7 @@ function mapDocToTrack(doc: any): Track {
     title: doc.title || 'Untitled',
     artist: doc.artist || doc.artist_name || 'Unknown Artist',
     artistUsername: doc.artist_username || '',
+    artistId: doc.user_id || '',
     cover: doc.cover_id ? getFileUrl(BUCKET.ALBUM_COVERS, doc.cover_id) : `https://picsum.photos/seed/${doc.$id}/300/300`,
     audioUrl: doc.file_id ? getFileUrl(BUCKET.MUSIC_TRACKS, doc.file_id) : (doc.audio_id ? getFileUrl(BUCKET.MUSIC_TRACKS, doc.audio_id) : undefined),
     duration: doc.duration || 0,
@@ -143,6 +156,8 @@ function mapDocToTrack(doc: any): Track {
     comments: doc.comments_count || 0,
     isBoosted: doc.is_boosted || false,
     boostExpiry: doc.boost_expiry || undefined,
+    isLocked: doc.is_locked || false,
+    unlockPrice: doc.unlock_price || 0,
   };
 }
 
@@ -152,11 +167,14 @@ function mapDocToAlbum(doc: any, songs: Track[]): Album {
     title: doc.title || 'Untitled Album',
     artist: doc.artist || doc.artist_name || 'Unknown Artist',
     artistUsername: doc.artist_username || '',
+    artistId: doc.user_id || '',
     cover: doc.cover_id ? getFileUrl(BUCKET.ALBUM_COVERS, doc.cover_id) : `https://picsum.photos/seed/${doc.$id}/300/300`,
     year: doc.release_date ? new Date(doc.release_date).getFullYear().toString() : new Date().getFullYear().toString(),
     tracks: doc.tracks_count || songs.length,
     totalStreams: '0',
     songs,
+    isLocked: doc.is_locked || false,
+    unlockPrice: doc.unlock_price || 0,
   };
 }
 
@@ -207,6 +225,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [userPlaylists, setUserPlaylistsState] = useState<Playlist[]>([]);
   const [userSongs, setUserSongsState] = useState<Track[]>([]);
   const [userAlbums, setUserAlbumsState] = useState<Album[]>([]);
+  const [unlockedMusicIds, setUnlockedMusicIdsState] = useState<Set<string | number>>(new Set());
+  const [audioDuration, setAudioDurationState] = useState(0);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -315,6 +335,21 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore */ }
   }, []);
 
+  const loadUnlockedIds = useCallback(async (userId: string) => {
+    try {
+      const res = await databases.listDocuments(DATABASE_ID, COL.MUSIC_UNLOCKS, [
+        Query.equal('user_id', userId),
+        Query.limit(500),
+      ]);
+      const ids = new Set<string | number>();
+      res.documents.forEach((d: any) => {
+        if (d.track_id) ids.add(d.track_id);
+        if (d.album_id) ids.add(d.album_id);
+      });
+      setUnlockedMusicIdsState(ids);
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     loadMusicData();
   }, [loadMusicData]);
@@ -322,11 +357,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (currentUser) {
       loadUserLikes(currentUser.$id);
+      loadUnlockedIds(currentUser.$id);
       setUserSongsState(globalSongs.filter(s => s.artistUsername === currentUser.username));
       setUserAlbumsState(globalAlbums.filter(a => a.artistUsername === currentUser.username));
       setUserPlaylistsState(globalPlaylists.filter(p => p.creator === currentUser.username));
     }
-  }, [currentUser, globalSongs, globalAlbums, globalPlaylists, loadUserLikes]);
+  }, [currentUser, globalSongs, globalAlbums, globalPlaylists, loadUserLikes, loadUnlockedIds]);
 
   const triggerHaptic = useCallback((intensity: number = 10) => {
     if (typeof window !== 'undefined' && window.navigator?.vibrate) {
@@ -343,11 +379,14 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     const audio = audioRef.current;
     const handleTimeUpdate = () => setProgressState(audio.duration ? (audio.currentTime / audio.duration) * 100 : 0);
     const handleEnded = () => nextTrack();
+    const handleLoadedMetadata = () => setAudioDurationState(audio.duration || 0);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
     };
   }, [volume]);
 
@@ -376,6 +415,32 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     setCurrentTrackState(queue[prevIdx]);
     setIsPlayingState(true);
   }, [queue, currentTrack]);
+
+  const unlockMusic = useCallback(async (
+    id: string | number,
+    price: number,
+    artistId: string,
+    isVerified: boolean,
+  ) => {
+    if (!currentUser) throw new Error('Not logged in');
+    const artistShare = isVerified ? 0.9 : 0.8;
+    const artistAmount = Math.round(price * artistShare * 100) / 100;
+    try {
+      await databases.createDocument(DATABASE_ID, COL.MUSIC_UNLOCKS, ID.unique(), {
+        user_id: currentUser.$id,
+        track_id: String(id),
+        price_paid: price,
+        artist_id: artistId,
+        artist_amount: artistAmount,
+      }, [
+        Permission.read(Role.user(currentUser.$id)),
+      ]);
+      setUnlockedMusicIdsState(prev => new Set(prev).add(id));
+    } catch (err: any) {
+      console.error('unlockMusic error:', err);
+      throw err;
+    }
+  }, [currentUser]);
 
   const recordSongStream = useCallback(async (songId: string | number) => {
     setGlobalSongsState(prev => prev.map(s => {
@@ -475,6 +540,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       if (audioId) docData.file_id = audioId;
       if (coverId) docData.cover_id = coverId;
       if (track.albumId) docData.album_id = track.albumId;
+      if (track.isLocked) { docData.is_locked = true; docData.unlock_price = track.unlockPrice || 0; }
 
       const permissions = [
         Permission.read(Role.any()),
@@ -517,6 +583,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         is_published: true,
       };
       if (coverId) docData.cover_id = coverId;
+      if (album.isLocked) { docData.is_locked = true; docData.unlock_price = album.unlockPrice || 0; }
 
       const doc = await databases.createDocument(DATABASE_ID, COL.ALBUMS, ID.unique(), docData);
 
@@ -722,6 +789,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     triggerHaptic,
     refreshMusicVault: loadMusicData,
     recordSongStream,
+    unlockedMusicIds,
+    unlockMusic,
+    isMusicUnlocked: (id) => unlockedMusicIds.has(id),
+    audioDuration,
   };
 
   return <MusicContext.Provider value={value}>{children}</MusicContext.Provider>;

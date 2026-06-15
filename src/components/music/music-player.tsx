@@ -53,7 +53,7 @@ export function MusicPlayer() {
   
   const { 
     currentTrack, isPlaying, isExpanded, progress, volume, reactions, trackStats,
-    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, simulateDownload, isTrackDownloaded, triggerDownloadWithAd, triggerHaptic
+    togglePlay, nextTrack, prevTrack, setIsExpanded, setProgress, setVolume, addReaction, clearPlayer, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, simulateDownload, isTrackDownloaded, triggerDownloadWithAd, triggerHaptic, audioDuration
   } = useMusic();
 
   const { addSignal } = useNotifications();
@@ -81,7 +81,8 @@ export function MusicPlayer() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const currentTime = (progress / 100) * currentTrack.duration;
+  const effectiveDuration = audioDuration > 0 ? audioDuration : currentTrack.duration;
+  const currentTime = (progress / 100) * effectiveDuration;
 
   const handleSendComment = () => {
     if (!commentInput.trim() || !currentTrack) return;
@@ -236,13 +237,6 @@ export function MusicPlayer() {
           </div>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
-          {isOwner && (
-            <BoostPortal nodeId={currentTrack.id.toString()} type="SONIC">
-              <Button variant="ghost" size="icon" className={cn("rounded-full bg-secondary/20", currentTrack.isBoosted && "text-primary bg-primary/10 shadow-lg")} title={t('boost_title')}>
-                <Rocket className={cn("h-4 w-4 sm:h-5 sm:w-5", currentTrack.isBoosted && "animate-bounce")} />
-              </Button>
-            </BoostPortal>
-          )}
           <Button 
             variant="ghost" size="icon" 
             className={cn("rounded-full bg-secondary/20", isDownloaded && "text-green-500")} 
@@ -283,20 +277,21 @@ export function MusicPlayer() {
             <div className="flex items-start justify-between">
               <div className="space-y-1 sm:space-y-2">
                 <h2 className="text-3xl sm:text-5xl font-black italic uppercase tracking-tighter leading-tight sm:leading-none">{currentTrack.title}</h2>
-                <div className="flex items-center gap-3 relative">
-                  {isEligibleForGift && !isOwner && (
-                    <button 
-                      onClick={handleGiftClick}
-                      className="absolute -top-8 left-0 p-1.5 bg-primary rounded-full text-white shadow-lg animate-shake-vibe z-50 border border-white/20"
-                    >
-                      <Gift className="h-4 w-4" />
-                    </button>
-                  )}
+                <div className="flex items-center gap-3 flex-wrap">
                   <Link href={`/profile/${currentTrack.artistUsername || 'arivera'}`} onClick={() => setIsExpanded(false)}>
                     <p className="text-xl sm:text-2xl text-primary font-bold hover:underline">{currentTrack.artist}</p>
                   </Link>
-                  {isDownloaded && <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-[10px] font-black tracking-widest uppercase">Music Note</Badge>}
-                  {currentTrack.isBoosted && <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-black tracking-widest uppercase">Promoted Node</Badge>}
+                  {isDownloaded && <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-[10px] font-black tracking-widest uppercase">Saved</Badge>}
+                  {currentTrack.isBoosted && <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-black tracking-widest uppercase">Promoted</Badge>}
+                </div>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="flex items-center gap-1 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                    <Zap className="h-3 w-3 text-primary" />
+                    {formatCount(parseInt(currentTrack.streams || '0'))} plays
+                  </span>
+                  {effectiveDuration > 0 && (
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{formatTime(effectiveDuration)}</span>
+                  )}
                 </div>
               </div>
               <div className="flex flex-col gap-3 items-center">
@@ -326,6 +321,30 @@ export function MusicPlayer() {
                   </span>
                 </div>
 
+                {isEligibleForGift && !isOwner && settings?.isGiftingEnabled && (
+                  <div className="flex flex-col items-center gap-1">
+                    <button
+                      onClick={handleGiftClick}
+                      className="h-10 w-10 sm:h-14 sm:w-14 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-400 to-pink-500 shadow-lg ring-2 ring-white/20 hover:scale-110 active:scale-95 transition-transform"
+                      title="Send a gift"
+                    >
+                      <Gift className="h-5 w-5 sm:h-7 sm:w-7 text-white fill-white" />
+                    </button>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Gift</span>
+                  </div>
+                )}
+
+                {isOwner && (
+                  <div className="flex flex-col items-center gap-1">
+                    <BoostPortal nodeId={currentTrack.id.toString()} type="SONIC">
+                      <Button variant="ghost" size="icon" className={cn("h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-secondary/20 transition-all", currentTrack.isBoosted && "text-primary bg-primary/10 shadow-lg")} title={t('boost_title')}>
+                        <Rocket className={cn("h-5 w-5 sm:h-7 sm:w-7", currentTrack.isBoosted && "animate-bounce")} />
+                      </Button>
+                    </BoostPortal>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Boost</span>
+                  </div>
+                )}
+
                 <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-secondary/20">
                   <MoreHorizontal className="h-5 w-5 sm:h-7 sm:w-7" />
                 </Button>
@@ -349,7 +368,7 @@ export function MusicPlayer() {
               <Slider value={[progress]} max={100} step={0.1} onValueChange={(val) => setProgress(val[0])} />
               <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                 <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(currentTrack.duration)}</span>
+                <span>{formatTime(effectiveDuration)}</span>
               </div>
             </div>
 

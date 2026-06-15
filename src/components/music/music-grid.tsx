@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Play, Pause, MoreVertical, Heart, ThumbsDown, TrendingUp, Music2, Share2, Plus, Download, User, ListPlus, CheckCircle2, Loader2, Zap } from "lucide-react";
+import { Play, Pause, MoreVertical, Heart, ThumbsDown, TrendingUp, Music2, Share2, Plus, Download, User, ListPlus, CheckCircle2, Loader2, Zap, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useMusic, Track, Album, Playlist } from "@/context/MusicContext";
@@ -29,15 +29,37 @@ interface MusicGridProps {
 }
 
 export function MusicGrid({ type, items = [], title }: MusicGridProps) {
-  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, isTrackDownloaded, simulateDownload, addToQueue, userPlaylists, openCreatePlaylist, addTrackToPlaylist, trackStats, playCollection, triggerDownloadWithAd } = useMusic();
-  const { settings } = usePosts();
+  const { currentTrack, isPlaying, setTrack, togglePlay, setSelectedAlbum, setSelectedPlaylist, toggleLike, toggleUnlike, isTrackLiked, isTrackUnliked, isTrackDownloaded, simulateDownload, addToQueue, userPlaylists, openCreatePlaylist, addTrackToPlaylist, trackStats, playCollection, triggerDownloadWithAd, isMusicUnlocked, unlockMusic } = useMusic();
+  const { settings, currentUser } = usePosts();
   const { toast } = useToast();
   const [downloadingIds, setDownloadingIds] = useState<Set<string | number>>(new Set());
+  const [unlockTarget, setUnlockTarget] = useState<any | null>(null);
+  const [isUnlocking, setIsUnlocking] = useState(false);
 
   const handleShare = (item: any) => {
     const url = typeof window !== 'undefined' ? `${window.location.origin}/music/${type}/${item.id}` : '';
     navigator.clipboard.writeText(url);
     toast({ title: "Link Copied!", description: "Share the vibe with your community." });
+  };
+
+  const handleUnlockConfirm = async () => {
+    if (!unlockTarget) return;
+    setIsUnlocking(true);
+    try {
+      await unlockMusic(
+        unlockTarget.id,
+        unlockTarget.unlockPrice,
+        unlockTarget.artistId || '',
+        unlockTarget.artistIsVerified || false,
+      );
+      toast({ title: "Unlocked!", description: `${unlockTarget.title} is now yours to enjoy.` });
+      setTrack(unlockTarget);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Unlock Failed", description: err.message || "Please check your Diamond balance." });
+    } finally {
+      setIsUnlocking(false);
+      setUnlockTarget(null);
+    }
   };
 
   const handleDownload = async (track: Track) => {
@@ -75,6 +97,8 @@ export function MusicGrid({ type, items = [], title }: MusicGridProps) {
     const isDownloading = downloadingIds.has(item.id);
     const rawLikes = item.likes || 0;
     const formatCount = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n);
+    const isOwner = currentUser ? (item.artistUsername === currentUser.username || item.artistId === currentUser.$id) : false;
+    const isItemLocked = item.isLocked && !isMusicUnlocked(item.id) && !isOwner;
     
     const stableKey = `${type}-${item.id || idx}-${idx}`;
 
@@ -156,10 +180,12 @@ export function MusicGrid({ type, items = [], title }: MusicGridProps) {
     const handleCardClick = () => {
       triggerHaptic();
       if (type === "album") {
+        if (isItemLocked) { setUnlockTarget(item); return; }
         setSelectedAlbum(item as Album);
       } else if (type === "playlist") {
         setSelectedPlaylist(item as Playlist);
       } else if (type === "song") {
+        if (isItemLocked) { setUnlockTarget(item); return; }
         setTrack(item as Track);
       }
     };
@@ -180,6 +206,16 @@ export function MusicGrid({ type, items = [], title }: MusicGridProps) {
             {isDownloaded && !isDownloading && (
               <div className="absolute top-2 left-2 bg-green-500 text-white p-1 rounded-full shadow-lg z-20">
                 <CheckCircle2 className="h-3 w-3" />
+              </div>
+            )}
+
+            {isItemLocked && (
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-30 flex flex-col items-center justify-center gap-1.5 rounded-[0.75rem] sm:rounded-[1rem]">
+                <div className="h-10 w-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center">
+                  <Lock className="h-5 w-5 text-cyan-400" />
+                </div>
+                <span className="text-[10px] font-black text-cyan-400 uppercase tracking-wider">◆ {item.unlockPrice?.toFixed(2)}</span>
+                <span className="text-[8px] font-bold text-white/50 uppercase">Tap to unlock</span>
               </div>
             )}
 
@@ -338,19 +374,66 @@ export function MusicGrid({ type, items = [], title }: MusicGridProps) {
   };
 
   return (
-    <section className="space-y-4 sm:space-y-6">
-      {title && (
-        <div className="flex items-center justify-between px-1 sm:px-2">
-          <h2 className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter">{title}</h2>
-          <Button variant="ghost" className="text-primary font-black text-[10px] sm:text-xs uppercase tracking-widest hover:bg-primary/5 rounded-full h-8 px-3">See All</Button>
+    <>
+      <section className="space-y-4 sm:space-y-6">
+        {title && (
+          <div className="flex items-center justify-between px-1 sm:px-2">
+            <h2 className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter">{title}</h2>
+            <Button variant="ghost" className="text-primary font-black text-[10px] sm:text-xs uppercase tracking-widest hover:bg-primary/5 rounded-full h-8 px-3">See All</Button>
+          </div>
+        )}
+        <div className={cn(
+          "pb-4 sm:pb-6 px-1 sm:px-2",
+          type === "hero" ? "flex justify-center" : "flex gap-4 sm:gap-8 overflow-x-auto scrollbar-hide snap-x snap-mandatory whitespace-nowrap"
+        )}>
+          {items.map((item, idx) => renderCard(item, idx))}
+        </div>
+      </section>
+
+      {unlockTarget && (
+        <div className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-in fade-in" onClick={() => setUnlockTarget(null)}>
+          <div className="bg-[#0A0A0A] border border-cyan-500/20 rounded-[2.5rem] p-8 w-full max-w-sm shadow-2xl space-y-6 animate-in slide-in-from-bottom-8 duration-300" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative h-20 w-20 rounded-2xl overflow-hidden shadow-xl ring-1 ring-white/10">
+                <Image src={unlockTarget.cover} alt={unlockTarget.title} fill className="object-cover" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-xl font-black italic uppercase tracking-tighter">{unlockTarget.title}</h3>
+                <p className="text-sm text-primary font-bold">{unlockTarget.artist}</p>
+              </div>
+            </div>
+
+            <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-2xl p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Unlock Price</span>
+                <span className="text-2xl font-black text-cyan-400">◆ {unlockTarget.unlockPrice?.toFixed(2)}</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                One-time payment to unlock this {unlockTarget.songs ? 'album' : 'track'} forever. Diamonds are deducted from your balance.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Button
+                className="w-full h-14 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-black font-black italic uppercase tracking-widest text-[11px] shadow-xl shadow-cyan-500/20 transition-all active:scale-95"
+                onClick={handleUnlockConfirm}
+                disabled={isUnlocking}
+              >
+                {isUnlocking ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
+                {isUnlocking ? "Processing..." : `Unlock for ◆ ${unlockTarget.unlockPrice?.toFixed(2)}`}
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full h-12 rounded-2xl font-black uppercase tracking-widest text-[10px] text-muted-foreground"
+                onClick={() => setUnlockTarget(null)}
+                disabled={isUnlocking}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
         </div>
       )}
-      <div className={cn(
-        "pb-4 sm:pb-6 px-1 sm:px-2",
-        type === "hero" ? "flex justify-center" : "flex gap-4 sm:gap-8 overflow-x-auto scrollbar-hide snap-x snap-mandatory whitespace-nowrap"
-      )}>
-        {items.map((item, idx) => renderCard(item, idx))}
-      </div>
-    </section>
+    </>
   );
 }

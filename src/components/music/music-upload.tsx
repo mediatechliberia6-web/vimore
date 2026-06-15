@@ -21,7 +21,11 @@ import {
   Settings2,
   Mic2,
   ArrowLeft,
-  Loader2
+  Loader2,
+  Lock,
+  Unlock,
+  DollarSign,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +40,7 @@ import Image from "next/image";
 import { useMusic, Track, Album } from "@/context/MusicContext";
 import { usePosts } from "@/context/PostContext";
 import { BUCKET_MUSIC, BUCKET_IMAGES, BUCKET } from "@/lib/appwrite";
+import { parseFollowerCount } from "@/lib/utils";
 
 interface TrackSlot {
   id: number;
@@ -46,7 +51,18 @@ interface TrackSlot {
   isExplicit: boolean;
   credits: string;
   isExpanded: boolean;
+  duration: number;
 }
+
+const readAudioDuration = (file: File): Promise<number> => {
+  return new Promise((resolve) => {
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    audio.onloadedmetadata = () => { resolve(Math.round(audio.duration)); URL.revokeObjectURL(audio.src); };
+    audio.onerror = () => resolve(0);
+    audio.src = URL.createObjectURL(file);
+  });
+};
 
 const GENRES = ["Afrobeats", "Amapiano", "Hip-Hop", "R&B", "Trap", "Jazz", "Lo-Fi", "Gospel"];
 
@@ -64,6 +80,9 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
   const [releaseDate, setReleaseDate] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
   
+  const [isLocked, setIsLocked] = useState(false);
+  const [unlockPrice, setUnlockPrice] = useState(1.0);
+
   const [tracks, setTracks] = useState<TrackSlot[]>(
     Array.from({ length: 12 }, (_, i) => ({
       id: i + 1,
@@ -73,9 +92,13 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
       collaborator: "",
       isExplicit: false,
       credits: "",
-      isExpanded: false
+      isExpanded: false,
+      duration: 0,
     }))
   );
+
+  const followerCount = parseFollowerCount(currentUser?.followers);
+  const isPaywallEligible = followerCount >= 10000;
 
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -119,15 +142,13 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
     setTracks(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
   };
 
-  const handleTrackFileUpload = (id: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTrackFileUpload = async (id: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       triggerHaptic(10);
-      updateTrack(id, { 
-        fileName: file.name, 
-        file: file, 
-        title: file.name.split('.')[0] 
-      });
+      updateTrack(id, { fileName: file.name, file: file, title: file.name.split('.')[0] });
+      const dur = await readAudioDuration(file);
+      updateTrack(id, { duration: dur });
     }
   };
 
@@ -173,8 +194,10 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
           artistUsername: currentUser.username,
           cover: coverUrl,
           audioUrl: audioUrl,
-          duration: 180, 
-          artistFollowers: currentUser.followers
+          duration: slot.duration || 0,
+          artistFollowers: currentUser.followers,
+          isLocked: isLocked && isPaywallEligible,
+          unlockPrice: isLocked && isPaywallEligible ? unlockPrice : 0,
         });
       } else {
         const albumSongs: Track[] = [];
@@ -187,7 +210,7 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
             artistUsername: currentUser.username,
             cover: coverUrl,
             audioUrl: audioUrl,
-            duration: 180,
+            duration: slot.duration || 0,
             streams: "0",
             likes: 0,
             unlikes: 0,
@@ -203,7 +226,9 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
           year: new Date().getFullYear().toString(),
           tracks: albumSongs.length,
           totalStreams: "0",
-          songs: albumSongs
+          songs: albumSongs,
+          isLocked: isLocked && isPaywallEligible,
+          unlockPrice: isLocked && isPaywallEligible ? unlockPrice : 0,
         });
       }
 
@@ -512,6 +537,77 @@ export function MusicUpload({ onCancel }: { onCancel: () => void }) {
             ))}
           </div>
         </section>
+
+        {isPaywallEligible && (
+          <section className="p-4 sm:p-6">
+            <div className="bg-gradient-to-br from-cyan-950/60 to-[#0A0A0A] rounded-[2.5rem] p-8 border border-cyan-500/20 space-y-6 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 blur-3xl rounded-full" />
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 bg-cyan-500/10 rounded-xl flex items-center justify-center">
+                  <Lock className="h-5 w-5 text-cyan-400" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black italic uppercase tracking-tighter text-white">Exclusive Access</h4>
+                  <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Paywall · Verified 10K+ Creators</p>
+                </div>
+                <div className="ml-auto">
+                  <Switch
+                    checked={isLocked}
+                    onCheckedChange={(val) => { triggerHaptic(10); setIsLocked(val); }}
+                  />
+                </div>
+              </div>
+
+              {isLocked && (
+                <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+                  <p className="text-[11px] text-white/60 leading-relaxed">
+                    Fans must pay <span className="text-cyan-400 font-black">◆ {unlockPrice.toFixed(2)} Diamonds</span> once to unlock this {projectType}. You receive {currentUser?.isVerified ? '90%' : '80%'} of each payment.
+                  </p>
+                  <div className="space-y-3">
+                    <Label className="text-[9px] font-black uppercase tracking-widest text-cyan-400/70 ml-1">Price in Diamonds (◆ 0.50 – 8.00)</Label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min={0.5}
+                        max={8}
+                        step={0.5}
+                        value={unlockPrice}
+                        onChange={(e) => setUnlockPrice(parseFloat(e.target.value))}
+                        className="flex-1 accent-cyan-500 h-2 rounded-full cursor-pointer"
+                      />
+                      <div className="shrink-0 bg-black border border-cyan-500/30 rounded-xl px-4 py-2 min-w-[80px] text-center">
+                        <span className="text-lg font-black text-cyan-400">◆ {unlockPrice.toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-[9px] font-black text-white/30 px-1">
+                      <span>◆ 0.50</span>
+                      <span>◆ 4.00</span>
+                      <span>◆ 8.00</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-black/40 border border-white/5 rounded-2xl p-4 text-center">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">You Receive</p>
+                      <p className="text-xl font-black text-cyan-400">◆ {(unlockPrice * (currentUser?.isVerified ? 0.9 : 0.8)).toFixed(2)}</p>
+                      <p className="text-[8px] text-white/30 mt-0.5">{currentUser?.isVerified ? '90%' : '80%'} share</p>
+                    </div>
+                    <div className="bg-black/40 border border-white/5 rounded-2xl p-4 text-center">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-1">Platform Fee</p>
+                      <p className="text-xl font-black text-white/40">◆ {(unlockPrice * (currentUser?.isVerified ? 0.1 : 0.2)).toFixed(2)}</p>
+                      <p className="text-[8px] text-white/30 mt-0.5">{currentUser?.isVerified ? '10%' : '20%'} fee</p>
+                    </div>
+                  </div>
+                  {currentUser?.isVerified && (
+                    <div className="flex items-center gap-2 bg-green-500/5 border border-green-500/20 rounded-2xl p-3">
+                      <ShieldCheck className="h-4 w-4 text-green-400 shrink-0" />
+                      <p className="text-[10px] font-bold text-green-400">Verified creator bonus — you keep 90% of every unlock</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         <section className="p-4 sm:p-6 mb-20">
           <div className="bg-[#0A0A0A] rounded-[2.5rem] p-8 border border-white/5 space-y-6 shadow-2xl relative overflow-hidden">
