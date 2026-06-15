@@ -137,6 +137,7 @@ interface MusicContextType {
   unlockMusic: (id: string | number, price: number, artistId: string, isVerified: boolean) => Promise<void>;
   isMusicUnlocked: (id: string | number) => boolean;
   audioDuration: number;
+  isMusicLoading: boolean;
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
@@ -227,6 +228,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [userAlbums, setUserAlbumsState] = useState<Album[]>([]);
   const [unlockedMusicIds, setUnlockedMusicIdsState] = useState<Set<string | number>>(new Set());
   const [audioDuration, setAudioDurationState] = useState(0);
+  const [isMusicLoading, setIsMusicLoadingState] = useState(true);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -324,6 +326,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
         const cachedAlbums = localStorage.getItem('vm_offline_albums');
         if (cachedAlbums) setGlobalAlbumsState(JSON.parse(cachedAlbums));
       } catch { }
+    } finally {
+      setIsMusicLoadingState(false);
     }
   }, []);
 
@@ -449,9 +453,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       return { ...s, streams: (current + 1).toString() };
     }));
     try {
-      const doc = await databases.getDocument(DATABASE_ID, COL.TRACKS, String(songId));
-      await databases.updateDocument(DATABASE_ID, COL.TRACKS, String(songId), {
-        streams_count: (doc.streams_count || 0) + 1,
+      await fetch('/api/music/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ songId: String(songId) }),
       });
     } catch { /* ignore */ }
   }, []);
@@ -792,6 +797,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     unlockedMusicIds,
     unlockMusic,
     isMusicUnlocked: (id) => unlockedMusicIds.has(id),
+    isMusicLoading,
     audioDuration,
   };
 

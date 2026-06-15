@@ -108,7 +108,7 @@ export function MusicPlayer() {
   const isLiked = isTrackLiked(currentTrack.id);
   const isUnliked = isTrackUnliked(currentTrack.id);
   const isDownloaded = isTrackDownloaded(currentTrack.id);
-  const isEligibleForGift = parseFollowerCount(currentTrack.artistFollowers) > 1000;
+  const isEligibleForGift = true;
   const isOwner = currentUser ? currentTrack.artistUsername === currentUser.username : false;
   const stats = trackStats[currentTrack.id] || { likes: currentTrack.likes || 0, unlikes: currentTrack.unlikes || 0 };
 
