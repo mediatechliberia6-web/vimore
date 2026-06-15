@@ -29,7 +29,6 @@ import {
   Settings2,
   MessageCircleOff,
   Filter,
-  Wand2,
   Trash2,
   Video,
   Search,
@@ -42,7 +41,6 @@ import {
   CheckCircle2,
   Plus,
   ExternalLink,
-  Hash,
   Tag,
   LinkIcon
 } from "lucide-react";
@@ -65,7 +63,6 @@ import { Input } from "@/components/ui/input";
 import { usePosts } from "@/context/PostContext";
 import { useFeedSignal } from "@/context/FeedSignalContext";
 import { useReelUpload } from "@/context/ReelUploadContext";
-import { aiGenerateCaptionAction, aiSuggestHashtagsAction } from "@/app/actions/ai";
 import { useMusic } from "@/context/MusicContext";
 import {
   Select,
@@ -174,9 +171,6 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
   const [showFeelingSelector, setShowFeelingSelector] = useState(false);
   const [showLocationSelector, setShowLocationSelector] = useState(false);
   const [showThemeSelector, setShowThemeSelector] = useState(false);
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [suggestedHashtags, setSuggestedHashtags] = useState<string[]>([]);
-  const [isHashtagLoading, setIsHashtagLoading] = useState(false);
 
   // Staged reel (user selects video but hasn't posted yet)
   const [stagedReelFile, setStagedReelFile] = useState<File | null>(null);
@@ -226,46 +220,6 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
     }
   }, [isOpen]);
 
-  const handleSuggestHashtags = async () => {
-    if (isHashtagLoading) return;
-    if (suggestedHashtags.length > 0) { setSuggestedHashtags([]); return; }
-    setIsHashtagLoading(true);
-    triggerHaptic(10);
-    try {
-      const { hashtags } = await aiSuggestHashtagsAction({ content: content.trim() || 'creator post' });
-      setSuggestedHashtags(hashtags);
-    } catch {
-      toast({ title: 'Could not suggest hashtags', variant: 'destructive' });
-    } finally {
-      setIsHashtagLoading(false);
-    }
-  };
-
-  const handleInsertHashtag = (tag: string) => {
-    triggerHaptic(5);
-    const already = new RegExp(`${tag.replace('#', '\\#')}(?:\\b|$)`, 'i').test(content);
-    if (already) return;
-    setContent(prev => (prev.trim() ? `${prev.trim()} ${tag}` : tag));
-    setSuggestedHashtags(prev => prev.filter(t => t !== tag));
-  };
-
-  const handleAiEnhance = async () => {
-    if (!content.trim() || isAiLoading) return;
-    setIsAiLoading(true);
-    triggerHaptic(15);
-    try {
-      const { caption } = await aiGenerateCaptionAction({
-        content: content.trim(),
-        hasMedia: selectedMedia.length > 0,
-      });
-      setContent(caption);
-      triggerHaptic(20);
-    } catch {
-      toast({ title: 'AI unavailable', description: 'Could not enhance caption right now.', variant: 'destructive' });
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
 
   const mentionSuggestions = useMemo(() => {
     if (!mentionQuery && !showMentionSuggestions) return [];
@@ -569,28 +523,26 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
             <DialogTitle className="font-bold text-lg">Create post</DialogTitle>
           </div>
           <div className="flex items-center gap-2">
-             <Button variant="ghost" size="icon" className={cn("h-9 w-9", suggestedHashtags.length > 0 ? "text-primary bg-primary/10" : "text-primary")} title="AI: Suggest Hashtags" onClick={handleSuggestHashtags} disabled={isAiLoading}>{isHashtagLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Hash className="h-5 w-5" />}</Button>
-             <Button variant="ghost" size="icon" className="text-primary h-9 w-9" title="AI: Enhance Caption" onClick={handleAiEnhance} disabled={isAiLoading || !content.trim()}>{isAiLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Wand2 className="h-5 w-5" />}</Button>
-            <Button variant="ghost" className={cn("font-bold text-primary text-base", ((!content.trim() && selectedMedia.length === 0 && !pollQuestion && !activeSharedPost) || isOverLimit || isCompressing || isPosting) && "opacity-50")} disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion && !activeSharedPost) || isOverLimit || isCompressing || isAiLoading || isPosting} onClick={handlePost}>
-              {isPosting || isAiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "POST"}
+            <Button variant="ghost" className={cn("font-bold text-primary text-base", ((!content.trim() && selectedMedia.length === 0 && !pollQuestion && !activeSharedPost) || isOverLimit || isCompressing || isPosting) && "opacity-50")} disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion && !activeSharedPost) || isOverLimit || isCompressing || isPosting} onClick={handlePost}>
+              {isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : "POST"}
             </Button>
           </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto pb-safe">
-          {(isCompressing || isAiLoading) && (
+          {isCompressing && (
             <div className="p-6 bg-primary/5 border-b border-primary/10 animate-in slide-in-from-top-4 duration-500">
               <div className="max-w-md mx-auto space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4 text-primary animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">{isAiLoading ? "Syncing with Vault..." : "Materializing Vibe..."}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">Materializing Vibe...</span>
                   </div>
-                  {!isAiLoading && <span className="text-[10px] font-black text-primary tabular-nums">{Math.round(compressionProgress)}%</span>}
+                  <span className="text-[10px] font-black text-primary tabular-nums">{Math.round(compressionProgress)}%</span>
                 </div>
-                {!isAiLoading && <Progress value={compressionProgress} className="h-1.5" />}
+                <Progress value={compressionProgress} className="h-1.5" />
                 <p className="text-[9px] font-bold text-primary/60 uppercase text-center tracking-tighter">
-                  {isAiLoading ? "Encrypting and transmitting spatial nodes to cluster storage" : "Reducing spatial weight for high-velocity sync"}
+                  Reducing spatial weight for high-velocity sync
                 </p>
               </div>
             </div>
@@ -747,25 +699,6 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
             )}
           </div>
 
-          {suggestedHashtags.length > 0 && (
-            <div className="px-4 pt-2 pb-3 animate-in slide-in-from-bottom-2 duration-300">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Hash className="h-3 w-3 text-primary" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-primary">AI Hashtag Suggestions — tap to add</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {suggestedHashtags.map((tag) => (
-                  <button
-                    key={tag}
-                    onClick={() => handleInsertHashtag(tag)}
-                    className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-bold border border-primary/20 hover:bg-primary hover:text-white transition-all active:scale-95"
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {(isFetchingPreview || linkPreview || taggedUsers.length > 0) && (
             <div className="px-4 space-y-3 animate-in slide-in-from-bottom-2 duration-300">
@@ -979,8 +912,8 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
         </div>
 
         <div className="p-4 bg-white dark:bg-card border-t shrink-0">
-          <Button className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion && !stagedReelFile) || isOverLimit || isCompressing || isAiLoading} onClick={handlePost}>
-            {isAiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "POST"}
+          <Button className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion && !stagedReelFile) || isOverLimit || isCompressing} onClick={handlePost}>
+            POST
           </Button>
         </div>
 
