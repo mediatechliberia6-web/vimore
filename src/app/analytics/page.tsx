@@ -486,7 +486,7 @@ export default function AnalyticsPage() {
         <main
           className={cn(
             "flex-1 max-w-2xl mx-auto w-full px-3 pb-28 space-y-4",
-            isPlayerActive ? "pt-20" : "pt-4",
+            "pt-4",
           )}
         >
           {/* ── Header ── */}
@@ -876,7 +876,7 @@ export default function AnalyticsPage() {
         <aside
           className={cn(
             "hidden lg:block sticky h-screen shrink-0 transition-all duration-300",
-            isPlayerActive ? "top-16" : "top-0",
+            "top-0",
           )}
         >
           <RightSidebar />

@@ -404,8 +404,8 @@ export default function MyProfilePage() {
   return (
     <div className="min-h-screen bg-[#F0F2F5] dark:bg-background flex justify-center">
       <div className="max-w-[1440px] w-full grid grid-cols-1 md:grid-cols-[280px_1fr] lg:grid-cols-[280px_1fr_360px] gap-8 px-0 md:px-4">
-        <aside className={cn("hidden md:block sticky h-screen border-r border-border/50 transition-all duration-300", isPlayerActive ? "top-16" : "top-0")}><MainNav /></aside>
-        <main className={cn("w-full bg-white dark:bg-card min-h-screen shadow-sm transition-all duration-300", isPlayerActive ? "pt-[64px]" : "pt-0")}>
+        <aside className={cn("hidden md:block sticky h-screen border-r border-border/50 transition-all duration-300", "top-0")}><MainNav /></aside>
+        <main className={cn("w-full bg-white dark:bg-card min-h-screen shadow-sm transition-all duration-300", "pt-0")}>
           <header className="sticky top-0 z-50 bg-white/95 dark:bg-card/95 backdrop-blur-sm border-b border-border h-14 px-4 flex items-center justify-between">
             <div className="flex items-center gap-3"><Link href="/"><Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="h-5 w-5" /></Button></Link><div className="flex items-center gap-1"><h1 className="font-bold text-lg tracking-tight">Digital Workspace</h1>{currentUser.isVerified && <CheckCircle2 className="h-4 w-4 text-primary fill-primary text-white" />}</div></div>
             <div className="flex items-center gap-1">
@@ -733,7 +733,7 @@ export default function MyProfilePage() {
             </Tabs>
           </div>
         </main>
-        <aside className={cn("hidden lg:block sticky h-screen transition-all duration-300", isPlayerActive ? "top-16" : "top-0")}><RightSidebar /></aside>
+        <aside className={cn("hidden lg:block sticky h-screen transition-all duration-300", "top-0")}><RightSidebar /></aside>
       </div>
 
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>

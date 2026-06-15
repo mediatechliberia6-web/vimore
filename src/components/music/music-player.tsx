@@ -127,10 +127,15 @@ export function MusicPlayer() {
   const stats = trackStats[currentTrack.id] || { likes: currentTrack.likes || 0, unlikes: currentTrack.unlikes || 0 };
 
   /* ── MINI PLAYER ────────────────────────────────────────────── */
+  const isChatPage = pathname.startsWith('/chat/');
+  const isMusicPage = pathname.startsWith('/music');
+  const miniPlayerBottom = isMusicPage ? 'bottom-[148px]' : 'bottom-[76px]';
+
   if (!isExpanded) {
+    if (isChatPage) return null;
     return (
       <div
-        className="fixed bottom-[76px] left-3 right-3 sm:left-4 sm:right-4 z-[45] cursor-pointer animate-in slide-in-from-bottom-4 duration-300"
+        className={`fixed ${miniPlayerBottom} left-3 right-3 sm:left-4 sm:right-4 z-[45] cursor-pointer animate-in slide-in-from-bottom-4 duration-300`}
         onClick={() => setIsExpanded(true)}
       >
         <div className="relative rounded-2xl overflow-hidden bg-white/90 dark:bg-zinc-900/95 backdrop-blur-2xl border border-black/5 dark:border-white/10 shadow-2xl shadow-black/20">

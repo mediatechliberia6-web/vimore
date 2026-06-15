@@ -152,7 +152,7 @@ export default function VerificationHub() {
 
       <main className={cn(
         "max-w-xl mx-auto px-4 pb-28 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500",
-        isPlayerActive ? "pt-6" : "pt-6"
+        "pt-6"
       )}>
 
         {/* Loyalty renewal banner */}

@@ -151,7 +151,7 @@ export default function EarningsPage() {
         {/* Header */}
         <header className={cn(
           "sticky top-0 z-50 bg-white/90 dark:bg-[#0D0D12]/90 backdrop-blur-xl border-b border-black/5 dark:border-white/5 h-16 px-4 flex items-center justify-between",
-          isPlayerActive ? "mt-[64px]" : ""
+          ""
         )}>
           <div className="flex items-center gap-3">
             <Link href="/menu">

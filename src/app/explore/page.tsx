@@ -108,12 +108,12 @@ export default function ExplorePage() {
 
       <div className={cn(
         "max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 px-4 transition-all duration-300",
-        isPlayerActive ? "pt-[140px]" : "pt-6"
+        "pt-6"
       )}>
         {/* Left Navigation */}
         <aside className={cn(
           "hidden lg:block sticky h-[calc(100vh-132px)] transition-all duration-300",
-          isPlayerActive ? "top-[196px]" : "top-[132px]"
+          "top-[132px]"
         )}>
           <MainNav />
         </aside>

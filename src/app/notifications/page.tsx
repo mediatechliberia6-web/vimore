@@ -105,11 +105,11 @@ export default function NotificationsPage() {
 
       <div className={cn(
         "max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[280px_1fr_360px] gap-8 px-4 transition-all duration-300",
-        isPlayerActive ? "pt-[184px]" : "pt-6"
+        "pt-6"
       )}>
         <aside className={cn(
           "hidden lg:block sticky h-[calc(100vh-132px)] overflow-y-auto",
-          isPlayerActive ? "top-[196px]" : "top-[132px]"
+          "top-[132px]"
         )}>
           <MainNav />
         </aside>
@@ -319,7 +319,7 @@ export default function NotificationsPage() {
 
         <aside className={cn(
           "hidden lg:block sticky h-[calc(100vh-132px)] overflow-y-auto",
-          isPlayerActive ? "top-[196px]" : "top-[132px]"
+          "top-[132px]"
         )}>
           <RightSidebar />
         </aside>

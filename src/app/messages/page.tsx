@@ -84,7 +84,6 @@ function MessagesInner() {
                 <span className="text-[11px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Offline — showing saved messages</span>
               </div>
             )}
-            {isPlayerActive && <div className="h-16 shrink-0 transition-all duration-300" />}
 
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-[380px_1fr] min-h-0 overflow-hidden">
               <div className={cn(

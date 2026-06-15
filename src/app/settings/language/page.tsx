@@ -70,7 +70,7 @@ export default function LanguageHub() {
 
       <main className={cn(
         "max-w-xl mx-auto p-4 sm:p-8 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-32",
-        isPlayerActive ? "pt-[80px]" : "pt-4"
+        "pt-4"
       )}>
         
         <section className="space-y-6">

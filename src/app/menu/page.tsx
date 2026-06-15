@@ -151,7 +151,7 @@ export default function MenuPage() {
 
       <main className={cn(
         "max-w-xl mx-auto p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 transition-all",
-        isPlayerActive ? "pt-[80px]" : "pt-4"
+        "pt-4"
       )}>
         <Link href="/profile" className="block group">
           <div className="bg-white dark:bg-card rounded-[2rem] p-5 shadow-xl shadow-black/5 border border-border flex items-center justify-between transition-all hover:shadow-2xl active:scale-[0.98]">
