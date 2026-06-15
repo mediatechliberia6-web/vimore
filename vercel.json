@@ -1,6 +1,6 @@
 {
-  "installCommand": "npm install",
-  "buildCommand": "npm run build",
+  "installCommand": "corepack enable pnpm && pnpm install",
+  "buildCommand": "pnpm run build",
   "framework": "nextjs",
   "functions": {
     "src/app/api/push/send/route.ts": {
