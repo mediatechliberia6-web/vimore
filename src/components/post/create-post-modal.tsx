@@ -64,6 +64,7 @@ import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { usePosts } from "@/context/PostContext";
 import { useFeedSignal } from "@/context/FeedSignalContext";
+import { useReelUpload } from "@/context/ReelUploadContext";
 import { aiGenerateCaptionAction, aiSuggestHashtagsAction } from "@/app/actions/ai";
 import { useMusic } from "@/context/MusicContext";
 import {
@@ -137,6 +138,7 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
   const { addPost, currentUser, connections, settings, isFollowing, triggerHaptic, uploadMedia } = usePosts();
   const { setUploadProgress } = useFeedSignal();
   const { openCaptureStudio } = useMusic();
+  const { startUpload: startReelUpload } = useReelUpload();
   const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState("");
   const [activeSharedPost, setActiveSharedPost] = useState<any>(sharedPost || null);
@@ -182,6 +184,7 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const reelVideoInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
   
@@ -370,6 +373,41 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
     }
     setSelectedTheme(backgroundThemes[0]);
     setShowThemeSelector(false);
+  };
+
+  const handleReelVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUser) return;
+    triggerHaptic(10);
+    const objUrl = URL.createObjectURL(file);
+    const tempVideo = document.createElement('video');
+    tempVideo.src = objUrl;
+    await new Promise<void>(resolve => { tempVideo.onloadedmetadata = () => resolve(); tempVideo.load(); });
+    URL.revokeObjectURL(objUrl);
+    if (tempVideo.duration > 1800) {
+      triggerHaptic(25);
+      toast({ title: "Video Too Long", description: "Reel videos must be 30 minutes or shorter." });
+      e.target.value = '';
+      return;
+    }
+    toast({ title: "Starting Reel Upload…", description: `${file.name} will upload in the background.` });
+    setIsOpen(false);
+    startReelUpload({
+      clips: [file],
+      totalDuration: tempVideo.duration,
+      effect: 'none',
+      caption: content.trim(),
+      visibility: 'public',
+      allowComments: true,
+      allowDuet: true,
+      allowDownloads: true,
+      selectedSound: null,
+      userId: currentUser.$id,
+      username: currentUser.username,
+      coverBlob: null,
+      skipCompression: false,
+    });
+    e.target.value = '';
   };
 
   const removeMedia = (index: number) => {
@@ -883,8 +921,8 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
             <button onClick={() => fileInputRef.current?.click()} disabled={isPollOpen || mediaType === 'video' || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
               <div className="flex items-center gap-4"><ImageIcon className="h-6 w-6 text-green-500" /><span className="text-base font-medium">Photo</span>{mediaType === 'image' && <span className="text-[10px] text-muted-foreground font-bold ml-auto">{selectedMedia.length}/6</span>}</div>
             </button>
-            <button onClick={() => { setIsOpen(false); router.push('/reels/create'); }} disabled={isPollOpen} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
-              <div className="flex items-center gap-4"><Video className="h-6 w-6 text-red-500" /><span className="text-base font-medium">Create Reel</span><span className="text-[10px] text-muted-foreground font-bold ml-auto">Studio →</span></div>
+            <button onClick={() => reelVideoInputRef.current?.click()} disabled={isPollOpen || mediaType === 'video'} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
+              <div className="flex items-center gap-4"><Video className="h-6 w-6 text-red-500" /><span className="text-base font-medium">Create Reel</span><span className="text-[10px] text-muted-foreground font-bold ml-auto">Upload Video</span></div>
             </button>
             <button onClick={() => toggleAction('poll')} disabled={selectedMedia.length > 0 || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
               <div className="flex items-center gap-4"><ListTodo className="h-6 w-6 text-purple-500" /><span className="text-base font-medium">Create Poll</span></div>
@@ -909,6 +947,7 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
 
         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" multiple onChange={handleFileChange} />
         <input type="file" ref={videoInputRef} className="hidden" accept="video/*" onChange={handleFileChange} />
+        <input type="file" ref={reelVideoInputRef} className="hidden" accept="video/*" onChange={handleReelVideoChange} />
 
         <Dialog open={isTaggingSelectorOpen} onOpenChange={setIsTaggingSelectorOpen}>
           <DialogContent className="rounded-t-[2.5rem] p-0 overflow-hidden h-[80vh] flex flex-col bg-white dark:bg-card">

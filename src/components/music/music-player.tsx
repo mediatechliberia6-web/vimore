@@ -7,6 +7,8 @@ import {
   Share2, X, Send, MessageCircle, Loader2, CheckCircle2,
   Gift, Rocket, Music2, Zap, Clock, ListMusic, Shuffle, Repeat
 } from "lucide-react";
+import { databases, DATABASE_ID, COL } from "@/lib/appwrite";
+import { Query } from "appwrite";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
@@ -99,10 +101,22 @@ export function MusicPlayer() {
     });
   };
 
-  const handleGiftClick = (e: React.MouseEvent) => {
+  const handleGiftClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     triggerHaptic(30);
-    openGiftHub({ name: currentTrack.artist, username: currentTrack.artistUsername || "artist", avatar: currentTrack.cover } as any);
+    try {
+      const res = await databases.listDocuments(DATABASE_ID, COL.USERS, [
+        Query.equal("username", currentTrack.artistUsername || ""),
+        Query.limit(1),
+      ]);
+      if (res.documents.length > 0) {
+        openGiftHub(res.documents[0] as any);
+      } else {
+        openGiftHub({ name: currentTrack.artist, username: currentTrack.artistUsername || "artist", avatar: currentTrack.cover } as any);
+      }
+    } catch {
+      openGiftHub({ name: currentTrack.artist, username: currentTrack.artistUsername || "artist", avatar: currentTrack.cover } as any);
+    }
   };
 
   const isLiked = isTrackLiked(currentTrack.id);
@@ -116,7 +130,7 @@ export function MusicPlayer() {
   if (!isExpanded) {
     return (
       <div
-        className="fixed bottom-[5.5rem] left-3 right-3 sm:left-4 sm:right-4 z-[90] cursor-pointer animate-in slide-in-from-bottom-4 duration-300"
+        className="fixed top-[61px] left-3 right-3 sm:left-4 sm:right-4 z-[90] cursor-pointer animate-in slide-in-from-top-4 duration-300"
         onClick={() => setIsExpanded(true)}
       >
         <div className="relative rounded-2xl overflow-hidden bg-white/90 dark:bg-zinc-900/95 backdrop-blur-2xl border border-black/5 dark:border-white/10 shadow-2xl shadow-black/20">
@@ -221,7 +235,7 @@ export function MusicPlayer() {
 
       {/* Panel toggle */}
       <div className="flex justify-center gap-1 px-5 mb-2 shrink-0">
-        {[{ id: "main", label: "Player" }, { id: "comments", label: `Reactions · ${currentTrack.comments || 0}` }].map(p => (
+        {[{ id: "main", label: "Player" }, { id: "comments", label: `Reactions · ${activeComments?.length || currentTrack.comments || 0}` }].map(p => (
           <button
             key={p.id}
             onClick={() => setActivePanel(p.id as any)}
@@ -361,7 +375,7 @@ export function MusicPlayer() {
                 <span className="h-12 w-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all">
                   <MessageCircle className="h-5 w-5 text-white" />
                 </span>
-                <span className="text-[10px] font-bold text-white/50">{currentTrack.comments || 0}</span>
+                <span className="text-[10px] font-bold text-white/50">{activeComments?.length || currentTrack.comments || 0}</span>
               </button>
 
               {isEligibleForGift && !isOwner && settings?.isGiftingEnabled && (
