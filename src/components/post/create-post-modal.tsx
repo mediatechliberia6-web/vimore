@@ -38,6 +38,7 @@ import {
   Type,
   Loader2,
   Zap,
+  Wand2,
   CheckCircle2,
   Plus,
   ExternalLink,
@@ -60,6 +61,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
+import { aiSuggestCaptionsFromImagesAction } from "@/app/actions/ai";
 import { usePosts } from "@/context/PostContext";
 import { useFeedSignal } from "@/context/FeedSignalContext";
 import { useReelUpload } from "@/context/ReelUploadContext";
@@ -177,6 +179,10 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
   const [stagedReelUrl, setStagedReelUrl] = useState<string | null>(null);
   const [stagedReelDuration, setStagedReelDuration] = useState<number>(0);
 
+  // Caption suggestions
+  const [isCaptionLoading, setIsCaptionLoading] = useState(false);
+  const [captionSuggestions, setCaptionSuggestions] = useState<string[]>([]);
+
   // Compression State
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
@@ -220,6 +226,37 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
     }
   }, [isOpen]);
 
+
+  const handleSuggestCaptions = async () => {
+    if (isCaptionLoading) return;
+    if (captionSuggestions.length > 0) { setCaptionSuggestions([]); return; }
+    const mediaFile = stagedFiles[0] || stagedReelFile;
+    if (!mediaFile) return;
+    setIsCaptionLoading(true);
+    triggerHaptic(10);
+    try {
+      const isVideo = mediaFile.type.startsWith('video/');
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(mediaFile);
+      });
+      const { captions } = await aiSuggestCaptionsFromImagesAction({
+        imageBase64: base64,
+        mimeType: mediaFile.type,
+        isVideo,
+      });
+      setCaptionSuggestions(captions);
+    } catch {
+      toast({ title: 'Could not generate captions', variant: 'destructive' });
+    } finally {
+      setIsCaptionLoading(false);
+    }
+  };
 
   const mentionSuggestions = useMemo(() => {
     if (!mentionQuery && !showMentionSuggestions) return [];
@@ -886,6 +923,37 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
                 </button>
               </div>
               <p className="text-[10px] text-muted-foreground font-bold mt-2 px-1">Add a caption above, then tap Post to upload your reel.</p>
+            </div>
+          )}
+
+          {(selectedMedia.length > 0 || !!stagedReelFile) && (
+            <div className="px-4 pb-2">
+              <button
+                onClick={handleSuggestCaptions}
+                disabled={isCaptionLoading}
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-[11px] font-black uppercase tracking-widest transition-all hover:bg-primary/20 active:scale-95 disabled:opacity-60"
+              >
+                {isCaptionLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Wand2 className="h-3.5 w-3.5" />
+                )}
+                {captionSuggestions.length > 0 ? 'Hide suggestions' : isCaptionLoading ? 'Generating…' : 'AI Caption Ideas'}
+              </button>
+
+              {captionSuggestions.length > 0 && (
+                <div className="mt-3 space-y-2 animate-in slide-in-from-bottom-2 duration-300">
+                  {captionSuggestions.map((caption, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setContent(caption); setCaptionSuggestions([]); triggerHaptic(5); }}
+                      className="w-full text-left px-4 py-3 rounded-2xl bg-secondary/40 border border-primary/10 text-[12px] font-medium leading-snug hover:bg-primary/10 hover:border-primary/30 transition-all active:scale-[0.98]"
+                    >
+                      {caption}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

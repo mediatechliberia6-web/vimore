@@ -119,6 +119,55 @@ Rules:
   return { caption: result || smartCaptionFallback(content) };
 }
 
+export async function aiSuggestCaptionsFromImagesAction({
+  imageBase64,
+  mimeType,
+  isVideo = false,
+}: {
+  imageBase64: string;
+  mimeType: string;
+  isVideo?: boolean;
+}): Promise<{ captions: string[] }> {
+  const fallback = [
+    "Capturing moments worth remembering ✨ #ViMore",
+    "Living in the moment 🔥 #ViMoreCreator",
+    "Every picture tells a story 📸 #ViMore",
+  ];
+  const key = process.env.GOOGLE_GEMINI_API_KEY;
+  if (!key) return { captions: fallback };
+  try {
+    const { GoogleGenerativeAI } = await import('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(key);
+    const model = genAI.getGenerativeModel({
+      model: GEMINI_MODEL,
+      systemInstruction: `You are a social media caption expert for ViMore, a creator platform popular in Africa and globally. Generate exactly 3 short, engaging captions for the given ${isVideo ? 'video thumbnail' : 'image'}. Each caption should be on its own line, no numbering, no bullets, no quotes. Each must include 2-3 relevant emojis and 2-3 hashtags (one must be #ViMore). Keep each caption under 180 characters including hashtags.`,
+    });
+    const result = await model.generateContent({
+      contents: [{
+        role: 'user',
+        parts: [
+          { inlineData: { mimeType, data: imageBase64 } },
+          { text: `Generate 3 engaging social media captions for this ${isVideo ? 'video' : 'photo'}, one per line.` },
+        ],
+      }],
+      generationConfig: {
+        maxOutputTokens: 400,
+        temperature: 0.9,
+        thinkingConfig: { thinkingBudget: 0 },
+      } as any,
+    });
+    const text = result.response.text().trim();
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 10);
+    const captions = lines.slice(0, 3);
+    if (captions.length < 1) return { captions: fallback };
+    while (captions.length < 3) captions.push(fallback[captions.length]);
+    return { captions };
+  } catch (err) {
+    console.error('[Gemini vision caption error]', err);
+    return { captions: fallback };
+  }
+}
+
 export async function aiSuggestHashtagsAction({ content }: { content: string }): Promise<{ hashtags: string[] }> {
   const fallback = ['#ViMore', '#ViMoreCreator', '#AfricanCreator', '#ContentCreator', '#Trending', '#CreateEveryDay'];
   if (!content?.trim()) return { hashtags: fallback };
