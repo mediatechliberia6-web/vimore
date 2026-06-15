@@ -1502,8 +1502,23 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const checkSession = useCallback(async () => {
     setIsLoadingState(true);
 
+    // Hard timeout: if the entire session check takes longer than 12s, bail out gracefully
+    const timeoutId = setTimeout(() => {
+      const cachedUser = offlineCache.getUser() as any | null;
+      if (cachedUser) {
+        setCurrentUserState(cachedUser);
+        const cachedPosts = offlineCache.getPosts() as any[];
+        if (cachedPosts.length > 0) setPostsState(cachedPosts);
+        setIsOffline(true);
+      } else {
+        setCurrentUserState(null);
+      }
+      setIsLoadingState(false);
+    }, 12000);
+
     // If the device has no connectivity, restore from local cache immediately
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      clearTimeout(timeoutId);
       const cachedUser = offlineCache.getUser() as any | null;
       if (cachedUser) {
         setCurrentUserState(cachedUser);
@@ -1519,6 +1534,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
     try {
       const authUser = await account.get();
+      clearTimeout(timeoutId);
       const profileDoc = await databases.getDocument(DATABASE_ID, COL.USERS, authUser.$id);
       const user = mapDocToUser(authUser, profileDoc);
       setCurrentUserState(user);
@@ -1563,9 +1579,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
         }
       }
       // Auth error or no cached session — redirect to login
+      clearTimeout(timeoutId);
       offlineCache.clearUser();
       setCurrentUserState(null);
     } finally {
+      clearTimeout(timeoutId);
       setIsLoadingState(false);
     }
   }, [loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns, loadChatReadReceipts, loadUnreadSignals, loadConversationMetadata]);
