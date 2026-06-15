@@ -460,11 +460,11 @@ export default function Home() {
       
       <div className={cn(
         "w-full max-w-[1440px] grid grid-cols-1 lg:grid-cols-[280px_1fr_360px] gap-8 px-4 transition-all duration-300",
-        isPlayerActive ? "pt-[184px]" : "pt-6"
+        isPlayerActive ? "pt-[72px]" : "pt-6"
       )}>
         <aside className={cn(
           "hidden lg:block sticky h-[calc(100vh-132px)] overflow-y-auto transition-all duration-300",
-          isPlayerActive ? "top-[196px]" : "top-[132px]"
+          isPlayerActive ? "top-[208px]" : "top-[132px]"
         )}>
           <MainNav />
         </aside>

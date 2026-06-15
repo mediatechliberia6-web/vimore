@@ -61,11 +61,7 @@ export function MusicPlayer() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [activePanel, setActivePanel] = useState<"main" | "comments">("main");
 
-  useEffect(() => {
-    if (isExpanded && currentTrack) {
-      openCommentHub(currentTrack.id.toString());
-    }
-  }, [isExpanded, currentTrack?.id]);
+  
 
   if (!currentTrack) return null;
 
@@ -130,7 +126,7 @@ export function MusicPlayer() {
   if (!isExpanded) {
     return (
       <div
-        className="fixed top-[61px] left-3 right-3 sm:left-4 sm:right-4 z-[90] cursor-pointer animate-in slide-in-from-top-4 duration-300"
+        className="fixed top-[132px] left-3 right-3 sm:left-4 sm:right-4 z-[45] cursor-pointer animate-in slide-in-from-top-4 duration-300"
         onClick={() => setIsExpanded(true)}
       >
         <div className="relative rounded-2xl overflow-hidden bg-white/90 dark:bg-zinc-900/95 backdrop-blur-2xl border border-black/5 dark:border-white/10 shadow-2xl shadow-black/20">
@@ -233,21 +229,7 @@ export function MusicPlayer() {
         </div>
       </header>
 
-      {/* Panel toggle */}
-      <div className="flex justify-center gap-1 px-5 mb-2 shrink-0">
-        {[{ id: "main", label: "Player" }, { id: "comments", label: `Reactions · ${activeComments?.length || currentTrack.comments || 0}` }].map(p => (
-          <button
-            key={p.id}
-            onClick={() => setActivePanel(p.id as any)}
-            className={cn(
-              "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
-              activePanel === p.id ? "bg-white text-black" : "text-white/50 hover:text-white"
-            )}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+      
 
       {/* Main scrollable content */}
       <div className="flex-1 overflow-y-auto overscroll-contain">

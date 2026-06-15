@@ -178,6 +178,11 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
   const [suggestedHashtags, setSuggestedHashtags] = useState<string[]>([]);
   const [isHashtagLoading, setIsHashtagLoading] = useState(false);
 
+  // Staged reel (user selects video but hasn't posted yet)
+  const [stagedReelFile, setStagedReelFile] = useState<File | null>(null);
+  const [stagedReelUrl, setStagedReelUrl] = useState<string | null>(null);
+  const [stagedReelDuration, setStagedReelDuration] = useState<number>(0);
+
   // Compression State
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
@@ -383,30 +388,16 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
     const tempVideo = document.createElement('video');
     tempVideo.src = objUrl;
     await new Promise<void>(resolve => { tempVideo.onloadedmetadata = () => resolve(); tempVideo.load(); });
-    URL.revokeObjectURL(objUrl);
     if (tempVideo.duration > 1800) {
       triggerHaptic(25);
+      URL.revokeObjectURL(objUrl);
       toast({ title: "Video Too Long", description: "Reel videos must be 30 minutes or shorter." });
       e.target.value = '';
       return;
     }
-    toast({ title: "Starting Reel Upload…", description: `${file.name} will upload in the background.` });
-    setIsOpen(false);
-    startReelUpload({
-      clips: [file],
-      totalDuration: tempVideo.duration,
-      effect: 'none',
-      caption: content.trim(),
-      visibility: 'public',
-      allowComments: true,
-      allowDuet: true,
-      allowDownloads: true,
-      selectedSound: null,
-      userId: currentUser.$id,
-      username: currentUser.username,
-      coverBlob: null,
-      skipCompression: false,
-    });
+    setStagedReelFile(file);
+    setStagedReelUrl(objUrl);
+    setStagedReelDuration(tempVideo.duration);
     e.target.value = '';
   };
 
@@ -426,6 +417,33 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
     if (!currentUser || isPosting) return;
     triggerHaptic(30);
     setIsPosting(true);
+
+    // If a reel video is staged, kick off background reel upload with caption
+    if (stagedReelFile) {
+      try {
+        toast({ title: "Starting Reel Upload…", description: `${stagedReelFile.name} will upload in the background.` });
+        startReelUpload({
+          clips: [stagedReelFile],
+          totalDuration: stagedReelDuration,
+          effect: 'none',
+          caption: content.trim(),
+          visibility: privacy.id === 'public' ? 'public' : privacy.id === 'friends' ? 'friends' : 'private',
+          allowComments: !commentsDisabled,
+          allowDuet: true,
+          allowDownloads: true,
+          selectedSound: null,
+          userId: currentUser.$id,
+          username: currentUser.username,
+          coverBlob: null,
+          skipCompression: false,
+        });
+        resetForm();
+        setIsOpen(false);
+      } finally {
+        setIsPosting(false);
+      }
+      return;
+    }
 
     try {
       const uploadedUrls: string[] = [];
@@ -485,6 +503,9 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
     setSelectedMedia([]);
     setStagedFiles([]);
     setMediaType(null);
+    setStagedReelFile(null);
+    if (stagedReelUrl) { URL.revokeObjectURL(stagedReelUrl); setStagedReelUrl(null); }
+    setStagedReelDuration(0);
     setIsPollOpen(false);
     setFeeling(null);
     setLocation("");
@@ -917,11 +938,29 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
             </div>
           )}
 
+          {stagedReelUrl && (
+            <div className="px-4 pb-4 mt-2">
+              <div className="relative rounded-[1.5rem] overflow-hidden border border-red-500/20 bg-black shadow-lg">
+                <video src={stagedReelUrl} className="w-full aspect-video object-cover" muted loop playsInline autoPlay />
+                <div className="absolute top-2 left-2 bg-red-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full flex items-center gap-1">
+                  <Video className="h-3 w-3" /> Reel
+                </div>
+                <button
+                  onClick={() => { setStagedReelFile(null); if (stagedReelUrl) URL.revokeObjectURL(stagedReelUrl); setStagedReelUrl(null); setStagedReelDuration(0); }}
+                  className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-black/80"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="text-[10px] text-muted-foreground font-bold mt-2 px-1">Add a caption above, then tap Post to upload your reel.</p>
+            </div>
+          )}
+
           <div className="border-t mt-4">
-            <button onClick={() => fileInputRef.current?.click()} disabled={isPollOpen || mediaType === 'video' || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
+            <button onClick={() => fileInputRef.current?.click()} disabled={isPollOpen || mediaType === 'video' || selectedTheme.id !== "none" || isCompressing || !!stagedReelFile} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
               <div className="flex items-center gap-4"><ImageIcon className="h-6 w-6 text-green-500" /><span className="text-base font-medium">Photo</span>{mediaType === 'image' && <span className="text-[10px] text-muted-foreground font-bold ml-auto">{selectedMedia.length}/6</span>}</div>
             </button>
-            <button onClick={() => reelVideoInputRef.current?.click()} disabled={isPollOpen || mediaType === 'video'} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
+            <button onClick={() => reelVideoInputRef.current?.click()} disabled={isPollOpen || mediaType === 'video' || !!stagedReelFile} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
               <div className="flex items-center gap-4"><Video className="h-6 w-6 text-red-500" /><span className="text-base font-medium">Create Reel</span><span className="text-[10px] text-muted-foreground font-bold ml-auto">Upload Video</span></div>
             </button>
             <button onClick={() => toggleAction('poll')} disabled={selectedMedia.length > 0 || selectedTheme.id !== "none" || isCompressing} className="w-full flex items-center justify-between p-4 transition-colors hover:bg-secondary/20 disabled:opacity-30">
@@ -940,7 +979,7 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
         </div>
 
         <div className="p-4 bg-white dark:bg-card border-t shrink-0">
-          <Button className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion) || isOverLimit || isCompressing || isAiLoading} onClick={handlePost}>
+          <Button className="w-full h-11 font-bold text-lg bg-primary hover:bg-primary/90 text-white rounded-lg" disabled={(!content.trim() && selectedMedia.length === 0 && !pollQuestion && !stagedReelFile) || isOverLimit || isCompressing || isAiLoading} onClick={handlePost}>
             {isAiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "POST"}
           </Button>
         </div>

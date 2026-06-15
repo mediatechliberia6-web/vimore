@@ -218,13 +218,6 @@ export function SubHeader() {
                 </div>
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-secondary/20 border border-transparent hover:border-primary/10 transition-all">
                   <div className="flex items-center gap-2">
-                    <Coins className="h-4 w-4 text-amber-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">{t('sub_energy_gold')}</span>
-                  </div>
-                  <span className="text-sm font-black tabular-nums">{currentUser?.goldBalance || 0}</span>
-                </div>
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-secondary/20 border border-transparent hover:border-primary/10 transition-all">
-                  <div className="flex items-center gap-2">
                     <Gem className="h-4 w-4 text-cyan-500" />
                     <span className="text-[10px] font-black uppercase tracking-widest">{t('sub_energy_diamonds')}</span>
                   </div>
