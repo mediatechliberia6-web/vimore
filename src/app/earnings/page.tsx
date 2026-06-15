@@ -4,7 +4,7 @@
 import { useState, useMemo } from "react";
 import { 
   ArrowLeft, 
-  Coins, 
+  
   Gem, 
   TrendingUp,
   ShieldCheck, 
@@ -49,17 +49,10 @@ export default function EarningsPage() {
   const isPlayerActive = currentTrack && !isExpanded;
 
   const estimates = useMemo(() => {
-    const gold = currentUser?.goldBalance || 0;
     const diamond = currentUser?.diamondBalance || 0;
-    const totalUSD = (gold * settings.goldRate) + (diamond * settings.diamondRate);
-    return { totalUSD, totalLD: totalUSD * settings.ldMultiplier, gold, diamond };
-  }, [currentUser, settings.goldRate, settings.diamondRate, settings.ldMultiplier]);
-
-  const goldPct = useMemo(() => {
-    const total = estimates.gold + estimates.diamond;
-    if (total === 0) return 50;
-    return Math.round((estimates.gold / total) * 100);
-  }, [estimates]);
+    const totalUSD = diamond * settings.diamondRate;
+    return { totalUSD, totalLD: totalUSD * settings.ldMultiplier, diamond };
+  }, [currentUser, settings.diamondRate, settings.ldMultiplier]);
 
   const [isTicketOpen, setIsTicketOpen] = useState(false);
   const [ticketSubject, setTicketSubject] = useState("");
@@ -85,7 +78,7 @@ export default function EarningsPage() {
   const [payoutMethod, setPayoutMethod] = useState<"ORANGE" | "MTN" | null>(null);
   const [accountName, setAccountName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
-  const [withdrawCurrency, setWithdrawCurrency] = useState<"GOLD" | "DIAMOND">("GOLD");
+  const withdrawCurrency = "DIAMOND";
   const [amount, setAmount] = useState("");
   const [payoutCurrency, setPayoutCurrency] = useState<"USD" | "LD">("USD");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -94,19 +87,17 @@ export default function EarningsPage() {
   const rawAmount = parseFloat(amount) || 0;
 
   const calculation = useMemo(() => {
-    let baseUSD = 0;
-    if (withdrawCurrency === 'GOLD') baseUSD = rawAmount * settings.goldRate;
-    else baseUSD = rawAmount * settings.diamondRate;
+    const baseUSD = rawAmount * settings.diamondRate;
     const payoutValue = payoutCurrency === 'USD' ? baseUSD : baseUSD * settings.ldMultiplier;
     const feeAmount = payoutValue * (1 - feeMultiplier);
     const finalPayout = payoutValue * feeMultiplier;
     return { payoutValue, feeAmount, finalPayout };
-  }, [withdrawCurrency, amount, payoutCurrency, feeMultiplier, rawAmount, settings]);
+  }, [amount, payoutCurrency, feeMultiplier, rawAmount, settings]);
 
   const hasEnoughBalance = useMemo(() => {
-    const balance = withdrawCurrency === 'GOLD' ? (currentUser?.goldBalance || 0) : (currentUser?.diamondBalance || 0);
+    const balance = currentUser?.diamondBalance || 0;
     return rawAmount > 0 && rawAmount <= balance;
-  }, [withdrawCurrency, rawAmount, currentUser]);
+  }, [rawAmount, currentUser]);
 
   const canProceed = payoutMethod && accountName && accountNumber && amount && hasEnoughBalance;
 
@@ -196,38 +187,16 @@ export default function EarningsPage() {
                 </div>
               </div>
 
-              {/* Balance cards */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-7 w-7 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                      <Coins className="h-4 w-4 text-amber-400" />
-                    </div>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-white/40">{t('earn_gold_pulse')}</span>
+              {/* Diamond balance card */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-7 w-7 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                    <Gem className="h-4 w-4 text-cyan-400" />
                   </div>
-                  <p className="text-3xl font-black italic text-white tabular-nums">{currentUser?.goldBalance || 0}</p>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/40">{t('earn_diamond_pulse')}</span>
                 </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-7 w-7 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                      <Gem className="h-4 w-4 text-cyan-400" />
-                    </div>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-white/40">{t('earn_diamond_pulse')}</span>
-                  </div>
-                  <p className="text-3xl font-black italic text-white tabular-nums">{currentUser?.diamondBalance || 0}</p>
-                </div>
-              </div>
-
-              {/* Balance bar */}
-              <div className="space-y-2">
-                <div className="flex overflow-hidden rounded-full h-2 bg-white/10">
-                  <div className="bg-amber-400 transition-all duration-700" style={{ width: `${goldPct}%` }} />
-                  <div className="flex-1 bg-cyan-400" />
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[9px] font-bold text-amber-400/70">{goldPct}% Gold</span>
-                  <span className="text-[9px] font-bold text-cyan-400/70">{100 - goldPct}% Diamond</span>
-                </div>
+                <p className="text-3xl font-black italic text-white tabular-nums">{(currentUser?.diamondBalance || 0).toFixed(2)}</p>
+                <p className="text-[9px] text-white/30 font-bold uppercase mt-1">D · 1 D = $0.25 USD</p>
               </div>
 
               {/* USD/LD estimate */}
@@ -252,9 +221,8 @@ export default function EarningsPage() {
           </div>
 
           {/* Quick stats */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {[
-              { label: "Gold Rate", value: `$${settings.goldRate}`, icon: Coins, color: "amber" },
               { label: "Diamond Rate", value: `$${settings.diamondRate}`, icon: Gem, color: "cyan" },
               { label: "Withdrawals", value: withdrawalHistory.length, icon: History, color: "purple" },
             ].map((stat) => (
@@ -393,19 +361,9 @@ export default function EarningsPage() {
                 <div className="bg-white/5 border border-white/10 rounded-[1.5rem] p-5 space-y-4">
                   <div className="flex items-center justify-between">
                     <Label className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Source Currency</Label>
-                    <div className="flex gap-1.5">
-                      {(["GOLD", "DIAMOND"] as const).map((c) => (
-                        <button
-                          key={c}
-                          onClick={() => setWithdrawCurrency(c)}
-                          className={cn(
-                            "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all",
-                            withdrawCurrency === c
-                              ? c === "GOLD" ? "bg-amber-500 text-white" : "bg-cyan-500 text-white"
-                              : "bg-white/5 text-white/40"
-                          )}
-                        >{c}</button>
-                      ))}
+                    <div className="flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 rounded-xl px-3 py-1.5">
+                      <Gem className="h-3 w-3 text-cyan-400" />
+                      <span className="text-[9px] font-black text-cyan-400 uppercase tracking-widest">Diamond</span>
                     </div>
                   </div>
                   <div className="space-y-1">

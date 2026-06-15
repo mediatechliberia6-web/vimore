@@ -36,20 +36,13 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { BiometricGate } from "@/components/layout/biometric-gate";
 
-const GOLD_PACKAGES = [
-  { id: "g1", gd: 200, priceLD: 400, priceUSD: 2.00, label: "Starter Pulse" },
-  { id: "g2", gd: 500, priceLD: 1000, priceUSD: 5.00, label: "Active Hub" },
-  { id: "g3", gd: 1000, priceLD: 2000, priceUSD: 10.00, label: "VIP Cluster", isVIP: true },
-  { id: "g4", gd: 3000, priceLD: 6000, priceUSD: 30.00, label: "V.VIP Network", isVVIP: true },
-];
-
 const DIAMOND_PACKAGES = [
   { id: "d1", d: 25, priceLD: 1200, priceUSD: 6.00, label: "Gem Spike" },
   { id: "d2", d: 50, priceLD: 2350, priceUSD: 13.00, label: "Vault Refill" },
   { id: "d3", d: 100, priceLD: 4700, priceUSD: 25.00, label: "VIP Crystalline", isVIP: true },
 ];
 
-type TabId = "gold" | "diamond" | "complete";
+type TabId = "diamond" | "complete";
 
 export default function CurrencyHub() {
   const { currentUser, initiateTransaction, pendingTransaction, cancelTransaction, triggerHaptic, createPaymentRequest, submitTicket, isLoading } = usePosts();
@@ -60,7 +53,7 @@ export default function CurrencyHub() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [activeTab, setActiveTab] = useState<TabId>(pendingTransaction ? "complete" : "gold");
+  const [activeTab, setActiveTab] = useState<TabId>(pendingTransaction ? "complete" : "diamond");
   const [currencyMode, setCurrencyMode] = useState<"USD" | "LD">("LD");
   const [selectedPackage, setSelectedPackage] = useState<any | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -209,7 +202,6 @@ export default function CurrencyHub() {
   }
 
   const TABS: { id: TabId; label: string; color: string }[] = [
-    { id: "gold", label: "Buy Gold", color: "amber" },
     { id: "diamond", label: "Buy Diamond", color: "cyan" },
     { id: "complete", label: "Complete", color: "emerald" },
   ];
@@ -235,16 +227,10 @@ export default function CurrencyHub() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-3 bg-black/5 dark:bg-white/5 rounded-2xl px-4 py-2">
-              <div className="flex items-center gap-1.5">
-                <Coins className="h-3.5 w-3.5 text-amber-500" />
-                <span className="text-xs font-black tabular-nums">{currentUser?.goldBalance || 0}</span>
-              </div>
-              <div className="w-px h-3 bg-black/10 dark:bg-white/10" />
-              <div className="flex items-center gap-1.5">
-                <Gem className="h-3.5 w-3.5 text-cyan-500" />
-                <span className="text-xs font-black tabular-nums">{currentUser?.diamondBalance || 0}</span>
-              </div>
+            <div className="flex items-center gap-2 bg-black/5 dark:bg-white/5 rounded-2xl px-4 py-2">
+              <Gem className="h-3.5 w-3.5 text-cyan-500" />
+              <span className="text-xs font-black tabular-nums">{(currentUser?.diamondBalance || 0).toFixed(2)}</span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase">D</span>
             </div>
             <Avatar className="h-9 w-9 border-2 border-primary/20 ring-2 ring-primary/10">
               <AvatarImage src={currentUser?.avatar} />
@@ -270,26 +256,16 @@ export default function CurrencyHub() {
                   <Sparkles className="h-6 w-6 text-white/80" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-7 w-7 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                      <Coins className="h-4 w-4 text-amber-400" />
+              <div className="mt-2">
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/10">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="h-8 w-8 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                      <Gem className="h-4.5 w-4.5 text-cyan-400" />
                     </div>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Gold</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Diamond Balance</span>
                   </div>
-                  <p className="text-3xl font-black italic text-white tabular-nums">{currentUser?.goldBalance || 0}</p>
-                  <p className="text-[9px] text-white/30 font-bold uppercase mt-1">GD Tokens</p>
-                </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-7 w-7 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                      <Gem className="h-4 w-4 text-cyan-400" />
-                    </div>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Diamond</span>
-                  </div>
-                  <p className="text-3xl font-black italic text-white tabular-nums">{currentUser?.diamondBalance || 0}</p>
-                  <p className="text-[9px] text-white/30 font-bold uppercase mt-1">D Gems</p>
+                  <p className="text-4xl font-black italic text-white tabular-nums">{(currentUser?.diamondBalance || 0).toFixed(2)}</p>
+                  <p className="text-[9px] text-white/30 font-bold uppercase mt-1">D Gems · 1 D = $0.25 USD</p>
                 </div>
               </div>
             </div>
@@ -340,72 +316,6 @@ export default function CurrencyHub() {
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Gold Tab */}
-          {activeTab === "gold" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {GOLD_PACKAGES.map((pkg, i) => (
-                <button
-                  key={pkg.id}
-                  onClick={() => handlePackageSelect(pkg, 'Gold')}
-                  className={cn(
-                    "group relative text-left p-5 rounded-[1.75rem] border-2 transition-all duration-300 overflow-hidden active:scale-[0.97]",
-                    pkg.isVVIP
-                      ? "bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 border-amber-300 shadow-2xl shadow-amber-500/30"
-                      : pkg.isVIP
-                      ? "bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 border-amber-300 dark:border-amber-700 shadow-lg"
-                      : "bg-white dark:bg-white/5 border-black/5 dark:border-white/10 hover:border-amber-300 dark:hover:border-amber-700 shadow-sm hover:shadow-lg"
-                  )}
-                >
-                  {pkg.isVVIP && (
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.15),_transparent_60%)]" />
-                  )}
-                  <div className="relative z-10 space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div className={cn(
-                        "h-12 w-12 rounded-2xl flex items-center justify-center",
-                        pkg.isVVIP ? "bg-white/20" : "bg-amber-500/10"
-                      )}>
-                        <Coins className={cn("h-6 w-6", pkg.isVVIP ? "text-white" : "text-amber-500")} />
-                      </div>
-                      {(pkg.isVIP || pkg.isVVIP) && (
-                        <Badge className={cn(
-                          "text-[8px] font-black uppercase border-none px-2.5",
-                          pkg.isVVIP ? "bg-white/25 text-white" : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                        )}>
-                          {pkg.isVVIP ? "V.VIP" : "VIP"}
-                        </Badge>
-                      )}
-                    </div>
-                    <div>
-                      <p className={cn(
-                        "text-3xl font-black italic tracking-tight leading-none",
-                        pkg.isVVIP ? "text-white" : "text-foreground"
-                      )}>{pkg.gd} <span className="text-base">GD</span></p>
-                      <p className={cn(
-                        "text-[10px] font-bold uppercase tracking-widest mt-1",
-                        pkg.isVVIP ? "text-white/60" : "text-muted-foreground"
-                      )}>{pkg.label}</p>
-                    </div>
-                    <div className={cn(
-                      "flex items-center justify-between pt-3 border-t",
-                      pkg.isVVIP ? "border-white/20" : "border-black/5 dark:border-white/5"
-                    )}>
-                      <span className={cn("text-xl font-black", pkg.isVVIP ? "text-white" : "")}>
-                        {currencyMode === 'USD' ? `$${pkg.priceUSD.toFixed(2)}` : `L$ ${pkg.priceLD.toLocaleString()}`}
-                      </span>
-                      <div className={cn(
-                        "h-8 w-8 rounded-full flex items-center justify-center transition-transform group-hover:translate-x-1",
-                        pkg.isVVIP ? "bg-white/20" : "bg-amber-500/10"
-                      )}>
-                        <ChevronRight className={cn("h-4 w-4", pkg.isVVIP ? "text-white" : "text-amber-500")} />
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              ))}
             </div>
           )}
 
@@ -464,7 +374,7 @@ export default function CurrencyHub() {
                   <h3 className="text-2xl font-black italic uppercase tracking-tighter">No Active Pulses</h3>
                   <p className="text-muted-foreground text-sm font-medium max-w-xs mx-auto">No unfinished payments. Select a package to begin.</p>
                 </div>
-                <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase text-[10px] tracking-widest h-11 px-8" onClick={() => setActiveTab("gold")}>Browse Packages</Button>
+                <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase text-[10px] tracking-widest h-11 px-8" onClick={() => setActiveTab("diamond")}>Browse Packages</Button>
               </div>
             ) : (
               <div className="space-y-6 animate-in zoom-in-95 duration-500">

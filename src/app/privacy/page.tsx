@@ -95,7 +95,7 @@ export default function PrivacyPolicyPage() {
             </p>
             <p className="text-muted-foreground leading-relaxed">
               <span className="font-medium text-foreground">Payment Information:</span> For manual
-              currency purchases (Diamonds and Gold), we collect transaction details processed
+              currency purchases (Diamonds), we collect transaction details processed
               through our admin team.
             </p>
           </div>

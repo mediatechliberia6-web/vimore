@@ -582,12 +582,12 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
             </div>
 
             {isEliteCreator && (
-              <div className="flex items-center gap-2 bg-amber-500/5 p-2 rounded-xl border border-amber-500/10">
-                <Lock className={cn("h-4 w-4", isLocked ? "text-amber-500" : "text-muted-foreground/40")} />
+              <div className="flex items-center gap-2 bg-cyan-500/5 p-2 rounded-xl border border-cyan-500/10">
+                <Lock className={cn("h-4 w-4", isLocked ? "text-cyan-500" : "text-muted-foreground/40")} />
                 <Switch 
                   checked={isLocked} 
                   onCheckedChange={(val) => { triggerHaptic(10); setIsLocked(val); if(val) setIsPollOpen(false); }} 
-                  className="data-[state=checked]:bg-amber-500"
+                  className="data-[state=checked]:bg-cyan-500"
                 />
               </div>
             )}
@@ -667,22 +667,22 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
               <div className="w-full max-w-sm mt-8 p-6 bg-black/20 backdrop-blur-md rounded-[2.5rem] border border-white/10 space-y-6 animate-in zoom-in-95">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Coins className="h-4 w-4 text-amber-500" />
+                    <Gem className="h-4 w-4 text-cyan-400" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Unlock Price</span>
                   </div>
-                  <Badge className="bg-amber-500 text-white border-none font-black h-5 px-3 uppercase tracking-tighter">{unlockPrice} GOLD</Badge>
+                  <Badge className="bg-cyan-500 text-white border-none font-black h-5 px-3 uppercase tracking-tighter">{unlockPrice} D</Badge>
                 </div>
                 <Slider 
                   value={[unlockPrice]} 
-                  min={20} 
-                  max={200} 
-                  step={10} 
+                  min={2} 
+                  max={100} 
+                  step={1} 
                   onValueChange={(val) => setUnlockPrice(val[0])}
-                  className="[&_[role=slider]]:bg-amber-500"
+                  className="[&_[role=slider]]:bg-cyan-500"
                 />
                 <div className="flex justify-between text-[8px] font-black text-white/40 uppercase tracking-widest">
-                  <span>20 GD</span>
-                  <span>200 GD</span>
+                  <span>2 D</span>
+                  <span>100 D</span>
                 </div>
               </div>
             )}

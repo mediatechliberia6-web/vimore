@@ -3048,19 +3048,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const unlockPost = useCallback(async (postId: string, cost: number) => {
     if (!currentUser) return;
-    const balance = currentUser.goldBalance || 0;
+    const balance = currentUser.diamondBalance || 0;
     if (balance < cost) {
-      throw new Error(`Insufficient Gold balance. You need ${cost} Gold but only have ${balance}.`);
+      throw new Error(`Insufficient Diamond balance. You need ${cost} ◆ but only have ${balance.toFixed(2)} ◆.`);
     }
-    // creatorShare is calculated after checking owner verification status
-    let creatorShare = Math.floor(cost * 0.8);
-    let platformFee = cost - creatorShare;
+    let creatorShare = Math.floor(cost * 0.8 * 100) / 100;
+    let platformFee = Math.round((cost - creatorShare) * 100) / 100;
 
     setUnlockedPostIdsState(p => new Set(p).add(postId));
-    setCurrentUserState(prev => prev ? { ...prev, goldBalance: balance - cost } : null);
+    setCurrentUserState(prev => prev ? { ...prev, diamondBalance: balance - cost } : null);
 
     try {
-      // Fetch post to get the owner's userId
       let ownerId: string | null = null;
       try {
         const postDoc = await databases.getDocument(DATABASE_ID, COL.POSTS, postId);
@@ -3072,36 +3070,35 @@ export function PostProvider({ children }: { children: ReactNode }) {
           post_id: postId, user_id: currentUser.$id,
         }),
         databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
-          gold_balance: balance - cost,
+          diamond_balance: balance - cost,
         }),
       ];
 
-      // Credit to the post owner — verified creators keep 90%, unverified keep 80%
       if (ownerId && ownerId !== currentUser.$id) {
         const ownerDoc = await databases.getDocument(DATABASE_ID, COL.USERS, ownerId);
         const ownerIsVerified = ownerDoc.is_verified || false;
-        creatorShare = Math.floor(cost * (ownerIsVerified ? 0.9 : 0.8));
-        platformFee = cost - creatorShare;
-        const ownerCurrentBalance = ownerDoc.gold_balance || 0;
+        creatorShare = Math.floor(cost * (ownerIsVerified ? 0.9 : 0.8) * 100) / 100;
+        platformFee = Math.round((cost - creatorShare) * 100) / 100;
+        const ownerCurrentBalance = ownerDoc.diamond_balance || 0;
         ops.push(
           databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
             user_id: currentUser.$id,
             type: 'POST_UNLOCK',
-            currency: 'GOLD',
+            currency: 'DIAMOND',
             amount: cost,
-            description: `Post unlock — ${platformFee} Gold platform fee`,
+            description: `Post unlock — ${platformFee} ◆ platform fee`,
             reference_id: postId,
             status: 'COMPLETED',
           }),
           databases.updateDocument(DATABASE_ID, COL.USERS, ownerId, {
-            gold_balance: ownerCurrentBalance + creatorShare,
+            diamond_balance: ownerCurrentBalance + creatorShare,
           }),
           databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
             user_id: ownerId,
             type: 'POST_UNLOCK_EARNING',
-            currency: 'GOLD',
+            currency: 'DIAMOND',
             amount: creatorShare,
-            description: `Post unlock earning (${ownerIsVerified ? '90' : '80'}%) — ${platformFee} Gold platform fee`,
+            description: `Post unlock earning (${ownerIsVerified ? '90' : '80'}%) — ${platformFee} ◆ platform fee`,
             reference_id: postId,
             status: 'COMPLETED',
           }),
@@ -3111,9 +3108,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
           databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
             user_id: currentUser.$id,
             type: 'POST_UNLOCK',
-            currency: 'GOLD',
+            currency: 'DIAMOND',
             amount: cost,
-            description: `Post unlock — ${platformFee} Gold platform fee`,
+            description: `Post unlock — ${platformFee} ◆ platform fee`,
             reference_id: postId,
             status: 'COMPLETED',
           }),
@@ -3122,7 +3119,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
       await Promise.all(ops);
     } catch { /* keep optimistic */ }
-    toast({ title: "Post unlocked!", description: `${creatorShare} Gold sent to creator · ${platformFee} Gold platform fee` });
+    toast({ title: "Post unlocked! ◆", description: `${creatorShare} ◆ sent to creator · ${platformFee} ◆ platform fee` });
   }, [currentUser, toast]);
 
   const subscribeToCreator = useCallback(async (username: string, cost: number) => {
@@ -3208,61 +3205,43 @@ export function PostProvider({ children }: { children: ReactNode }) {
     toast({ title: "Subscription cancelled" });
   }, [currentUser, allUsers, toast]);
 
-  const processGiftTransaction = useCallback(async (cost: number, currency: 'GOLD' | 'DIAMOND') => {
+  const processGiftTransaction = useCallback(async (cost: number) => {
     if (!currentUser) throw new Error("Not logged in");
-    const goldBal = currentUser.goldBalance || 0;
     const diamondBal = currentUser.diamondBalance || 0;
-    if (currency === 'GOLD' && goldBal < cost) {
-      throw new Error(`Insufficient Gold balance. You need ${cost} Gold but only have ${goldBal}.`);
+    if (diamondBal < cost) {
+      throw new Error(`Insufficient Diamond balance. You need ${cost} ◆ but only have ${diamondBal.toFixed(2)} ◆.`);
     }
-    if (currency === 'DIAMOND' && diamondBal < cost) {
-      throw new Error(`Insufficient Diamond balance. You need ${cost} Diamonds but only have ${diamondBal}.`);
-    }
-    // Verified recipients keep 95% on direct gifts (5% fee — platform gift bonus),
-    // unverified keep 80% (20% fee). This bonus applies to gift reactions only (not unlocks or subs).
     const recipientIsVerified = targetUserForGift?.isVerified || false;
-    const creatorShare = Math.floor(cost * (recipientIsVerified ? 0.95 : 0.8));
-    const platformFee = cost - creatorShare;
+    const creatorShare = Math.round(cost * (recipientIsVerified ? 0.95 : 0.9) * 100) / 100;
+    const platformFee = Math.round((cost - creatorShare) * 100) / 100;
 
-    const newBalance = currency === 'GOLD' ? { gold_balance: goldBal - cost } : { diamond_balance: diamondBal - cost };
-    setCurrentUserState(prev => {
-      if (!prev) return null;
-      return currency === 'GOLD' ? { ...prev, goldBalance: goldBal - cost } : { ...prev, diamondBalance: diamondBal - cost };
-    });
+    setCurrentUserState(prev => prev ? { ...prev, diamondBalance: diamondBal - cost } : null);
 
     try {
       const ops: Promise<any>[] = [
-        // Deduct full amount from sender
-        databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, newBalance),
-        // Log sender transaction
+        databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { diamond_balance: diamondBal - cost }),
         databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
           user_id: currentUser.$id,
           type: 'GIFT_SENT',
-          currency,
+          currency: 'DIAMOND',
           amount: cost,
-          description: `Gift sent${targetUserForGift ? ` to @${targetUserForGift.username}` : ''} — ${platformFee} ${currency} platform fee`,
+          description: `Gift sent${targetUserForGift ? ` to @${targetUserForGift.username}` : ''} — ${platformFee} ◆ platform fee`,
           reference_id: targetUserForGift?.$id || '',
           status: 'COMPLETED',
         }),
       ];
 
-      // Credit 90% to the gift recipient
       if (targetUserForGift && targetUserForGift.$id !== currentUser.$id) {
         const recipientDoc = await databases.getDocument(DATABASE_ID, COL.USERS, targetUserForGift.$id);
-        const recipientCurrentBalance = currency === 'GOLD'
-          ? (recipientDoc.gold_balance || 0)
-          : (recipientDoc.diamond_balance || 0);
-        const recipientUpdate = currency === 'GOLD'
-          ? { gold_balance: recipientCurrentBalance + creatorShare }
-          : { diamond_balance: recipientCurrentBalance + creatorShare };
+        const recipientCurrentBalance = recipientDoc.diamond_balance || 0;
         ops.push(
-          databases.updateDocument(DATABASE_ID, COL.USERS, targetUserForGift.$id, recipientUpdate),
+          databases.updateDocument(DATABASE_ID, COL.USERS, targetUserForGift.$id, { diamond_balance: recipientCurrentBalance + creatorShare }),
           databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
             user_id: targetUserForGift.$id,
             type: 'GIFT_RECEIVED',
-            currency,
+            currency: 'DIAMOND',
             amount: creatorShare,
-            description: `Gift received (${recipientIsVerified ? '95' : '80'}%) from @${currentUser.username}${recipientIsVerified ? ' — verified gift bonus applied' : ` — ${platformFee} ${currency} platform fee`}`,
+            description: `Gift received (${recipientIsVerified ? '95' : '90'}%) from @${currentUser.username}`,
             reference_id: currentUser.$id,
             status: 'COMPLETED',
           }),
@@ -3271,7 +3250,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
       await Promise.all(ops);
     } catch { /* ignore */ }
-    toast({ title: "Gift sent!", description: `${creatorShare} ${currency} sent to creator · ${platformFee} ${currency} platform fee` });
+    toast({ title: "Gift sent! ◆", description: `${creatorShare} ◆ sent to creator · ${platformFee} ◆ platform fee` });
   }, [currentUser, targetUserForGift, toast]);
 
   const verifyUser = useCallback(async (cost: number, currency: 'DIAMOND' | 'STAR') => {

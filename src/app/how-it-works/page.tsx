@@ -2,7 +2,6 @@
 
 import {
   ArrowLeft,
-  Coins,
   Gem,
   Star,
   Rocket,
@@ -23,14 +22,14 @@ import { cn } from "@/lib/utils";
 
 const FEATURES = [
   {
-    icon: Coins,
-    gradient: "from-amber-400 to-orange-500",
+    icon: Gem,
+    gradient: "from-cyan-400 to-blue-600",
     label: "Currency",
     title: "How Money Works",
     points: [
       { icon: Star, text: "Stars — earned by inviting friends. 5,000 Stars per referral." },
-      { icon: Coins, text: "Gold — used to unlock exclusive posts and send gifts to creators." },
-      { icon: Gem, text: "Diamonds — premium currency for high-value gifts and subscriptions." },
+      { icon: Gem, text: "Diamonds — send gifts to creators, unlock posts, and subscribe to creators." },
+      { icon: TrendingUp, text: "1 Diamond = $0.25 USD. Withdraw anytime to Orange or MTN MoMo." },
     ],
   },
   {
@@ -40,7 +39,7 @@ const FEATURES = [
     title: "Earning as a Creator",
     points: [
       { icon: TrendingUp, text: "You keep 90% of everything you earn. ViMore takes only 10%." },
-      { icon: Coins, text: "Withdraw your Gold and Diamonds to real money via Orange or MTN MoMo." },
+      { icon: Gem, text: "Withdraw your Diamonds to real money via Orange or MTN MoMo." },
       { icon: ShieldCheck, text: "Every payout is reviewed by our AI audit system for security." },
     ],
   },
@@ -52,7 +51,7 @@ const FEATURES = [
     points: [
       { icon: Rocket, text: "Your feed is personalised by AI — it shows the content most relevant to you." },
       { icon: Zap, text: "Reels — short videos in full-screen, designed for creators to go viral." },
-      { icon: Coins, text: "Lock posts behind a Gold paywall to monetise your best content." },
+      { icon: Gem, text: "Lock posts behind a Diamond paywall (2–100 D) to monetise your best content." },
     ],
   },
   {
@@ -114,8 +113,7 @@ const FEATURES = [
 
 const CURRENCIES = [
   { icon: Star, color: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/20", name: "Stars", desc: "Earned by inviting friends", earn: "5,000 per referral" },
-  { icon: Coins, color: "text-yellow-500", bg: "bg-yellow-500/10", border: "border-yellow-500/20", name: "Gold", desc: "Used for unlocks & gifts", earn: "Purchased or gifted" },
-  { icon: Gem, color: "text-cyan-400", bg: "bg-cyan-400/10", border: "border-cyan-400/20", name: "Diamonds", desc: "Premium gifting & subs", earn: "Purchased in-app" },
+  { icon: Gem, color: "text-cyan-400", bg: "bg-cyan-400/10", border: "border-cyan-400/20", name: "Diamonds", desc: "Gifts, unlocks & subscriptions", earn: "Purchased in-app" },
 ];
 
 export default function HowItWorks() {
