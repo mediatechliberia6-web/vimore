@@ -2047,29 +2047,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const banUser = useCallback(async (userId: string, reason: string, note?: string) => {
     if (!currentUser) return;
     setAllUsers(prev => prev.map(u => u.$id === userId ? { ...u, status: 'banned' as const } : u));
-    try {
-      await databases.updateDocument(DATABASE_ID, COL.USERS, userId, {
-        status: 'banned',
-        ban_reason: reason,
-        ban_note: note || '',
-        banned_at: new Date().toISOString(),
-        banned_by: currentUser.username,
-      });
-      const userPostsRes = await databases.listDocuments(DATABASE_ID, COL.POSTS, [
-        Query.equal('user_id', userId), Query.limit(500),
-      ]);
-      await Promise.allSettled(
-        userPostsRes.documents.map(doc =>
-          databases.deleteDocument(DATABASE_ID, COL.POSTS, doc.$id)
-        )
-      );
-      await databases.createDocument(DATABASE_ID, COL.USER_BANS, ID.unique(), {
-        user_id: userId,
-        reason,
-        banned_by: currentUser.$id,
-        is_permanent: true,
-      });
-    } catch { /* keep optimistic */ }
+    const res = await fetch('/api/admin/ban', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, reason, note }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setAllUsers(prev => prev.map(u => u.$id === userId ? { ...u, status: 'active' as const } : u));
+      throw new Error(data?.error || 'Ban failed');
+    }
   }, [currentUser]);
 
   const suspendUser = useCallback(async (userId: string, days: number, reason: string, message: string) => {
@@ -2080,22 +2067,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
         ? { ...u, status: 'suspended' as const, suspendedUntil, suspensionReason: reason, suspensionMessage: message }
         : u
     ));
-    try {
-      await databases.updateDocument(DATABASE_ID, COL.USERS, userId, {
-        status: 'suspended',
-        suspended_until: suspendedUntil,
-        suspension_reason: reason,
-        suspension_message: message,
-        suspended_by: currentUser.username,
-      });
-      await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
-        user_id: userId,
-        from_user_id: currentUser.$id,
-        type: 'SYSTEM',
-        message: message,
-        is_read: false,
-      });
-    } catch { /* keep optimistic */ }
+    const res = await fetch('/api/admin/suspend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, days, reason, message }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setAllUsers(prev => prev.map(u => u.$id === userId ? { ...u, status: 'active' as const } : u));
+      throw new Error(data?.error || 'Suspension failed');
+    }
   }, [currentUser]);
 
   const warnUser = useCallback(async (userId: string, message: string, severity: 'SOFT' | 'FINAL') => {
@@ -3064,144 +3045,49 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore notification failure */ }
   }, [currentUser, sendChatMessage]);
 
-  const unlockPost = useCallback(async (postId: string, cost: number) => {
+  const unlockPost = useCallback(async (postId: string, _ignoredCost: number) => {
     if (!currentUser) return;
-    const balance = currentUser.diamondBalance || 0;
-    if (balance < cost) {
-      throw new Error(`Insufficient Diamond balance. You need ${cost} ◆ but only have ${balance.toFixed(2)} ◆.`);
-    }
-    let creatorShare = Math.floor(cost * 0.8 * 100) / 100;
-    let platformFee = Math.round((cost - creatorShare) * 100) / 100;
-
+    // Optimistically mark as unlocked; server validates balance and reads the real price from DB
     setUnlockedPostIdsState(p => new Set(p).add(postId));
-    setCurrentUserState(prev => prev ? { ...prev, diamondBalance: balance - cost } : null);
-
-    try {
-      let ownerId: string | null = null;
-      try {
-        const postDoc = await databases.getDocument(DATABASE_ID, COL.POSTS, postId);
-        ownerId = postDoc.user_id || null;
-      } catch { /* ignore */ }
-
-      const ops: Promise<any>[] = [
-        databases.createDocument(DATABASE_ID, COL.POST_UNLOCKS, ID.unique(), {
-          post_id: postId, user_id: currentUser.$id,
-        }),
-        databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
-          diamond_balance: balance - cost,
-        }),
-      ];
-
-      if (ownerId && ownerId !== currentUser.$id) {
-        const ownerDoc = await databases.getDocument(DATABASE_ID, COL.USERS, ownerId);
-        const ownerIsVerified = ownerDoc.is_verified || false;
-        creatorShare = Math.floor(cost * (ownerIsVerified ? 0.9 : 0.8) * 100) / 100;
-        platformFee = Math.round((cost - creatorShare) * 100) / 100;
-        const ownerCurrentBalance = ownerDoc.diamond_balance || 0;
-        ops.push(
-          databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
-            user_id: currentUser.$id,
-            type: 'POST_UNLOCK',
-            currency: 'DIAMOND',
-            amount: cost,
-            description: `Post unlock — ${platformFee} ◆ platform fee`,
-            reference_id: postId,
-            status: 'COMPLETED',
-          }),
-          databases.updateDocument(DATABASE_ID, COL.USERS, ownerId, {
-            diamond_balance: ownerCurrentBalance + creatorShare,
-          }),
-          databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
-            user_id: ownerId,
-            type: 'POST_UNLOCK_EARNING',
-            currency: 'DIAMOND',
-            amount: creatorShare,
-            description: `Post unlock earning (${ownerIsVerified ? '90' : '80'}%) — ${platformFee} ◆ platform fee`,
-            reference_id: postId,
-            status: 'COMPLETED',
-          }),
-        );
-      } else {
-        ops.push(
-          databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
-            user_id: currentUser.$id,
-            type: 'POST_UNLOCK',
-            currency: 'DIAMOND',
-            amount: cost,
-            description: `Post unlock — ${platformFee} ◆ platform fee`,
-            reference_id: postId,
-            status: 'COMPLETED',
-          }),
-        );
-      }
-
-      await Promise.all(ops);
-    } catch { /* keep optimistic */ }
-    toast({ title: "Post unlocked! ◆", description: `${creatorShare} ◆ sent to creator · ${platformFee} ◆ platform fee` });
+    const res = await fetch('/api/transaction/unlock-post', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ postId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      // Rollback optimistic unlock
+      setUnlockedPostIdsState(p => { const n = new Set(p); n.delete(postId); return n; });
+      throw new Error(data?.error || 'Unlock failed');
+    }
+    if (typeof data.senderNewBalance === 'number') {
+      setCurrentUserState(prev => prev ? { ...prev, diamondBalance: data.senderNewBalance } : null);
+    }
+    toast({ title: "Post unlocked! ◆", description: `${data.creatorShare ?? ''} ◆ sent to creator · ${data.platformFee ?? ''} ◆ platform fee` });
   }, [currentUser, toast]);
 
-  const subscribeToCreator = useCallback(async (username: string, cost: number) => {
+  const subscribeToCreator = useCallback(async (username: string, _ignoredCost: number) => {
     if (!currentUser) return;
-    const balance = currentUser.diamondBalance || 0;
-    if (balance < cost) {
-      throw new Error(`Insufficient Diamond balance. You need ${cost} Diamonds but only have ${balance}.`);
-    }
-    // Verified creators keep 90% (10% fee), unverified keep 80% (20% fee)
     const creatorUser = allUsers.find(u => u.username === username);
-    const creatorIsVerified = creatorUser?.isVerified || false;
-    const creatorShare = Math.floor(cost * (creatorIsVerified ? 0.9 : 0.8));
-    const platformFee = cost - creatorShare;
-
-    setActiveSubscriptionsState(p => new Set(p).add(username));
-    setCurrentUserState(prev => prev ? { ...prev, diamondBalance: balance - cost } : null);
     const creatorId = creatorUser?.$id || username;
-    const expiresAt = new Date(Date.now() + 30 * 86400000).toISOString();
-    try {
-      const ops: Promise<any>[] = [
-        databases.createDocument(DATABASE_ID, COL.SUBSCRIPTIONS, ID.unique(), {
-          subscriber_id: currentUser.$id,
-          creator_id: creatorId,
-          tier: 'STANDARD',
-          expires_at: expiresAt,
-          status: 'ACTIVE',
-        }),
-        // Deduct full cost from subscriber
-        databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { diamond_balance: balance - cost }),
-        // Log subscriber transaction
-        databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
-          user_id: currentUser.$id,
-          type: 'SUBSCRIPTION',
-          currency: 'DIAMOND',
-          amount: cost,
-          description: `Subscribed to @${username} — ${platformFee} Diamond platform fee`,
-          reference_id: creatorId,
-          status: 'COMPLETED',
-        }),
-      ];
 
-      // Credit 90% to the creator
-      if (creatorId && creatorId !== currentUser.$id) {
-        const creatorDoc = await databases.getDocument(DATABASE_ID, COL.USERS, creatorId);
-        const creatorCurrentBalance = creatorDoc.diamond_balance || 0;
-        ops.push(
-          databases.updateDocument(DATABASE_ID, COL.USERS, creatorId, {
-            diamond_balance: creatorCurrentBalance + creatorShare,
-          }),
-          databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
-            user_id: creatorId,
-            type: 'SUBSCRIPTION_EARNING',
-            currency: 'DIAMOND',
-            amount: creatorShare,
-            description: `Subscription earning (${creatorIsVerified ? '90' : '80'}%) from @${currentUser.username} — ${platformFee} Diamond platform fee`,
-            reference_id: currentUser.$id,
-            status: 'COMPLETED',
-          }),
-        );
-      }
+    // Optimistic UI
+    setActiveSubscriptionsState(p => new Set(p).add(username));
 
-      await Promise.all(ops);
-    } catch { /* keep optimistic */ }
-    toast({ title: "Subscribed!", description: `${creatorShare} Diamonds sent to @${username} · ${platformFee} Diamond platform fee` });
+    const res = await fetch('/api/transaction/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ creatorId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setActiveSubscriptionsState(p => { const n = new Set(p); n.delete(username); return n; });
+      throw new Error(data?.error || 'Subscription failed');
+    }
+    if (typeof data.subscriberNewBalance === 'number') {
+      setCurrentUserState(prev => prev ? { ...prev, diamondBalance: data.subscriberNewBalance } : null);
+    }
+    toast({ title: "Subscribed!", description: `${data.creatorShare ?? ''} Diamonds sent to @${username} · ${data.platformFee ?? ''} Diamond platform fee` });
   }, [currentUser, allUsers, toast]);
 
   const cancelSubscription = useCallback(async (username: string) => {
@@ -3225,50 +3111,26 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const processGiftTransaction = useCallback(async (cost: number) => {
     if (!currentUser) throw new Error("Not logged in");
-    const diamondBal = currentUser.diamondBalance || 0;
-    if (diamondBal < cost) {
-      throw new Error(`Insufficient Diamond balance. You need ${cost} ◆ but only have ${diamondBal.toFixed(2)} ◆.`);
+    if (!targetUserForGift) throw new Error("No recipient selected");
+
+    // Optimistic balance deduction for snappy UI
+    setCurrentUserState(prev => prev ? { ...prev, diamondBalance: (prev.diamondBalance || 0) - cost } : null);
+
+    const res = await fetch('/api/transaction/gift', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipientId: targetUserForGift.$id, amount: cost }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      // Rollback optimistic deduction
+      setCurrentUserState(prev => prev ? { ...prev, diamondBalance: (prev.diamondBalance || 0) + cost } : null);
+      throw new Error(data?.error || 'Gift failed');
     }
-    const recipientIsVerified = targetUserForGift?.isVerified || false;
-    const creatorShare = Math.round(cost * (recipientIsVerified ? 0.95 : 0.9) * 100) / 100;
-    const platformFee = Math.round((cost - creatorShare) * 100) / 100;
-
-    setCurrentUserState(prev => prev ? { ...prev, diamondBalance: diamondBal - cost } : null);
-
-    try {
-      const ops: Promise<any>[] = [
-        databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { diamond_balance: diamondBal - cost }),
-        databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
-          user_id: currentUser.$id,
-          type: 'GIFT_SENT',
-          currency: 'DIAMOND',
-          amount: cost,
-          description: `Gift sent${targetUserForGift ? ` to @${targetUserForGift.username}` : ''} — ${platformFee} ◆ platform fee`,
-          reference_id: targetUserForGift?.$id || '',
-          status: 'COMPLETED',
-        }),
-      ];
-
-      if (targetUserForGift && targetUserForGift.$id !== currentUser.$id) {
-        const recipientDoc = await databases.getDocument(DATABASE_ID, COL.USERS, targetUserForGift.$id);
-        const recipientCurrentBalance = recipientDoc.diamond_balance || 0;
-        ops.push(
-          databases.updateDocument(DATABASE_ID, COL.USERS, targetUserForGift.$id, { diamond_balance: recipientCurrentBalance + creatorShare }),
-          databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
-            user_id: targetUserForGift.$id,
-            type: 'GIFT_RECEIVED',
-            currency: 'DIAMOND',
-            amount: creatorShare,
-            description: `Gift received (${recipientIsVerified ? '95' : '90'}%) from @${currentUser.username}`,
-            reference_id: currentUser.$id,
-            status: 'COMPLETED',
-          }),
-        );
-      }
-
-      await Promise.all(ops);
-    } catch { /* ignore */ }
-    toast({ title: "Gift sent! ◆", description: `${creatorShare} ◆ sent to creator · ${platformFee} ◆ platform fee` });
+    if (typeof data.senderNewBalance === 'number') {
+      setCurrentUserState(prev => prev ? { ...prev, diamondBalance: data.senderNewBalance } : null);
+    }
+    toast({ title: "Gift sent! ◆", description: `${data.creatorShare ?? ''} ◆ sent to creator · ${data.platformFee ?? ''} ◆ platform fee` });
   }, [currentUser, targetUserForGift, toast]);
 
   const verifyUser = useCallback(async (cost: number, currency: 'DIAMOND' | 'STAR') => {
@@ -3541,37 +3403,28 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const approvePaymentRequest = async (id: string) => {
     setPaymentRequests(prev => prev.map(r => r.$id === id ? { ...r, status: 'APPROVED' } : r));
-    try {
-      const reqDoc = await databases.getDocument(DATABASE_ID, COL.PAYMENT_REQUESTS, id);
-      await databases.updateDocument(DATABASE_ID, COL.PAYMENT_REQUESTS, id, { status: 'APPROVED' });
-      if (reqDoc.user_id && reqDoc.coin_amount && reqDoc.coin_type) {
-        const userDoc = await databases.getDocument(DATABASE_ID, COL.USERS, reqDoc.user_id);
-        const updateData: Record<string, any> = {};
-        if (reqDoc.coin_type === 'Gold') {
-          updateData.gold_balance = (userDoc.gold_balance || 0) + reqDoc.coin_amount;
-        } else if (reqDoc.coin_type === 'Diamond') {
-          updateData.diamond_balance = (userDoc.diamond_balance || 0) + reqDoc.coin_amount;
-        } else if (reqDoc.coin_type === 'Star') {
-          updateData.star_balance = (userDoc.star_balance || 0) + reqDoc.coin_amount;
-        }
-        if (Object.keys(updateData).length > 0) {
-          await databases.updateDocument(DATABASE_ID, COL.USERS, reqDoc.user_id, updateData);
-        }
-        await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
-          user_id: reqDoc.user_id,
-          type: 'SYSTEM',
-          title: 'Payment Approved',
-          content: `Your purchase of ${reqDoc.package_name || reqDoc.message || 'currency'} has been approved. Your balance has been updated.`,
-          message: `Your purchase of ${reqDoc.package_name || reqDoc.message || 'currency'} has been approved. Your balance has been updated.`,
-          is_read: false,
-        });
-      }
-    } catch { /* ignore */ }
+    const res = await fetch('/api/payment/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestId: id }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setPaymentRequests(prev => prev.map(r => r.$id === id ? { ...r, status: 'PENDING' } : r));
+      throw new Error(data?.error || 'Approval failed');
+    }
   };
 
   const rejectPaymentRequest = async (id: string) => {
     setPaymentRequests(prev => prev.map(r => r.$id === id ? { ...r, status: 'REJECTED' } : r));
-    try { await databases.updateDocument(DATABASE_ID, COL.PAYMENT_REQUESTS, id, { status: 'REJECTED' }); } catch { /* ignore */ }
+    const res = await fetch('/api/payment/reject', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestId: id }),
+    });
+    if (!res.ok) {
+      setPaymentRequests(prev => prev.map(r => r.$id === id ? { ...r, status: 'PENDING' } : r));
+    }
   };
 
   const recordWithdrawal = async (n: any) => {
