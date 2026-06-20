@@ -37,7 +37,7 @@ import { useRouter } from "next/navigation";
 import { BiometricGate } from "@/components/layout/biometric-gate";
 
 const DIAMOND_PACKAGES = [
-  { id: "d1", d: 25, priceLD: 1200, priceUSD: 6.00, label: "Gem Spike" },
+  { id: "d1", d: 25, priceLD: 1200, priceUSD: 7.00, label: "Gem Spike" },
   { id: "d2", d: 50, priceLD: 2350, priceUSD: 13.00, label: "Vault Refill" },
   { id: "d3", d: 100, priceLD: 4700, priceUSD: 25.00, label: "VIP Crystalline", isVIP: true },
 ];

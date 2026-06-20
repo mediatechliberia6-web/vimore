@@ -51,7 +51,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Post not found.' }, { status: 404 });
     }
 
-    const cost: number = Number(postDoc.unlock_price ?? 0);
+    // diamond_balance is an INTEGER field — round cost to whole diamonds
+    const cost: number = Math.round(Number(postDoc.unlock_price ?? 0));
     if (cost <= 0) {
       // Post is free — just create the unlock record
       await db.createDocument(DATABASE_ID, COL.POST_UNLOCKS, ID.unique(), {
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found.' }, { status: 404 });
     }
 
-    const buyerBalance: number = Number(buyerDoc.diamond_balance ?? 0);
+    const buyerBalance: number = Math.round(Number(buyerDoc.diamond_balance ?? 0));
     if (buyerBalance < cost) {
       return NextResponse.json(
         { error: `Insufficient balance. You need ${cost} ◆ but have ${buyerBalance} ◆.` },
@@ -93,12 +94,15 @@ export async function POST(req: NextRequest) {
       try { ownerDoc = await db.getDocument(DATABASE_ID, COL.USERS, ownerId); } catch { /* ignore */ }
     }
     const ownerIsVerified = ownerDoc?.is_verified === true;
-    const creatorShare = Math.floor(cost * (ownerIsVerified ? 0.9 : 0.8) * 100) / 100;
-    const platformFee = Math.round((cost - creatorShare) * 100) / 100;
 
-    const buyerNewBalance = parseFloat((buyerBalance - cost).toFixed(8));
+    // Platform fee: 10% for verified creators, 20% for unverified
+    // Math.floor ensures fee is always fully taken before crediting creator
+    const creatorShare = Math.floor(cost * (ownerIsVerified ? 0.90 : 0.80));
+    const platformFee = cost - creatorShare;
 
-    // Deduct buyer
+    const buyerNewBalance = buyerBalance - cost;
+
+    // Deduct buyer first
     await db.updateDocument(DATABASE_ID, COL.USERS, session.userId, {
       diamond_balance: buyerNewBalance,
     });
@@ -113,15 +117,15 @@ export async function POST(req: NextRequest) {
         type: 'POST_UNLOCK',
         currency: 'DIAMOND',
         amount: cost,
-        description: `Post unlock — ${platformFee} ◆ platform fee`,
+        description: `Post unlock — ${platformFee} ◆ platform fee (${ownerIsVerified ? '10' : '20'}%)`,
         reference_id: postId,
         status: 'COMPLETED',
       } as any),
     ];
 
     if (ownerId && ownerDoc) {
-      const ownerCurrentBalance: number = Number(ownerDoc.diamond_balance ?? 0);
-      const ownerNewBalance = parseFloat((ownerCurrentBalance + creatorShare).toFixed(8));
+      const ownerCurrentBalance: number = Math.round(Number(ownerDoc.diamond_balance ?? 0));
+      const ownerNewBalance = ownerCurrentBalance + creatorShare;
       ops.push(
         db.updateDocument(DATABASE_ID, COL.USERS, ownerId, {
           diamond_balance: ownerNewBalance,
@@ -131,7 +135,7 @@ export async function POST(req: NextRequest) {
           type: 'POST_UNLOCK_EARNING',
           currency: 'DIAMOND',
           amount: creatorShare,
-          description: `Post unlock earning (${ownerIsVerified ? '90' : '80'}%) — ${platformFee} ◆ platform fee`,
+          description: `Post unlock earning — kept ${ownerIsVerified ? '90' : '80'}% after ${platformFee} ◆ platform fee`,
           reference_id: postId,
           status: 'COMPLETED',
         } as any)

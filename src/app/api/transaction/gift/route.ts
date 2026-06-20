@@ -12,7 +12,8 @@ const COL = {
   NOTIFICATIONS: 'notifications',
 };
 
-const MIN_GIFT = 0.01;
+// diamond_balance is an INTEGER field in Appwrite — minimum gift is 1 whole Diamond
+const MIN_GIFT = 1;
 const MAX_GIFT = 100_000;
 
 export async function POST(req: NextRequest) {
@@ -36,7 +37,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Cannot gift yourself.' }, { status: 400 });
     }
 
-    const cost = parseFloat(amount);
+    // Parse as integer — diamond_balance is an integer field
+    const cost = Math.round(Number(amount));
     if (!Number.isFinite(cost) || cost < MIN_GIFT || cost > MAX_GIFT) {
       return NextResponse.json({ error: `Gift amount must be between ${MIN_GIFT} and ${MAX_GIFT} Diamonds.` }, { status: 400 });
     }
@@ -51,7 +53,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Sender not found.' }, { status: 404 });
     }
 
-    const senderBalance: number = Number(senderDoc.diamond_balance ?? 0);
+    const senderBalance: number = Math.round(Number(senderDoc.diamond_balance ?? 0));
     if (senderBalance < cost) {
       return NextResponse.json(
         { error: `Insufficient balance. You have ${senderBalance} ◆ but tried to send ${cost} ◆.` },
@@ -68,12 +70,15 @@ export async function POST(req: NextRequest) {
     }
 
     const recipientIsVerified = recipientDoc.is_verified === true;
-    const creatorShare = Math.round(cost * (recipientIsVerified ? 0.95 : 0.9));
-    const platformFee = Math.round(cost - creatorShare);
 
-    const senderNewBalance = Math.round(senderBalance - cost);
-    const recipientCurrentBalance: number = Number(recipientDoc.diamond_balance ?? 0);
-    const recipientNewBalance = Math.round(recipientCurrentBalance + creatorShare);
+    // Platform fee: 10% for verified creators, 20% for unverified
+    // Use Math.floor so the fee is always fully taken before crediting creator
+    const creatorShare = Math.floor(cost * (recipientIsVerified ? 0.90 : 0.80));
+    const platformFee = cost - creatorShare;
+
+    const senderNewBalance = senderBalance - cost;
+    const recipientCurrentBalance: number = Math.round(Number(recipientDoc.diamond_balance ?? 0));
+    const recipientNewBalance = recipientCurrentBalance + creatorShare;
 
     // Deduct sender first
     await db.updateDocument(DATABASE_ID, COL.USERS, session.userId, {
@@ -82,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     try {
       await Promise.all([
-        // Credit recipient
+        // Credit recipient with their share after platform fee
         db.updateDocument(DATABASE_ID, COL.USERS, recipientId, {
           diamond_balance: recipientNewBalance,
         }),
@@ -92,7 +97,7 @@ export async function POST(req: NextRequest) {
           type: 'GIFT_SENT',
           currency: 'DIAMOND',
           amount: cost,
-          description: `Gift sent to @${recipientDoc.username || recipientId} — ${platformFee} ◆ platform fee`,
+          description: `Gift sent to @${recipientDoc.username || recipientId} — ${platformFee} ◆ platform fee (${recipientIsVerified ? '10' : '20'}%)`,
           reference_id: recipientId,
           status: 'COMPLETED',
         }),
@@ -102,7 +107,7 @@ export async function POST(req: NextRequest) {
           type: 'GIFT_RECEIVED',
           currency: 'DIAMOND',
           amount: creatorShare,
-          description: `Gift received (${recipientIsVerified ? '95' : '90'}%) from @${senderDoc.username || session.userId}`,
+          description: `Gift received from @${senderDoc.username || session.userId} — you kept ${recipientIsVerified ? '90' : '80'}% after platform fee`,
           reference_id: session.userId,
           status: 'COMPLETED',
         }),

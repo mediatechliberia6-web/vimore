@@ -56,7 +56,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Use server-side subscription price; fall back to 5 diamonds if not set
-    const cost: number = Number(creatorDoc.subscription_price ?? creatorDoc.subscriptionPrice ?? 5);
+    // diamond_balance is an INTEGER field — round to whole diamonds
+    const cost: number = Math.round(Number(creatorDoc.subscription_price ?? creatorDoc.subscriptionPrice ?? 5));
     if (cost <= 0) {
       return NextResponse.json({ error: 'Invalid subscription price.' }, { status: 400 });
     }
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Subscriber not found.' }, { status: 404 });
     }
 
-    const subscriberBalance: number = Number(subscriberDoc.diamond_balance ?? 0);
+    const subscriberBalance: number = Math.round(Number(subscriberDoc.diamond_balance ?? 0));
     if (subscriberBalance < cost) {
       return NextResponse.json(
         { error: `Insufficient balance. You need ${cost} ◆ but have ${subscriberBalance} ◆.` },
@@ -78,12 +79,15 @@ export async function POST(req: NextRequest) {
     }
 
     const creatorIsVerified = creatorDoc.is_verified === true;
-    const creatorShare = Math.round(cost * (creatorIsVerified ? 0.9 : 0.8) * 100) / 100;
-    const platformFee = Math.round((cost - creatorShare) * 100) / 100;
 
-    const subscriberNewBalance = parseFloat((subscriberBalance - cost).toFixed(8));
-    const creatorCurrentBalance: number = Number(creatorDoc.diamond_balance ?? 0);
-    const creatorNewBalance = parseFloat((creatorCurrentBalance + creatorShare).toFixed(8));
+    // Platform fee: 10% for verified creators, 20% for unverified
+    // Math.floor ensures fee is always fully taken before crediting creator
+    const creatorShare = Math.floor(cost * (creatorIsVerified ? 0.90 : 0.80));
+    const platformFee = cost - creatorShare;
+
+    const subscriberNewBalance = subscriberBalance - cost;
+    const creatorCurrentBalance: number = Math.round(Number(creatorDoc.diamond_balance ?? 0));
+    const creatorNewBalance = creatorCurrentBalance + creatorShare;
 
     const expiresAt = new Date(Date.now() + 30 * 86_400_000).toISOString();
 
@@ -109,7 +113,7 @@ export async function POST(req: NextRequest) {
           type: 'SUBSCRIPTION',
           currency: 'DIAMOND',
           amount: cost,
-          description: `Subscribed to @${creatorDoc.username || creatorId} — ${platformFee} ◆ platform fee`,
+          description: `Subscribed to @${creatorDoc.username || creatorId} — ${platformFee} ◆ platform fee (${creatorIsVerified ? '10' : '20'}%)`,
           reference_id: creatorId,
           status: 'COMPLETED',
         }),
@@ -118,7 +122,7 @@ export async function POST(req: NextRequest) {
           type: 'SUBSCRIPTION_EARNING',
           currency: 'DIAMOND',
           amount: creatorShare,
-          description: `Subscription from @${subscriberDoc.username || session.userId} — ${platformFee} ◆ platform fee`,
+          description: `Subscription from @${subscriberDoc.username || session.userId} — kept ${creatorIsVerified ? '90' : '80'}% after ${platformFee} ◆ platform fee`,
           reference_id: session.userId,
           status: 'COMPLETED',
         }),
