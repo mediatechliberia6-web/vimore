@@ -3576,45 +3576,46 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const recordWithdrawal = async (n: any) => {
     if (!currentUser) return;
-    const currency: string = n.currency || 'GOLD';
+    const currency: string = (n.currency || 'GOLD').toUpperCase();
     const withdrawAmount = parseFloat(n.amount || 0);
-    // Deduct balance immediately (reserve funds) so user can't double-withdraw
     const balanceField = currency === 'DIAMOND' ? 'diamondBalance' : currency === 'STAR' ? 'starBalance' : 'goldBalance';
-    const dbBalanceField = currency === 'DIAMOND' ? 'diamond_balance' : currency === 'STAR' ? 'star_balance' : 'gold_balance';
-    const currentBalance = (currentUser as any)[balanceField] || 0;
-    if (currentBalance < withdrawAmount) throw new Error('Insufficient balance');
-    setCurrentUserState(prev => prev ? { ...prev, [balanceField]: currentBalance - withdrawAmount } : null);
-    const wd: Record<string, any> = {
-      $id: 'wd_' + Date.now(), ...n, status: 'PENDING', $createdAt: new Date().toISOString(),
-      username: currentUser.username, accountName: n.accountName || '', method: n.method || '',
-    };
-    setWithdrawalHistory(prev => [wd, ...prev]);
-    try {
-      await databases.createDocument(DATABASE_ID, COL.WITHDRAWAL_REQUESTS, ID.unique(), {
-        user_id: currentUser.$id,
-        username: currentUser.username || '',
-        account_name: n.accountName || '',
-        account_number: n.accountNumber || n.phoneNumber || '',
+
+    // Unique key so duplicate taps don't double-submit
+    const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const res = await fetch('/api/withdraw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         currency,
         amount: withdrawAmount,
-        payout_amount: parseFloat(n.payoutAmount || 0),
-        payout_currency: n.payoutCurrency || 'USD',
         method: n.method || 'MOBILE_MONEY',
-        payment_method: n.method || 'MOBILE_MONEY',
-        payment_details: n.accountNumber || n.phoneNumber || '',
-        status: 'PENDING',
-      });
-      // Persist balance deduction to DB
-      await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
-        [dbBalanceField]: currentBalance - withdrawAmount,
-      });
-    } catch (err: any) {
-      // Revert local balance deduction on failure
-      setCurrentUserState(prev => prev ? { ...prev, [balanceField]: currentBalance } : null);
-      setWithdrawalHistory(prev => prev.filter(w => w.$id !== wd.$id));
-      logAppwriteError('recordWithdrawal', err);
-      throw err;
-    }
+        accountName: n.accountName || '',
+        accountNumber: n.accountNumber || n.phoneNumber || '',
+        payoutAmount: n.payoutAmount,
+        payoutCurrency: n.payoutCurrency || 'USD',
+        idempotencyKey,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Withdrawal failed');
+
+    // Update local balance with the server-confirmed value
+    setCurrentUserState(prev =>
+      prev ? { ...prev, [balanceField]: data.newBalance } : null
+    );
+
+    const wd: Record<string, any> = {
+      $id: data.withdrawalId,
+      ...n,
+      status: 'PENDING',
+      $createdAt: new Date().toISOString(),
+      username: currentUser.username,
+      accountName: n.accountName || '',
+      method: n.method || '',
+    };
+    setWithdrawalHistory(prev => [wd, ...prev]);
   };
 
   const processWithdrawal = async (id: string, status: 'APPROVED' | 'REJECTED', adminMessage?: string, proofImageUrl?: string) => {

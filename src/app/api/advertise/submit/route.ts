@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
+import { getSessionUser } from '@/lib/session';
+import { rateLimit } from '@/lib/rate-limit';
 import { ID } from 'node-appwrite';
 
 export const maxDuration = 30;
@@ -12,9 +14,21 @@ const MAX_DAYS = 90;
 
 export async function POST(req: NextRequest) {
   try {
+    /* ── Rate limit: 10 campaign submissions per hour per IP ── */
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const rl = rateLimit(`advertise:${ip}`, 10, 60 * 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Too many requests. Please wait before submitting again.' }, { status: 429 });
+    }
+
+    /* ── Verify session — identity comes from the cookie, not the body ── */
+    const session = await getSessionUser(req);
+    if (!session) {
+      return NextResponse.json({ error: 'You must be logged in to create a campaign.' }, { status: 401 });
+    }
+
     const body = await req.json();
     const {
-      userId,
       businessName,
       details,
       actionUrl,
@@ -26,7 +40,7 @@ export async function POST(req: NextRequest) {
       contactType,
     } = body;
 
-    if (!userId || !businessName || !details || !actionUrl || !actionLabel || !placement || !days || !mediaUrl || !mediaId) {
+    if (!businessName || !details || !actionUrl || !actionLabel || !placement || !days || !mediaUrl || !mediaId) {
       return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
     }
 
@@ -42,9 +56,10 @@ export async function POST(req: NextRequest) {
     const db = getAdminDatabases();
     const totalCost = parsedDays * DIAMONDS_PER_DAY;
 
+    /* ── Server-side balance read using the verified session userId ── */
     let userDoc: any;
     try {
-      userDoc = await db.getDocument(DATABASE_ID, USERS_COL, userId);
+      userDoc = await db.getDocument(DATABASE_ID, USERS_COL, session.userId);
     } catch {
       return NextResponse.json({ error: 'User not found.' }, { status: 404 });
     }
@@ -62,7 +77,7 @@ export async function POST(req: NextRequest) {
     }
 
     const newBalance = realBalance - totalCost;
-    await db.updateDocument(DATABASE_ID, USERS_COL, userId, {
+    await db.updateDocument(DATABASE_ID, USERS_COL, session.userId, {
       diamond_balance: newBalance,
     });
 
@@ -72,7 +87,7 @@ export async function POST(req: NextRequest) {
     let campaignDoc: any;
     try {
       campaignDoc = await db.createDocument(DATABASE_ID, CAMPAIGNS_COL, ID.unique(), {
-        user_id: userId,
+        user_id: session.userId,
         title: String(businessName).trim(),
         content: String(details).trim(),
         media_url: String(mediaUrl),
@@ -94,12 +109,11 @@ export async function POST(req: NextRequest) {
       });
     } catch (campaignErr: any) {
       try {
-        await db.updateDocument(DATABASE_ID, USERS_COL, userId, { diamond_balance: realBalance });
+        await db.updateDocument(DATABASE_ID, USERS_COL, session.userId, { diamond_balance: realBalance });
       } catch { /* best-effort refund */ }
       return NextResponse.json({ error: `Campaign creation failed: ${campaignErr?.message || 'unknown error'}. Your Diamonds have been refunded.` }, { status: 500 });
     }
 
-    // AI moderation — fire-and-forget, never blocks the response
     const textToScan = [businessName, details].filter(Boolean).join(' ').trim();
     if (textToScan || mediaUrl) {
       fetch(`${req.nextUrl.origin}/api/moderate`, {
@@ -109,18 +123,13 @@ export async function POST(req: NextRequest) {
           docId: campaignDoc.$id,
           collection: CAMPAIGNS_COL,
           text: textToScan,
-          userId,
+          userId: session.userId,
           mediaUrl: mediaUrl || undefined,
         }),
       }).catch(() => {});
     }
 
-    return NextResponse.json({
-      ok: true,
-      campaign: campaignDoc,
-      newBalance,
-      totalCost,
-    });
+    return NextResponse.json({ ok: true, campaign: campaignDoc, newBalance, totalCost });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Internal server error.' }, { status: 500 });
   }
