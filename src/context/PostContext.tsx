@@ -10,6 +10,7 @@ import {
 } from '@/lib/appwrite';
 
 import { formatErrorDescription, logAppwriteError } from '@/lib/appwrite-error';
+import { authFetch } from '@/lib/auth-fetch';
 import { offlineCache } from '@/lib/offline-cache';
 import { firePush } from '@/lib/push-fire';
 
@@ -1972,7 +1973,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
     if (Object.keys(payload).length === 0) return;
 
-    const res = await fetch('/api/user/profile', {
+    const res = await authFetch('/api/user/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -2057,7 +2058,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const banUser = useCallback(async (userId: string, reason: string, note?: string) => {
     if (!currentUser) return;
     setAllUsers(prev => prev.map(u => u.$id === userId ? { ...u, status: 'banned' as const } : u));
-    const res = await fetch('/api/admin/ban', {
+    const res = await authFetch('/api/admin/ban', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, reason, note }),
@@ -2077,7 +2078,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         ? { ...u, status: 'suspended' as const, suspendedUntil, suspensionReason: reason, suspensionMessage: message }
         : u
     ));
-    const res = await fetch('/api/admin/suspend', {
+    const res = await authFetch('/api/admin/suspend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, days, reason, message }),
@@ -2095,7 +2096,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     const optimisticCount = (targetUser?.warningCount || 0) + 1;
     setAllUsers(prev => prev.map(u => u.$id === userId ? { ...u, warningCount: optimisticCount } : u));
     try {
-      const res = await fetch('/api/admin/users/warn', {
+      const res = await authFetch('/api/admin/users/warn', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ adminUserId: currentUser.$id, userId, message, severity }),
@@ -3059,7 +3060,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (!currentUser) return;
     // Optimistically mark as unlocked; server validates balance and reads the real price from DB
     setUnlockedPostIdsState(p => new Set(p).add(postId));
-    const res = await fetch('/api/transaction/unlock-post', {
+    const res = await authFetch('/api/transaction/unlock-post', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ postId }),
@@ -3084,7 +3085,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     // Optimistic UI
     setActiveSubscriptionsState(p => new Set(p).add(username));
 
-    const res = await fetch('/api/transaction/subscribe', {
+    const res = await authFetch('/api/transaction/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ creatorId }),
@@ -3126,7 +3127,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     // Optimistic balance deduction for snappy UI
     setCurrentUserState(prev => prev ? { ...prev, diamondBalance: (prev.diamondBalance || 0) - cost } : null);
 
-    const res = await fetch('/api/transaction/gift', {
+    const res = await authFetch('/api/transaction/gift', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ recipientId: targetUserForGift.$id, amount: cost }),
@@ -3146,7 +3147,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const verifyUser = useCallback(async (cost: number, currency: 'DIAMOND' | 'STAR') => {
     if (!currentUser) return;
 
-    const res = await fetch('/api/transaction/verify', {
+    const res = await authFetch('/api/transaction/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ currency, cost }),
@@ -3422,7 +3423,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const approvePaymentRequest = async (id: string) => {
     setPaymentRequests(prev => prev.map(r => r.$id === id ? { ...r, status: 'APPROVED' } : r));
-    const res = await fetch('/api/payment/approve', {
+    const res = await authFetch('/api/payment/approve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ requestId: id }),
@@ -3436,7 +3437,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const rejectPaymentRequest = async (id: string) => {
     setPaymentRequests(prev => prev.map(r => r.$id === id ? { ...r, status: 'REJECTED' } : r));
-    const res = await fetch('/api/payment/reject', {
+    const res = await authFetch('/api/payment/reject', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ requestId: id }),
@@ -3455,7 +3456,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     // Unique key so duplicate taps don't double-submit
     const idempotencyKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    const res = await fetch('/api/withdraw', {
+    const res = await authFetch('/api/withdraw', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -4400,7 +4401,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     adminDeleteProduct: async (productId: string) => {
       if (!currentUser) return;
       try {
-        const res = await fetch('/api/admin/products/delete', {
+        const res = await authFetch('/api/admin/products/delete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ adminUserId: currentUser.$id, productId }),

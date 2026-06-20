@@ -13,7 +13,13 @@ export interface SessionUser {
   role: string | null;
 }
 
-function extractSession(req: NextRequest): string | null {
+function extractJwt(req: NextRequest): string | null {
+  const auth = req.headers.get('authorization') ?? req.headers.get('Authorization');
+  if (auth?.startsWith('Bearer ')) return auth.slice(7);
+  return null;
+}
+
+function extractCookieSession(req: NextRequest): string | null {
   return (
     req.cookies.get(`a_session_${PROJECT_ID}`)?.value ||
     req.cookies.get(`a_session_${PROJECT_ID}_legacy`)?.value ||
@@ -21,19 +27,10 @@ function extractSession(req: NextRequest): string | null {
   );
 }
 
-export async function getSessionUser(req: NextRequest): Promise<SessionUser | null> {
+async function resolveUser(client: Client): Promise<SessionUser | null> {
   try {
-    const sessionValue = extractSession(req);
-    if (!sessionValue) return null;
-
-    const client = new Client()
-      .setEndpoint(ENDPOINT)
-      .setProject(PROJECT_ID)
-      .setSession(sessionValue);
-
     const account = new Account(client);
     const appwriteUser = await account.get();
-
     const db = getAdminDatabases();
     let role: string | null = null;
     try {
@@ -42,9 +39,38 @@ export async function getSessionUser(req: NextRequest): Promise<SessionUser | nu
     } catch {
       /* user doc not found — treat as no role */
     }
-
     return { userId: appwriteUser.$id, role };
   } catch {
     return null;
   }
+}
+
+export async function getSessionUser(req: NextRequest): Promise<SessionUser | null> {
+  // 1. JWT from Authorization header — primary path for browser clients.
+  //    The Appwrite web SDK stores sessions in localStorage (not cookies) in browser
+  //    environments, so req.cookies is empty. The client bridges this by calling
+  //    account.createJWT() and passing it as "Authorization: Bearer <jwt>".
+  //    See src/lib/auth-fetch.ts.
+  const jwt = extractJwt(req);
+  if (jwt) {
+    const client = new Client()
+      .setEndpoint(ENDPOINT)
+      .setProject(PROJECT_ID)
+      .setJWT(jwt);
+    const user = await resolveUser(client);
+    if (user) return user;
+  }
+
+  // 2. Fall back to cookie-based session (SSR / some deployment setups).
+  const sessionValue = extractCookieSession(req);
+  if (sessionValue) {
+    const client = new Client()
+      .setEndpoint(ENDPOINT)
+      .setProject(PROJECT_ID)
+      .setSession(sessionValue);
+    const user = await resolveUser(client);
+    if (user) return user;
+  }
+
+  return null;
 }

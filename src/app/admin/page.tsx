@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import { authFetch } from "@/lib/auth-fetch";
 import { 
   ShieldCheck, 
   Zap, 
@@ -691,7 +692,7 @@ export default function AdminDashboard() {
   const fetchKnowledgeEntries = async (page = 0) => {
     setIsLoadingKnowledge(true);
     try {
-      const res = await fetch(`/api/knowledge-admin?limit=50&offset=${page * 50}`);
+      const res = await authFetch(`/api/knowledge-admin?limit=50&offset=${page * 50}`);
       if (!res.ok) return;
       const data = await res.json();
       setKnowledgeEntries(data.documents || []);
@@ -704,7 +705,7 @@ export default function AdminDashboard() {
   const deleteKnowledgeEntry = async (id: string) => {
     setDeletingKnowledgeId(id);
     try {
-      const res = await fetch(`/api/knowledge-admin?id=${id}`, { method: 'DELETE' });
+      const res = await authFetch(`/api/knowledge-admin?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
         setKnowledgeEntries(prev => prev.filter(e => e.$id !== id));
         setKnowledgeTotal(prev => Math.max(0, prev - 1));
@@ -723,7 +724,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const checkAdminRole = async () => {
       try {
-        const res = await fetch('/api/admin/check');
+        const res = await authFetch('/api/admin/check');
         const data = await res.json().catch(() => ({ authorized: false }));
         setServerAuthorized(data.authorized === true);
       } catch {
@@ -741,7 +742,7 @@ export default function AdminDashboard() {
     const loadVerifications = async () => {
       setIsLoadingVerifications(true);
       try {
-        const res = await fetch('/api/admin/verifications');
+        const res = await authFetch('/api/admin/verifications');
         if (res.ok) {
           const data = await res.json();
           setPendingVerifications(data.records ?? []);
@@ -757,7 +758,7 @@ export default function AdminDashboard() {
     setVerificationActionId(recordId);
     setIsProcessingVerification(true);
     try {
-      const res = await fetch('/api/admin/verify-approve', {
+      const res = await authFetch('/api/admin/verify-approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recordId }),
@@ -778,7 +779,7 @@ export default function AdminDashboard() {
     if (!verificationRejectTarget) return;
     setIsProcessingVerification(true);
     try {
-      const res = await fetch('/api/admin/verify-reject', {
+      const res = await authFetch('/api/admin/verify-reject', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recordId: verificationRejectTarget.$id, reason: verificationRejectReason }),

@@ -390,6 +390,19 @@ function MusicPageContent() {
                       </div>
                     )}
 
+                    {/* ── EMPTY STATE (no music yet) ── */}
+                    {!searchQuery && globalSongs.length === 0 && globalAlbums.length === 0 && !isMusicLoading && (
+                      <div className="py-16 flex flex-col items-center gap-5 bg-white/60 dark:bg-card/30 rounded-3xl border border-dashed border-border/50">
+                        <div className="h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center">
+                          <Music className="h-10 w-10 text-primary/50" />
+                        </div>
+                        <div className="text-center space-y-2 px-6">
+                          <h3 className="text-lg font-black italic uppercase tracking-tighter">No Music Yet</h3>
+                          <p className="text-sm text-muted-foreground">Be the first creator to upload a track. Hit the Upload tab below to get started!</p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* ── BOOSTED / TRENDING ── */}
                     {!searchQuery && trendingBoosted.length > 0 && (
                       <div className="space-y-3">

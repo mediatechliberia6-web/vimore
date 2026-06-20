@@ -9,6 +9,6 @@ description: How creator verification works — PENDING until admin approves, no
 3. Admin approves via `/api/admin/verify-approve` (POST, `{recordId}`): sets `is_verified: true` on user doc, updates record to APPROVED, sends notification.
 4. Admin rejects via `/api/admin/verify-reject` (POST, `{recordId, reason}`): updates record to REJECTED, refunds the fee, sends notification.
 
-**Why:** Instant auto-approval was a security risk (could be triggered by any authenticated user). Admin review ensures quality control.
+**Why:** Instant auto-approval was a security risk. Admin review ensures quality control.
 
-**How to apply:** `verifyUser` in PostContext does NOT optimistically set `isVerified: true`. It shows "Verification Submitted ⏳" toast. Client balance is updated only after server confirms deduction.
+**How to apply:** `verifyUser` in PostContext does NOT optimistically set `isVerified: true`. Shows "Verification Submitted ⏳" toast. Client balance is updated only after server confirms deduction.
