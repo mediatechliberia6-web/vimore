@@ -140,6 +140,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -147,7 +148,7 @@ import {
 import { AdminTicketTab } from "@/components/tickets/AdminTicketTab";
 import { AdminCheckTicketTab } from "@/components/tickets/AdminCheckTicketTab";
 
-type AdminTab = "economy" | "safety" | "campaigns" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury" | "referrals" | "knowledge" | "sync";
+type AdminTab = "economy" | "safety" | "campaigns" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury" | "referrals" | "knowledge" | "sync" | "verifications";
 
 interface TreasurySnapshot {
   totalUsers: number;
@@ -189,7 +190,13 @@ export default function AdminDashboard() {
   const isSuper = userRole === 'SUPER';
   const isFinancial = userRole === 'FINANCIAL';
   const isModerator = userRole === 'MODERATOR';
-  const isUnauthorized = userRole === 'USER';
+
+  // Declared here (before isUnauthorized) so the derived value can read them
+  const [serverRoleChecked, setServerRoleChecked] = useState(false);
+  const [serverAuthorized, setServerAuthorized] = useState<boolean | null>(null);
+
+  // Use server-confirmed role once available; fall back to client role while checking
+  const isUnauthorized = serverRoleChecked ? serverAuthorized === false : userRole === 'USER';
 
   const [activeTab, setActiveTab] = useState<AdminTab>("economy");
   const [economySubTab, setEconomySubTab] = useState<EconomySubTab>("outbound");
@@ -247,6 +254,14 @@ export default function AdminDashboard() {
   const [knowledgePage, setKnowledgePage] = useState(0);
   const [deletingKnowledgeId, setDeletingKnowledgeId] = useState<string | null>(null);
   const [expandedKnowledgeId, setExpandedKnowledgeId] = useState<string | null>(null);
+
+  // Verifications tab state
+  const [pendingVerifications, setPendingVerifications] = useState<any[]>([]);
+  const [isLoadingVerifications, setIsLoadingVerifications] = useState(false);
+  const [verificationActionId, setVerificationActionId] = useState<string | null>(null);
+  const [verificationRejectReason, setVerificationRejectReason] = useState('');
+  const [verificationRejectTarget, setVerificationRejectTarget] = useState<any | null>(null);
+  const [isProcessingVerification, setIsProcessingVerification] = useState(false);
 
   // Sync tool state (SUPER admin only)
   const [isSyncing, setIsSyncing] = useState(false);
@@ -412,7 +427,7 @@ export default function AdminDashboard() {
   }, [allUsers]);
 
   const availableTabs = useMemo(() => {
-    if (isSuper) return ["economy", "treasury", "referrals", "safety", "users", "broadcast", "campaigns", "tickets", "check_ticket", "resolution", "logs", "staff", "knowledge", "sync"] as AdminTab[];
+    if (isSuper) return ["economy", "treasury", "referrals", "safety", "users", "broadcast", "campaigns", "tickets", "check_ticket", "resolution", "verifications", "logs", "staff", "knowledge", "sync"] as AdminTab[];
     const tabs: AdminTab[] = ["logs"];
     if (isFinancial) tabs.push("economy", "treasury");
     if (isModerator) tabs.push("safety", "users", "campaigns", "resolution", "tickets", "check_ticket");
@@ -704,6 +719,83 @@ export default function AdminDashboard() {
     fetchKnowledgeEntries(0);
   }, [activeTab]);
 
+  // Server-side admin role verification — prevent client-side bypass
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      try {
+        const res = await fetch('/api/admin/check');
+        const data = await res.json().catch(() => ({ authorized: false }));
+        setServerAuthorized(data.authorized === true);
+      } catch {
+        setServerAuthorized(false);
+      } finally {
+        setServerRoleChecked(true);
+      }
+    };
+    checkAdminRole();
+  }, []);
+
+  // Load pending verifications when on verifications tab
+  useEffect(() => {
+    if (activeTab !== 'verifications') return;
+    const loadVerifications = async () => {
+      setIsLoadingVerifications(true);
+      try {
+        const res = await fetch('/api/admin/verifications');
+        if (res.ok) {
+          const data = await res.json();
+          setPendingVerifications(data.records ?? []);
+        }
+      } catch { /* ignore */ } finally {
+        setIsLoadingVerifications(false);
+      }
+    };
+    loadVerifications();
+  }, [activeTab]);
+
+  const handleApproveVerification = async (recordId: string) => {
+    setVerificationActionId(recordId);
+    setIsProcessingVerification(true);
+    try {
+      const res = await fetch('/api/admin/verify-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recordId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Approval failed');
+      toast({ title: 'Verification Approved ✅', description: 'User has been granted verified status.' });
+      setPendingVerifications(prev => prev.filter(r => r.$id !== recordId));
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Approval Failed', description: e?.message });
+    } finally {
+      setIsProcessingVerification(false);
+      setVerificationActionId(null);
+    }
+  };
+
+  const handleRejectVerification = async () => {
+    if (!verificationRejectTarget) return;
+    setIsProcessingVerification(true);
+    try {
+      const res = await fetch('/api/admin/verify-reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recordId: verificationRejectTarget.$id, reason: verificationRejectReason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Rejection failed');
+      toast({ title: 'Verification Rejected', description: 'Fee has been refunded to the user.' });
+      setPendingVerifications(prev => prev.filter(r => r.$id !== verificationRejectTarget.$id));
+      setVerificationRejectTarget(null);
+      setVerificationRejectReason('');
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Rejection Failed', description: e?.message });
+    } finally {
+      setIsProcessingVerification(false);
+    }
+  };
+
   const runCountSync = async () => {
     if (!isSuper || isSyncing) return;
     setIsSyncing(true);
@@ -819,6 +911,7 @@ export default function AdminDashboard() {
     staff: { label: "Staff", icon: Users },
     knowledge: { label: "Knowledge", icon: BookOpen },
     sync: { label: "Sync", icon: RefreshCcw },
+    verifications: { label: "Verifications", icon: UserVerifyIcon },
   };
 
   if (isUnauthorized) {
@@ -2777,6 +2870,114 @@ export default function AdminDashboard() {
               <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/40 text-center pb-4">
                 Gemini 2.5 Flash · Knowledge Bank v1 · Only SUPER admins can view or delete entries
               </p>
+            </div>
+          )}
+
+          {/* ── VERIFICATIONS TAB ── */}
+          {activeTab === 'verifications' && (
+            <div className="p-6 space-y-6 max-w-2xl mx-auto">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 bg-blue-500/10 rounded-3xl flex items-center justify-center border border-blue-500/20 shrink-0">
+                  <UserVerifyIcon className="h-7 w-7 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">Verification Requests</h3>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-0.5">Review pending creator verification submissions</p>
+                </div>
+              </div>
+
+              {isLoadingVerifications ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : pendingVerifications.length === 0 ? (
+                <Card className="rounded-3xl border-border/40 bg-card/40">
+                  <CardContent className="p-12 flex flex-col items-center gap-4 text-center">
+                    <div className="h-16 w-16 rounded-3xl bg-muted/20 flex items-center justify-center">
+                      <UserVerifyIcon className="h-8 w-8 text-muted-foreground/40" />
+                    </div>
+                    <p className="text-sm font-black uppercase tracking-widest text-muted-foreground">No Pending Requests</p>
+                    <p className="text-xs text-muted-foreground/60 font-medium">All verification requests have been reviewed.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {pendingVerifications.map((rec: any) => (
+                    <Card key={rec.$id} className="rounded-3xl border-border/40 bg-card/40">
+                      <CardContent className="p-5 flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-muted/30 flex items-center justify-center shrink-0 overflow-hidden border border-border/40">
+                          {rec.user?.avatar ? (
+                            <img src={rec.user.avatar} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <span className="text-lg font-black text-muted-foreground">{(rec.user?.username?.[0] || '?').toUpperCase()}</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black text-foreground truncate">@{rec.user?.username ?? rec.user_id}</p>
+                          {rec.user?.display_name && (
+                            <p className="text-xs text-muted-foreground font-medium truncate">{rec.user.display_name}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className="text-[9px] font-black uppercase border-blue-500/30 text-blue-400 px-2 h-4">
+                              {rec.amount ?? '?'} {rec.currency ?? 'DIAMOND'}
+                            </Badge>
+                            <span className="text-[9px] text-muted-foreground/50 font-bold">{rec.$createdAt ? new Date(rec.$createdAt).toLocaleDateString() : ''}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <Button
+                            size="sm"
+                            disabled={isProcessingVerification && verificationActionId === rec.$id}
+                            onClick={() => handleApproveVerification(rec.$id)}
+                            className="h-9 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-[9px]"
+                          >
+                            {isProcessingVerification && verificationActionId === rec.$id ? <Loader2 className="h-3 w-3 animate-spin" /> : '✓ Approve'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={isProcessingVerification}
+                            onClick={() => { setVerificationRejectTarget(rec); setVerificationRejectReason(''); }}
+                            className="h-9 px-4 rounded-2xl border-destructive/30 text-destructive hover:bg-destructive/10 font-black uppercase text-[9px]"
+                          >
+                            ✕ Reject
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {/* Reject Dialog */}
+              <Dialog open={!!verificationRejectTarget} onOpenChange={open => { if (!open) { setVerificationRejectTarget(null); setVerificationRejectReason(''); } }}>
+                <DialogContent className="rounded-3xl border-border/40 bg-card max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle className="font-black uppercase tracking-tight">Reject Verification</DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                      Provide a reason. The fee will be refunded automatically.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-3 pt-2">
+                    <Textarea
+                      value={verificationRejectReason}
+                      onChange={e => setVerificationRejectReason(e.target.value)}
+                      placeholder="e.g. Insufficient follower count, profile incomplete..."
+                      className="bg-secondary/30 border-none rounded-2xl resize-none min-h-[80px]"
+                    />
+                  </div>
+                  <DialogFooter className="flex gap-3 pt-2">
+                    <Button variant="ghost" className="flex-1 h-11 rounded-2xl font-black uppercase text-[10px]" onClick={() => setVerificationRejectTarget(null)}>Cancel</Button>
+                    <Button
+                      disabled={isProcessingVerification}
+                      onClick={handleRejectVerification}
+                      className="flex-1 h-11 rounded-2xl bg-destructive text-white font-black uppercase text-[10px] hover:bg-destructive/80"
+                    >
+                      {isProcessingVerification ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm Reject'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           )}
 

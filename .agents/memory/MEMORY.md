@@ -1,0 +1,2 @@
+- [Admin server-side auth guard](admin-auth-guard.md) — serverRoleChecked/serverAuthorized state must be declared before the `isUnauthorized` derived const in admin/page.tsx
+- [Verification flow](verification-flow.md) — verify route creates PENDING record, admin approves/rejects via /api/admin/verify-approve and verify-reject; no optimistic is_verified on client

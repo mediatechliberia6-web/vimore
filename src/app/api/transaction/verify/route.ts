@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
 import { getSessionUser } from '@/lib/session';
 import { rateLimit } from '@/lib/rate-limit';
-import { ID } from 'node-appwrite';
+import { ID, Query } from 'node-appwrite';
 
 export const maxDuration = 30;
 
@@ -12,7 +12,6 @@ const COL = {
   VERIFICATION_RECORDS: 'verification_records',
 };
 
-// Minimum costs enforced server-side — cannot be bypassed by the client
 const MIN_VERIFY_COST: Record<string, number> = {
   DIAMOND: 1,
   STAR: 1,
@@ -21,7 +20,6 @@ const MIN_VERIFY_COST: Record<string, number> = {
 export async function POST(req: NextRequest) {
   try {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
-    // Strict rate limit: verification is a rare, expensive action
     const rl = rateLimit(`verify:${ip}`, 5, 60_000);
     if (!rl.allowed) {
       return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
@@ -53,7 +51,6 @@ export async function POST(req: NextRequest) {
 
     const db = getAdminDatabases();
 
-    // Read user state server-side — never trust the client
     let userDoc: any;
     try {
       userDoc = await db.getDocument(DATABASE_ID, COL.USERS, session.userId);
@@ -63,6 +60,16 @@ export async function POST(req: NextRequest) {
 
     if (userDoc.is_verified === true) {
       return NextResponse.json({ ok: true, alreadyVerified: true });
+    }
+
+    // Check for existing PENDING verification — prevent duplicate submissions
+    const existingPending = await db.listDocuments(DATABASE_ID, COL.VERIFICATION_RECORDS, [
+      Query.equal('user_id', session.userId),
+      Query.equal('status', 'PENDING'),
+      Query.limit(1),
+    ]);
+    if (existingPending.total > 0) {
+      return NextResponse.json({ ok: true, status: 'PENDING', alreadyPending: true });
     }
 
     const balanceField = normalizedCurrency === 'DIAMOND' ? 'diamond_balance' : 'star_balance';
@@ -77,32 +84,41 @@ export async function POST(req: NextRequest) {
 
     const newBalance = parseFloat((currentBalance - parsedCost).toFixed(8));
 
-    // Deduct balance first
+    // Deduct balance — hold the fee until admin decides
     await db.updateDocument(DATABASE_ID, COL.USERS, session.userId, {
-      is_verified: true,
-      has_ever_been_verified: true,
       [balanceField]: newBalance,
     });
 
     try {
       await Promise.all([
+        // Create PENDING record — admin must approve before is_verified is set
         db.createDocument(DATABASE_ID, COL.VERIFICATION_RECORDS, ID.unique(), {
           user_id: session.userId,
           type: 'CREATOR',
-          status: 'APPROVED',
+          status: 'PENDING',
+          currency: normalizedCurrency,
+          amount: parsedCost,
         } as any),
         db.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
           user_id: session.userId,
           type: 'VERIFICATION_FEE',
           currency: normalizedCurrency,
           amount: parsedCost,
-          description: 'Creator verification fee',
-          status: 'COMPLETED',
+          description: 'Creator verification fee (pending admin review)',
+          status: 'PENDING',
         } as any),
       ]);
-    } catch { /* non-fatal — the is_verified flag is already set */ }
+    } catch {
+      // Best-effort rollback if record creation fails
+      try {
+        await db.updateDocument(DATABASE_ID, COL.USERS, session.userId, {
+          [balanceField]: currentBalance,
+        });
+      } catch { /* rollback failed */ }
+      throw new Error('Failed to create verification record.');
+    }
 
-    return NextResponse.json({ ok: true, newBalance });
+    return NextResponse.json({ ok: true, status: 'PENDING', newBalance });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Verification failed.' }, { status: 500 });
   }

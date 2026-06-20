@@ -3145,13 +3145,6 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const verifyUser = useCallback(async (cost: number, currency: 'DIAMOND' | 'STAR') => {
     if (!currentUser) return;
-    // Optimistic UI
-    setCurrentUserState(prev => {
-      if (!prev) return null;
-      return currency === 'DIAMOND'
-        ? { ...prev, isVerified: true, diamondBalance: (prev.diamondBalance || 0) - cost }
-        : { ...prev, isVerified: true, starBalance: (prev.starBalance || 0) - cost };
-    });
 
     const res = await fetch('/api/transaction/verify', {
       method: 'POST',
@@ -3160,24 +3153,29 @@ export function PostProvider({ children }: { children: ReactNode }) {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      // Rollback optimistic state
-      setCurrentUserState(prev => {
-        if (!prev) return null;
-        return currency === 'DIAMOND'
-          ? { ...prev, isVerified: false, diamondBalance: (prev.diamondBalance || 0) + cost }
-          : { ...prev, isVerified: false, starBalance: (prev.starBalance || 0) + cost };
-      });
       throw new Error(data?.error || 'Verification failed');
     }
+    if (data.alreadyVerified) {
+      toast({ title: "Already Verified ✅", description: "Your account is already verified." });
+      return;
+    }
+    if (data.alreadyPending) {
+      toast({ title: "Pending Review ⏳", description: "Your verification request is already under admin review." });
+      return;
+    }
+    // Deduct balance optimistically now that server confirmed
     if (typeof data.newBalance === 'number') {
       setCurrentUserState(prev => {
         if (!prev) return null;
         return currency === 'DIAMOND'
-          ? { ...prev, isVerified: true, diamondBalance: data.newBalance }
-          : { ...prev, isVerified: true, starBalance: data.newBalance };
+          ? { ...prev, diamondBalance: data.newBalance }
+          : { ...prev, starBalance: data.newBalance };
       });
     }
-    toast({ title: "Verified! ✅" });
+    toast({
+      title: "Verification Submitted ⏳",
+      description: "Your request is under admin review. You'll be notified once approved.",
+    });
   }, [currentUser, toast]);
 
   const fetchProfileByUsername = useCallback(async (username: string): Promise<User | null> => {
