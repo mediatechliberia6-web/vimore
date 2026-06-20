@@ -1949,29 +1949,39 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const updateCurrentUser = useCallback(async (data: Partial<User>) => {
     if (!currentUser) return;
-    const updateData: Record<string, any> = {};
 
-    if (data.name !== undefined) updateData.name = data.name;
-    if (data.bio !== undefined) updateData.bio = data.bio;
-    if (data.category !== undefined) updateData.category = data.category;
-    if (data.nationality !== undefined) updateData.nationality = data.nationality;
-    if (data.dateOfBirth !== undefined) updateData.date_of_birth = data.dateOfBirth;
-    if (data.gender !== undefined) updateData.gender = data.gender;
-    if (data.language !== undefined) updateData.language = data.language;
-    if (data.phone !== undefined) updateData.phone = data.phone;
+    // Build the server-side payload with only the fields the API allows
+    const payload: Record<string, any> = {};
+    if (data.name !== undefined) payload.name = data.name;
+    if (data.bio !== undefined) payload.bio = data.bio;
+    if (data.category !== undefined) payload.category = data.category;
+    if (data.nationality !== undefined) payload.nationality = data.nationality;
+    if (data.dateOfBirth !== undefined) payload.date_of_birth = data.dateOfBirth;
+    if (data.gender !== undefined) payload.gender = data.gender;
+    if (data.language !== undefined) payload.language = data.language;
+    if (data.phone !== undefined) payload.phone = data.phone;
 
     if (data.avatar !== undefined) {
       const fileId = extractFileId(data.avatar);
-      if (fileId) updateData.avatar_id = fileId;
+      if (fileId) payload.avatar_id = fileId;
     }
     if (data.cover !== undefined) {
       const fileId = extractFileId(data.cover);
-      if (fileId) updateData.cover_id = fileId;
+      if (fileId) payload.cover_id = fileId;
     }
 
-    if (Object.keys(updateData).length > 0) {
-      await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, updateData);
+    if (Object.keys(payload).length === 0) return;
+
+    const res = await fetch('/api/user/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(result?.error || 'Profile update failed');
     }
+
     setCurrentUserState(prev => prev ? { ...prev, ...data } : null);
     if (data.avatar !== undefined || data.name !== undefined || data.cover !== undefined) {
       setPostsState(prev => prev.map(p =>
@@ -3135,6 +3145,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const verifyUser = useCallback(async (cost: number, currency: 'DIAMOND' | 'STAR') => {
     if (!currentUser) return;
+    // Optimistic UI
     setCurrentUserState(prev => {
       if (!prev) return null;
       return currency === 'DIAMOND'
@@ -3142,20 +3153,30 @@ export function PostProvider({ children }: { children: ReactNode }) {
         : { ...prev, isVerified: true, starBalance: (prev.starBalance || 0) - cost };
     });
 
-    try {
-      const updateData: Record<string, any> = { is_verified: true, has_ever_been_verified: true };
-      if (currency === 'DIAMOND') updateData.diamond_balance = (currentUser.diamondBalance || 0) - cost;
-      else updateData.star_balance = (currentUser.starBalance || 0) - cost;
-
-      await Promise.all([
-        databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, updateData),
-        databases.createDocument(DATABASE_ID, COL.VERIFICATION_RECORDS, ID.unique(), {
-          user_id: currentUser.$id,
-          type: 'CREATOR',
-          status: 'APPROVED',
-        }),
-      ]);
-    } catch { /* ignore */ }
+    const res = await fetch('/api/transaction/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currency, cost }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      // Rollback optimistic state
+      setCurrentUserState(prev => {
+        if (!prev) return null;
+        return currency === 'DIAMOND'
+          ? { ...prev, isVerified: false, diamondBalance: (prev.diamondBalance || 0) + cost }
+          : { ...prev, isVerified: false, starBalance: (prev.starBalance || 0) + cost };
+      });
+      throw new Error(data?.error || 'Verification failed');
+    }
+    if (typeof data.newBalance === 'number') {
+      setCurrentUserState(prev => {
+        if (!prev) return null;
+        return currency === 'DIAMOND'
+          ? { ...prev, isVerified: true, diamondBalance: data.newBalance }
+          : { ...prev, isVerified: true, starBalance: data.newBalance };
+      });
+    }
     toast({ title: "Verified! ✅" });
   }, [currentUser, toast]);
 

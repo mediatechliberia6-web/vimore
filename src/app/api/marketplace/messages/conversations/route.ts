@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
+import { getSessionUser } from '@/lib/session';
 import { Query } from 'node-appwrite';
 
 export async function GET(req: NextRequest) {
@@ -10,18 +11,28 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Missing sellerId' }, { status: 400 });
   }
 
+  // IDOR protection: only the seller can list their own conversations
+  const session = await getSessionUser(req);
+  if (!session) {
+    return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+  }
+
+  if (session.userId !== sellerId) {
+    return NextResponse.json(
+      { error: 'Access denied: you can only view your own conversations.' },
+      { status: 403 }
+    );
+  }
+
   try {
     const db = getAdminDatabases();
 
-    // Use indexed receiver_id field. cluster_id is not indexed.
-    // Fetch messages TO the seller (buyer→seller direction), latest first
     const result = await db.listDocuments(DATABASE_ID, 'messages', [
       Query.equal('receiver_id', sellerId),
       Query.orderDesc('$createdAt'),
       Query.limit(500),
     ]);
 
-    // Filter client-side to only marketplace cluster IDs
     const mktPrefix = `mkt_${sellerId}_`;
     const convMap = new Map<string, Record<string, unknown>>();
     for (const doc of result.documents) {
@@ -32,9 +43,8 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Parse cluster_id: mkt_{sellerId}_{buyerId}
     const conversations = Array.from(convMap.entries()).map(([cid, doc]) => {
-      const buyerId = cid.slice(mktPrefix.length); // everything after the prefix
+      const buyerId = cid.slice(mktPrefix.length);
       return {
         clusterId: cid,
         buyerId,

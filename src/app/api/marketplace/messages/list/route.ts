@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
+import { getSessionUser } from '@/lib/session';
 import { Query } from 'node-appwrite';
 
 // cluster_id format: mkt_{sellerId}_{buyerId}
 function parseClusterId(clusterId: string): { sellerId: string; buyerId: string } | null {
   if (!clusterId.startsWith('mkt_')) return null;
-  const parts = clusterId.slice(4).split('_'); // remove 'mkt_' prefix
+  const parts = clusterId.slice(4).split('_');
   if (parts.length < 2) return null;
-  // sellerId is parts[0], buyerId is everything after first underscore
-  // But sellerId itself may contain underscores — we store sellerId as first segment, buyerId as last
-  // Format is mkt_{sellerId}_{buyerId} where buyerId starts with "guest_" or is a plain Appwrite $id
   const buyerStart = parts.findIndex((_, i) => i > 0 && (parts.slice(i).join('_').startsWith('guest_') || i === parts.length - 1));
   if (buyerStart < 1) return null;
   const sellerId = parts.slice(0, buyerStart).join('_');
@@ -30,12 +28,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid clusterId format' }, { status: 400 });
   }
 
+  // IDOR protection: caller must be one of the two participants
+  const session = await getSessionUser(req);
+  if (!session) {
+    return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+  }
+
   const { sellerId, buyerId } = parsed;
+  const isParticipant = session.userId === sellerId || session.userId === buyerId;
+  if (!isParticipant) {
+    return NextResponse.json(
+      { error: 'Access denied: you are not a participant in this conversation.' },
+      { status: 403 }
+    );
+  }
 
   try {
     const db = getAdminDatabases();
 
-    // Use indexed sender_id + receiver_id fields — cluster_id is not indexed
     const [buyerToSeller, sellerToBuyer] = await Promise.all([
       db.listDocuments(DATABASE_ID, 'messages', [
         Query.equal('sender_id', buyerId),
@@ -51,7 +61,6 @@ export async function GET(req: NextRequest) {
       ]),
     ]);
 
-    // Merge, filter to this specific cluster, sort asc
     const all = [
       ...buyerToSeller.documents,
       ...sellerToBuyer.documents,
@@ -74,11 +83,19 @@ export async function PATCH(req: NextRequest) {
   const parsed = parseClusterId(clusterId);
   if (!parsed) return NextResponse.json({ error: 'Invalid clusterId format' }, { status: 400 });
 
+  // Only participants can mark messages read
+  const session = await getSessionUser(req);
+  if (!session) {
+    return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+  }
+
   const { sellerId, buyerId } = parsed;
+  if (session.userId !== sellerId && session.userId !== buyerId) {
+    return NextResponse.json({ error: 'Access denied.' }, { status: 403 });
+  }
 
   try {
     const db = getAdminDatabases();
-    // Find unread messages sent from buyer to seller
     const result = await db.listDocuments(DATABASE_ID, 'messages', [
       Query.equal('sender_id', buyerId),
       Query.equal('receiver_id', sellerId),
