@@ -234,92 +234,67 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
   const loadMusicData = useCallback(async () => {
     try {
-      const tq = [Query.orderDesc('$createdAt'), Query.limit(100)];
-      const aq = [Query.orderDesc('$createdAt'), Query.limit(50)];
-      const pq = [Query.equal('is_private', false),  Query.orderDesc('$createdAt'), Query.limit(50)];
+      // Use the server-side catalog route so music loads regardless of
+      // client-side Appwrite collection permissions.
+      const res = await fetch('/api/music/catalog');
+      if (!res.ok) throw new Error(`catalog ${res.status}`);
+      const data = await res.json();
 
-      const [tracksRes, albumsRes, playlistsRes] = await Promise.allSettled([
-        databases.listDocuments(DATABASE_ID, COL.TRACKS,    tq),
-        databases.listDocuments(DATABASE_ID, COL.ALBUMS,    aq),
-        databases.listDocuments(DATABASE_ID, COL.PLAYLISTS, pq),
-      ]);
-
-      let tracks: Track[] = [];
-      let albums: Album[] = [];
-      let playlists: Playlist[] = [];
-
-      if (tracksRes.status === 'fulfilled') {
-        tracks = tracksRes.value.documents.map(mapDocToTrack);
-        setGlobalSongsState(tracks);
-        setQueueState(tracks);
-        setCurrentTrackState(prev => {
-          if (!prev) return prev;
-          const refreshed = tracks.find(t => t.id === prev.id);
-          return refreshed ? { ...prev, ...refreshed } : prev;
-        });
-        try { localStorage.setItem('vm_offline_songs', JSON.stringify(tracks)); } catch { }
+      if (data.errors) {
+        console.warn('[MusicContext] catalog errors:', data.errors);
       }
 
-      if (albumsRes.status === 'fulfilled') {
-        const albumDocs = albumsRes.value.documents;
-        const albumIds = albumDocs.map((a: any) => a.$id);
-        let albumTracksMap: Record<string, Track[]> = {};
+      const trackDocs: any[] = data.tracks ?? [];
+      const albumDocs: any[] = data.albums ?? [];
+      const playlistDocs: any[] = data.playlists ?? [];
+      const albumTrackDocs: any[] = data.albumTracks ?? [];
+      const playlistTrackRows: any[] = data.playlistTrackRows ?? [];
+      const playlistTrackDocs: any[] = data.playlistTrackDocs ?? [];
 
-        if (albumIds.length > 0) {
-          try {
-            const albumTracksRes = await databases.listDocuments(DATABASE_ID, COL.TRACKS, [
-              Query.equal('album_id', albumIds),
-              Query.orderAsc('track_number'),
-              Query.limit(500),
-            ]);
-            albumTracksRes.documents.forEach((doc: any) => {
-              const albumId = doc.album_id;
-              if (!albumTracksMap[albumId]) albumTracksMap[albumId] = [];
-              albumTracksMap[albumId].push(mapDocToTrack(doc));
-            });
-          } catch { /* ignore */ }
-        }
+      // ── Tracks ──────────────────────────────────────────────────
+      const tracks: Track[] = trackDocs.map(mapDocToTrack);
+      setGlobalSongsState(tracks);
+      setQueueState(tracks);
+      setCurrentTrackState(prev => {
+        if (!prev) return prev;
+        const refreshed = tracks.find(t => t.id === prev.id);
+        return refreshed ? { ...prev, ...refreshed } : prev;
+      });
+      try { localStorage.setItem('vm_offline_songs', JSON.stringify(tracks)); } catch { }
 
-        albums = albumDocs.map((doc: any) => mapDocToAlbum(doc, albumTracksMap[doc.$id] || []));
-        setGlobalAlbumsState(albums);
-        try { localStorage.setItem('vm_offline_albums', JSON.stringify(albums)); } catch { }
-      }
+      // ── Albums ──────────────────────────────────────────────────
+      const albumTracksMap: Record<string, Track[]> = {};
+      albumTrackDocs.forEach((doc: any) => {
+        const aId = doc.album_id;
+        if (!aId) return;
+        if (!albumTracksMap[aId]) albumTracksMap[aId] = [];
+        albumTracksMap[aId].push(mapDocToTrack(doc));
+      });
+      const albums: Album[] = albumDocs.map((doc: any) =>
+        mapDocToAlbum(doc, albumTracksMap[doc.$id] || [])
+      );
+      setGlobalAlbumsState(albums);
+      try { localStorage.setItem('vm_offline_albums', JSON.stringify(albums)); } catch { }
 
-      if (playlistsRes.status === 'fulfilled') {
-        const playlistDocs = playlistsRes.value.documents;
-        const playlistIds = playlistDocs.map((p: any) => p.$id);
-        let playlistTracksMap: Record<string, Track[]> = {};
+      // ── Playlists ────────────────────────────────────────────────
+      const trackDocsMap: Record<string, any> = Object.fromEntries(
+        playlistTrackDocs.map((t: any) => [t.$id, t])
+      );
+      const playlistTracksMap: Record<string, Track[]> = {};
+      playlistTrackRows.forEach((pt: any) => {
+        const tDoc = trackDocsMap[pt.track_id];
+        if (!tDoc) return;
+        if (!playlistTracksMap[pt.playlist_id]) playlistTracksMap[pt.playlist_id] = [];
+        playlistTracksMap[pt.playlist_id].push(mapDocToTrack(tDoc));
+      });
+      const playlists: Playlist[] = playlistDocs.map((doc: any) =>
+        mapDocToPlaylist(doc, playlistTracksMap[doc.$id] || [])
+      );
+      setGlobalPlaylistsState(playlists);
 
-        if (playlistIds.length > 0) {
-          try {
-            const ptRes = await databases.listDocuments(DATABASE_ID, COL.PLAYLIST_TRACKS, [
-              Query.equal('playlist_id', playlistIds),
-              Query.orderAsc('order_index'),
-              Query.limit(1000),
-            ]);
-            const trackIds = [...new Set(ptRes.documents.map((pt: any) => pt.track_id).filter(Boolean))];
-            let trackDocsMap: Record<string, any> = {};
-            if (trackIds.length > 0) {
-              const tRes = await databases.listDocuments(DATABASE_ID, COL.TRACKS, [
-                Query.equal('$id', trackIds),
-                Query.limit(500),
-              ]);
-              trackDocsMap = Object.fromEntries(tRes.documents.map((t: any) => [t.$id, t]));
-            }
-            ptRes.documents.forEach((pt: any) => {
-              const tDoc = trackDocsMap[pt.track_id];
-              if (!tDoc) return;
-              if (!playlistTracksMap[pt.playlist_id]) playlistTracksMap[pt.playlist_id] = [];
-              playlistTracksMap[pt.playlist_id].push(mapDocToTrack(tDoc));
-            });
-          } catch { /* ignore */ }
-        }
-
-        playlists = playlistDocs.map((doc: any) => mapDocToPlaylist(doc, playlistTracksMap[doc.$id] || []));
-        setGlobalPlaylistsState(playlists);
-      }
     } catch (err) {
-      console.error('loadMusicData error:', err);
+      console.error('[MusicContext] loadMusicData error:', err);
+      // Fallback: try reading offline cache
       try {
         const cachedSongs = localStorage.getItem('vm_offline_songs');
         if (cachedSongs) setGlobalSongsState(JSON.parse(cachedSongs));

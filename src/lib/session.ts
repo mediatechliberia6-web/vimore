@@ -13,12 +13,21 @@ export interface SessionUser {
   role: string | null;
 }
 
+// ─── credential extractors ─────────────────────────────────────────────────
+
+/** Primary: direct session value sent by authFetch from localStorage. */
+function extractSessionHeader(req: NextRequest): string | null {
+  return req.headers.get('x-appwrite-session');
+}
+
+/** Secondary: Appwrite JWT sent as Authorization: Bearer <jwt>. */
 function extractJwt(req: NextRequest): string | null {
   const auth = req.headers.get('authorization') ?? req.headers.get('Authorization');
   if (auth?.startsWith('Bearer ')) return auth.slice(7);
   return null;
 }
 
+/** Legacy: cookie-based session (may work in some deployment setups). */
 function extractCookieSession(req: NextRequest): string | null {
   return (
     req.cookies.get(`a_session_${PROJECT_ID}`)?.value ||
@@ -26,6 +35,8 @@ function extractCookieSession(req: NextRequest): string | null {
     null
   );
 }
+
+// ─── user resolution ───────────────────────────────────────────────────────
 
 async function resolveUser(client: Client): Promise<SessionUser | null> {
   try {
@@ -45,12 +56,22 @@ async function resolveUser(client: Client): Promise<SessionUser | null> {
   }
 }
 
+// ─── main export ───────────────────────────────────────────────────────────
+
 export async function getSessionUser(req: NextRequest): Promise<SessionUser | null> {
-  // 1. JWT from Authorization header — primary path for browser clients.
-  //    The Appwrite web SDK stores sessions in localStorage (not cookies) in browser
-  //    environments, so req.cookies is empty. The client bridges this by calling
-  //    account.createJWT() and passing it as "Authorization: Bearer <jwt>".
-  //    See src/lib/auth-fetch.ts.
+  // 1. Direct session from localStorage (sent by authFetch as X-Appwrite-Session).
+  //    This is the most reliable path — no network round-trip, always fresh.
+  const sessionHeader = extractSessionHeader(req);
+  if (sessionHeader) {
+    const client = new Client()
+      .setEndpoint(ENDPOINT)
+      .setProject(PROJECT_ID)
+      .setSession(sessionHeader);
+    const user = await resolveUser(client);
+    if (user) return user;
+  }
+
+  // 2. Appwrite JWT from Authorization: Bearer header.
   const jwt = extractJwt(req);
   if (jwt) {
     const client = new Client()
@@ -61,13 +82,13 @@ export async function getSessionUser(req: NextRequest): Promise<SessionUser | nu
     if (user) return user;
   }
 
-  // 2. Fall back to cookie-based session (SSR / some deployment setups).
-  const sessionValue = extractCookieSession(req);
-  if (sessionValue) {
+  // 3. Legacy cookie (works if browser sets same-domain cookie).
+  const cookieSession = extractCookieSession(req);
+  if (cookieSession) {
     const client = new Client()
       .setEndpoint(ENDPOINT)
       .setProject(PROJECT_ID)
-      .setSession(sessionValue);
+      .setSession(cookieSession);
     const user = await resolveUser(client);
     if (user) return user;
   }

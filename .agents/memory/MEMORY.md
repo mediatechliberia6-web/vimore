@@ -1,3 +1,4 @@
 - [Admin server-side auth guard](admin-auth-guard.md) — serverRoleChecked/serverAuthorized state must be declared before the `isUnauthorized` const in admin/page.tsx
 - [authFetch JWT bridge](auth-fetch.md) — Appwrite SDK uses localStorage (not cookies), so all Next.js API fetch calls must use authFetch which sends a JWT via Authorization header
 - [Verification flow](verification-flow.md) — verify route creates PENDING record, admin approves/rejects via dedicated routes; no optimistic is_verified on client
+- [Music collection permissions](music-permissions.md) — tracks only have owner-level read perms; use admin-backed /api/music/catalog route to bypass
