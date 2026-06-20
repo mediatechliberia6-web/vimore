@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { AlertTriangle, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/auth/", "/terms", "/privacy", "/child-safety", "/marketplace", "/join/"];
+const PUBLIC_PATHS = ["/login", "/signup", "/auth/", "/terms", "/privacy", "/child-safety", "/marketplace", "/join/", "/admin"];
 
 function getActivePath(hookPath: string | null): string {
   if (typeof window !== 'undefined' && window.location.pathname) {

@@ -6,20 +6,7 @@ const SESSION_COOKIE = `a_session_${PROJECT_ID}`;
 const SESSION_COOKIE_LEGACY = `a_session_${PROJECT_ID}_legacy`;
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  if (pathname.startsWith('/admin')) {
-    const hasSession =
-      request.cookies.has(SESSION_COOKIE) ||
-      request.cookies.has(SESSION_COOKIE_LEGACY);
-
-    if (!hasSession) {
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-  }
-
+  // Admin routes handle their own authentication via the Command Core login screen.
   return NextResponse.next();
 }
 

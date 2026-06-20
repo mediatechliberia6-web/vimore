@@ -68,12 +68,12 @@ export async function POST(req: NextRequest) {
     }
 
     const recipientIsVerified = recipientDoc.is_verified === true;
-    const creatorShare = Math.round(cost * (recipientIsVerified ? 0.95 : 0.9) * 100) / 100;
-    const platformFee = Math.round((cost - creatorShare) * 100) / 100;
+    const creatorShare = Math.round(cost * (recipientIsVerified ? 0.95 : 0.9));
+    const platformFee = Math.round(cost - creatorShare);
 
-    const senderNewBalance = parseFloat((senderBalance - cost).toFixed(8));
+    const senderNewBalance = Math.round(senderBalance - cost);
     const recipientCurrentBalance: number = Number(recipientDoc.diamond_balance ?? 0);
-    const recipientNewBalance = parseFloat((recipientCurrentBalance + creatorShare).toFixed(8));
+    const recipientNewBalance = Math.round(recipientCurrentBalance + creatorShare);
 
     // Deduct sender first
     await db.updateDocument(DATABASE_ID, COL.USERS, session.userId, {

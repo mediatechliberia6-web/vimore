@@ -196,6 +196,14 @@ export default function AdminDashboard() {
   const [serverRoleChecked, setServerRoleChecked] = useState(false);
   const [serverAuthorized, setServerAuthorized] = useState<boolean | null>(null);
 
+  // Command Core dedicated login state
+  const [ccIdentifier, setCcIdentifier] = useState("");
+  const [ccPassword, setCcPassword] = useState("");
+  const [ccShowPassword, setCcShowPassword] = useState(false);
+  const [ccLoading, setCcLoading] = useState(false);
+  const [ccError, setCcError] = useState<string | null>(null);
+  const [ccDenied, setCcDenied] = useState(false);
+
   // Use server-confirmed role once available; fall back to client role while checking
   const isUnauthorized = serverRoleChecked ? serverAuthorized === false : userRole === 'USER';
 
@@ -881,11 +889,12 @@ export default function AdminDashboard() {
   };
 
 
-  if (isLoading || !currentUser) {
+  // Show a brief checking state only while the server role check is in flight
+  if (!serverRoleChecked && isUnauthorized) {
     return (
       <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 space-y-4">
         <Loader2 className="h-10 w-10 text-primary animate-spin" />
-        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 animate-pulse">Initializing Alpha Core...</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 animate-pulse">Checking Authorization...</p>
       </div>
     );
   }
@@ -915,33 +924,178 @@ export default function AdminDashboard() {
     verifications: { label: "Verifications", icon: UserVerifyIcon },
   };
 
+  const handleCcLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ccIdentifier.trim() || !ccPassword.trim()) return;
+    setCcLoading(true);
+    setCcError(null);
+    setCcDenied(false);
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: ccIdentifier.trim(), password: ccPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCcError(data.error || 'Authentication failed.');
+        return;
+      }
+      if (!data.authorized) {
+        setCcDenied(true);
+        if (data.session && currentUser?.username) {
+          addAuditLog("UNAUTHORIZED_CORE_ACCESS_ATTEMPT", `Node @${ccIdentifier} attempted Command Core synchronization without sufficient authority.`);
+        }
+        return;
+      }
+      // Store the session so authFetch can use it
+      if (data.session) {
+        try {
+          const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
+          localStorage.setItem(`a_session_${PROJECT_ID}`, JSON.stringify({ secret: data.session }));
+          localStorage.setItem('vimore_cc_session', data.session);
+        } catch { /* ignore */ }
+      }
+      // Grant access directly
+      setServerAuthorized(true);
+      setServerRoleChecked(true);
+    } catch {
+      setCcError('Connection to Command Core failed. Retry.');
+    } finally {
+      setCcLoading(false);
+    }
+  };
+
   if (isUnauthorized) {
+    if (ccDenied) {
+      return (
+        <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center space-y-8 overflow-hidden">
+          <div className="absolute inset-0 pointer-events-none opacity-20">
+            <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-destructive/20 blur-[150px] rounded-full animate-pulse" />
+          </div>
+          <div className="relative">
+            <div className="absolute -inset-8 bg-destructive/10 rounded-full blur-2xl animate-ping opacity-40" />
+            <div className="h-24 w-24 bg-destructive/10 rounded-3xl flex items-center justify-center text-destructive relative z-10 border border-destructive/20 shadow-2xl">
+              <ShieldAlert className="h-12 w-12" />
+            </div>
+          </div>
+          <div className="space-y-3 relative z-10">
+            <h1 className="text-4xl font-black italic uppercase tracking-tighter text-white">Handshake Denied</h1>
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-muted-foreground text-sm max-w-xs uppercase font-bold tracking-widest leading-relaxed">
+                Insufficient spatial authority to synchronize with the MTL Command Core.
+              </p>
+              <Badge variant="outline" className="border-destructive/20 text-destructive text-[8px] font-black uppercase px-2 h-5">BREACH ATTEMPT LOGGED</Badge>
+            </div>
+          </div>
+          <div className="flex gap-3 relative z-10">
+            <Button onClick={() => { setCcDenied(false); setCcError(null); setCcIdentifier(""); setCcPassword(""); }} variant="outline" className="rounded-2xl border-white/10 text-white font-black uppercase italic text-[10px] tracking-[0.3em] h-12 px-8 transition-all hover:bg-white/10 active:scale-95">
+              Try Again
+            </Button>
+            <Link href="/">
+              <Button variant="outline" className="rounded-2xl border-white/10 text-white font-black uppercase italic text-[10px] tracking-[0.3em] h-12 px-8 transition-all hover:bg-white hover:text-black active:scale-95">
+                Return to Network
+              </Button>
+            </Link>
+          </div>
+          <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.5em] pt-12">ViMore Sentry v1.5 • Command Core Active</p>
+        </div>
+      );
+    }
+
     return (
-      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center space-y-8 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none opacity-20">
-          <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-destructive/20 blur-[150px] rounded-full animate-pulse" />
+      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/3 w-[400px] h-[400px] bg-primary/3 blur-[100px] rounded-full animate-pulse delay-1000" />
         </div>
-        <div className="relative">
-          <div className="absolute -inset-8 bg-destructive/10 rounded-full blur-2xl animate-ping opacity-40" />
-          <div className="h-24 w-24 bg-destructive/10 rounded-3xl flex items-center justify-center text-destructive relative z-10 border border-destructive/20 shadow-2xl">
-            <ShieldAlert className="h-12 w-12" />
+        <div className="relative z-10 w-full max-w-sm space-y-8">
+          <div className="text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="h-20 w-20 bg-primary/10 rounded-3xl flex items-center justify-center text-primary border border-primary/20 shadow-2xl shadow-primary/10">
+                <ShieldCheck className="h-10 w-10" />
+              </div>
+            </div>
+            <div>
+              <p className="text-[9px] font-black text-primary uppercase tracking-[0.4em] mb-1">MTL Network</p>
+              <h1 className="text-3xl font-black italic uppercase tracking-tighter text-white leading-none">Command Core</h1>
+              <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mt-2">Restricted Access — Admin Only</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleCcLogin} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-white/40 uppercase tracking-[0.3em]">ViMore ID or Phone</label>
+              <div className="relative">
+                <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                <input
+                  type="text"
+                  value={ccIdentifier}
+                  onChange={e => { setCcIdentifier(e.target.value); setCcError(null); }}
+                  placeholder="yourname or +1 555..."
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl pl-11 pr-4 h-14 text-white placeholder:text-white/20 text-sm font-bold focus:outline-none focus:border-primary/50 focus:bg-white/8 transition-all"
+                  autoComplete="username"
+                  disabled={ccLoading}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-white/40 uppercase tracking-[0.3em]">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                <input
+                  type={ccShowPassword ? "text" : "password"}
+                  value={ccPassword}
+                  onChange={e => { setCcPassword(e.target.value); setCcError(null); }}
+                  placeholder="••••••••"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl pl-11 pr-12 h-14 text-white placeholder:text-white/20 text-sm font-bold focus:outline-none focus:border-primary/50 focus:bg-white/8 transition-all"
+                  autoComplete="current-password"
+                  disabled={ccLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setCcShowPassword(v => !v)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                >
+                  {ccShowPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            {ccError && (
+              <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-3">
+                <ShieldAlert className="h-4 w-4 text-destructive shrink-0" />
+                <p className="text-[11px] font-bold text-destructive">{ccError}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={ccLoading || !ccIdentifier.trim() || !ccPassword.trim()}
+              className="w-full h-14 bg-primary text-white font-black italic uppercase tracking-[0.2em] text-[11px] rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-primary/20 transition-all hover:bg-primary/90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {ccLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Synchronizing...
+                </>
+              ) : (
+                <>
+                  <Zap className="h-4 w-4" />
+                  Synchronize
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="text-center">
+            <Link href="/" className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em] hover:text-white/40 transition-colors">
+              ← Return to Network
+            </Link>
           </div>
         </div>
-        <div className="space-y-3 relative z-10">
-          <h1 className="text-4xl font-black italic uppercase tracking-tighter text-white">Handshake Denied</h1>
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-muted-foreground text-sm max-w-xs uppercase font-bold tracking-widest leading-relaxed">
-              Insufficient spatial authority to synchronize with the MTL Command Core.
-            </p>
-            <Badge variant="outline" className="border-destructive/20 text-destructive text-[8px] font-black uppercase px-2 h-5">BREACH ATTEMPT LOGGED</Badge>
-          </div>
-        </div>
-        <Link href="/" className="relative z-10">
-          <Button variant="outline" className="rounded-2xl border-white/10 text-white font-black uppercase italic text-[10px] tracking-[0.3em] h-14 px-10 transition-all hover:bg-white hover:text-black active:scale-95">
-            Return to Network
-          </Button>
-        </Link>
-        <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.5em] pt-12">ViMore Sentry v1.5 • Command Core Active</p>
+        <p className="absolute bottom-6 text-[8px] font-black text-white/10 uppercase tracking-[0.5em]">ViMore Sentry v1.5 • Command Core Active</p>
       </div>
     );
   }
