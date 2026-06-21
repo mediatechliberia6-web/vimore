@@ -72,9 +72,11 @@ export async function POST(req: NextRequest) {
     const recipientIsVerified = recipientDoc.is_verified === true;
 
     // Platform fee: 10% for verified creators, 20% for unverified
-    // Use Math.floor so the fee is always fully taken before crediting creator
-    const creatorShare = Math.floor(cost * (recipientIsVerified ? 0.90 : 0.80));
-    const platformFee = cost - creatorShare;
+    // Compute fee first with Math.floor so we never over-deduct, then creator gets the rest.
+    // e.g. 10 ◆ verified → fee = floor(10×0.10)=1, creator gets 9
+    // e.g.  1 ◆ verified → fee = floor(1×0.10)=0, creator gets 1 (fee rounds away on tiny gifts)
+    const platformFee = Math.floor(cost * (recipientIsVerified ? 0.10 : 0.20));
+    const creatorShare = cost - platformFee;
 
     const senderNewBalance = senderBalance - cost;
     const recipientCurrentBalance: number = Math.round(Number(recipientDoc.diamond_balance ?? 0));
