@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
 import { getSessionUser } from '@/lib/session';
 import { ID } from 'node-appwrite';
+import { logSecurityEvent, extractRequestMeta } from '@/lib/security-logger';
 
 export const maxDuration = 30;
 
@@ -14,12 +15,15 @@ const COL = {
 };
 
 export async function POST(req: NextRequest) {
+  const meta = extractRequestMeta(req);
   try {
     const session = await getSessionUser(req);
     if (!session) {
+      void logSecurityEvent({ ...meta, event_type: 'ADMIN_AUTH_FAILURE', severity: 'WARN', result: 'blocked', details: 'Unauthenticated verify-approve attempt' });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     if (!ALLOWED_ROLES.has(session.role ?? '')) {
+      void logSecurityEvent({ ...meta, event_type: 'ADMIN_FORBIDDEN', severity: 'CRITICAL', actor_id: session.userId, actor_role: session.role ?? 'none', result: 'blocked', details: 'Insufficient role for verification approval' });
       return NextResponse.json({ error: 'Forbidden — admin role required' }, { status: 403 });
     }
 
@@ -66,8 +70,11 @@ export async function POST(req: NextRequest) {
       });
     } catch { /* non-fatal */ }
 
+    void logSecurityEvent({ ...meta, event_type: 'ADMIN_VERIFY_APPROVE', severity: 'INFO', actor_id: session.userId, actor_role: session.role ?? '', target_id: userId, result: 'success', details: `Verification record ${recordId} approved` });
+
     return NextResponse.json({ ok: true });
   } catch (err: any) {
+    void logSecurityEvent({ ...meta, event_type: 'ADMIN_VERIFY_APPROVE_ERROR', severity: 'ERROR', result: 'failure', details: err?.message ?? 'Unhandled error' });
     return NextResponse.json({ error: err?.message || 'Approval failed' }, { status: 500 });
   }
 }

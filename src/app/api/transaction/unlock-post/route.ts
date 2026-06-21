@@ -3,6 +3,7 @@ import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
 import { getSessionUser } from '@/lib/session';
 import { rateLimit } from '@/lib/rate-limit';
 import { ID, Query } from 'node-appwrite';
+import { logSecurityEvent, extractRequestMeta } from '@/lib/security-logger';
 
 export const maxDuration = 30;
 
@@ -14,15 +15,18 @@ const COL = {
 };
 
 export async function POST(req: NextRequest) {
+  const meta = extractRequestMeta(req);
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const ip = meta.ip_address;
     const rl = rateLimit(`unlock-post:${ip}`, 30, 60_000);
     if (!rl.allowed) {
+      void logSecurityEvent({ ...meta, event_type: 'RATE_LIMITED', severity: 'WARN', result: 'blocked', details: 'Unlock-post rate limit exceeded' });
       return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
     }
 
     const session = await getSessionUser(req);
     if (!session) {
+      void logSecurityEvent({ ...meta, event_type: 'AUTH_FAILURE', severity: 'WARN', result: 'blocked', details: 'Unauthenticated unlock-post attempt' });
       return NextResponse.json({ error: 'You must be logged in to unlock posts.' }, { status: 401 });
     }
 
@@ -82,6 +86,7 @@ export async function POST(req: NextRequest) {
 
     const buyerBalance: number = Math.round(Number(buyerDoc.diamond_balance ?? 0));
     if (buyerBalance < cost) {
+      void logSecurityEvent({ ...meta, event_type: 'UNLOCK_INSUFFICIENT_BALANCE', severity: 'WARN', user_id: session.userId, target_id: postId, amount: cost, currency: 'DIAMOND', result: 'blocked', details: `Balance ${buyerBalance} < cost ${cost}` });
       return NextResponse.json(
         { error: `Insufficient balance. You need ${cost} ◆ but have ${buyerBalance} ◆.` },
         { status: 400 }
@@ -96,9 +101,6 @@ export async function POST(req: NextRequest) {
     const ownerIsVerified = ownerDoc?.is_verified === true;
 
     // Platform fee: 10% for verified creators, 20% for unverified
-    // Compute fee first with Math.floor, creator gets the remainder.
-    // e.g. 10 ◆ verified → fee=1, creator gets 9
-    // e.g.  1 ◆ verified → fee=0, creator gets 1 (fee rounds away on tiny amounts)
     const platformFee = Math.floor(cost * (ownerIsVerified ? 0.10 : 0.20));
     const creatorShare = cost - platformFee;
 
@@ -153,11 +155,15 @@ export async function POST(req: NextRequest) {
           diamond_balance: buyerBalance,
         });
       } catch { /* rollback failed */ }
+      void logSecurityEvent({ ...meta, event_type: 'UNLOCK_FAILED', severity: 'ERROR', user_id: session.userId, target_id: postId, amount: cost, currency: 'DIAMOND', result: 'failure', details: (err as any)?.message ?? 'Unknown error — buyer rolled back' });
       throw err;
     }
 
+    void logSecurityEvent({ ...meta, event_type: 'POST_UNLOCKED', severity: 'INFO', user_id: session.userId, target_id: postId, amount: cost, currency: 'DIAMOND', result: 'success', details: `Fee ${platformFee} ◆ (${ownerIsVerified ? '10' : '20'}%). Creator received ${creatorShare} ◆` });
+
     return NextResponse.json({ ok: true, cost, senderNewBalance: buyerNewBalance });
   } catch (err: any) {
+    void logSecurityEvent({ ...meta, event_type: 'UNLOCK_ERROR', severity: 'ERROR', result: 'failure', details: err?.message ?? 'Unhandled error' });
     return NextResponse.json({ error: err?.message || 'Unlock failed.' }, { status: 500 });
   }
 }

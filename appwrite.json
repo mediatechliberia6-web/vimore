@@ -150,6 +150,36 @@
           "default": false
         }
       ]
+    },
+    {
+      "$id": "security_events",
+      "name": "security_events",
+      "enabled": true,
+      "documentSecurity": false,
+      "attributes": [
+        { "key": "user_id",    "type": "string", "required": false, "size": 64,   "default": null },
+        { "key": "event_type", "type": "string", "required": true,  "size": 64,   "default": null },
+        { "key": "severity",   "type": "string", "required": false, "size": 16,   "default": "INFO" },
+        { "key": "ip_address", "type": "string", "required": false, "size": 64,   "default": null },
+        { "key": "endpoint",   "type": "string", "required": false, "size": 256,  "default": null },
+        { "key": "method",     "type": "string", "required": false, "size": 16,   "default": null },
+        { "key": "user_agent", "type": "string", "required": false, "size": 512,  "default": null },
+        { "key": "details",    "type": "string", "required": false, "size": 4000, "default": null },
+        { "key": "actor_id",   "type": "string", "required": false, "size": 64,   "default": null },
+        { "key": "actor_role", "type": "string", "required": false, "size": 32,   "default": null },
+        { "key": "target_id",  "type": "string", "required": false, "size": 64,   "default": null },
+        { "key": "amount",     "type": "string", "required": false, "size": 32,   "default": null },
+        { "key": "currency",   "type": "string", "required": false, "size": 16,   "default": null },
+        { "key": "result",     "type": "string", "required": false, "size": 16,   "default": "success" }
+      ],
+      "indexes": [
+        { "key": "idx_user_id",    "type": "key", "attributes": ["user_id"],    "orders": ["ASC"]  },
+        { "key": "idx_event_type", "type": "key", "attributes": ["event_type"], "orders": ["ASC"]  },
+        { "key": "idx_severity",   "type": "key", "attributes": ["severity"],   "orders": ["ASC"]  },
+        { "key": "idx_actor_id",   "type": "key", "attributes": ["actor_id"],   "orders": ["ASC"]  },
+        { "key": "idx_created_at", "type": "key", "attributes": ["$createdAt"], "orders": ["DESC"] },
+        { "key": "idx_result",     "type": "key", "attributes": ["result"],     "orders": ["ASC"]  }
+      ]
     }
   ]
 }

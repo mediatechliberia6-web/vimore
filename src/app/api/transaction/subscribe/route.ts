@@ -3,6 +3,7 @@ import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
 import { getSessionUser } from '@/lib/session';
 import { rateLimit } from '@/lib/rate-limit';
 import { ID, Query } from 'node-appwrite';
+import { logSecurityEvent, extractRequestMeta } from '@/lib/security-logger';
 
 export const maxDuration = 30;
 
@@ -14,15 +15,18 @@ const COL = {
 };
 
 export async function POST(req: NextRequest) {
+  const meta = extractRequestMeta(req);
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const ip = meta.ip_address;
     const rl = rateLimit(`subscribe:${ip}`, 10, 60_000);
     if (!rl.allowed) {
+      void logSecurityEvent({ ...meta, event_type: 'RATE_LIMITED', severity: 'WARN', result: 'blocked', details: 'Subscribe rate limit exceeded' });
       return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
     }
 
     const session = await getSessionUser(req);
     if (!session) {
+      void logSecurityEvent({ ...meta, event_type: 'AUTH_FAILURE', severity: 'WARN', result: 'blocked', details: 'Unauthenticated subscribe attempt' });
       return NextResponse.json({ error: 'You must be logged in to subscribe.' }, { status: 401 });
     }
 
@@ -31,6 +35,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'creatorId is required.' }, { status: 400 });
     }
     if (creatorId === session.userId) {
+      void logSecurityEvent({ ...meta, event_type: 'SUBSCRIBE_SELF', severity: 'WARN', user_id: session.userId, result: 'blocked', details: 'Attempted self-subscription' });
       return NextResponse.json({ error: 'Cannot subscribe to yourself.' }, { status: 400 });
     }
 
@@ -56,7 +61,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Use server-side subscription price; fall back to 5 diamonds if not set
-    // diamond_balance is an INTEGER field — round to whole diamonds
     const cost: number = Math.round(Number(creatorDoc.subscription_price ?? creatorDoc.subscriptionPrice ?? 5));
     if (cost <= 0) {
       return NextResponse.json({ error: 'Invalid subscription price.' }, { status: 400 });
@@ -72,6 +76,7 @@ export async function POST(req: NextRequest) {
 
     const subscriberBalance: number = Math.round(Number(subscriberDoc.diamond_balance ?? 0));
     if (subscriberBalance < cost) {
+      void logSecurityEvent({ ...meta, event_type: 'SUBSCRIBE_INSUFFICIENT_BALANCE', severity: 'WARN', user_id: session.userId, target_id: creatorId, amount: cost, currency: 'DIAMOND', result: 'blocked', details: `Balance ${subscriberBalance} < cost ${cost}` });
       return NextResponse.json(
         { error: `Insufficient balance. You need ${cost} ◆ but have ${subscriberBalance} ◆.` },
         { status: 400 }
@@ -81,10 +86,6 @@ export async function POST(req: NextRequest) {
     const creatorIsVerified = creatorDoc.is_verified === true;
 
     // Platform fee: 10% for verified creators, 20% for unverified
-    // Compute fee first with Math.floor, creator gets the remainder.
-    // e.g. 5 ◆ verified → fee=0, creator gets 5
-    // e.g. 10 ◆ verified → fee=1, creator gets 9
-    // e.g. 10 ◆ unverified → fee=2, creator gets 8
     const platformFee = Math.floor(cost * (creatorIsVerified ? 0.10 : 0.20));
     const creatorShare = cost - platformFee;
 
@@ -146,8 +147,11 @@ export async function POST(req: NextRequest) {
           diamond_balance: subscriberBalance,
         });
       } catch { /* rollback failed */ }
+      void logSecurityEvent({ ...meta, event_type: 'SUBSCRIBE_FAILED', severity: 'ERROR', user_id: session.userId, target_id: creatorId, amount: cost, currency: 'DIAMOND', result: 'failure', details: (err as any)?.message ?? 'Unknown error — subscriber rolled back' });
       throw err;
     }
+
+    void logSecurityEvent({ ...meta, event_type: 'SUBSCRIPTION', severity: 'INFO', user_id: session.userId, target_id: creatorId, amount: cost, currency: 'DIAMOND', result: 'success', details: `Fee ${platformFee} ◆ (${creatorIsVerified ? '10' : '20'}%). Creator received ${creatorShare} ◆. Expires ${expiresAt}` });
 
     return NextResponse.json({
       ok: true,
@@ -158,6 +162,7 @@ export async function POST(req: NextRequest) {
       expiresAt,
     });
   } catch (err: any) {
+    void logSecurityEvent({ ...meta, event_type: 'SUBSCRIBE_ERROR', severity: 'ERROR', result: 'failure', details: err?.message ?? 'Unhandled error' });
     return NextResponse.json({ error: err?.message || 'Subscription failed.' }, { status: 500 });
   }
 }

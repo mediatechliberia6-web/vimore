@@ -3,6 +3,7 @@ import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
 import { getSessionUser } from '@/lib/session';
 import { rateLimit } from '@/lib/rate-limit';
 import { ID } from 'node-appwrite';
+import { logSecurityEvent, extractRequestMeta } from '@/lib/security-logger';
 
 export const maxDuration = 30;
 
@@ -17,15 +18,18 @@ const MIN_GIFT = 1;
 const MAX_GIFT = 100_000;
 
 export async function POST(req: NextRequest) {
+  const meta = extractRequestMeta(req);
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const ip = meta.ip_address;
     const rl = rateLimit(`gift:${ip}`, 20, 60_000);
     if (!rl.allowed) {
+      void logSecurityEvent({ ...meta, event_type: 'RATE_LIMITED', severity: 'WARN', result: 'blocked', details: 'Gift rate limit exceeded' });
       return NextResponse.json({ error: 'Too many gift requests. Slow down.' }, { status: 429 });
     }
 
     const session = await getSessionUser(req);
     if (!session) {
+      void logSecurityEvent({ ...meta, event_type: 'AUTH_FAILURE', severity: 'WARN', result: 'blocked', details: 'Unauthenticated gift attempt' });
       return NextResponse.json({ error: 'You must be logged in to send gifts.' }, { status: 401 });
     }
 
@@ -34,12 +38,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'recipientId and amount are required.' }, { status: 400 });
     }
     if (recipientId === session.userId) {
+      void logSecurityEvent({ ...meta, event_type: 'GIFT_SELF', severity: 'WARN', user_id: session.userId, result: 'blocked', details: 'Attempted self-gift' });
       return NextResponse.json({ error: 'Cannot gift yourself.' }, { status: 400 });
     }
 
     // Parse as integer — diamond_balance is an integer field
     const cost = Math.round(Number(amount));
     if (!Number.isFinite(cost) || cost < MIN_GIFT || cost > MAX_GIFT) {
+      void logSecurityEvent({ ...meta, event_type: 'GIFT_INVALID_AMOUNT', severity: 'WARN', user_id: session.userId, amount: cost, currency: 'DIAMOND', result: 'blocked', details: `Amount ${amount} out of range [${MIN_GIFT}, ${MAX_GIFT}]` });
       return NextResponse.json({ error: `Gift amount must be between ${MIN_GIFT} and ${MAX_GIFT} Diamonds.` }, { status: 400 });
     }
 
@@ -55,6 +61,7 @@ export async function POST(req: NextRequest) {
 
     const senderBalance: number = Math.round(Number(senderDoc.diamond_balance ?? 0));
     if (senderBalance < cost) {
+      void logSecurityEvent({ ...meta, event_type: 'GIFT_INSUFFICIENT_BALANCE', severity: 'WARN', user_id: session.userId, target_id: recipientId, amount: cost, currency: 'DIAMOND', result: 'blocked', details: `Balance ${senderBalance} < cost ${cost}` });
       return NextResponse.json(
         { error: `Insufficient balance. You have ${senderBalance} ◆ but tried to send ${cost} ◆.` },
         { status: 400 }
@@ -73,8 +80,6 @@ export async function POST(req: NextRequest) {
 
     // Platform fee: 10% for verified creators, 20% for unverified
     // Compute fee first with Math.floor so we never over-deduct, then creator gets the rest.
-    // e.g. 10 ◆ verified → fee = floor(10×0.10)=1, creator gets 9
-    // e.g.  1 ◆ verified → fee = floor(1×0.10)=0, creator gets 1 (fee rounds away on tiny gifts)
     const platformFee = Math.floor(cost * (recipientIsVerified ? 0.10 : 0.20));
     const creatorShare = cost - platformFee;
 
@@ -131,8 +136,11 @@ export async function POST(req: NextRequest) {
           diamond_balance: senderBalance,
         });
       } catch { /* rollback failed */ }
+      void logSecurityEvent({ ...meta, event_type: 'GIFT_FAILED', severity: 'ERROR', user_id: session.userId, target_id: recipientId, amount: cost, currency: 'DIAMOND', result: 'failure', details: (err as any)?.message ?? 'Unknown error — sender rolled back' });
       throw err;
     }
+
+    void logSecurityEvent({ ...meta, event_type: 'GIFT_SENT', severity: 'INFO', user_id: session.userId, target_id: recipientId, amount: cost, currency: 'DIAMOND', result: 'success', details: `Fee ${platformFee} ◆ (${recipientIsVerified ? '10' : '20'}%). Creator received ${creatorShare} ◆` });
 
     return NextResponse.json({
       ok: true,
@@ -142,6 +150,7 @@ export async function POST(req: NextRequest) {
       platformFee,
     });
   } catch (err: any) {
+    void logSecurityEvent({ ...meta, event_type: 'GIFT_ERROR', severity: 'ERROR', result: 'failure', details: err?.message ?? 'Unhandled error' });
     return NextResponse.json({ error: err?.message || 'Gift failed.' }, { status: 500 });
   }
 }

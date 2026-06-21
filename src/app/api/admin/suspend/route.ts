@@ -3,6 +3,7 @@ import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
 import { getSessionUser } from '@/lib/session';
 import { rateLimit } from '@/lib/rate-limit';
 import { ID } from 'node-appwrite';
+import { logSecurityEvent, extractRequestMeta } from '@/lib/security-logger';
 
 export const maxDuration = 30;
 
@@ -13,18 +14,22 @@ const COL = {
 };
 
 export async function POST(req: NextRequest) {
+  const meta = extractRequestMeta(req);
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const ip = meta.ip_address;
     const rl = rateLimit(`admin:suspend:${ip}`, 20, 60_000);
     if (!rl.allowed) {
+      void logSecurityEvent({ ...meta, event_type: 'RATE_LIMITED', severity: 'WARN', result: 'blocked', details: 'Admin suspend rate limit exceeded' });
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
 
     const session = await getSessionUser(req);
     if (!session) {
+      void logSecurityEvent({ ...meta, event_type: 'ADMIN_AUTH_FAILURE', severity: 'WARN', result: 'blocked', details: 'Unauthenticated admin suspend attempt' });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     if (!ALLOWED_ROLES.has(session.role ?? '')) {
+      void logSecurityEvent({ ...meta, event_type: 'ADMIN_FORBIDDEN', severity: 'CRITICAL', actor_id: session.userId, actor_role: session.role ?? 'none', result: 'blocked', details: 'Insufficient role for suspend action' });
       return NextResponse.json({ error: 'Forbidden — admin role required' }, { status: 403 });
     }
 
@@ -39,6 +44,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (userId === session.userId) {
+      void logSecurityEvent({ ...meta, event_type: 'ADMIN_SELF_SUSPEND', severity: 'WARN', actor_id: session.userId, actor_role: session.role ?? '', result: 'blocked', details: 'Admin attempted to suspend themselves' });
       return NextResponse.json({ error: 'Cannot suspend yourself' }, { status: 400 });
     }
 
@@ -52,6 +58,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (session.role === 'MODERATOR' && targetDoc.role === 'SUPER') {
+      void logSecurityEvent({ ...meta, event_type: 'ADMIN_PRIVILEGE_ESCALATION', severity: 'CRITICAL', actor_id: session.userId, actor_role: session.role, target_id: userId, result: 'blocked', details: 'Moderator attempted to suspend a Super admin' });
       return NextResponse.json({ error: 'Moderators cannot suspend Super admins' }, { status: 403 });
     }
 
@@ -82,8 +89,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    void logSecurityEvent({ ...meta, event_type: 'ADMIN_SUSPEND', severity: 'WARN', actor_id: session.userId, actor_role: session.role ?? '', target_id: userId, result: 'success', details: `${parsedDays} day(s). Reason: ${reason}. Until: ${suspendedUntil}` });
+
     return NextResponse.json({ ok: true, suspendedUntil });
   } catch (err: any) {
+    void logSecurityEvent({ ...meta, event_type: 'ADMIN_SUSPEND_ERROR', severity: 'ERROR', result: 'failure', details: err?.message ?? 'Unhandled error' });
     return NextResponse.json({ error: err?.message || 'Suspension failed' }, { status: 500 });
   }
 }

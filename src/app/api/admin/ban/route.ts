@@ -3,6 +3,7 @@ import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
 import { getSessionUser } from '@/lib/session';
 import { rateLimit } from '@/lib/rate-limit';
 import { ID, Query } from 'node-appwrite';
+import { logSecurityEvent, extractRequestMeta } from '@/lib/security-logger';
 
 export const maxDuration = 30;
 
@@ -14,19 +15,23 @@ const COL = {
 };
 
 export async function POST(req: NextRequest) {
+  const meta = extractRequestMeta(req);
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const ip = meta.ip_address;
     const rl = rateLimit(`admin:ban:${ip}`, 20, 60_000);
     if (!rl.allowed) {
+      void logSecurityEvent({ ...meta, event_type: 'RATE_LIMITED', severity: 'WARN', result: 'blocked', details: 'Admin ban rate limit exceeded' });
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
 
     // Caller identity from session — body carries only the target
     const session = await getSessionUser(req);
     if (!session) {
+      void logSecurityEvent({ ...meta, event_type: 'ADMIN_AUTH_FAILURE', severity: 'WARN', result: 'blocked', details: 'Unauthenticated admin ban attempt' });
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     if (!ALLOWED_ROLES.has(session.role ?? '')) {
+      void logSecurityEvent({ ...meta, event_type: 'ADMIN_FORBIDDEN', severity: 'CRITICAL', actor_id: session.userId, actor_role: session.role ?? 'none', result: 'blocked', details: 'Insufficient role for ban action' });
       return NextResponse.json({ error: 'Forbidden — admin role required' }, { status: 403 });
     }
 
@@ -37,6 +42,7 @@ export async function POST(req: NextRequest) {
 
     // Prevent self-ban
     if (userId === session.userId) {
+      void logSecurityEvent({ ...meta, event_type: 'ADMIN_SELF_BAN', severity: 'WARN', actor_id: session.userId, actor_role: session.role ?? '', result: 'blocked', details: 'Admin attempted to ban themselves' });
       return NextResponse.json({ error: 'Cannot ban yourself' }, { status: 400 });
     }
 
@@ -52,6 +58,7 @@ export async function POST(req: NextRequest) {
 
     // A MODERATOR cannot ban a SUPER admin
     if (session.role === 'MODERATOR' && targetDoc.role === 'SUPER') {
+      void logSecurityEvent({ ...meta, event_type: 'ADMIN_PRIVILEGE_ESCALATION', severity: 'CRITICAL', actor_id: session.userId, actor_role: session.role, target_id: userId, result: 'blocked', details: 'Moderator attempted to ban a Super admin' });
       return NextResponse.json({ error: 'Moderators cannot ban Super admins' }, { status: 403 });
     }
 
@@ -82,7 +89,7 @@ export async function POST(req: NextRequest) {
       );
     } catch { /* non-fatal */ }
 
-    // Audit log
+    // Audit log in user_bans
     await db.createDocument(DATABASE_ID, COL.USER_BANS, ID.unique(), {
       user_id: userId,
       reason: String(reason),
@@ -90,8 +97,11 @@ export async function POST(req: NextRequest) {
       is_permanent: true,
     });
 
+    void logSecurityEvent({ ...meta, event_type: 'ADMIN_BAN', severity: 'WARN', actor_id: session.userId, actor_role: session.role ?? '', target_id: userId, result: 'success', details: `Reason: ${reason}. Note: ${note || 'none'}. Banned by: ${adminDoc?.username || session.userId}` });
+
     return NextResponse.json({ ok: true });
   } catch (err: any) {
+    void logSecurityEvent({ ...meta, event_type: 'ADMIN_BAN_ERROR', severity: 'ERROR', result: 'failure', details: err?.message ?? 'Unhandled error' });
     return NextResponse.json({ error: err?.message || 'Ban failed' }, { status: 500 });
   }
 }
