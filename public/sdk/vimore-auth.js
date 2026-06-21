@@ -77,6 +77,7 @@
         }, 500);
 
         window.addEventListener('message', function handler(event) {
+          if (event.origin !== BASE_URL) return;
           if (event.data && event.data.type === 'vimore_oauth_callback') {
             clearInterval(timer);
             window.removeEventListener('message', handler);
@@ -87,7 +88,13 @@
       });
     }
 
-    btn.innerHTML = LOGO_SVG + '<span class="vimore-btn__text">' + label + '</span>';
+    var span = document.createElement('span');
+    span.className = 'vimore-btn__text';
+    span.textContent = label;
+    var iconEl = document.createElement('span');
+    iconEl.innerHTML = LOGO_SVG;
+    btn.appendChild(iconEl.firstChild);
+    btn.appendChild(span);
 
     if (opts.container) {
       var el = typeof opts.container === 'string'

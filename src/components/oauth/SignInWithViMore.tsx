@@ -59,7 +59,9 @@ export function SignInWithViMore({
       `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`
     );
 
+    const VIMORE_ORIGIN = "https://vimore.cfd";
     const handler = (event: MessageEvent) => {
+      if (event.origin !== VIMORE_ORIGIN) return;
       if (event.data?.type === "vimore_oauth_callback") {
         window.removeEventListener("message", handler);
         win?.close();
