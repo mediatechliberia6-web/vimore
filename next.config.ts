@@ -1,6 +1,31 @@
 import type { NextConfig } from 'next';
 
 const APPWRITE_ENDPOINT = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1').replace(/\/$/, '');
+const APPWRITE_HOST = new URL(APPWRITE_ENDPOINT).origin;
+const IS_DEV = process.env.NODE_ENV !== 'production';
+
+// Build a strict Content Security Policy.
+// unsafe-eval is only permitted in dev (Next.js HMR needs it).
+// unsafe-inline is required by Next.js for its own inline scripts/styles.
+const csp = [
+  `default-src 'self'`,
+  // unsafe-eval removed in production; ad-network script host explicitly whitelisted
+  `script-src 'self' 'unsafe-inline'${IS_DEV ? " 'unsafe-eval'" : ''} https://www.highperformanceformat.com`,
+  `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+  `font-src 'self' data: https://fonts.gstatic.com`,
+  // Appwrite + Agora signalling + push endpoint
+  `connect-src 'self' ${APPWRITE_HOST} wss: ws: https:`,
+  `img-src 'self' data: blob: ${APPWRITE_HOST} https:`,
+  `media-src 'self' blob: ${APPWRITE_HOST} https:`,
+  // Restrict frames to self + ad network only (not all of https:)
+  `frame-src 'self' https://www.highperformanceformat.com`,
+  `worker-src 'self' blob:`,
+  // Harden against common injection vectors
+  `object-src 'none'`,
+  `base-uri 'self'`,
+  `form-action 'self'`,
+  `upgrade-insecure-requests`,
+].join('; ');
 
 const nextConfig: NextConfig = {
   images: {
@@ -12,24 +37,22 @@ const nextConfig: NextConfig = {
       {
         source: '/(.*)',
         headers: [
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              `default-src 'self'`,
-              `script-src 'self' 'unsafe-eval' 'unsafe-inline'`,
-              `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-              `font-src 'self' data: https://fonts.gstatic.com`,
-              `connect-src 'self' ${APPWRITE_ENDPOINT} wss: ws: https:`,
-              `img-src 'self' data: blob: ${APPWRITE_ENDPOINT} https:`,
-              `media-src 'self' blob: ${APPWRITE_ENDPOINT} https:`,
-              `frame-src 'self' https:`,
-              `worker-src 'self' blob:`,
-            ].join('; '),
-          },
-          {
-            key: 'Cross-Origin-Resource-Policy',
-            value: 'cross-origin',
-          },
+          // Content Security Policy
+          { key: 'Content-Security-Policy', value: csp },
+          // Prevent MIME-type sniffing
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          // Only allow this site to frame itself (blocks clickjacking)
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          // Control referrer information sent to other origins
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // Enforce HTTPS for 2 years, including subdomains
+          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+          // Disable sensitive browser APIs that the app does not need globally
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self), payment=(), usb=(), magnetometer=(), gyroscope=()' },
+          // Allow cross-origin embedding of assets (needed for PWA/fonts)
+          { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
+          // Isolate browsing context from other origins
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
         ],
       },
       {
