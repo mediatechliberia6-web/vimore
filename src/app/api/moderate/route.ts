@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rateLimit } from '@/lib/rate-limit';
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
+
+const ALLOWED_COLLECTIONS = new Set([
+  'posts',
+  'reels',
+  'ad_campaigns',
+  'marketplace_listings',
+  'comments',
+]);
 
 const MODERATION_SYSTEM = `You are the ViMore Content Safety AI — a strict, accurate, and fair content moderator for ViMore, a social platform built for African creators.
 
@@ -28,6 +37,8 @@ Be accurate. Cultural expressions, slang, and debate are NOT violations. Output 
 
 async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType: string } | null> {
   try {
+    const parsedUrl = new URL(url);
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) return null;
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return null;
     const contentType = res.headers.get('content-type') || 'image/jpeg';
@@ -42,6 +53,12 @@ async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType
 }
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  const rl = rateLimit(`moderate:${ip}`, 30, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
+  }
+
   const key = process.env.GOOGLE_GEMINI_API_KEY;
   if (!key) {
     console.error('[Moderate] GOOGLE_GEMINI_API_KEY is not set');
@@ -56,6 +73,15 @@ export async function POST(req: NextRequest) {
   }
 
   const { docId, collection, text, userId, mediaUrl } = body;
+
+  if (!ALLOWED_COLLECTIONS.has(collection)) {
+    return NextResponse.json({ error: 'Invalid collection.' }, { status: 400 });
+  }
+
+  if (!docId || typeof docId !== 'string' || docId.length > 64) {
+    return NextResponse.json({ error: 'Invalid docId.' }, { status: 400 });
+  }
+
   if (!text?.trim() && !mediaUrl) return NextResponse.json({ flagged: false });
 
   let modResult: { flagged: boolean; reason: string; severity: string } | null = null;
@@ -73,7 +99,7 @@ export async function POST(req: NextRequest) {
     };
     const parts: any[] = [textPart];
 
-    if (mediaUrl) {
+    if (mediaUrl && typeof mediaUrl === 'string') {
       const imageData = await fetchImageAsBase64(mediaUrl);
       if (imageData) {
         parts.push({ inlineData: { data: imageData.data, mimeType: imageData.mimeType } });
@@ -143,7 +169,7 @@ export async function POST(req: NextRequest) {
 
   if (!API_KEY) {
     console.warn(
-      '[Moderate] APPWRITE_API_KEY is not set — content was flagged but report cannot be created and post status cannot be updated.',
+      '[Moderate] APPWRITE_API_KEY is not set — content was flagged but report cannot be created.',
       `Doc: ${docId}, Reason: ${modResult!.reason}`
     );
     return NextResponse.json({ flagged: true, reason: modResult!.reason, severity: modResult!.severity });
@@ -184,7 +210,7 @@ export async function POST(req: NextRequest) {
   ]);
 
   if (patchRes.status === 'rejected') {
-    console.error('[Moderate] Failed to patch post status to pending_review:', (patchRes as any).reason);
+    console.error('[Moderate] Failed to patch post status:', (patchRes as any).reason);
   } else {
     const patchResponse = (patchRes as any).value;
     if (!patchResponse.ok) {
@@ -201,7 +227,7 @@ export async function POST(req: NextRequest) {
       const reportBody = await reportResponse.text().catch(() => '');
       console.error(`[Moderate] Appwrite report creation returned ${reportResponse.status}:`, reportBody);
     } else {
-      console.log('[Moderate] Admin report created successfully. Report ID:', reportId);
+      console.log('[Moderate] Admin report created. Report ID:', reportId);
     }
   }
 

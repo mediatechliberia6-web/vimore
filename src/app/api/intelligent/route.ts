@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { searchKnowledgeBank, saveToKnowledgeBank } from '@/lib/knowledge-bank';
+import { rateLimit } from '@/lib/rate-limit';
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
@@ -94,6 +95,15 @@ function streamText(text: string): Response {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  const rl = rateLimit(`intelligent:${ip}`, 30, 60_000);
+  if (!rl.allowed) {
+    return new Response(JSON.stringify({ error: 'Too many requests. Please wait a moment.' }), {
+      status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   let body: { messages: { role: string; content: string }[]; userName?: string };
   try {
     body = await req.json();
@@ -106,19 +116,20 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: 'messages required' }), { status: 400 });
   }
 
-  const lastMessage = messages[messages.length - 1];
-  const userQuestion = lastMessage?.content || '';
+  if (messages.length > 50) {
+    return new Response(JSON.stringify({ error: 'Too many messages in context' }), { status: 400 });
+  }
 
-  // Step 1 — search the knowledge bank first (fast path)
+  const lastMessage = messages[messages.length - 1];
+  const userQuestion = String(lastMessage?.content || '').slice(0, 2000);
+
   const cached = await searchKnowledgeBank(userQuestion);
   if (cached && cached.score >= 0.72) {
-    // High confidence match — serve immediately from knowledge bank
     return streamText(cached.answer);
   }
 
   const key = process.env.GOOGLE_GEMINI_API_KEY;
 
-  // Step 2 — no API key, fall back to lower-threshold cache or error
   if (!key) {
     if (cached) return streamText(cached.answer);
     return new Response(
@@ -128,7 +139,7 @@ export async function POST(req: NextRequest) {
   }
 
   const systemPrompt = userName
-    ? `${VIMORE_SYSTEM_PROMPT}\n\nThe user you are speaking with is named "${userName}". Address them by their first name naturally in conversation.`
+    ? `${VIMORE_SYSTEM_PROMPT}\n\nThe user you are speaking with is named "${String(userName).slice(0, 50)}". Address them by their first name naturally in conversation.`
     : VIMORE_SYSTEM_PROMPT;
 
   try {
@@ -141,7 +152,7 @@ export async function POST(req: NextRequest) {
 
     const history = messages.slice(0, -1).map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
+      parts: [{ text: String(m.content).slice(0, 2000) }],
     }));
 
     const chat = model.startChat({ history });
@@ -164,7 +175,6 @@ export async function POST(req: NextRequest) {
           console.error('[Gemini stream error]', err);
         } finally {
           controller.close();
-          // Step 3 — save to knowledge bank in background after stream ends
           if (fullAnswer.length >= 80 && userQuestion.length >= 8) {
             saveToKnowledgeBank(userQuestion, fullAnswer).catch(() => {});
           }
@@ -189,7 +199,6 @@ export async function POST(req: NextRequest) {
       String(err?.message || '').includes('quota') ||
       String(err?.message || '').includes('RESOURCE_EXHAUSTED');
 
-    // Step 4 — quota exceeded: fall back to knowledge bank at any match threshold
     if (isQuota) {
       if (cached) return streamText(cached.answer);
       return new Response(
@@ -198,7 +207,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Step 5 — any other error: try knowledge bank before giving up
     if (cached) return streamText(cached.answer);
 
     return new Response(

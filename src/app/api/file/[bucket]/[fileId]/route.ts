@@ -1,10 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 20;
 
 const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1';
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
+
+const ALLOWED_BUCKETS = new Set([
+  'profile_images',
+  'post_images',
+  'reel_videos',
+  'music_tracks',
+  'album_covers',
+  'marketplace_images',
+  'ad_media',
+  'story_media',
+  'message_attachments',
+  'event_banners',
+  'verification_docs',
+]);
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -24,8 +39,22 @@ export async function GET(
 ) {
   const { bucket, fileId } = await params;
 
-  if (!bucket || !fileId || !APPWRITE_ENDPOINT || !PROJECT_ID) {
+  if (!ALLOWED_BUCKETS.has(bucket)) {
+    return new NextResponse(null, { status: 404 });
+  }
+
+  if (!fileId || typeof fileId !== 'string' || !/^[a-zA-Z0-9._-]{1,64}$/.test(fileId)) {
     return new NextResponse(null, { status: 400 });
+  }
+
+  if (!APPWRITE_ENDPOINT || !PROJECT_ID) {
+    return new NextResponse(null, { status: 503 });
+  }
+
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  const rl = rateLimit(`file-proxy:${ip}`, 120, 60_000);
+  if (!rl.allowed) {
+    return new NextResponse(null, { status: 429 });
   }
 
   const appwriteUrl = `${APPWRITE_ENDPOINT}/storage/buckets/${bucket}/files/${fileId}/view?project=${PROJECT_ID}`;

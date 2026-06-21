@@ -27,10 +27,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'postId is required.' }, { status: 400 });
     }
 
-    const price = parseFloat(unlockPrice);
-    if (!Number.isFinite(price) || price < MIN_LOCK_PRICE || price > MAX_LOCK_PRICE) {
+    const rawPrice = Number(unlockPrice);
+    const price = Math.round(rawPrice);
+    if (!Number.isFinite(rawPrice) || price < MIN_LOCK_PRICE || price > MAX_LOCK_PRICE) {
       return NextResponse.json(
-        { error: `Unlock price must be between ${MIN_LOCK_PRICE} and ${MAX_LOCK_PRICE} Diamonds.` },
+        { error: `Unlock price must be between ${MIN_LOCK_PRICE} and ${MAX_LOCK_PRICE} Gold.` },
         { status: 400 }
       );
     }
@@ -61,6 +62,12 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const rl = rateLimit(`unlock-post:${ip}`, 30, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
+    }
+
     const session = await getSessionUser(req);
     if (!session) {
       return NextResponse.json({ error: 'You must be logged in.' }, { status: 401 });

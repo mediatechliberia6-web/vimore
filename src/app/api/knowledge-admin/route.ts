@@ -1,37 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSessionUser } from '@/lib/session';
+import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
+import { rateLimit } from '@/lib/rate-limit';
 
-const ENDPOINT = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1').replace(/\/$/, '');
-const PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
-const DB = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || process.env.APPWRITE_DATABASE_ID || 'vimoreprod';
 const COLLECTION = 'ai_knowledge_bank';
 
-function getHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    'X-Appwrite-Project': PROJECT,
-    'X-Appwrite-Key': process.env.APPWRITE_API_KEY || '',
-  };
-}
-
 export async function GET(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  const rl = rateLimit(`knowledge-admin:${ip}`, 30, 60_000);
+  if (!rl.allowed) return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
+
+  const session = await getSessionUser(req);
+  if (!session || session.role !== 'SUPER') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   if (!process.env.APPWRITE_API_KEY) {
     return NextResponse.json({ error: 'Not configured' }, { status: 503 });
   }
 
   const { searchParams } = new URL(req.url);
   const limit = Math.min(100, parseInt(searchParams.get('limit') || '50'));
-  const offset = parseInt(searchParams.get('offset') || '0');
+  const offset = Math.max(0, parseInt(searchParams.get('offset') || '0'));
 
   try {
-    const res = await fetch(
-      `${ENDPOINT}/databases/${DB}/collections/${COLLECTION}/documents?limit=${limit}&offset=${offset}`,
-      { headers: getHeaders(), cache: 'no-store' }
-    );
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      return NextResponse.json({ error: err.message || 'Fetch failed' }, { status: res.status });
-    }
-    const data = await res.json();
+    const db = getAdminDatabases();
+    const data = await db.listDocuments(DATABASE_ID, COLLECTION, []);
     return NextResponse.json(data);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -39,6 +33,15 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  const rl = rateLimit(`knowledge-admin-del:${ip}`, 20, 60_000);
+  if (!rl.allowed) return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
+
+  const session = await getSessionUser(req);
+  if (!session || session.role !== 'SUPER') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   if (!process.env.APPWRITE_API_KEY) {
     return NextResponse.json({ error: 'Not configured' }, { status: 503 });
   }
@@ -46,19 +49,13 @@ export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const docId = searchParams.get('id');
 
-  if (!docId) {
+  if (!docId || typeof docId !== 'string' || docId.length > 64) {
     return NextResponse.json({ error: 'id required' }, { status: 400 });
   }
 
   try {
-    const res = await fetch(
-      `${ENDPOINT}/databases/${DB}/collections/${COLLECTION}/documents/${docId}`,
-      { method: 'DELETE', headers: getHeaders() }
-    );
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      return NextResponse.json({ error: err.message || 'Delete failed' }, { status: res.status });
-    }
+    const db = getAdminDatabases();
+    await db.deleteDocument(DATABASE_ID, COLLECTION, docId);
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

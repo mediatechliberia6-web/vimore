@@ -1,30 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Client, Databases, Query } from 'node-appwrite';
-
-const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1';
-const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
-const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'vimoreprod';
-const API_KEY = process.env.APPWRITE_API_KEY || '';
+import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
+import { getSessionUser } from '@/lib/session';
+import { rateLimit } from '@/lib/rate-limit';
+import { Query } from 'node-appwrite';
 
 const AI_CONVERSATIONS = 'AI_CONVERSATIONS';
 const AI_MESSAGES = 'AI_MESSAGES';
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { conversationId, userId } = await req.json();
-    if (!conversationId || !userId) {
-      return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const rl = rateLimit(`intelligent-delete:${ip}`, 20, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
     }
 
-    const client = new Client()
-      .setEndpoint(APPWRITE_ENDPOINT)
-      .setProject(PROJECT_ID)
-      .setKey(API_KEY);
+    const session = await getSessionUser(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    const db = new Databases(client);
+    const { conversationId } = await req.json();
+    if (!conversationId) {
+      return NextResponse.json({ error: 'Missing conversationId' }, { status: 400 });
+    }
+
+    const db = getAdminDatabases();
 
     const conv = await db.getDocument(DATABASE_ID, AI_CONVERSATIONS, conversationId);
-    if (conv.user_id !== userId) {
+    if (conv.user_id !== session.userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

@@ -40,9 +40,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'currency must be DIAMOND or STAR.' }, { status: 400 });
     }
 
-    const parsedCost = parseFloat(cost);
+    const rawCost = Number(cost);
+    const parsedCost = Math.round(rawCost);
     const minCost = MIN_VERIFY_COST[normalizedCurrency] ?? 1;
-    if (!Number.isFinite(parsedCost) || parsedCost < minCost) {
+    if (!Number.isFinite(rawCost) || parsedCost < minCost) {
       return NextResponse.json(
         { error: `Verification requires at least ${minCost} ${normalizedCurrency}.` },
         { status: 400 }
@@ -62,7 +63,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, alreadyVerified: true });
     }
 
-    // Check for existing PENDING verification — prevent duplicate submissions
     const existingPending = await db.listDocuments(DATABASE_ID, COL.VERIFICATION_RECORDS, [
       Query.equal('user_id', session.userId),
       Query.equal('status', 'PENDING'),
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     }
 
     const balanceField = normalizedCurrency === 'DIAMOND' ? 'diamond_balance' : 'star_balance';
-    const currentBalance: number = Number(userDoc[balanceField] ?? 0);
+    const currentBalance: number = Math.round(Number(userDoc[balanceField] ?? 0));
 
     if (currentBalance < parsedCost) {
       return NextResponse.json(
@@ -82,16 +82,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const newBalance = parseFloat((currentBalance - parsedCost).toFixed(8));
+    const newBalance = currentBalance - parsedCost;
 
-    // Deduct balance — hold the fee until admin decides
     await db.updateDocument(DATABASE_ID, COL.USERS, session.userId, {
       [balanceField]: newBalance,
     });
 
     try {
       await Promise.all([
-        // Create PENDING record — admin must approve before is_verified is set
         db.createDocument(DATABASE_ID, COL.VERIFICATION_RECORDS, ID.unique(), {
           user_id: session.userId,
           type: 'CREATOR',
@@ -109,12 +107,11 @@ export async function POST(req: NextRequest) {
         } as any),
       ]);
     } catch {
-      // Best-effort rollback if record creation fails
       try {
         await db.updateDocument(DATABASE_ID, COL.USERS, session.userId, {
           [balanceField]: currentBalance,
         });
-      } catch { /* rollback failed */ }
+      } catch { }
       throw new Error('Failed to create verification record.');
     }
 

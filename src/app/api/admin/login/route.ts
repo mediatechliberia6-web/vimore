@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
+import { rateLimit } from '@/lib/rate-limit';
 import { Query } from 'node-appwrite';
 
 export const maxDuration = 20;
@@ -10,14 +11,29 @@ const ADMIN_ROLES = new Set(['SUPER', 'FINANCIAL', 'MODERATOR']);
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const rl = rateLimit(`admin-login:${ip}`, 5, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: 'Too many login attempts. Please wait 1 minute before trying again.' },
+        { status: 429 }
+      );
+    }
+
     const { identifier, password } = await req.json();
     if (!identifier || !password) {
       return NextResponse.json({ error: 'Identifier and password are required.' }, { status: 400 });
     }
 
+    if (typeof identifier !== 'string' || identifier.length > 256) {
+      return NextResponse.json({ error: 'Invalid identifier.' }, { status: 400 });
+    }
+    if (typeof password !== 'string' || password.length > 256) {
+      return NextResponse.json({ error: 'Invalid password.' }, { status: 400 });
+    }
+
     const db = getAdminDatabases();
 
-    // Resolve email from username or phone
     let email: string | null = null;
     try {
       const byUsername = await db.listDocuments(DATABASE_ID, 'users', [
@@ -27,7 +43,7 @@ export async function POST(req: NextRequest) {
       if (byUsername.documents.length > 0) {
         email = byUsername.documents[0].email ?? null;
       }
-    } catch { /* ignore */ }
+    } catch { }
 
     if (!email && identifier.includes('@') && !identifier.includes('.cfd')) {
       email = identifier;
@@ -42,14 +58,13 @@ export async function POST(req: NextRequest) {
         if (byPhone.documents.length > 0) {
           email = byPhone.documents[0].email ?? null;
         }
-      } catch { /* ignore */ }
+      } catch { }
     }
 
     if (!email) {
       return NextResponse.json({ error: 'Account not found.' }, { status: 404 });
     }
 
-    // Create session via Appwrite REST API
     const sessionRes = await fetch(`${ENDPOINT}/account/sessions/email`, {
       method: 'POST',
       headers: {
@@ -71,7 +86,6 @@ export async function POST(req: NextRequest) {
     const sessionData = await sessionRes.json();
     const sessionSecret: string = sessionData.secret ?? sessionData.$id ?? '';
 
-    // Verify admin role using the new session
     const accountRes = await fetch(`${ENDPOINT}/account`, {
       headers: {
         'X-Appwrite-Project': PROJECT_ID,
@@ -90,7 +104,7 @@ export async function POST(req: NextRequest) {
     try {
       const userDoc = await db.getDocument(DATABASE_ID, 'users', userId);
       role = userDoc?.role ?? 'USER';
-    } catch { /* no role doc */ }
+    } catch { }
 
     const authorized = ADMIN_ROLES.has(role);
 
