@@ -148,8 +148,9 @@ import {
 } from "@/components/ui/dialog";
 import { AdminTicketTab } from "@/components/tickets/AdminTicketTab";
 import { AdminCheckTicketTab } from "@/components/tickets/AdminCheckTicketTab";
+import { SecurityEventsTab } from "@/components/admin/SecurityEventsTab";
 
-type AdminTab = "economy" | "safety" | "campaigns" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury" | "referrals" | "knowledge" | "sync" | "verifications";
+type AdminTab = "economy" | "safety" | "campaigns" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury" | "referrals" | "knowledge" | "sync" | "verifications" | "security";
 
 interface TreasurySnapshot {
   totalUsers: number;
@@ -436,10 +437,10 @@ export default function AdminDashboard() {
   }, [allUsers]);
 
   const availableTabs = useMemo(() => {
-    if (isSuper) return ["economy", "treasury", "referrals", "safety", "users", "broadcast", "campaigns", "tickets", "check_ticket", "resolution", "verifications", "logs", "staff", "knowledge", "sync"] as AdminTab[];
+    if (isSuper) return ["economy", "treasury", "referrals", "safety", "users", "broadcast", "campaigns", "tickets", "check_ticket", "resolution", "verifications", "logs", "staff", "knowledge", "sync", "security"] as AdminTab[];
     const tabs: AdminTab[] = ["logs"];
     if (isFinancial) tabs.push("economy", "treasury");
-    if (isModerator) tabs.push("safety", "users", "campaigns", "resolution", "tickets", "check_ticket");
+    if (isModerator) tabs.push("safety", "users", "campaigns", "resolution", "tickets", "check_ticket", "security");
     return tabs;
   }, [isSuper, isFinancial, isModerator]);
 
@@ -922,6 +923,7 @@ export default function AdminDashboard() {
     knowledge: { label: "Knowledge", icon: BookOpen },
     sync: { label: "Sync", icon: RefreshCcw },
     verifications: { label: "Verifications", icon: UserVerifyIcon },
+    security: { label: "Security", icon: ShieldAlert },
   };
 
   const handleCcLogin = async (e: React.FormEvent) => {
@@ -3241,6 +3243,11 @@ export default function AdminDashboard() {
                 Count Sync v1 · SUPER Admin Only · Safe to re-run anytime
               </p>
             </div>
+          )}
+
+          {/* ── SECURITY EVENTS TAB ── */}
+          {activeTab === 'security' && (
+            <SecurityEventsTab />
           )}
         </div>
       </main>
