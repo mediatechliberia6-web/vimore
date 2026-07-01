@@ -30,6 +30,7 @@ import { PwaInstallPrompt } from "@/components/layout/pwa-install-prompt";
 import { AppBadgeSync } from "@/components/layout/app-badge-sync";
 import { PullToRefresh } from "@/components/layout/pull-to-refresh";
 import { ActivityTracker } from "@/components/layout/ActivityTracker";
+import { ExpiryCleanup } from "@/components/layout/expiry-cleanup";
 import { PushAutoSubscribe } from "@/components/layout/push-auto-subscribe";
 import { NotificationScheduler } from "@/components/layout/notification-scheduler";
 import { GlobalRealtimeListener } from "@/components/layout/global-realtime";
@@ -275,6 +276,7 @@ export default async function RootLayout({
                                 <PushAutoSubscribe />
                                 <PullToRefresh />
                                 <ActivityTracker />
+                                <ExpiryCleanup />
                                 {children}
                                 <MusicPlayer />
                                 <AlbumDetail />

@@ -573,12 +573,14 @@ export default function AdminDashboard() {
   };
 
   // Auto-expire campaigns that have passed their end date
+  // Field stored in Appwrite is `expires_at` (not `end_date`)
   useEffect(() => {
     const checkExpiry = () => {
       const now = new Date();
       campaigns.forEach((c: any) => {
-        if (c.is_active && c.end_date) {
-          const endDate = new Date(c.end_date);
+        const expiryField = c.expires_at || c.end_date;
+        if (c.is_active && expiryField) {
+          const endDate = new Date(expiryField);
           if (endDate <= now) {
             toggleCampaignStatus(c.$id);
           }
