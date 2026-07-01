@@ -58,6 +58,7 @@ import {
   ListMusic,
   Hammer,
   RotateCcw,
+  Bell,
   Download,
   Megaphone,
   Palette,
@@ -150,7 +151,7 @@ import { AdminTicketTab } from "@/components/tickets/AdminTicketTab";
 import { AdminCheckTicketTab } from "@/components/tickets/AdminCheckTicketTab";
 import { SecurityEventsTab } from "@/components/admin/SecurityEventsTab";
 
-type AdminTab = "economy" | "safety" | "campaigns" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury" | "referrals" | "knowledge" | "sync" | "verifications" | "security" | "active_users";
+type AdminTab = "economy" | "safety" | "campaigns" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury" | "referrals" | "knowledge" | "sync" | "verifications" | "security" | "active_users" | "cleanup";
 
 interface TreasurySnapshot {
   totalUsers: number;
@@ -272,6 +273,13 @@ export default function AdminDashboard() {
   const [verificationRejectReason, setVerificationRejectReason] = useState('');
   const [verificationRejectTarget, setVerificationRejectTarget] = useState<any | null>(null);
   const [isProcessingVerification, setIsProcessingVerification] = useState(false);
+
+  // Cleanup tab state (Super + Moderator)
+  const [cleanupResult, setCleanupResult] = useState<{ postBoosts: number; trackBoosts: number; verifications: number; campaigns: number } | null>(null);
+  const [alertResult, setAlertResult] = useState<{ posts: number; tracks: number; users: number } | null>(null);
+  const [isRunningCleanup, setIsRunningCleanup] = useState(false);
+  const [isRunningAlerts, setIsRunningAlerts] = useState(false);
+  const [cleanupLastRun, setCleanupLastRun] = useState<Date | null>(null);
 
   // Active Users tab state (SUPER admin only)
   const [activeUsersData, setActiveUsersData] = useState<{
@@ -446,10 +454,10 @@ export default function AdminDashboard() {
   }, [allUsers]);
 
   const availableTabs = useMemo(() => {
-    if (isSuper) return ["economy", "treasury", "referrals", "safety", "users", "broadcast", "campaigns", "tickets", "check_ticket", "resolution", "verifications", "logs", "staff", "knowledge", "active_users", "sync", "security"] as AdminTab[];
+    if (isSuper) return ["economy", "treasury", "referrals", "safety", "users", "broadcast", "campaigns", "tickets", "check_ticket", "resolution", "verifications", "logs", "staff", "knowledge", "active_users", "cleanup", "sync", "security"] as AdminTab[];
     const tabs: AdminTab[] = ["logs"];
     if (isFinancial) tabs.push("economy", "treasury");
-    if (isModerator) tabs.push("safety", "users", "campaigns", "resolution", "tickets", "check_ticket", "security");
+    if (isModerator) tabs.push("safety", "users", "campaigns", "resolution", "tickets", "check_ticket", "security", "cleanup");
     return tabs;
   }, [isSuper, isFinancial, isModerator]);
 
@@ -954,6 +962,7 @@ export default function AdminDashboard() {
     verifications: { label: "Verifications", icon: UserVerifyIcon },
     security: { label: "Security", icon: ShieldAlert },
     active_users: { label: "Active Users", icon: Activity },
+    cleanup: { label: "Cleanup", icon: RotateCcw },
   };
 
   const handleCcLogin = async (e: React.FormEvent) => {
@@ -3451,6 +3460,166 @@ export default function AdminDashboard() {
 
               <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/40 text-center pb-4">
                 Active User Intelligence v1 · Super Admin Only · Updates on each user visit
+              </p>
+            </div>
+          )}
+
+          {/* ── CLEANUP TAB ── */}
+          {activeTab === 'cleanup' && (
+            <div className="p-6 space-y-6 max-w-4xl mx-auto">
+              {/* Header */}
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 bg-orange-500/10 rounded-3xl flex items-center justify-center border border-orange-500/20 shrink-0">
+                  <RotateCcw className="h-7 w-7 text-orange-400" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">Cleanup Center</h3>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-0.5">Manually reset expired boosts, verifications & campaigns · Moderator + Super Admin</p>
+                </div>
+              </div>
+
+              {/* Info banner */}
+              <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 text-sm text-orange-300 font-bold leading-relaxed">
+                ⚡ These tools let you immediately remove expired flags from the database. The automated cleanup runs every 15 min in the background — use this tab to force an instant reset or send expiry alerts to users right now.
+              </div>
+
+              {/* Action cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Cleanup card */}
+                <Card className="rounded-3xl border-border/40 bg-card/40">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2">
+                      <RotateCcw className="h-4 w-4 text-orange-400" />
+                      Run Expiry Cleanup
+                    </CardTitle>
+                    <p className="text-[11px] text-muted-foreground font-bold leading-relaxed">
+                      Finds all expired boosts, verification badges, and ad campaigns and resets them to inactive — instantly.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {cleanupResult && (
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { label: 'Post Boosts Reset', value: cleanupResult.postBoosts, color: 'text-orange-400' },
+                          { label: 'Track Boosts Reset', value: cleanupResult.trackBoosts, color: 'text-violet-400' },
+                          { label: 'Badges Revoked', value: cleanupResult.verifications, color: 'text-blue-400' },
+                          { label: 'Campaigns Ended', value: cleanupResult.campaigns, color: 'text-rose-400' },
+                        ].map((item) => (
+                          <div key={item.label} className="rounded-2xl border border-border/30 bg-secondary/20 p-3 text-center">
+                            <p className={`text-2xl font-black ${item.color}`}>{item.value}</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">{item.label}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {cleanupLastRun && (
+                      <p className="text-[10px] font-bold text-muted-foreground">
+                        Last run: {cleanupLastRun.toLocaleString()}
+                      </p>
+                    )}
+                    <Button
+                      className="w-full rounded-2xl h-11 font-black uppercase text-[11px] bg-orange-500 hover:bg-orange-600 text-white"
+                      disabled={isRunningCleanup}
+                      onClick={async () => {
+                        setIsRunningCleanup(true);
+                        try {
+                          const res = await fetch('/api/cron/cleanup');
+                          if (res.ok) {
+                            const data = await res.json();
+                            setCleanupResult(data.reset);
+                            setCleanupLastRun(new Date());
+                          }
+                        } catch { /* ignore */ } finally { setIsRunningCleanup(false); }
+                      }}
+                    >
+                      {isRunningCleanup ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Running…</> : <><RotateCcw className="h-4 w-4 mr-2" />Run Cleanup Now</>}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Expiry alerts card */}
+                <Card className="rounded-3xl border-border/40 bg-card/40">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2">
+                      <Bell className="h-4 w-4 text-amber-400" />
+                      Send Expiry Alerts
+                    </CardTitle>
+                    <p className="text-[11px] text-muted-foreground font-bold leading-relaxed">
+                      Notifies users whose boosts or verification badges expire in the next 72 hours — so they can renew before losing visibility.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {alertResult && (
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { label: 'Post Owners', value: alertResult.posts, color: 'text-amber-400' },
+                          { label: 'Track Owners', value: alertResult.tracks, color: 'text-violet-400' },
+                          { label: 'Creators', value: alertResult.users, color: 'text-blue-400' },
+                        ].map((item) => (
+                          <div key={item.label} className="rounded-2xl border border-border/30 bg-secondary/20 p-3 text-center">
+                            <p className={`text-2xl font-black ${item.color}`}>{item.value}</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">{item.label}</p>
+                          </div>
+                        ))}
+                        <p className="col-span-3 text-[10px] font-bold text-muted-foreground">
+                          Alerts already sent in the last 20 hours are skipped automatically.
+                        </p>
+                      </div>
+                    )}
+                    <Button
+                      className="w-full rounded-2xl h-11 font-black uppercase text-[11px] bg-amber-500 hover:bg-amber-600 text-white"
+                      disabled={isRunningAlerts}
+                      onClick={async () => {
+                        setIsRunningAlerts(true);
+                        try {
+                          const res = await fetch('/api/cron/expiry-alerts');
+                          if (res.ok) {
+                            const data = await res.json();
+                            setAlertResult(data.sent);
+                          }
+                        } catch { /* ignore */ } finally { setIsRunningAlerts(false); }
+                      }}
+                    >
+                      {isRunningAlerts ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Sending…</> : <><Bell className="h-4 w-4 mr-2" />Send Expiry Alerts Now</>}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* What gets cleaned table */}
+              <Card className="rounded-3xl border-border/40 bg-card/40">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-black italic uppercase tracking-widest">What Gets Cleaned</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border/40">
+                        <th className="text-left px-5 py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground">Target</th>
+                        <th className="text-left px-5 py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground">Condition</th>
+                        <th className="text-left px-5 py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { target: '🚀 Post Boosts', condition: 'is_boosted = true AND boost_expiry < now', action: 'Set is_boosted = false', color: 'text-orange-400' },
+                        { target: '🎵 Track Boosts', condition: 'is_boosted = true AND boost_expiry < now', action: 'Set is_boosted = false', color: 'text-violet-400' },
+                        { target: '✅ Verification Badges', condition: 'is_verified = true AND verification_expiry < now', action: 'Set is_verified = false', color: 'text-blue-400' },
+                        { target: '📣 Ad Campaigns', condition: 'is_active = true AND expires_at < now', action: 'Set is_active = false', color: 'text-rose-400' },
+                      ].map((row) => (
+                        <tr key={row.target} className="border-b border-border/20 hover:bg-secondary/20 transition-colors">
+                          <td className="px-5 py-3 font-black text-foreground">{row.target}</td>
+                          <td className="px-5 py-3 font-mono text-[10px] text-muted-foreground">{row.condition}</td>
+                          <td className={`px-5 py-3 font-black ${row.color}`}>{row.action}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+
+              <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/40 text-center pb-4">
+                Cleanup Center v1 · Moderator & Super Admin · Auto-runs every 15 min via scheduler
               </p>
             </div>
           )}
