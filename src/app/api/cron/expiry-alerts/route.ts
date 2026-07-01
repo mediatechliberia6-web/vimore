@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Query, ID } from 'node-appwrite';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
+import { getSessionUser } from '@/lib/session';
 
 const COL = {
   POSTS: 'posts',
@@ -10,8 +11,15 @@ const COL = {
 };
 
 const ALERT_TYPE = 'EXPIRY_ALERT';
-const WINDOW_MS = 72 * 60 * 60 * 1000; // alert if expiring within 72 hours
-const DEDUP_HOURS = 20; // don't resend if already sent within 20 hours
+const WINDOW_MS = 72 * 60 * 60 * 1000;
+const DEDUP_HOURS = 20;
+
+function isTrustedCron(req: NextRequest): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false;
+  const auth = req.headers.get('authorization') || '';
+  return auth === `Bearer ${secret}`;
+}
 
 async function alreadyAlerted(
   db: ReturnType<typeof getAdminDatabases>,
@@ -60,13 +68,21 @@ function hoursLeft(expiry: number): number {
 }
 
 export async function GET(req: NextRequest) {
+  const trusted = isTrustedCron(req);
+  if (!trusted) {
+    const session = await getSessionUser(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
+
   try {
     const db = getAdminDatabases();
     const now = Date.now();
     const windowEnd = now + WINDOW_MS;
     let postAlerts = 0, trackAlerts = 0, userAlerts = 0;
 
-    // ── Boosted posts expiring soon ─────────────────────────────────────────
+    // Boosted posts expiring soon
     {
       let cursor: string | undefined;
       do {
@@ -89,7 +105,7 @@ export async function GET(req: NextRequest) {
       } while (cursor);
     }
 
-    // ── Boosted tracks expiring soon ────────────────────────────────────────
+    // Boosted tracks expiring soon
     {
       let cursor: string | undefined;
       do {
@@ -112,7 +128,7 @@ export async function GET(req: NextRequest) {
       } while (cursor);
     }
 
-    // ── Verification badges expiring soon ───────────────────────────────────
+    // Verification badges expiring soon
     {
       let cursor: string | undefined;
       do {
@@ -135,12 +151,11 @@ export async function GET(req: NextRequest) {
 
     const sent = { posts: postAlerts, tracks: trackAlerts, users: userAlerts };
     if (postAlerts + trackAlerts + userAlerts > 0) {
-      console.log('[ExpiryAlerts] Notifications sent:', sent);
+      console.log('[ExpiryAlerts] Sent:', sent);
     }
-
     return NextResponse.json({ ok: true, sent });
   } catch (err: any) {
     console.error('[ExpiryAlerts] Error:', err?.message);
-    return NextResponse.json({ error: 'Alert failed', detail: err?.message }, { status: 500 });
+    return NextResponse.json({ error: 'Alert failed' }, { status: 500 });
   }
 }

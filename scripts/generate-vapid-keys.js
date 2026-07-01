@@ -34,13 +34,20 @@ function writeEnvLocal(map) {
   fs.writeFileSync(ENV_LOCAL, content, 'utf8');
 }
 
+/** Redact a key for display — show first 6 and last 4 chars only. */
+function redact(val) {
+  if (!val || val.length < 12) return '***';
+  return val.slice(0, 6) + '…' + val.slice(-4);
+}
+
 const existing = readEnvLocal();
 
 const alreadySet = KEYS.every(k => existing[k] && existing[k].length > 0);
 if (alreadySet) {
   console.log('\n✅  VAPID keys already exist in .env.local — no changes made.\n');
   console.log('   NEXT_PUBLIC_VAPID_PUBLIC_KEY =', existing['NEXT_PUBLIC_VAPID_PUBLIC_KEY']);
-  console.log('   VAPID_PRIVATE_KEY            =', existing['VAPID_PRIVATE_KEY']);
+  // Never print the private key in full — show only a redacted preview
+  console.log('   VAPID_PRIVATE_KEY            =', redact(existing['VAPID_PRIVATE_KEY']), '(redacted — see .env.local)');
   console.log('   VAPID_SUBJECT                =', existing['VAPID_SUBJECT']);
   console.log('\n   To regenerate, delete those three lines from .env.local and run again.\n');
   process.exit(0);
@@ -60,7 +67,9 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
 console.log('  Copy these into Vercel → Project → Settings → Environment Variables');
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 console.log('  NEXT_PUBLIC_VAPID_PUBLIC_KEY =', publicKey);
-console.log('  VAPID_PRIVATE_KEY            =', privateKey);
+// Write the private key only to .env.local — never echo it to the terminal
+console.log('  VAPID_PRIVATE_KEY            = (saved to .env.local — do not print)');
 console.log('  VAPID_SUBJECT                =', subject);
 console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 console.log('\n  ⚠️  Keep VAPID_PRIVATE_KEY secret — never commit it to Git.\n');
+console.log('  Open .env.local to copy the VAPID_PRIVATE_KEY value.\n');
