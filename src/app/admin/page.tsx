@@ -150,7 +150,7 @@ import { AdminTicketTab } from "@/components/tickets/AdminTicketTab";
 import { AdminCheckTicketTab } from "@/components/tickets/AdminCheckTicketTab";
 import { SecurityEventsTab } from "@/components/admin/SecurityEventsTab";
 
-type AdminTab = "economy" | "safety" | "campaigns" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury" | "referrals" | "knowledge" | "sync" | "verifications" | "security";
+type AdminTab = "economy" | "safety" | "campaigns" | "resolution" | "logs" | "staff" | "users" | "broadcast" | "tickets" | "check_ticket" | "treasury" | "referrals" | "knowledge" | "sync" | "verifications" | "security" | "active_users";
 
 interface TreasurySnapshot {
   totalUsers: number;
@@ -272,6 +272,15 @@ export default function AdminDashboard() {
   const [verificationRejectReason, setVerificationRejectReason] = useState('');
   const [verificationRejectTarget, setVerificationRejectTarget] = useState<any | null>(null);
   const [isProcessingVerification, setIsProcessingVerification] = useState(false);
+
+  // Active Users tab state (SUPER admin only)
+  const [activeUsersData, setActiveUsersData] = useState<{
+    dau: number; mau: number; totalTracked: number;
+    userList: { user_id: string; username: string; ip_address: string; last_seen: string; user_agent: string }[];
+    dailyChart: { date: string; count: number }[];
+  } | null>(null);
+  const [activeUsersLoading, setActiveUsersLoading] = useState(false);
+  const [activeUsersIpSearch, setActiveUsersIpSearch] = useState("");
 
   // Sync tool state (SUPER admin only)
   const [isSyncing, setIsSyncing] = useState(false);
@@ -437,7 +446,7 @@ export default function AdminDashboard() {
   }, [allUsers]);
 
   const availableTabs = useMemo(() => {
-    if (isSuper) return ["economy", "treasury", "referrals", "safety", "users", "broadcast", "campaigns", "tickets", "check_ticket", "resolution", "verifications", "logs", "staff", "knowledge", "sync", "security"] as AdminTab[];
+    if (isSuper) return ["economy", "treasury", "referrals", "safety", "users", "broadcast", "campaigns", "tickets", "check_ticket", "resolution", "verifications", "logs", "staff", "knowledge", "active_users", "sync", "security"] as AdminTab[];
     const tabs: AdminTab[] = ["logs"];
     if (isFinancial) tabs.push("economy", "treasury");
     if (isModerator) tabs.push("safety", "users", "campaigns", "resolution", "tickets", "check_ticket", "security");
@@ -745,6 +754,24 @@ export default function AdminDashboard() {
     checkAdminRole();
   }, []);
 
+  // Load active users data when on active_users tab
+  useEffect(() => {
+    if (activeTab !== 'active_users' || !isSuper) return;
+    const load = async () => {
+      setActiveUsersLoading(true);
+      try {
+        const res = await authFetch('/api/admin/active-users');
+        if (res.ok) {
+          const data = await res.json();
+          setActiveUsersData(data);
+        }
+      } catch { /* ignore */ } finally {
+        setActiveUsersLoading(false);
+      }
+    };
+    load();
+  }, [activeTab, isSuper]);
+
   // Load pending verifications when on verifications tab
   useEffect(() => {
     if (activeTab !== 'verifications') return;
@@ -924,6 +951,7 @@ export default function AdminDashboard() {
     sync: { label: "Sync", icon: RefreshCcw },
     verifications: { label: "Verifications", icon: UserVerifyIcon },
     security: { label: "Security", icon: ShieldAlert },
+    active_users: { label: "Active Users", icon: Activity },
   };
 
   const handleCcLogin = async (e: React.FormEvent) => {
@@ -3241,6 +3269,186 @@ export default function AdminDashboard() {
 
               <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/40 text-center pb-4">
                 Count Sync v1 · SUPER Admin Only · Safe to re-run anytime
+              </p>
+            </div>
+          )}
+
+          {/* ── ACTIVE USERS TAB (SUPER only) ── */}
+          {activeTab === 'active_users' && isSuper && (
+            <div className="p-6 space-y-6 max-w-5xl mx-auto">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="h-14 w-14 bg-emerald-500/10 rounded-3xl flex items-center justify-center border border-emerald-500/20 shrink-0">
+                    <Activity className="h-7 w-7 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black italic uppercase tracking-tighter">Active Users</h3>
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-0.5">Daily & Monthly active user intelligence · Super Admin Only</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={async () => {
+                    setActiveUsersLoading(true);
+                    try {
+                      const res = await authFetch('/api/admin/active-users');
+                      if (res.ok) setActiveUsersData(await res.json());
+                    } catch { /* ignore */ } finally { setActiveUsersLoading(false); }
+                  }}
+                  disabled={activeUsersLoading}
+                  variant="outline"
+                  className="rounded-2xl border-emerald-500/30 text-emerald-400 font-black uppercase text-[10px] h-10 px-5 hover:bg-emerald-500/10"
+                >
+                  {activeUsersLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><RefreshCcw className="h-4 w-4 mr-2" />Refresh</>}
+                </Button>
+              </div>
+
+              {activeUsersLoading && !activeUsersData && (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+                </div>
+              )}
+
+              {activeUsersData && (
+                <>
+                  {/* DAU / MAU / Total cards */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <Card className="rounded-3xl border-emerald-500/20 bg-emerald-500/5">
+                      <CardContent className="p-6 text-center">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-2">Daily Active Users</p>
+                        <p className="text-5xl font-black text-emerald-400">{activeUsersData.dau.toLocaleString()}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground mt-2 uppercase tracking-wider">Today</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="rounded-3xl border-violet-500/20 bg-violet-500/5">
+                      <CardContent className="p-6 text-center">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-violet-400 mb-2">Monthly Active Users</p>
+                        <p className="text-5xl font-black text-violet-400">{activeUsersData.mau.toLocaleString()}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground mt-2 uppercase tracking-wider">Last 30 Days</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="rounded-3xl border-border/40 bg-card/40">
+                      <CardContent className="p-6 text-center">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Total Tracked</p>
+                        <p className="text-5xl font-black">{activeUsersData.totalTracked.toLocaleString()}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground mt-2 uppercase tracking-wider">All Time Users</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* 14-day chart */}
+                  <Card className="rounded-3xl border-border/40 bg-card/40">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-black italic uppercase tracking-widest">14-Day Activity</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={160}>
+                        <AreaChart data={activeUsersData.dailyChart} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="auGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <XAxis dataKey="date" tick={{ fontSize: 9, fontWeight: 700 }} tickFormatter={(v) => v.slice(5)} />
+                          <YAxis tick={{ fontSize: 9, fontWeight: 700 }} allowDecimals={false} />
+                          <Tooltip
+                            contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 12, fontSize: 11 }}
+                            formatter={(v: any) => [v, 'Active Users']}
+                          />
+                          <Area type="monotone" dataKey="count" stroke="#10b981" strokeWidth={2} fill="url(#auGrad)" dot={{ r: 3, fill: '#10b981' }} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* IP Address table */}
+                  <Card className="rounded-3xl border-border/40 bg-card/40">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <CardTitle className="text-sm font-black italic uppercase tracking-widest flex items-center gap-2">
+                          <Globe className="h-4 w-4 text-muted-foreground" />
+                          User IP Intelligence
+                        </CardTitle>
+                        <div className="relative w-56">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <Input
+                            value={activeUsersIpSearch}
+                            onChange={(e) => setActiveUsersIpSearch(e.target.value)}
+                            placeholder="Search username or IP…"
+                            className="pl-8 h-9 rounded-xl text-xs font-bold bg-secondary/30 border-none"
+                          />
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-border/40">
+                              <th className="text-left px-5 py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground">User</th>
+                              <th className="text-left px-5 py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground">IP Address</th>
+                              <th className="text-left px-5 py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground">Last Seen</th>
+                              <th className="text-left px-5 py-3 text-[9px] font-black uppercase tracking-widest text-muted-foreground hidden md:table-cell">Device</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {activeUsersData.userList
+                              .filter((u) => {
+                                const q = activeUsersIpSearch.toLowerCase();
+                                if (!q) return true;
+                                return u.username.toLowerCase().includes(q) || u.ip_address.includes(q);
+                              })
+                              .slice(0, 100)
+                              .map((u, i) => (
+                                <tr key={u.user_id} className={cn("border-b border-border/20 hover:bg-secondary/20 transition-colors", i % 2 === 0 ? '' : 'bg-secondary/5')}>
+                                  <td className="px-5 py-3">
+                                    <div className="flex items-center gap-2">
+                                      <div className="h-7 w-7 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                                        <span className="text-[10px] font-black text-emerald-400">{u.username[0]?.toUpperCase() || '?'}</span>
+                                      </div>
+                                      <span className="font-black text-foreground">@{u.username}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-5 py-3">
+                                    <code className="font-mono text-[11px] bg-secondary/30 px-2 py-0.5 rounded-lg text-emerald-400">{u.ip_address}</code>
+                                  </td>
+                                  <td className="px-5 py-3 text-muted-foreground font-bold">
+                                    {new Date(u.last_seen).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                  </td>
+                                  <td className="px-5 py-3 text-muted-foreground font-bold hidden md:table-cell max-w-[200px] truncate">
+                                    <span className="text-[10px]" title={u.user_agent}>
+                                      {u.user_agent
+                                        ? u.user_agent.includes('Mobile') ? '📱 Mobile'
+                                          : u.user_agent.includes('Tablet') ? '📟 Tablet'
+                                          : '🖥 Desktop'
+                                        : '—'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                        {activeUsersData.userList.length === 0 && (
+                          <div className="py-16 text-center">
+                            <Activity className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">No activity recorded yet</p>
+                            <p className="text-[10px] text-muted-foreground/60 mt-1">Users will appear here as they visit the app</p>
+                          </div>
+                        )}
+                        {activeUsersData.userList.length > 100 && (
+                          <p className="text-center text-[9px] font-black uppercase tracking-widest text-muted-foreground py-3">
+                            Showing 100 of {activeUsersData.userList.length} users · Use search to filter
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+
+              <p className="text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/40 text-center pb-4">
+                Active User Intelligence v1 · Super Admin Only · Updates on each user visit
               </p>
             </div>
           )}

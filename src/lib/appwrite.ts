@@ -56,6 +56,7 @@ export const COL = {
   STORES: 'stores',
   MUSIC_UNLOCKS: 'music_unlocks',
   SECURITY_EVENTS: 'security_events',
+  USER_ACTIVITY: 'user_activity',
 } as const;
 
 export const BUCKET = {
