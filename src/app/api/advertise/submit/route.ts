@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
 import { getSessionUser } from '@/lib/session';
-import { rateLimit } from '@/lib/rate-limit';
+import { rateLimit, sanitizeIp } from '@/lib/rate-limit';
 import { ID } from 'node-appwrite';
 
 export const maxDuration = 30;
@@ -15,7 +15,7 @@ const MAX_DAYS = 90;
 export async function POST(req: NextRequest) {
   try {
     /* ── Rate limit: 10 campaign submissions per hour per IP ── */
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const ip = sanitizeIp(req.headers.get('x-forwarded-for')?.split(',')[0].trim());
     const rl = rateLimit(`advertise:${ip}`, 10, 60 * 60_000);
     if (!rl.allowed) {
       return NextResponse.json({ error: 'Too many requests. Please wait before submitting again.' }, { status: 429 });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
 import { getSessionUser } from '@/lib/session';
-import { rateLimit } from '@/lib/rate-limit';
+import { rateLimit, sanitizeIp } from '@/lib/rate-limit';
 import { Query } from 'node-appwrite';
 
 const AI_CONVERSATIONS = 'AI_CONVERSATIONS';
@@ -9,7 +9,7 @@ const AI_MESSAGES = 'AI_MESSAGES';
 
 export async function DELETE(req: NextRequest) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const ip = sanitizeIp(req.headers.get('x-forwarded-for')?.split(',')[0].trim());
     const rl = rateLimit(`intelligent-delete:${ip}`, 20, 60_000);
     if (!rl.allowed) {
       return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });

@@ -20,6 +20,18 @@ export interface RateLimitResult {
   resetAt: number;
 }
 
+/**
+ * Sanitize an IP address string so it can only contain characters valid in
+ * IPv4 / IPv6 addresses.  This prevents any injected characters from leaking
+ * into rate-limit key strings or log output.
+ */
+export function sanitizeIp(raw: string | null | undefined): string {
+  if (!raw) return 'unknown';
+  // Allow digits, dots, colons, and lowercase hex (covers IPv4 + IPv6)
+  const cleaned = raw.replace(/[^0-9a-fA-F.:]/g, '').slice(0, 45);
+  return cleaned || 'unknown';
+}
+
 export function rateLimit(
   key: string,
   maxRequests: number,

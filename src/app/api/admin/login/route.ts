@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
-import { rateLimit } from '@/lib/rate-limit';
+import { rateLimit, sanitizeIp } from '@/lib/rate-limit';
 import { Query } from 'node-appwrite';
 
 export const maxDuration = 20;
@@ -11,7 +11,7 @@ const ADMIN_ROLES = new Set(['SUPER', 'FINANCIAL', 'MODERATOR']);
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const ip = sanitizeIp(req.headers.get('x-forwarded-for')?.split(',')[0].trim());
     const rl = rateLimit(`admin-login:${ip}`, 5, 60_000);
     if (!rl.allowed) {
       return NextResponse.json(

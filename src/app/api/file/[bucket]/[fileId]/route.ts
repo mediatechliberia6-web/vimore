@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { rateLimit } from '@/lib/rate-limit';
+import { rateLimit, sanitizeIp } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 20;
@@ -51,7 +51,7 @@ export async function GET(
     return new NextResponse(null, { status: 503 });
   }
 
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  const ip = sanitizeIp(req.headers.get('x-forwarded-for')?.split(',')[0].trim());
   const rl = rateLimit(`file-proxy:${ip}`, 120, 60_000);
   if (!rl.allowed) {
     return new NextResponse(null, { status: 429 });

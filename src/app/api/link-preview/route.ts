@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLinkPreview } from 'link-preview-js';
-import { rateLimit } from '@/lib/rate-limit';
+import { rateLimit, sanitizeIp } from '@/lib/rate-limit';
 
 export const maxDuration = 15;
 
@@ -30,7 +30,7 @@ function isBlockedHost(url: string): boolean {
 }
 
 export async function GET(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  const ip = sanitizeIp(req.headers.get('x-forwarded-for')?.split(',')[0].trim());
   const rl = rateLimit(`link-preview:${ip}`, 20, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminStorage } from '@/lib/appwrite-server';
 import { getSessionUser } from '@/lib/session';
-import { rateLimit } from '@/lib/rate-limit';
+import { rateLimit, sanitizeIp } from '@/lib/rate-limit';
 import { ID } from 'node-appwrite';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { InputFile } = require('node-appwrite') as any;
@@ -14,7 +14,7 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const ip = sanitizeIp(req.headers.get('x-forwarded-for')?.split(',')[0].trim());
     const rl = rateLimit(`mkt-upload:${ip}`, 10, 60_000);
     if (!rl.allowed) {
       return NextResponse.json({ error: 'Upload rate limit reached.' }, { status: 429 });

@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { cn } from "@/lib/utils";
 
 /**
  * @fileOverview ViMore Banner Ad Node
  * A specialized component for materializing 468x60 high-velocity advertisement pulses.
  * Leverages an isolated iframe handshake to prevent global script conflicts.
+ *
+ * The ad network publisher key is configured via NEXT_PUBLIC_AD_NETWORK_KEY.
+ * Falls back to the default key if the env var is not set.
  */
+
+const AD_KEY =
+  process.env.NEXT_PUBLIC_AD_NETWORK_KEY || "1beca14f1ca06286fc5fb1922aed9308";
 
 export function BannerAdNode() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -25,14 +30,14 @@ export function BannerAdNode() {
         <body style="margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; overflow: hidden;">
           <script type="text/javascript">
             atOptions = {
-              'key' : '1beca14f1ca06286fc5fb1922aed9308',
+              'key' : '${AD_KEY}',
               'format' : 'iframe',
               'height' : 60,
               'width' : 468,
               'params' : {}
             };
           </script>
-          <script type="text/javascript" src="https://www.highperformanceformat.com/1beca14f1ca06286fc5fb1922aed9308/invoke.js"></script>
+          <script type="text/javascript" src="https://www.highperformanceformat.com/${AD_KEY}/invoke.js"></script>
         </body>
       </html>
     `);
@@ -52,7 +57,7 @@ export function BannerAdNode() {
           <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />
           <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Sponsored Node</span>
         </div>
-        <iframe 
+        <iframe
           ref={iframeRef}
           className="w-[468px] h-[60px] border-none bg-transparent overflow-hidden rounded-lg"
           title="ViMore Banner Pulse"

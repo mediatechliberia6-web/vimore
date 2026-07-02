@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, getAdminStorage, DATABASE_ID } from '@/lib/appwrite-server';
 import { getSessionUser } from '@/lib/session';
-import { rateLimit } from '@/lib/rate-limit';
+import { rateLimit, sanitizeIp } from '@/lib/rate-limit';
 
 export const maxDuration = 30;
 
@@ -11,7 +11,7 @@ const ALLOWED_ROLES = new Set(['SUPER', 'MODERATOR']);
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const ip = sanitizeIp(req.headers.get('x-forwarded-for')?.split(',')[0].trim());
     const rl = rateLimit(`admin:delete:${ip}`, 20, 60_000);
     if (!rl.allowed) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });

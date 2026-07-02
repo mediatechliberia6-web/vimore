@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/session';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
-import { rateLimit } from '@/lib/rate-limit';
+import { rateLimit, sanitizeIp } from '@/lib/rate-limit';
 
 const COLLECTION = 'ai_knowledge_bank';
 
 export async function GET(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  const ip = sanitizeIp(req.headers.get('x-forwarded-for')?.split(',')[0].trim());
   const rl = rateLimit(`knowledge-admin:${ip}`, 30, 60_000);
   if (!rl.allowed) return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
 
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  const ip = sanitizeIp(req.headers.get('x-forwarded-for')?.split(',')[0].trim());
   const rl = rateLimit(`knowledge-admin-del:${ip}`, 20, 60_000);
   if (!rl.allowed) return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
 

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { searchKnowledgeBank, saveToKnowledgeBank } from '@/lib/knowledge-bank';
-import { rateLimit } from '@/lib/rate-limit';
+import { rateLimit, sanitizeIp } from '@/lib/rate-limit';
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
@@ -95,7 +95,7 @@ function streamText(text: string): Response {
 }
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  const ip = sanitizeIp(req.headers.get('x-forwarded-for')?.split(',')[0].trim());
   const rl = rateLimit(`intelligent:${ip}`, 30, 60_000);
   if (!rl.allowed) {
     return new Response(JSON.stringify({ error: 'Too many requests. Please wait a moment.' }), {

@@ -3523,7 +3523,7 @@ export default function AdminDashboard() {
                       onClick={async () => {
                         setIsRunningCleanup(true);
                         try {
-                          const res = await fetch('/api/cron/cleanup');
+                          const res = await authFetch('/api/cron/cleanup');
                           if (res.ok) {
                             const data = await res.json();
                             setCleanupResult(data.reset);
@@ -3572,7 +3572,7 @@ export default function AdminDashboard() {
                       onClick={async () => {
                         setIsRunningAlerts(true);
                         try {
-                          const res = await fetch('/api/cron/expiry-alerts');
+                          const res = await authFetch('/api/cron/expiry-alerts');
                           if (res.ok) {
                             const data = await res.json();
                             setAlertResult(data.sent);
