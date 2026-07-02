@@ -79,7 +79,6 @@ import {
   CalendarClock,
   UserX,
   AlertOctagon,
-  Bell,
   BellRing,
   Filter,
   Target,
