@@ -129,6 +129,9 @@ export async function POST(req: NextRequest) {
           description: `Subscription from @${subscriberDoc.username || session.userId} — kept ${creatorIsVerified ? '90' : '80'}% after ${platformFee} ◆ platform fee`,
           reference_id: session.userId,
           status: 'COMPLETED',
+          from_user_id: session.userId,
+          from_user_name: subscriberDoc.username || subscriberDoc.name || '',
+          from_user_avatar: subscriberDoc.avatar || '',
         }),
         db.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
           user_id: creatorId,

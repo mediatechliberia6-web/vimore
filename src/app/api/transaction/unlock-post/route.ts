@@ -142,6 +142,9 @@ export async function POST(req: NextRequest) {
           description: `Post unlock earning — kept ${ownerIsVerified ? '90' : '80'}% after ${platformFee} ◆ platform fee`,
           reference_id: postId,
           status: 'COMPLETED',
+          from_user_id: session.userId,
+          from_user_name: buyerDoc.username || buyerDoc.name || '',
+          from_user_avatar: buyerDoc.avatar || '',
         } as any)
       );
     }

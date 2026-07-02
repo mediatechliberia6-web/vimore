@@ -13,8 +13,8 @@ const COL = {
   NOTIFICATIONS: 'notifications',
 };
 
-// diamond_balance is an INTEGER field in Appwrite — minimum gift is 1 whole Diamond
-const MIN_GIFT = 1;
+// diamond_balance is an INTEGER field in Appwrite — minimum gift is 4 whole Diamonds (platform fee floor)
+const MIN_GIFT = 4;
 const MAX_GIFT = 100_000;
 
 export async function POST(req: NextRequest) {
@@ -117,6 +117,9 @@ export async function POST(req: NextRequest) {
           description: `Gift received from @${senderDoc.username || session.userId} — you kept ${recipientIsVerified ? '90' : '80'}% after platform fee`,
           reference_id: session.userId,
           status: 'COMPLETED',
+          from_user_id: session.userId,
+          from_user_name: senderDoc.username || senderDoc.name || '',
+          from_user_avatar: senderDoc.avatar || '',
         }),
         // Notify recipient
         db.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {

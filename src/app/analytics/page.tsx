@@ -60,6 +60,13 @@ function pct(curr: number, prev: number): number | null {
   return ((curr - prev) / prev) * 100;
 }
 
+interface Supporter {
+  from_user_id: string;
+  from_user_name: string;
+  from_user_avatar: string;
+  total: number;
+}
+
 interface AnalyticsData {
   followerCount: number;
   prevFollowerCount: number;
@@ -78,6 +85,9 @@ interface AnalyticsData {
   subscriberGrowth: { date: string; count: number }[];
   topLikedPosts: any[];
   topViewedPosts: any[];
+  topGifters: Supporter[];
+  topUnlockers: Supporter[];
+  topSubscribers: Supporter[];
 }
 
 function Shimmer({ className }: { className?: string }) {
@@ -238,6 +248,124 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
+function SupporterLeaderboard({
+  title,
+  subtitle,
+  icon: Icon,
+  iconBg,
+  iconColor,
+  rankColor,
+  supporters,
+  loading,
+  valueSuffix,
+  valueSuffixPlural,
+  emptyMessage,
+}: {
+  title: string;
+  subtitle: string;
+  icon: any;
+  iconBg: string;
+  iconColor: string;
+  rankColor: string;
+  supporters: Supporter[];
+  loading: boolean;
+  valueSuffix: string;
+  valueSuffixPlural?: string;
+  emptyMessage: string;
+}) {
+  const router = useRouter();
+  return (
+    <div className="bg-white dark:bg-card rounded-[2rem] p-5 border border-border/40 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-sm font-black uppercase tracking-widest text-foreground">
+            {title}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">{subtitle}</p>
+        </div>
+        <div className={cn("h-8 w-8 rounded-xl flex items-center justify-center", iconBg)}>
+          <Icon className={cn("h-4 w-4", iconColor)} />
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2.5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <Shimmer className="h-5 w-5 rounded-full flex-shrink-0" />
+              <Shimmer className="h-8 w-8 rounded-full flex-shrink-0" />
+              <div className="flex-1 space-y-1">
+                <Shimmer className="h-3 w-28" />
+                <Shimmer className="h-2.5 w-16" />
+              </div>
+              <Shimmer className="h-5 w-10 rounded-full" />
+            </div>
+          ))}
+        </div>
+      ) : supporters.length === 0 ? (
+        <div className="py-10 flex flex-col items-center gap-2">
+          <Icon className={cn("h-8 w-8 opacity-15", iconColor)} />
+          <p className="text-xs text-muted-foreground/40 font-bold">{emptyMessage}</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {supporters.map((s, i) => {
+            const label =
+              s.total === 1
+                ? `1 ${valueSuffix}`
+                : `${fmt(s.total)} ${valueSuffixPlural ?? valueSuffix}`;
+            const initials = (s.from_user_name || "?")[0].toUpperCase();
+            return (
+              <button
+                key={s.from_user_id}
+                onClick={() => router.push(`/profile/${s.from_user_name}`)}
+                className="w-full flex items-center gap-3 group active:scale-[0.98] transition-transform"
+              >
+                {/* Rank badge */}
+                <div
+                  className={cn(
+                    "h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0 text-[8px] font-black text-white bg-gradient-to-br",
+                    rankColor,
+                    i >= 3 && "opacity-60",
+                  )}
+                >
+                  {i === 0 ? "👑" : i + 1}
+                </div>
+
+                {/* Avatar */}
+                <Avatar className="h-8 w-8 flex-shrink-0 border border-border/30">
+                  <AvatarImage src={s.from_user_avatar} />
+                  <AvatarFallback className="text-[10px] font-black bg-secondary/50">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+
+                {/* Name + tap hint */}
+                <div className="flex-1 text-left min-w-0">
+                  <p className="text-[12px] font-black text-foreground truncate group-hover:text-primary transition-colors">
+                    @{s.from_user_name}
+                  </p>
+                </div>
+
+                {/* Value pill */}
+                <span
+                  className={cn(
+                    "text-[10px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r text-white flex-shrink-0",
+                    rankColor,
+                    i >= 3 && "opacity-70",
+                  )}
+                >
+                  {label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
   const router = useRouter();
   const { currentUser, isLoading: userLoading } = usePosts();
@@ -352,6 +480,35 @@ export default function AnalyticsPage() {
         const earnings = calcEarnings(txRes.documents);
         const prevEarnings = calcEarnings(prevTxRes.documents);
 
+        // ── Top Supporters leaderboards (from new from_user_* fields) ──
+        const buildLeaderboard = (
+          docs: any[],
+          type: string,
+          mode: "sum" | "count",
+        ): Supporter[] => {
+          const map: Record<string, Supporter> = {};
+          docs.forEach((tx) => {
+            if (tx.type !== type) return;
+            const id = tx.from_user_id;
+            if (!id) return;
+            if (!map[id]) {
+              map[id] = {
+                from_user_id: id,
+                from_user_name: tx.from_user_name || id,
+                from_user_avatar: tx.from_user_avatar || "",
+                total: 0,
+              };
+            }
+            map[id].total += mode === "sum" ? (Number(tx.amount) || 0) : 1;
+          });
+          return Object.values(map)
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 20);
+        };
+        const topGifters = buildLeaderboard(txRes.documents, "GIFT_RECEIVED", "sum");
+        const topUnlockers = buildLeaderboard(txRes.documents, "POST_UNLOCK_EARNING", "count");
+        const topSubscribers = buildLeaderboard(txRes.documents, "SUBSCRIPTION_EARNING", "count");
+
         const postRevMap: Record<string, number> = {};
         txRes.documents.forEach((tx) => {
           if (tx.reference_id) {
@@ -415,6 +572,9 @@ export default function AnalyticsPage() {
           subscriberGrowth,
           topLikedPosts,
           topViewedPosts,
+          topGifters,
+          topUnlockers,
+          topSubscribers,
         });
         setLastUpdated(new Date());
       } catch (err) {
@@ -871,6 +1031,50 @@ export default function AnalyticsPage() {
               </p>
             )}
           </div>
+
+          {/* ── Top 20 Gifters ── */}
+          <SupporterLeaderboard
+            title="Top Gifters"
+            subtitle="Highest diamond gifts received"
+            icon={Gem}
+            iconBg="bg-violet-100 dark:bg-violet-950/30"
+            iconColor="text-violet-500"
+            rankColor="from-violet-500 to-purple-600"
+            supporters={data?.topGifters ?? []}
+            loading={loading}
+            valueSuffix="◆"
+            emptyMessage="No gifts received yet in this period"
+          />
+
+          {/* ── Top 20 Unlockers ── */}
+          <SupporterLeaderboard
+            title="Top Unlockers"
+            subtitle="Fans who unlocked your premium posts"
+            icon={Star}
+            iconBg="bg-amber-100 dark:bg-amber-950/30"
+            iconColor="text-amber-500"
+            rankColor="from-amber-500 to-orange-500"
+            supporters={data?.topUnlockers ?? []}
+            loading={loading}
+            valueSuffix="unlock"
+            valueSuffixPlural="unlocks"
+            emptyMessage="No post unlocks yet in this period"
+          />
+
+          {/* ── Top 20 Subscribers ── */}
+          <SupporterLeaderboard
+            title="Top Subscribers"
+            subtitle="Your most loyal paying subscribers"
+            icon={Crown}
+            iconBg="bg-emerald-100 dark:bg-emerald-950/30"
+            iconColor="text-emerald-500"
+            rankColor="from-emerald-500 to-teal-500"
+            supporters={data?.topSubscribers ?? []}
+            loading={loading}
+            valueSuffix="renewal"
+            valueSuffixPlural="renewals"
+            emptyMessage="No subscription earnings yet in this period"
+          />
         </main>
 
         <aside
