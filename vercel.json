@@ -1,5 +1,5 @@
 {
-  "installCommand": "corepack enable pnpm && pnpm install",
+  "installCommand": "corepack enable pnpm && pnpm install --frozen-lockfile",
   "buildCommand": "pnpm run build",
   "framework": "nextjs",
   "crons": [
@@ -13,32 +13,69 @@
     }
   ],
   "functions": {
+    "src/app/api/cron/cleanup/route.ts": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
+    "src/app/api/cron/expiry-alerts/route.ts": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
+    "src/app/api/moderate/route.ts": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
     "src/app/api/push/send/route.ts": {
-      "memory": 1024
+      "memory": 1024,
+      "maxDuration": 30
     },
     "src/app/api/push/subscribe/route.ts": {
-      "memory": 512
+      "memory": 512,
+      "maxDuration": 15
     },
     "src/app/api/push/unsubscribe/route.ts": {
-      "memory": 512
+      "memory": 512,
+      "maxDuration": 15
     },
     "src/app/api/messages/send/route.ts": {
-      "memory": 512
+      "memory": 512,
+      "maxDuration": 15
     },
     "src/app/api/messages/mark-read/route.ts": {
-      "memory": 512
+      "memory": 512,
+      "maxDuration": 15
     },
     "src/app/api/file/[bucket]/[fileId]/route.ts": {
-      "memory": 512
+      "memory": 512,
+      "maxDuration": 15
     },
     "src/app/api/link-preview/route.ts": {
-      "memory": 512
+      "memory": 512,
+      "maxDuration": 15
     },
     "src/app/api/admin/products/delete/route.ts": {
-      "memory": 512
+      "memory": 512,
+      "maxDuration": 15
     },
     "src/app/api/admin/users/warn/route.ts": {
-      "memory": 512
+      "memory": 512,
+      "maxDuration": 15
+    },
+    "src/app/api/intelligent/route.ts": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
+    "src/app/api/upload/route.ts": {
+      "memory": 1024,
+      "maxDuration": 30
     }
+  },
+  "env": {
+    "NEXT_PUBLIC_APPWRITE_ENDPOINT": "https://mediatechliberia.online/v1",
+    "NEXT_PUBLIC_APPWRITE_PROJECT_ID": "vimore123",
+    "NEXT_PUBLIC_APPWRITE_DATABASE_ID": "vimoreprod",
+    "NEXT_PUBLIC_AGORA_APP_ID": "4afa1dbbd2ee4695ad1d29eaa0310ca3",
+    "NEXT_PUBLIC_VAPID_PUBLIC_KEY": "BGRfT6eaMS4SJwWAA4ZM-IR32_qDO1xAoyq3N5LqF6kLgPXLdBrC1WExJEt0daf091gcfZhlSezLv4FqWCFikk0",
+    "VAPID_SUBJECT": "mailto:amoskortub@gmail.com"
   }
 }
