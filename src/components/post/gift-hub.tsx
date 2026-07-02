@@ -40,6 +40,9 @@ const GIFT_CATEGORIES = [
   { id: "power", label: "Power", emoji: "⚡" },
 ];
 
+// Minimum gift cost — platform fees cannot be covered below this threshold
+const MIN_GIFT_COST = 4;
+
 const ALL_GIFTS: GiftItem[] = [
   // 💕 Love & Romance (25 gifts, 1 – 20 D) — all whole-diamond costs
   { id: "l-01", name: "Tiny Heart", emoji: "❤️", cost: 1, category: "love" },
@@ -220,6 +223,7 @@ export function GiftHub() {
   const categoryScrollRef = useRef<HTMLDivElement>(null);
 
   const filteredGifts = ALL_GIFTS.filter((g) => {
+    if (g.cost < MIN_GIFT_COST) return false;
     const matchCat = activeCategory === "all" || g.category === activeCategory;
     const matchSearch = !searchQuery || g.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchCat && matchSearch;
