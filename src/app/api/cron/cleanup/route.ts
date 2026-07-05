@@ -11,6 +11,7 @@ const COL = {
 };
 
 const BATCH = 100;
+const ADMIN_ROLES = new Set(['SUPER', 'MODERATOR']);
 
 async function resetExpiredBoostedDocs(
   db: ReturnType<typeof getAdminDatabases>,
@@ -81,7 +82,7 @@ async function deactivateExpiredCampaigns(db: ReturnType<typeof getAdminDatabase
 
 export async function GET(req: NextRequest) {
   const session = await getSessionUser(req);
-  if (!session) {
+  if (!session || !ADMIN_ROLES.has(session.role ?? '')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

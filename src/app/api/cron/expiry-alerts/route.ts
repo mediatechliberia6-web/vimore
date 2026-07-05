@@ -13,6 +13,7 @@ const COL = {
 const ALERT_TYPE = 'EXPIRY_ALERT';
 const WINDOW_MS = 72 * 60 * 60 * 1000;
 const DEDUP_HOURS = 20;
+const ADMIN_ROLES = new Set(['SUPER', 'MODERATOR']);
 
 async function alreadyAlerted(
   db: ReturnType<typeof getAdminDatabases>,
@@ -62,7 +63,7 @@ function hoursLeft(expiry: number): number {
 
 export async function GET(req: NextRequest) {
   const session = await getSessionUser(req);
-  if (!session) {
+  if (!session || !ADMIN_ROLES.has(session.role ?? '')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
