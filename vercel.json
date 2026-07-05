@@ -3,61 +3,17 @@
   "buildCommand": "pnpm run build",
   "framework": "nextjs",
   "functions": {
-    "src/app/api/cron/cleanup/route.ts": {
+    "src/app/api/[...path]/route.ts": {
       "memory": 1024,
       "maxDuration": 60
     },
-    "src/app/api/cron/expiry-alerts/route.ts": {
-      "memory": 1024,
-      "maxDuration": 60
-    },
-    "src/app/api/moderate/route.ts": {
+    "src/app/api/admin/[...path]/route.ts": {
       "memory": 1024,
       "maxDuration": 30
     },
-    "src/app/api/push/send/route.ts": {
-      "memory": 1024,
-      "maxDuration": 30
-    },
-    "src/app/api/push/subscribe/route.ts": {
+    "src/app/api/oauth/[...path]/route.ts": {
       "memory": 512,
-      "maxDuration": 15
-    },
-    "src/app/api/push/unsubscribe/route.ts": {
-      "memory": 512,
-      "maxDuration": 15
-    },
-    "src/app/api/messages/send/route.ts": {
-      "memory": 512,
-      "maxDuration": 15
-    },
-    "src/app/api/messages/mark-read/route.ts": {
-      "memory": 512,
-      "maxDuration": 15
-    },
-    "src/app/api/file/[bucket]/[fileId]/route.ts": {
-      "memory": 512,
-      "maxDuration": 15
-    },
-    "src/app/api/link-preview/route.ts": {
-      "memory": 512,
-      "maxDuration": 15
-    },
-    "src/app/api/admin/products/delete/route.ts": {
-      "memory": 512,
-      "maxDuration": 15
-    },
-    "src/app/api/admin/users/warn/route.ts": {
-      "memory": 512,
-      "maxDuration": 15
-    },
-    "src/app/api/intelligent/route.ts": {
-      "memory": 1024,
-      "maxDuration": 30
-    },
-    "src/app/api/upload/route.ts": {
-      "memory": 1024,
-      "maxDuration": 30
+      "maxDuration": 20
     }
   },
   "env": {

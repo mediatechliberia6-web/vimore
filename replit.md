@@ -37,6 +37,8 @@ ViMore is a social networking and creator platform featuring social feeds, music
 ## Where things live
 
 - `src/app/`: Next.js App Router pages and API routes.
+- `src/app/api/[...path]/route.ts`, `src/app/api/admin/[...path]/route.ts`, `src/app/api/oauth/[...path]/route.ts`: The only 3 route files under `src/app/api/`. Every API endpoint is dispatched through one of these 3 catch-all routes (Vercel Hobby plan caps at 12 serverless functions; the app previously had 51 separate `route.ts` files). Each dispatcher looks up the request path in a `ROUTES` map and calls the matching handler.
+- `src/server/api-impl/`: The actual endpoint handler implementations (moved out of `route.ts` files, unchanged logic), organized as `admin/`, `oauth/`, `root/` mirroring the original API path structure. To add a new API endpoint: create a handler module here, then register it in the `ROUTES` map of the appropriate dispatcher (`admin`, `oauth`, or root).
 - `src/components/`: Reusable React components.
 - `src/context/`: React Context API providers (`PostContext.tsx`, `MusicContext.tsx`, `NotificationContext.tsx`).
 - `src/lib/`: Utility functions and Appwrite configurations (`appwrite.ts`, `push-notifications.ts`, `utils.ts`, `data-budget.ts`).
@@ -68,6 +70,8 @@ ViMore is a social networking and creator platform featuring social feeds, music
 - _Populate as you build_
 
 ## Gotchas
+
+- **API routes are consolidated, not per-endpoint**: Vercel Hobby plan allows a max of 12 Serverless Functions. Do NOT create new files under `src/app/api/**/route.ts` — add a handler in `src/server/api-impl/` and register it in the `ROUTES` map of `src/app/api/[...path]/route.ts` (or the `admin`/`oauth` dispatcher, as appropriate). Adding a new standalone `route.ts` file will break the deployment by exceeding the function cap.
 
 - **Appwrite Schema Sync**: Manual Appwrite setup for `Marketplace_Images` bucket and `Products` collection is required. Ensure all collection attributes and indexes match the code's expectations.
 - **`user_id` Audit**: All `createDocument` calls for new collections must include `user_id` for proper data ownership and access control.
