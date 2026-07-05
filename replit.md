@@ -11,7 +11,6 @@ ViMore is a social networking and creator platform featuring social feeds, music
 | `APPWRITE_API_KEY` | ✅ Yes | Appwrite server-side API key |
 | `GROQ_API_KEY` | ✅ Yes | Groq AI key for translation & caption AI |
 | `AGORA_APP_CERTIFICATE` | ✅ Yes | Agora RTC token signing certificate |
-| `CRON_SECRET` | ✅ Yes | Secret token for Vercel cron job auth — copy from Replit Secrets |
 | `VAPID_PRIVATE_KEY` | ✅ Yes | Web push private key — copy from `.env.local` (never print in full) |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | ✅ Yes | Web push public key — safe to expose |
 | `NEXT_PUBLIC_APPWRITE_ENDPOINT` | Optional | Defaults to `https://mediatechliberia.online/v1` |
@@ -20,15 +19,7 @@ ViMore is a social networking and creator platform featuring social feeds, music
 | `NEXT_PUBLIC_AGORA_APP_ID` | Optional | Defaults to `4afa1dbbd2ee4695ad1d29eaa0310ca3` |
 | `NEXT_PUBLIC_AD_NETWORK_KEY` | Optional | Ad network publisher ID — defaults to built-in key |
 
-**Vercel Cron Jobs** (configured in `vercel.json`, auth via `CRON_SECRET`):
-- `GET /api/cron/cleanup` — runs every 15 min, resets expired boosts/verifications/campaigns
-- `GET /api/cron/expiry-alerts` — runs every hour, notifies users expiring within 72 h
-
-**Vercel cron request format** — Vercel sends:
-```
-Authorization: Bearer <CRON_SECRET>
-```
-Both cron routes accept this header OR a valid user session.
+**Cron/maintenance routes** (`/api/cron/cleanup`, `/api/cron/expiry-alerts`): `CRON_SECRET` auth was removed per user request. These routes now require a valid logged-in session to call, and are no longer scheduled via Vercel Cron (removed from `vercel.json`). They must be triggered manually (e.g. by an authenticated admin) or wired up to a different scheduling/auth mechanism if automatic runs are needed again.
 
 **Commands:**
 - `npm run dev`: Starts the application locally on port 5000.
@@ -80,8 +71,8 @@ Both cron routes accept this header OR a valid user session.
 
 - **Appwrite Schema Sync**: Manual Appwrite setup for `Marketplace_Images` bucket and `Products` collection is required. Ensure all collection attributes and indexes match the code's expectations.
 - **`user_id` Audit**: All `createDocument` calls for new collections must include `user_id` for proper data ownership and access control.
-- **Vercel Deployment**: Requires `APPWRITE_API_KEY`, `GROQ_API_KEY`, `AGORA_APP_CERTIFICATE`, `CRON_SECRET`, and `VAPID_PRIVATE_KEY` as environment variables. See table above for full list.
-- **CRON_SECRET**: Auto-generated and stored in Replit Secrets. Copy the `CRON_SECRET` value from Replit Secrets and paste it into Vercel env vars so Vercel's cron runner can call `/api/cron/cleanup` and `/api/cron/expiry-alerts`.
+- **Vercel Deployment**: Requires `APPWRITE_API_KEY`, `GROQ_API_KEY`, `AGORA_APP_CERTIFICATE`, and `VAPID_PRIVATE_KEY` as environment variables. See table above for full list.
+- **Cron routes now session-only**: `CRON_SECRET` was removed (per user request) from `/api/cron/cleanup` and `/api/cron/expiry-alerts`. They're no longer scheduled by Vercel Cron and require a logged-in session to invoke.
 - **Ad Network Key**: Configured via `NEXT_PUBLIC_AD_NETWORK_KEY` env var. If not set, falls back to the default publisher key in `banner-ad-node.tsx`.
 - **Real-time Indexes**: The `messages` collection requires a `receiver_id` attribute index for unread message count queries to function correctly.
 - **Call Button Visibility**: Call buttons in `chat-window.tsx` are only visible for accepted 1-1 DMs and are disabled if a call is already active.

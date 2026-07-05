@@ -12,13 +12,6 @@ const COL = {
 
 const BATCH = 100;
 
-function isTrustedCron(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const auth = req.headers.get('authorization') || '';
-  return auth === `Bearer ${secret}`;
-}
-
 async function resetExpiredBoostedDocs(
   db: ReturnType<typeof getAdminDatabases>,
   collectionId: string,
@@ -87,13 +80,9 @@ async function deactivateExpiredCampaigns(db: ReturnType<typeof getAdminDatabase
 }
 
 export async function GET(req: NextRequest) {
-  // Accept either a valid user session or the internal CRON_SECRET
-  const trusted = isTrustedCron(req);
-  if (!trusted) {
-    const session = await getSessionUser(req);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const session = await getSessionUser(req);
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {

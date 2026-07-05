@@ -14,13 +14,6 @@ const ALERT_TYPE = 'EXPIRY_ALERT';
 const WINDOW_MS = 72 * 60 * 60 * 1000;
 const DEDUP_HOURS = 20;
 
-function isTrustedCron(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const auth = req.headers.get('authorization') || '';
-  return auth === `Bearer ${secret}`;
-}
-
 async function alreadyAlerted(
   db: ReturnType<typeof getAdminDatabases>,
   userId: string,
@@ -68,12 +61,9 @@ function hoursLeft(expiry: number): number {
 }
 
 export async function GET(req: NextRequest) {
-  const trusted = isTrustedCron(req);
-  if (!trusted) {
-    const session = await getSessionUser(req);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const session = await getSessionUser(req);
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
