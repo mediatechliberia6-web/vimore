@@ -1816,37 +1816,33 @@ export function PostProvider({ children }: { children: ReactNode }) {
       const username = parts.length >= 2 ? `${parts[0]}.${parts[parts.length - 1]}` : parts[0] || 'user';
       const referralCode = `VM${username.toUpperCase().slice(0, 6)}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
-      const existingUsers = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.limit(1)]);
-      const assignedRole = existingUsers.total === 0 ? 'SUPER' : 'USER';
-
-      const newDoc = await databases.createDocument(DATABASE_ID, COL.USERS, authUser.$id, {
-        name: data.name,
-        username,
-        email: vimoreId,
-        bio: '',
-        category: '',
-        is_verified: false,
-        has_ever_been_verified: false,
-        followers_count: 0,
-        following_count: 0,
-        friends_count: 0,
-        posts_count: 0,
-        gold_balance: 0,
-        diamond_balance: 0,
-        star_balance: 0,
-        role: assignedRole,
-        join_date: new Date().toISOString(),
-        nationality: data.nationality || '',
-        date_of_birth: data.dob || '',
-        gender: data.gender || '',
-        referral_code: referralCode,
-        referral_count: 0,
-        language: 'en',
-        security_question: data.securityQuestion || '',
-        security_answer: (data.securityAnswer || '').toLowerCase().trim(),
-        ...(data.phone ? { phone: data.phone.replace(/[\s\-().]/g, '') } : {}),
+      // Create the user profile document server-side (admin key bypasses collection perms)
+      const { authFetch } = await import('@/lib/auth-fetch');
+      const profileRes = await authFetch('/api/auth/create-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          username,
+          email: vimoreId,
+          phone: data.phone || null,
+          nationality: data.nationality || '',
+          dob: data.dob || '',
+          gender: data.gender || '',
+          securityQuestion: data.securityQuestion || '',
+          securityAnswer: data.securityAnswer || '',
+          referralCode,
+        }),
       });
+      if (!profileRes.ok) {
+        const profileErr = await profileRes.json().catch(() => ({}));
+        throw new Error(profileErr.error || 'Failed to create user profile.');
+      }
+      const profileResult = await profileRes.json();
+      const assignedRole = profileResult.role || 'USER';
 
+      // Fetch the profile doc we just created to build the local user object
+      const newDoc = await databases.getDocument(DATABASE_ID, COL.USERS, authUser.$id);
       const user = mapDocToUser(authUser, newDoc);
       setCurrentUserState(user);
 

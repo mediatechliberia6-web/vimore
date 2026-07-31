@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import * as AuthLookupPhone from '@/server/api-impl/root/auth/lookup-phone';
+import * as AuthCreateProfile from '@/server/api-impl/root/auth/create-profile';
 import * as AdvertiseSubmit from '@/server/api-impl/root/advertise/submit';
 import * as CronCleanup from '@/server/api-impl/root/cron/cleanup';
 import * as CronExpiryAlerts from '@/server/api-impl/root/cron/expiry-alerts';
@@ -43,6 +44,7 @@ type Handler = Partial<Record<'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPT
 
 const ROUTES: Record<string, Handler> = {
   'auth/lookup-phone': AuthLookupPhone,
+  'auth/create-profile': AuthCreateProfile,
   'advertise/submit': AdvertiseSubmit,
   'cron/cleanup': CronCleanup,
   'cron/expiry-alerts': CronExpiryAlerts,
