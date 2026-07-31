@@ -1730,14 +1730,18 @@ export function PostProvider({ children }: { children: ReactNode }) {
     let vimoreId: string;
 
     if (isPhone) {
-      const normalized = trimmed.replace(/[\s\-().]/g, '');
       try {
-        const phoneRes = await databases.listDocuments(DATABASE_ID, COL.USERS, [Query.equal('phone', normalized), Query.limit(1)]);
-        if (!phoneRes.documents.length) {
+        const lookupRes = await fetch('/api/auth/lookup-phone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: trimmed }),
+        });
+        const lookupData = await lookupRes.json();
+        if (!lookupRes.ok) {
           setIsLoadingState(false);
-          return { success: false, message: "No account found with that phone number." };
+          return { success: false, message: lookupData.error || "No account found with that phone number." };
         }
-        vimoreId = phoneRes.documents[0].email;
+        vimoreId = lookupData.email;
       } catch {
         setIsLoadingState(false);
         return { success: false, message: "Could not look up that phone number. Please try your ViMore ID." };

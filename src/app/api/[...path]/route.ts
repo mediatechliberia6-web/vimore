@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import * as AuthLookupPhone from '@/server/api-impl/root/auth/lookup-phone';
 import * as AdvertiseSubmit from '@/server/api-impl/root/advertise/submit';
 import * as CronCleanup from '@/server/api-impl/root/cron/cleanup';
 import * as CronExpiryAlerts from '@/server/api-impl/root/cron/expiry-alerts';
@@ -41,6 +42,7 @@ export const maxDuration = 30;
 type Handler = Partial<Record<'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS', (...args: any[]) => Promise<Response> | Response>>;
 
 const ROUTES: Record<string, Handler> = {
+  'auth/lookup-phone': AuthLookupPhone,
   'advertise/submit': AdvertiseSubmit,
   'cron/cleanup': CronCleanup,
   'cron/expiry-alerts': CronExpiryAlerts,
