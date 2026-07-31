@@ -1,7 +1,7 @@
 import 'server-only';
 import { Client, Databases, Storage, Users } from 'node-appwrite';
 
-const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1';
+const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://appwrite.mediatechliberia.online/v1';
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
 const API_KEY = process.env.APPWRITE_API_KEY || '';
 
