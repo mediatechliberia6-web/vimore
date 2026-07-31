@@ -13,7 +13,7 @@ ViMore is a social networking and creator platform featuring social feeds, music
 | `AGORA_APP_CERTIFICATE` | ✅ Yes | Agora RTC token signing certificate |
 | `VAPID_PRIVATE_KEY` | ✅ Yes | Web push private key — copy from `.env.local` (never print in full) |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | ✅ Yes | Web push public key — safe to expose |
-| `NEXT_PUBLIC_APPWRITE_ENDPOINT` | Optional | Defaults to `https://mediatechliberia.online/v1` |
+| `NEXT_PUBLIC_APPWRITE_ENDPOINT` | Optional | Defaults to `https://appwrite.mediatechliberia.online/v1` |
 | `NEXT_PUBLIC_APPWRITE_PROJECT_ID` | Optional | Defaults to `vimore123` |
 | `NEXT_PUBLIC_APPWRITE_DATABASE_ID` | Optional | Defaults to `vimoreprod` |
 | `NEXT_PUBLIC_AGORA_APP_ID` | Optional | Defaults to `4afa1dbbd2ee4695ad1d29eaa0310ca3` |
