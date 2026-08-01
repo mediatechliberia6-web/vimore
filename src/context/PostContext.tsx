@@ -1779,7 +1779,16 @@ export function PostProvider({ children }: { children: ReactNode }) {
           const fallback = { [`a_session_${PROJECT_ID}`]: loginData.secret };
           localStorage.setItem('cookieFallback', JSON.stringify(fallback));
         } catch { /* ignore */ }
-        authUser = await account.get();
+        // Skip account.get() — client-side account ops fail when the domain
+        // isn't registered as an Appwrite platform (general_unauthorized_scope).
+        // The server already gave us the userId we need.
+        authUser = {
+          $id: loginData.userId,
+          email: vimoreId,
+          name: '',
+          emailVerification: false,
+          $createdAt: loginData.expire ?? new Date().toISOString(),
+        } as any;
       }
       const profileDoc = await databases.getDocument(DATABASE_ID, COL.USERS, authUser.$id);
       const user = mapDocToUser(authUser, profileDoc);
@@ -1829,8 +1838,38 @@ export function PostProvider({ children }: { children: ReactNode }) {
     setIsLoadingState(true);
     try {
       const vimoreId = data.vimoreId.includes('@') ? data.vimoreId : `${data.vimoreId}@vimore.cfd`;
-      const authUser = await account.create(ID.unique(), vimoreId, data.password, data.name);
-      await account.createEmailPasswordSession(vimoreId, data.password);
+
+      // Create account and session server-side — avoids client-SDK platform check
+      // that rejects requests from unregistered domains (general_unauthorized_scope).
+      const registerRes = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: vimoreId, password: data.password, name: data.name }),
+      });
+      const registerData = await registerRes.json();
+      if (!registerRes.ok) {
+        throw new Error(registerData.error || 'Failed to create account.');
+      }
+
+      // Hydrate the Appwrite client SDK and localStorage with the new session.
+      const { client: appwriteClient } = await import('@/lib/appwrite');
+      appwriteClient.setSession(registerData.secret);
+      try {
+        const PROJECT_ID_REG = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
+        localStorage.setItem('cookieFallback', JSON.stringify({
+          [`a_session_${PROJECT_ID_REG}`]: registerData.secret,
+        }));
+      } catch { /* ignore */ }
+
+      // Construct a minimal auth user object from the server response.
+      // We don't call account.get() here — that would fail on unregistered domains.
+      const authUser = {
+        $id: registerData.userId,
+        email: vimoreId,
+        name: data.name,
+        emailVerification: false,
+        $createdAt: new Date().toISOString(),
+      } as any;
 
       const parts = data.name.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/);
       const username = parts.length >= 2 ? `${parts[0]}.${parts[parts.length - 1]}` : parts[0] || 'user';
