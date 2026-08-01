@@ -9,6 +9,8 @@ import * as AdvertiseSubmit from '@/server/api-impl/root/advertise/submit';
 import * as CronCleanup from '@/server/api-impl/root/cron/cleanup';
 import * as CronExpiryAlerts from '@/server/api-impl/root/cron/expiry-alerts';
 import * as File from '@/server/api-impl/root/file';
+import * as FriendsAction from '@/server/api-impl/root/friends/action';
+import * as DebugAdminWrite from '@/server/api-impl/root/debug-adminwrite';
 import * as Intelligent from '@/server/api-impl/root/intelligent';
 import * as IntelligentDelete from '@/server/api-impl/root/intelligent-delete';
 import * as KnowledgeAdmin from '@/server/api-impl/root/knowledge-admin';
@@ -54,6 +56,8 @@ const ROUTES: Record<string, Handler> = {
   'advertise/submit': AdvertiseSubmit,
   'cron/cleanup': CronCleanup,
   'cron/expiry-alerts': CronExpiryAlerts,
+  'friends/action': FriendsAction,
+  'debug/adminwrite': DebugAdminWrite,
   'intelligent': Intelligent,
   'intelligent/delete': IntelligentDelete,
   'knowledge-admin': KnowledgeAdmin,

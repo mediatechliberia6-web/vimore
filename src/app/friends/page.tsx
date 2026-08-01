@@ -287,7 +287,6 @@ function FriendsPageContent() {
     setCancellingUser(user.username);
     try {
       await cancelFriendRequest(user.username);
-      await databases.updateDocument(DATABASE_ID, COL.USERS, user.$id, { followers_count: Math.max(0, (user.followers || 1) - 1) }).catch(() => {});
       setPendingUsers(prev => prev.filter(u => u.username !== user.username));
       toast({ title: "Request cancelled", description: `Request to @${user.username} cancelled.`, duration: 2500 });
     } catch {
