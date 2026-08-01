@@ -87,18 +87,9 @@ export function slugToCategory(slug: string): StoreCategory | null {
   return found || null;
 }
 
-async function uploadStoreLogo(file: File, ownerId: string): Promise<string> {
-  const created = await storage.createFile(
-    BUCKET.STORE_LOGOS,
-    ID.unique(),
-    file,
-    [
-      Permission.read(Role.any()),
-      Permission.update(Role.user(ownerId)),
-      Permission.delete(Role.user(ownerId)),
-    ]
-  );
-  return created.$id;
+async function uploadStoreLogo(file: File, _ownerId: string): Promise<string> {
+  const { uploadViaServer } = await import('./upload');
+  return uploadViaServer(file, BUCKET.STORE_LOGOS);
 }
 
 export async function getMyStore(userId: string): Promise<StoreDoc | null> {

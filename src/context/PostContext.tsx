@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useRef, startTransition, ReactNode
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import {
-  account, databases, storage, client, ID, Query, Models,
+  account, databases, client, ID, Query, Models,
   COL, BUCKET, DATABASE_ID,
   getFileUrl, extractFileId, formatTimeAgo, avatarFallback, toProxyUrl,
 } from '@/lib/appwrite';
@@ -1534,9 +1534,12 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const authUser = await account.get();
+      const meRes = await authFetch('/api/auth/me');
+      if (!meRes.ok) throw new Error('Unauthorized');
+      const meData = await meRes.json();
       clearTimeout(timeoutId);
-      const profileDoc = await databases.getDocument(DATABASE_ID, COL.USERS, authUser.$id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { authUser, profileDoc } = meData as any;
       const user = mapDocToUser(authUser, profileDoc);
       setCurrentUserState(user);
       offlineCache.saveUser(user);
@@ -2002,9 +2005,9 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [router, toast]);
 
   const uploadMedia = useCallback(async (file: File, bucketId: string = BUCKET.POST_MEDIA): Promise<string> => {
-    let toUpload = file;
-    const result = await storage.createFile(bucketId, ID.unique(), toUpload);
-    return getFileUrl(bucketId, result.$id);
+    const { uploadViaServer } = await import('@/lib/upload');
+    const fileId = await uploadViaServer(file, bucketId);
+    return getFileUrl(bucketId, fileId);
   }, []);
 
   const updateCurrentUser = useCallback(async (data: Partial<User>) => {
@@ -3309,8 +3312,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         const u8arr = new Uint8Array(n);
         while (n--) u8arr[n] = bstr.charCodeAt(n);
         const file = new File([u8arr], 'receipt.jpg', { type: mime });
-        const uploadResult = await storage.createFile(BUCKET.PAYMENT_SCREENSHOTS, ID.unique(), file);
-        screenshotFileId = uploadResult.$id;
+        const { uploadViaServer } = await import('@/lib/upload');
+        screenshotFileId = await uploadViaServer(file, BUCKET.PAYMENT_SCREENSHOTS);
       } else {
         screenshotFileId = extractFileId(screenshotUrl) || screenshotUrl;
       }
@@ -3475,8 +3478,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       let avatarId: string | undefined;
       if (logoFile) {
-        const uploaded = await storage.createFile(BUCKET.AVATARS, ID.unique(), logoFile);
-        avatarId = uploaded.$id;
+        const { uploadViaServer } = await import('@/lib/upload');
+        avatarId = await uploadViaServer(logoFile, BUCKET.AVATARS);
       }
 
       const clDocData: Record<string, any> = {

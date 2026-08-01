@@ -94,19 +94,10 @@ export async function compressImage(file: File, maxEdge = 1024, quality = 0.7): 
   return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg', lastModified: Date.now() });
 }
 
-export async function uploadProductImage(file: File, sellerId: string): Promise<string> {
+export async function uploadProductImage(file: File, _sellerId: string): Promise<string> {
   const compressed = await compressImage(file);
-  const created = await storage.createFile(
-    BUCKET.MARKETPLACE_IMAGES,
-    ID.unique(),
-    compressed,
-    [
-      Permission.read(Role.any()),
-      Permission.update(Role.user(sellerId)),
-      Permission.delete(Role.user(sellerId)),
-    ]
-  );
-  return created.$id;
+  const { uploadViaServer } = await import('./upload');
+  return uploadViaServer(compressed, BUCKET.MARKETPLACE_IMAGES);
 }
 
 function mapProduct(doc: any): ProductDoc {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import * as AuthLogin from '@/server/api-impl/root/auth/login';
+import * as AuthMe from '@/server/api-impl/root/auth/me';
 import * as AuthRegister from '@/server/api-impl/root/auth/register';
 import * as AuthResetPassword from '@/server/api-impl/root/auth/reset-password';
 import * as AuthLookupPhone from '@/server/api-impl/root/auth/lookup-phone';
@@ -37,6 +38,7 @@ import * as TransactionLockPost from '@/server/api-impl/root/transaction/lock-po
 import * as TransactionSubscribe from '@/server/api-impl/root/transaction/subscribe';
 import * as TransactionUnlockPost from '@/server/api-impl/root/transaction/unlock-post';
 import * as TransactionVerify from '@/server/api-impl/root/transaction/verify';
+import * as Upload from '@/server/api-impl/root/upload/index';
 import * as UploadReel from '@/server/api-impl/root/upload-reel';
 import * as UserActivity from '@/server/api-impl/root/user/activity';
 import * as UserProfile from '@/server/api-impl/root/user/profile';
@@ -49,6 +51,7 @@ type Handler = Partial<Record<'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPT
 
 const ROUTES: Record<string, Handler> = {
   'auth/login': AuthLogin,
+  'auth/me': AuthMe,
   'auth/register': AuthRegister,
   'auth/reset-password': AuthResetPassword,
   'auth/lookup-phone': AuthLookupPhone,
@@ -84,6 +87,7 @@ const ROUTES: Record<string, Handler> = {
   'transaction/subscribe': TransactionSubscribe,
   'transaction/unlock-post': TransactionUnlockPost,
   'transaction/verify': TransactionVerify,
+  'upload': Upload,
   'upload/reel': UploadReel,
   'user/activity': UserActivity,
   'user/profile': UserProfile,

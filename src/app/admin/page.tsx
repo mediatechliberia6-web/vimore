@@ -110,7 +110,7 @@ import { useAdminAlerts } from "@/context/AdminAlertsContext";
 import { useMusic } from "@/context/MusicContext";
 import { useTranslation } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
-import { storage, BUCKET, ID, toProxyUrl, getFileUrl, databases, DATABASE_ID, COL, Query } from "@/lib/appwrite";
+import { BUCKET, toProxyUrl, getFileUrl, databases, DATABASE_ID, COL, Query } from "@/lib/appwrite";
 import Link from "next/link";
 import { 
   Area, 
@@ -492,8 +492,9 @@ export default function AdminDashboard() {
     try {
       let proofImageUrl: string | undefined;
       if (withdrawalActionTarget.action === 'APPROVED' && withdrawalProofFile) {
-        const uploaded = await storage.createFile(BUCKET.PAYMENT_SCREENSHOTS, ID.unique(), withdrawalProofFile);
-        proofImageUrl = toProxyUrl(getFileUrl(BUCKET.PAYMENT_SCREENSHOTS, uploaded.$id));
+        const { uploadViaServer } = await import('@/lib/upload');
+        const uploadedFileId = await uploadViaServer(withdrawalProofFile, BUCKET.PAYMENT_SCREENSHOTS);
+        proofImageUrl = toProxyUrl(getFileUrl(BUCKET.PAYMENT_SCREENSHOTS, uploadedFileId));
       }
       await processWithdrawal(withdrawalActionTarget.id, withdrawalActionTarget.action, withdrawalAdminMessage || undefined, proofImageUrl);
       toast({ title: withdrawalActionTarget.action === 'APPROVED' ? "Withdrawal Approved" : "Withdrawal Rejected" });

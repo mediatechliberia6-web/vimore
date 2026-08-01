@@ -44,7 +44,7 @@ import {
   Ban,
   Camera,
 } from "lucide-react";
-import { getAvatarUrl, BUCKET, storage, ID, getFileUrl } from "@/lib/appwrite";
+import { getAvatarUrl, BUCKET, getFileUrl } from "@/lib/appwrite";
 import { cn } from "@/lib/utils";
 import { playNotificationSound } from "@/lib/notification-sound";
 import { Connection, Cluster, usePosts } from "@/context/PostContext";
@@ -348,8 +348,9 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     if (!file || !isCluster) return;
     setLogoUploading(true);
     try {
-      const uploaded = await storage.createFile(BUCKET.AVATARS, ID.unique(), file);
-      await updateCluster((contact as Cluster).$id, { avatarId: uploaded.$id });
+      const { uploadViaServer } = await import('@/lib/upload');
+      const avatarFileId = await uploadViaServer(file, BUCKET.AVATARS);
+      await updateCluster((contact as Cluster).$id, { avatarId: avatarFileId });
       toast({ title: "Logo Updated", description: "Cluster logo has been changed." });
     } catch (err: any) {
       toast({ variant: 'destructive', title: "Upload Failed", description: err.message });
@@ -364,8 +365,9 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     if (!file || !isCluster) return;
     setCoverUploading(true);
     try {
-      const uploaded = await storage.createFile(BUCKET.COVERS, ID.unique(), file);
-      await updateCluster((contact as Cluster).$id, { coverId: uploaded.$id });
+      const { uploadViaServer } = await import('@/lib/upload');
+      const coverFileId = await uploadViaServer(file, BUCKET.COVERS);
+      await updateCluster((contact as Cluster).$id, { coverId: coverFileId });
       toast({ title: "Cover Updated", description: "Cluster cover has been changed." });
     } catch (err: any) {
       toast({ variant: 'destructive', title: "Upload Failed", description: err.message });

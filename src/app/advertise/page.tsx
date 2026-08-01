@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { usePosts } from "@/context/PostContext";
 import { useMusic } from "@/context/MusicContext";
 import { useToast } from "@/hooks/use-toast";
-import { databases, storage, ID, Query, DATABASE_ID, COL, BUCKET, getFileUrl } from "@/lib/appwrite";
+import { databases, storage, Query, DATABASE_ID, COL, BUCKET, getFileUrl } from "@/lib/appwrite";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format, addDays } from "date-fns";
@@ -164,8 +164,8 @@ export default function AdvertisePage() {
         setUploadProgress(p => Math.min(p + 6, 75));
       }, 300);
 
-      const fileId = ID.unique();
-      await storage.createFile(BUCKET.POST_MEDIA, fileId, videoFile);
+      const { uploadViaServer } = await import('@/lib/upload');
+      const fileId = await uploadViaServer(videoFile, BUCKET.POST_MEDIA);
       uploadedFileId = fileId;
       const mediaUrl = getFileUrl(BUCKET.POST_MEDIA, fileId);
 

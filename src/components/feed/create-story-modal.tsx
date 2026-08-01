@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
-import { BUCKET_STORIES, storage, ID, getFileUrl } from "@/lib/appwrite";
+import { BUCKET_STORIES, getFileUrl } from "@/lib/appwrite";
 
 const GRADIENTS = [
   { id: "vimore",   label: "ViMore",   class: "bg-gradient-to-br from-primary to-accent" },
@@ -72,9 +72,8 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
       let finalImageUrl = "";
 
       if (selectedFile) {
-        const fileId = ID.unique();
-        const res = await storage.createFile(BUCKET_STORIES, fileId, selectedFile);
-        finalFileId = res.$id;
+        const { uploadViaServer } = await import('@/lib/upload');
+        finalFileId = await uploadViaServer(selectedFile, BUCKET_STORIES);
         finalImageUrl = getFileUrl(BUCKET_STORIES, finalFileId);
       }
 
