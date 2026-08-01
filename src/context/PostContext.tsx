@@ -1758,7 +1758,27 @@ export function PostProvider({ children }: { children: ReactNode }) {
         authUser = null;
       }
       if (!authUser) {
-        await account.createEmailPasswordSession(vimoreId, password);
+        // Use server-side login to avoid client-SDK platform/CORS restrictions.
+        // The Next.js server proxies the credential check directly to Appwrite
+        // (server-to-server), then returns the session secret for us to hydrate.
+        const loginRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: vimoreId, password }),
+        });
+        const loginData = await loginRes.json();
+        if (!loginRes.ok) {
+          throw new Error(loginData.error || 'Invalid credentials.');
+        }
+        // Hydrate the Appwrite client SDK with the server-returned session.
+        const { client } = await import('@/lib/appwrite');
+        client.setSession(loginData.secret);
+        // Also persist in localStorage so authFetch and page refreshes work.
+        try {
+          const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
+          const fallback = { [`a_session_${PROJECT_ID}`]: loginData.secret };
+          localStorage.setItem('cookieFallback', JSON.stringify(fallback));
+        } catch { /* ignore */ }
         authUser = await account.get();
       }
       const profileDoc = await databases.getDocument(DATABASE_ID, COL.USERS, authUser.$id);
