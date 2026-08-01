@@ -2718,53 +2718,34 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const sendFriendRequest = useCallback(async (targetUsername: string) => {
     if (!currentUser) return;
+
+    // Optimistic UI updates.
+    const alreadyFollowing = followingUsernames.has(targetUsername);
+    const prevFollowing = currentUser.following as number || 0;
+    setSentRequestUsernamesState(p => new Set(p).add(targetUsername));
+    if (!alreadyFollowing) {
+      setFollowingUsernamesState(prev => new Set(prev).add(targetUsername));
+      setCurrentUserState(prev => prev ? { ...prev, following: prevFollowing + 1 } : null);
+    }
+
     try {
-      const targetResult = await databases.listDocuments(DATABASE_ID, COL.USERS, [
-        Query.equal('username', targetUsername), Query.limit(1),
-      ]);
-      const targetDoc = targetResult.documents[0];
-      if (!targetDoc) throw new Error('User not found');
-
-      await databases.createDocument(DATABASE_ID, COL.FRIEND_REQUESTS, ID.unique(), {
-        from_user_id: currentUser.$id,
-        to_user_id: targetDoc.$id,
-        status: 'PENDING',
+      const res = await authFetch('/api/friends/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'send', targetUsername }),
       });
-
-      const alreadyFollowing = followingUsernames.has(targetUsername);
-      if (!alreadyFollowing) {
-        await databases.createDocument(DATABASE_ID, COL.FOLLOWS, ID.unique(), {
-          follower_id: currentUser.$id,
-          following_id: targetDoc.$id,
-          follower_username: currentUser.username,
-          following_username: targetUsername,
-        });
-        setFollowingUsernamesState(prev => new Set(prev).add(targetUsername));
-        const prevFollowing = currentUser.following as number || 0;
-        await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
-          following_count: prevFollowing + 1,
-        });
-        setCurrentUserState(prev => prev ? { ...prev, following: prevFollowing + 1 } : null);
-        await databases.updateDocument(DATABASE_ID, COL.USERS, targetDoc.$id, {
-          followers_count: (targetDoc.followers_count || 0) + 1,
-        }).catch(() => {});
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || 'Could not send friend request. Please try again.');
       }
-
-      await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
-        user_id: targetDoc.$id,
-        from_user_id: currentUser.$id,
-        from_user_name: currentUser.name || currentUser.username,
-        from_user_avatar: currentUser.avatar || '',
-        type: 'FRIEND_REQUEST',
-        title: 'Friend Request',
-        content: `${currentUser.name || currentUser.username} (@${currentUser.username}) sent you a friend request.`,
-        message: `${currentUser.name || currentUser.username} (@${currentUser.username}) sent you a friend request.`,
-        is_read: false,
-      }).catch(() => { /* notification failure should not block the request */ });
-
-      setSentRequestUsernamesState(p => new Set(p).add(targetUsername));
       toast({ title: "Friend request sent!" });
     } catch (err: any) {
+      // Roll back optimistic state on failure.
+      setSentRequestUsernamesState(p => { const n = new Set(p); n.delete(targetUsername); return n; });
+      if (!alreadyFollowing) {
+        setFollowingUsernamesState(prev => { const n = new Set(prev); n.delete(targetUsername); return n; });
+        setCurrentUserState(prev => prev ? { ...prev, following: prevFollowing } : null);
+      }
       logAppwriteError('sendFriendRequest', err);
       toast({ variant: 'destructive', title: 'Request Failed', description: err?.message || 'Could not send friend request. Please try again.' });
     }
@@ -2772,99 +2753,40 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const confirmFriendRequest = useCallback(async (username: string) => {
     if (!currentUser) return;
+
+    // Optimistic UI updates.
     setFriendUsernamesState(p => new Set(p).add(username));
     setReceivedRequestUsernamesState(p => { const n = new Set(p); n.delete(username); return n; });
     setFollowingUsernamesState(prev => new Set(prev).add(username));
 
+    const senderDoc = allUsers.find(u => u.username === username);
+    if (senderDoc) {
+      setConnectionsState(prev => {
+        if (prev.find(c => c.username === senderDoc.username)) return prev;
+        const newConn: Connection = {
+          ...senderDoc,
+          isGroup: false,
+          lastMessage: '',
+          lastTime: '',
+        };
+        return [...prev, newConn];
+      });
+    }
+
     try {
-      let senderDoc = allUsers.find(u => u.username === username);
-      if (!senderDoc) {
-        const res = await databases.listDocuments(DATABASE_ID, COL.USERS, [
-          Query.equal('username', username), Query.limit(1),
-        ]);
-        senderDoc = res.documents[0] ? mapProfileDocToUser(res.documents[0]) : undefined;
-      }
-      if (senderDoc) {
-        const existing = await databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
-          Query.equal('from_user_id', senderDoc.$id),
-          Query.equal('to_user_id', currentUser.$id),
-          Query.equal('status', 'PENDING'),
-        ]);
-        for (const doc of existing.documents) {
-          await databases.updateDocument(DATABASE_ID, COL.FRIEND_REQUESTS, doc.$id, { status: 'ACCEPTED' });
-        }
-
-        const [myFollowsRes, theirFollowsRes] = await Promise.all([
-          databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
-            Query.equal('follower_id', currentUser.$id),
-            Query.equal('following_id', senderDoc.$id),
-            Query.limit(1),
-          ]),
-          databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
-            Query.equal('follower_id', senderDoc.$id),
-            Query.equal('following_id', currentUser.$id),
-            Query.limit(1),
-          ]),
-        ]);
-
-        if (myFollowsRes.total === 0) {
-          await databases.createDocument(DATABASE_ID, COL.FOLLOWS, ID.unique(), {
-            follower_id: currentUser.$id,
-            following_id: senderDoc.$id,
-            follower_username: currentUser.username,
-            following_username: username,
-          });
-          const prevFollowing = currentUser.following as number || 0;
-          await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
-            following_count: prevFollowing + 1,
-          }).catch(() => {});
-          setCurrentUserState(prev => prev ? { ...prev, following: prevFollowing + 1 } : null);
-          await databases.updateDocument(DATABASE_ID, COL.USERS, senderDoc.$id, {
-            followers_count: (senderDoc.followers as number || 0) + 1,
-          }).catch(() => {});
-        }
-
-        if (theirFollowsRes.total === 0) {
-          await databases.createDocument(DATABASE_ID, COL.FOLLOWS, ID.unique(), {
-            follower_id: senderDoc.$id,
-            following_id: currentUser.$id,
-            follower_username: username,
-            following_username: currentUser.username,
-          });
-          const prevFollowers = currentUser.followers as number || 0;
-          await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
-            followers_count: prevFollowers + 1,
-          }).catch(() => {});
-          setCurrentUserState(prev => prev ? { ...prev, followers: prevFollowers + 1 } : null);
-          await databases.updateDocument(DATABASE_ID, COL.USERS, senderDoc.$id, {
-            following_count: (senderDoc.following as number || 0) + 1,
-          }).catch(() => {});
-        }
-
-        await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
-          user_id: senderDoc.$id,
-          from_user_id: currentUser.$id,
-          from_user_name: currentUser.name || currentUser.username,
-          from_user_avatar: currentUser.avatar || '',
-          type: 'FRIEND_ACCEPT',
-          title: 'Friend Request Accepted',
-          content: `${currentUser.name || currentUser.username} (@${currentUser.username}) accepted your friend request.`,
-          message: `${currentUser.name || currentUser.username} (@${currentUser.username}) accepted your friend request.`,
-          is_read: false,
-        }).catch(() => { /* notification failure should not block acceptance */ });
-
-        setConnectionsState(prev => {
-          if (prev.find(c => c.username === senderDoc!.username)) return prev;
-          const newConn: Connection = {
-            ...senderDoc!,
-            isGroup: false,
-            lastMessage: '',
-            lastTime: '',
-          };
-          return [...prev, newConn];
-        });
+      const res = await authFetch('/api/friends/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'confirm', targetUsername: username }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || 'Could not confirm request.');
       }
     } catch (err: any) {
+      // Roll back optimistic membership on failure.
+      setFriendUsernamesState(p => { const n = new Set(p); n.delete(username); return n; });
+      setReceivedRequestUsernamesState(p => new Set(p).add(username));
       logAppwriteError('confirmFriendRequest', err);
       toast({ variant: 'destructive', title: 'Failed to confirm request', description: formatErrorDescription(err, currentUser?.role) });
     }
@@ -2872,120 +2794,71 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const cancelFriendRequest = useCallback(async (username: string) => {
     if (!currentUser) return;
-    setSentRequestUsernamesState(p => { const n = new Set(p); n.delete(username); return n; });
     const prevFollowing = currentUser.following as number || 0;
+    const wasFollowing = followingUsernames.has(username);
+    const targetDoc: any = allUsers.find(u => u.username === username) || null;
+
+    // Optimistic UI updates.
+    setSentRequestUsernamesState(p => { const n = new Set(p); n.delete(username); return n; });
+    setFollowingUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
+    if (targetDoc) setFollowingUserIdsState(prev => { const n = new Set(prev); n.delete(targetDoc.$id); return n; });
+    const newFollowing = Math.max(0, prevFollowing - 1);
+    setCurrentUserState(prev => prev ? { ...prev, following: newFollowing } : null);
 
     try {
-      let targetDoc: any = allUsers.find(u => u.username === username);
-      if (!targetDoc) {
-        const res = await databases.listDocuments(DATABASE_ID, COL.USERS, [
-          Query.equal('username', username), Query.limit(1),
-        ]);
-        targetDoc = res.documents[0] || null;
+      const res = await authFetch('/api/friends/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel', targetUsername: username }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || 'Could not cancel request.');
       }
-
-      if (targetDoc) {
-        const existing = await databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
-          Query.equal('from_user_id', currentUser.$id),
-          Query.equal('to_user_id', targetDoc.$id),
-          Query.equal('status', 'PENDING'),
-        ]);
-        for (const doc of existing.documents) {
-          await databases.deleteDocument(DATABASE_ID, COL.FRIEND_REQUESTS, doc.$id);
-        }
-
-        const followDocs = await databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
-          Query.equal('follower_id', currentUser.$id),
-          Query.equal('following_id', targetDoc.$id),
-        ]);
-        if (followDocs.total > 0) {
-          for (const doc of followDocs.documents) {
-            await databases.deleteDocument(DATABASE_ID, COL.FOLLOWS, doc.$id);
-          }
-        }
-        setFollowingUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
-        setFollowingUserIdsState(prev => { const n = new Set(prev); n.delete(targetDoc.$id); return n; });
-        const newFollowing = Math.max(0, prevFollowing - 1);
-        await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { following_count: newFollowing }).catch(() => {});
-        setCurrentUserState(prev => prev ? { ...prev, following: newFollowing } : null);
-        if (followDocs && followDocs.total > 0) {
-          await databases.updateDocument(DATABASE_ID, COL.USERS, targetDoc.$id, {
-            followers_count: Math.max(0, (targetDoc.followers_count || targetDoc.followers || 0) - 1),
-          }).catch(() => {});
-        }
-      }
-    } catch {
+    } catch (err) {
+      // Roll back optimistic state on failure.
+      setSentRequestUsernamesState(p => new Set(p).add(username));
+      if (wasFollowing) setFollowingUsernamesState(prev => new Set(prev).add(username));
       setCurrentUserState(prev => prev ? { ...prev, following: prevFollowing } : null);
+      logAppwriteError('cancelFriendRequest', err);
     }
-  }, [currentUser, allUsers]);
+  }, [currentUser, allUsers, followingUsernames]);
 
   const unfriendUser = useCallback(async (username: string) => {
     if (!currentUser) return;
-    setFriendUsernamesState(p => { const n = new Set(p); n.delete(username); return n; });
     const prevFollowing = currentUser.following as number || 0;
     const prevFollowers = currentUser.followers as number || 0;
+    const wasFollowing = followingUsernames.has(username);
+    const targetUser = allUsers.find(u => u.username === username);
+
+    // Optimistic UI updates.
+    setFriendUsernamesState(p => { const n = new Set(p); n.delete(username); return n; });
+    setFollowingUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
+    if (targetUser) setFollowingUserIdsState(prev => { const n = new Set(prev); n.delete(targetUser.$id); return n; });
+    const newFollowing = Math.max(0, prevFollowing - 1);
+    const newFollowers = Math.max(0, prevFollowers - 1);
+    setCurrentUserState(prev => prev ? { ...prev, following: newFollowing, followers: newFollowers } : null);
 
     try {
-      const targetUser = allUsers.find(u => u.username === username);
-      if (!targetUser) { toast({ title: "Unfriended" }); return; }
-
-      const [sent, recv] = await Promise.all([
-        databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
-          Query.equal('from_user_id', currentUser.$id), Query.equal('to_user_id', targetUser.$id), Query.equal('status', 'ACCEPTED'),
-        ]),
-        databases.listDocuments(DATABASE_ID, COL.FRIEND_REQUESTS, [
-          Query.equal('to_user_id', currentUser.$id), Query.equal('from_user_id', targetUser.$id), Query.equal('status', 'ACCEPTED'),
-        ]),
-      ]);
-      for (const doc of [...sent.documents, ...recv.documents]) {
-        await databases.deleteDocument(DATABASE_ID, COL.FRIEND_REQUESTS, doc.$id);
+      const res = await authFetch('/api/friends/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'unfriend', targetUsername: username }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || 'Unfriend failed');
       }
-
-      const [myFollows, theirFollows] = await Promise.all([
-        databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
-          Query.equal('follower_id', currentUser.$id),
-          Query.equal('following_id', targetUser.$id),
-        ]),
-        databases.listDocuments(DATABASE_ID, COL.FOLLOWS, [
-          Query.equal('follower_id', targetUser.$id),
-          Query.equal('following_id', currentUser.$id),
-        ]),
-      ]);
-
-      if (myFollows.total > 0) {
-        for (const doc of myFollows.documents) {
-          await databases.deleteDocument(DATABASE_ID, COL.FOLLOWS, doc.$id);
-        }
-        setFollowingUsernamesState(prev => { const n = new Set(prev); n.delete(username); return n; });
-        setFollowingUserIdsState(prev => { const n = new Set(prev); n.delete(targetUser.$id); return n; });
-        const newFollowing = Math.max(0, prevFollowing - 1);
-        await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { following_count: newFollowing }).catch(() => {});
-        setCurrentUserState(prev => prev ? { ...prev, following: newFollowing } : null);
-        await databases.updateDocument(DATABASE_ID, COL.USERS, targetUser.$id, {
-          followers_count: Math.max(0, (targetUser.followers as number || 0) - 1),
-        }).catch(() => {});
-      }
-
-      if (theirFollows.total > 0) {
-        for (const doc of theirFollows.documents) {
-          await databases.deleteDocument(DATABASE_ID, COL.FOLLOWS, doc.$id);
-        }
-        const newFollowers = Math.max(0, prevFollowers - 1);
-        await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { followers_count: newFollowers }).catch(() => {});
-        setCurrentUserState(prev => prev ? { ...prev, followers: newFollowers } : null);
-        await databases.updateDocument(DATABASE_ID, COL.USERS, targetUser.$id, {
-          following_count: Math.max(0, (targetUser.following as number || 0) - 1),
-        }).catch(() => {});
-      }
-
       toast({ title: "Unfriended" });
     } catch (err) {
+      // Roll back optimistic state on failure.
       setFriendUsernamesState(p => new Set(p).add(username));
+      if (wasFollowing) setFollowingUsernamesState(prev => new Set(prev).add(username));
       setCurrentUserState(prev => prev ? { ...prev, following: prevFollowing, followers: prevFollowers } : null);
       logAppwriteError('unfriendUser', err);
       toast({ variant: "destructive", title: "Unfriend failed" });
     }
-  }, [currentUser, allUsers, toast]);
+  }, [currentUser, allUsers, followingUsernames, toast]);
 
   const sendChatMessage = useCallback(async (recipientId: string, message: Partial<ChatMessage>) => {
     if (!currentUser) return;
