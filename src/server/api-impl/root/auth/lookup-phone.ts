@@ -12,14 +12,41 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'phone is required' }, { status: 400 });
     }
 
-    const normalized = phone.trim().replace(/[\s\-().]/g, '');
+    // Normalize by removing common separators but keep '+' if present for now
+    const raw = phone.trim();
+    const normalized = raw.replace(/[\s\-().]/g, '');
+
+    // Build a set of candidate normalized forms to try (handles +, no +, leading zeros)
+    const candidates = new Set<string>();
+    candidates.add(normalized);
+
+    if (normalized.startsWith('+')) {
+      candidates.add(normalized.slice(1)); // without +
+    } else {
+      candidates.add('+' + normalized); // with +
+    }
+
+    // If phone starts with a leading 0 (local format), try without the leading zeros and with plus
+    if (/^0+/.test(normalized)) {
+      const withoutLeadingZeros = normalized.replace(/^0+/, '');
+      if (withoutLeadingZeros) {
+        candidates.add(withoutLeadingZeros);
+        candidates.add('+' + withoutLeadingZeros);
+      }
+    }
+
+    // Convert to array and attempt a single query that matches any of these candidates.
+    const attempts = Array.from(candidates);
+
     const db = getAdminDatabases();
     const result = await db.listDocuments(DATABASE_ID, COL_USERS, [
-      Query.equal('phone', normalized),
+      Query.equal('phone', attempts),
       Query.limit(1),
     ]);
 
     if (!result.documents.length) {
+      // Log the attempted candidates for easier debugging in server logs
+      console.warn('[lookup-phone] no match for', attempts);
       return NextResponse.json({ error: 'No account found with that phone number.' }, { status: 404 });
     }
 
