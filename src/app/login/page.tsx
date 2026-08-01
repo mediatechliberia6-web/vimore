@@ -183,9 +183,37 @@ export default function LoginPage() {
       return;
     }
     setForgotLoading(true);
-    await new Promise(r => setTimeout(r, 1000));
-    setForgotLoading(false);
-    setForgotStep("done");
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vimoreId: forgotId,
+          securityAnswer: forgotAnswer,
+          newPassword: forgotNewPass,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Reset failed", description: data.error || "Could not reset password." });
+        setForgotLoading(false);
+        return;
+      }
+      // If the server returned a session, hydrate the client SDK and log in directly
+      if (data.sessionCreated && data.secret) {
+        try {
+          const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
+          const { client } = await import('@/lib/appwrite');
+          client.setSession(data.secret);
+          localStorage.setItem('cookieFallback', JSON.stringify({ [`a_session_${PROJECT_ID}`]: data.secret }));
+        } catch { /* ignore */ }
+      }
+      setForgotLoading(false);
+      setForgotStep("done");
+    } catch {
+      toast({ variant: "destructive", title: "Reset failed", description: "Something went wrong. Please try again." });
+      setForgotLoading(false);
+    }
   };
 
   const hasSaved = savedAccounts.length > 0;
