@@ -1,3 +1,4 @@
+- [Appwrite 1.6 session cookie](appwrite-session-cookie.md) — server-to-server session creation returns empty secret in JSON; extract from Set-Cookie header instead
 - [Admin server-side auth guard](admin-auth-guard.md) — serverRoleChecked/serverAuthorized state must be declared before the `isUnauthorized` const in admin/page.tsx
 - [authFetch JWT bridge](auth-fetch.md) — Appwrite SDK uses localStorage (not cookies), so all Next.js API fetch calls must use authFetch which sends a JWT via Authorization header
 - [Verification flow](verification-flow.md) — verify route creates PENDING record, admin approves/rejects via dedicated routes; no optimistic is_verified on client
