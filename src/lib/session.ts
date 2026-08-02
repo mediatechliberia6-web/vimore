@@ -4,7 +4,7 @@ import { getAdminDatabases, DATABASE_ID } from './appwrite-server';
 import type { NextRequest } from 'next/server';
 
 const ENDPOINT =
-  process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1';
+  process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://appwrite.mediatechliberia.online/v1';
 const PROJECT_ID =
   process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
 
@@ -51,7 +51,8 @@ async function resolveUser(client: Client): Promise<SessionUser | null> {
       /* user doc not found — treat as no role */
     }
     return { userId: appwriteUser.$id, role };
-  } catch {
+  } catch (err: any) {
+    console.error('[session] resolveUser failed:', err?.message ?? err);
     return null;
   }
 }
