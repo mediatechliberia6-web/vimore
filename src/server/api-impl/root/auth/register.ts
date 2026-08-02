@@ -18,9 +18,23 @@ const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
  * API (no platform check) to create the account, then creates a session via
  * a direct server-to-server REST call (same approach as auth/login.ts).
  *
- * The caller receives the session secret and can hydrate the client SDK via
- * client.setSession(secret) without needing any client-side account ops.
+ * Appwrite 1.6 no longer returns the session secret in the JSON body when
+ * called server-to-server. Instead it sets a Set-Cookie header whose value is
+ * a base64-encoded JSON { id, secret }. We extract that cookie value and
+ * return it as `secret` so the client can store it in cookieFallback and send
+ * it back as X-Appwrite-Session on every authenticated API call.
  */
+
+/**
+ * Extract the Appwrite session cookie value from a Set-Cookie header string.
+ */
+function extractSessionCookie(setCookieHeader: string | null, projectId: string): string {
+  if (!setCookieHeader) return '';
+  const pattern = new RegExp(`a_session_${projectId}=([^;,\\s]+)`);
+  const match = setCookieHeader.match(pattern);
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password, name } = await req.json();
@@ -50,12 +64,13 @@ export async function POST(req: NextRequest) {
 
     // Create a session via direct server→Appwrite REST call.
     // Same pattern as auth/login.ts — no CORS / platform-domain restrictions.
+    // Note: do NOT send X-Appwrite-Response-Format: 1.0.0 — that header
+    // causes Appwrite to omit the Set-Cookie header we need to extract the session.
     const sessionRes = await fetch(`${ENDPOINT}/account/sessions/email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Appwrite-Project': PROJECT_ID,
-        'X-Appwrite-Response-Format': '1.0.0',
       },
       body: JSON.stringify({ email, password }),
     });
@@ -71,10 +86,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Appwrite 1.6+: session secret comes via Set-Cookie, not sessionData.secret.
+    const secret =
+      (typeof sessionData.secret === 'string' && sessionData.secret) ||
+      extractSessionCookie(sessionRes.headers.get('set-cookie'), PROJECT_ID);
+
     return NextResponse.json({
       userId,
       sessionId: sessionData.$id,
-      secret: sessionData.secret,
+      secret,
       expire: sessionData.expire,
     });
   } catch (err: any) {

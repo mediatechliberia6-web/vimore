@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
+import { getSessionUser } from '@/lib/session';
 import { rateLimit } from '@/lib/rate-limit';
 
 export const maxDuration = 15;
@@ -31,8 +32,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
     }
 
+    // Auth guard — only let the session owner update their own presence
+    const session = await getSessionUser(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { userId, isOnline } = body;
+
+    // Ensure the session owner can only update their own presence
+    if (userId !== session.userId) {
+      return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
+    }
 
     if (!userId || typeof userId !== 'string' || userId.length > 64 || !/^[a-zA-Z0-9._-]+$/.test(userId)) {
       return NextResponse.json({ error: 'Invalid userId' }, { status: 400 });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
+import { getSessionUser } from '@/lib/session';
 import { ID, Query, Permission, Role } from 'node-appwrite';
 
 export const maxDuration = 30;
@@ -8,6 +9,11 @@ const STORES_COL = 'stores';
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getSessionUser(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+    }
+
     const body = await req.json();
     const {
       owner_id,

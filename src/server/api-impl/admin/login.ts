@@ -7,6 +7,13 @@ export const maxDuration = 20;
 
 const ENDPOINT = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://appwrite.mediatechliberia.online/v1').replace(/\/$/, '');
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
+
+/** Extract the Appwrite session cookie value from a Set-Cookie header (Appwrite 1.6+). */
+function extractSessionCookie(setCookieHeader: string | null, projectId: string): string {
+  if (!setCookieHeader) return '';
+  const match = setCookieHeader.match(new RegExp(`a_session_${projectId}=([^;,\\s]+)`));
+  return match ? decodeURIComponent(match[1]) : '';
+}
 const ADMIN_ROLES = new Set(['SUPER', 'FINANCIAL', 'MODERATOR']);
 
 export async function POST(req: NextRequest) {
@@ -84,7 +91,11 @@ export async function POST(req: NextRequest) {
     }
 
     const sessionData = await sessionRes.json();
-    const sessionSecret: string = sessionData.secret ?? sessionData.$id ?? '';
+    // Appwrite 1.6+: secret comes via Set-Cookie, not the JSON body (data.secret is "").
+    const sessionSecret: string =
+      (typeof sessionData.secret === 'string' && sessionData.secret) ||
+      extractSessionCookie(sessionRes.headers.get('set-cookie'), PROJECT_ID) ||
+      '';
 
     const accountRes = await fetch(`${ENDPOINT}/account`, {
       headers: {

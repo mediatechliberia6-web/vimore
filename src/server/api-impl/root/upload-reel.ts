@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
+import { getSessionUser } from '@/lib/session';
 import { ID } from 'node-appwrite';
 
 export const dynamic = 'force-dynamic';
@@ -11,6 +12,12 @@ const COL_SOUNDS = 'sounds';
 
 export async function POST(req: NextRequest) {
   try {
+    // Auth guard — derive identity from session, never trust body
+    const session = await getSessionUser(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+    }
+
     const body = await req.json();
     const {
       videoFileId,
