@@ -1857,7 +1857,7 @@ export default function AdminDashboard() {
                       {/* Reported target */}
                       <div className="flex items-center gap-3">
                         {isProduct && meta?.thumbnailFileId ? (
-                          <img src={`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1'}/storage/buckets/Marketplace_Images/files/${meta.thumbnailFileId}/preview?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123'}&width=64&height=64&quality=60&output=webp`} alt="" className="h-12 w-12 rounded-2xl object-cover shrink-0" />
+                          <img src={`${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://appwrite.mediatechliberia.online/v1'}/storage/buckets/Marketplace_Images/files/${meta.thumbnailFileId}/preview?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123'}&width=64&height=64&quality=60&output=webp`} alt="" className="h-12 w-12 rounded-2xl object-cover shrink-0" />
                         ) : (
                           <div className="h-12 w-12 bg-secondary/40 rounded-2xl flex items-center justify-center shrink-0">
                             <ShieldAlert className="h-5 w-5 text-muted-foreground/40" />

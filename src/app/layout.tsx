@@ -209,7 +209,7 @@ export default async function RootLayout({
         {/* Security */}
         <meta
           httpEquiv="Content-Security-Policy"
-          content="img-src 'self' * data: blob:; media-src 'self' * data: blob:; connect-src 'self' https://mediatechliberia.online wss: ws: https:;"
+          content="img-src 'self' * data: blob:; media-src 'self' * data: blob:; connect-src 'self' https://mediatechliberia.online https://appwrite.mediatechliberia.online wss: ws: https:;"
         />
 
         {/* JSON-LD: Organization + WebApplication structured data for Google Knowledge Graph */}

@@ -4,7 +4,7 @@ import { rateLimit, sanitizeIp } from '@/lib/rate-limit';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 20;
 
-const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1';
+const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://appwrite.mediatechliberia.online/v1';
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
 
 const ALLOWED_BUCKETS = new Set([

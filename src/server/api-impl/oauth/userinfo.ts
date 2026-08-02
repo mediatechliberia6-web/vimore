@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     response.name = profile?.name || profile?.displayName || null;
     response.username = profile?.vimoreId || null;
     response.picture = profile?.avatar_id
-      ? `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1'}/storage/buckets/avatars/files/${profile.avatar_id}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123'}`
+      ? `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://appwrite.mediatechliberia.online/v1'}/storage/buckets/avatars/files/${profile.avatar_id}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123'}`
       : null;
     response.verified = profile?.is_verified || false;
   }

@@ -1,6 +1,6 @@
 import 'server-only';
 
-const ENDPOINT = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1').replace(/\/$/, '');
+const ENDPOINT = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://appwrite.mediatechliberia.online/v1').replace(/\/$/, '');
 const PROJECT = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
 const DB = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || process.env.APPWRITE_DATABASE_ID || 'vimoreprod';
 const COLLECTION = 'ai_knowledge_bank';
