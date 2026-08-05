@@ -454,7 +454,7 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
       await addPost({
         content,
         language: typeof window !== 'undefined' ? window.navigator.language.split('-')[0] : 'en',
-        theme: selectedTheme.id !== "none" ? selectedTheme.class : undefined,
+        theme: selectedTheme.id !== "none" ? selectedTheme.id : undefined,
         images: mediaType === 'image' ? uploadedUrls : undefined,
         videoUrl: mediaType === 'video' ? uploadedUrls[0] : undefined,
         imageFilter: selectedFilter.id !== "none" ? selectedFilter.class : undefined,

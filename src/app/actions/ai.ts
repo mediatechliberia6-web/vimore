@@ -4,7 +4,7 @@ const MYMEMORY_ENDPOINT = 'https://api.mymemory.translated.net/get';
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
 async function callGemini(systemPrompt: string, userPrompt: string, maxTokens = 400): Promise<string | null> {
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
   if (!key) return null;
   try {
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
@@ -132,7 +132,7 @@ export async function aiSuggestCaptionsFromImagesAction({
     "Living in the moment 🔥 #ViMoreCreator",
     "Every picture tells a story 📸 #ViMore",
   ];
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
   if (!key) return { captions: fallback };
   try {
     const { GoogleGenerativeAI } = await import('@google/generative-ai');

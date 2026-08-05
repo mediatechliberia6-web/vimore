@@ -44,6 +44,7 @@ import * as UploadReel from '@/server/api-impl/root/upload-reel';
 import * as UserActivity from '@/server/api-impl/root/user/activity';
 import * as UserProfile from '@/server/api-impl/root/user/profile';
 import * as Withdraw from '@/server/api-impl/root/withdraw';
+import * as PostReaction from '@/server/api-impl/root/post-reaction';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -94,6 +95,7 @@ const ROUTES: Record<string, Handler> = {
   'user/activity': UserActivity,
   'user/profile': UserProfile,
   'withdraw': Withdraw,
+  'post/reaction': PostReaction,
 };
 
 async function dispatch(req: NextRequest, method: string, ctx: { params: Promise<{ path: string[] }> }) {

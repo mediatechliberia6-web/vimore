@@ -483,6 +483,15 @@ function mapProfileDocToUser(doc: Models.Document): User {
   };
 }
 
+const THEME_ID_TO_CLASS: Record<string, string> = {
+  'none': '',
+  'purple-grad': 'bg-gradient-to-br from-primary to-accent text-white',
+  'ocean': 'bg-gradient-to-br from-blue-400 to-emerald-400 text-white',
+  'sunset': 'bg-gradient-to-br from-orange-500 to-rose-500 text-white',
+  'royal': 'bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 text-white',
+  'midnight': 'bg-gradient-to-br from-slate-900 to-slate-700 text-white',
+};
+
 function mapDocToPost(doc: Models.Document, authorDoc?: Models.Document): Post {
   const imageIds: string[] = Array.isArray(doc.image_ids) ? doc.image_ids : (doc.image_id ? [doc.image_id] : []);
   const images = imageIds.map((id: string) => getFileUrl(BUCKET.POST_MEDIA, id));
@@ -525,7 +534,7 @@ function mapDocToPost(doc: Models.Document, authorDoc?: Models.Document): Post {
       ? getFileUrl(BUCKET.REEL_MEDIA, doc.media_url)
       : (videoId ? getFileUrl(BUCKET.POST_MEDIA, videoId) : undefined),
     type: doc.type,
-    theme: doc.theme,
+    theme: doc.theme ? (THEME_ID_TO_CLASS[doc.theme] ?? doc.theme) : undefined,
     imageFilter: doc.image_filter,
     feeling: doc.feeling,
     location: doc.location,
@@ -2470,33 +2479,21 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } : p));
 
     try {
-      if (wasLiked) {
-        const [existing, currentDoc] = await Promise.all([
-          databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [
-            Query.equal('post_id', id), Query.equal('user_id', currentUser.$id), Query.equal('reaction_type', 'LIKE'),
-          ]),
-          databases.getDocument(DATABASE_ID, COL.POSTS, id),
-        ]);
-        for (const doc of existing.documents) {
-          await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, doc.$id);
-        }
-        await databases.updateDocument(DATABASE_ID, COL.POSTS, id, { likes_count: Math.max(0, (currentDoc.likes_count || 0) - 1) });
-      } else {
-        if (wasUnliked) {
-          const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [
-            Query.equal('post_id', id), Query.equal('user_id', currentUser.$id), Query.equal('reaction_type', 'UNLIKE'),
-          ]);
-          for (const doc of existing.documents) {
-            await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, doc.$id);
-          }
-        }
-        const [, currentDoc] = await Promise.all([
-          databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), {
-            post_id: id, user_id: currentUser.$id, reaction_type: 'LIKE',
-          }),
-          databases.getDocument(DATABASE_ID, COL.POSTS, id),
-        ]);
-        await databases.updateDocument(DATABASE_ID, COL.POSTS, id, { likes_count: (currentDoc.likes_count || 0) + 1 });
+      const action = wasLiked ? 'remove-like' : 'like';
+      const res = await authFetch('/api/post/reaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId: id, action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Reaction failed');
+      // Sync server-confirmed counts
+      setPostsState(prev => prev.map(p => p.$id === id ? {
+        ...p,
+        likes: data.likesCount ?? p.likes,
+        unlikes: data.unlikesCount ?? p.unlikes,
+      } : p));
+      if (!wasLiked) {
         const likedPost = posts.find(p => p.$id === id);
         if (likedPost && likedPost.user.$id !== currentUser.$id) {
           databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
@@ -2544,36 +2541,20 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } : p));
 
     try {
-      const currentDoc = await databases.getDocument(DATABASE_ID, COL.POSTS, id);
-      if (wasUnliked) {
-        const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [
-          Query.equal('post_id', id), Query.equal('user_id', currentUser.$id), Query.equal('reaction_type', 'UNLIKE'),
-        ]);
-        for (const doc of existing.documents) {
-          await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, doc.$id);
-        }
-        await databases.updateDocument(DATABASE_ID, COL.POSTS, id, {
-          unlikes_count: Math.max(0, (currentDoc.unlikes_count || 0) - 1),
-        });
-      } else {
-        if (wasLiked) {
-          const existing = await databases.listDocuments(DATABASE_ID, COL.POST_REACTIONS, [
-            Query.equal('post_id', id), Query.equal('user_id', currentUser.$id), Query.equal('reaction_type', 'LIKE'),
-          ]);
-          for (const doc of existing.documents) {
-            await databases.deleteDocument(DATABASE_ID, COL.POST_REACTIONS, doc.$id);
-          }
-          await databases.updateDocument(DATABASE_ID, COL.POSTS, id, {
-            likes_count: Math.max(0, (currentDoc.likes_count || 0) - 1),
-          });
-        }
-        await databases.createDocument(DATABASE_ID, COL.POST_REACTIONS, ID.unique(), {
-          post_id: id, user_id: currentUser.$id, reaction_type: 'UNLIKE',
-        });
-        await databases.updateDocument(DATABASE_ID, COL.POSTS, id, {
-          unlikes_count: (currentDoc.unlikes_count || 0) + 1,
-        });
-      }
+      const action = wasUnliked ? 'remove-unlike' : 'unlike';
+      const res = await authFetch('/api/post/reaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId: id, action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Reaction failed');
+      // Sync server-confirmed counts
+      setPostsState(prev => prev.map(p => p.$id === id ? {
+        ...p,
+        likes: data.likesCount ?? p.likes,
+        unlikes: data.unlikesCount ?? p.unlikes,
+      } : p));
     } catch (err: any) {
       logAppwriteError('toggleUnlikePost', err);
       setUnlikedPostIdsState(prev => { const n = new Set(prev); if (wasUnliked) n.add(id); else n.delete(id); return n; });

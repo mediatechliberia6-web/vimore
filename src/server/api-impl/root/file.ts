@@ -4,21 +4,31 @@ import { rateLimit, sanitizeIp } from '@/lib/rate-limit';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 20;
 
-const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://appwrite.mediatechliberia.online/v1';
+const APPWRITE_ENDPOINT = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://appwrite.mediatechliberia.online/v1').replace(/\/$/, '');
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
+const API_KEY = process.env.APPWRITE_API_KEY || '';
 
-const ALLOWED_BUCKETS = new Set([
-  'profile_images',
-  'post_images',
-  'reel_videos',
-  'music_tracks',
-  'album_covers',
-  'marketplace_images',
-  'ad_media',
+// Public buckets — served with admin key so files are always accessible regardless of bucket permissions
+const PUBLIC_BUCKETS = new Set([
+  'post_media',
   'story_media',
-  'message_attachments',
-  'event_banners',
-  'verification_docs',
+  'reel_media',
+  'avatars',
+  'covers',
+  'album_covers',
+  'music_tracks',
+  'sounds',
+  'event_flyers',
+  'Marketplace_Images',
+  'store_logos',
+]);
+
+// All allowed buckets (public + private)
+const ALLOWED_BUCKETS = new Set([
+  ...PUBLIC_BUCKETS,
+  'message_media',
+  'voice_messages',
+  'payment_screenshots',
 ]);
 
 export async function OPTIONS() {
@@ -67,7 +77,10 @@ export async function GET(
       'X-Appwrite-Project': PROJECT_ID,
     };
 
-    if (cookieHeader) {
+    // For public buckets, use admin key so files are always accessible
+    if (PUBLIC_BUCKETS.has(bucket) && API_KEY) {
+      upstreamHeaders['X-Appwrite-Key'] = API_KEY;
+    } else if (cookieHeader) {
       upstreamHeaders['Cookie'] = cookieHeader;
     }
 

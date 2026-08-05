@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
     return streamText(cached.answer);
   }
 
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
 
   if (!key) {
     if (cached) return streamText(cached.answer);

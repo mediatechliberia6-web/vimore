@@ -8,9 +8,8 @@ ViMore is a social networking and creator platform featuring social feeds, music
 
 | Variable | Required | Notes |
 |---|---|---|
-| `APPWRITE_API_KEY` | ✅ Yes | Appwrite server-side API key (also set in Replit Secrets) |
-| `GEMINI_API_KEY` | ✅ Yes | Google Gemini AI key for AI moderation, intelligent features (also set in Replit Secrets) |
-| `GROQ_API_KEY` | ✅ Yes | Groq AI key for translation & caption AI |
+| `APPWRITE_API_KEY` | ✅ Yes | Appwrite server-side API key (set in Replit Secrets) |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | ✅ Yes | Google Gemini AI key — translation, captions, moderation (set in Replit Secrets) |
 | `AGORA_APP_CERTIFICATE` | ✅ Yes | Agora RTC token signing certificate |
 | `VAPID_PRIVATE_KEY` | ✅ Yes | Web push private key — copy from `.env.local` (never print in full) |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | ✅ Yes | Web push public key — safe to expose |
@@ -20,7 +19,7 @@ ViMore is a social networking and creator platform featuring social feeds, music
 | `NEXT_PUBLIC_AGORA_APP_ID` | Optional | Defaults to `4afa1dbbd2ee4695ad1d29eaa0310ca3` |
 | `NEXT_PUBLIC_AD_NETWORK_KEY` | Optional | Ad network publisher ID — defaults to built-in key |
 
-**Note:** The AI code uses `GEMINI_API_KEY` (not `GOOGLE_GEMINI_API_KEY`). Use that exact name on Vercel.
+**Note:** The AI code reads `GOOGLE_GENERATIVE_AI_API_KEY` first, then falls back to `GEMINI_API_KEY`. Use `GOOGLE_GENERATIVE_AI_API_KEY` for both Replit and Vercel.
 
 **Cron/maintenance routes** (`/api/cron/cleanup`, `/api/cron/expiry-alerts`): `CRON_SECRET` auth was removed per user request. These routes now require a valid logged-in session to call, and are no longer scheduled via Vercel Cron (removed from `vercel.json`). They must be triggered manually (e.g. by an authenticated admin) or wired up to a different scheduling/auth mechanism if automatic runs are needed again.
 
