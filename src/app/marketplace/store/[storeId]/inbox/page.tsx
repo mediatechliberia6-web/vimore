@@ -11,6 +11,7 @@ import { usePosts } from "@/context/PostContext";
 import { getStore, StoreDoc } from "@/lib/stores";
 import { formatTimeAgo } from "@/lib/appwrite";
 import { cn } from "@/lib/utils";
+import { authFetch } from "@/lib/auth-fetch";
 import {
   ArrowLeft, Store, Loader2, Inbox, Send, Mic, StopCircle,
   ShoppingBag, Paperclip, Play, Pause, X, ChevronLeft,
@@ -184,7 +185,7 @@ function ChatPanel({
         const fd = new FormData();
         fd.append("file", mediaPreview.file);
         fd.append("type", mediaPreview.file.type.startsWith("video") ? "video" : "image");
-        const res = await fetch("/api/marketplace/messages/upload", { method: "POST", body: fd });
+        const res = await authFetch("/api/marketplace/messages/upload", { method: "POST", body: fd });
         if (res.ok) {
           const { fileId, url } = await res.json();
           await sendMsg({ text: text.trim() || undefined, type: mediaPreview.file.type.startsWith("video") ? "video" : "photo", mediaUrl: url, mediaId: fileId });
@@ -215,7 +216,7 @@ function ChatPanel({
           const fd = new FormData();
           fd.append("file", blob, "voice.webm");
           fd.append("type", "voice");
-          const res = await fetch("/api/marketplace/messages/upload", { method: "POST", body: fd });
+          const res = await authFetch("/api/marketplace/messages/upload", { method: "POST", body: fd });
           if (res.ok) {
             const { fileId, url } = await res.json();
             await sendMsg({ type: "voice", mediaUrl: url, mediaId: fileId, voiceDuration: formatRecordingTime(dur) });

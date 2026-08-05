@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePosts } from "@/context/PostContext";
 import { cn } from "@/lib/utils";
 import { formatTimeAgo } from "@/lib/appwrite";
+import { authFetch } from "@/lib/auth-fetch";
 import {
   ArrowLeft, Send, Paperclip, Mic, StopCircle,
   ShoppingBag, Store, Loader2, X, Play, Pause, User,
@@ -225,7 +226,7 @@ export default function MarketplaceChatPage() {
         const fd = new FormData();
         fd.append("file", mediaPreview.file);
         fd.append("type", mediaPreview.file.type.startsWith("video") ? "video" : "image");
-        const res = await fetch("/api/marketplace/messages/upload", { method: "POST", body: fd });
+        const res = await authFetch("/api/marketplace/messages/upload", { method: "POST", body: fd });
         if (res.ok) {
           const { fileId, url } = await res.json();
           await sendMsg({
@@ -279,7 +280,7 @@ export default function MarketplaceChatPage() {
           const fd = new FormData();
           fd.append("file", blob, "voice.webm");
           fd.append("type", "voice");
-          const res = await fetch("/api/marketplace/messages/upload", { method: "POST", body: fd });
+          const res = await authFetch("/api/marketplace/messages/upload", { method: "POST", body: fd });
           if (res.ok) {
             const { fileId, url } = await res.json();
             await sendMsg({ type: "voice", mediaUrl: url, mediaId: fileId, voiceDuration: formatRecordingTime(duration) });
