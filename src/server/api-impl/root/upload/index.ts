@@ -9,6 +9,31 @@ const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
 const API_KEY = process.env.APPWRITE_API_KEY || '';
 
 /**
+ * Allowed buckets for admin-key uploads.
+ * Keep this allowlist narrow — never let callers write to arbitrary buckets
+ * with the admin key.
+ */
+const ALLOWED_BUCKETS = new Set([
+  'post_media',
+  'story_media',
+  'reel_media',
+  'message_media',
+  'voice_messages',
+  'avatars',
+  'covers',
+  'music_tracks',
+  'album_covers',
+  'payment_screenshots',
+  'event_flyers',
+  'Marketplace_Images',
+  'store_logos',
+  'sounds',
+]);
+
+/** 200 MB hard limit for the single-request endpoint. */
+const MAX_FILE_BYTES = 200 * 1024 * 1024;
+
+/**
  * POST /api/upload
  *
  * Server-side file upload that uses the Appwrite admin API key, bypassing
@@ -16,8 +41,8 @@ const API_KEY = process.env.APPWRITE_API_KEY || '';
  * when the Replit domain is not registered as an Appwrite platform.
  *
  * Body: multipart/form-data
- *   file     — the file blob
- *   bucketId — Appwrite storage bucket ID
+ *   file     — the file blob (max 200 MB; use /api/upload/chunk for larger)
+ *   bucketId — Appwrite storage bucket ID (must be in ALLOWED_BUCKETS)
  *   fileId   — (optional) desired file ID; auto-generated if omitted
  *
  * Response: { fileId: string }
@@ -37,6 +62,17 @@ export async function POST(req: NextRequest) {
 
     if (!file || !bucketId) {
       return NextResponse.json({ error: 'file and bucketId are required' }, { status: 400 });
+    }
+
+    if (!ALLOWED_BUCKETS.has(bucketId)) {
+      return NextResponse.json({ error: 'Upload to this bucket is not permitted' }, { status: 403 });
+    }
+
+    if ((file as File).size > MAX_FILE_BYTES) {
+      return NextResponse.json(
+        { error: 'File too large for single upload; use chunked upload instead' },
+        { status: 413 },
+      );
     }
 
     // Generate a unique file ID if not provided (Appwrite-style: 20 hex chars)

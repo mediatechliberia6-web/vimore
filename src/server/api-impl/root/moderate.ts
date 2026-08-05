@@ -59,9 +59,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
   }
 
-  const key = process.env.GOOGLE_GEMINI_API_KEY;
+  const key = process.env.GEMINI_API_KEY;
   if (!key) {
-    console.error('[Moderate] GOOGLE_GEMINI_API_KEY is not set');
+    console.error('[Moderate] GEMINI_API_KEY is not set');
     return NextResponse.json({ error: 'Not configured' }, { status: 503 });
   }
 

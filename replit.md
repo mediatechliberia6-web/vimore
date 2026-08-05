@@ -8,7 +8,8 @@ ViMore is a social networking and creator platform featuring social feeds, music
 
 | Variable | Required | Notes |
 |---|---|---|
-| `APPWRITE_API_KEY` | ✅ Yes | Appwrite server-side API key |
+| `APPWRITE_API_KEY` | ✅ Yes | Appwrite server-side API key (also set in Replit Secrets) |
+| `GEMINI_API_KEY` | ✅ Yes | Google Gemini AI key for AI moderation, intelligent features (also set in Replit Secrets) |
 | `GROQ_API_KEY` | ✅ Yes | Groq AI key for translation & caption AI |
 | `AGORA_APP_CERTIFICATE` | ✅ Yes | Agora RTC token signing certificate |
 | `VAPID_PRIVATE_KEY` | ✅ Yes | Web push private key — copy from `.env.local` (never print in full) |
@@ -18,6 +19,8 @@ ViMore is a social networking and creator platform featuring social feeds, music
 | `NEXT_PUBLIC_APPWRITE_DATABASE_ID` | Optional | Defaults to `vimoreprod` |
 | `NEXT_PUBLIC_AGORA_APP_ID` | Optional | Defaults to `4afa1dbbd2ee4695ad1d29eaa0310ca3` |
 | `NEXT_PUBLIC_AD_NETWORK_KEY` | Optional | Ad network publisher ID — defaults to built-in key |
+
+**Note:** The AI code uses `GEMINI_API_KEY` (not `GOOGLE_GEMINI_API_KEY`). Use that exact name on Vercel.
 
 **Cron/maintenance routes** (`/api/cron/cleanup`, `/api/cron/expiry-alerts`): `CRON_SECRET` auth was removed per user request. These routes now require a valid logged-in session to call, and are no longer scheduled via Vercel Cron (removed from `vercel.json`). They must be triggered manually (e.g. by an authenticated admin) or wired up to a different scheduling/auth mechanism if automatic runs are needed again.
 
@@ -71,6 +74,10 @@ ViMore is a social networking and creator platform featuring social feeds, music
 
 ## Gotchas
 
+- **Gemini key name**: The codebase uses `GEMINI_API_KEY` (not `GOOGLE_GEMINI_API_KEY`). Set it under that exact name in Vercel and Replit.
+- **Messages `cluster_id`**: The `messages` Appwrite collection now has `cluster_id` (added 2026-08-05). If you see "Unknown attribute: cluster_id" on a fresh DB, add a `string(128)` optional attribute named `cluster_id` plus a key index on it to the `messages` collection.
+- **Reactions `reaction_type`**: The `post_reactions` collection now has `reaction_type` (added 2026-08-05). Indexes: `idx_reaction_type` (single) and `idx_post_user_reaction` (compound: post_id + user_id + reaction_type).
+- **Reel / video upload**: Uses server-side `/api/upload` with admin key (not client JWT chunked upload). Requires `APPWRITE_API_KEY` to be set.
 - **API routes are consolidated, not per-endpoint**: Vercel Hobby plan allows a max of 12 Serverless Functions. Do NOT create new files under `src/app/api/**/route.ts` — add a handler in `src/server/api-impl/` and register it in the `ROUTES` map of `src/app/api/[...path]/route.ts` (or the `admin`/`oauth` dispatcher, as appropriate). Adding a new standalone `route.ts` file will break the deployment by exceeding the function cap.
 
 - **Appwrite Schema Sync**: Manual Appwrite setup for `Marketplace_Images` bucket and `Products` collection is required. Ensure all collection attributes and indexes match the code's expectations.
