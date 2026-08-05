@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/session';
 import { rateLimit, sanitizeIp } from '@/lib/rate-limit';
 import { ID } from 'node-appwrite';
+import {
+  APPWRITE_UPLOAD_ENDPOINT,
+  uploadBytesToAppwrite,
+} from '@/server/appwrite-storage-upload';
 
-const ENDPOINT = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://appwrite.mediatechliberia.online/v1').replace(/\/$/, '');
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
-const API_KEY = process.env.APPWRITE_API_KEY || '';
 
 const ALLOWED_MIME_PREFIXES = ['image/', 'audio/', 'video/'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -46,31 +48,12 @@ export async function POST(req: NextRequest) {
     const bucketId = type === 'voice' ? 'voice_messages' : 'message_media';
     const fileId = ID.unique();
 
-    // Use REST API directly — node-appwrite v14 InputFile is broken in edge/Node 20 contexts
-    const appwriteForm = new FormData();
-    appwriteForm.append('fileId', fileId);
-    appwriteForm.append('file', file, file.name || `upload_${Date.now()}`);
-
-    const res = await fetch(`${ENDPOINT}/storage/buckets/${bucketId}/files`, {
-      method: 'POST',
-      headers: {
-        'X-Appwrite-Project': PROJECT_ID,
-        'X-Appwrite-Key': API_KEY,
-      },
-      body: appwriteForm,
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      console.error('[marketplace/messages/upload] Appwrite error:', data);
-      return NextResponse.json({ error: data?.message || 'Upload failed' }, { status: res.status });
-    }
-
-    const url = `${ENDPOINT}/storage/buckets/${bucketId}/files/${data.$id}/view?project=${PROJECT_ID}`;
-    return NextResponse.json({ fileId: data.$id, url, bucketId });
+    const uploaded = await uploadBytesToAppwrite({ bucketId, fileId, file });
+    const url = `${APPWRITE_UPLOAD_ENDPOINT}/storage/buckets/${bucketId}/files/${uploaded.fileId}/view?project=${PROJECT_ID}`;
+    return NextResponse.json({ fileId: uploaded.fileId, url, bucketId });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Upload failed';
     console.error('[marketplace/messages/upload]', err);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: Number((err as any)?.status) || 500 });
   }
 }

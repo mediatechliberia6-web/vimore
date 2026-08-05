@@ -1,12 +1,7 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/session';
-
-const ENDPOINT = (
-  process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://appwrite.mediatechliberia.online/v1'
-).replace(/\/$/, '');
-const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
-const API_KEY = process.env.APPWRITE_API_KEY || '';
+import { uploadBytesToAppwrite } from '@/server/appwrite-storage-upload';
 
 /**
  * Allowed buckets for admin-key uploads.
@@ -81,41 +76,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const appwriteForm = new FormData();
-    appwriteForm.append('fileId', fileId);
-    appwriteForm.append('file', file, file.name || 'chunk');
-
-    // Forward range headers from the original request so Appwrite can
-    // reassemble the file correctly across multiple chunks.
-    const forwardHeaders: Record<string, string> = {
-      'X-Appwrite-Project': PROJECT_ID,
-      'X-Appwrite-Key': API_KEY,
-      // x-appwrite-id tells Appwrite which upload session this chunk belongs to
-      'x-appwrite-id': fileId,
-    };
+    // Forward the range through the shared byte-safe REST uploader. This
+    // avoids passing a Next/undici File or Node stream to an Appwrite SDK.
     const contentRange = req.headers.get('x-chunk-range');
-    if (contentRange) forwardHeaders['content-range'] = contentRange;
-
-    const res = await fetch(`${ENDPOINT}/storage/buckets/${bucketId}/files`, {
-      method: 'POST',
-      headers: forwardHeaders,
-      body: appwriteForm,
+    const uploaded = await uploadBytesToAppwrite({
+      bucketId,
+      fileId,
+      file,
+      contentRange,
     });
-
-    // 201 = final chunk accepted; 200/204 = intermediate chunk accepted
-    if (res.status === 201 || res.status === 200 || res.status === 204) {
-      const body = await res.json().catch(() => ({}));
-      return NextResponse.json({ ok: true, fileId: body.$id || fileId }, { status: 200 });
-    }
-
-    const errBody = await res.json().catch(() => ({}));
-    console.error('[/api/upload/chunk] Appwrite error:', errBody);
-    return NextResponse.json(
-      { error: errBody?.message || `Upload failed (${res.status})` },
-      { status: res.status >= 400 && res.status < 600 ? res.status : 500 },
-    );
+    return NextResponse.json({ ok: true, fileId: uploaded.fileId }, { status: 200 });
   } catch (err: any) {
-    console.error('[/api/upload/chunk]', err);
-    return NextResponse.json({ error: err.message || 'Upload failed' }, { status: 500 });
+    console.error('[/api/upload/chunk]', err?.appwriteBody || err);
+    return NextResponse.json(
+      { error: err.message || 'Upload failed' },
+      { status: Number.isInteger(err?.status) ? err.status : 500 },
+    );
   }
 }

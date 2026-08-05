@@ -26,8 +26,11 @@ export function ServiceWorkerRegister() {
     navigator.serviceWorker.addEventListener('message', onMessage);
 
     navigator.serviceWorker
-      .register('/sw.js', { scope: '/' })
+      // Never let the browser's HTTP cache keep an old worker that serves
+      // stale Next bundles after an import/build.
+      .register('/sw.js', { scope: '/', updateViaCache: 'none' })
       .then((reg) => {
+        void reg.update();
         if (reg.waiting) {
           reg.waiting.postMessage({ type: 'SKIP_WAITING' });
         }

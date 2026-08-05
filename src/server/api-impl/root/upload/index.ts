@@ -1,12 +1,7 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/session';
-
-const ENDPOINT = (
-  process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://appwrite.mediatechliberia.online/v1'
-).replace(/\/$/, '');
-const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'vimore123';
-const API_KEY = process.env.APPWRITE_API_KEY || '';
+import { uploadBytesToAppwrite } from '@/server/appwrite-storage-upload';
 
 /**
  * Allowed buckets for admin-key uploads.
@@ -82,34 +77,17 @@ export async function POST(req: NextRequest) {
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
 
-    // Proxy directly to the Appwrite REST API using the admin key.
-    // node-appwrite v14 does not export InputFile, so we call the REST API
-    // directly — same technique used in auth/login.ts.
-    const appwriteForm = new FormData();
-    appwriteForm.append('fileId', fileId);
-    appwriteForm.append('file', file, (file as File).name || 'upload');
-
-    const res = await fetch(`${ENDPOINT}/storage/buckets/${bucketId}/files`, {
-      method: 'POST',
-      headers: {
-        'X-Appwrite-Project': PROJECT_ID,
-        'X-Appwrite-Key': API_KEY,
-      },
-      body: appwriteForm,
+    const uploaded = await uploadBytesToAppwrite({
+      bucketId,
+      fileId,
+      file,
     });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      console.error('[/api/upload] Appwrite error:', data);
-      return NextResponse.json(
-        { error: data?.message || 'Upload failed' },
-        { status: res.status },
-      );
-    }
-
-    return NextResponse.json({ fileId: data.$id });
+    return NextResponse.json({ fileId: uploaded.fileId });
   } catch (err: any) {
-    console.error('[/api/upload]', err);
-    return NextResponse.json({ error: err.message || 'Upload failed' }, { status: 500 });
+    console.error('[/api/upload]', err?.appwriteBody || err);
+    return NextResponse.json(
+      { error: err.message || 'Upload failed' },
+      { status: Number.isInteger(err?.status) ? err.status : 500 },
+    );
   }
 }

@@ -8,7 +8,7 @@
  * - Push notifications and badge control unchanged
  */
 
-const SW_VERSION = 'v1785925034024';
+const SW_VERSION = 'v1785925796435';
 const APP_SHELL_CACHE = `vimore-shell-${SW_VERSION}`;
 const PAGE_CACHE      = `vimore-pages-${SW_VERSION}`;
 const MEDIA_CACHE     = `vimore-media-${SW_VERSION}`;
@@ -198,19 +198,22 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   if (request.method !== 'GET') return;
 
-  // ── 1. Static assets: cache-first, no expiry (versioned by Next.js) ──────
+  // ── 1. Static assets: network-first, cache fallback ──────────────────────
+  // A cache-first strategy can keep an old Next bundle alive after an import
+  // or dev restart. Prefer the current asset whenever the app is online.
   if (isStaticAsset(request.url)) {
     event.respondWith(
       (async () => {
         const shellCache = await caches.open(APP_SHELL_CACHE);
-        const cached = await shellCache.match(request);
-        if (cached) return cached;
         try {
           const response = await fetch(request);
-          if (response.ok) shellCache.put(request, response.clone());
+          if (response.ok) {
+            await shellCache.put(request, response.clone());
+          }
           return response;
         } catch {
-          return new Response('Asset unavailable offline', { status: 503 });
+          const cached = await shellCache.match(request);
+          return cached || new Response('Asset unavailable offline', { status: 503 });
         }
       })()
     );

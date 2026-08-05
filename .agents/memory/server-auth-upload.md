@@ -13,5 +13,6 @@ Never call `account.get()` in `checkSession`, and never call `storage.createFile
 **How to apply:**
 - Session check → `authFetch('/api/auth/me')` in `checkSession` (PostContext.tsx). The endpoint uses `getSessionUser()` + `getAdminUsers().get(userId)` + `getAdminDatabases().getDocument()`.
 - File uploads → `uploadViaServer(file, bucketId)` from `src/lib/upload.ts`. The helper POSTs multipart to `/api/upload`, which proxies directly to the Appwrite REST API using `APPWRITE_API_KEY` (node-appwrite v14 has no `InputFile` export).
+- The server uploader must copy incoming file bytes into a standard `Blob` before building the outgoing multipart request; this avoids Appwrite 1.6's `source.on is not a function` mismatch between web `File` objects and Node upload streams.
 - Both new endpoints live in `src/server/api-impl/root/auth/me.ts` and `src/server/api-impl/root/upload/index.ts`, registered in the ROUTES map in `src/app/api/[...path]/route.ts`.
 - `src/lib/session.ts` `getSessionUser()` reads `X-Appwrite-Session` (sent by `authFetch`) or `Authorization: Bearer <jwt>`.
