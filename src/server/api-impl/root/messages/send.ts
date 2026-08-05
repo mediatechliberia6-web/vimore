@@ -65,7 +65,6 @@ export async function POST(req: NextRequest) {
       receiver_id: receiverId,
       type: 'text',
       text: String(text).trim().slice(0, 5000),
-      content: String(text).trim().slice(0, 5000),
       is_read: false,
     } as any);
 

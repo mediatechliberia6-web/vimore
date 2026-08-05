@@ -1,7 +1,8 @@
 'use client';
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { BUCKET, ID } from '@/lib/appwrite';
-import { chunkedUploadToAppwrite } from '@/lib/chunked-upload';
+import { uploadViaServer } from '@/lib/upload';
+import { authFetch } from '@/lib/auth-fetch';
 import { validateAndCompressVideo } from '@/lib/video-compress';
 
 export type UploadStatus = 'compressing' | 'uploading' | 'done' | 'error';
@@ -102,20 +103,16 @@ export function ReelUploadProvider({ children }: { children: React.ReactNode }) 
 
       if (signal.aborted) throw new Error('Upload cancelled');
 
-      // ── STEP 3: Chunked video upload (2 MB chunks, auto-retry) ────────
+      // ── STEP 3: Server-side video upload (uses admin API key — no domain restriction) ──
       setJob(j => j ? { ...j, status: 'uploading', progress: 20, label: 'Uploading video…' } : j);
 
+      if (signal.aborted) throw new Error('Upload cancelled');
+
       const videoFileId = ID.unique();
-      await chunkedUploadToAppwrite({
-        bucketId: BUCKET.REEL_MEDIA,
-        fileId: videoFileId,
-        file: videoFile,
-        onProgress: (pct) => {
-          const display = Math.round(20 + pct * 60);
-          setJob(j => j ? { ...j, progress: display, label: `Uploading… ${display}%` } : j);
-        },
-        signal,
-      });
+      // uploadViaServer routes through /api/upload which uses APPWRITE_API_KEY server-side,
+      // so it works regardless of whether this domain is registered in Appwrite.
+      await uploadViaServer(videoFile, BUCKET.REEL_MEDIA, videoFileId);
+      setJob(j => j ? { ...j, progress: 78, label: 'Uploading… 78%' } : j);
 
       if (signal.aborted) throw new Error('Upload cancelled');
 
@@ -125,11 +122,7 @@ export function ReelUploadProvider({ children }: { children: React.ReactNode }) 
         try {
           const coverFile = new File([payload.coverBlob], `cover_${Date.now()}.jpg`, { type: 'image/jpeg' });
           const coverId = ID.unique();
-          await chunkedUploadToAppwrite({
-            bucketId: BUCKET.REEL_MEDIA,
-            fileId: coverId,
-            file: coverFile,
-          });
+          await uploadViaServer(coverFile, BUCKET.REEL_MEDIA, coverId);
           coverFileId = coverId;
         } catch { /* non-critical */ }
       }
@@ -137,7 +130,7 @@ export function ReelUploadProvider({ children }: { children: React.ReactNode }) 
       setJob(j => j ? { ...j, progress: 82, label: 'Saving post…' } : j);
 
       // ── STEP 5: Create DB record (tiny JSON call, not binary) ─────────
-      const res = await fetch('/api/upload/reel', {
+      const res = await authFetch('/api/upload/reel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

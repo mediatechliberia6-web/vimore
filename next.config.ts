@@ -1,6 +1,6 @@
 import type { NextConfig } from 'next';
 
-const APPWRITE_ENDPOINT = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://mediatechliberia.online/v1').replace(/\/$/, '');
+const APPWRITE_ENDPOINT = (process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://appwrite.mediatechliberia.online/v1').replace(/\/$/, '');
 const APPWRITE_HOST = new URL(APPWRITE_ENDPOINT).origin;
 const IS_DEV = process.env.NODE_ENV !== 'production';
 
