@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { databases, DATABASE_ID, COL, BUCKET, ID, storage, getFileUrl, Query } from "@/lib/appwrite";
+import { databases, DATABASE_ID, COL, BUCKET, ID, getFileUrl, Query } from "@/lib/appwrite";
+import { uploadViaServer } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -119,8 +120,12 @@ export function AdminTicketTab({ currentUserId }: { currentUserId: string }) {
     }
     setIsCreating(true);
     try {
-      const uploaded = await storage.createFile(BUCKET.EVENT_FLYERS, ID.unique(), flyerFile);
-      const flyerUrl = getFileUrl(BUCKET.EVENT_FLYERS, uploaded.$id);
+      // Browser-side Appwrite storage uploads fail on unregistered preview
+      // domains and can surface the opaque "source.on is not a function"
+      // error. Route this upload through the authenticated server proxy,
+      // which uses the Appwrite API key server-side.
+      const flyerId = await uploadViaServer(flyerFile, BUCKET.EVENT_FLYERS);
+      const flyerUrl = getFileUrl(BUCKET.EVENT_FLYERS, flyerId);
 
       await databases.createDocument(DATABASE_ID, COL.EVENTS, ID.unique(), {
         title: form.title.trim(),
@@ -129,7 +134,7 @@ export function AdminTicketTab({ currentUserId }: { currentUserId: string }) {
         event_date: form.event_date,
         start_time: form.start_time,
         end_time: form.end_time,
-        flyer_id: uploaded.$id,
+        flyer_id: flyerId,
         flyer_url: flyerUrl,
         ticket_price: price,
         is_active: true,
