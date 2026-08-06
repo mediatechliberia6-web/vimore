@@ -379,6 +379,29 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     else audioRef.current.pause();
   }, [currentTrack, isPlaying]);
 
+  const startTrackPlayback = useCallback((track: Track) => {
+    if (!track.audioUrl) {
+      setIsPlayingState(false);
+      return;
+    }
+
+    const audio = audioRef.current || new Audio();
+    audioRef.current = audio;
+    audio.volume = volume / 100;
+
+    if (audio.src !== track.audioUrl) {
+      audio.src = track.audioUrl;
+      audio.load();
+    }
+
+    setCurrentTrackState(track);
+    setIsPlayingState(true);
+    void audio.play().catch((err) => {
+      console.warn('[MusicContext] audio playback failed:', err);
+      setIsPlayingState(false);
+    });
+  }, [volume]);
+
   const nextTrack = useCallback(() => {
     if (queue.length === 0) return;
     const idx = queue.findIndex(t => t.id === currentTrack?.id);
@@ -713,8 +736,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
           setIsMusicAdActiveState(true);
         }
       }
-      setCurrentTrackState(t);
-      setIsPlayingState(true);
+      startTrackPlayback(t);
       setIsExpandedState(true);
       recordSongStream(t.id);
 
@@ -753,8 +775,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     playCollection: (ts: Track[], startIndex = 0) => {
       if (!ts.length) return;
       setQueueState(ts);
-      setCurrentTrackState(ts[startIndex]);
-      setIsPlayingState(true);
+      startTrackPlayback(ts[startIndex]);
       setIsExpandedState(true);
       recordSongStream(ts[startIndex].id);
     },
