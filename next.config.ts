@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
           // Enforce HTTPS for 2 years, including subdomains
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
           // Disable sensitive browser APIs that the app does not need globally
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self), payment=(), usb=(), magnetometer=(), gyroscope=()' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=(self), payment=(), usb=(), magnetometer=(), gyroscope=()' },
           // Allow cross-origin embedding of assets (needed for PWA/fonts)
           { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
           // Isolate browsing context from other origins

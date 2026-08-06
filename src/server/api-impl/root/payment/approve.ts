@@ -75,11 +75,11 @@ export async function POST(req: NextRequest) {
     const currentBalance: number = Number(userDoc[balanceField] ?? 0);
     const newBalance = parseFloat((currentBalance + coinAmount).toFixed(8));
 
-    // Mark approved first so double-approval is caught by the status check above
+    // Mark approved first so double-approval is caught by the status check above.
+    // Keep this update limited to the fields used by the payment workflow; old
+    // payment_requests schemas may not have the optional audit timestamps.
     await db.updateDocument(DATABASE_ID, COL.PAYMENT_REQUESTS, requestId, {
       status: 'APPROVED',
-      approved_by: session.userId,
-      approved_at: new Date().toISOString(),
     });
 
     // Credit balance
@@ -87,30 +87,43 @@ export async function POST(req: NextRequest) {
       [balanceField]: newBalance,
     });
 
-    // Transaction record
-    await db.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
-      user_id: userId,
-      type: 'CURRENCY_PURCHASE',
-      currency: coinType.toUpperCase(),
-      amount: coinAmount,
-      description: `Currency purchase approved — ${reqDoc.package_name || reqDoc.message || ''}`,
-      reference_id: requestId,
-      status: 'COMPLETED',
-    });
+    // These records are useful but must not turn a successful approval into a
+    // false "Action Failed" if an older Appwrite schema is missing an optional
+    // attribute. The request status and balance are the authoritative action.
+    const warnings: string[] = [];
+    try {
+      await db.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
+        user_id: userId,
+        type: 'CURRENCY_PURCHASE',
+        currency: coinType.toUpperCase(),
+        amount: coinAmount,
+        description: `Currency purchase approved — ${reqDoc.package_name || reqDoc.message || ''}`,
+        reference_id: requestId,
+        status: 'COMPLETED',
+      });
+    } catch (err: any) {
+      console.error('[payment/approve] transaction record failed:', err?.message || err);
+      warnings.push('transaction record was not created');
+    }
 
-    // Notify the user
-    await db.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
-      user_id: userId,
-      from_user_id: session.userId,
-      type: 'SYSTEM',
-      title: 'Payment Approved',
-      content: `Your purchase of ${reqDoc.package_name || reqDoc.message || 'currency'} has been approved. Your balance has been updated.`,
-      message: `Your purchase of ${reqDoc.package_name || reqDoc.message || 'currency'} has been approved. Your balance has been updated.`,
-      is_read: false,
-    });
+    try {
+      await db.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+        user_id: userId,
+        from_user_id: session.userId,
+        type: 'SYSTEM',
+        title: 'Payment Approved',
+        content: `Your purchase of ${reqDoc.package_name || reqDoc.message || 'currency'} has been approved. Your balance has been updated.`,
+        message: `Your purchase of ${reqDoc.package_name || reqDoc.message || 'currency'} has been approved. Your balance has been updated.`,
+        is_read: false,
+      });
+    } catch (err: any) {
+      console.error('[payment/approve] notification failed:', err?.message || err);
+      warnings.push('notification was not created');
+    }
 
-    return NextResponse.json({ ok: true, newBalance, coinAmount, coinType });
+    return NextResponse.json({ ok: true, newBalance, coinAmount, coinType, warnings });
   } catch (err: any) {
+    console.error('[payment/approve] failed:', err?.message || err);
     return NextResponse.json({ error: err?.message || 'Approval failed' }, { status: 500 });
   }
 }

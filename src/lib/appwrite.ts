@@ -93,7 +93,10 @@ export { ID, Query, Permission, Role };
 
 export function getFileUrl(bucketId: string, fileId: string): string {
   if (!fileId) return '';
-  return `${ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/view?project=${PROJECT_ID}`;
+  // Read files through the same-origin proxy. Several Appwrite buckets are
+  // intentionally private, so direct browser URLs can return 401/403 even
+  // though the server has permission to read them with the admin key.
+  return `/api/file/${encodeURIComponent(bucketId)}/${encodeURIComponent(fileId)}`;
 }
 
 export interface PreviewOptions {
@@ -105,12 +108,13 @@ export interface PreviewOptions {
 
 export function getFilePreview(bucketId: string, fileId: string, opts: PreviewOptions = {}): string {
   if (!fileId) return '';
-  const params = new URLSearchParams({ project: PROJECT_ID });
+  const params = new URLSearchParams();
   if (opts.width) params.set('width', String(opts.width));
   if (opts.height) params.set('height', String(opts.height));
   if (opts.quality) params.set('quality', String(opts.quality));
   if (opts.output) params.set('output', opts.output);
-  return `${ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/preview?${params.toString()}`;
+  const query = params.toString();
+  return `/api/file/${encodeURIComponent(bucketId)}/${encodeURIComponent(fileId)}${query ? `?${query}` : ''}`;
 }
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -149,7 +153,21 @@ export function toProxyUrl(url: string): string {
     const match = url.match(/^\/api\/file\/([^/]+)\/([^/?]+)/);
     if (match) return getFileUrl(match[1], match[2]);
   }
+  // Migrate legacy direct Appwrite URLs to the same-origin proxy. Older
+  // records stored these URLs before the proxy was introduced.
+  const appwriteMatch = url.match(/\/storage\/buckets\/([^/]+)\/files\/([^/?]+)/);
+  if (appwriteMatch) return getFileUrl(appwriteMatch[1], appwriteMatch[2]);
   return url;
+}
+
+export function isMediaUrl(value: string | undefined | null): value is string {
+  return !!value && (
+    value.startsWith('/api/file/') ||
+    value.startsWith('http://') ||
+    value.startsWith('https://') ||
+    value.startsWith('blob:') ||
+    value.startsWith('data:')
+  );
 }
 
 export function formatTimeAgo(date: Date | string): string {

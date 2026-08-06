@@ -4,11 +4,11 @@
 import { useState, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import Image from "next/image";
 import { Plus, CheckCircle2 } from "lucide-react";
 import { usePosts } from "@/context/PostContext";
 import { useNetwork } from "@/context/NetworkContext";
 import { getAdaptivePreview } from "@/lib/adaptive-media";
+import { isMediaUrl } from "@/lib/appwrite";
 import { StoryViewer } from "./story-viewer";
 import { cn } from "@/lib/utils";
 
@@ -51,12 +51,12 @@ export function Stories({ onOpenCreate }: StoriesProps) {
             onClick={() => { triggerHaptic(5); onOpenCreate?.(); }}
           >
             <div className="relative h-3/4 w-full overflow-hidden bg-primary/10">
-              {currentUser?.avatar ? (
-                <Image 
-                  src={getAdaptivePreview(currentUser.avatar, 'thumb', tier) || currentUser.avatar} 
+              {isMediaUrl(currentUser?.avatar) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={getAdaptivePreview(currentUser.avatar, 'thumb', tier) || currentUser.avatar}
                   alt="My Profile" 
-                  fill 
-                  className="object-cover transition-transform group-hover:scale-110" 
+                  className="w-full h-full object-cover transition-transform group-hover:scale-110"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-primary/10">
@@ -118,11 +118,11 @@ export function Stories({ onOpenCreate }: StoriesProps) {
                     </div>
                   ) : (
                     mediaUrl ? (
-                      <Image 
-                        src={getAdaptivePreview(mediaUrl, 'thumb', tier) || mediaUrl} 
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={getAdaptivePreview(mediaUrl, 'thumb', tier) || mediaUrl}
                         alt={story.user.name} 
-                        fill 
-                        className={cn("object-cover transition-transform group-hover:scale-110", (firstSegment as any).filter)} 
+                        className={cn("w-full h-full object-cover transition-transform group-hover:scale-110", (firstSegment as any).filter)}
                       />
                     ) : null
                 )}
@@ -138,7 +138,7 @@ export function Stories({ onOpenCreate }: StoriesProps) {
                       "h-8 w-8",
                       story.isCloseFriends ? "border-[#42b72a]" : "border-primary"
                     )}>
-                      <AvatarImage src={getAdaptivePreview(story.user.avatar, 'avatar', tier) || story.user.avatar} />
+                      <AvatarImage src={isMediaUrl(story.user.avatar) ? (getAdaptivePreview(story.user.avatar, 'avatar', tier) || story.user.avatar) : undefined} />
                       <AvatarFallback>{story.user.name[0]}</AvatarFallback>
                     </Avatar>
                     {story.user.isVerified && (

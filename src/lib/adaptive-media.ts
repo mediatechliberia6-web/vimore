@@ -26,6 +26,9 @@ export function getAdaptivePreview(url: string | undefined | null, role: MediaRo
   if (typeof url !== 'string') return '';
   // Skip data URIs, blobs, and obvious non-image URLs
   if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+  // The same-origin file proxy handles private Appwrite buckets and already
+  // returns a cacheable image/video response. Keep media on that origin so
+  // private buckets do not bypass the proxy's admin-key access.
 
   const fileId = extractFileId(url);
   if (!fileId || !ENDPOINT || !PROJECT_ID) return url;
@@ -38,8 +41,9 @@ export function getAdaptivePreview(url: string | undefined | null, role: MediaRo
   const tier: NetworkTier = tierOverride || getCurrentNetworkTier();
   const spec = MATRIX[role][tier];
 
-  // Appwrite Storage preview endpoint
-  return `${ENDPOINT}/storage/buckets/${bucketId}/files/${fileId}/preview?project=${PROJECT_ID}&width=${spec.width}&quality=${spec.quality}&output=webp`;
+  // The proxy accepts the same preview options and keeps the request
+  // same-origin, which works on the Replit preview/deployed domain.
+  return `/api/file/${encodeURIComponent(bucketId)}/${encodeURIComponent(fileId)}?width=${spec.width}&quality=${spec.quality}&output=webp`;
 }
 
 /**

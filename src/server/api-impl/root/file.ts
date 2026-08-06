@@ -67,11 +67,19 @@ export async function GET(
     return new NextResponse(null, { status: 429 });
   }
 
-  const appwriteUrl = `${APPWRITE_ENDPOINT}/storage/buckets/${bucket}/files/${fileId}/view?project=${PROJECT_ID}`;
-
   try {
     const cookieHeader = req.headers.get('cookie') || '';
     const rangeHeader = req.headers.get('range');
+    const requestedPreview = ['width', 'height', 'quality', 'output']
+      .some(key => req.nextUrl.searchParams.has(key));
+    const appwriteUrl = new URL(
+      `${APPWRITE_ENDPOINT}/storage/buckets/${bucket}/files/${fileId}/${requestedPreview ? 'preview' : 'view'}`
+    );
+    appwriteUrl.searchParams.set('project', PROJECT_ID);
+    for (const key of ['width', 'height', 'quality', 'output']) {
+      const value = req.nextUrl.searchParams.get(key);
+      if (value) appwriteUrl.searchParams.set(key, value);
+    }
 
     const upstreamHeaders: Record<string, string> = {
       'X-Appwrite-Project': PROJECT_ID,

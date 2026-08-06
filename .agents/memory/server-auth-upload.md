@@ -1,18 +1,19 @@
 ---
-name: Server-side auth and upload pattern
-description: Why and how session checks and file uploads must go through server-side API routes on Replit (unregistered domain).
+name: Client media and proxy pattern
+description: Current browser upload, same-origin media read, and microphone permission rules.
 ---
 
-# Server-side auth and upload pattern
+# Client media and proxy pattern
 
 ## The rule
-Never call `account.get()` in `checkSession`, and never call `storage.createFile()` directly from client components. Both fail on domains not registered as Appwrite platforms (e.g. Replit preview).
+Session checks remain server-backed, but browser media uploads use Appwrite's client SDK and media reads use the same-origin `/api/file` proxy. The app's `Permissions-Policy` must allow microphone access for voice recording.
 
-**Why:** The Appwrite client SDK enforces platform/domain allowlisting for browser calls. `account.get()` returns `general_unauthorized_scope`; `storage.createFile()` returns "not authorized". Server-to-server calls (node-appwrite with API key) bypass this entirely.
+**Why:** The product explicitly chose client-only uploads after the server multipart path caused `source.on is not a function`. Direct Appwrite Storage URLs can fail for private buckets or stale browser origins, while the proxy can apply server-side read access. A `microphone=()` policy prevents the browser from granting recording permission before application code runs.
 
 **How to apply:**
 - Session check → `authFetch('/api/auth/me')` in `checkSession` (PostContext.tsx). The endpoint uses `getSessionUser()` + `getAdminUsers().get(userId)` + `getAdminDatabases().getDocument()`.
-- File uploads → `uploadViaServer(file, bucketId)` from `src/lib/upload.ts`. The helper POSTs multipart to `/api/upload`, which proxies directly to the Appwrite REST API using `APPWRITE_API_KEY` (node-appwrite v14 has no `InputFile` export).
-- The server uploader must copy incoming file bytes into a standard `Blob` before building the outgoing multipart request; this avoids Appwrite 1.6's `source.on is not a function` mismatch between web `File` objects and Node upload streams.
-- Both new endpoints live in `src/server/api-impl/root/auth/me.ts` and `src/server/api-impl/root/upload/index.ts`, registered in the ROUTES map in `src/app/api/[...path]/route.ts`.
+- File uploads → `uploadViaClient(file, bucketId)` / `uploadLargeViaClient()` from `src/lib/upload.ts`, calling `storage.createFile()` in the browser.
+- File reads → `getFileUrl()` / adaptive previews return `/api/file/{bucket}/{fileId}` URLs. Keep legacy direct Appwrite URLs normalized through `toProxyUrl()`.
+- The current preview/deployed origin must still be registered as an Appwrite Web platform for client SDK operations.
+- The response security header must use `microphone=(self)`, not `microphone=()`, for voice recording.
 - `src/lib/session.ts` `getSessionUser()` reads `X-Appwrite-Session` (sent by `authFetch`) or `Authorization: Bearer <jwt>`.
