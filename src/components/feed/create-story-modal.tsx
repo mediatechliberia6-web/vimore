@@ -72,8 +72,8 @@ export function CreateStoryModal({ isOpen, onClose }: { isOpen: boolean; onClose
       let finalImageUrl = "";
 
       if (selectedFile) {
-        const { uploadViaServer } = await import('@/lib/upload');
-        finalFileId = await uploadViaServer(selectedFile, BUCKET_STORIES);
+        const { uploadViaClient } = await import('@/lib/upload');
+        finalFileId = await uploadViaClient(selectedFile, BUCKET_STORIES);
         finalImageUrl = getFileUrl(BUCKET_STORIES, finalFileId);
       }
 

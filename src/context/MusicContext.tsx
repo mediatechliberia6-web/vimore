@@ -491,16 +491,16 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
       if (track.audioFile instanceof File) {
         let audioFile = track.audioFile;
-        const { uploadViaServer } = await import('@/lib/upload');
-        audioId = await uploadViaServer(audioFile, BUCKET.MUSIC_TRACKS);
+        const { uploadViaClient } = await import('@/lib/upload');
+        audioId = await uploadViaClient(audioFile, BUCKET.MUSIC_TRACKS);
       } else if (track.audioUrl) {
         audioId = extractFileId(track.audioUrl) || undefined;
       }
 
       if (track.coverFile instanceof File) {
         let coverFile = track.coverFile;
-        const { uploadViaServer } = await import('@/lib/upload');
-        coverId = await uploadViaServer(coverFile, BUCKET.ALBUM_COVERS);
+        const { uploadViaClient } = await import('@/lib/upload');
+        coverId = await uploadViaClient(coverFile, BUCKET.ALBUM_COVERS);
       } else if (track.cover) {
         coverId = extractFileId(track.cover) || undefined;
       }
@@ -547,8 +547,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       let coverId: string | undefined;
       if (album.coverFile instanceof File) {
         let coverFile = album.coverFile;
-        const { uploadViaServer } = await import('@/lib/upload');
-        coverId = await uploadViaServer(coverFile, BUCKET.ALBUM_COVERS);
+        const { uploadViaClient } = await import('@/lib/upload');
+        coverId = await uploadViaClient(coverFile, BUCKET.ALBUM_COVERS);
       } else if (album.cover) {
         coverId = extractFileId(album.cover) || undefined;
       }

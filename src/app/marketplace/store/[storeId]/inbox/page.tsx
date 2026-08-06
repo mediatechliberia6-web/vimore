@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { usePosts } from "@/context/PostContext";
 import { getStore, StoreDoc } from "@/lib/stores";
-import { formatTimeAgo } from "@/lib/appwrite";
+import { BUCKET, getFileUrl, formatTimeAgo } from "@/lib/appwrite";
 import { cn } from "@/lib/utils";
 import { authFetch } from "@/lib/auth-fetch";
+import { uploadViaClient } from "@/lib/upload";
 import {
   ArrowLeft, Store, Loader2, Inbox, Send, Mic, StopCircle,
   ShoppingBag, Paperclip, Play, Pause, X, ChevronLeft,
@@ -182,14 +183,14 @@ function ChatPanel({
     if (mediaPreview) {
       setSending(true);
       try {
-        const fd = new FormData();
-        fd.append("file", mediaPreview.file);
-        fd.append("type", mediaPreview.file.type.startsWith("video") ? "video" : "image");
-        const res = await authFetch("/api/marketplace/messages/upload", { method: "POST", body: fd });
-        if (res.ok) {
-          const { fileId, url } = await res.json();
-          await sendMsg({ text: text.trim() || undefined, type: mediaPreview.file.type.startsWith("video") ? "video" : "photo", mediaUrl: url, mediaId: fileId });
-        }
+        const bucketId = BUCKET.MESSAGE_MEDIA;
+        const fileId = await uploadViaClient(mediaPreview.file, bucketId);
+        await sendMsg({
+          text: text.trim() || undefined,
+          type: mediaPreview.file.type.startsWith("video") ? "video" : "photo",
+          mediaUrl: getFileUrl(bucketId, fileId),
+          mediaId: fileId,
+        });
       } finally { setMediaPreview(null); setText(""); setSending(false); }
       return;
     }
@@ -213,14 +214,15 @@ function ChatPanel({
         if (blob.size < 100) return;
         setSending(true);
         try {
-          const fd = new FormData();
-          fd.append("file", blob, "voice.webm");
-          fd.append("type", "voice");
-          const res = await authFetch("/api/marketplace/messages/upload", { method: "POST", body: fd });
-          if (res.ok) {
-            const { fileId, url } = await res.json();
-            await sendMsg({ type: "voice", mediaUrl: url, mediaId: fileId, voiceDuration: formatRecordingTime(dur) });
-          }
+          const voiceFile = new File([blob], "voice.webm", { type: "audio/webm" });
+          const bucketId = BUCKET.VOICE_MESSAGES;
+          const fileId = await uploadViaClient(voiceFile, bucketId);
+          await sendMsg({
+            type: "voice",
+            mediaUrl: getFileUrl(bucketId, fileId),
+            mediaId: fileId,
+            voiceDuration: formatRecordingTime(dur),
+          });
         } finally { setSending(false); }
       };
       mediaRecorderRef.current = mr;

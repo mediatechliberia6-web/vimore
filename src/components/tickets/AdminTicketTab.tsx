@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { databases, DATABASE_ID, COL, BUCKET, ID, getFileUrl, Query } from "@/lib/appwrite";
-import { uploadViaServer } from "@/lib/upload";
+import { uploadViaClient } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -120,11 +120,7 @@ export function AdminTicketTab({ currentUserId }: { currentUserId: string }) {
     }
     setIsCreating(true);
     try {
-      // Browser-side Appwrite storage uploads fail on unregistered preview
-      // domains and can surface the opaque "source.on is not a function"
-      // error. Route this upload through the authenticated server proxy,
-      // which uses the Appwrite API key server-side.
-      const flyerId = await uploadViaServer(flyerFile, BUCKET.EVENT_FLYERS);
+      const flyerId = await uploadViaClient(flyerFile, BUCKET.EVENT_FLYERS);
       const flyerUrl = getFileUrl(BUCKET.EVENT_FLYERS, flyerId);
 
       await databases.createDocument(DATABASE_ID, COL.EVENTS, ID.unique(), {

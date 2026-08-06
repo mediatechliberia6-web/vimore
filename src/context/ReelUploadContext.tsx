@@ -1,7 +1,7 @@
 'use client';
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { BUCKET, ID } from '@/lib/appwrite';
-import { chunkedUploadViaServer, uploadViaServer } from '@/lib/upload';
+import { uploadLargeViaClient, uploadViaClient } from '@/lib/upload';
 import { authFetch } from '@/lib/auth-fetch';
 import { validateAndCompressVideo } from '@/lib/video-compress';
 
@@ -103,17 +103,13 @@ export function ReelUploadProvider({ children }: { children: React.ReactNode }) 
 
       if (signal.aborted) throw new Error('Upload cancelled');
 
-      // ── STEP 3: Chunked server-side video upload ──────────────────────
-      // chunkedUploadViaServer routes through /api/upload/chunk which uses
-      // APPWRITE_API_KEY server-side, so it works regardless of whether this
-      // domain is registered in Appwrite. Chunking preserves abort support
-      // and provides real per-chunk progress.
+      // ── STEP 3: Client-side Appwrite video upload ──────────────────────
       setJob(j => j ? { ...j, status: 'uploading', progress: 20, label: 'Uploading video…' } : j);
 
       if (signal.aborted) throw new Error('Upload cancelled');
 
       const videoFileId = ID.unique();
-      await chunkedUploadViaServer(videoFile, BUCKET.REEL_MEDIA, videoFileId, {
+      await uploadLargeViaClient(videoFile, BUCKET.REEL_MEDIA, videoFileId, {
         signal,
         onProgress: (pct) => {
           const display = Math.round(20 + pct * 58);
@@ -129,7 +125,7 @@ export function ReelUploadProvider({ children }: { children: React.ReactNode }) 
         try {
           const coverFile = new File([payload.coverBlob], `cover_${Date.now()}.jpg`, { type: 'image/jpeg' });
           const coverId = ID.unique();
-          await uploadViaServer(coverFile, BUCKET.REEL_MEDIA, coverId);
+          await uploadViaClient(coverFile, BUCKET.REEL_MEDIA, coverId);
           coverFileId = coverId;
         } catch { /* non-critical */ }
       }

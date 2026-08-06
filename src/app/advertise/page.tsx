@@ -164,8 +164,8 @@ export default function AdvertisePage() {
         setUploadProgress(p => Math.min(p + 6, 75));
       }, 300);
 
-      const { uploadViaServer } = await import('@/lib/upload');
-      const fileId = await uploadViaServer(videoFile, BUCKET.POST_MEDIA);
+      const { uploadViaClient } = await import('@/lib/upload');
+      const fileId = await uploadViaClient(videoFile, BUCKET.POST_MEDIA);
       uploadedFileId = fileId;
       const mediaUrl = getFileUrl(BUCKET.POST_MEDIA, fileId);
 

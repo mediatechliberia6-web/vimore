@@ -65,7 +65,6 @@ const ROUTES = [
   { path: '/api/marketplace/messages/list', method: 'GET' },
   { path: '/api/marketplace/messages/list', method: 'PATCH' },
   { path: '/api/marketplace/messages/send', method: 'POST' },
-  { path: '/api/marketplace/messages/upload', method: 'POST' },
   { path: '/api/messages/mark-read', method: 'POST' },
   { path: '/api/messages/send', method: 'POST' },
   { path: '/api/moderate', method: 'POST' },

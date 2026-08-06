@@ -348,8 +348,8 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     if (!file || !isCluster) return;
     setLogoUploading(true);
     try {
-      const { uploadViaServer } = await import('@/lib/upload');
-      const avatarFileId = await uploadViaServer(file, BUCKET.AVATARS);
+      const { uploadViaClient } = await import('@/lib/upload');
+      const avatarFileId = await uploadViaClient(file, BUCKET.AVATARS);
       await updateCluster((contact as Cluster).$id, { avatarId: avatarFileId });
       toast({ title: "Logo Updated", description: "Cluster logo has been changed." });
     } catch (err: any) {
@@ -365,8 +365,8 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
     if (!file || !isCluster) return;
     setCoverUploading(true);
     try {
-      const { uploadViaServer } = await import('@/lib/upload');
-      const coverFileId = await uploadViaServer(file, BUCKET.COVERS);
+      const { uploadViaClient } = await import('@/lib/upload');
+      const coverFileId = await uploadViaClient(file, BUCKET.COVERS);
       await updateCluster((contact as Cluster).$id, { coverId: coverFileId });
       toast({ title: "Cover Updated", description: "Cluster cover has been changed." });
     } catch (err: any) {

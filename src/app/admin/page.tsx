@@ -492,8 +492,8 @@ export default function AdminDashboard() {
     try {
       let proofImageUrl: string | undefined;
       if (withdrawalActionTarget.action === 'APPROVED' && withdrawalProofFile) {
-        const { uploadViaServer } = await import('@/lib/upload');
-        const uploadedFileId = await uploadViaServer(withdrawalProofFile, BUCKET.PAYMENT_SCREENSHOTS);
+        const { uploadViaClient } = await import('@/lib/upload');
+        const uploadedFileId = await uploadViaClient(withdrawalProofFile, BUCKET.PAYMENT_SCREENSHOTS);
         proofImageUrl = toProxyUrl(getFileUrl(BUCKET.PAYMENT_SCREENSHOTS, uploadedFileId));
       }
       await processWithdrawal(withdrawalActionTarget.id, withdrawalActionTarget.action, withdrawalAdminMessage || undefined, proofImageUrl);

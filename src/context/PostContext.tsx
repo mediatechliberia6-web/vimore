@@ -2014,8 +2014,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
   }, [router, toast]);
 
   const uploadMedia = useCallback(async (file: File, bucketId: string = BUCKET.POST_MEDIA): Promise<string> => {
-    const { uploadViaServer } = await import('@/lib/upload');
-    const fileId = await uploadViaServer(file, bucketId);
+    const { uploadViaClient } = await import('@/lib/upload');
+    const fileId = await uploadViaClient(file, bucketId);
     return getFileUrl(bucketId, fileId);
   }, []);
 
@@ -3293,8 +3293,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
         const u8arr = new Uint8Array(n);
         while (n--) u8arr[n] = bstr.charCodeAt(n);
         const file = new File([u8arr], 'receipt.jpg', { type: mime });
-        const { uploadViaServer } = await import('@/lib/upload');
-        screenshotFileId = await uploadViaServer(file, BUCKET.PAYMENT_SCREENSHOTS);
+        const { uploadViaClient } = await import('@/lib/upload');
+        screenshotFileId = await uploadViaClient(file, BUCKET.PAYMENT_SCREENSHOTS);
       } else {
         screenshotFileId = extractFileId(screenshotUrl) || screenshotUrl;
       }
@@ -3459,8 +3459,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
     try {
       let avatarId: string | undefined;
       if (logoFile) {
-        const { uploadViaServer } = await import('@/lib/upload');
-        avatarId = await uploadViaServer(logoFile, BUCKET.AVATARS);
+        const { uploadViaClient } = await import('@/lib/upload');
+        avatarId = await uploadViaClient(logoFile, BUCKET.AVATARS);
       }
 
       const clDocData: Record<string, any> = {

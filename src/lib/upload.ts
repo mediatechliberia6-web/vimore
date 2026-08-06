@@ -1,63 +1,40 @@
+/** Browser-only Appwrite Storage upload helpers. */
+
+import { ID, storage } from './appwrite';
+
 /**
- * upload.ts — client-side helpers for server-proxied file uploads.
+ * Upload a file directly from the browser through the Appwrite Web SDK.
  *
- * All direct storage.createFile() calls on the client SDK fail when the
- * Replit (or any unregistered) domain tries to reach Appwrite storage,
- * producing "not authorized" errors. These helpers route uploads through
- * /api/upload (single request) or /api/upload/chunk (chunked, for large
- * files), which use the admin API key server-side and are never blocked by
- * platform/domain restrictions.
- */
-
-import { authFetch } from './auth-fetch';
-
-export const UPLOAD_CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB per chunk
-
-/**
- * Upload a file via the server-side /api/upload endpoint (single request).
- * Best for small-to-medium files (avatars, covers, images, audio).
+ * The Appwrite project must include the current browser origin as a Web
+ * platform. The API key must never be used in this client-side function.
  *
  * @param file     The File object to upload.
  * @param bucketId The Appwrite storage bucket ID (use BUCKET.* constants).
  * @param fileId   Optional desired file ID; auto-generated if omitted.
  * @returns        The Appwrite fileId (use getFileUrl() to build a URL from it).
  */
-export async function uploadViaServer(
+export async function uploadViaClient(
   file: File,
   bucketId: string,
   fileId?: string,
 ): Promise<string> {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('bucketId', bucketId);
-  if (fileId) formData.append('fileId', fileId);
-
-  const res = await authFetch('/api/upload', {
-    method: 'POST',
-    body: formData,
-  });
-
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data?.error || 'Upload failed');
+  if (!(file instanceof File)) {
+    throw new Error('A browser File is required for upload');
   }
-
-  return data.fileId as string;
+  const uploaded = await storage.createFile(bucketId, fileId || ID.unique(), file);
+  return uploaded.$id;
 }
 
-export interface ChunkedUploadViaServerOptions {
+export interface ClientUploadOptions {
   onProgress?: (pct: number) => void;
   signal?: AbortSignal;
-  chunkSize?: number;
 }
 
 /**
- * Upload a large file via the server-side /api/upload/chunk endpoint.
- * Breaks the file into chunks, forwards each with Content-Range, and
- * reports progress. Respects an AbortSignal for cancellation.
- *
- * Best for large videos (reels). The server proxies each chunk to Appwrite
- * using the admin API key, so no domain registration is required.
+ * Upload a file through the browser SDK. Appwrite handles the multipart
+ * request; the optional progress callback is completed when the request
+ * finishes. Abort is checked before starting because the SDK request itself
+ * does not expose a cancellation signal.
  *
  * @param file     The File object to upload.
  * @param bucketId The Appwrite storage bucket ID (use BUCKET.* constants).
@@ -65,80 +42,14 @@ export interface ChunkedUploadViaServerOptions {
  * @param options  Progress callback and AbortSignal.
  * @returns        The Appwrite fileId.
  */
-export async function chunkedUploadViaServer(
+export async function uploadLargeViaClient(
   file: File,
   bucketId: string,
   fileId: string,
-  options: ChunkedUploadViaServerOptions = {},
+  options: ClientUploadOptions = {},
 ): Promise<string> {
-  const { onProgress, signal, chunkSize = UPLOAD_CHUNK_SIZE } = options;
-  const totalSize = file.size;
-
-  // Small files: single request is fine
-  if (totalSize <= chunkSize) {
-    const formData = new FormData();
-    formData.append('file', file, file.name);
-    formData.append('bucketId', bucketId);
-    formData.append('fileId', fileId);
-
-    const res = await authFetch('/api/upload/chunk', {
-      method: 'POST',
-      body: formData,
-      signal,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error || `Upload failed (${res.status})`);
-    onProgress?.(1);
-    return fileId;
-  }
-
-  let offset = 0;
-  while (offset < totalSize) {
-    if (signal?.aborted) throw new Error('Upload cancelled');
-
-    const chunkEnd = Math.min(offset + chunkSize, totalSize);
-    const chunk = file.slice(offset, chunkEnd);
-    const chunkFile = new File([chunk], file.name, { type: file.type });
-
-    const formData = new FormData();
-    formData.append('file', chunkFile, file.name);
-    formData.append('bucketId', bucketId);
-    formData.append('fileId', fileId);
-
-    // We pass the range via a custom header that the server forwards as
-    // Content-Range to Appwrite (browsers block direct Content-Range writes).
-    const rangeHeader = `bytes ${offset}-${chunkEnd - 1}/${totalSize}`;
-
-    let attempt = 0;
-    const maxRetries = 3;
-    let lastErr: Error | null = null;
-
-    while (attempt < maxRetries) {
-      if (signal?.aborted) throw new Error('Upload cancelled');
-      try {
-        const res = await authFetch('/api/upload/chunk', {
-          method: 'POST',
-          headers: { 'x-chunk-range': rangeHeader },
-          body: formData,
-          signal,
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-        lastErr = null;
-        break;
-      } catch (e: any) {
-        if (signal?.aborted || e?.name === 'AbortError') throw new Error('Upload cancelled');
-        lastErr = e instanceof Error ? e : new Error(String(e));
-        attempt++;
-        if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1500 * attempt));
-      }
-    }
-
-    if (lastErr) throw lastErr;
-
-    offset = chunkEnd;
-    onProgress?.(offset / totalSize);
-  }
-
-  return fileId;
+  if (options.signal?.aborted) throw new Error('Upload cancelled');
+  const uploaded = await storage.createFile(bucketId, fileId || ID.unique(), file);
+  options.onProgress?.(1);
+  return uploaded.$id;
 }

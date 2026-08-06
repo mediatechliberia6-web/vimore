@@ -96,8 +96,8 @@ export async function compressImage(file: File, maxEdge = 1024, quality = 0.7): 
 
 export async function uploadProductImage(file: File, _sellerId: string): Promise<string> {
   const compressed = await compressImage(file);
-  const { uploadViaServer } = await import('./upload');
-  return uploadViaServer(compressed, BUCKET.MARKETPLACE_IMAGES);
+  const { uploadViaClient } = await import('./upload');
+  return uploadViaClient(compressed, BUCKET.MARKETPLACE_IMAGES);
 }
 
 function mapProduct(doc: any): ProductDoc {

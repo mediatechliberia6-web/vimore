@@ -88,8 +88,8 @@ export function slugToCategory(slug: string): StoreCategory | null {
 }
 
 async function uploadStoreLogo(file: File, _ownerId: string): Promise<string> {
-  const { uploadViaServer } = await import('./upload');
-  return uploadViaServer(file, BUCKET.STORE_LOGOS);
+  const { uploadViaClient } = await import('./upload');
+  return uploadViaClient(file, BUCKET.STORE_LOGOS);
 }
 
 export async function getMyStore(userId: string): Promise<StoreDoc | null> {
