@@ -239,7 +239,7 @@ export function GiftHub() {
     setIsSyncing(true);
     triggerHaptic(30);
     try {
-      await processGiftTransaction(selectedGift.cost);
+      await processGiftTransaction(selectedGift.cost, 'DIAMOND');
       setIsSuccess(true);
       triggerHaptic(100);
       setTimeout(() => {

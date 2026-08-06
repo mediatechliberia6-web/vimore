@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
           currency: 'DIAMOND',
           amount: cost,
           description: `Gift sent to @${recipientDoc.username || recipientId} — ${platformFee} ◆ platform fee (${recipientIsVerified ? '10' : '20'}%)`,
+          reference_id: recipientId,
           status: 'COMPLETED',
         }),
         // Recipient transaction record
@@ -114,6 +115,7 @@ export async function POST(req: NextRequest) {
           currency: 'DIAMOND',
           amount: creatorShare,
           description: `Gift received from @${senderDoc.username || session.userId} — you kept ${recipientIsVerified ? '90' : '80'}% after platform fee`,
+          reference_id: session.userId,
           status: 'COMPLETED',
           from_user_id: session.userId,
           from_user_name: senderDoc.username || senderDoc.name || '',

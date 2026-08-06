@@ -73,7 +73,7 @@ ViMore is a social networking and creator platform featuring social feeds, music
 
 ## Gotchas
 
-- **Gemini key name**: The codebase uses `GEMINI_API_KEY` (not `GOOGLE_GEMINI_API_KEY`). Set it under that exact name in Vercel and Replit.
+- **Gemini key name**: The codebase uses `GOOGLE_GENERATIVE_AI_API_KEY` first and falls back to `GEMINI_API_KEY`. Set `GOOGLE_GENERATIVE_AI_API_KEY` in Vercel and Replit.
 - **Messages `cluster_id`**: The `messages` Appwrite collection now has `cluster_id` (added 2026-08-05). If you see "Unknown attribute: cluster_id" on a fresh DB, add a `string(128)` optional attribute named `cluster_id` plus a key index on it to the `messages` collection.
 - **Reactions `reaction_type`**: The `post_reactions` collection now has `reaction_type` (added 2026-08-05). Indexes: `idx_reaction_type` (single) and `idx_post_user_reaction` (compound: post_id + user_id + reaction_type).
 - **Media uploads**: Use the browser Appwrite Web SDK (`storage.createFile`) directly. The current preview/deployed origin must be registered as an Appwrite Web platform, and the storage bucket permissions must allow the signed-in user to create files. `APPWRITE_API_KEY` remains server-only for database/auth operations and is not used for browser file uploads.
