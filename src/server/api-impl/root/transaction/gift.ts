@@ -14,9 +14,9 @@ const COL = {
   NOTIFICATIONS: 'notifications',
 };
 
-// diamond_balance is an INTEGER field in Appwrite — positive gifts use the
-// shared 10% fee with a 1-Diamond minimum.
-const MIN_GIFT = 1;
+// diamond_balance is an INTEGER field in Appwrite — gifts start at 3 Diamonds
+// and use the shared 10% fee with a 1-Diamond minimum.
+const MIN_GIFT = 3;
 const MAX_GIFT = 100_000;
 
 export async function POST(req: NextRequest) {

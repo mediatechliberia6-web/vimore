@@ -40,11 +40,11 @@ const GIFT_CATEGORIES = [
   { id: "power", label: "Power", emoji: "⚡" },
 ];
 
-// Positive gifts are allowed; the server applies the 1-Diamond minimum fee.
-const MIN_GIFT_COST = 1;
+// The gift dialog starts at 3 Diamonds; the server enforces the same floor.
+const MIN_GIFT_COST = 3;
 
 const ALL_GIFTS: GiftItem[] = [
-  // 💕 Love & Romance (25 gifts, 1 – 20 D) — all whole-diamond costs
+  // 💕 Love & Romance (25 gifts, 3 – 20 D) — all whole-diamond costs
   { id: "l-01", name: "Tiny Heart", emoji: "❤️", cost: 1, category: "love" },
   { id: "l-02", name: "Beating Heart", emoji: "💓", cost: 1, category: "love" },
   { id: "l-03", name: "Two Hearts", emoji: "💕", cost: 1, category: "love" },
@@ -71,7 +71,7 @@ const ALL_GIFTS: GiftItem[] = [
   { id: "l-24", name: "Wedding Bell", emoji: "💒", cost: 15, category: "love" },
   { id: "l-25", name: "Diamond Ring", emoji: "💍", cost: 20, category: "love" },
 
-  // 🌸 Nature & Flowers (20 gifts, 1 – 30 D)
+  // 🌸 Nature & Flowers (20 gifts, 3 – 30 D)
   { id: "n-01", name: "Sunflower", emoji: "🌻", cost: 1, category: "nature" },
   { id: "n-02", name: "Blossom", emoji: "🌼", cost: 1, category: "nature" },
   { id: "n-03", name: "Four Leaf Clover", emoji: "🍀", cost: 1, category: "nature" },
@@ -93,7 +93,7 @@ const ALL_GIFTS: GiftItem[] = [
   { id: "n-19", name: "Saturn", emoji: "🪐", cost: 24, category: "nature" },
   { id: "n-20", name: "Milky Way", emoji: "🌌", cost: 30, category: "nature" },
 
-  // 🍕 Food & Treats (20 gifts, 1 – 25 D)
+  // 🍕 Food & Treats (20 gifts, 3 – 25 D)
   { id: "f-01", name: "Lollipop", emoji: "🍭", cost: 1, category: "food" },
   { id: "f-02", name: "Candy", emoji: "🍬", cost: 1, category: "food" },
   { id: "f-03", name: "Chocolate", emoji: "🍫", cost: 1, category: "food" },
@@ -115,7 +115,7 @@ const ALL_GIFTS: GiftItem[] = [
   { id: "f-19", name: "Champagne", emoji: "🍾", cost: 18, category: "food" },
   { id: "f-20", name: "Luxury Feast", emoji: "🥂", cost: 25, category: "food" },
 
-  // 🐾 Animals (20 gifts, 1 – 35 D)
+  // 🐾 Animals (20 gifts, 3 – 35 D)
   { id: "a-01", name: "Puppy", emoji: "🐶", cost: 1, category: "animals" },
   { id: "a-02", name: "Kitten", emoji: "🐱", cost: 1, category: "animals" },
   { id: "a-03", name: "Bunny", emoji: "🐰", cost: 1, category: "animals" },
@@ -137,7 +137,7 @@ const ALL_GIFTS: GiftItem[] = [
   { id: "a-19", name: "Unicorn", emoji: "🦄", cost: 32, category: "animals" },
   { id: "a-20", name: "Phoenix", emoji: "🦅", cost: 35, category: "animals" },
 
-  // 🎵 Music & Arts (15 gifts, 1 – 30 D)
+  // 🎵 Music & Arts (15 gifts, 3 – 30 D)
   { id: "m-01", name: "Musical Note", emoji: "🎵", cost: 1, category: "music" },
   { id: "m-02", name: "Music Notes", emoji: "🎶", cost: 2, category: "music" },
   { id: "m-03", name: "Guitar", emoji: "🎸", cost: 3, category: "music" },
@@ -154,7 +154,7 @@ const ALL_GIFTS: GiftItem[] = [
   { id: "m-14", name: "Concert Stage", emoji: "🎪", cost: 25, category: "music" },
   { id: "m-15", name: "Grand Trophy", emoji: "🏆", cost: 30, category: "music" },
 
-  // 🌍 African Pride (15 gifts, 2 – 50 D)
+  // 🌍 African Pride (15 gifts, 3 – 50 D)
   { id: "af-01", name: "Africa Globe", emoji: "🌍", cost: 2, category: "africa" },
   { id: "af-02", name: "Savanna Sun", emoji: "🌅", cost: 4, category: "africa" },
   { id: "af-03", name: "Djembe Drum", emoji: "🥁", cost: 5, category: "africa" },
