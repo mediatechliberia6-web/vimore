@@ -3036,7 +3036,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     toast({ title: "Subscription cancelled" });
   }, [currentUser, allUsers, toast]);
 
-  const processGiftTransaction = useCallback(async (cost: number) => {
+  const processGiftTransaction = useCallback(async (cost: number, _currency: 'GOLD' | 'DIAMOND' = 'DIAMOND') => {
     if (!currentUser) throw new Error("Not logged in");
     if (!targetUserForGift) throw new Error("No recipient selected");
 

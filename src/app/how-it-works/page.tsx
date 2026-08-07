@@ -218,8 +218,8 @@ export default function HowItWorks() {
                 <h3 className="text-lg font-black text-white leading-tight">The 90 / 10 Split</h3>
               </div>
             </div>
-            <p className="text-white/75 text-sm font-medium leading-relaxed">
-              Every Gold or Diamond you earn from your content — gifts, unlocks, subscriptions — you keep <span className="text-white font-black">90%</span>. The remaining 10% keeps the platform running.
+             <p className="text-white/75 text-sm font-medium leading-relaxed">
+               Every Gold or Diamond you earn from your content — gifts, unlocks, subscriptions — keeps the same 90/10 split for verified and unverified creators. Transactions under 10 Diamonds have a 1-Diamond minimum fee.
             </p>
             <div className="flex gap-3">
               <div className="flex-1 bg-white/10 rounded-xl p-3 text-center">

@@ -6,3 +6,4 @@
 - [API function consolidation](api-function-consolidation.md) — Vercel Hobby caps at 12 functions; new endpoints go in src/server/api-impl/ + ROUTES map, never a new route.ts
 - [Client media and proxy pattern](server-auth-upload.md) — browser uploads use Appwrite SDK; media reads use the same-origin proxy, and microphone requires an allowing Permissions-Policy
 - [Live Appwrite schema drift](appwrite-schema-drift.md) — an imported schema snapshot can lag production; verify the live collection before fixing unknown-attribute errors
+- [Diamond transaction fee policy](diamond-transaction-fee-policy.md) — gifts, unlocks, and subscriptions use one 10% fee with a 1-Diamond minimum

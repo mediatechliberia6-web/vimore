@@ -4,6 +4,7 @@ import { getSessionUser } from '@/lib/session';
 import { rateLimit } from '@/lib/rate-limit';
 import { ID } from 'node-appwrite';
 import { logSecurityEvent, extractRequestMeta } from '@/lib/security-logger';
+import { calculatePlatformFee, PLATFORM_FEE_PERCENT } from '@/lib/transaction-fee';
 
 export const maxDuration = 30;
 
@@ -13,8 +14,9 @@ const COL = {
   NOTIFICATIONS: 'notifications',
 };
 
-// diamond_balance is an INTEGER field in Appwrite — minimum gift is 4 whole Diamonds (platform fee floor)
-const MIN_GIFT = 4;
+// diamond_balance is an INTEGER field in Appwrite — positive gifts use the
+// shared 10% fee with a 1-Diamond minimum.
+const MIN_GIFT = 1;
 const MAX_GIFT = 100_000;
 
 export async function POST(req: NextRequest) {
@@ -76,11 +78,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Recipient not found.' }, { status: 404 });
     }
 
-    const recipientIsVerified = recipientDoc.is_verified === true;
-
-    // Platform fee: 10% for verified creators, 20% for unverified
-    // Compute fee first with Math.floor so we never over-deduct, then creator gets the rest.
-    const platformFee = Math.floor(cost * (recipientIsVerified ? 0.10 : 0.20));
+    const platformFee = calculatePlatformFee(cost);
     const creatorShare = cost - platformFee;
 
     const senderNewBalance = senderBalance - cost;
@@ -104,7 +102,7 @@ export async function POST(req: NextRequest) {
           type: 'GIFT_SENT',
           currency: 'DIAMOND',
           amount: cost,
-          description: `Gift sent to @${recipientDoc.username || recipientId} — ${platformFee} ◆ platform fee (${recipientIsVerified ? '10' : '20'}%)`,
+          description: `Gift sent to @${recipientDoc.username || recipientId} — ${platformFee} ◆ platform fee (${PLATFORM_FEE_PERCENT}%)`,
           reference_id: recipientId,
           status: 'COMPLETED',
         }),
@@ -114,7 +112,7 @@ export async function POST(req: NextRequest) {
           type: 'GIFT_RECEIVED',
           currency: 'DIAMOND',
           amount: creatorShare,
-          description: `Gift received from @${senderDoc.username || session.userId} — you kept ${recipientIsVerified ? '90' : '80'}% after platform fee`,
+          description: `Gift received from @${senderDoc.username || session.userId} — you kept ${100 - PLATFORM_FEE_PERCENT}% after platform fee`,
           reference_id: session.userId,
           status: 'COMPLETED',
           from_user_id: session.userId,
@@ -143,7 +141,7 @@ export async function POST(req: NextRequest) {
       throw err;
     }
 
-    void logSecurityEvent({ ...meta, event_type: 'GIFT_SENT', severity: 'INFO', user_id: session.userId, target_id: recipientId, amount: cost, currency: 'DIAMOND', result: 'success', details: `Fee ${platformFee} ◆ (${recipientIsVerified ? '10' : '20'}%). Creator received ${creatorShare} ◆` });
+    void logSecurityEvent({ ...meta, event_type: 'GIFT_SENT', severity: 'INFO', user_id: session.userId, target_id: recipientId, amount: cost, currency: 'DIAMOND', result: 'success', details: `Fee ${platformFee} ◆ (${PLATFORM_FEE_PERCENT}%, minimum 1 ◆). Creator received ${creatorShare} ◆` });
 
     return NextResponse.json({
       ok: true,

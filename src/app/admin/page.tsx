@@ -129,6 +129,7 @@ import {
 } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useToast } from "@/hooks/use-toast";
+import { calculatePlatformFee } from "@/lib/transaction-fee";
 import Image from "next/image";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -638,7 +639,7 @@ export default function AdminDashboard() {
         txRes.documents.forEach((tx: any) => {
           const senderTypes = ['GIFT_SENT', 'POST_UNLOCK', 'SUBSCRIPTION'];
           if (!senderTypes.includes(tx.type)) return;
-          const cut = (tx.amount || 0) * 0.1;
+          const cut = calculatePlatformFee(Number(tx.amount || 0));
           if (tx.currency === 'GOLD') pfGold += cut;
           else if (tx.currency === 'DIAMOND') pfDiamond += cut;
         });

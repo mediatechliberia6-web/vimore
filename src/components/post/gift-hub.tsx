@@ -40,8 +40,8 @@ const GIFT_CATEGORIES = [
   { id: "power", label: "Power", emoji: "⚡" },
 ];
 
-// Minimum gift cost — platform fees cannot be covered below this threshold
-const MIN_GIFT_COST = 4;
+// Positive gifts are allowed; the server applies the 1-Diamond minimum fee.
+const MIN_GIFT_COST = 1;
 
 const ALL_GIFTS: GiftItem[] = [
   // 💕 Love & Romance (25 gifts, 1 – 20 D) — all whole-diamond costs

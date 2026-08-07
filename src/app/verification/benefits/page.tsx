@@ -24,12 +24,10 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
-const UNVERIFIED_FEE = 20;
 const EXAMPLE_AMOUNT = 100;
-// Verified creators keep 95% on direct gift reactions (5% fee with platform bonus)
-const GIFT_VERIFIED_KEEP = 95;
-const verifiedKeeps = EXAMPLE_AMOUNT * (GIFT_VERIFIED_KEEP / 100);
-const unverifiedKeeps = EXAMPLE_AMOUNT * (1 - UNVERIFIED_FEE / 100);
+const PLATFORM_FEE = 10;
+const CREATOR_KEEP = 100 - PLATFORM_FEE;
+const creatorKeeps = EXAMPLE_AMOUNT * (CREATOR_KEEP / 100);
 
 export default function VerifiedBenefitsPage() {
   return (
@@ -96,29 +94,29 @@ export default function VerifiedBenefitsPage() {
 
             {/* Example visual */}
             <div className="grid grid-cols-2 gap-3">
-              {/* Unverified */}
+              {/* All creators */}
               <div className="bg-secondary/30 dark:bg-white/3 border border-black/5 dark:border-white/5 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center gap-1.5">
                   <div className="h-5 w-5 rounded-full bg-muted-foreground/20 flex items-center justify-center">
                     <Zap className="h-2.5 w-2.5 text-muted-foreground" />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Unverified</span>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">All creators</span>
                 </div>
                 <div>
-                  <p className="text-2xl font-black tabular-nums text-foreground">{unverifiedKeeps}</p>
+                   <p className="text-2xl font-black tabular-nums text-foreground">{creatorKeeps}</p>
                   <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Gold kept of {EXAMPLE_AMOUNT}</p>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="text-muted-foreground font-bold">You keep</span>
-                    <span className="font-black text-foreground">80%</span>
+                     <span className="font-black text-foreground">{CREATOR_KEEP}%</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-black/5 dark:bg-white/5 overflow-hidden">
-                    <div className="h-full bg-muted-foreground/40 rounded-full" style={{ width: '80%' }} />
+                     <div className="h-full bg-muted-foreground/40 rounded-full" style={{ width: `${CREATOR_KEEP}%` }} />
                   </div>
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="text-muted-foreground font-bold">Platform fee</span>
-                    <span className="font-black text-red-400">20%</span>
+                     <span className="font-black text-red-400">{PLATFORM_FEE}%</span>
                   </div>
                 </div>
               </div>
@@ -133,16 +131,16 @@ export default function VerifiedBenefitsPage() {
                   <span className="text-[10px] font-black uppercase tracking-widest text-primary">Verified ✓</span>
                 </div>
                 <div className="relative">
-                  <p className="text-2xl font-black tabular-nums text-primary">{verifiedKeeps}</p>
+                   <p className="text-2xl font-black tabular-nums text-primary">{creatorKeeps}</p>
                   <p className="text-[9px] font-bold text-primary/60 uppercase tracking-widest">Gold kept of {EXAMPLE_AMOUNT}</p>
                 </div>
                 <div className="space-y-1 relative">
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="text-muted-foreground font-bold">You keep</span>
-                    <span className="font-black text-primary">90%</span>
+                     <span className="font-black text-primary">{CREATOR_KEEP}%</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-primary/15 overflow-hidden">
-                    <div className="h-full bg-primary rounded-full" style={{ width: '90%' }} />
+                     <div className="h-full bg-primary rounded-full" style={{ width: `${CREATOR_KEEP}%` }} />
                   </div>
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="text-muted-foreground font-bold">Platform fee</span>
@@ -158,8 +156,8 @@ export default function VerifiedBenefitsPage() {
                 <DollarSign className="h-4.5 w-4.5 text-green-500" style={{ height: '18px', width: '18px' }} />
               </div>
               <div>
-                <p className="text-xs font-black text-foreground">Gift bonus: keep 95% on direct gift reactions</p>
-                <p className="text-[10px] text-muted-foreground font-medium mt-0.5">When fans send you gift reactions (stickers), the platform adds a 5% bonus — you keep 95 Gold of every 100 Gold sent. Applies to gift reactions only, not unlocks or subscriptions.</p>
+                 <p className="text-xs font-black text-foreground">The same fair rate applies to every creator</p>
+                 <p className="text-[10px] text-muted-foreground font-medium mt-0.5">Gifts, post unlocks, and subscriptions use a 10% platform fee for both verified and unverified creators. Transactions under 10 Diamonds have a 1-Diamond minimum fee.</p>
               </div>
             </div>
           </div>

@@ -393,9 +393,7 @@ export default function EarningsPage() {
                   <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex items-center justify-between">
                     <div>
                       <p className="text-[9px] font-black uppercase tracking-widest text-white/40">Final Payout</p>
-                      {!currentUser?.isVerified && (
-                        <p className="text-[9px] text-amber-400/60 font-bold">20% platform fee applied</p>
-                      )}
+                      <p className="text-[9px] text-amber-400/60 font-bold">10% platform fee applied</p>
                     </div>
                     <span className="text-2xl font-black italic text-primary">{payoutCurrency === 'USD' ? '$' : 'L$'} {calculation.finalPayout.toFixed(2)}</span>
                   </div>

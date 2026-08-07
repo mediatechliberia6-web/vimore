@@ -4,6 +4,7 @@ import { getSessionUser } from '@/lib/session';
 import { rateLimit } from '@/lib/rate-limit';
 import { ID, Query } from 'node-appwrite';
 import { logSecurityEvent, extractRequestMeta } from '@/lib/security-logger';
+import { calculatePlatformFee, PLATFORM_FEE_PERCENT } from '@/lib/transaction-fee';
 
 export const maxDuration = 30;
 
@@ -93,15 +94,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Read creator's verified status for fee split
+    // Read creator for the earning credit. Verification does not change the fee.
     let ownerDoc: any = null;
     if (ownerId) {
       try { ownerDoc = await db.getDocument(DATABASE_ID, COL.USERS, ownerId); } catch { /* ignore */ }
     }
-    const ownerIsVerified = ownerDoc?.is_verified === true;
-
-    // Platform fee: 10% for verified creators, 20% for unverified
-    const platformFee = Math.floor(cost * (ownerIsVerified ? 0.10 : 0.20));
+    const platformFee = calculatePlatformFee(cost);
     const creatorShare = cost - platformFee;
 
     const buyerNewBalance = buyerBalance - cost;
@@ -121,7 +119,7 @@ export async function POST(req: NextRequest) {
         type: 'POST_UNLOCK',
         currency: 'DIAMOND',
         amount: cost,
-        description: `Post unlock — ${platformFee} ◆ platform fee (${ownerIsVerified ? '10' : '20'}%)`,
+         description: `Post unlock — ${platformFee} ◆ platform fee (${PLATFORM_FEE_PERCENT}%)`,
         reference_id: postId,
         status: 'COMPLETED',
       } as any),
@@ -139,7 +137,7 @@ export async function POST(req: NextRequest) {
           type: 'POST_UNLOCK_EARNING',
           currency: 'DIAMOND',
           amount: creatorShare,
-          description: `Post unlock earning — kept ${ownerIsVerified ? '90' : '80'}% after ${platformFee} ◆ platform fee`,
+           description: `Post unlock earning — kept ${100 - PLATFORM_FEE_PERCENT}% after ${platformFee} ◆ platform fee`,
           reference_id: postId,
           status: 'COMPLETED',
           from_user_id: session.userId,
@@ -162,9 +160,9 @@ export async function POST(req: NextRequest) {
       throw err;
     }
 
-    void logSecurityEvent({ ...meta, event_type: 'POST_UNLOCKED', severity: 'INFO', user_id: session.userId, target_id: postId, amount: cost, currency: 'DIAMOND', result: 'success', details: `Fee ${platformFee} ◆ (${ownerIsVerified ? '10' : '20'}%). Creator received ${creatorShare} ◆` });
+    void logSecurityEvent({ ...meta, event_type: 'POST_UNLOCKED', severity: 'INFO', user_id: session.userId, target_id: postId, amount: cost, currency: 'DIAMOND', result: 'success', details: `Fee ${platformFee} ◆ (${PLATFORM_FEE_PERCENT}%, minimum 1 ◆). Creator received ${creatorShare} ◆` });
 
-    return NextResponse.json({ ok: true, cost, senderNewBalance: buyerNewBalance });
+    return NextResponse.json({ ok: true, cost, senderNewBalance: buyerNewBalance, creatorShare, platformFee });
   } catch (err: any) {
     void logSecurityEvent({ ...meta, event_type: 'UNLOCK_ERROR', severity: 'ERROR', result: 'failure', details: err?.message ?? 'Unhandled error' });
     return NextResponse.json({ error: err?.message || 'Unlock failed.' }, { status: 500 });

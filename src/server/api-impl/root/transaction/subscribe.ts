@@ -4,6 +4,7 @@ import { getSessionUser } from '@/lib/session';
 import { rateLimit } from '@/lib/rate-limit';
 import { ID, Query } from 'node-appwrite';
 import { logSecurityEvent, extractRequestMeta } from '@/lib/security-logger';
+import { calculatePlatformFee, PLATFORM_FEE_PERCENT } from '@/lib/transaction-fee';
 
 export const maxDuration = 30;
 
@@ -83,10 +84,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const creatorIsVerified = creatorDoc.is_verified === true;
-
-    // Platform fee: 10% for verified creators, 20% for unverified
-    const platformFee = Math.floor(cost * (creatorIsVerified ? 0.10 : 0.20));
+    const platformFee = calculatePlatformFee(cost);
     const creatorShare = cost - platformFee;
 
     const subscriberNewBalance = subscriberBalance - cost;
@@ -117,7 +115,7 @@ export async function POST(req: NextRequest) {
           type: 'SUBSCRIPTION',
           currency: 'DIAMOND',
           amount: cost,
-          description: `Subscribed to @${creatorDoc.username || creatorId} — ${platformFee} ◆ platform fee (${creatorIsVerified ? '10' : '20'}%)`,
+           description: `Subscribed to @${creatorDoc.username || creatorId} — ${platformFee} ◆ platform fee (${PLATFORM_FEE_PERCENT}%)`,
           reference_id: creatorId,
           status: 'COMPLETED',
         }),
@@ -126,7 +124,7 @@ export async function POST(req: NextRequest) {
           type: 'SUBSCRIPTION_EARNING',
           currency: 'DIAMOND',
           amount: creatorShare,
-          description: `Subscription from @${subscriberDoc.username || session.userId} — kept ${creatorIsVerified ? '90' : '80'}% after ${platformFee} ◆ platform fee`,
+           description: `Subscription from @${subscriberDoc.username || session.userId} — kept ${100 - PLATFORM_FEE_PERCENT}% after ${platformFee} ◆ platform fee`,
           reference_id: session.userId,
           status: 'COMPLETED',
           from_user_id: session.userId,
@@ -154,7 +152,7 @@ export async function POST(req: NextRequest) {
       throw err;
     }
 
-    void logSecurityEvent({ ...meta, event_type: 'SUBSCRIPTION', severity: 'INFO', user_id: session.userId, target_id: creatorId, amount: cost, currency: 'DIAMOND', result: 'success', details: `Fee ${platformFee} ◆ (${creatorIsVerified ? '10' : '20'}%). Creator received ${creatorShare} ◆. Expires ${expiresAt}` });
+    void logSecurityEvent({ ...meta, event_type: 'SUBSCRIPTION', severity: 'INFO', user_id: session.userId, target_id: creatorId, amount: cost, currency: 'DIAMOND', result: 'success', details: `Fee ${platformFee} ◆ (${PLATFORM_FEE_PERCENT}%, minimum 1 ◆). Creator received ${creatorShare} ◆. Expires ${expiresAt}` });
 
     return NextResponse.json({
       ok: true,
