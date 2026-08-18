@@ -14,8 +14,8 @@ const COL = {
   NOTIFICATIONS: 'notifications',
 };
 
-// diamond_balance is an INTEGER field in Appwrite — gifts start at 3 Diamonds
-// and use the shared 10% fee with a 1-Diamond minimum.
+// Credits are the in-app, non-withdrawable spending balance used for gifts.
+// Gifts start at 3 Credits and use the shared 10% fee with a 1-Credit minimum.
 const MIN_GIFT = 3;
 const MAX_GIFT = 100_000;
 
@@ -44,11 +44,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Cannot gift yourself.' }, { status: 400 });
     }
 
-    // Parse as integer — diamond_balance is an integer field
+    // Parse as integer — credit_balance is an integer field
     const cost = Math.round(Number(amount));
     if (!Number.isFinite(cost) || cost < MIN_GIFT || cost > MAX_GIFT) {
-      void logSecurityEvent({ ...meta, event_type: 'GIFT_INVALID_AMOUNT', severity: 'WARN', user_id: session.userId, amount: cost, currency: 'DIAMOND', result: 'blocked', details: `Amount ${amount} out of range [${MIN_GIFT}, ${MAX_GIFT}]` });
-      return NextResponse.json({ error: `Gift amount must be between ${MIN_GIFT} and ${MAX_GIFT} Diamonds.` }, { status: 400 });
+      void logSecurityEvent({ ...meta, event_type: 'GIFT_INVALID_AMOUNT', severity: 'WARN', user_id: session.userId, amount: cost, currency: 'CREDIT', result: 'blocked', details: `Amount ${amount} out of range [${MIN_GIFT}, ${MAX_GIFT}]` });
+      return NextResponse.json({ error: `Gift amount must be between ${MIN_GIFT} and ${MAX_GIFT} Credits.` }, { status: 400 });
     }
 
     const db = getAdminDatabases();
@@ -61,11 +61,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Sender not found.' }, { status: 404 });
     }
 
-    const senderBalance: number = Math.round(Number(senderDoc.diamond_balance ?? 0));
+    const senderBalance: number = Math.round(Number(senderDoc.credit_balance ?? senderDoc.diamond_balance ?? 0));
     if (senderBalance < cost) {
-      void logSecurityEvent({ ...meta, event_type: 'GIFT_INSUFFICIENT_BALANCE', severity: 'WARN', user_id: session.userId, target_id: recipientId, amount: cost, currency: 'DIAMOND', result: 'blocked', details: `Balance ${senderBalance} < cost ${cost}` });
+      void logSecurityEvent({ ...meta, event_type: 'GIFT_INSUFFICIENT_BALANCE', severity: 'WARN', user_id: session.userId, target_id: recipientId, amount: cost, currency: 'CREDIT', result: 'blocked', details: `Balance ${senderBalance} < cost ${cost}` });
       return NextResponse.json(
-        { error: `Insufficient balance. You have ${senderBalance} ◆ but tried to send ${cost} ◆.` },
+        { error: `Insufficient Credits. You have ${senderBalance} but tried to send ${cost}.` },
         { status: 400 }
       );
     }
@@ -82,11 +82,12 @@ export async function POST(req: NextRequest) {
     const creatorShare = cost - platformFee;
 
     const senderNewBalance = senderBalance - cost;
-    const recipientCurrentBalance: number = Math.round(Number(recipientDoc.diamond_balance ?? 0));
+    const recipientCurrentBalance: number = Math.round(Number(recipientDoc.credit_balance ?? recipientDoc.diamond_balance ?? 0));
     const recipientNewBalance = recipientCurrentBalance + creatorShare;
 
     // Deduct sender first
     await db.updateDocument(DATABASE_ID, COL.USERS, session.userId, {
+      credit_balance: senderNewBalance,
       diamond_balance: senderNewBalance,
     });
 
@@ -94,15 +95,16 @@ export async function POST(req: NextRequest) {
       await Promise.all([
         // Credit recipient with their share after platform fee
         db.updateDocument(DATABASE_ID, COL.USERS, recipientId, {
+          credit_balance: recipientNewBalance,
           diamond_balance: recipientNewBalance,
         }),
         // Sender transaction record
         db.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
           user_id: session.userId,
           type: 'GIFT_SENT',
-          currency: 'DIAMOND',
+          currency: 'CREDIT',
           amount: cost,
-          description: `Gift sent to @${recipientDoc.username || recipientId} — ${platformFee} ◆ platform fee (${PLATFORM_FEE_PERCENT}%)`,
+          description: `Gift sent to @${recipientDoc.username || recipientId} — ${platformFee} Credits platform fee (${PLATFORM_FEE_PERCENT}%)`,
           reference_id: recipientId,
           status: 'COMPLETED',
         }),
@@ -110,9 +112,9 @@ export async function POST(req: NextRequest) {
         db.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
           user_id: recipientId,
           type: 'GIFT_RECEIVED',
-          currency: 'DIAMOND',
+          currency: 'CREDIT',
           amount: creatorShare,
-          description: `Gift received from @${senderDoc.username || session.userId} — you kept ${100 - PLATFORM_FEE_PERCENT}% after platform fee`,
+          description: `Gift received from @${senderDoc.username || session.userId} — you kept ${100 - PLATFORM_FEE_PERCENT}% after the platform fee`,
           reference_id: session.userId,
           status: 'COMPLETED',
           from_user_id: session.userId,
@@ -125,8 +127,8 @@ export async function POST(req: NextRequest) {
           from_user_id: session.userId,
           type: 'GIFT',
           title: 'You received a gift!',
-          content: `@${senderDoc.username || 'Someone'} sent you ${creatorShare} ◆`,
-          message: `@${senderDoc.username || 'Someone'} sent you ${creatorShare} ◆`,
+          content: `@${senderDoc.username || 'Someone'} sent you ${creatorShare} Credits`,
+          message: `@${senderDoc.username || 'Someone'} sent you ${creatorShare} Credits`,
           is_read: false,
         }),
       ]);
@@ -134,14 +136,15 @@ export async function POST(req: NextRequest) {
       // Best-effort rollback of sender deduction
       try {
         await db.updateDocument(DATABASE_ID, COL.USERS, session.userId, {
+          credit_balance: senderBalance,
           diamond_balance: senderBalance,
         });
       } catch { /* rollback failed */ }
-      void logSecurityEvent({ ...meta, event_type: 'GIFT_FAILED', severity: 'ERROR', user_id: session.userId, target_id: recipientId, amount: cost, currency: 'DIAMOND', result: 'failure', details: (err as any)?.message ?? 'Unknown error — sender rolled back' });
+      void logSecurityEvent({ ...meta, event_type: 'GIFT_FAILED', severity: 'ERROR', user_id: session.userId, target_id: recipientId, amount: cost, currency: 'CREDIT', result: 'failure', details: (err as any)?.message ?? 'Unknown error — sender rolled back' });
       throw err;
     }
 
-    void logSecurityEvent({ ...meta, event_type: 'GIFT_SENT', severity: 'INFO', user_id: session.userId, target_id: recipientId, amount: cost, currency: 'DIAMOND', result: 'success', details: `Fee ${platformFee} ◆ (${PLATFORM_FEE_PERCENT}%, minimum 1 ◆). Creator received ${creatorShare} ◆` });
+    void logSecurityEvent({ ...meta, event_type: 'GIFT_SENT', severity: 'INFO', user_id: session.userId, target_id: recipientId, amount: cost, currency: 'CREDIT', result: 'success', details: `Fee ${platformFee} Credits (${PLATFORM_FEE_PERCENT}%, minimum 1). Creator received ${creatorShare} Credits.` });
 
     return NextResponse.json({
       ok: true,

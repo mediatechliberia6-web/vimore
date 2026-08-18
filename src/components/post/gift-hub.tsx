@@ -40,7 +40,7 @@ const GIFT_CATEGORIES = [
   { id: "power", label: "Power", emoji: "⚡" },
 ];
 
-// The gift dialog starts at 3 Diamonds; the server enforces the same floor.
+// The gift dialog starts at 3 Credits; the server enforces the same floor.
 const MIN_GIFT_COST = 3;
 
 const ALL_GIFTS: GiftItem[] = [
@@ -239,7 +239,7 @@ export function GiftHub() {
     setIsSyncing(true);
     triggerHaptic(30);
     try {
-      await processGiftTransaction(selectedGift.cost, 'DIAMOND');
+      await processGiftTransaction(selectedGift.cost, 'GOLD');
       setIsSuccess(true);
       triggerHaptic(100);
       setTimeout(() => {
@@ -256,8 +256,8 @@ export function GiftHub() {
 
   if (!isGiftHubOpen) return null;
 
-  const diamondBalance = currentUser?.diamondBalance || 0;
-  const canAfford = selectedGift ? diamondBalance >= selectedGift.cost : false;
+  const creditBalance = currentUser?.diamondBalance || 0;
+  const canAfford = selectedGift ? creditBalance >= selectedGift.cost : false;
 
   return (
     <Sheet open={isGiftHubOpen} onOpenChange={(open) => !open && closeGiftHub()}>
@@ -294,7 +294,7 @@ export function GiftHub() {
             </div>
             <div className="flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl px-5 py-3">
               <Gem className="h-4 w-4 text-cyan-400" />
-              <span className="text-sm font-black text-cyan-400">{selectedGift?.cost} D sent</span>
+              <span className="text-sm font-black text-cyan-400">{selectedGift?.cost} Credits sent</span>
             </div>
           </div>
         ) : (
@@ -310,13 +310,13 @@ export function GiftHub() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  {/* Diamond balance */}
+                  {/* Credit balance */}
                   <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-4 py-2">
                     <div className="h-5 w-5 bg-cyan-500/20 rounded-lg flex items-center justify-center">
                       <Gem className="h-3 w-3 text-cyan-400" />
                     </div>
-                    <span className="text-sm font-black text-white tabular-nums">{Math.floor(diamondBalance)}</span>
-                    <span className="text-[9px] font-bold text-white/30 uppercase">D</span>
+                    <span className="text-sm font-black text-white tabular-nums">{Math.floor(creditBalance)}</span>
+                    <span className="text-[9px] font-bold text-white/30 uppercase">Credits</span>
                   </div>
                   <button
                     onClick={closeGiftHub}
@@ -374,7 +374,7 @@ export function GiftHub() {
                 <div className="grid grid-cols-4 sm:grid-cols-5 gap-2.5">
                   {filteredGifts.map((gift) => {
                     const isSelected = selectedGift?.id === gift.id;
-                    const affordable = diamondBalance >= gift.cost;
+                    const affordable = creditBalance >= gift.cost;
                     return (
                       <button
                         key={gift.id}
@@ -458,7 +458,7 @@ export function GiftHub() {
                       {isSyncing ? (
                         <Loader2 className="h-5 w-5 animate-spin" />
                       ) : !canAfford ? (
-                        "Low D"
+                        "Low Credits"
                       ) : (
                         "Send"
                       )}

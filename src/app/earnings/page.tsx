@@ -49,9 +49,9 @@ export default function EarningsPage() {
   const isPlayerActive = currentTrack && !isExpanded;
 
   const estimates = useMemo(() => {
-    const diamond = currentUser?.diamondBalance || 0;
-    const totalUSD = diamond * settings.diamondRate;
-    return { totalUSD, totalLD: totalUSD * settings.ldMultiplier, diamond };
+    const credits = currentUser?.diamondBalance || 0;
+    const totalUSD = credits * settings.diamondRate;
+    return { totalUSD, totalLD: totalUSD * settings.ldMultiplier, credits };
   }, [currentUser, settings.diamondRate, settings.ldMultiplier]);
 
   const [isTicketOpen, setIsTicketOpen] = useState(false);
@@ -187,16 +187,16 @@ export default function EarningsPage() {
                 </div>
               </div>
 
-              {/* Diamond balance card */}
+              {/* Credit balance card */}
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="h-7 w-7 rounded-xl bg-cyan-500/20 flex items-center justify-center">
                     <Gem className="h-4 w-4 text-cyan-400" />
                   </div>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-white/40">{t('earn_diamond_pulse')}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Credit Balance</span>
                 </div>
                 <p className="text-3xl font-black italic text-white tabular-nums">{(currentUser?.diamondBalance || 0).toFixed(2)}</p>
-                <p className="text-[9px] text-white/30 font-bold uppercase mt-1">D · 1 D = $0.25 USD</p>
+                <p className="text-[9px] text-white/30 font-bold uppercase mt-1">Credits are non-withdrawable in-app tokens</p>
               </div>
 
               {/* USD/LD estimate */}

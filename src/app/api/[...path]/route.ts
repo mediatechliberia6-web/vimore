@@ -42,6 +42,10 @@ import * as UserActivity from '@/server/api-impl/root/user/activity';
 import * as UserProfile from '@/server/api-impl/root/user/profile';
 import * as Withdraw from '@/server/api-impl/root/withdraw';
 import * as PostReaction from '@/server/api-impl/root/post-reaction';
+import * as MonetizationValidateCreatorEligibility from '@/server/api-impl/root/monetization/validate-creator-eligibility';
+import * as MonetizationGenerateUssd from '@/server/api-impl/root/monetization/generate-ussd';
+import * as MonetizationLogTransaction from '@/server/api-impl/root/monetization/log-transaction';
+import * as MonetizationUpdateCreatorEarnings from '@/server/api-impl/root/monetization/update-creator-earnings';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -90,6 +94,10 @@ const ROUTES: Record<string, Handler> = {
   'user/profile': UserProfile,
   'withdraw': Withdraw,
   'post/reaction': PostReaction,
+  'monetization/validate-creator-eligibility': MonetizationValidateCreatorEligibility,
+  'monetization/generate-ussd': MonetizationGenerateUssd,
+  'monetization/log-transaction': MonetizationLogTransaction,
+  'monetization/update-creator-earnings': MonetizationUpdateCreatorEarnings,
 };
 
 async function dispatch(req: NextRequest, method: string, ctx: { params: Promise<{ path: string[] }> }) {

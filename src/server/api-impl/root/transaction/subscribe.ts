@@ -75,11 +75,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Subscriber not found.' }, { status: 404 });
     }
 
-    const subscriberBalance: number = Math.round(Number(subscriberDoc.diamond_balance ?? 0));
+    const subscriberBalance: number = Math.round(Number(subscriberDoc.credit_balance ?? subscriberDoc.diamond_balance ?? 0));
     if (subscriberBalance < cost) {
-      void logSecurityEvent({ ...meta, event_type: 'SUBSCRIBE_INSUFFICIENT_BALANCE', severity: 'WARN', user_id: session.userId, target_id: creatorId, amount: cost, currency: 'DIAMOND', result: 'blocked', details: `Balance ${subscriberBalance} < cost ${cost}` });
+      void logSecurityEvent({ ...meta, event_type: 'SUBSCRIBE_INSUFFICIENT_BALANCE', severity: 'WARN', user_id: session.userId, target_id: creatorId, amount: cost, currency: 'CREDIT', result: 'blocked', details: `Balance ${subscriberBalance} < cost ${cost}` });
       return NextResponse.json(
-        { error: `Insufficient balance. You need ${cost} ◆ but have ${subscriberBalance} ◆.` },
+        { error: `Insufficient Credits. You need ${cost} but have ${subscriberBalance}.` },
         { status: 400 }
       );
     }
@@ -88,13 +88,14 @@ export async function POST(req: NextRequest) {
     const creatorShare = cost - platformFee;
 
     const subscriberNewBalance = subscriberBalance - cost;
-    const creatorCurrentBalance: number = Math.round(Number(creatorDoc.diamond_balance ?? 0));
+    const creatorCurrentBalance: number = Math.round(Number(creatorDoc.credit_balance ?? creatorDoc.diamond_balance ?? 0));
     const creatorNewBalance = creatorCurrentBalance + creatorShare;
 
     const expiresAt = new Date(Date.now() + 30 * 86_400_000).toISOString();
 
     // Deduct subscriber first
     await db.updateDocument(DATABASE_ID, COL.USERS, session.userId, {
+      credit_balance: subscriberNewBalance,
       diamond_balance: subscriberNewBalance,
     });
 
@@ -108,23 +109,24 @@ export async function POST(req: NextRequest) {
           status: 'ACTIVE',
         }),
         db.updateDocument(DATABASE_ID, COL.USERS, creatorId, {
+          credit_balance: creatorNewBalance,
           diamond_balance: creatorNewBalance,
         }),
         db.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
           user_id: session.userId,
           type: 'SUBSCRIPTION',
-          currency: 'DIAMOND',
+          currency: 'CREDIT',
           amount: cost,
-           description: `Subscribed to @${creatorDoc.username || creatorId} — ${platformFee} ◆ platform fee (${PLATFORM_FEE_PERCENT}%)`,
+          description: `Subscribed to @${creatorDoc.username || creatorId} — ${platformFee} Credits platform fee (${PLATFORM_FEE_PERCENT}%)`,
           reference_id: creatorId,
           status: 'COMPLETED',
         }),
         db.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
           user_id: creatorId,
           type: 'SUBSCRIPTION_EARNING',
-          currency: 'DIAMOND',
+          currency: 'CREDIT',
           amount: creatorShare,
-           description: `Subscription from @${subscriberDoc.username || session.userId} — kept ${100 - PLATFORM_FEE_PERCENT}% after ${platformFee} ◆ platform fee`,
+          description: `Subscription from @${subscriberDoc.username || session.userId} — kept ${100 - PLATFORM_FEE_PERCENT}% after ${platformFee} Credits platform fee`,
           reference_id: session.userId,
           status: 'COMPLETED',
           from_user_id: session.userId,
@@ -145,14 +147,15 @@ export async function POST(req: NextRequest) {
       // Best-effort rollback
       try {
         await db.updateDocument(DATABASE_ID, COL.USERS, session.userId, {
+          credit_balance: subscriberBalance,
           diamond_balance: subscriberBalance,
         });
       } catch { /* rollback failed */ }
-      void logSecurityEvent({ ...meta, event_type: 'SUBSCRIBE_FAILED', severity: 'ERROR', user_id: session.userId, target_id: creatorId, amount: cost, currency: 'DIAMOND', result: 'failure', details: (err as any)?.message ?? 'Unknown error — subscriber rolled back' });
+      void logSecurityEvent({ ...meta, event_type: 'SUBSCRIBE_FAILED', severity: 'ERROR', user_id: session.userId, target_id: creatorId, amount: cost, currency: 'CREDIT', result: 'failure', details: (err as any)?.message ?? 'Unknown error — subscriber rolled back' });
       throw err;
     }
 
-    void logSecurityEvent({ ...meta, event_type: 'SUBSCRIPTION', severity: 'INFO', user_id: session.userId, target_id: creatorId, amount: cost, currency: 'DIAMOND', result: 'success', details: `Fee ${platformFee} ◆ (${PLATFORM_FEE_PERCENT}%, minimum 1 ◆). Creator received ${creatorShare} ◆. Expires ${expiresAt}` });
+    void logSecurityEvent({ ...meta, event_type: 'SUBSCRIPTION', severity: 'INFO', user_id: session.userId, target_id: creatorId, amount: cost, currency: 'CREDIT', result: 'success', details: `Fee ${platformFee} Credits (${PLATFORM_FEE_PERCENT}%, minimum 1). Creator received ${creatorShare} Credits. Expires ${expiresAt}` });
 
     return NextResponse.json({
       ok: true,

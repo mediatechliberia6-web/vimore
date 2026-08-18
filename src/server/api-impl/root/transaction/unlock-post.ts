@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Post not found.' }, { status: 404 });
     }
 
-    // diamond_balance is an INTEGER field — round cost to whole diamonds
+    // credit_balance is an INTEGER field — round cost to whole credits
     const cost: number = Math.round(Number(postDoc.unlock_price ?? 0));
     if (cost <= 0) {
       // Post is free — just create the unlock record
@@ -85,11 +85,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found.' }, { status: 404 });
     }
 
-    const buyerBalance: number = Math.round(Number(buyerDoc.diamond_balance ?? 0));
+    const buyerBalance: number = Math.round(Number(buyerDoc.credit_balance ?? buyerDoc.diamond_balance ?? 0));
     if (buyerBalance < cost) {
-      void logSecurityEvent({ ...meta, event_type: 'UNLOCK_INSUFFICIENT_BALANCE', severity: 'WARN', user_id: session.userId, target_id: postId, amount: cost, currency: 'DIAMOND', result: 'blocked', details: `Balance ${buyerBalance} < cost ${cost}` });
+      void logSecurityEvent({ ...meta, event_type: 'UNLOCK_INSUFFICIENT_BALANCE', severity: 'WARN', user_id: session.userId, target_id: postId, amount: cost, currency: 'CREDIT', result: 'blocked', details: `Balance ${buyerBalance} < cost ${cost}` });
       return NextResponse.json(
-        { error: `Insufficient balance. You need ${cost} ◆ but have ${buyerBalance} ◆.` },
+        { error: `Insufficient Credits. You need ${cost} but have ${buyerBalance}.` },
         { status: 400 }
       );
     }
@@ -106,6 +106,7 @@ export async function POST(req: NextRequest) {
 
     // Deduct buyer first
     await db.updateDocument(DATABASE_ID, COL.USERS, session.userId, {
+      credit_balance: buyerNewBalance,
       diamond_balance: buyerNewBalance,
     });
 
@@ -117,27 +118,28 @@ export async function POST(req: NextRequest) {
       db.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
         user_id: session.userId,
         type: 'POST_UNLOCK',
-        currency: 'DIAMOND',
+        currency: 'CREDIT',
         amount: cost,
-         description: `Post unlock — ${platformFee} ◆ platform fee (${PLATFORM_FEE_PERCENT}%)`,
+        description: `Post unlock — ${platformFee} Credits platform fee (${PLATFORM_FEE_PERCENT}%)`,
         reference_id: postId,
         status: 'COMPLETED',
       } as any),
     ];
 
     if (ownerId && ownerDoc) {
-      const ownerCurrentBalance: number = Math.round(Number(ownerDoc.diamond_balance ?? 0));
+      const ownerCurrentBalance: number = Math.round(Number(ownerDoc.credit_balance ?? ownerDoc.diamond_balance ?? 0));
       const ownerNewBalance = ownerCurrentBalance + creatorShare;
       ops.push(
         db.updateDocument(DATABASE_ID, COL.USERS, ownerId, {
+          credit_balance: ownerNewBalance,
           diamond_balance: ownerNewBalance,
         } as any),
         db.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
           user_id: ownerId,
           type: 'POST_UNLOCK_EARNING',
-          currency: 'DIAMOND',
+          currency: 'CREDIT',
           amount: creatorShare,
-           description: `Post unlock earning — kept ${100 - PLATFORM_FEE_PERCENT}% after ${platformFee} ◆ platform fee`,
+          description: `Post unlock earning — kept ${100 - PLATFORM_FEE_PERCENT}% after ${platformFee} Credits platform fee`,
           reference_id: postId,
           status: 'COMPLETED',
           from_user_id: session.userId,
@@ -153,14 +155,15 @@ export async function POST(req: NextRequest) {
       // Best-effort rollback
       try {
         await db.updateDocument(DATABASE_ID, COL.USERS, session.userId, {
+          credit_balance: buyerBalance,
           diamond_balance: buyerBalance,
         });
       } catch { /* rollback failed */ }
-      void logSecurityEvent({ ...meta, event_type: 'UNLOCK_FAILED', severity: 'ERROR', user_id: session.userId, target_id: postId, amount: cost, currency: 'DIAMOND', result: 'failure', details: (err as any)?.message ?? 'Unknown error — buyer rolled back' });
+      void logSecurityEvent({ ...meta, event_type: 'UNLOCK_FAILED', severity: 'ERROR', user_id: session.userId, target_id: postId, amount: cost, currency: 'CREDIT', result: 'failure', details: (err as any)?.message ?? 'Unknown error — buyer rolled back' });
       throw err;
     }
 
-    void logSecurityEvent({ ...meta, event_type: 'POST_UNLOCKED', severity: 'INFO', user_id: session.userId, target_id: postId, amount: cost, currency: 'DIAMOND', result: 'success', details: `Fee ${platformFee} ◆ (${PLATFORM_FEE_PERCENT}%, minimum 1 ◆). Creator received ${creatorShare} ◆` });
+    void logSecurityEvent({ ...meta, event_type: 'POST_UNLOCKED', severity: 'INFO', user_id: session.userId, target_id: postId, amount: cost, currency: 'CREDIT', result: 'success', details: `Fee ${platformFee} Credits (${PLATFORM_FEE_PERCENT}%, minimum 1). Creator received ${creatorShare} Credits.` });
 
     return NextResponse.json({ ok: true, cost, senderNewBalance: buyerNewBalance, creatorShare, platformFee });
   } catch (err: any) {

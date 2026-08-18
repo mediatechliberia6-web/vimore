@@ -55,7 +55,7 @@ export function MusicGrid({ type, items = [], title }: MusicGridProps) {
       toast({ title: "Unlocked!", description: `${unlockTarget.title} is now yours to enjoy.` });
       setTrack(unlockTarget);
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Unlock Failed", description: err.message || "Please check your Diamond balance." });
+      toast({ variant: "destructive", title: "Unlock Failed", description: err.message || "Please check your Credits balance." });
     } finally {
       setIsUnlocking(false);
       setUnlockTarget(null);
@@ -409,7 +409,7 @@ export function MusicGrid({ type, items = [], title }: MusicGridProps) {
                 <span className="text-2xl font-black text-cyan-400">◆ {unlockTarget.unlockPrice?.toFixed(2)}</span>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                One-time payment to unlock this {unlockTarget.songs ? 'album' : 'track'} forever. Diamonds are deducted from your balance.
+                One-time payment to unlock this {unlockTarget.songs ? 'album' : 'track'} forever. Credits are deducted from your balance.
               </p>
             </div>
 

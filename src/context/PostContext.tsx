@@ -2990,7 +2990,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (typeof data.senderNewBalance === 'number') {
       setCurrentUserState(prev => prev ? { ...prev, diamondBalance: data.senderNewBalance } : null);
     }
-    toast({ title: "Post unlocked! ◆", description: `${data.creatorShare ?? ''} ◆ sent to creator · ${data.platformFee ?? ''} ◆ platform fee` });
+    toast({ title: "Post unlocked!", description: `${data.creatorShare ?? ''} Credits sent to creator · ${data.platformFee ?? ''} Credits platform fee` });
   }, [currentUser, toast]);
 
   const subscribeToCreator = useCallback(async (username: string, _ignoredCost: number) => {
@@ -3014,7 +3014,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (typeof data.subscriberNewBalance === 'number') {
       setCurrentUserState(prev => prev ? { ...prev, diamondBalance: data.subscriberNewBalance } : null);
     }
-    toast({ title: "Subscribed!", description: `${data.creatorShare ?? ''} Diamonds sent to @${username} · ${data.platformFee ?? ''} Diamond platform fee` });
+    toast({ title: "Subscribed!", description: `${data.creatorShare ?? ''} Credits sent to @${username} · ${data.platformFee ?? ''} Credits platform fee` });
   }, [currentUser, allUsers, toast]);
 
   const cancelSubscription = useCallback(async (username: string) => {
@@ -3057,7 +3057,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     if (typeof data.senderNewBalance === 'number') {
       setCurrentUserState(prev => prev ? { ...prev, diamondBalance: data.senderNewBalance } : null);
     }
-    toast({ title: "Gift sent! ◆", description: `${data.creatorShare ?? ''} ◆ sent to creator · ${data.platformFee ?? ''} ◆ platform fee` });
+    toast({ title: "Gift sent!", description: `${data.creatorShare ?? ''} Credits sent to creator · ${data.platformFee ?? ''} Credits platform fee` });
   }, [currentUser, targetUserForGift, toast]);
 
   const verifyUser = useCallback(async (cost: number, currency: 'DIAMOND' | 'STAR') => {

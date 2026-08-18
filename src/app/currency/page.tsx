@@ -202,7 +202,7 @@ export default function CurrencyHub() {
   }
 
   const TABS: { id: TabId; label: string; color: string }[] = [
-    { id: "diamond", label: "Buy Diamond", color: "cyan" },
+    { id: "diamond", label: "Buy Credits", color: "cyan" },
     { id: "complete", label: "Complete", color: "emerald" },
   ];
 
@@ -262,10 +262,10 @@ export default function CurrencyHub() {
                     <div className="h-8 w-8 rounded-xl bg-cyan-500/20 flex items-center justify-center">
                       <Gem className="h-4.5 w-4.5 text-cyan-400" />
                     </div>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Diamond Balance</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Credit Balance</span>
                   </div>
                   <p className="text-4xl font-black italic text-white tabular-nums">{(currentUser?.diamondBalance || 0).toFixed(2)}</p>
-                  <p className="text-[9px] text-white/30 font-bold uppercase mt-1">D Gems · 1 D = $0.25 USD</p>
+                  <p className="text-[9px] text-white/30 font-bold uppercase mt-1">Credits are non-withdrawable — use LD for real payouts</p>
                 </div>
               </div>
             </div>

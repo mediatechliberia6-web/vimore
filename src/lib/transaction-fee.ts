@@ -1,9 +1,9 @@
 /**
- * Diamond transaction fee policy.
+ * Credit transaction fee policy.
  *
- * Balances are stored as whole Diamonds, so fees are whole Diamonds too.
- * Every positive transaction pays at least 1 Diamond, while larger
- * transactions pay the exact whole-Diamond 10% amount.
+ * In-app Credits are non-withdrawable and are stored as whole credits.
+ * Every positive transaction pays at least 1 Credit, while larger
+ * transactions pay the exact whole-credit 10% amount.
  */
 export function calculatePlatformFee(amount: number): number {
   const wholeAmount = Math.floor(Number(amount));
