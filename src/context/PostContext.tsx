@@ -1509,6 +1509,32 @@ export function PostProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore */ }
   }, []);
 
+  const withStartupTimeout = useCallback(async <T,>(task: Promise<T>, timeoutMs = 8000): Promise<T | null> => {
+    return await new Promise<T | null>((resolve) => {
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          resolve(null);
+        }
+      }, timeoutMs);
+
+      task.then((value) => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          resolve(value);
+        }
+      }).catch(() => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          resolve(null);
+        }
+      });
+    });
+  }, []);
+
   const checkSession = useCallback(async () => {
     setIsLoadingState(true);
 
@@ -1599,7 +1625,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       clearTimeout(timeoutId);
       setIsLoadingState(false);
     }
-  }, [loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns, loadChatReadReceipts, loadUnreadSignals, loadConversationMetadata]);
+  }, [withStartupTimeout, loadFeed, loadSocialGraph, loadConnections, loadStories, loadClusters, loadUserWithdrawals, loadCampaigns, loadChatReadReceipts, loadUnreadSignals, loadConversationMetadata]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

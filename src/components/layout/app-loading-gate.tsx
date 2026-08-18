@@ -53,6 +53,18 @@ export function AppLoadingGate({ children }: { children: React.ReactNode }) {
   }, [isLoading, initError, pathname]);
 
   useEffect(() => {
+    const current = getActivePath(pathname) || mountedPath.current;
+    if (isPublicActivePath(current)) return;
+
+    const fallbackTimer = setTimeout(() => {
+      setIsVisible(false);
+      setShouldRenderSplash(false);
+    }, 8000);
+
+    return () => clearTimeout(fallbackTimer);
+  }, [pathname, isLoading, initError]);
+
+  useEffect(() => {
     if (!isLoading && !currentUser) {
       const current = getActivePath(pathname) || mountedPath.current;
       if (!current || isPublicActivePath(current)) return;
