@@ -29,7 +29,6 @@ const csp = [
 
 const nextConfig: NextConfig = {
   images: {
-    unoptimized: true,
     formats: ['image/webp', 'image/avif'],
   },
   async headers() {
@@ -68,6 +67,12 @@ const nextConfig: NextConfig = {
         headers: [
           { key: 'Content-Type', value: 'application/manifest+json; charset=utf-8' },
           { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+        ],
+      },
+      {
+        source: '/api/file/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
         ],
       },
       {

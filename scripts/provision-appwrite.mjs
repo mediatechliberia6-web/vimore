@@ -748,11 +748,13 @@ const COLLECTIONS = [
       { key: 'contact_type',   type: 'string',  size: 16    },
       { key: 'days_purchased', type: 'integer', defaultValue: 0 },
       { key: 'diamonds_spent', type: 'float',   defaultValue: 0 },
+      { key: 'credits_spent',  type: 'integer', defaultValue: 0 },
     ],
     indexes: [
       { key: 'idx_user_id',   type: 'key', attributes: ['user_id'],   orders: ['ASC'] },
       { key: 'idx_is_active', type: 'key', attributes: ['is_active'], orders: ['ASC'] },
       { key: 'idx_status',    type: 'key', attributes: ['status'],    orders: ['ASC'] },
+      { key: 'idx_expires_at',type: 'key', attributes: ['expires_at'],orders: ['ASC'] },
     ],
   },
   {

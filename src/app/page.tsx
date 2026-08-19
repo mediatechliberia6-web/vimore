@@ -24,6 +24,7 @@ import { CreateStoryModal } from "@/components/feed/create-story-modal";
 import { useFeedSignal } from "@/context/FeedSignalContext";
 import { AcronymRibbon } from "@/components/branding/acronym-meaning";
 import { listAllStores, isStoreBoosted, getStoreLogoUrl } from "@/lib/stores";
+import { cached } from "@/lib/client-cache";
 
 function seededShuffle<T>(arr: T[], seed: number): T[] {
   const result = [...arr];
@@ -111,21 +112,40 @@ function FeedMusicStrip() {
 function FeedStoreStrip() {
   const router = useRouter();
   const [boostedStores, setBoostedStores] = useState<any[]>([]);
+  const [isNearViewport, setIsNearViewport] = useState(false);
+  const sectionRef = useRef<HTMLDivElement>(null);
   const seed = useRef(Math.floor(Math.random() * 0x7fffffff));
 
   useEffect(() => {
-    listAllStores(60)
+    const node = sectionRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      setIsNearViewport(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setIsNearViewport(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: '600px' });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isNearViewport) return;
+    cached('feed:boosted-stores', () => listAllStores(60), 2 * 60 * 1000)
       .then((all) => {
         const boosted = all.filter(isStoreBoosted);
         setBoostedStores(seededShuffle(boosted, seed.current));
       })
       .catch(() => {});
-  }, []);
+  }, [isNearViewport]);
 
-  if (boostedStores.length === 0) return null;
+  if (!isNearViewport || boostedStores.length === 0) return <div ref={sectionRef} className="min-h-2" aria-hidden="true" />;
 
   return (
-    <div className="bg-white dark:bg-card rounded-[2rem] overflow-hidden border border-border/40 shadow-sm">
+    <div ref={sectionRef} className="bg-white dark:bg-card rounded-[2rem] overflow-hidden border border-border/40 shadow-sm">
       <div className="px-4 pt-4 pb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="h-7 w-7 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow">
