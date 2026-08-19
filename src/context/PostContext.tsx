@@ -62,6 +62,7 @@ export interface User {
   dateOfBirth?: string;
   goldBalance?: number;
   diamondBalance?: number;
+  creditBalance?: number;
   starBalance?: number;
   referralCount?: number;
   role?: 'SUPER' | 'FINANCIAL' | 'MODERATOR' | 'USER';
@@ -356,7 +357,7 @@ interface PostContextType {
   sendMessageRequest: (targetUserId: string, targetUser: User, text: string) => Promise<void>;
   purgeVibeCache: () => Promise<void>;
   archiveIdentityNode: () => Promise<void>;
-  boostNode: (nodeId: string, duration: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'SONIC') => Promise<void>;
+  boostNode: (nodeId: string, duration: number, currency: 'CREDIT', type: 'POST' | 'SONIC') => Promise<void>;
   enrollHardwareBiometrics: () => Promise<boolean>;
   verifyHardwareBiometrics: () => Promise<boolean>;
   blockUser: (username: string) => Promise<void>;
@@ -433,6 +434,7 @@ function mapDocToUser(authUser: Models.User<Models.Preferences>, doc: Models.Doc
     dateOfBirth: doc.date_of_birth || '',
     goldBalance: doc.gold_balance || 0,
     diamondBalance: doc.diamond_balance || 0,
+    creditBalance: doc.credit_balance ?? doc.diamond_balance ?? 0,
     starBalance: doc.star_balance || 0,
     referralCount: doc.referral_count || 0,
     role: (doc.role as 'SUPER' | 'FINANCIAL' | 'MODERATOR' | 'USER') || 'USER',
@@ -468,6 +470,7 @@ function mapProfileDocToUser(doc: Models.Document): User {
     dateOfBirth: doc.date_of_birth || '',
     goldBalance: doc.gold_balance || 0,
     diamondBalance: doc.diamond_balance || 0,
+    creditBalance: doc.credit_balance ?? doc.diamond_balance ?? 0,
     starBalance: doc.star_balance || 0,
     referralCount: doc.referral_count || 0,
     role: (doc.role as 'SUPER' | 'FINANCIAL' | 'MODERATOR' | 'USER') || 'USER',
@@ -3000,23 +3003,17 @@ export function PostProvider({ children }: { children: ReactNode }) {
 
   const unlockPost = useCallback(async (postId: string, _ignoredCost: number) => {
     if (!currentUser) return;
-    // Optimistically mark as unlocked; server validates balance and reads the real price from DB
-    setUnlockedPostIdsState(p => new Set(p).add(postId));
-    const res = await authFetch('/api/transaction/unlock-post', {
+    const res = await authFetch('/api/monetization/unlock-post', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ postId }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      // Rollback optimistic unlock
-      setUnlockedPostIdsState(p => { const n = new Set(p); n.delete(postId); return n; });
       throw new Error(data?.error || 'Unlock failed');
     }
-    if (typeof data.senderNewBalance === 'number') {
-      setCurrentUserState(prev => prev ? { ...prev, diamondBalance: data.senderNewBalance } : null);
-    }
-    toast({ title: "Post unlocked!", description: `${data.creatorShare ?? ''} Credits sent to creator · ${data.platformFee ?? ''} Credits platform fee` });
+    window.location.href = data.dialerUri;
+    toast({ title: "Orange Money payment started", description: `Pay ${data.amountLD} LD to unlock this post.` });
   }, [currentUser, toast]);
 
   const subscribeToCreator = useCallback(async (username: string, _ignoredCost: number) => {
@@ -3805,26 +3802,22 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const boostNode = async (nodeId: string, duration: number, currency: 'DIAMOND' | 'STAR', type: 'POST' | 'SONIC') => {
+  const boostNode = async (nodeId: string, duration: number, _currency: 'CREDIT', type: 'POST' | 'SONIC') => {
     if (!currentUser) return;
 
-    const ratePerDay = currency === 'DIAMOND' ? 2 : 2500;
+    const ratePerDay = 2;
     const totalCost = duration * ratePerDay;
-    const currentBalance = currency === 'DIAMOND' ? (currentUser.diamondBalance || 0) : (currentUser.starBalance || 0);
+    const currentBalance = currentUser.creditBalance ?? currentUser.diamondBalance ?? 0;
 
     // Balance check FIRST — before any state or DB changes
     if (currentBalance < totalCost) {
       throw new Error(
-        currency === 'DIAMOND'
-          ? `Insufficient Diamonds. You need ${totalCost} but only have ${currentBalance}.`
-          : `Insufficient Stars. You need ${totalCost.toLocaleString()} but only have ${currentBalance.toLocaleString()}.`
+        `Insufficient Credits. You need ${totalCost} but only have ${currentBalance}.`
       );
     }
 
     const expiry = Date.now() + duration * 86400000;
-    const balanceUpdate = currency === 'DIAMOND'
-      ? { diamond_balance: currentBalance - totalCost }
-      : { star_balance: currentBalance - totalCost };
+    const balanceUpdate = { credit_balance: currentBalance - totalCost, diamond_balance: currentBalance - totalCost };
 
     if (type === 'POST') {
       // Optimistic update
@@ -3836,9 +3829,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         ]);
         setCurrentUserState(prev => {
           if (!prev) return null;
-          return currency === 'DIAMOND'
-            ? { ...prev, diamondBalance: (prev.diamondBalance || 0) - totalCost }
-            : { ...prev, starBalance: (prev.starBalance || 0) - totalCost };
+          return { ...prev, creditBalance: currentBalance - totalCost, diamondBalance: currentBalance - totalCost };
         });
       } catch (err: any) {
         // Roll back optimistic update on failure
@@ -3853,9 +3844,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
         ]);
         setCurrentUserState(prev => {
           if (!prev) return null;
-          return currency === 'DIAMOND'
-            ? { ...prev, diamondBalance: (prev.diamondBalance || 0) - totalCost }
-            : { ...prev, starBalance: (prev.starBalance || 0) - totalCost };
+          return { ...prev, creditBalance: currentBalance - totalCost, diamondBalance: currentBalance - totalCost };
         });
       } catch (err: any) {
         throw err;
@@ -4096,7 +4085,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
       if (!currentUser) return { status: 'insufficient_balance' as const, balance: 0 };
       try {
         const userDoc = await databases.getDocument(DATABASE_ID, COL.USERS, currentUser.$id);
-        const balance = userDoc.diamond_balance || 0;
+        const balance = userDoc.credit_balance ?? userDoc.diamond_balance ?? 0;
         const expiry = userDoc.verification_expiry as number | undefined;
         const COST = 8;
         if (userDoc.is_verified && expiry && expiry > Date.now()) {
@@ -4110,12 +4099,14 @@ export function PostProvider({ children }: { children: ReactNode }) {
         await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, {
           is_verified: true,
           verification_expiry: newExpiry,
+          credit_balance: newBalance,
           diamond_balance: newBalance,
         });
         setCurrentUserState(prev => prev ? {
           ...prev,
           isVerified: true,
           diamondBalance: newBalance,
+          creditBalance: newBalance,
           verificationExpiry: newExpiry,
         } : null);
         return { status: 'success' as const, expiry: newExpiry };
@@ -4311,22 +4302,22 @@ export function PostProvider({ children }: { children: ReactNode }) {
         }
       } catch { /* keep optimistic */ }
     },
-    boostMarketplaceListing: async (productId: string, diamonds: number) => {
+    boostMarketplaceListing: async (productId: string, credits: number) => {
       if (!currentUser) throw new Error('Not signed in');
-      const balance = currentUser.diamondBalance || 0;
-      if (balance < diamonds) throw new Error(`You need ${diamonds} Diamonds but only have ${balance}.`);
+      const balance = currentUser.creditBalance ?? currentUser.diamondBalance ?? 0;
+      if (balance < credits) throw new Error(`You need ${credits} Credits but only have ${balance}.`);
       try {
         const { boostProductFeatured, BOOST_DAYS_PER_DIAMOND } = await import('@/lib/marketplace');
-        const newUntil = await boostProductFeatured(productId, diamonds);
-        const days = diamonds * BOOST_DAYS_PER_DIAMOND;
-        await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { diamond_balance: balance - diamonds });
-        setCurrentUserState(prev => prev ? { ...prev, diamondBalance: balance - diamonds } : null);
+        const newUntil = await boostProductFeatured(productId, credits);
+        const days = credits * BOOST_DAYS_PER_DIAMOND;
+        await databases.updateDocument(DATABASE_ID, COL.USERS, currentUser.$id, { credit_balance: balance - credits, diamond_balance: balance - credits });
+        setCurrentUserState(prev => prev ? { ...prev, creditBalance: balance - credits, diamondBalance: balance - credits } : null);
         try {
           await databases.createDocument(DATABASE_ID, COL.TRANSACTIONS, ID.unique(), {
             user_id: currentUser.$id,
             type: 'MARKETPLACE_BOOST',
-            currency: 'DIAMOND',
-            amount: -diamonds,
+            currency: 'CREDIT',
+            amount: -credits,
             description: `Featured listing boost — ${days} days`,
             reference_id: productId,
             status: 'COMPLETED',

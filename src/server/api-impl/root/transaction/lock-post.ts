@@ -5,9 +5,9 @@ import { rateLimit } from '@/lib/rate-limit';
 
 export const maxDuration = 20;
 
-const COL = { POSTS: 'posts' };
-const MIN_LOCK_PRICE = 1;
-const MAX_LOCK_PRICE = 100_000;
+const COL = { USERS: 'users', POSTS: 'posts' };
+const MIN_LOCK_PRICE = 100;
+const MAX_LOCK_PRICE = 500;
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const price = Math.round(rawPrice);
     if (!Number.isFinite(rawPrice) || price < MIN_LOCK_PRICE || price > MAX_LOCK_PRICE) {
       return NextResponse.json(
-        { error: `Unlock price must be between ${MIN_LOCK_PRICE} and ${MAX_LOCK_PRICE} Gold.` },
+        { error: `Unlock price must be between ${MIN_LOCK_PRICE} and ${MAX_LOCK_PRICE} LD.` },
         { status: 400 }
       );
     }
@@ -47,6 +47,12 @@ export async function POST(req: NextRequest) {
 
     if (postDoc.user_id !== session.userId) {
       return NextResponse.json({ error: 'You can only lock your own posts.' }, { status: 403 });
+    }
+
+    const creator = await db.getDocument(DATABASE_ID, COL.USERS, session.userId);
+    const followerCount = Number(creator.followers_count ?? creator.followers ?? 0);
+    if (followerCount < 1000) {
+      return NextResponse.json({ error: `You need 1,000 followers to lock content. You currently have ${followerCount} followers.` }, { status: 403 });
     }
 
     await db.updateDocument(DATABASE_ID, COL.POSTS, postId, {

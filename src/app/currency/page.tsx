@@ -36,13 +36,13 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { BiometricGate } from "@/components/layout/biometric-gate";
 
-const DIAMOND_PACKAGES = [
+const CREDIT_PACKAGES = [
   { id: "d1", d: 25, priceLD: 1200, priceUSD: 7.00, label: "Gem Spike" },
   { id: "d2", d: 50, priceLD: 2350, priceUSD: 13.00, label: "Vault Refill" },
   { id: "d3", d: 100, priceLD: 4700, priceUSD: 25.00, label: "VIP Crystalline", isVIP: true },
 ];
 
-type TabId = "diamond" | "complete";
+type TabId = "credits" | "complete";
 
 export default function CurrencyHub() {
   const { currentUser, initiateTransaction, pendingTransaction, cancelTransaction, triggerHaptic, createPaymentRequest, submitTicket, isLoading } = usePosts();
@@ -53,7 +53,7 @@ export default function CurrencyHub() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [activeTab, setActiveTab] = useState<TabId>(pendingTransaction ? "complete" : "diamond");
+  const [activeTab, setActiveTab] = useState<TabId>(pendingTransaction ? "complete" : "credits");
   const [currencyMode, setCurrencyMode] = useState<"USD" | "LD">("LD");
   const [selectedPackage, setSelectedPackage] = useState<any | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -84,7 +84,7 @@ export default function CurrencyHub() {
             stopTimer();
             cancelTransaction();
             toast({ variant: "destructive", title: "Session Expired", description: "Your payment session timed out. Please select a package and try again." });
-            setActiveTab("gold");
+            setActiveTab("credits");
             return 0;
           }
           return prev - 1;
@@ -128,7 +128,7 @@ export default function CurrencyHub() {
     toast({ title: "Copied!", description: `${label} synced to clipboard.` });
   };
 
-  const handlePackageSelect = (pkg: any, type: 'Gold' | 'Diamond') => {
+  const handlePackageSelect = (pkg: any, type: 'Gold' | 'Credits') => {
     triggerHaptic(15);
     setSelectedPackage({ ...pkg, type });
   };
@@ -202,12 +202,12 @@ export default function CurrencyHub() {
   }
 
   const TABS: { id: TabId; label: string; color: string }[] = [
-    { id: "diamond", label: "Buy Credits", color: "cyan" },
+    { id: "credits", label: "Buy Credits", color: "cyan" },
     { id: "complete", label: "Complete", color: "emerald" },
   ];
 
   return (
-    <BiometricGate title="Currency Hub">
+    <BiometricGate title="Credit Hub">
       <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#060608] transition-colors duration-300">
 
         {/* Header */}
@@ -222,14 +222,14 @@ export default function CurrencyHub() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-base font-black italic uppercase tracking-tighter leading-none">Currency Hub</h1>
+              <h1 className="text-base font-black italic uppercase tracking-tighter leading-none">Credit Hub</h1>
               <p className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Financial Vault</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 bg-black/5 dark:bg-white/5 rounded-2xl px-4 py-2">
               <Gem className="h-3.5 w-3.5 text-cyan-500" />
-              <span className="text-xs font-black tabular-nums">{(currentUser?.diamondBalance || 0).toFixed(2)}</span>
+              <span className="text-xs font-black tabular-nums">{(currentUser?.creditBalance ?? currentUser?.diamondBalance ?? 0).toFixed(2)}</span>
               <span className="text-[9px] font-bold text-muted-foreground uppercase">D</span>
             </div>
             <Avatar className="h-9 w-9 border-2 border-primary/20 ring-2 ring-primary/10">
@@ -264,8 +264,8 @@ export default function CurrencyHub() {
                     </div>
                     <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Credit Balance</span>
                   </div>
-                  <p className="text-4xl font-black italic text-white tabular-nums">{(currentUser?.diamondBalance || 0).toFixed(2)}</p>
-                  <p className="text-[9px] text-white/30 font-bold uppercase mt-1">Credits are non-withdrawable — use LD for real payouts</p>
+                  <p className="text-4xl font-black italic text-white tabular-nums">{(currentUser?.creditBalance ?? currentUser?.diamondBalance ?? 0).toFixed(2)}</p>
+                  <p className="text-[9px] text-white/30 font-bold uppercase mt-1">Credits are non-withdrawable and used exclusively for boosts, marketplace promotions, and verification badges.</p>
                 </div>
               </div>
             </div>
@@ -319,13 +319,13 @@ export default function CurrencyHub() {
             </div>
           )}
 
-          {/* Diamond Tab */}
-          {activeTab === "diamond" && (
+          {/* Credit packages */}
+          {activeTab === "credits" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {DIAMOND_PACKAGES.map((pkg) => (
+              {CREDIT_PACKAGES.map((pkg) => (
                 <button
                   key={pkg.id}
-                  onClick={() => handlePackageSelect(pkg, 'Diamond')}
+                  onClick={() => handlePackageSelect(pkg, 'Credits')}
                   className={cn(
                     "group relative text-left p-5 rounded-[1.75rem] border-2 transition-all duration-300 overflow-hidden active:scale-[0.97]",
                     pkg.isVIP
@@ -374,7 +374,7 @@ export default function CurrencyHub() {
                   <h3 className="text-2xl font-black italic uppercase tracking-tighter">No Active Pulses</h3>
                   <p className="text-muted-foreground text-sm font-medium max-w-xs mx-auto">No unfinished payments. Select a package to begin.</p>
                 </div>
-                <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase text-[10px] tracking-widest h-11 px-8" onClick={() => setActiveTab("diamond")}>Browse Packages</Button>
+                <Button variant="outline" className="rounded-full border-primary text-primary font-black uppercase text-[10px] tracking-widest h-11 px-8" onClick={() => setActiveTab("credits")}>Browse Packages</Button>
               </div>
             ) : (
               <div className="space-y-6 animate-in zoom-in-95 duration-500">

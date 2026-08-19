@@ -3,27 +3,32 @@ import { getAdminDatabases, DATABASE_ID } from '@/lib/appwrite-server';
 import { ID } from 'node-appwrite';
 
 const TRANSACTIONS = 'transactions';
+const TRANSACTION_TYPES = new Set(['gift', 'subscription', 'unlock_post', 'unlock_music']);
+const ITEM_TYPES = new Set(['post', 'music', 'gift_item']);
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const db = getAdminDatabases();
+    const amountLD = Number(body?.amountLD ?? 0);
+    const transactionType = String(body?.transactionType || '');
+    const itemType = body?.itemType ? String(body.itemType) : undefined;
+    if (!body?.senderUserId || !body?.receiverUserId || !TRANSACTION_TYPES.has(transactionType) || !Number.isInteger(amountLD) || amountLD < 1 || (itemType && !ITEM_TYPES.has(itemType))) {
+      return NextResponse.json({ error: 'Invalid transaction payload.' }, { status: 400 });
+    }
+
     const document = {
       transactionId: body?.transactionId || ID.unique(),
       senderUserId: body?.senderUserId,
       receiverUserId: body?.receiverUserId,
-      transactionType: body?.transactionType,
-      amountLD: Number(body?.amountLD ?? 0),
-      itemId: body?.itemId || null,
-      itemType: body?.itemType || null,
+      transactionType,
+      amountLD,
+      ...(body?.itemId ? { itemId: body.itemId } : {}),
+      ...(itemType ? { itemType } : {}),
       orangeMoneyRef: body?.orangeMoneyRef || null,
-      status: body?.status || 'pending',
+      status: 'pending',
       createdAt: new Date().toISOString(),
     };
-
-    if (!document.senderUserId || !document.receiverUserId || !document.transactionType || !document.amountLD) {
-      return NextResponse.json({ error: 'senderUserId, receiverUserId, transactionType, and amountLD are required.' }, { status: 400 });
-    }
 
     const created = await db.createDocument(DATABASE_ID, TRANSACTIONS, document.transactionId, document);
     return NextResponse.json({ ok: true, transaction: created });

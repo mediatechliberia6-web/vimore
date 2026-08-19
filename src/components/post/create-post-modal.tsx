@@ -33,6 +33,7 @@ import {
   Video,
   Search,
   Coins,
+  Gem,
   ShieldCheck,
   AlertTriangle,
   Type,
@@ -168,7 +169,7 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
   const [commentsDisabled, setCommentsDisabled] = useState(false);
   
   const [isLocked, setIsLocked] = useState(false);
-  const [unlockPrice, setUnlockPrice] = useState(50);
+  const [unlockPrice, setUnlockPrice] = useState(100);
   
   const [showFeelingSelector, setShowFeelingSelector] = useState(false);
   const [showLocationSelector, setShowLocationSelector] = useState(false);
@@ -718,19 +719,19 @@ export function CreatePostModal({ children, sharedPost, initialContent, onOpen }
                     <Gem className="h-4 w-4 text-cyan-400" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Unlock Price</span>
                   </div>
-                  <Badge className="bg-cyan-500 text-white border-none font-black h-5 px-3 uppercase tracking-tighter">{unlockPrice} D</Badge>
+                  <Badge className="bg-cyan-500 text-white border-none font-black h-5 px-3 uppercase tracking-tighter">{unlockPrice} LD</Badge>
                 </div>
                 <Slider 
                   value={[unlockPrice]} 
-                  min={2} 
-                  max={100} 
+                  min={100}
+                  max={500}
                   step={1} 
                   onValueChange={(val) => setUnlockPrice(val[0])}
                   className="[&_[role=slider]]:bg-cyan-500"
                 />
                 <div className="flex justify-between text-[8px] font-black text-white/40 uppercase tracking-widest">
-                  <span>2 D</span>
-                  <span>100 D</span>
+                  <span>100 LD</span>
+                  <span>500 LD</span>
                 </div>
               </div>
             )}

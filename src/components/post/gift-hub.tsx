@@ -19,6 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { GIFT_ITEMS } from "@/lib/ld-monetization";
+import { authFetch } from "@/lib/auth-fetch";
 
 interface GiftItem {
   id: string;
@@ -40,10 +42,9 @@ const GIFT_CATEGORIES = [
   { id: "power", label: "Power", emoji: "⚡" },
 ];
 
-// The gift dialog starts at 3 Credits; the server enforces the same floor.
-const MIN_GIFT_COST = 3;
+const MIN_GIFT_COST = 50;
 
-const ALL_GIFTS: GiftItem[] = [
+const LEGACY_GIFTS: GiftItem[] = [
   // 💕 Love & Romance (25 gifts, 3 – 20 D) — all whole-diamond costs
   { id: "l-01", name: "Tiny Heart", emoji: "❤️", cost: 1, category: "love" },
   { id: "l-02", name: "Beating Heart", emoji: "💓", cost: 1, category: "love" },
@@ -211,8 +212,16 @@ const ALL_GIFTS: GiftItem[] = [
   { id: "pw-15", name: "ViMore Max", emoji: "🚀", cost: 100, category: "power" },
 ];
 
+const ALL_GIFTS: GiftItem[] = GIFT_ITEMS.map((gift) => ({
+  id: gift.id,
+  name: gift.name,
+  emoji: gift.emoji,
+  cost: gift.priceLD,
+  category: gift.category,
+}));
+
 export function GiftHub() {
-  const { isGiftHubOpen, closeGiftHub, currentUser, targetUserForGift, processGiftTransaction, triggerHaptic } = usePosts();
+  const { isGiftHubOpen, closeGiftHub, currentUser, targetUserForGift, triggerHaptic } = usePosts();
   const { toast } = useToast();
 
   const [activeCategory, setActiveCategory] = useState("all");
@@ -239,7 +248,22 @@ export function GiftHub() {
     setIsSyncing(true);
     triggerHaptic(30);
     try {
-      await processGiftTransaction(selectedGift.cost, 'GOLD');
+      const creatorUserId = targetUserForGift.$id;
+      if (!window.confirm(`Pay ${selectedGift.cost} LD to ${targetUserForGift.name} via Orange Money?`)) return;
+      const ussdResponse = await authFetch('/api/monetization/generate-ussd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creatorUserId, amountLD: selectedGift.cost }),
+      });
+      if (!ussdResponse.ok) throw new Error((await ussdResponse.json()).error || 'Orange Money account unavailable.');
+      const { dialerUri } = await ussdResponse.json();
+      const transactionResponse = await authFetch('/api/monetization/log-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senderUserId: currentUser?.$id, receiverUserId: creatorUserId, transactionType: 'gift', amountLD: selectedGift.cost, itemId: selectedGift.id, itemType: 'gift_item' }),
+      });
+      if (!transactionResponse.ok) throw new Error((await transactionResponse.json()).error || 'Could not create payment record.');
+      window.location.href = dialerUri;
       setIsSuccess(true);
       triggerHaptic(100);
       setTimeout(() => {
@@ -256,8 +280,7 @@ export function GiftHub() {
 
   if (!isGiftHubOpen) return null;
 
-  const creditBalance = currentUser?.diamondBalance || 0;
-  const canAfford = selectedGift ? creditBalance >= selectedGift.cost : false;
+  const canAfford = Boolean(selectedGift);
 
   return (
     <Sheet open={isGiftHubOpen} onOpenChange={(open) => !open && closeGiftHub()}>
@@ -294,7 +317,7 @@ export function GiftHub() {
             </div>
             <div className="flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl px-5 py-3">
               <Gem className="h-4 w-4 text-cyan-400" />
-              <span className="text-sm font-black text-cyan-400">{selectedGift?.cost} Credits sent</span>
+              <span className="text-sm font-black text-cyan-400">{selectedGift?.cost} LD payment started</span>
             </div>
           </div>
         ) : (
@@ -315,8 +338,8 @@ export function GiftHub() {
                     <div className="h-5 w-5 bg-cyan-500/20 rounded-lg flex items-center justify-center">
                       <Gem className="h-3 w-3 text-cyan-400" />
                     </div>
-                    <span className="text-sm font-black text-white tabular-nums">{Math.floor(creditBalance)}</span>
-                    <span className="text-[9px] font-bold text-white/30 uppercase">Credits</span>
+                    <span className="text-sm font-black text-white tabular-nums">LD</span>
+                    <span className="text-[9px] font-bold text-white/30 uppercase">Orange Money</span>
                   </div>
                   <button
                     onClick={closeGiftHub}
@@ -374,7 +397,7 @@ export function GiftHub() {
                 <div className="grid grid-cols-4 sm:grid-cols-5 gap-2.5">
                   {filteredGifts.map((gift) => {
                     const isSelected = selectedGift?.id === gift.id;
-                    const affordable = creditBalance >= gift.cost;
+                    const affordable = true;
                     return (
                       <button
                         key={gift.id}
@@ -404,7 +427,7 @@ export function GiftHub() {
                         </p>
                         {/* Price */}
                         <div className="flex items-center gap-0.5 relative z-10">
-                          <Gem className={cn("h-2.5 w-2.5", isSelected ? "text-cyan-400" : "text-cyan-500/60")} />
+                          <span className={cn("text-[8px] font-black", isSelected ? "text-cyan-400" : "text-cyan-500/60")}>LD</span>
                           <span className={cn(
                             "text-[10px] font-black tabular-nums",
                             isSelected ? "text-cyan-300" : "text-white/60"
@@ -458,7 +481,7 @@ export function GiftHub() {
                       {isSyncing ? (
                         <Loader2 className="h-5 w-5 animate-spin" />
                       ) : !canAfford ? (
-                        "Low Credits"
+                        "Unavailable"
                       ) : (
                         "Send"
                       )}

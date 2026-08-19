@@ -46,6 +46,9 @@ import * as MonetizationValidateCreatorEligibility from '@/server/api-impl/root/
 import * as MonetizationGenerateUssd from '@/server/api-impl/root/monetization/generate-ussd';
 import * as MonetizationLogTransaction from '@/server/api-impl/root/monetization/log-transaction';
 import * as MonetizationUpdateCreatorEarnings from '@/server/api-impl/root/monetization/update-creator-earnings';
+import * as MonetizationOrangeMoneyAccount from '@/server/api-impl/root/monetization/orange-money-account';
+import * as MonetizationSubscribe from '@/server/api-impl/root/monetization/subscribe';
+import * as MonetizationUnlockPost from '@/server/api-impl/root/monetization/unlock-post';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -98,6 +101,9 @@ const ROUTES: Record<string, Handler> = {
   'monetization/generate-ussd': MonetizationGenerateUssd,
   'monetization/log-transaction': MonetizationLogTransaction,
   'monetization/update-creator-earnings': MonetizationUpdateCreatorEarnings,
+  'monetization/orange-money-account': MonetizationOrangeMoneyAccount,
+  'monetization/subscribe': MonetizationSubscribe,
+  'monetization/unlock-post': MonetizationUnlockPost,
 };
 
 async function dispatch(req: NextRequest, method: string, ctx: { params: Promise<{ path: string[] }> }) {

@@ -31,8 +31,7 @@ interface BoostPortalProps {
   type: 'POST' | 'SONIC';
 }
 
-const DIAMOND_RATE = 2;
-const STAR_RATE = 2500;
+const CREDIT_RATE = 2;
 
 const DAY_TIERS = [
   { days: 1, label: '1 Day', sublabel: 'Pulse' },
@@ -47,31 +46,21 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
   const { toast } = useToast();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [currency, setCurrency] = useState<'DIAMOND' | 'STAR'>('DIAMOND');
   const [days, setDays] = useState(3);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const rate = currency === 'DIAMOND' ? DIAMOND_RATE : STAR_RATE;
+  const rate = CREDIT_RATE;
   const totalCost = days * rate;
-  const diamondBalance = currentUser?.diamondBalance || 0;
-  const starBalance = currentUser?.starBalance || 0;
-  const currentBalance = currency === 'DIAMOND' ? diamondBalance : starBalance;
+  const currentBalance = currentUser?.creditBalance ?? currentUser?.diamondBalance ?? 0;
   const hasBalance = currentBalance >= totalCost;
-
-  // Would the other currency work?
-  const altCurrency = currency === 'DIAMOND' ? 'STAR' : 'DIAMOND';
-  const altRate = altCurrency === 'DIAMOND' ? DIAMOND_RATE : STAR_RATE;
-  const altCost = days * altRate;
-  const altBalance = altCurrency === 'DIAMOND' ? diamondBalance : starBalance;
-  const altHasBalance = altBalance >= altCost;
 
   const handleLaunch = async () => {
     if (!hasBalance) {
       toast({
         variant: "destructive",
         title: "Insufficient Balance",
-        description: `You need ${totalCost.toLocaleString()} ${currency === 'DIAMOND' ? 'Diamonds' : 'Stars'} for this boost.`,
+        description: `You need ${totalCost.toLocaleString()} Credits for this boost.`,
       });
       return;
     }
@@ -80,7 +69,7 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
     triggerHaptic(30);
 
     try {
-      await boostNode(nodeId, days, currency, type);
+      await boostNode(nodeId, days, 'CREDIT', type);
       if (type === 'SONIC') await refreshMusicVault();
       setIsSuccess(true);
       triggerHaptic(100);
@@ -141,7 +130,7 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
               <div className="flex items-center justify-center gap-2 mt-2 bg-primary/5 rounded-2xl px-4 py-2 border border-primary/10">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
                 <span className="text-[11px] font-black uppercase tracking-widest text-green-600 dark:text-green-400">
-                  {totalCost.toLocaleString()} {currency === 'DIAMOND' ? 'Diamonds' : 'Stars'} deducted
+                  {totalCost.toLocaleString()} Credits deducted
                 </span>
               </div>
               {type === 'POST' && (
@@ -181,50 +170,16 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
                 </div>
               </div>
 
-              {/* Currency Selector */}
+              {/* Credit balance */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 px-1">
                   <Zap className="h-4 w-4 text-amber-500" />
                   <span className="text-[10px] font-black uppercase tracking-widest">Pay With</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => { triggerHaptic(10); setCurrency('DIAMOND'); }}
-                    className={cn(
-                      "flex flex-col items-start gap-1.5 rounded-2xl p-4 border-2 transition-all",
-                      currency === 'DIAMOND'
-                        ? "bg-cyan-500/10 border-cyan-500/50 shadow-sm"
-                        : "bg-secondary/20 border-transparent hover:border-primary/20"
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Gem className="h-5 w-5 text-cyan-500" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Diamond</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-muted-foreground">{DIAMOND_RATE} per day</span>
-                    <span className={cn("text-[9px] font-black uppercase", diamondBalance >= days * DIAMOND_RATE ? "text-green-500" : "text-red-400")}>
-                      Balance: {diamondBalance.toLocaleString()}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => { triggerHaptic(10); setCurrency('STAR'); }}
-                    className={cn(
-                      "flex flex-col items-start gap-1.5 rounded-2xl p-4 border-2 transition-all",
-                      currency === 'STAR'
-                        ? "bg-yellow-500/10 border-yellow-500/50 shadow-sm"
-                        : "bg-secondary/20 border-transparent hover:border-primary/20"
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Star className="h-5 w-5 text-yellow-500 fill-current" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Stars</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-muted-foreground">{STAR_RATE.toLocaleString()} per day</span>
-                    <span className={cn("text-[9px] font-black uppercase", starBalance >= days * STAR_RATE ? "text-green-500" : "text-red-400")}>
-                      Balance: {starBalance.toLocaleString()}
-                    </span>
-                  </button>
+                <div className="rounded-2xl p-4 border-2 border-cyan-500/40 bg-cyan-500/10">
+                  <div className="flex items-center gap-2"><Gem className="h-5 w-5 text-cyan-500" /><span className="text-[10px] font-black uppercase tracking-widest">Credits</span></div>
+                  <span className="text-[10px] font-bold text-muted-foreground">{CREDIT_RATE} per day</span>
+                  <span className={cn("block text-[9px] font-black uppercase", hasBalance ? "text-green-500" : "text-red-400")}>Balance: {currentBalance.toLocaleString()}</span>
                 </div>
               </div>
 
@@ -240,16 +195,13 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Rate</span>
                   <span className="text-sm font-black text-foreground">
-                    {rate.toLocaleString()} {currency === 'DIAMOND' ? 'Diamonds' : 'Stars'}/day
+                    {rate.toLocaleString()} Credits/day
                   </span>
                 </div>
                 <div className="border-t border-primary/10 pt-3 flex items-center justify-between">
                   <span className="text-[11px] font-black uppercase tracking-widest text-primary">Total Cost</span>
                   <div className="flex items-center gap-2">
-                    {currency === 'DIAMOND'
-                      ? <Gem className="h-5 w-5 text-cyan-500" />
-                      : <Star className="h-5 w-5 text-yellow-500 fill-current" />
-                    }
+                    <Gem className="h-5 w-5 text-cyan-500" />
                     <span className="text-2xl font-black italic tracking-tighter text-foreground tabular-nums">
                       {totalCost.toLocaleString()}
                     </span>
@@ -261,17 +213,8 @@ export function BoostPortal({ children, nodeId, type }: BoostPortalProps) {
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-red-400 uppercase">Insufficient balance</p>
                       <p className="text-[10px] text-muted-foreground font-medium">
-                        You need {(totalCost - currentBalance).toLocaleString()} more {currency === 'DIAMOND' ? 'Diamonds' : 'Stars'}.
+                        You need {(totalCost - currentBalance).toLocaleString()} more Credits.
                       </p>
-                      {altHasBalance && (
-                        <button
-                          onClick={() => { triggerHaptic(10); setCurrency(altCurrency); }}
-                          className="flex items-center gap-1.5 text-[10px] font-black text-primary uppercase mt-1"
-                        >
-                          Switch to {altCurrency === 'DIAMOND' ? 'Diamonds' : 'Stars'} instead
-                          <ArrowRight className="h-3 w-3" />
-                        </button>
-                      )}
                     </div>
                   </div>
                 )}

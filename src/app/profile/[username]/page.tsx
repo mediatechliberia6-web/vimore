@@ -71,6 +71,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useTranslation } from "@/context/LanguageContext";
+import { authFetch } from "@/lib/auth-fetch";
 
 export default function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const resolvedParams = use(params);
@@ -285,8 +286,15 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
     triggerHaptic(50);
 
     try {
-      await subscribeToCreator(username, 20);
-      addSignal({ type: 'SYSTEM', title: 'Premium Pulse Active', content: `You are now subscribed to **${displayUser.name}**. **-20 Diamonds** synced.`, avatar: displayUser.avatar });
+      const response = await authFetch('/api/monetization/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creatorUserId: displayUser.$id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Subscription could not be started.');
+      window.location.href = result.dialerUri;
+      addSignal({ type: 'SYSTEM', title: 'Orange Money Payment Started', content: `Pay 500 LD to subscribe to **${displayUser.name}**.`, avatar: displayUser.avatar });
       addSignal({ type: 'SOCIAL', title: 'New VIP Node', content: `**${currentUser.name}** just subscribed!`, avatar: currentUser.avatar });
       toast({ title: "Loyalty Loop Active" });
     } catch (e: any) {
@@ -401,7 +409,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
                   {isEliteCreator && !isMe && (
                     <Dialog>
                       <DialogTrigger asChild><Button className={cn("rounded-2xl h-14 px-8 font-black italic uppercase tracking-widest text-xs gap-3 shadow-2xl transition-all active:scale-95", amISubscribed ? "bg-cyan-500/10 text-cyan-500" : "bg-gradient-to-br from-cyan-500 to-blue-600 text-white")}>{amISubscribed ? <><CheckCircle2 className="h-5 w-5" /> Subscribed</> : <><Gem className="h-5 w-5 animate-pulse" /> Subscribe</>}</Button></DialogTrigger>
-                      <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-cyan-500/10 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-3xl sm:max-w-[400px]"><div className="p-8 space-y-8 flex flex-col items-center text-center"><div className="relative"><div className="absolute -inset-4 bg-cyan-500/20 blur-2xl rounded-full animate-pulse" /><div className="h-24 w-24 bg-cyan-500 rounded-[2rem] flex items-center justify-center text-white shadow-2xl relative z-10"><Gem className="h-12 w-12" /></div></div><div className="space-y-2"><DialogTitle className="text-3xl font-black italic uppercase tracking-tighter">Premium Loop</DialogTitle><DialogDescription className="text-sm text-muted-foreground font-medium uppercase tracking-widest">Materialize VIP status with **{displayUser.name}**</DialogDescription></div><div className="bg-secondary/40 w-full p-6 rounded-3xl border border-white/5 space-y-4"><div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase text-muted-foreground">Access Fee</span><span className="text-2xl font-black tabular-nums text-cyan-500">20 D <span className="text-[10px] text-muted-foreground/60">/ Month</span></span></div><div className="h-px bg-white/5" /><ul className="space-y-3 text-left">{["Exclusive vibes", "Direct priority", "Special nodes"].map((benefit, i) => (<li key={i} className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-tight text-foreground/80"><CheckCircle2 className="h-3.5 w-3.5 text-cyan-500" /> {benefit}</li>))}</ul></div><Button className="w-full h-16 rounded-2xl bg-cyan-600 text-white font-black italic uppercase text-lg shadow-2xl active:scale-95" onClick={handleSubscribeHandshake} disabled={isSubscribing || amISubscribed}>{isSubscribing ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : amISubscribed ? "NODE ACTIVE" : "SYNC PREMIUM"}</Button></div></DialogContent>
+                      <DialogContent className="rounded-[2.5rem] p-0 overflow-hidden border-cyan-500/10 bg-white/95 dark:bg-[#050505]/95 backdrop-blur-3xl sm:max-w-[400px]"><div className="p-8 space-y-8 flex flex-col items-center text-center"><div className="relative"><div className="absolute -inset-4 bg-cyan-500/20 blur-2xl rounded-full animate-pulse" /><div className="h-24 w-24 bg-cyan-500 rounded-[2rem] flex items-center justify-center text-white shadow-2xl relative z-10"><Gem className="h-12 w-12" /></div></div><div className="space-y-2"><DialogTitle className="text-3xl font-black italic uppercase tracking-tighter">Subscribe</DialogTitle><DialogDescription className="text-sm text-muted-foreground font-medium uppercase tracking-widest">Pay 500 LD to {displayUser.name} via Orange Money</DialogDescription></div><div className="bg-secondary/40 w-full p-6 rounded-3xl border border-white/5 space-y-4"><div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase text-muted-foreground">Monthly price</span><span className="text-2xl font-black tabular-nums text-cyan-500">500 LD</span></div><div className="h-px bg-white/5" /><p className="text-left text-[11px] font-bold uppercase tracking-tight text-foreground/80">Your phone dialer will open with a pending Orange Money payment.</p></div><Button className="w-full h-16 rounded-2xl bg-cyan-600 text-white font-black italic uppercase text-lg shadow-2xl active:scale-95" onClick={handleSubscribeHandshake} disabled={isSubscribing || amISubscribed}>{isSubscribing ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : amISubscribed ? "NODE ACTIVE" : "PAY 500 LD"}</Button></div></DialogContent>
                     </Dialog>
                   )}
                 </div>

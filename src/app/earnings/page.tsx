@@ -209,22 +209,18 @@ export default function EarningsPage() {
                 </div>
               </div>
 
-              {/* Withdraw button */}
-              <Button
-                className="w-full h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black italic uppercase tracking-[0.15em] shadow-xl shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95 gap-3"
-                onClick={() => { triggerHaptic(20); setIsPortalOpen(true); }}
-              >
-                <ArrowDownToLine className="h-5 w-5" />
-                {t('earn_withdraw')}
-              </Button>
+              <div className="w-full rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-center">
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300">Orange Money earnings</p>
+                <p className="mt-1 text-[10px] font-bold text-white/50">Earnings are tracked in LD. Add a verified Orange Money account to receive completed payments.</p>
+              </div>
             </div>
           </div>
 
           {/* Quick stats */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: "Diamond Rate", value: `$${settings.diamondRate}`, icon: Gem, color: "cyan" },
-              { label: "Withdrawals", value: withdrawalHistory.length, icon: History, color: "purple" },
+              { label: "LD earnings", value: "0 LD", icon: TrendingUp, color: "cyan" },
+              { label: "Completed payments", value: "0", icon: CheckCircle2, color: "purple" },
             ].map((stat) => (
               <div key={stat.label} className="bg-white dark:bg-white/5 rounded-[1.25rem] p-4 border border-black/5 dark:border-white/5 text-center shadow-sm">
                 <div className={cn(
@@ -249,7 +245,7 @@ export default function EarningsPage() {
             </div>
             <div className="flex flex-col items-start text-left">
               <span className="text-sm font-black italic uppercase tracking-tight">Contact Support</span>
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Withdrawal or earnings issue?</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Orange Money account or earnings issue?</span>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto group-hover:text-primary transition-colors" />
           </button>
@@ -301,8 +297,8 @@ export default function EarningsPage() {
           </section>
         </main>
 
-        {/* Withdrawal Portal */}
-        {isPortalOpen && (
+        {/* Legacy withdrawal UI is intentionally unreachable; LD earnings do not use withdrawals. */}
+        {false && isPortalOpen && (
           <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex flex-col animate-in fade-in duration-300">
             <header className="h-16 px-4 flex items-center justify-between shrink-0 border-b border-white/5">
               <Button variant="ghost" size="icon" className="text-white/70 hover:text-white rounded-full" onClick={() => { setIsPortalOpen(false); resetPortal(); }}>
