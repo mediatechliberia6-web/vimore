@@ -6,6 +6,13 @@ import { isValidOrangeMoneyNumber } from '@/lib/ld-monetization';
 
 const COLLECTION = 'creator_orange_money_accounts';
 
+export async function GET(req: NextRequest) {
+  const session = await getSessionUser(req);
+  if (!session) return NextResponse.json({ error: 'You must be logged in.' }, { status: 401 });
+  const result = await getAdminDatabases().listDocuments(DATABASE_ID, COLLECTION, [Query.equal('userId', session.userId), Query.limit(1)]);
+  return NextResponse.json({ account: result.documents[0] || null });
+}
+
 export async function POST(req: NextRequest) {
   const session = await getSessionUser(req);
   if (!session) return NextResponse.json({ error: 'You must be logged in.' }, { status: 401 });

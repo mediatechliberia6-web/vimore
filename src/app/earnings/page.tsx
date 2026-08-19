@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { 
   ArrowLeft, 
   
@@ -36,6 +36,8 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { BiometricGate } from "@/components/layout/biometric-gate";
+import { authFetch } from "@/lib/auth-fetch";
+import { isValidOrangeMoneyNumber } from "@/lib/ld-monetization";
 
 
 export default function EarningsPage() {
@@ -47,9 +49,48 @@ export default function EarningsPage() {
 
   const [isPortalOpen, setIsPortalOpen] = useState(false);
   const isPlayerActive = currentTrack && !isExpanded;
+  const [earnings, setEarnings] = useState<{ totalEarningsLD: number; giftsEarningsLD: number; subscriptionsEarningsLD: number; lockedPostsEarningsLD: number; lockedMusicEarningsLD: number; lastUpdated?: string }>({ totalEarningsLD: 0, giftsEarningsLD: 0, subscriptionsEarningsLD: 0, lockedPostsEarningsLD: 0, lockedMusicEarningsLD: 0 });
+  const [orangeMoneyNumber, setOrangeMoneyNumber] = useState("");
+  const [orangeMoneyName, setOrangeMoneyName] = useState("");
+  const [accountStatus, setAccountStatus] = useState<string | null>(null);
+  const [isSavingAccount, setIsSavingAccount] = useState(false);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    Promise.all([
+      authFetch('/api/monetization/earnings-summary').then((response) => response.json()),
+      authFetch('/api/monetization/orange-money-account').then((response) => response.json()),
+    ]).then(([summary, account]) => {
+      if (summary.earnings) setEarnings(summary.earnings);
+      if (account.account) {
+        setOrangeMoneyNumber(account.account.orangeMoneyNumber || "");
+        setOrangeMoneyName(account.account.accountName || "");
+        setAccountStatus(account.account.isVerified ? "Verified" : "Pending verification");
+      }
+    }).catch(() => {});
+  }, [currentUser?.$id]);
+
+  const saveOrangeMoneyAccount = async () => {
+    if (!orangeMoneyName.trim() || !isValidOrangeMoneyNumber(orangeMoneyNumber)) {
+      setAccountStatus("Use a number beginning with 07 or +231.");
+      return;
+    }
+    setIsSavingAccount(true);
+    try {
+      const response = await authFetch('/api/monetization/orange-money-account', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accountName: orangeMoneyName.trim(), orangeMoneyNumber: orangeMoneyNumber.trim() }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not save account.');
+      setAccountStatus("Saved. Pending verification before payments can be received.");
+      toast({ title: "Orange Money account saved" });
+    } catch (error: any) {
+      setAccountStatus(error.message);
+    } finally {
+      setIsSavingAccount(false);
+    }
+  };
 
   const estimates = useMemo(() => {
-    const credits = currentUser?.diamondBalance || 0;
+    const credits = currentUser?.creditBalance ?? currentUser?.diamondBalance ?? 0;
     const totalUSD = credits * settings.diamondRate;
     return { totalUSD, totalLD: totalUSD * settings.ldMultiplier, credits };
   }, [currentUser, settings.diamondRate, settings.ldMultiplier]);
@@ -195,7 +236,7 @@ export default function EarningsPage() {
                   </div>
                   <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Credit Balance</span>
                 </div>
-                <p className="text-3xl font-black italic text-white tabular-nums">{(currentUser?.diamondBalance || 0).toFixed(2)}</p>
+                <p className="text-3xl font-black italic text-white tabular-nums">{(currentUser?.creditBalance ?? currentUser?.diamondBalance ?? 0).toFixed(2)}</p>
                 <p className="text-[9px] text-white/30 font-bold uppercase mt-1">Credits are non-withdrawable in-app tokens</p>
               </div>
 
@@ -219,8 +260,8 @@ export default function EarningsPage() {
           {/* Quick stats */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: "LD earnings", value: "0 LD", icon: TrendingUp, color: "cyan" },
-              { label: "Completed payments", value: "0", icon: CheckCircle2, color: "purple" },
+              { label: "LD earnings", value: `${earnings.totalEarningsLD.toLocaleString()} LD`, icon: TrendingUp, color: "cyan" },
+              { label: "Gifts", value: `${earnings.giftsEarningsLD.toLocaleString()} LD`, icon: CheckCircle2, color: "purple" },
             ].map((stat) => (
               <div key={stat.label} className="bg-white dark:bg-white/5 rounded-[1.25rem] p-4 border border-black/5 dark:border-white/5 text-center shadow-sm">
                 <div className={cn(
@@ -234,6 +275,27 @@ export default function EarningsPage() {
               </div>
             ))}
           </div>
+
+          <section className="bg-white dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-[1.5rem] p-5 space-y-4 shadow-sm">
+            <div>
+              <h3 className="text-sm font-black uppercase tracking-tight">Orange Money account</h3>
+              <p className="text-[10px] text-muted-foreground mt-1">Payments go to this number after your account is verified.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input placeholder="Account name" value={orangeMoneyName} onChange={(event) => setOrangeMoneyName(event.target.value)} />
+              <Input placeholder="07XXXXXXXX or +231..." value={orangeMoneyNumber} onChange={(event) => setOrangeMoneyNumber(event.target.value)} />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[10px] font-bold text-muted-foreground">{accountStatus || "Not configured"}</p>
+              <Button onClick={saveOrangeMoneyAccount} disabled={isSavingAccount}>{isSavingAccount ? "Saving..." : "Save account"}</Button>
+            </div>
+          </section>
+
+          <section className="grid grid-cols-2 gap-3">
+            {[['Subscriptions', earnings.subscriptionsEarningsLD], ['Locked posts', earnings.lockedPostsEarningsLD], ['Locked music', earnings.lockedMusicEarningsLD], ['Last updated', earnings.lastUpdated ? new Date(earnings.lastUpdated).toLocaleDateString() : 'None']].map(([label, value]) => (
+              <div key={String(label)} className="bg-white dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-xl p-3"><p className="text-[9px] font-black uppercase text-muted-foreground">{label}</p><p className="mt-1 text-sm font-black">{typeof value === 'number' ? `${value.toLocaleString()} LD` : value}</p></div>
+            ))}
+          </section>
 
           {/* Support */}
           <button
