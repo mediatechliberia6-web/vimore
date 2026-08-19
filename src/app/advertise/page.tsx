@@ -20,7 +20,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format, addDays } from "date-fns";
 
-const DIAMONDS_PER_DAY = 3;
+const CREDITS_PER_DAY = 3;
 const MIN_DAYS = 5;
 const MAX_VIDEO_SECONDS = 45;
 
@@ -61,9 +61,9 @@ export default function AdvertisePage() {
   const [myAds, setMyAds] = useState<any[]>([]);
   const [isLoadingAds, setIsLoadingAds] = useState(true);
 
-  const totalCost = days * DIAMONDS_PER_DAY;
+  const totalCost = days * CREDITS_PER_DAY;
   const expiresAt = addDays(new Date(), days);
-  const displayBalance = verifiedBalance ?? currentUser?.diamondBalance ?? 0;
+  const displayBalance = verifiedBalance ?? currentUser?.creditBalance ?? currentUser?.diamondBalance ?? 0;
 
   const loadMyAds = useCallback(async () => {
     if (!currentUser?.$id) { setIsLoadingAds(false); return; }
@@ -275,7 +275,7 @@ export default function AdvertisePage() {
 
   const totalImpressions = myAds.reduce((s, a) => s + (a.impressions || 0), 0);
   const totalClicks = myAds.reduce((s, a) => s + (a.clicks || 0), 0);
-  const totalSpend = myAds.reduce((s, a) => s + (a.diamonds_spent || a.budget || 0), 0);
+  const totalSpend = myAds.reduce((s, a) => s + (a.credits_spent || a.diamonds_spent || a.budget || 0), 0);
   const overallCtr = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(1) : "0.0";
   const maxImpressionsInSet = Math.max(...myAds.map(a => a.impressions || 0), 1);
 
@@ -296,12 +296,12 @@ export default function AdvertisePage() {
           </Link>
           <div className="flex-1 min-w-0">
             <h1 className="font-black italic uppercase tracking-tighter text-base leading-none truncate">Advertise Your Business</h1>
-            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest mt-0.5">Self-Service · 3 💎 / day · Min 5 days</p>
+            <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest mt-0.5">Self-Service · 3 Credits / day · Min 5 days</p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0 bg-secondary/40 px-3 py-1.5 rounded-xl">
             <Gem className="h-3.5 w-3.5 text-cyan-500" />
             <span className="font-black text-sm tabular-nums">{displayBalance.toLocaleString()}</span>
-            <span className="text-[9px] text-muted-foreground font-black">💎</span>
+            <span className="text-[9px] text-muted-foreground font-black">Credits</span>
           </div>
         </div>
 
@@ -360,7 +360,7 @@ export default function AdvertisePage() {
               <div className="bg-primary/5 border-b border-primary/10 px-6 py-4">
                 <h2 className="font-black italic uppercase tracking-tighter text-base">Create Ad Campaign</h2>
                 <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest mt-0.5">
-                  {DIAMONDS_PER_DAY} 💎 per day · Min {MIN_DAYS} days · Video only · Max {MAX_VIDEO_SECONDS}s
+                  {CREDITS_PER_DAY} Credits per day · Min {MIN_DAYS} days · Video only · Max {MAX_VIDEO_SECONDS}s
                 </p>
               </div>
 
@@ -574,13 +574,13 @@ export default function AdvertisePage() {
                       <Gem className="h-4 w-4 text-cyan-500" />
                       <span className="text-xs font-black uppercase tracking-tight">Campaign Cost</span>
                     </div>
-                    <span className="text-xl font-black tabular-nums text-cyan-600 dark:text-cyan-400">{totalCost} 💎</span>
+                    <span className="text-xl font-black tabular-nums text-cyan-600 dark:text-cyan-400">{totalCost} Credits</span>
                   </div>
                   <div className="space-y-1 text-[9px] font-bold text-muted-foreground border-t border-cyan-200/60 dark:border-cyan-800/30 pt-2">
-                    <div className="flex justify-between"><span>Rate</span><span>{DIAMONDS_PER_DAY} 💎 × {days} days</span></div>
+                    <div className="flex justify-between"><span>Rate</span><span>{CREDITS_PER_DAY} Credits × {days} days</span></div>
                     <div className="flex justify-between">
                       <span>Balance (shown)</span>
-                      <span className="text-foreground">{displayBalance} 💎</span>
+                      <span className="text-foreground">{displayBalance} Credits</span>
                     </div>
                   </div>
                   <p className="text-[9px] text-muted-foreground font-bold border-t border-cyan-200/60 dark:border-cyan-800/30 pt-2">
@@ -599,7 +599,7 @@ export default function AdvertisePage() {
                       <p className="text-xs text-red-700 dark:text-red-400 mt-0.5 leading-relaxed break-words">{error}</p>
                       {isInsufficient && (
                         <Link href="/currency" className="inline-flex items-center gap-1 mt-2 text-[10px] font-black text-primary">
-                          Top up Diamonds <LinkIcon className="h-3 w-3" />
+                          Buy Credits <LinkIcon className="h-3 w-3" />
                         </Link>
                       )}
                     </div>
@@ -627,7 +627,7 @@ export default function AdvertisePage() {
                     </div>
                     {uploadStep === "verifying" && (
                       <p className="text-[9px] text-muted-foreground font-bold text-center">
-                        Checking your Diamond balance on the server…
+                        Checking your Credit balance on the server…
                       </p>
                     )}
                   </div>
@@ -642,7 +642,7 @@ export default function AdvertisePage() {
                   {isUploading ? (
                     <><Loader2 className="h-5 w-5 animate-spin" /> {uploadStepLabel[uploadStep] || "Processing..."}</>
                   ) : (
-                    <><Zap className="h-5 w-5" /> Launch Ad — {totalCost} 💎 for {days} days</>
+                    <><Zap className="h-5 w-5" /> Launch Ad — {totalCost} Credits for {days} days</>
                   )}
                 </Button>
 
@@ -736,7 +736,7 @@ export default function AdvertisePage() {
                           </span>
                           <span className="flex items-center gap-1">
                             <Gem className="h-3 w-3 text-cyan-500" />
-                            {ad.diamonds_spent || ad.budget || 0} 💎 spent
+                            {ad.credits_spent || ad.diamonds_spent || ad.budget || 0} Credits spent
                           </span>
                         </div>
                         {ad.action_label && (
@@ -776,7 +776,7 @@ export default function AdvertisePage() {
                     { label: "Total Views", value: totalImpressions.toLocaleString(), icon: Eye, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/40" },
                     { label: "Total Taps", value: totalClicks.toLocaleString(), icon: MousePointerClick, color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/40" },
                     { label: "Tap-Through", value: `${overallCtr}%`, icon: TrendingUp, color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800/40" },
-                    { label: "💎 Spent", value: totalSpend.toLocaleString(), icon: Gem, color: "text-cyan-500", bg: "bg-cyan-50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-800/40" },
+                    { label: "Credits Spent", value: totalSpend.toLocaleString(), icon: Gem, color: "text-cyan-500", bg: "bg-cyan-50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-800/40" },
                   ].map(({ label, value, icon: Icon, color, bg }) => (
                     <div key={label} className={cn("rounded-2xl p-4 border space-y-2", bg)}>
                       <Icon className={cn("h-4 w-4", color)} />
@@ -843,7 +843,7 @@ export default function AdvertisePage() {
                           </div>
 
                           <div className="flex items-center gap-3 text-[9px] font-bold text-muted-foreground">
-                            <span>{(ad.diamonds_spent || ad.budget || 0)} 💎 spent</span>
+                            <span>{(ad.credits_spent || ad.diamonds_spent || ad.budget || 0)} Credits spent</span>
                             <span>·</span>
                             <span>Expires {ad.expires_at ? format(new Date(ad.expires_at), "MMM d") : "—"}</span>
                           </div>

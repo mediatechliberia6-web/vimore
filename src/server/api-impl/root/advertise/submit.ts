@@ -8,7 +8,7 @@ export const maxDuration = 30;
 
 const USERS_COL = 'users';
 const CAMPAIGNS_COL = 'ad_campaigns';
-const DIAMONDS_PER_DAY = 3;
+const CREDITS_PER_DAY = 3;
 const MIN_DAYS = 5;
 const MAX_DAYS = 90;
 
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     }
 
     const db = getAdminDatabases();
-    const totalCost = parsedDays * DIAMONDS_PER_DAY;
+    const totalCost = parsedDays * CREDITS_PER_DAY;
 
     /* ── Server-side balance read using the verified session userId ── */
     let userDoc: any;
@@ -64,12 +64,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found.' }, { status: 404 });
     }
 
-    const realBalance: number = userDoc.diamond_balance ?? 0;
+    const realBalance: number = userDoc.credit_balance ?? userDoc.diamond_balance ?? 0;
 
     if (realBalance < totalCost) {
       return NextResponse.json({
         error: 'INSUFFICIENT_BALANCE',
-        message: `Insufficient Balance. This campaign costs ${totalCost} 💎 (${parsedDays} days × ${DIAMONDS_PER_DAY} 💎/day). Your actual balance is ${realBalance} 💎. You are short by ${totalCost - realBalance} 💎.`,
+        message: `Insufficient Credits. This campaign costs ${totalCost} Credits (${parsedDays} days × ${CREDITS_PER_DAY} Credits/day). Your actual balance is ${realBalance} Credits. You are short by ${totalCost - realBalance} Credits.`,
         needed: totalCost,
         current: realBalance,
         shortfall: totalCost - realBalance,
@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
 
     const newBalance = realBalance - totalCost;
     await db.updateDocument(DATABASE_ID, USERS_COL, session.userId, {
+      credit_balance: newBalance,
       diamond_balance: newBalance,
     });
 
@@ -105,13 +106,13 @@ export async function POST(req: NextRequest) {
         expires_at: expires.toISOString(),
         contact_type: String(contactType || 'url'),
         days_purchased: parsedDays,
-        diamonds_spent: totalCost,
+        credits_spent: totalCost,
       });
     } catch (campaignErr: any) {
       try {
-        await db.updateDocument(DATABASE_ID, USERS_COL, session.userId, { diamond_balance: realBalance });
+        await db.updateDocument(DATABASE_ID, USERS_COL, session.userId, { credit_balance: realBalance, diamond_balance: realBalance });
       } catch { /* best-effort refund */ }
-      return NextResponse.json({ error: `Campaign creation failed: ${campaignErr?.message || 'unknown error'}. Your Diamonds have been refunded.` }, { status: 500 });
+      return NextResponse.json({ error: `Campaign creation failed: ${campaignErr?.message || 'unknown error'}. Your Credits have been refunded.` }, { status: 500 });
     }
 
     const textToScan = [businessName, details].filter(Boolean).join(' ').trim();
