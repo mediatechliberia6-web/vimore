@@ -17,16 +17,6 @@ const leaders = [
     tagline: "The visionary who sparked the dream",
     quote: null,
   },
-  {
-    name: "Joe G. Slamie",
-    title: "Partner & Advisor",
-    company: "ViMore",
-    image: "/joe-slamie.jpg",
-    gradient: "from-emerald-600 via-teal-500 to-cyan-600",
-    accent: "emerald" as const,
-    tagline: "Partner and advisor for the ViMore platform",
-    quote: "It takes an individual to build a thing, but it requires a structured community to build sovereign civil and digital infrastructure. It is about time Liberian creators take control of their own digital future.",
-  },
 ];
 
 const storyParagraphs = [
@@ -153,7 +143,7 @@ export default function MTLPage() {
                   {/* Photo */}
                   <div className={cn(
                     "relative shrink-0 h-24 w-20 rounded-2xl overflow-hidden ring-2",
-                    leader.accent === "emerald" ? "ring-emerald-400/30" : "ring-violet-400/30"
+                    "ring-violet-400/30"
                   )}>
                     <Image
                       src={leader.image}
@@ -161,7 +151,6 @@ export default function MTLPage() {
                       width={80}
                       height={96}
                       className="object-cover object-top w-full h-full"
-                      priority
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                   </div>
@@ -170,9 +159,7 @@ export default function MTLPage() {
                   <div className="flex-1 min-w-0 pt-1 space-y-2">
                     <div className={cn(
                       "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
-                      leader.accent === "emerald"
-                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                        : "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
+                      "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
                     )}>
                       <Sparkles className="h-2.5 w-2.5" />
                       {leader.title}
