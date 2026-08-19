@@ -243,7 +243,7 @@ export function AuthModal() {
                 )}
               </div>
 
-              <div className="text-center"><button type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setSignupStep(1); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">{mode === 'login' ? 'Materialize New Identity' : 'Back to Sync'}</button></div>
+              <div className="text-center"><button type="button" onClick={() => { setMode(mode === 'signup' ? 'login' : 'signup'); setSignupStep(1); setAuthError(null); }} className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-primary transition-all">{mode === 'signup' ? 'Back to Sync' : 'Materialize New Identity'}</button></div>
             </form>
           )}
         </div>

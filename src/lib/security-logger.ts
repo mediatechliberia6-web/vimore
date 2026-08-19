@@ -83,7 +83,7 @@ export async function logSecurityEvent(payload: SecurityEventPayload): Promise<v
 export function extractRequestMeta(req: Request) {
   return {
     ip_address: (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || 'unknown',
-    user_agent: req.headers.get('user-agent')?.slice(0, 512) ?? null,
+    user_agent: req.headers.get('user-agent')?.slice(0, 512) ?? undefined,
     endpoint:   new URL(req.url).pathname,
     method:     req.method,
   };

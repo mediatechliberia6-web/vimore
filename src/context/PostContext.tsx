@@ -8,6 +8,7 @@ import {
   COL, BUCKET, DATABASE_ID,
   getFileUrl, extractFileId, formatTimeAgo, avatarFallback, toProxyUrl,
 } from '@/lib/appwrite';
+import { BUCKET_STORIES, storage } from '@/lib/appwrite';
 
 import { formatErrorDescription, logAppwriteError } from '@/lib/appwrite-error';
 import { authFetch } from '@/lib/auth-fetch';
@@ -32,11 +33,12 @@ export interface AppSettings {
   isSilenceActive: boolean;
   silenceStart: string;
   silenceEnd: string;
-  defaultStream: 'foryou';
+  defaultStream: 'foryou' | 'following';
   goldRate: number;
   diamondRate: number;
   ldMultiplier: number;
   isMusicEnabled: boolean;
+  isFreeMode?: boolean;
   isGiftingEnabled: boolean;
   isAiVerificationActive: boolean;
   isSensitivityFilterActive: boolean;
@@ -47,6 +49,9 @@ export interface User {
   name: string;
   username: string;
   vimoreId?: string;
+  display_name?: string;
+  diamond_balance?: number;
+  $createdAt?: string;
   phone?: string;
   avatar: string;
   cover?: string;
@@ -181,6 +186,7 @@ export interface SharedPostData {
 export interface ChatMessage {
   $id: string;
   sender: "me" | "them";
+  isMe?: boolean;
   senderName?: string;
   senderAvatar?: string;
   senderId: string;
@@ -318,7 +324,7 @@ interface PostContextType {
   approvePaymentRequest: (id: string) => Promise<void>;
   rejectPaymentRequest: (id: string) => Promise<void>;
   recordWithdrawal: (node: any) => Promise<void>;
-  processWithdrawal: (id: string, status: 'APPROVED' | 'REJECTED', adminMessage?: string) => Promise<void>;
+  processWithdrawal: (id: string, status: 'APPROVED' | 'REJECTED', adminMessage?: string, proofImageUrl?: string) => Promise<void>;
   verifyUser: (cost: number, currency: 'DIAMOND' | 'STAR') => Promise<void>;
   processGiftTransaction: (cost: number, currency: 'GOLD' | 'DIAMOND') => Promise<void>;
   unlockPost: (postId: string, cost: number) => Promise<void>;
@@ -601,6 +607,8 @@ export function PostProvider({ children }: { children: ReactNode }) {
   const [settings, setSettingsState] = useState<AppSettings>(INITIAL_SETTINGS);
 
   const [clusters, setClustersState] = useState<Cluster[]>([]);
+  const clustersRef = useRef<Cluster[]>([]);
+  useEffect(() => { clustersRef.current = clusters; }, [clusters]);
   const [connections, setConnectionsState] = useState<Connection[]>([]);
   const [stories, setStoriesState] = useState<any[]>([]);
   const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
@@ -986,11 +994,11 @@ export function PostProvider({ children }: { children: ReactNode }) {
             Query.orderDesc('$createdAt'),
             Query.limit(500),
           ]);
-          const lastMsgMap: Record<string, { text?: string; type?: string; time?: string }> = {};
+          const lastMsgMap: Record<string, { text?: string; type?: ChatMessage['type']; time?: string }> = {};
           recentMsgs.documents.forEach((doc: any) => {
             const cid = doc.cluster_id;
             if (cid && !lastMsgMap[cid]) {
-              lastMsgMap[cid] = { text: doc.text, type: doc.type, time: formatTimeAgo(doc.$createdAt) };
+              lastMsgMap[cid] = { text: doc.text, type: doc.type as ChatMessage['type'], time: formatTimeAgo(doc.$createdAt) };
             }
           });
           const enriched = conns.map(c => {
@@ -2290,7 +2298,7 @@ export function PostProvider({ children }: { children: ReactNode }) {
     }
 
     const hashtagRegex = /#[\w\u00C0-\u024F]+/g;
-    const extractedHashtags = [...new Set(
+    const extractedHashtags: string[] = [...new Set<string>(
       ((p.content || '').match(hashtagRegex) || []).map((t: string) => t.toLowerCase())
     )];
 

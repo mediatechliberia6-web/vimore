@@ -2670,7 +2670,7 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === 'tickets' && (
-            <AdminTicketTab currentUserId={currentUser.$id} />
+            <AdminTicketTab currentUserId={currentUser?.$id || ''} />
           )}
 
           {activeTab === 'check_ticket' && (

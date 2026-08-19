@@ -535,12 +535,13 @@ function ReelItem({
   const isLiked = isPostLiked(reel.$id);
   const isOwn = currentUser?.username === reel.user.username;
   const isFollowing = followingUsernames.has(reel.user.username);
-  const soundId = (reel as Record<string, unknown>).sound_id as string | undefined;
-  const soundTitle = (reel as Record<string, unknown>).sound_title as string | undefined;
-  const soundArtist = (reel as Record<string, unknown>).sound_artist as string | undefined;
-  const soundStartTime = Number((reel as Record<string, unknown>).sound_start_time ?? 0);
+  const reelData = reel as unknown as Record<string, unknown>;
+  const soundId = reelData.sound_id as string | undefined;
+  const soundTitle = reelData.sound_title as string | undefined;
+  const soundArtist = reelData.sound_artist as string | undefined;
+  const soundStartTime = Number(reelData.sound_start_time ?? 0);
 
-  const rawEffects = (reel as Record<string, unknown>).effects_applied as string[] | undefined;
+  const rawEffects = reelData.effects_applied as string[] | undefined;
   const effectId = rawEffects?.[0] ?? 'none';
   const effectDef = EFFECT_FILTERS[effectId] ?? EFFECT_FILTERS.none;
   const videoFilter = effectDef.filter !== 'none' ? effectDef.filter : undefined;
@@ -1112,7 +1113,7 @@ export default function ReelsPage() {
       campaignTitle: c.title,
       actionUrl: c.action_url,
       actionLabel: c.action_label,
-    } as ReelFeedItem));
+    } as unknown as ReelFeedItem));
 
     const boostedReels: ReelFeedItem[] = [...(posts || []).filter((p: any) => p.isBoosted && p.type === 'reel')]
       .sort(() => Math.random() - 0.5) as ReelFeedItem[];

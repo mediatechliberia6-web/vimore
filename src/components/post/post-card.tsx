@@ -135,8 +135,7 @@ interface PostCardProps {
   shares?: number;
   views: number;
   time: string;
-  hashtags?: string[];
-  feeling?: { emoji: string; text: string };
+  feeling?: { emoji: string; text: string } | string;
   location?: string;
   themeClass?: string;
   commentsDisabled?: boolean;
@@ -345,7 +344,12 @@ export function PostCard(props: PostCardProps) {
           setAnimField(changed);
           setTimeout(() => setAnimField(null), 400);
         }
-        return p;
+        return {
+          likes: p.likes ?? prev.likes,
+          unlikes: p.unlikes ?? prev.unlikes,
+          comments: p.comments ?? prev.comments,
+          shares: p.shares ?? prev.shares,
+        };
       });
     }, 280);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };

@@ -250,7 +250,7 @@ export function StoryViewer() {
     const text = replyText.trim();
     setReplyText("");
     try {
-      await sendChatMessage(activeStory.user.$id, activeStory.user as any, text);
+      await sendChatMessage(activeStory.user.$id, { text, type: 'text' });
     } catch { /* ignore */ }
   };
 
@@ -265,7 +265,7 @@ export function StoryViewer() {
 
   const totalPollVotes = useMemo(() => {
     if (!currentSegment?.poll) return 0;
-    return currentSegment.poll.options.reduce((acc, opt) => acc + opt.votes, 0);
+    return currentSegment.poll.options.reduce((acc: number, opt: { votes: number }) => acc + opt.votes, 0);
   }, [currentSegment]);
 
   if (!activeStory || !currentSegment) return null;
@@ -324,7 +324,6 @@ export function StoryViewer() {
                         muted={isAdMuted}
                         loop
                         playsInline
-                        preload="none"
                       />
                       <button
                         className="absolute bottom-24 right-4 z-30 p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white"
@@ -378,7 +377,7 @@ export function StoryViewer() {
         ) : (
           <DiagnosticErrorBoundary title="Story Pulse">
             <div className="absolute top-4 left-4 right-4 z-[60] flex gap-1.5 px-1">
-              {activeStory.segments.map((_, i) => (
+              {activeStory.segments.map((_: unknown, i: number) => (
                 <div key={i} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
                   <div 
                     className={cn(
@@ -490,7 +489,6 @@ export function StoryViewer() {
                         muted={isVideoMuted}
                         loop
                         playsInline
-                        preload="none"
                       />
                       <button
                         className="absolute bottom-24 right-4 z-30 p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white"
@@ -510,7 +508,7 @@ export function StoryViewer() {
                   ) : null}
                 </>
 
-              {currentSegment.textOverlays?.map((overlay, i) => (
+              {currentSegment.textOverlays?.map((overlay: any, i: number) => (
                 <div 
                   key={i}
                   className="absolute z-40 p-6 pointer-events-none w-full text-center"
@@ -535,7 +533,7 @@ export function StoryViewer() {
                 >
                   <h4 className="text-center font-bold text-sm text-zinc-900 mb-3">{currentSegment.poll.question}</h4>
                   <div className="space-y-2">
-                    {currentSegment.poll.options.map((opt, i) => {
+                    {currentSegment.poll.options.map((opt: { votes: number; text: string }, i: number) => {
                       const percent = totalPollVotes > 0 ? (opt.votes / totalPollVotes) * 100 : 0;
                       const isVoted = votedSegmentId === currentSegment.$id || isOwner;
                       

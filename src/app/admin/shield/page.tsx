@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { usePosts } from "@/context/PostContext";
 import { databases, DATABASE_ID, COL } from "@/lib/appwrite";
-import { Query } from "appwrite";
+import { Query, ID } from "appwrite";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -86,10 +86,13 @@ export default function AdminShieldPage() {
 
       if (report.user_id) {
         try {
-          await sendDirectMessage(
-            report.user_id,
-            `Your recent post was removed by our moderation team for violating ViMore's Terms of Service.\n\nReason: ${report.reason}\n\nPlease review our community guidelines to avoid future violations. Repeated violations may result in account suspension.`
-          );
+          await databases.createDocument(DATABASE_ID, COL.NOTIFICATIONS, ID.unique(), {
+            user_id: report.user_id,
+            type: "MODERATION",
+            title: "Content removed",
+            message: `Your recent post was removed for violating ViMore's Terms of Service. Reason: ${report.reason}`,
+            is_read: false,
+          });
         } catch { /* notification failure is non-critical */ }
       }
 

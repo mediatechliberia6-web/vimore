@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'invalid_token' }, { status: 401, headers: CORS });
   }
 
-  const profile = await getUserProfile(session.user_id);
+  const profile = await getUserProfile(session.user_id) as any;
   const scopes = session.scopes.split(' ');
 
   const response: Record<string, any> = { sub: session.user_id };

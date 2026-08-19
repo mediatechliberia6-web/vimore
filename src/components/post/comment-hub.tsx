@@ -37,11 +37,11 @@ interface CommentNodeProps {
   comment: PostComment;
   postId: string;
   onReply: (comment: PostComment) => void;
-  allComments: PostComment[];
+  allComments?: PostComment[];
   level?: number;
 }
 
-export function CommentNode({ comment, postId, onReply, allComments, level = 0 }: CommentNodeProps) {
+export function CommentNode({ comment, postId, onReply, allComments = [], level = 0 }: CommentNodeProps) {
   const { triggerHaptic } = useMusic();
   const { t } = useTranslation();
   const { tier } = useNetwork();

@@ -186,7 +186,7 @@ export function GlobalRealtimeListener() {
 
       if (isNotificationEvent && isCreate) {
         if (payload.user_id === user?.$id) {
-          refreshNotifications(user.$id);
+          if (user) refreshNotifications(user.$id);
         }
       }
 

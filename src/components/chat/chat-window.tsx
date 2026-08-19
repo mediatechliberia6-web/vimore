@@ -93,7 +93,7 @@ export function ChatWindow({ contact, onBack }: ChatWindowProps) {
   
   const isCluster = contact.isGroup === true;
   const contactId = isCluster ? (contact as Cluster).$id : (contact as Connection).username;
-  const isAdmin = isCluster && (contact as Cluster).adminUsername === currentUser.username;
+  const isAdmin = isCluster && !!currentUser && (contact as Cluster).adminUsername === currentUser.username;
   
   const [showVault, setShowVault] = useState(false);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
