@@ -19,6 +19,7 @@ import { databases, storage, Query, DATABASE_ID, COL, BUCKET, getFileUrl } from 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format, addDays } from "date-fns";
+import { authFetch } from "@/lib/auth-fetch";
 
 const CREDITS_PER_DAY = 3;
 const MIN_DAYS = 5;
@@ -164,8 +165,11 @@ export default function AdvertisePage() {
         setUploadProgress(p => Math.min(p + 6, 75));
       }, 300);
 
-      const { uploadViaClient } = await import('@/lib/upload');
-      const fileId = await uploadViaClient(videoFile, BUCKET.POST_MEDIA);
+      const { uploadLargeViaClient } = await import('@/lib/upload');
+      const fileId = await uploadLargeViaClient(videoFile, BUCKET.POST_MEDIA, undefined, {
+        timeoutMs: 180_000,
+        onProgress: (pct) => setUploadProgress(Math.min(75, 5 + Math.round(pct * 70))),
+      });
       uploadedFileId = fileId;
       const mediaUrl = getFileUrl(BUCKET.POST_MEDIA, fileId);
 
@@ -174,7 +178,7 @@ export default function AdvertisePage() {
       setUploadProgress(80);
       setUploadStep("verifying");
 
-      const res = await fetch("/api/advertise/submit", {
+      const res = await authFetch("/api/advertise/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -28,6 +28,7 @@ export async function uploadViaClient(
 export interface ClientUploadOptions {
   onProgress?: (pct: number) => void;
   signal?: AbortSignal;
+  timeoutMs?: number;
 }
 
 /**
@@ -45,11 +46,18 @@ export interface ClientUploadOptions {
 export async function uploadLargeViaClient(
   file: File,
   bucketId: string,
-  fileId: string,
+  fileId: string | undefined,
   options: ClientUploadOptions = {},
 ): Promise<string> {
   if (options.signal?.aborted) throw new Error('Upload cancelled');
-  const uploaded = await storage.createFile(bucketId, fileId || ID.unique(), file);
+  const timeoutMs = options.timeoutMs ?? 180_000;
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => reject(new Error('Upload timed out. Please check your connection and try again.')), timeoutMs);
+  });
+  const upload = storage.createFile(bucketId, fileId || ID.unique(), file);
+  const uploaded = await Promise.race([upload, timeout]);
+  if (timeoutHandle) clearTimeout(timeoutHandle);
   options.onProgress?.(1);
   return uploaded.$id;
 }
